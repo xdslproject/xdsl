@@ -544,7 +544,7 @@ class Printer:
             return
 
         if isinstance(attribute, Data):
-            print(f'${attribute.name}<', end='')
+            print(f'!{attribute.name}<', end='')
             attribute.print(self)
             print(">", end='')
             return
