@@ -246,6 +246,14 @@ class Region:
 
     parent: Optional[Operation] = field(default=None)
     """Operation containing the region."""
+
+    @staticmethod
+    def from_operation_list(ops: List[Operation]) -> Region:
+        block = Block([], ops)
+        region = Region()
+        region.add_block(block)
+        return region
+
     def add_block(self, block: Block) -> None:
         self.blocks.append(block)
         block.parent = self
