@@ -120,8 +120,7 @@ class ParamAttrConstraint(AttrConstraint):
                 f"{len(self.param_constrs)} parameters expected, but got {len(attr.parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
-            if not param_constr.verify(attr.parameters[idx]):
-                return
+            param_constr.verify(attr.parameters[idx])
 
 
 @dataclass
