@@ -4,6 +4,7 @@ import argparse
 import sys
 from xdsl.ir import *
 from xdsl.parser import *
+from xdsl.printer import *
 from xdsl.dialects.std import *
 from xdsl.dialects.scf import *
 from xdsl.dialects.affine import *

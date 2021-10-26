@@ -1,6 +1,6 @@
 from xdsl.dialects.builtin import *
 from xdsl.dialects.std import *
-from xdsl.parser import Printer
+from xdsl.printer import Printer
 from xdsl.util import block, func
 from xdsl.dialects.affine import *
 
