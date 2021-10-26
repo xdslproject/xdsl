@@ -275,8 +275,12 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
             )
         return variadic_sizes
 
-    # If there are no variadics arguments, we don't have anything to return.
+    # If there are no variadics arguments, we just check that we have the right number of arguments
     if len(variadic_defs) == 0:
+        if len(op_defs) != len(operand_or_result_defs):
+            raise Exception(
+                f"Expected {len(operand_or_result_defs)} {'operands' if is_operand else 'results'}, but got {len(op_defs)}"
+            )
         return []
 
     # If there is a single variadic argument, we can get its size from the number of arguments.
