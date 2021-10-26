@@ -6,7 +6,8 @@ import typing
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, Printer
+    from xdsl.parser import Parser
+    from xdsl.printer import Printer
 
 
 @dataclass

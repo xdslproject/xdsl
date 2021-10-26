@@ -1,5 +1,6 @@
 from xdsl.dialects.builtin import *
-from xdsl.parser import Printer, Parser
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.dialects.std import *
 
 # TODO setup file check tests
