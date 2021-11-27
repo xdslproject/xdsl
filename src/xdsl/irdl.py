@@ -418,6 +418,10 @@ def irdl_op_definition(cls) -> typing.Type[Operation]:
             get_operand_or_result(self, idx, previous_vars, True))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
+    if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
+        raise Exception(
+            "Operation defines more than two variadic operands, "
+            "but do not define the AttrSizedOperandSegments option")
 
     # Add result access fields
     previous_variadics = 0
@@ -427,6 +431,9 @@ def irdl_op_definition(cls) -> typing.Type[Operation]:
             get_operand_or_result(self, idx, previous_vars, False))
         if isinstance(result_def, VarResultDef):
             previous_variadics += 1
+    if previous_variadics > 1 and AttrSizedResultSegments() not in options:
+        raise Exception("Operation defines more than two variadic results, "
+                        "but do not define the AttrSizedResultSegments option")
 
     for region_idx, (region_name, _) in enumerate(regions):
         new_attrs[region_name] = property(
