@@ -367,7 +367,8 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
 
     if len(regions) != len(op.regions):
         raise Exception(
-            f"op has {len(op.regions)}, but {len(regions)} were expected")
+            f"op has {len(op.regions)} regions, but {len(regions)} were expected"
+        )
 
     for idx, (region_name, region_def) in enumerate(regions):
         if isinstance(
