@@ -296,9 +296,10 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
     assert False
 
 
-def get_operand_or_result(op: Operation, arg_def_idx: int,
-                          previous_var_args: int,
-                          is_operand: bool) -> Union[SSAValue, List[SSAValue]]:
+def get_operand_or_result(
+        op: Operation, arg_def_idx: int, previous_var_args: int,
+        is_operand: bool
+) -> Union[SSAValue, Optional[SSAValue], List[SSAValue]]:
     """
     Get an operand or a result.
     In the case of a variadic operand or result definition, return a list of operand or results.
@@ -315,6 +316,12 @@ def get_operand_or_result(op: Operation, arg_def_idx: int,
 
     begin_arg = arg_def_idx - previous_var_args + sum(
         variadic_sizes[:previous_var_args])
+    if isinstance(argument_defs[arg_def_idx][1], OptionalDef):
+        arg_size = variadic_sizes[previous_var_args]
+        if arg_size == 0:
+            return None
+        else:
+            return op_arguments[begin_arg]
     if isinstance(argument_defs[arg_def_idx][1], VariadicDef):
         arg_size = variadic_sizes[previous_var_args]
         return op_arguments[begin_arg:begin_arg + arg_size]
