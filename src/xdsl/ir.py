@@ -31,7 +31,7 @@ class MLContext:
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_op(self, name: str) -> type:
+    def get_op(self, name: str) -> typing.Type[Operation]:
         if name not in self._registeredOps:
             raise Exception(f"Operation {name} is not registered")
         return self._registeredOps[name]
