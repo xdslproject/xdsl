@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING, TypeVar
 import typing
 
 # Used for cyclic dependencies in type hints
@@ -118,6 +118,9 @@ class ParametrizedAttribute(Attribute):
         ...
 
 
+T = TypeVar('T', bound='Operation')
+
+
 @dataclass
 class Operation(ABC):
     """A generic operation. Operation definitions inherit this class."""
@@ -150,12 +153,12 @@ class Operation(ABC):
         assert (isinstance(self.name, str))
 
     @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: List[SSAValue],
-            result_types: List[Attribute],
-            attributes: Optional[Dict[str, Attribute]] = None,
-            successors: Optional[List[Block]] = None) -> Operation:
+    def with_result_types(op: Any,
+                          operands: List[SSAValue],
+                          result_types: List[Attribute],
+                          attributes: Optional[Dict[str, Attribute]] = None,
+                          successors: Optional[List[Block]] = None,
+                          regions: Optional[List[Region]] = None) -> Operation:
         operation = op()
         operation.operands = operands
         operation.results = [
@@ -166,7 +169,20 @@ class Operation(ABC):
             operation.attributes = attributes
         if successors is not None:
             operation.successors = successors
+        if regions is not None:
+            for region in regions:
+                operation.add_region(region)
         return operation
+
+    @classmethod
+    def create(cls: typing.Type[T],
+               operands: List[SSAValue],
+               result_types: List[Attribute],
+               attributes: Optional[Dict[str, Attribute]] = None,
+               successors: Optional[List[Block]] = None,
+               regions: Optional[List[Region]] = None) -> T:
+        return Operation.with_result_types(cls, operands, result_types,
+                                           attributes, successors, regions)
 
     def add_region(self, region: Region) -> None:
         self.regions.append(region)
