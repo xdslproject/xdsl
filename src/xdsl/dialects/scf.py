@@ -14,30 +14,23 @@ class Scf:
 
     def if_(self, cond: OpOrBlockArg, true_region: Region,
             false_region: Region, return_types: List[Attribute]):
-        op = Operation.with_result_types(If, [get_ssa_value(cond)],
-                                         return_types, {})
-        op.add_region(true_region)
-        op.add_region(false_region)
+        op = If.create([get_ssa_value(cond)],
+                       return_types,
+                       regions=[true_region, false_region])
         return op
 
     def yield_(self, *ops: OpOrBlockArg):
-        return Operation.with_result_types(Yield,
-                                           [get_ssa_value(op) for op in ops],
-                                           [], {})
+        return Yield.create([get_ssa_value(op) for op in ops], [])
 
     def condition(self, cond: OpOrBlockArg, *output_ops: List[OpOrBlockArg]):
-        return Operation.with_result_types(
-            Condition,
-            [get_ssa_value(cond)] + [get_ssa_value(op)
-                                     for op in output_ops], [], {})
+        return Condition.create([get_ssa_value(cond)] +
+                                [get_ssa_value(op) for op in output_ops], [])
 
     def while_(self, before: Region, after: Region, ops: List[OpOrBlockArg],
                return_types: List[Attribute]):
-        op = Operation.with_result_types(While,
-                                         [get_ssa_value(op) for op in ops],
-                                         return_types, {})
-        op.add_region(before)
-        op.add_region(after)
+        op = While.create([get_ssa_value(op) for op in ops],
+                          return_types,
+                          regions=[before, after])
         return op
 
 

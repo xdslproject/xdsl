@@ -13,21 +13,20 @@ class Affine:
 
     def for_(self, lower_bound: int, upper_bound: int,
              block: Block) -> Operation:
-        op = self.ctx.get_op("affine.for")()
-        op.add_region(Region([block]))
+        op = self.ctx.get_op("affine.for").create([], [],
+                                                  regions=[Region([block])])
         return op
 
     def load(self, value: OpOrBlockArg, i: OpOrBlockArg,
              j: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            self.ctx.get_op("affine.load"),
+        return self.ctx.get_op("affine.load").create(
             [get_ssa_value(value),
              get_ssa_value(i),
              get_ssa_value(j)], [self.ctx.get_attr("f32")()], {})
 
     def store(self, value: OpOrBlockArg, place: OpOrBlockArg, i: OpOrBlockArg,
               j: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(self.ctx.get_op("affine.store"), [
+        return self.ctx.get_op("affine.store").create([
             get_ssa_value(value),
             get_ssa_value(place),
             get_ssa_value(i),

@@ -36,74 +36,59 @@ class Std:
 
     # TODO make this generic in the type
     def constant(self, val: int, typ: Attribute) -> Operation:
-        return Operation.with_result_types(
-            Constant, [], [typ],
-            attributes={"value": IntegerAttr.get(val, typ)})
+        return Constant.create([], [typ],
+                               attributes={"value": IntegerAttr.get(val, typ)})
 
     def constant_from_attr(self, attr: Attribute, typ: Attribute) -> Operation:
-        return Operation.with_result_types(Constant, [], [typ],
-                                           attributes={"value": attr})
+        return Constant.create([], [typ], attributes={"value": attr})
 
     def mulf(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            self.ctx.get_op("std.mulf"),
-            [get_ssa_value(x), get_ssa_value(y)], [self.f32], {})
+        return Mulf.create([get_ssa_value(x), get_ssa_value(y)], [self.f32])
 
     def addf(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            self.ctx.get_op("std.addf"),
-            [get_ssa_value(x), get_ssa_value(y)], [self.f32], {})
+        return Addf.create([get_ssa_value(x), get_ssa_value(y)], [self.f32])
 
     def call(self, callee: str, ops: List[OpOrBlockArg],
              return_types: List[Attribute]) -> Operation:
-        return Operation.with_result_types(
-            Call, [get_ssa_value(op) for op in ops],
+        return Call.create(
+            [get_ssa_value(op) for op in ops],
             return_types,
             attributes={"callee": FlatSymbolRefAttr.get(callee)})
 
     def return_(self, *ops: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(Return,
-                                           [get_ssa_value(op) for op in ops],
-                                           [], {})
+        return Return.create([get_ssa_value(op) for op in ops], [])
 
     # TODO these operations should support all kinds of integer types
     def muli(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            Muli, [get_ssa_value(x), get_ssa_value(y)], [self.i32], {})
+        return Muli.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
 
     def addi(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            Addi, [get_ssa_value(x), get_ssa_value(y)], [self.i32], {})
+        return Addi.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
 
     def subi(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            Subi, [get_ssa_value(x), get_ssa_value(y)], [self.i32], {})
+        return Subi.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
 
     def floordivi_signed(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            FloordiviSigned,
-            [get_ssa_value(x), get_ssa_value(y)], [self.i32], {})
+        return FloordiviSigned.create(
+            [get_ssa_value(x), get_ssa_value(y)], [self.i32])
 
     def remi_signed(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            RemiSigned, [get_ssa_value(x), get_ssa_value(y)], [self.i32], {})
+        return RemiSigned.create(
+            [get_ssa_value(x), get_ssa_value(y)], [self.i32])
 
     # TODO these operations should support all kinds of integer types
     def and_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            And, [get_ssa_value(x), get_ssa_value(y)], [self.i1], {})
+        return And.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
 
     def or_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            Or, [get_ssa_value(x), get_ssa_value(y)], [self.i1], {})
+        return Or.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
 
     def xor_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(
-            Xor, [get_ssa_value(x), get_ssa_value(y)], [self.i1], {})
+        return Xor.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
 
     def cmpi(self, x: OpOrBlockArg, y: OpOrBlockArg, arg: int) -> Operation:
-        return Operation.with_result_types(
-            Cmpi, [get_ssa_value(x), get_ssa_value(y)], [self.i1],
+        return Cmpi.create(
+            [get_ssa_value(x), get_ssa_value(y)], [self.i1],
             attributes={"predicate": IntegerAttr.get(arg, self.i64)})
 
 

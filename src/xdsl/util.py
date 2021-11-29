@@ -107,16 +107,14 @@ def func(
 
 def func(name, input_types, return_types, f) -> Operation:
     type_attr = FunctionType.get(input_types, return_types)
-    op = Operation.with_result_types(FuncOp, [], [],
-                                     attributes={
-                                         "sym_name":
-                                         StringAttr.get(name),
-                                         "type":
-                                         type_attr,
-                                         "sym_visibility":
-                                         StringAttr.get("private")
-                                     })
-    op.add_region(Region([block(input_types, f)]))
+    op = FuncOp.create(
+        [], [],
+        attributes={
+            "sym_name": StringAttr.get(name),
+            "type": type_attr,
+            "sym_visibility": StringAttr.get("private")
+        },
+        regions=[Region([block(input_types, f)])])
     return op
 
 
@@ -124,23 +122,21 @@ def func(name, input_types, return_types, f) -> Operation:
 # inline definitions complicated
 def func2(name, input_types, return_types, region: Region) -> Operation:
     type_attr = FunctionType.get(input_types, return_types)
-    op = Operation.with_result_types(FuncOp, [], [],
-                                     attributes={
-                                         "sym_name":
-                                         StringAttr.get(name),
-                                         "type":
-                                         type_attr,
-                                         "sym_visibility":
-                                         StringAttr.get("private")
-                                     })
-    op.add_region(region)
+    op = FuncOp.create(
+        [], [],
+        attributes={
+            "sym_name": StringAttr.get(name),
+            "type": type_attr,
+            "sym_visibility": StringAttr.get("private")
+        },
+        regions=[region])
     return op
 
 
 def module(ops: Union[List[Operation], Region]) -> Operation:
-    op = Operation.with_result_types(ModuleOp, [], [], {})
-    if (isinstance(ops, List)):
-        op.add_region(Region([Block([], ops)]))
+    if isinstance(ops, List):
+        region = Region([Block([], ops)])
     else:
-        op.add_region(ops)
+        region = ops
+    op = ModuleOp.create([], [], regions=[region])
     return op

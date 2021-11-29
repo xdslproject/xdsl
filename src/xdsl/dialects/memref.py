@@ -27,25 +27,24 @@ class MemRef:
         # TODO should we really check these things here?
         if not isinstance(get_ssa_value(value).typ, MemRefType):
             raise Exception("memref.load expected a MemRefType operand")
-        return Operation.with_result_types(
-            Load, [get_ssa_value(value)] + [get_ssa_value(i) for i in indices],
-            [get_ssa_value(value).typ.element_type], {})
+        return Load.create([get_ssa_value(value)] +
+                           [get_ssa_value(i) for i in indices],
+                           [get_ssa_value(value).typ.element_type])
 
     def store(self,
               value: OpOrBlockArg,
               place: OpOrBlockArg,
               indices: List[OpOrBlockArg] = []) -> Operation:
-        return Operation.with_result_types(
-            Store,
+        return Store.create(
             [get_ssa_value(value), get_ssa_value(place)] +
-            [get_ssa_value(i) for i in indices], [], {})
+            [get_ssa_value(i) for i in indices], [])
 
     def alloc(self,
               alignment: int,
               return_type: Attribute,
               shape: List[int] = [1]) -> Operation:
-        return Operation.with_result_types(
-            Alloc, [], [MemRefType.get(return_type, shape)],
+        return Alloc.create(
+            [], [MemRefType.get(return_type, shape)],
             attributes={
                 "alignment": IntegerAttr.get(alignment, IntegerType.get(64)),
                 "operand_segment_sizes": VectorAttr.get([0, 0])
@@ -55,21 +54,19 @@ class MemRef:
                alignment: int,
                return_type: Attribute,
                shape: List[int] = [1]) -> Operation:
-        return Operation.with_result_types(
-            Alloca, [], [MemRefType.get(return_type, shape)],
+        return Alloca.create(
+            [], [MemRefType.get(return_type, shape)],
             attributes={
                 "alignment": IntegerAttr.get(alignment, IntegerType.get(64)),
                 "operand_segment_sizes": VectorAttr.get([0, 0])
             })
 
     def dealloc(self, memref: OpOrBlockArg) -> Operation:
-        return Operation.with_result_types(Dealloc, [get_ssa_value(memref)],
-                                           [], {})
+        return Dealloc.create([get_ssa_value(memref)], [])
 
     def get_global(self, name: str, return_type: Attribute) -> Operation:
-        return Operation.with_result_types(
-            GetGlobal, [], [return_type],
-            {"name": FlatSymbolRefAttr.get(name)})
+        return GetGlobal.create([], [return_type],
+                                {"name": FlatSymbolRefAttr.get(name)})
 
     def global_(self,
                 sym_name: str,
@@ -79,8 +76,8 @@ class MemRef:
                 constant: bool = False) -> Operation:
         if not initial_value:
             raise Exception("optional arguments are not yet supported")
-        return Operation.with_result_types(
-            Global, [], [], {
+        return Global.create(
+            [], [], {
                 "sym_name": SymbolNameAttr.get(sym_name),
                 "type": typ,
                 "initial_value": initial_value,

@@ -357,11 +357,10 @@ class Parser:
         successors = self.parse_successors()
         attributes = self.parse_op_attributes()
         result_types = [typ for (name, typ) in results]
-        op = Operation.with_result_types(self._ctx.get_op(op_name),
-                                         operands,
-                                         result_types,
-                                         attributes=attributes,
-                                         successors=successors)
+        op = self._ctx.get_op(op_name).create(operands,
+                                              result_types,
+                                              attributes=attributes,
+                                              successors=successors)
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
             if res[0] in self._ssaValues:
