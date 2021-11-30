@@ -137,6 +137,7 @@ class PatternRewriteWalker:
     """
     Walks the IR in the block and instruction order.
     Can walk either first the regions, or first the owner operation.
+    The walker will walk recursively on the created operation.
     """
 
     pattern: RewritePattern
