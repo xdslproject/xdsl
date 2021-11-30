@@ -154,17 +154,19 @@ class Operation(ABC):
 
     @staticmethod
     def with_result_types(op: Any,
-                          operands: List[SSAValue],
-                          result_types: List[Attribute],
+                          operands: Optional[List[SSAValue]] = None,
+                          result_types: Optional[List[Attribute]] = None,
                           attributes: Optional[Dict[str, Attribute]] = None,
                           successors: Optional[List[Block]] = None,
                           regions: Optional[List[Region]] = None) -> Operation:
         operation = op()
-        operation.operands = operands
-        operation.results = [
-            OpResult(typ, operation, idx)
-            for (idx, typ) in enumerate(result_types)
-        ]
+        if operands is not None:
+            operation.operands = operands
+        if result_types is not None:
+            operation.results = [
+                OpResult(typ, operation, idx)
+                for (idx, typ) in enumerate(result_types)
+            ]
         if attributes is not None:
             operation.attributes = attributes
         if successors is not None:
@@ -176,8 +178,8 @@ class Operation(ABC):
 
     @classmethod
     def create(cls: typing.Type[T],
-               operands: List[SSAValue],
-               result_types: List[Attribute],
+               operands: Optional[List[SSAValue]] = None,
+               result_types: Optional[List[Attribute]] = None,
                attributes: Optional[Dict[str, Attribute]] = None,
                successors: Optional[List[Block]] = None,
                regions: Optional[List[Region]] = None) -> T:
