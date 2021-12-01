@@ -160,7 +160,7 @@ class PatternRewriteWalker:
         """Rewrite an entire module operation."""
         new_ops = self.rewrite_op(op)
         if len(new_ops) == 1:
-            res_op = new_ops[1]
+            res_op = new_ops[0]
             if isinstance(res_op, ModuleOp):
                 op = res_op
                 return
