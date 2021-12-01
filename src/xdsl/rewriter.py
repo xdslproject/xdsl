@@ -69,13 +69,18 @@ def op_type_rewrite_pattern(func):
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
-    if inspect.ismethod(func):
+    if len(params) < 2:
+        raise Exception(
+            "op_type_rewrite_pattern expects the decorated function to "
+            "have two non-self arguments.")
+    is_method = params[0].name == "self"
+    if is_method:
         if len(params) != 3:
             raise Exception(
                 "op_type_rewrite_pattern expects the decorated method to "
                 "have two non-self arguments.")
     else:
-        if len(params) != 3:
+        if len(params) != 2:
             raise Exception(
                 "op_type_rewrite_pattern expects the decorated function to "
                 "have two arguments.")
@@ -85,25 +90,25 @@ def op_type_rewrite_pattern(func):
             "op_type_rewrite_pattern expects the first non-self argument"
             "type hint to be an Operation subclass")
 
-    if not inspect.ismethod(func):
+    if not is_method:
 
-        def op_type_rewrite_pattern_wrapper(
+        def op_type_rewrite_pattern_static_wrapper(
                 op: Operation,
                 operands: List[SSAValue]) -> Optional[RewriteAction]:
             if not isinstance(op, expected_type):
                 return None
             return func(op, operands)
 
-        return op_type_rewrite_pattern_wrapper
+        return op_type_rewrite_pattern_static_wrapper
 
-    def op_type_rewrite_pattern_wrapper(
+    def op_type_rewrite_pattern_method_wrapper(
             self, op: Operation,
             operands: List[SSAValue]) -> Optional[RewriteAction]:
         if not isinstance(op, expected_type):
             return None
         return func(self, op, operands)
 
-    return op_type_rewrite_pattern_wrapper
+    return op_type_rewrite_pattern_method_wrapper
 
 
 @dataclass(repr=False, eq=False)
