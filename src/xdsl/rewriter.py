@@ -1,3 +1,4 @@
+from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -7,7 +8,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, SSAValue, Region, Block
 
 
-@dataclass(init=False)
+@dataclass(eq=False, repr=False)
 class RewriteAction:
     """
     Action that a single rewrite may execute.
@@ -20,17 +21,16 @@ class RewriteAction:
 
     new_results: List[SSAValue]
     """SSA values that replace the matched operation results."""
-    def __init__(self, new_ops: List[Operation],
-                 new_results: Optional[List[SSAValue]]):
-        self.new_ops = new_ops
-        if new_results is not None:
-            self.new_results = new_results
-            return
-
+    @staticmethod
+    def from_op_list(new_ops: List[Operation]) -> RewriteAction:
+        """
+        Case where the old results will be replaced by the results of the last operation to be added.
+        Can also be used with no operations (to represent deletion).
+        """
         if len(new_ops) == 0:
-            self.new_results = []
+            return RewriteAction(new_ops, [])
         else:
-            self.new_results = new_ops[-1].results
+            return RewriteAction(new_ops, new_ops[-1].results)
 
 
 class RewritePattern(ABC):
@@ -44,7 +44,7 @@ class RewritePattern(ABC):
         """
         Match an operation, and optionally returns a rewrite to be performed.
         `op` is the operation to match, and `new_operands` are the potential new values of the operands.
-        This function returns `None` if the pattern did not matched, and a rewrite action otherwise.
+        This function returns `None` if the pattern did not match, and a rewrite action otherwise.
         """
         ...
 
@@ -69,17 +69,23 @@ def op_type_rewrite_pattern(func):
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) == 3:
-        has_self = True
-        expected_type = params[1].annotation
+    if inspect.ismethod(func):
+        if len(params) != 3:
+            raise Exception(
+                "op_type_rewrite_pattern expects the decorated method to "
+                "have two non-self arguments.")
     else:
-        has_self = False
-        expected_type = params[0].annotation
+        if len(params) != 3:
+            raise Exception(
+                "op_type_rewrite_pattern expects the decorated function to "
+                "have two arguments.")
+    expected_type = params[-2].annotation
     if not issubclass(expected_type, Operation):
-        raise Exception("op_type_rewrite_pattern expects the first non-self "
-                        "operand type hint to be an Operation subclass")
+        raise Exception(
+            "op_type_rewrite_pattern expects the first non-self argument"
+            "type hint to be an Operation subclass")
 
-    if not has_self:
+    if not inspect.ismethod(func):
 
         def op_type_rewrite_pattern_wrapper(
                 op: Operation,
@@ -135,9 +141,10 @@ class OperandUpdater:
 @dataclass(eq=False, repr=False)
 class PatternRewriteWalker:
     """
-    Walks the IR in the block and instruction order.
+    Walks the IR in the block and instruction order, and rewrite it in place.
+    Previous references to the walked operations are invalid after the walk.
     Can walk either first the regions, or first the owner operation.
-    The walker will walk recursively on the created operation.
+    The walker will also walk recursively on the created operations.
     """
 
     pattern: RewritePattern
@@ -149,13 +156,14 @@ class PatternRewriteWalker:
     _updater: OperandUpdater = field(init=False,
                                      default_factory=OperandUpdater)
     """Takes care of bookkeeping the changes made during the walk."""
-    def rewrite_module(self, op: ModuleOp) -> ModuleOp:
+    def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
         new_ops = self.rewrite_op(op)
         if len(new_ops) == 1:
             res_op = new_ops[1]
             if isinstance(res_op, ModuleOp):
-                return res_op
+                op = res_op
+                return
         raise Exception(
             "Rewrite pattern did not rewrite a module into another module.")
 
