@@ -113,7 +113,43 @@ def test_op_type_rewrite_pattern_static_decorator():
                              apply_recursively=False))
 
 
-if __name__ == "__main__":
-    test_non_recursive_rewrite()
-    test_op_type_rewrite_pattern_method_decorator()
-    test_op_type_rewrite_pattern_static_decorator()
+def test_recursive_rewriter():
+    """Test op_type_rewrite_pattern decorator on static functions."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 1 : !i64]
+  %1 : !i32 = std.constant() ["value" = 1 : !i64]
+  %2 : !i32 = std.addi(%0 : !i32, %1 : !i32) 
+  %3 : !i32 = std.constant() ["value" = 1 : !i64]
+  %4 : !i32 = std.addi(%2 : !i32, %3 : !i32) 
+  %5 : !i32 = std.constant() ["value" = 1 : !i64]
+  %6 : !i32 = std.addi(%4 : !i32, %5 : !i32) 
+  %7 : !i32 = std.constant() ["value" = 1 : !i64]
+  %8 : !i32 = std.addi(%6 : !i32, %7 : !i32) 
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+            op: Constant,
+            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        val = op.value.value.data
+        if val == 0 or val == 1:
+            return None
+        constant_op = std.constant_from_attr(IntegerAttr.get(val - 1), std.i32)
+        constant_one = std.constant_from_attr(IntegerAttr.get(1), std.i32)
+        add_op = std.addi(constant_op, constant_one)
+        return RewriteAction.from_op_list([constant_op, constant_one, add_op])
+
+    rewrite_and_compare(
+        ctx, prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=True))
