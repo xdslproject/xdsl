@@ -112,7 +112,7 @@ class OperandUpdater:
     Provides functionality to bookkeep changed results and to access and update them.
     """
 
-    result_mapping: Dict[SSAValue, SSAValue] = field(default_factory=dict())
+    result_mapping: Dict[SSAValue, SSAValue] = field(default_factory=dict)
 
     def bookkeep_results(self, old_op: Operation,
                          action: RewriteAction) -> None:
