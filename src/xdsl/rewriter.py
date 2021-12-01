@@ -153,6 +153,9 @@ class PatternRewriteWalker:
     walk_regions_first: bool = field(default=False)
     """Choose if the walker should first walk the operation regions first, or the operation itself."""
 
+    apply_recursively: bool = field(default=True)
+    """Apply recursively rewrites on new operations."""
+
     _updater: OperandUpdater = field(init=False,
                                      default_factory=OperandUpdater)
     """Takes care of bookkeeping the changes made during the walk."""
@@ -177,13 +180,18 @@ class PatternRewriteWalker:
         action = self.pattern.match_and_rewrite(
             op, self._updater.get_new_operands(op))
 
-        # If we produce new operations, we rewrite them recursively until convergence
+        # If we produce new operations, we rewrite them recursively if requested
         if action is not None:
             self._updater.bookkeep_results(op, action)
-            new_ops = []
-            for new_op in action.new_ops:
-                new_ops.extend(self.rewrite_op(new_op))
-            return new_ops
+            if self.apply_recursively:
+                new_ops = []
+                for new_op in action.new_ops:
+                    new_ops.extend(self.rewrite_op(new_op))
+                return new_ops
+            else:
+                for new_op in action.new_ops:
+                    self._updater.update_operands(new_op)
+                return action.new_ops
 
         # Otherwise, we update their operands, and walk recursively their regions if needed
         self._updater.update_operands(op)
