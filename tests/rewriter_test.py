@@ -114,7 +114,7 @@ def test_op_type_rewrite_pattern_static_decorator():
 
 
 def test_recursive_rewriter():
-    """Test op_type_rewrite_pattern decorator on static functions."""
+    """Test recursive walks on operations created by rewrites."""
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
@@ -193,3 +193,58 @@ def test_greedy_rewrite_pattern_applier():
             AnonymousRewritePattern(addi_rewrite)
         ]),
                              apply_recursively=False))
+
+
+def test_operation_deletion():
+    """Test rewrites where SSA values are deleted."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+            op: Constant,
+            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        return RewriteAction([], [None])
+
+    rewrite_and_compare(
+        ctx, prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_operation_deletion_failure():
+    """Test rewrites where SSA values are deleted."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 5 : !i32]
+  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+            op: Constant,
+            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        return RewriteAction([], [None])
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+    walker = PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
+
+    # Check that the rewrite fails
+    try:
+        walker.rewrite_module(module)
+        assert False
+    except Exception as e:
+        pass
