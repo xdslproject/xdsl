@@ -19,8 +19,8 @@ class RewriteAction:
     new_ops: List[Operation]
     """New operations that replace the one matched."""
 
-    new_results: List[SSAValue]
-    """SSA values that replace the matched operation results."""
+    new_results: List[Optional[SSAValue]]
+    """SSA values that replace the matched operation results. None values are deleted SSA Values."""
     @staticmethod
     def from_op_list(new_ops: List[Operation]) -> RewriteAction:
         """
@@ -157,7 +157,10 @@ class OperandUpdater:
 
     def update_operands(self, op: Operation) -> None:
         """Update an operation operands with the new operands."""
-        op.operands = self.get_new_operands(op)
+        new_operands = self.get_new_operands(op)
+        if None in new_operands:
+            raise Exception("Use of deleted SSA Value")
+        op.operands = new_operands
 
 
 @dataclass(eq=False, repr=False)
