@@ -1,7 +1,7 @@
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import Builtin, IntegerAttr
 from xdsl.parser import Parser
-from xdsl.dialects.std import Std, Constant
+from xdsl.dialects.std import Std, Constant, Addi, Muli
 from xdsl.ir import MLContext
 from xdsl.rewriter import *
 from io import StringIO
@@ -153,3 +153,43 @@ def test_recursive_rewriter():
         ctx, prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              apply_recursively=True))
+
+
+def test_greedy_rewrite_pattern_applier():
+    """Test GreedyRewritePatternApplier."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 42 : !i32]
+  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = std.constant() ["value" = 43 : !i64]
+  %1 : !i32 = std.muli(%0 : !i32, %0 : !i32) 
+}"""
+
+    @op_type_rewrite_pattern
+    def constant_rewrite(
+            op: Constant,
+            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        return RewriteAction.from_op_list(
+            [std.constant_from_attr(IntegerAttr.get(43), std.i32)])
+
+    @op_type_rewrite_pattern
+    def addi_rewrite(op: Addi,
+                     new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        return RewriteAction.from_op_list(
+            [std.muli(op.input1.op, op.input2.op)])
+
+    rewrite_and_compare(
+        ctx, prog, expected,
+        PatternRewriteWalker(GreedyRewritePatternApplier([
+            AnonymousRewritePattern(constant_rewrite),
+            AnonymousRewritePattern(addi_rewrite)
+        ]),
+                             apply_recursively=False))
