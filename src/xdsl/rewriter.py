@@ -111,7 +111,7 @@ def op_type_rewrite_pattern(func):
     return op_type_rewrite_pattern_method_wrapper
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
     """Apply a list of patterns in order until one pattern match, and then use this rewrite."""
 
