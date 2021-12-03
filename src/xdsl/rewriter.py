@@ -111,6 +111,23 @@ def op_type_rewrite_pattern(func):
     return op_type_rewrite_pattern_method_wrapper
 
 
+@dataclass
+class GreedyRewritePatternApplier(RewritePattern):
+    """Apply a list of patterns in order until one pattern match, and then use this rewrite."""
+
+    rewrite_patterns: List[RewritePattern]
+    """The list of rewrites to apply in order."""
+    def match_and_rewrite(
+            self, op: Operation,
+            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+        for pattern in self.rewrite_patterns:
+            res = pattern.match_and_rewrite(op, new_operands)
+            if res is not None:
+                return res
+
+        return None
+
+
 @dataclass(repr=False, eq=False)
 class OperandUpdater:
     """
