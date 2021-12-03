@@ -39,8 +39,8 @@ def test_non_recursive_rewrite():
 
     class RewriteConst(RewritePattern):
         def match_and_rewrite(
-                self, op: Operation,
-                new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+                self, op: Operation, new_operands: Optional[List[SSAValue]]
+        ) -> Optional[RewriteAction]:
             if isinstance(op, Constant):
                 return RewriteAction.from_op_list(
                     [std.constant_from_attr(IntegerAttr.get(43), std.i32)])
@@ -72,8 +72,8 @@ def test_op_type_rewrite_pattern_method_decorator():
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(
-                self, op: Constant,
-                new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+                self, op: Constant, new_operands: Optional[List[SSAValue]]
+        ) -> Optional[RewriteAction]:
             return RewriteAction.from_op_list(
                 [std.constant_from_attr(IntegerAttr.get(43), std.i32)])
 
@@ -103,7 +103,7 @@ def test_op_type_rewrite_pattern_static_decorator():
     @op_type_rewrite_pattern
     def match_and_rewrite(
             op: Constant,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         return RewriteAction.from_op_list(
             [std.constant_from_attr(IntegerAttr.get(43), std.i32)])
 
@@ -140,7 +140,7 @@ def test_recursive_rewriter():
     @op_type_rewrite_pattern
     def match_and_rewrite(
             op: Constant,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -212,7 +212,7 @@ def test_operation_deletion():
     @op_type_rewrite_pattern
     def match_and_rewrite(
             op: Constant,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         return RewriteAction([], [None])
 
     rewrite_and_compare(
@@ -235,7 +235,7 @@ def test_operation_deletion_failure():
     @op_type_rewrite_pattern
     def match_and_rewrite(
             op: Constant,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         return RewriteAction([], [None])
 
     parser = Parser(ctx, prog)

@@ -40,10 +40,11 @@ class RewritePattern(ABC):
     @abstractmethod
     def match_and_rewrite(
             self, op: Operation,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         """
         Match an operation, and optionally returns a rewrite to be performed.
         `op` is the operation to match, and `new_operands` are the potential new values of the operands.
+        `None` values in new_operands are deleted SSA values.
         This function returns `None` if the pattern did not match, and a rewrite action otherwise.
         """
         ...
@@ -54,11 +55,12 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
-    func: Callable[[Operation, List[SSAValue]], Optional[RewriteAction]]
+    func: Callable[[Operation, Optional[List[SSAValue]]],
+                   Optional[RewriteAction]]
 
     def match_and_rewrite(
             self, op: Operation,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         return self.func(op, new_operands)
 
 
@@ -94,7 +96,7 @@ def op_type_rewrite_pattern(func):
 
         def op_type_rewrite_pattern_static_wrapper(
                 op: Operation,
-                operands: List[SSAValue]) -> Optional[RewriteAction]:
+                operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
             if not isinstance(op, expected_type):
                 return None
             return func(op, operands)
@@ -103,7 +105,7 @@ def op_type_rewrite_pattern(func):
 
     def op_type_rewrite_pattern_method_wrapper(
             self, op: Operation,
-            operands: List[SSAValue]) -> Optional[RewriteAction]:
+            operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
         if not isinstance(op, expected_type):
             return None
         return func(self, op, operands)
@@ -134,8 +136,9 @@ class OperandUpdater:
     Provides functionality to bookkeep changed results and to access and update them.
     """
 
-    result_mapping: Dict[SSAValue, SSAValue] = field(default_factory=dict)
-
+    result_mapping: Dict[SSAValue,
+                         Optional[SSAValue]] = field(default_factory=dict)
+    """Map old ssa values to new values. Deleted values are mapped to None."""
     def bookkeep_results(self, old_op: Operation,
                          action: RewriteAction) -> None:
         """Bookkeep the changes made by a rewrite action matching on `old_op`."""
