@@ -79,6 +79,9 @@ class BlockArgument(SSAValue):
         return hash((id(self.block), self.index))
 
 
+AttrClass = TypeVar('AttrClass', bound='Attribute')
+
+
 @dataclass(frozen=True)
 class Attribute(ABC):
     """
@@ -89,6 +92,10 @@ class Attribute(ABC):
 
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
+    @classmethod
+    def build(cls: typing.Type[AttrClass], *args) -> AttrClass:
+        """Create a new attribute using one of the builder defined in IRDL."""
+        assert False
 
 
 @dataclass(frozen=True)
