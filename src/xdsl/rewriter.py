@@ -40,7 +40,7 @@ class RewritePattern(ABC):
     @abstractmethod
     def match_and_rewrite(
             self, op: Operation,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
+            new_operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
         """
         Match an operation, and optionally returns a rewrite to be performed.
         `op` is the operation to match, and `new_operands` are the potential new values of the operands.
@@ -55,12 +55,12 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
-    func: Callable[[Operation, Optional[List[SSAValue]]],
+    func: Callable[[Operation, List[Optional[SSAValue]]],
                    Optional[RewriteAction]]
 
     def match_and_rewrite(
             self, op: Operation,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
+            new_operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
         return self.func(op, new_operands)
 
 
@@ -96,7 +96,7 @@ def op_type_rewrite_pattern(func):
 
         def op_type_rewrite_pattern_static_wrapper(
                 op: Operation,
-                operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
+                operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
             if not isinstance(op, expected_type):
                 return None
             return func(op, operands)
@@ -105,7 +105,7 @@ def op_type_rewrite_pattern(func):
 
     def op_type_rewrite_pattern_method_wrapper(
             self, op: Operation,
-            operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
+            operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
         if not isinstance(op, expected_type):
             return None
         return func(self, op, operands)
@@ -150,11 +150,11 @@ class OperandUpdater:
         for (old_res, new_res) in zip(old_op.results, action.new_results):
             self.result_mapping[old_res] = new_res
 
-    def get_new_value(self, value: SSAValue) -> SSAValue:
+    def get_new_value(self, value: SSAValue) -> Optional[SSAValue]:
         """Get the updated value, if it exists, or returns the same one."""
         return self.result_mapping.get(value, value)
 
-    def get_new_operands(self, op: Operation) -> [SSAValue]:
+    def get_new_operands(self, op: Operation) -> [Optional[SSAValue]]:
         """Get the new operation updated operands"""
         return [self.get_new_value(operand) for operand in op.operands]
 
