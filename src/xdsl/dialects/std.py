@@ -29,15 +29,15 @@ class Std:
 
         self.ctx.register_op(Cmpi)
 
-        self.f32 = Float32Type.get()
-        self.i64 = IntegerType.get(64)
-        self.i32 = IntegerType.get(32)
-        self.i1 = IntegerType.get(1)
+        self.f32 = Float32Type()
+        self.i64 = IntegerType.from_width(64)
+        self.i32 = IntegerType.from_width(32)
+        self.i1 = IntegerType.from_width(1)
 
     # TODO make this generic in the type
     def constant(self, val: int, typ: Attribute) -> Operation:
-        return Constant.create([], [typ],
-                               attributes={"value": IntegerAttr.get(val, typ)})
+        return Constant.create(
+            [], [typ], attributes={"value": IntegerAttr.build(val, typ)})
 
     def constant_from_attr(self, attr: Attribute, typ: Attribute) -> Operation:
         return Constant.create([], [typ], attributes={"value": attr})
@@ -89,7 +89,7 @@ class Std:
     def cmpi(self, x: OpOrBlockArg, y: OpOrBlockArg, arg: int) -> Operation:
         return Cmpi.create(
             [get_ssa_value(x), get_ssa_value(y)], [self.i1],
-            attributes={"predicate": IntegerAttr.get(arg, self.i64)})
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
 
 @irdl_op_definition
@@ -231,7 +231,7 @@ class Cmpi(Operation):
     predicate = AttributeDef(IntegerAttr)
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
-    output = ResultDef(IntegerType.get(1))
+    output = ResultDef(IntegerType.from_width(1))
 
 
 @irdl_op_definition

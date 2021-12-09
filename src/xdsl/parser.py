@@ -252,7 +252,7 @@ class Parser:
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal()
         if string_lit is not None:
-            return StringAttr.get(string_lit)
+            return StringAttr.from_str(string_lit)
 
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
@@ -262,20 +262,20 @@ class Parser:
                 typ = self.parse_attribute()
             else:
                 typ = IntegerType.get(64)
-            return IntegerAttr.get(integer_lit, typ)
+            return IntegerAttr.from_params(integer_lit, typ)
 
         # Shorthand for ArrayAttr
         parse_bracket = self.parse_optional_char("[")
         if parse_bracket:
             array = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
-            return ArrayAttr.get(array)
+            return ArrayAttr.from_list(array)
 
-        # Shorthand for FlatSymvolRefAttr
+        # Shorthand for FlatSymbolRefAttr
         parse_at = self.parse_optional_char("@")
         if parse_at:
             symbol_name = self.parse_alpha_num(skip_white_space=False)
-            return FlatSymbolRefAttr.get(symbol_name)
+            return FlatSymbolRefAttr.from_str(symbol_name)
 
         parsed = self.parse_optional_char("!")
         if parsed is None:
@@ -287,7 +287,7 @@ class Parser:
         if parsed:
             num = self.parse_optional_int_literal()
             if num:
-                return IntegerType.get(num)
+                return IntegerType.from_width(num)
             attr_def_name = "i" + self.parse_alpha_num(skip_white_space=True)
         else:
             attr_def_name = self.parse_alpha_num(skip_white_space=True)
