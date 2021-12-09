@@ -10,10 +10,10 @@ def get_example_memref_program(ctx: MLContext, std: Std,
         # yapf: disable
         return [
 
-                memref.global_("g", IndexType(), IntegerAttr.get(0, IndexType()),
+                memref.global_("g", IndexType(), IntegerAttr.from_index_int_value(0),
                     "public"),
 
-                global_ref := memref.get_global("g", MemRefType.get(IndexType())),
+                global_ref := memref.get_global("g", MemRefType.from_params(IndexType())),
 
                 index_0 := std.constant(0, IndexType()),
 

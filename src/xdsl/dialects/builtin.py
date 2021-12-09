@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from xdsl.irdl import *
 from xdsl.ir import *
 
+if TYPE_CHECKING:
+    from xdsl.parser import Parser
+    from xdsl.printer import Printer
+
 
 @dataclass
 class Builtin:
@@ -31,17 +35,17 @@ class StringAttr(Data):
     name = "string"
     data: str
 
-    # parser should be of type parser.Parser
     @staticmethod
-    def parse(parser) -> StringAttr:
+    def parse(parser: Parser) -> StringAttr:
         data = parser.parse_str_literal()
         return StringAttr(data)
 
-    def print(self, printer) -> None:
+    def print(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
 
     @staticmethod
-    def get(data: str) -> StringAttr:
+    @builder
+    def from_str(data: str) -> StringAttr:
         return StringAttr(data)
 
 
@@ -51,8 +55,14 @@ class SymbolNameAttr(ParametrizedAttribute):
     data = ParameterDef(StringAttr)
 
     @staticmethod
-    def get(data: str) -> SymbolNameAttr:
-        return SymbolNameAttr([StringAttr.get(data)])
+    @builder
+    def from_str(data: str) -> SymbolNameAttr:
+        return SymbolNameAttr([StringAttr.from_str(data)])
+
+    @staticmethod
+    @builder
+    def from_string_attr(data: StringAttr) -> SymbolNameAttr:
+        return SymbolNameAttr([data])
 
 
 @irdl_attr_definition
@@ -61,8 +71,14 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
     data = ParameterDef(StringAttr)
 
     @staticmethod
-    def get(data: str) -> FlatSymbolRefAttr:
+    @builder
+    def from_str(data: str) -> FlatSymbolRefAttr:
         return FlatSymbolRefAttr([StringAttr(data)])
+
+    @staticmethod
+    @builder
+    def from_string_attr(data: StringAttr) -> FlatSymbolRefAttr:
+        return FlatSymbolRefAttr([data])
 
 
 @irdl_attr_definition
@@ -70,30 +86,29 @@ class IntAttr(Data):
     name = "int"
     data: int
 
-    # parser should be of type parser.Parser
     @staticmethod
-    def parse(parser: Any) -> IntAttr:
+    def parse(parser: Parser) -> IntAttr:
         data = parser.parse_int_literal()
         return IntAttr(data)
 
-    # printer should be of type printer.Printer
-    def print(self, printer) -> None:
+    def print(self, printer: Printer) -> None:
         printer.print_string(f'{self.data}')
 
     @staticmethod
-    def get(data: int) -> IntAttr:
+    @builder
+    def from_int(data: int) -> IntAttr:
         return IntAttr(data)
 
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
     name = "integer_type"
-
     width = ParameterDef(IntAttr)
 
     @staticmethod
-    def get(width: int) -> Attribute:
-        return IntegerType([IntAttr.get(width)])
+    @builder
+    def from_width(width: int) -> Attribute:
+        return IntegerType([IntAttr.from_int(width)])
 
 
 @irdl_attr_definition
@@ -104,13 +119,28 @@ class IndexType(ParametrizedAttribute):
 @irdl_attr_definition
 class IntegerAttr(ParametrizedAttribute):
     name = "integer"
-
     value = ParameterDef(IntAttr)
     typ = ParameterDef(AnyOf([IntegerType, IndexType]))
 
     @staticmethod
-    def get(value: int, type: Attribute = IntegerType.get(64)) -> IntegerAttr:
-        return IntegerAttr([IntAttr.get(value), type])
+    @builder
+    def from_int_and_width(value: int, width: int = 64) -> IntegerAttr:
+        return IntegerAttr(
+            [IntAttr.from_int(value),
+             IntegerType.from_width(width)])
+
+    @staticmethod
+    def from_index_int_value(value: int) -> IntegerAttr:
+        return IntegerAttr([IntAttr.from_int(value), IndexType()])
+
+    @staticmethod
+    @builder
+    def from_params(value: Union[int, IntAttr],
+                    typ: Union[int, Attribute] = 64) -> IntegerAttr:
+        value = IntAttr.build(value)
+        if not isinstance(typ, IndexType):
+            typ = IntegerType.build(typ)
+        return IntegerAttr([value, typ])
 
 
 @irdl_attr_definition
@@ -131,14 +161,17 @@ class ArrayAttr(Data):
         printer.print_string("]")
 
     @staticmethod
-    def get(data: List[Attribute]) -> ArrayAttr:
+    @builder
+    def from_list(data: List[Attribute]) -> ArrayAttr:
         return ArrayAttr(data)
 
 
-# A constraint that enforces an ArrayData whose elements all satisfy
-# the elem_constr
 @dataclass
 class ArrayOfConstraint(AttrConstraint):
+    """
+    A constraint that enforces an ArrayData whose elements all satisfy
+    the elem_constr.
+    """
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Union[Attribute, typing.Type[Attribute],
@@ -159,18 +192,20 @@ class VectorAttr(ParametrizedAttribute):
     data = ParameterDef(ArrayOfConstraint(IntegerAttr))
 
     @staticmethod
-    def get(data: List[int]) -> VectorAttr:
-        data_attr = [IntegerAttr.get(d) for d in data]
-        return VectorAttr([ArrayAttr.get(data_attr)])
+    def from_int_list(data: List[int]) -> VectorAttr:
+        data_attr = [IntegerAttr.from_int_and_width(d) for d in data]
+        return VectorAttr([ArrayAttr.from_list(data_attr)])
+
+    @staticmethod
+    @builder
+    def from_list(data: List[Union[int, IntegerAttr]]) -> VectorAttr:
+        data_attr = [IntegerAttr.build(d) for d in data]
+        return VectorAttr([ArrayAttr.from_list(data_attr)])
 
 
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute):
     name = "f32"
-
-    @staticmethod
-    def get() -> Attribute:
-        return Float32Type()
 
 
 @irdl_attr_definition
@@ -181,8 +216,17 @@ class FunctionType(ParametrizedAttribute):
     outputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
 
     @staticmethod
-    def get(inputs: List[Attribute], outputs: List[Attribute]) -> Attribute:
-        return FunctionType([ArrayAttr.get(inputs), ArrayAttr.get(outputs)])
+    @builder
+    def from_lists(inputs: List[Attribute],
+                   outputs: List[Attribute]) -> Attribute:
+        return FunctionType(
+            [ArrayAttr.from_list(inputs),
+             ArrayAttr.from_list(outputs)])
+
+    @staticmethod
+    @builder
+    def from_attrs(inputs: ArrayAttr, outputs: ArrayAttr) -> Attribute:
+        return FunctionType([inputs, outputs])
 
 
 @irdl_op_definition

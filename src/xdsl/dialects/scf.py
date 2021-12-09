@@ -38,7 +38,7 @@ class Scf:
 class If(Operation):
     name: str = "scf.if"
     output = VarResultDef(AnyAttr())
-    cond = OperandDef(IntegerType.get(1))
+    cond = OperandDef(IntegerType.from_width(1))
 
     true_region = RegionDef()
     # TODO this should be optional under certain conditions
@@ -54,7 +54,7 @@ class Yield(Operation):
 @irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
-    cond = OperandDef(IntegerType.get(1))
+    cond = OperandDef(IntegerType.from_width(1))
     arguments = VarOperandDef(AnyAttr())
 
 

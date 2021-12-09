@@ -44,10 +44,10 @@ class MemRef:
               return_type: Attribute,
               shape: List[int] = [1]) -> Operation:
         return Alloc.create(
-            [], [MemRefType.get(return_type, shape)],
+            [], [MemRefType.from_type_and_list(return_type, shape)],
             attributes={
-                "alignment": IntegerAttr.get(alignment, IntegerType.get(64)),
-                "operand_segment_sizes": VectorAttr.get([0, 0])
+                "alignment": IntegerAttr.from_int_and_width(alignment, 64),
+                "operand_segment_sizes": VectorAttr.from_int_list([0, 0])
             })
 
     def alloca(self,
@@ -55,10 +55,10 @@ class MemRef:
                return_type: Attribute,
                shape: List[int] = [1]) -> Operation:
         return Alloca.create(
-            [], [MemRefType.get(return_type, shape)],
+            [], [MemRefType.from_type_and_list(return_type, shape)],
             attributes={
-                "alignment": IntegerAttr.get(alignment, IntegerType.get(64)),
-                "operand_segment_sizes": VectorAttr.get([0, 0])
+                "alignment": IntegerAttr.from_int_and_width(alignment, 64),
+                "operand_segment_sizes": VectorAttr.from_int_list([0, 0])
             })
 
     def dealloc(self, memref: OpOrBlockArg) -> Operation:
@@ -66,7 +66,7 @@ class MemRef:
 
     def get_global(self, name: str, return_type: Attribute) -> Operation:
         return GetGlobal.create([], [return_type],
-                                {"name": FlatSymbolRefAttr.get(name)})
+                                {"name": FlatSymbolRefAttr.from_str(name)})
 
     def global_(self,
                 sym_name: str,
@@ -78,10 +78,10 @@ class MemRef:
             raise Exception("optional arguments are not yet supported")
         return Global.create(
             [], [], {
-                "sym_name": SymbolNameAttr.get(sym_name),
+                "sym_name": SymbolNameAttr.from_str(sym_name),
                 "type": typ,
                 "initial_value": initial_value,
-                "sym_visibility": StringAttr.get(sym_visibility)
+                "sym_visibility": StringAttr.from_str(sym_visibility)
             })
 
 
@@ -99,12 +99,23 @@ class MemRefType(ParametrizedAttribute):
         return [i.parameters[0].data for i in self.shape.data]
 
     @staticmethod
-    def get(referenced_type: Attribute, shape: List[int] = [1]) -> Attribute:
+    @builder
+    def from_type_and_list(
+            referenced_type: Attribute,
+            shape: List[Union[int, IntegerAttr]] = [1]) -> Attribute:
         return MemRefType([
-            ArrayAttr.get(
-                [IntegerAttr.get(d, IntegerType.get(64)) for d in shape]),
+            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
             referenced_type
         ])
+
+    @staticmethod
+    @builder
+    def from_params(
+        referenced_type: Attribute,
+        shape: ArrayAttr = ArrayAttr.from_list(
+            [IntegerAttr.from_int_and_width(1)])
+    ) -> Attribute:
+        return MemRefType([shape, referenced_type])
 
 
 @irdl_op_definition

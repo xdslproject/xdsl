@@ -572,7 +572,7 @@ AttributeType = TypeVar("AttributeType", bound=ParametrizedAttribute)
 
 
 def irdl_param_attr_definition(
-            cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
+        cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
     """Decorator used on classes to define a new attribute definition."""
 
     parameters = []

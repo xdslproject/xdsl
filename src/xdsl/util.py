@@ -107,13 +107,13 @@ def func(
 
 
 def func(name, input_types, return_types, f) -> Operation:
-    type_attr = FunctionType.get(input_types, return_types)
+    type_attr = FunctionType.build(input_types, return_types)
     op = FuncOp.create(
         [], [],
         attributes={
-            "sym_name": StringAttr.get(name),
+            "sym_name": StringAttr.build(name),
             "type": type_attr,
-            "sym_visibility": StringAttr.get("private")
+            "sym_visibility": StringAttr.from_str("private")
         },
         regions=[Region([block(input_types, f)])])
     return op
@@ -126,9 +126,9 @@ def func2(name, input_types, return_types, region: Region) -> Operation:
     op = FuncOp.create(
         [], [],
         attributes={
-            "sym_name": StringAttr.get(name),
+            "sym_name": StringAttr.build(name),
             "type": type_attr,
-            "sym_visibility": StringAttr.get("private")
+            "sym_visibility": StringAttr.from_str("private")
         },
         regions=[region])
     return op
