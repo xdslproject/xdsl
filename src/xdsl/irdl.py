@@ -1,11 +1,14 @@
 from __future__ import annotations
+
+import inspect
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-
-from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue
 from typing import List, Tuple, Optional, Union, TypeVar
 from inspect import isclass
 import typing
+
+from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data
+from xdsl import util
 
 
 @dataclass
@@ -499,11 +502,77 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
         param_def.constr.verify(attr.parameters[idx])
 
 
+C = TypeVar('C', bound='Callable')
+
+
+def builder(f: C) -> C:
+    """
+    Annotate a function and mark it as an IRDL builder.
+    This should only be used as decorator in classes decorated by irdl_attr_builder.
+    """
+    f.__irdl_is_builder = True
+    return f
+
+
+def irdl_get_builders(cls) -> List[typing.Callable]:
+    builders = []
+    for field_name in cls.__dict__:
+        field_ = cls.__dict__[field_name]
+        # Builders are staticmethods, so we need to get back the original function with __func__
+        if hasattr(field_, "__func__") and hasattr(field_.__func__,
+                                                   "__irdl_is_builder"):
+            builders.append(field_.__func__)
+    return builders
+
+
+def irdl_attr_try_builder(builder, *args):
+    params_dict = typing.get_type_hints(builder)
+    builder_params = inspect.signature(builder).parameters
+    params = [params_dict[param.name] for param in builder_params.values()]
+    defaults = [param.default for param in builder_params.values()]
+    num_non_defaults = defaults.count(inspect.Signature.empty)
+    if num_non_defaults > len(args):
+        return None
+    for arg, param in zip(args, params[:num_non_defaults]):
+        if not util.is_satisfying_hint(arg, param):
+            return None
+    return builder(*args, *defaults[len(args):])
+
+
+def irdl_attr_builder(cls, builders, *args):
+    """Try to apply all builders to construct an attribute instance."""
+    if len(args) == 1 and isinstance(args[0], cls):
+        return args[0]
+    for builder in builders:
+        res = irdl_attr_try_builder(builder, *args)
+        if res is not None:
+            return res
+    raise TypeError(
+        f"No available {cls.__name__} builders for arguments {args}")
+
+
+T = TypeVar('T')
+
+
+def irdl_data_definition(cls: typing.Type[T]) -> typing.Type[T]:
+    builders = irdl_get_builders(cls)
+    if "build" in cls.__dict__:
+        raise Exception(
+            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
+        )
+    new_attrs = dict()
+    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
+        **cls.__dict__,
+        **new_attrs
+    }))
+
+
 AttributeType = TypeVar("AttributeType", bound=ParametrizedAttribute)
 
 
-def irdl_attr_definition(
-        cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
+def irdl_param_attr_definition(
+            cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
     """Decorator used on classes to define a new attribute definition."""
 
     parameters = []
@@ -529,7 +598,24 @@ def irdl_attr_definition(
             lambda verifier: lambda op: new_verifier(verifier, op))(
                 new_attrs["verify"])
 
-    return type(cls.__name__, (ParametrizedAttribute, ), {
+    builders = irdl_get_builders(cls)
+    if "build" in cls.__dict__:
+        raise Exception(
+            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
+        )
+    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+
+    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
         **new_attrs
-    })
+    }))
+
+
+def irdl_attr_definition(cls: typing.Type[T]) -> typing.Type[T]:
+    if issubclass(cls, ParametrizedAttribute):
+        return irdl_param_attr_definition(cls)
+    if issubclass(cls, Data):
+        return irdl_data_definition(cls)
+    raise Exception(
+        f"Class {cls.__name__} should either be a subclass of 'Data' or 'ParametrizedAttribute'"
+    )
