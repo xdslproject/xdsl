@@ -201,5 +201,5 @@ class ModuleOp:
     body = SingleBlockRegionDef()
 
     @property
-    def ops(self) -> [Operation]:
+    def ops(self) -> List[Operation]:
         return self.regions[0].blocks[0].ops
