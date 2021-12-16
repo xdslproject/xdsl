@@ -34,7 +34,7 @@ def test_non_recursive_rewrite():
     expected = \
 """module() {
   %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32) 
+  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -66,7 +66,7 @@ def test_op_type_rewrite_pattern_method_decorator():
     expected = \
 """module() {
   %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32) 
+  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -97,7 +97,7 @@ def test_op_type_rewrite_pattern_static_decorator():
     expected = \
 """module() {
   %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32) 
+  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern
@@ -128,13 +128,13 @@ def test_recursive_rewriter():
 """module() {
   %0 : !i32 = std.constant() ["value" = 1 : !i64]
   %1 : !i32 = std.constant() ["value" = 1 : !i64]
-  %2 : !i32 = std.addi(%0 : !i32, %1 : !i32) 
+  %2 : !i32 = std.addi(%0 : !i32, %1 : !i32)
   %3 : !i32 = std.constant() ["value" = 1 : !i64]
-  %4 : !i32 = std.addi(%2 : !i32, %3 : !i32) 
+  %4 : !i32 = std.addi(%2 : !i32, %3 : !i32)
   %5 : !i32 = std.constant() ["value" = 1 : !i64]
-  %6 : !i32 = std.addi(%4 : !i32, %5 : !i32) 
+  %6 : !i32 = std.addi(%4 : !i32, %5 : !i32)
   %7 : !i32 = std.constant() ["value" = 1 : !i64]
-  %8 : !i32 = std.addi(%6 : !i32, %7 : !i32) 
+  %8 : !i32 = std.addi(%6 : !i32, %7 : !i32)
 }"""
 
     @op_type_rewrite_pattern
@@ -170,7 +170,7 @@ def test_greedy_rewrite_pattern_applier():
     expected = \
 """module() {
   %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.muli(%0 : !i32, %0 : !i32) 
+  %1 : !i32 = std.muli(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern

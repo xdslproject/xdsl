@@ -81,9 +81,9 @@ class Printer:
         self._indent += 1
         for op in ops:
             self._print_new_line()
-            self.print_op(op)
+            self._print_op(op)
         self._indent -= 1
-        if len(ops) != 0:
+        if len(ops) > 0:
             self._print_new_line()
 
     def print_block_name(self, block: Block) -> None:
@@ -114,9 +114,9 @@ class Printer:
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
-            self._print("{", end='')
+            self._print(" {", end='')
             self._print_ops(region.blocks[0].ops)
-            self._print("}")
+            self._print("}", end='')
             return
 
         self._print("{", end='')
@@ -128,7 +128,6 @@ class Printer:
     def _print_regions(self, regions: List[Region]) -> None:
         for region in regions:
             self._print_region(region)
-            self._print(" ", end='')
 
     def _print_operands(self, operands: List[SSAValue]) -> None:
         if len(operands) == 0:
@@ -197,6 +196,7 @@ class Printer:
         if len(attributes) == 0:
             return
 
+        self._print(" ", end='')
         self._print("[", end='')
         attribute_list = [p for p in attributes.items()]
         self._print("\"%s\" = " % attribute_list[0][0], end='')
@@ -206,11 +206,14 @@ class Printer:
             self.print_attribute(attr)
         self._print("]", end='')
 
-    def print_op(self, op: Operation) -> None:
+    def _print_op(self, op: Operation) -> None:
         self._print_results(op)
         self._print(op.name, end='')
         self._print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print(" ", end='')
         self._print_op_attributes(op.attributes)
         self._print_regions(op.regions)
+
+    def print_op(self, op: Operation) -> None:
+        self._print_op(op)
+        self._print_new_line()
