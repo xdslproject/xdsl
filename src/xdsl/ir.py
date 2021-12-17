@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
+OperationType = TypeVar('OperationType', bound='Operation')
+
 
 @dataclass
 class MLContext:
@@ -18,7 +20,7 @@ class MLContext:
     _registeredAttrs: Dict[str, typing.Type[Attribute]] = field(
         default_factory=dict)
 
-    def register_op(self, op: typing.Type[Operation]) -> None:
+    def register_op(self, op: OperationType) -> None:
         """Register an operation definition. Operation names should be unique."""
         if op.name in self._registeredOps:
             raise Exception(f"Operation {op.name} has already been registered")
@@ -118,9 +120,6 @@ class ParametrizedAttribute(Attribute):
         ...
 
 
-T = TypeVar('T', bound='Operation')
-
-
 @dataclass
 class Operation(ABC):
     """A generic operation. Operation definitions inherit this class."""
@@ -177,12 +176,12 @@ class Operation(ABC):
         return operation
 
     @classmethod
-    def create(cls: typing.Type[T],
+    def create(cls: typing.Type[OperationType],
                operands: Optional[List[SSAValue]] = None,
                result_types: Optional[List[Attribute]] = None,
                attributes: Optional[Dict[str, Attribute]] = None,
                successors: Optional[List[Block]] = None,
-               regions: Optional[List[Region]] = None) -> T:
+               regions: Optional[List[Region]] = None) -> OperationType:
         return Operation.with_result_types(cls, operands, result_types,
                                            attributes, successors, regions)
 
