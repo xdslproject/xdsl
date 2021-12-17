@@ -293,9 +293,14 @@ class Parser:
             attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
         attr_def = self._ctx.get_attr(attr_def_name)
-        has_list = self.parse_optional_char("<")
-        if has_list is None:
+        if self.parse_optional_char("<") is None:
             return attr_def()
+
+        if issubclass(attr_def, Data):
+            attr = attr_def.parse(self)
+            self.parse_char(">")
+            return attr
+
         param_list = self.parse_list(self.parse_optional_attribute)
         self.parse_char(">")
         return attr_def(param_list)
