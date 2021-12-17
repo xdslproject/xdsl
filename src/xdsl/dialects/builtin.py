@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from xdsl.irdl import *
 from xdsl.ir import *
 
