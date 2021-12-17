@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, TypeVar
 from inspect import isclass
 import typing
 
@@ -401,9 +401,11 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
         attr_def.constr.verify(op.attributes[attr_name])
 
 
+OperationType = TypeVar("OperationType", bound=Operation)
+
+
 def irdl_op_definition(
-    cls: typing.Type[xdsl.ir.OperationType]
-) -> typing.Type[xdsl.ir.OperationType]:
+        cls: typing.Type[OperationType]) -> typing.Type[OperationType]:
     """Decorator used on classes to define a new operation definition."""
     operands = [(field_name, field)
                 for field_name, field in cls.__dict__.items()
@@ -497,7 +499,11 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
         param_def.constr.verify(attr.parameters[idx])
 
 
-def irdl_attr_definition(cls) -> typing.Type[Attribute]:
+AttributeType = TypeVar("AttributeType", bound=ParametrizedAttribute)
+
+
+def irdl_attr_definition(
+        cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
     """Decorator used on classes to define a new attribute definition."""
 
     parameters = []
