@@ -108,7 +108,7 @@ class MemRefType:
 
 
 @irdl_op_definition
-class Load:
+class Load(Operation):
     name = "memref.load"
     memref = OperandDef(MemRefType)
     indices = VarOperandDef(IndexType)
@@ -127,7 +127,7 @@ class Load:
 
 
 @irdl_op_definition
-class Store:
+class Store(Operation):
     name = "memref.store"
     value = OperandDef(AnyAttr())
     memref = OperandDef(MemRefType)
@@ -143,7 +143,7 @@ class Store:
 
 
 @irdl_op_definition
-class Alloc:
+class Alloc(Operation):
     name = "memref.alloc"
 
     dynamic_sizes = VarOperandDef(IndexType)
@@ -158,7 +158,7 @@ class Alloc:
 
 
 @irdl_op_definition
-class Alloca:
+class Alloca(Operation):
     name = "memref.alloca"
 
     dynamic_sizes = VarOperandDef(IndexType)
@@ -173,7 +173,7 @@ class Alloca:
 
 
 @irdl_op_definition
-class Dealloc:
+class Dealloc(Operation):
     name = "memref.dealloc"
     memref = OperandDef(MemRefType)
 
@@ -197,7 +197,7 @@ class GetGlobal(Operation):
 
 
 @irdl_op_definition
-class Global:
+class Global(Operation):
     name = "memref.global"
     sym_name = AttributeDef(SymbolNameAttr)
     sym_visibility = AttributeDef(StringAttr)
