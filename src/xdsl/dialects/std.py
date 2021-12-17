@@ -93,7 +93,7 @@ class Std:
 
 
 @irdl_op_definition
-class Constant:
+class Constant(Operation):
     name: str = "std.constant"
     output = ResultDef(AnyAttr())
     value = AttributeDef(AnyAttr())
@@ -105,7 +105,7 @@ class Constant:
 
 
 @irdl_op_definition
-class Addi:
+class Addi(Operation):
     name: str = "std.addi"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -118,7 +118,7 @@ class Addi:
 
 
 @irdl_op_definition
-class Muli:
+class Muli(Operation):
     name: str = "std.muli"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -131,7 +131,7 @@ class Muli:
 
 
 @irdl_op_definition
-class Subi:
+class Subi(Operation):
     name: str = "std.subi"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -144,7 +144,7 @@ class Subi:
 
 
 @irdl_op_definition
-class FloordiviSigned:
+class FloordiviSigned(Operation):
     name: str = "std.floordivi_signed"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -157,7 +157,7 @@ class FloordiviSigned:
 
 
 @irdl_op_definition
-class RemiSigned:
+class RemiSigned(Operation):
     name: str = "std.remi_signed"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -170,7 +170,7 @@ class RemiSigned:
 
 
 @irdl_op_definition
-class Call:
+class Call(Operation):
     name: str = "std.call"
     arguments = VarOperandDef(AnyAttr())
     callee = AttributeDef(FlatSymbolRefAttr)
@@ -181,13 +181,13 @@ class Call:
 
 
 @irdl_op_definition
-class Return:
+class Return(Operation):
     name: str = "std.return"
     arguments = VarOperandDef(AnyAttr())
 
 
 @irdl_op_definition
-class And:
+class And(Operation):
     name: str = "std.and"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -200,7 +200,7 @@ class And:
 
 
 @irdl_op_definition
-class Or:
+class Or(Operation):
     name: str = "std.or"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -213,7 +213,7 @@ class Or:
 
 
 @irdl_op_definition
-class Xor:
+class Xor(Operation):
     name: str = "std.xor"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
@@ -226,7 +226,7 @@ class Xor:
 
 
 @irdl_op_definition
-class Cmpi:
+class Cmpi(Operation):
     name: str = "std.cmpi"
     predicate = AttributeDef(IntegerAttr)
     input1 = OperandDef(IntegerType)
@@ -235,7 +235,7 @@ class Cmpi:
 
 
 @irdl_op_definition
-class Addf:
+class Addf(Operation):
     name: str = "std.addf"
     input1 = OperandDef(Float32Type)
     input2 = OperandDef(Float32Type)
@@ -248,7 +248,7 @@ class Addf:
 
 
 @irdl_op_definition
-class Mulf:
+class Mulf(Operation):
     name: str = "std.mulf"
     input1 = OperandDef(Float32Type)
     input2 = OperandDef(Float32Type)

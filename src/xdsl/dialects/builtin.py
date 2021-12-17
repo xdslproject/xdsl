@@ -185,7 +185,7 @@ class FunctionType:
 
 
 @irdl_op_definition
-class FuncOp:
+class FuncOp(Operation):
     name: str = "builtin.func"
 
     body = RegionDef()
@@ -195,7 +195,7 @@ class FuncOp:
 
 
 @irdl_op_definition
-class ModuleOp:
+class ModuleOp(Operation):
     name: str = "module"
 
     body = SingleBlockRegionDef()

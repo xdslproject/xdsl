@@ -35,7 +35,7 @@ class Scf:
 
 
 @irdl_op_definition
-class If:
+class If(Operation):
     name: str = "scf.if"
     output = VarResultDef(AnyAttr())
     cond = OperandDef(IntegerType.get(1))
@@ -46,20 +46,20 @@ class If:
 
 
 @irdl_op_definition
-class Yield:
+class Yield(Operation):
     name: str = "scf.yield"
     arguments = VarOperandDef(AnyAttr())
 
 
 @irdl_op_definition
-class Condition:
+class Condition(Operation):
     name: str = "scf.condition"
     cond = OperandDef(IntegerType.get(1))
     arguments = VarOperandDef(AnyAttr())
 
 
 @irdl_op_definition
-class While:
+class While(Operation):
     name: str = "scf.while"
     arguments = VarOperandDef(AnyAttr())
 
