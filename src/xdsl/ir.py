@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
 
-OperationType = TypeVar('OperationType', bound='Operation')
+OperationType = TypeVar('OperationType', bound='Operation', covariant=True)
 
 
 @dataclass
@@ -20,7 +20,7 @@ class MLContext:
     _registeredAttrs: Dict[str, typing.Type[Attribute]] = field(
         default_factory=dict)
 
-    def register_op(self, op: OperationType) -> None:
+    def register_op(self, op: typing.Type[Operation]) -> None:
         """Register an operation definition. Operation names should be unique."""
         if op.name in self._registeredOps:
             raise Exception(f"Operation {op.name} has already been registered")

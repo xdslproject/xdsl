@@ -401,7 +401,7 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
         attr_def.constr.verify(op.attributes[attr_name])
 
 
-def irdl_op_definition(cls: xdsl.ir.OperationType) -> xdsl.ir.OperationType:
+def irdl_op_definition(cls: typing.Type[xdsl.ir.OperationType]) -> typing.Type[xdsl.ir.OperationType]:
     """Decorator used on classes to define a new operation definition."""
     operands = [(field_name, field)
                 for field_name, field in cls.__dict__.items()
