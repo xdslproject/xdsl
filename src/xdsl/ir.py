@@ -121,7 +121,7 @@ class ParametrizedAttribute(Attribute):
 
 
 @dataclass
-class Operation(ABC):
+class Operation:
     """A generic operation. Operation definitions inherit this class."""
 
     name: str = field(default="", init=False)
@@ -200,9 +200,8 @@ class Operation(ABC):
         for region in self.regions:
             region.verify()
 
-    @abstractmethod
     def verify_(self) -> None:
-        ...
+        pass
 
     def __eq__(self, other: Operation) -> bool:
         return self is other
