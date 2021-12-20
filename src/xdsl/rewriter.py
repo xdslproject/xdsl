@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Callable, Dict
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, SSAValue, Region, Block
+from xdsl.ir import Operation, SSAValue, Region, Block, BlockArgument
 
 
 @dataclass(eq=False, repr=False)
@@ -150,6 +150,11 @@ class OperandUpdater:
         for (old_res, new_res) in zip(old_op.results, action.new_results):
             self.result_mapping[old_res] = new_res
 
+    def bookkeep_blockargs(self, old_block: Block, new_block: Block):
+        """ Map old block arguments to the new arguments """
+        for (old_arg, new_arg) in zip(old_block.args, new_block.args):
+            self.result_mapping[old_arg] = new_arg
+
     def get_new_value(self, value: SSAValue) -> Optional[SSAValue]:
         """Get the updated value, if it exists, or returns the same one."""
         return self.result_mapping.get(value, value)
@@ -227,6 +232,11 @@ class PatternRewriteWalker:
             self.rewrite_op_regions(op)
         return [op]
 
+    def add_block_args(self, new: Block, old: Block):
+        """Duplicate the old BlockArguments, adds them to the new Block, and bookkeeps them."""
+        new.args = [BlockArgument(arg.typ, new, arg.index) for arg in old.args]
+        self._updater.bookkeep_blockargs(old, new)
+
     def rewrite_op_regions(self, op: Operation):
         """Rewrite the regions of an operation, and update the operation with the new regions."""
         new_regions = []
@@ -234,6 +244,7 @@ class PatternRewriteWalker:
             new_region = Region()
             for block in region.blocks:
                 new_block = Block()
+                self.add_block_args(new_block, block)
                 for sub_op in block.ops:
                     new_block.add_ops(self.rewrite_op(sub_op))
                 new_region.add_block(new_block)
