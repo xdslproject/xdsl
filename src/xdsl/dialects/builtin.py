@@ -86,7 +86,7 @@ class IntAttr(Data):
 
 
 @irdl_attr_definition
-class IntegerType:
+class IntegerType(ParametrizedAttribute):
     name = "integer_type"
 
     width = ParameterDef(IntAttr)
@@ -97,7 +97,7 @@ class IntegerType:
 
 
 @irdl_attr_definition
-class IndexType:
+class IndexType(ParametrizedAttribute):
     name = "index"
 
 
@@ -165,7 +165,7 @@ class VectorAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class Float32Type:
+class Float32Type(ParametrizedAttribute):
     name = "f32"
 
     @staticmethod
@@ -174,7 +174,7 @@ class Float32Type:
 
 
 @irdl_attr_definition
-class FunctionType:
+class FunctionType(ParametrizedAttribute):
     name = "fun"
 
     inputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
