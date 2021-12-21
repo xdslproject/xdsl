@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from xdsl.irdl import *
 from xdsl.ir import *
@@ -32,7 +33,7 @@ class StringAttr(Data):
 
     # parser should be of type parser.Parser
     @staticmethod
-    def parse(parser) -> 'StringAttr':
+    def parse(parser) -> StringAttr:
         data = parser.parse_str_literal()
         return StringAttr(data)
 
@@ -40,7 +41,7 @@ class StringAttr(Data):
         printer.print_string(f'"{self.data}"')
 
     @staticmethod
-    def get(data: str) -> 'StringAttr':
+    def get(data: str) -> StringAttr:
         return StringAttr(data)
 
 
@@ -50,7 +51,7 @@ class SymbolNameAttr(ParametrizedAttribute):
     data = ParameterDef(StringAttr)
 
     @staticmethod
-    def get(data: str) -> 'SymbolNameAttr':
+    def get(data: str) -> SymbolNameAttr:
         return SymbolNameAttr([StringAttr.get(data)])
 
 
@@ -60,7 +61,7 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
     data = ParameterDef(StringAttr)
 
     @staticmethod
-    def get(data: str) -> 'FlatSymbolRefAttr':
+    def get(data: str) -> FlatSymbolRefAttr:
         return FlatSymbolRefAttr([StringAttr(data)])
 
 
@@ -71,7 +72,7 @@ class IntAttr(Data):
 
     # parser should be of type parser.Parser
     @staticmethod
-    def parse(parser: Any) -> 'IntAttr':
+    def parse(parser: Any) -> IntAttr:
         data = parser.parse_int_literal()
         return IntAttr(data)
 
@@ -80,7 +81,7 @@ class IntAttr(Data):
         printer.print_string(f'{self.data}')
 
     @staticmethod
-    def get(data: int) -> 'IntAttr':
+    def get(data: int) -> IntAttr:
         return IntAttr(data)
 
 
@@ -108,8 +109,7 @@ class IntegerAttr(ParametrizedAttribute):
     typ = ParameterDef(AnyOf([IntegerType, IndexType]))
 
     @staticmethod
-    def get(
-        value: int, type: Attribute = IntegerType.get(64)) -> 'IntegerAttr':
+    def get(value: int, type: Attribute = IntegerType.get(64)) -> IntegerAttr:
         return IntegerAttr([IntAttr.get(value), type])
 
 
@@ -119,7 +119,7 @@ class ArrayAttr(Data):
     data: List[Attribute]
 
     @staticmethod
-    def parse(parser) -> 'ArrayAttr':
+    def parse(parser) -> ArrayAttr:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
@@ -131,7 +131,7 @@ class ArrayAttr(Data):
         printer.print_string("]")
 
     @staticmethod
-    def get(data: List[Attribute]) -> 'ArrayAttr':
+    def get(data: List[Attribute]) -> ArrayAttr:
         return ArrayAttr(data)
 
 
@@ -159,7 +159,7 @@ class VectorAttr(ParametrizedAttribute):
     data = ParameterDef(ArrayOfConstraint(IntegerAttr))
 
     @staticmethod
-    def get(data: List[int]) -> 'VectorAttr':
+    def get(data: List[int]) -> VectorAttr:
         data_attr = [IntegerAttr.get(d) for d in data]
         return VectorAttr([ArrayAttr.get(data_attr)])
 
