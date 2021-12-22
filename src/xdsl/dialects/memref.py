@@ -21,67 +21,51 @@ class MemRef:
         self.ctx.register_op(GetGlobal)
         self.ctx.register_op(Global)
 
-    def load(self,
-             value: OpOrBlockArg,
-             indices: List[OpOrBlockArg] = []) -> Operation:
-        # TODO should we really check these things here?
-        if not isinstance(get_ssa_value(value).typ, MemRefType):
-            raise Exception("memref.load expected a MemRefType operand")
-        return Load.create([get_ssa_value(value)] +
-                           [get_ssa_value(i) for i in indices],
-                           [get_ssa_value(value).typ.element_type])
-
-    def store(self,
-              value: OpOrBlockArg,
-              place: OpOrBlockArg,
-              indices: List[OpOrBlockArg] = []) -> Operation:
-        return Store.create(
-            [get_ssa_value(value), get_ssa_value(place)] +
-            [get_ssa_value(i) for i in indices], [])
+    def load(self, value, indices: List) -> Operation:
+        return Load.build(operands=[value, indices],
+                          result_types=[SSAValue.get(value).typ.element_type])
 
     def alloc(self,
               alignment: int,
               return_type: Attribute,
-              shape: List[int] = [1]) -> Operation:
-        return Alloc.create(
-            [], [MemRefType.from_type_and_list(return_type, shape)],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64),
-                "operand_segment_sizes": VectorAttr.from_int_list([0, 0])
-            })
+              shape: List = None) -> Operation:
+        if shape is None:
+            shape = [1]
+        return Alloc.build(
+            operands=[[], []],
+            result_types=[MemRefType.from_type_and_list(return_type, shape)],
+            attributes={"alignment": alignment})
 
     def alloca(self,
                alignment: int,
                return_type: Attribute,
-               shape: List[int] = [1]) -> Operation:
-        return Alloca.create(
-            [], [MemRefType.from_type_and_list(return_type, shape)],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64),
-                "operand_segment_sizes": VectorAttr.from_int_list([0, 0])
-            })
+               shape: List = None) -> Operation:
+        if shape is None:
+            shape = [1]
+        return Alloca.build(
+            operands=[[], []],
+            result_types=[MemRefType.from_type_and_list(return_type, shape)],
+            attributes={"alignment": alignment})
 
     def dealloc(self, memref: OpOrBlockArg) -> Operation:
-        return Dealloc.create([get_ssa_value(memref)], [])
+        return Dealloc.build(operands=[memref])
 
-    def get_global(self, name: str, return_type: Attribute) -> Operation:
-        return GetGlobal.create([], [return_type],
-                                {"name": FlatSymbolRefAttr.from_str(name)})
+    def get_global(self, name, return_type: Attribute) -> Operation:
+        op = GetGlobal.build(result_types=[return_type])
+        op.attributes["name"] = FlatSymbolRefAttr.build(name)
+        return op
 
     def global_(self,
-                sym_name: str,
+                sym_name,
                 typ: Attribute,
                 initial_value: Optional[Attribute],
-                sym_visibility: str = "private",
-                constant: bool = False) -> Operation:
-        if not initial_value:
-            raise Exception("optional arguments are not yet supported")
-        return Global.create(
-            [], [], {
-                "sym_name": SymbolNameAttr.from_str(sym_name),
+                sym_visibility="private") -> Operation:
+        return Global.build(
+            attributes={
+                "sym_name": sym_name,
                 "type": typ,
                 "initial_value": initial_value,
-                "sym_visibility": StringAttr.from_str(sym_visibility)
+                "sym_visibility": sym_visibility
             })
 
 
@@ -189,7 +173,7 @@ class Dealloc(Operation):
     memref = OperandDef(MemRefType)
 
 
-#@irdl_op_definition
+@irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
     #name = AttributeDef(FlatSymbolRefAttr)
