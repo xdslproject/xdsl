@@ -1,7 +1,7 @@
 from xdsl.dialects.memref import *
 from xdsl.dialects.std import *
+from xdsl.dialects.builtin import func
 from xdsl.printer import Printer
-from xdsl.util import block, func
 
 
 def get_example_memref_program(ctx: MLContext, std: Std,
