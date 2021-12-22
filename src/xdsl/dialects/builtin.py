@@ -244,9 +244,10 @@ class FuncOp(Operation):
     sym_visibility = AttributeDef(StringAttr)
 
     @staticmethod
-    def from_callable(name: str, input_types: List[Attribute],
-                      return_types: Union[Attribute, List[Attribute]],
-                      func: Callable[[BlockArgument, ...], List[Operation]]):
+    def from_callable(
+            name: str, input_types: List[Attribute],
+            return_types: Union[Attribute, List[Attribute]],
+            func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
         if not isinstance(return_types, list) and not isinstance(
                 return_types, ArrayAttr):
             return_types = [return_types]
