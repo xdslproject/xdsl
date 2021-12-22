@@ -204,6 +204,16 @@ class Operation:
         return Operation.with_result_types(cls, operands, result_types,
                                            attributes, successors, regions)
 
+    @classmethod
+    def build(cls: typing.Type[T],
+              operands=[],
+              result_types=[],
+              attributes=[],
+              successors=[],
+              regions=[]) -> T:
+        """Create a new operation using builders."""
+        ...
+
     def add_region(self, region: Region) -> None:
         self.regions.append(region)
         region.parent = self
