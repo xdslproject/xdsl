@@ -19,11 +19,11 @@ def get_example_memref_program(ctx: MLContext, std: Std,
 
                 ref := memref.alloca(0, IndexType()),
                 val := std.constant(42, IndexType()),
-                memref.store(val, ref, [index_0]),
+                Store.build(operands=[val, ref, [index_0]]),
                 val2 := memref.load(ref, [index_0]),
 
                 arr := memref.alloc(0, IndexType(), [10,2]),
-                memref.store(val, arr, [val, val2]),
+                Store.build(operands=[val, arr, [val, val2]]),
 
                 memref.dealloc(ref),
                 memref.dealloc(arr)
