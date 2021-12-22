@@ -158,6 +158,11 @@ class Operation:
                           attributes: Optional[Dict[str, Attribute]] = None,
                           successors: Optional[List[Block]] = None,
                           regions: Optional[List[Region]] = None) -> Operation:
+
+        for operation in operands:
+            assert isinstance(operation,
+                              SSAValue), "Operands must be of type SSAValue"
+
         operation = op()
         if operands is not None:
             operation.operands = operands
