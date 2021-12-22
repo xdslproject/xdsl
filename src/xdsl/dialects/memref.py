@@ -86,7 +86,7 @@ class MemRef:
 
 
 @irdl_attr_definition
-class MemRefType:
+class MemRefType(ParametrizedAttribute):
     name = "memref"
 
     shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
