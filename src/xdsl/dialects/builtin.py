@@ -127,12 +127,13 @@ class IntegerAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_int_and_width(value: int, width: int = 64) -> IntegerAttr:
+    def from_int_and_width(value: int, width: int) -> IntegerAttr:
         return IntegerAttr(
             [IntAttr.from_int(value),
              IntegerType.from_width(width)])
 
     @staticmethod
+    @builder
     def from_index_int_value(value: int) -> IntegerAttr:
         return IntegerAttr([IntAttr.from_int(value), IndexType()])
 
@@ -195,8 +196,9 @@ class VectorAttr(ParametrizedAttribute):
     data = ParameterDef(ArrayOfConstraint(IntegerAttr))
 
     @staticmethod
-    def from_int_list(data: List[int]) -> VectorAttr:
-        data_attr = [IntegerAttr.from_int_and_width(d) for d in data]
+    @builder
+    def from_int_list(data: List[int], bitwidth=64) -> VectorAttr:
+        data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return VectorAttr([ArrayAttr.from_list(data_attr)])
 
     @staticmethod
