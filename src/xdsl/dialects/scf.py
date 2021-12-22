@@ -1,3 +1,4 @@
+from __future__ import annotations
 from xdsl.dialects.builtin import *
 from xdsl.util import OpOrBlockArg, get_ssa_value
 
@@ -12,27 +13,6 @@ class Scf:
         self.ctx.register_op(Condition)
         self.ctx.register_op(While)
 
-    def if_(self, cond: OpOrBlockArg, true_region: Region,
-            false_region: Region, return_types: List[Attribute]):
-        op = If.create([get_ssa_value(cond)],
-                       return_types,
-                       regions=[true_region, false_region])
-        return op
-
-    def yield_(self, *ops: OpOrBlockArg):
-        return Yield.create([get_ssa_value(op) for op in ops], [])
-
-    def condition(self, cond: OpOrBlockArg, *output_ops: List[OpOrBlockArg]):
-        return Condition.create([get_ssa_value(cond)] +
-                                [get_ssa_value(op) for op in output_ops], [])
-
-    def while_(self, before: Region, after: Region, ops: List[OpOrBlockArg],
-               return_types: List[Attribute]):
-        op = While.create([get_ssa_value(op) for op in ops],
-                          return_types,
-                          regions=[before, after])
-        return op
-
 
 @irdl_op_definition
 class If(Operation):
@@ -44,11 +24,23 @@ class If(Operation):
     # TODO this should be optional under certain conditions
     false_region = RegionDef()
 
+    @staticmethod
+    def get(cond: Union[Operation, SSAValue], return_types: List[Attribute],
+            true_region: Union[Region, List[Block], List[Operation]],
+            false_region: Union[Region, List[Block], List[Operation]]):
+        return If.build(operands=[cond],
+                        result_types=return_types,
+                        regions=[true_region, false_region])
+
 
 @irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
     arguments = VarOperandDef(AnyAttr())
+
+    @staticmethod
+    def get(*operands: Union[Operation, SSAValue]) -> Yield:
+        return Yield.create(operands=[operand for operand in operands])
 
 
 @irdl_op_definition
@@ -56,6 +48,12 @@ class Condition(Operation):
     name: str = "scf.condition"
     cond = OperandDef(IntegerType.from_width(1))
     arguments = VarOperandDef(AnyAttr())
+
+    @staticmethod
+    def get(cond: Union[Operation, SSAValue],
+            *output_ops: Union[Operation, SSAValue]) -> Condition:
+        return Condition.build(
+            operands=[cond, [output for output in output_ops]])
 
 
 @irdl_op_definition
@@ -80,3 +78,13 @@ class While(Operation):
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.typ}, got {self.after_region.block[0].args[idx].typ}"
                 )
+
+    @staticmethod
+    def get(operands: List[Union[Operation,
+                                 SSAValue]], result_types: List[Attribute],
+            before: Union[Region, List[Operation], List[Block]],
+            after: Union[Region, List[Operation], List[Block]]) -> While:
+        op = While.build(operands=operands,
+                         result_types=result_types,
+                         regions=[before, after])
+        return op
