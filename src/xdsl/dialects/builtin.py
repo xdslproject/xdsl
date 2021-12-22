@@ -26,7 +26,7 @@ class Builtin:
         self.ctx.register_op(FuncOp)
 
 
-@dataclass(frozen=True)
+@irdl_attr_definition
 class StringAttr(Data):
     name = "string"
     data: str
@@ -65,7 +65,7 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
         return FlatSymbolRefAttr([StringAttr(data)])
 
 
-@dataclass(frozen=True)
+@irdl_attr_definition
 class IntAttr(Data):
     name = "int"
     data: int
@@ -113,7 +113,7 @@ class IntegerAttr(ParametrizedAttribute):
         return IntegerAttr([IntAttr.get(value), type])
 
 
-@dataclass(frozen=True)
+@irdl_attr_definition
 class ArrayAttr(Data):
     name = "array"
     data: List[Attribute]
