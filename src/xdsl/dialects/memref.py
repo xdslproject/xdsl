@@ -113,7 +113,7 @@ class MemRefType(ParametrizedAttribute):
     def from_params(
         referenced_type: Attribute,
         shape: ArrayAttr = ArrayAttr.from_list(
-            [IntegerAttr.from_int_and_width(1)])
+            [IntegerAttr.from_int_and_width(1, 64)])
     ) -> Attribute:
         return MemRefType([shape, referenced_type])
 
