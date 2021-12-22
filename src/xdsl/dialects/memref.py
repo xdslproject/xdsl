@@ -39,7 +39,7 @@ class MemRefType(ParametrizedAttribute):
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> Attribute:
+            shape: List[Union[int, IntegerAttr]] = None) -> MemRefType:
         if shape is None:
             shape = [1]
         return MemRefType([
@@ -53,7 +53,7 @@ class MemRefType(ParametrizedAttribute):
         referenced_type: Attribute,
         shape: ArrayAttr = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> Attribute:
+    ) -> MemRefType:
         return MemRefType([shape, referenced_type])
 
 
@@ -99,7 +99,7 @@ class Store(Operation):
 
     @staticmethod
     def get(value: Union[Operation, SSAValue], ref: Union[Operation, SSAValue],
-            indices: List[Union[Operation, SSAValue]]):
+            indices: List[Union[Operation, SSAValue]]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
@@ -120,7 +120,7 @@ class Alloc(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: List[Union[int, IntegerAttr]] = None) -> Operation:
+            shape: List[Union[int, IntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
@@ -148,7 +148,7 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: List[Union[int, IntegerAttr]] = None) -> Operation:
+            shape: List[Union[int, IntegerAttr]] = None) -> Alloca:
         if shape is None:
             shape = [1]
         return Alloca.build(
@@ -185,7 +185,7 @@ class GetGlobal(Operation):
                 "expected 'name' attribute to be a FlatSymbolRefAttr")
 
     @staticmethod
-    def get(name, return_type: Attribute) -> Operation:
+    def get(name, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
             result_types=[return_type],
             attributes={"name": FlatSymbolRefAttr.build(name)})
@@ -210,7 +210,7 @@ class Global(Operation):
     def get(sym_name,
             typ: Attribute,
             initial_value: Optional[Attribute],
-            sym_visibility="private") -> Operation:
+            sym_visibility="private") -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,
