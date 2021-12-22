@@ -9,23 +9,23 @@ def get_example_memref_program(ctx: MLContext, std: Std,
         # yapf: disable
         return [
 
-                memref.global_("g", IndexType(), IntegerAttr.from_index_int_value(0),
+                Global.get("g", IndexType(), IntegerAttr.from_index_int_value(0),
                     "public"),
 
-                global_ref := memref.get_global("g", MemRefType.from_params(IndexType())),
+                global_ref := GetGlobal.get("g", MemRefType.from_params(IndexType())),
 
                 index_0 := std.constant(0, IndexType()),
 
-                ref := memref.alloca(0, IndexType()),
+                ref := Alloca.get(IndexType(), 0),
                 val := std.constant(42, IndexType()),
-                Store.build(operands=[val, ref, [index_0]]),
-                val2 := memref.load(ref, [index_0]),
+                Store.get(val, ref, [index_0]),
+                val2 := Load.get(ref, [index_0]),
 
-                arr := memref.alloc(0, IndexType(), [10,2]),
-                Store.build(operands=[val, arr, [val, val2]]),
+                arr := Alloc.get(IndexType(), 0, [10, 2]),
+                Store.get(val, arr, [val, val2]),
 
-                memref.dealloc(ref),
-                memref.dealloc(arr)
+                Dealloc.get(ref),
+                Dealloc.get(arr)
 
         ]
     # yapf: enable
