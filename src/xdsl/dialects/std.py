@@ -37,7 +37,7 @@ class Std:
     # TODO make this generic in the type
     def constant(self, val: int, typ: Attribute) -> Operation:
         return Constant.create(
-            [], [typ], attributes={"value": IntegerAttr.build(val, typ)})
+            [], [typ], attributes={"value": IntegerAttr.from_params(val, typ)})
 
     def constant_from_attr(self, attr: Attribute, typ: Attribute) -> Operation:
         return Constant.create([], [typ], attributes={"value": attr})
