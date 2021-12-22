@@ -51,6 +51,18 @@ class SSAValue(ABC):
 
     typ: Attribute
     """Each SSA variable is associated to a type."""
+    @staticmethod
+    def get(arg: SSAValue | Operation) -> SSAValue:
+        """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
+        if isinstance(arg, SSAValue):
+            return arg
+        if isinstance(arg, Operation):
+            if len(arg.results) == 1:
+                return arg.results[0]
+            raise ValueError(
+                "SSAValue.build: expected operation with a single result.")
+        raise TypeError(
+            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}")
 
 
 @dataclass
@@ -281,6 +293,26 @@ class Region:
         region = Region()
         region.add_block(block)
         return region
+
+    @staticmethod
+    def from_block_list(blocks: List[Block]) -> Region:
+        region = Region()
+        for block in blocks:
+            region.add_block(block)
+        return region
+
+    @staticmethod
+    def get(arg: Region | List[Block] | List[Operation]) -> Region:
+        if isinstance(arg, Region):
+            return arg
+        if isinstance(arg, list):
+            if len(arg) == 0:
+                raise ValueError("Can't construct a region with an empty list")
+            if isinstance(arg, Block):
+                return Region.from_block_list(arg)
+            if isinstance(arg, Operation):
+                return Region.from_operation_list(arg)
+        raise TypeError(f"Can't build a region with argument {arg}")
 
     def add_block(self, block: Block) -> None:
         self.blocks.append(block)
