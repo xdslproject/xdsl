@@ -28,7 +28,7 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
     # yapf: enable
 
     f32 = std.f32
-    f = func("affine_mm", [f32, f32, f32], [f32], affine_mm)
+    f = FuncOp.from_callable("affine_mm", [f32, f32, f32], [f32], affine_mm)
     return f
 
 
