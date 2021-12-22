@@ -64,7 +64,8 @@ def attr_constr_coercion(
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
     def verify(self, attr: Attribute) -> None:
-        pass
+        if not isinstance(attr, Attribute):
+            raise Exception(f"Expected attribute, but got {attr}")
 
 
 @dataclass(init=False)
