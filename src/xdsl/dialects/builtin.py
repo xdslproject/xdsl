@@ -240,8 +240,24 @@ class FuncOp(Operation):
 
     body = RegionDef()
     sym_name = AttributeDef(StringAttr)
-    type = AttributeDef(Attribute)
+    type = AttributeDef(FunctionType)
     sym_visibility = AttributeDef(StringAttr)
+
+    @staticmethod
+    def from_callable(name: str, input_types: List[Attribute],
+                      return_types: Union[Attribute, List[Attribute]],
+                      func: Callable[[BlockArgument, ...], List[Operation]]):
+        if not isinstance(return_types, list) and not isinstance(
+                return_types, ArrayAttr):
+            return_types = [return_types]
+        type_attr = FunctionType.from_lists(input_types, return_types)
+        op = FuncOp.build(attributes={
+            "sym_name": name,
+            "type": type_attr,
+            "sym_visibility": "private"
+        },
+                          regions=[Region([block(input_types, func)])])
+        return op
 
 
 @irdl_op_definition
@@ -254,61 +270,15 @@ class ModuleOp(Operation):
     def ops(self) -> List[Operation]:
         return self.regions[0].blocks[0].ops
 
-
-@overload
-def func(name: str, type: Attribute, return_type: Attribute,
-         f: Callable[[BlockArgument], List[Operation]]) -> Operation:
-    ...
-
-
-@overload
-def func(
-        name: str, types: List[Attribute], return_type: Attribute,
-        f: Callable[[BlockArgument, BlockArgument],
-                    List[Operation]]) -> Operation:
-    ...
-
-
-@overload
-def func(
-    name: str, types: List[Attribute], return_type: Attribute,
-    f: Callable[[BlockArgument, BlockArgument, BlockArgument], List[Operation]]
-) -> Operation:
-    ...
-
-
-def func(name, input_types, return_types, f) -> Operation:
-    type_attr = FunctionType.build(input_types, return_types)
-    op = FuncOp.create(
-        [], [],
-        attributes={
-            "sym_name": StringAttr.build(name),
-            "type": type_attr,
-            "sym_visibility": StringAttr.from_str("private")
-        },
-        regions=[Region([block(input_types, f)])])
-    return op
-
-
-# This function is easier to use while parsing, but makes the
-# inline definitions complicated
-def func2(name, input_types, return_types, region: Region) -> Operation:
-    type_attr = FunctionType.get(input_types, return_types)
-    op = FuncOp.create(
-        [], [],
-        attributes={
-            "sym_name": StringAttr.build(name),
-            "type": type_attr,
-            "sym_visibility": StringAttr.from_str("private")
-        },
-        regions=[region])
-    return op
-
-
-def module(ops: Union[List[Operation], Region]) -> Operation:
-    if isinstance(ops, List):
-        region = Region([Block([], ops)])
-    else:
-        region = ops
-    op = ModuleOp.create([], [], regions=[region])
-    return op
+    @staticmethod
+    def from_region_or_ops(ops: Union[List[Operation], Region]) -> ModuleOp:
+        if isinstance(ops, list):
+            region = Region([Block([], ops)])
+        elif isinstance(ops, Region):
+            region = ops
+        else:
+            raise TypeError(
+                f"Expected region or operation list in ModuleOp.get, but got '{ops}'"
+            )
+        op = ModuleOp.create([], [], regions=[region])
+        return op

@@ -1,6 +1,5 @@
 from xdsl.dialects.memref import *
 from xdsl.dialects.std import *
-from xdsl.dialects.builtin import func
 from xdsl.printer import Printer
 
 
@@ -31,7 +30,7 @@ def get_example_memref_program(ctx: MLContext, std: Std,
         ]
     # yapf: enable
 
-    f = func("test", [], [], test)
+    f = FuncOp.from_callable("test", [], [], test)
     return f
 
 
