@@ -3,7 +3,6 @@ from inspect import signature
 from typing import Union, NoReturn, Callable, List, overload
 import typing
 from dataclasses import dataclass
-from xdsl.dialects.builtin import FuncOp, FunctionType, ModuleOp, StringAttr
 from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
 
 
@@ -82,65 +81,6 @@ def block(t, f) -> Block:
         b = Block.with_arg_types(t)
         b.add_ops(f(*b.args))
         return b
-
-
-@overload
-def func(name: str, type: Attribute, return_type: Attribute,
-         f: Callable[[BlockArgument], List[Operation]]) -> Operation:
-    ...
-
-
-@overload
-def func(
-        name: str, types: List[Attribute], return_type: Attribute,
-        f: Callable[[BlockArgument, BlockArgument],
-                    List[Operation]]) -> Operation:
-    ...
-
-
-@overload
-def func(
-    name: str, types: List[Attribute], return_type: Attribute,
-    f: Callable[[BlockArgument, BlockArgument, BlockArgument], List[Operation]]
-) -> Operation:
-    ...
-
-
-def func(name, input_types, return_types, f) -> Operation:
-    type_attr = FunctionType.build(input_types, return_types)
-    op = FuncOp.create(
-        [], [],
-        attributes={
-            "sym_name": StringAttr.build(name),
-            "type": type_attr,
-            "sym_visibility": StringAttr.from_str("private")
-        },
-        regions=[Region([block(input_types, f)])])
-    return op
-
-
-# This function is easier to use while parsing, but makes the
-# inline definitions complicated
-def func2(name, input_types, return_types, region: Region) -> Operation:
-    type_attr = FunctionType.get(input_types, return_types)
-    op = FuncOp.create(
-        [], [],
-        attributes={
-            "sym_name": StringAttr.build(name),
-            "type": type_attr,
-            "sym_visibility": StringAttr.from_str("private")
-        },
-        regions=[region])
-    return op
-
-
-def module(ops: Union[List[Operation], Region]) -> Operation:
-    if isinstance(ops, List):
-        region = Region([Block([], ops)])
-    else:
-        region = ops
-    op = ModuleOp.create([], [], regions=[region])
-    return op
 
 
 def is_satisfying_hint(arg, hint) -> bool:

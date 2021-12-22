@@ -1,7 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
+
+from xdsl.util import block
 from xdsl.irdl import *
 from xdsl.ir import *
+from typing import overload
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -248,3 +251,62 @@ class ModuleOp(Operation):
     @property
     def ops(self) -> List[Operation]:
         return self.regions[0].blocks[0].ops
+
+
+@overload
+def func(name: str, type: Attribute, return_type: Attribute,
+         f: Callable[[BlockArgument], List[Operation]]) -> Operation:
+    ...
+
+
+@overload
+def func(
+        name: str, types: List[Attribute], return_type: Attribute,
+        f: Callable[[BlockArgument, BlockArgument],
+                    List[Operation]]) -> Operation:
+    ...
+
+
+@overload
+def func(
+    name: str, types: List[Attribute], return_type: Attribute,
+    f: Callable[[BlockArgument, BlockArgument, BlockArgument], List[Operation]]
+) -> Operation:
+    ...
+
+
+def func(name, input_types, return_types, f) -> Operation:
+    type_attr = FunctionType.build(input_types, return_types)
+    op = FuncOp.create(
+        [], [],
+        attributes={
+            "sym_name": StringAttr.build(name),
+            "type": type_attr,
+            "sym_visibility": StringAttr.from_str("private")
+        },
+        regions=[Region([block(input_types, f)])])
+    return op
+
+
+# This function is easier to use while parsing, but makes the
+# inline definitions complicated
+def func2(name, input_types, return_types, region: Region) -> Operation:
+    type_attr = FunctionType.get(input_types, return_types)
+    op = FuncOp.create(
+        [], [],
+        attributes={
+            "sym_name": StringAttr.build(name),
+            "type": type_attr,
+            "sym_visibility": StringAttr.from_str("private")
+        },
+        regions=[region])
+    return op
+
+
+def module(ops: Union[List[Operation], Region]) -> Operation:
+    if isinstance(ops, List):
+        region = Region([Block([], ops)])
+    else:
+        region = ops
+    op = ModuleOp.create([], [], regions=[region])
+    return op
