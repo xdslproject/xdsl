@@ -257,11 +257,22 @@ class Block:
     parent: Optional[Region] = field(default=None)
     """Parent region containing the block."""
     @staticmethod
-    def with_arg_types(arg_types: List[Attribute]) -> Block:
+    def from_arg_types(arg_types: List[Attribute]) -> Block:
         b = Block()
         b.args = [
             BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
         ]
+        return b
+
+    @staticmethod
+    def from_ops(ops: List[Operation], arg_types: List[Attribute] = None):
+        b = Block()
+        if arg_types is not None:
+            b.args = [
+                BlockArgument(typ, b, index)
+                for index, typ in enumerate(arg_types)
+            ]
+        b.add_ops(ops)
         return b
 
     def add_op(self, operation: Operation) -> None:
