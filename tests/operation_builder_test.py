@@ -209,7 +209,7 @@ def test_region_op_blocks():
     assert len(op.region.blocks) == 2
 
 
-def test_region_op_blocks():
+def test_region_op_ops():
     op1 = RegionOp.build(regions=[[Block()]])
     op2 = RegionOp.build(regions=[[Block()]])
     op = RegionOp.build(regions=[[op1, op2]])
