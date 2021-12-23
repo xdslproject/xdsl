@@ -6,22 +6,6 @@ from dataclasses import dataclass
 from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
 
 
-def assert_never(value: NoReturn) -> NoReturn:
-    assert False, f'Unhandled value: {value} ({type(value).__name__})'
-
-
-OpOrBlockArg = Union[Operation, BlockArgument]
-
-
-def get_ssa_value(x: OpOrBlockArg) -> SSAValue:
-    if isinstance(x, Operation):
-        return x.results[0]
-    elif isinstance(x, BlockArgument):
-        return x
-    else:
-        assert_never(x)
-
-
 def new_op(op_name, num_results, num_operands,
            num_regions) -> typing.Type[Operation]:
     @dataclass(eq=False)
