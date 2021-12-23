@@ -49,40 +49,6 @@ def new_type(type_name):
     return TypeBase
 
 
-@overload
-def block(t: Attribute, f: Callable[[BlockArgument],
-                                    List[Operation]]) -> Block:
-    ...
-
-
-@overload
-def block(
-        ts: List[Attribute], f: Callable[[BlockArgument, BlockArgument],
-                                         List[Operation]]) -> Block:
-    ...
-
-
-@overload
-def block(
-    ts: List[Attribute],
-    f: Callable[[BlockArgument, BlockArgument, BlockArgument], List[Operation]]
-) -> Block:
-    ...
-
-
-def block(t, f) -> Block:
-    if isinstance(t, Attribute) and callable(f) and len(
-            signature(f).parameters) == 1:
-        b = Block.with_arg_types([t])
-        b.add_ops(f(b.args[0]))
-        return b
-    if isinstance(t, list) and callable(f) and len(
-            signature(f).parameters) == len(t):
-        b = Block.with_arg_types(t)
-        b.add_ops(f(*b.args))
-        return b
-
-
 def is_satisfying_hint(arg, hint) -> bool:
     """
     Check if `arg` is of the type described by `hint`.

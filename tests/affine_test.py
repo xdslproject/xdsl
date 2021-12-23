@@ -1,7 +1,6 @@
 from xdsl.dialects.builtin import *
 from xdsl.dialects.std import *
 from xdsl.printer import Printer
-from xdsl.util import block
 from xdsl.dialects.affine import *
 
 
@@ -11,9 +10,9 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
                   arg2: BlockArgument) -> List[Operation]:
         # yapf: disable
         return [
-            affine.for_(0, 256, block(std.i64, lambda i: [
-                affine.for_(0, 256, block(std.i64, lambda j: [
-                    affine.for_(0, 250, block(std.i64, lambda k: [
+            affine.for_(0, 256, Block.from_callable([std.i64], lambda i: [
+                affine.for_(0, 256, Block.from_callable([std.i64], lambda j: [
+                    affine.for_(0, 250, Block.from_callable([std.i64], lambda k: [
                         l := affine.load(arg0, i, k),
                         r := affine.load(arg1, k, j),
                         o := affine.load(arg2, i, j),
