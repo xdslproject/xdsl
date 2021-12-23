@@ -349,7 +349,6 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
             for i in range(operand_sizes[current_var_operand]):
                 operand_def.constr.verify(op.operands[current_operand].typ)
                 current_operand += 1
-            current_operand += 1
         else:
             operand_def.constr.verify(op.operands[current_operand].typ)
             current_operand += 1
@@ -364,7 +363,6 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
             for i in range(result_sizes[current_var_result]):
                 result_def.constr.verify(op.results[current_result].typ)
                 current_result += 1
-            current_result += 1
         else:
             result_def.constr.verify(op.results[current_result].typ)
             current_result += 1
