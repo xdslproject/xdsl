@@ -1,6 +1,5 @@
 from __future__ import annotations
 from xdsl.dialects.builtin import *
-from xdsl.util import OpOrBlockArg, get_ssa_value
 
 
 @dataclass

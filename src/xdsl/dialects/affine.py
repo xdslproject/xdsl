@@ -1,5 +1,7 @@
+from typing import Union
+
 from xdsl.ir import *
-from xdsl.util import OpOrBlockArg, get_ssa_value, new_op
+from xdsl.util import new_op
 
 
 @dataclass
@@ -17,18 +19,20 @@ class Affine:
                                                   regions=[Region([block])])
         return op
 
-    def load(self, value: OpOrBlockArg, i: OpOrBlockArg,
-             j: OpOrBlockArg) -> Operation:
+    def load(self, value: Union[Operation, SSAValue],
+             i: Union[Operation, SSAValue], j: Union[Operation,
+                                                     SSAValue]) -> Operation:
         return self.ctx.get_op("affine.load").create(
-            [get_ssa_value(value),
-             get_ssa_value(i),
-             get_ssa_value(j)], [self.ctx.get_attr("f32")()], {})
+            [SSAValue.get(value),
+             SSAValue.get(i),
+             SSAValue.get(j)], [self.ctx.get_attr("f32")()], {})
 
-    def store(self, value: OpOrBlockArg, place: OpOrBlockArg, i: OpOrBlockArg,
-              j: OpOrBlockArg) -> Operation:
+    def store(self, value: Union[Operation, SSAValue],
+              place: Union[Operation, SSAValue], i: Union[Operation, SSAValue],
+              j: Union[Operation, SSAValue]) -> Operation:
         return self.ctx.get_op("affine.store").create([
-            get_ssa_value(value),
-            get_ssa_value(place),
-            get_ssa_value(i),
-            get_ssa_value(j)
+            SSAValue.get(value),
+            SSAValue.get(place),
+            SSAValue.get(i),
+            SSAValue.get(j)
         ], [], {})
