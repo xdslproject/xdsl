@@ -14,10 +14,10 @@ def get_example_memref_program(ctx: MLContext, std: Std,
 
                 global_ref := GetGlobal.get("g", MemRefType.from_params(IndexType())),
 
-                index_0 := std.constant(0, IndexType()),
+                index_0 := Constant.from_int_constant(0, IndexType()),
 
                 ref := Alloca.get(IndexType(), 0),
-                val := std.constant(42, IndexType()),
+                val := Constant.from_int_constant(42, IndexType()),
                 Store.get(val, ref, [index_0]),
                 val2 := Load.get(ref, [index_0]),
 
