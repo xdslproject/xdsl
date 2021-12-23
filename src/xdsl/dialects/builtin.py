@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from xdsl.util import block
 from xdsl.irdl import *
 from xdsl.ir import *
 from typing import overload
@@ -252,12 +251,13 @@ class FuncOp(Operation):
                 return_types, ArrayAttr):
             return_types = [return_types]
         type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(attributes={
-            "sym_name": name,
-            "type": type_attr,
-            "sym_visibility": "private"
-        },
-                          regions=[Region([block(input_types, func)])])
+        op = FuncOp.build(
+            attributes={
+                "sym_name": name,
+                "type": type_attr,
+                "sym_visibility": "private"
+            },
+            regions=[Region([Block.from_callable(input_types, func)])])
         return op
 
 

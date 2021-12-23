@@ -275,6 +275,13 @@ class Block:
         b.add_ops(ops)
         return b
 
+    @staticmethod
+    def from_callable(block_arg_types: List[Attribute],
+                      f: Callable[[Attribute, ...], List[Operation]]):
+        b = Block.from_arg_types(block_arg_types)
+        b.add_ops(f(*b.args))
+        return b
+
     def add_op(self, operation: Operation) -> None:
         self.ops.append(operation)
         operation.parent = self
@@ -329,9 +336,9 @@ class Region:
         if isinstance(arg, list):
             if len(arg) == 0:
                 raise ValueError("Can't construct a region with an empty list")
-            if isinstance(arg, Block):
+            if isinstance(arg[0], Block):
                 return Region.from_block_list(arg)
-            if isinstance(arg, Operation):
+            if isinstance(arg[0], Operation):
                 return Region.from_operation_list(arg)
         raise TypeError(f"Can't build a region with argument {arg}")
 
