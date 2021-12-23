@@ -17,13 +17,13 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
                         l := affine.load(arg0, i, k),
                         r := affine.load(arg1, k, j),
                         o := affine.load(arg2, i, j),
-                        m := std.mulf(l, r),
-                        a := std.addf(o, m),
+                        m := Mulf.get(l, r),
+                        a := Mulf.get(o, m),
                         affine.store(a, arg2, i, j)
                     ]))
                 ]))
             ])),
-            std.return_(arg2)
+            Return.get(arg2)
         ]
     # yapf: enable
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
@@ -34,63 +35,6 @@ class Std:
         self.i32 = IntegerType.from_width(32)
         self.i1 = IntegerType.from_width(1)
 
-    # TODO make this generic in the type
-    def constant(self, val: int, typ: Attribute) -> Operation:
-        return Constant.create(
-            [], [typ], attributes={"value": IntegerAttr.from_params(val, typ)})
-
-    def constant_from_attr(self, attr: Attribute, typ: Attribute) -> Operation:
-        return Constant.create([], [typ], attributes={"value": attr})
-
-    def mulf(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Mulf.create([get_ssa_value(x), get_ssa_value(y)], [self.f32])
-
-    def addf(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Addf.create([get_ssa_value(x), get_ssa_value(y)], [self.f32])
-
-    def call(self, callee: str, ops: List[OpOrBlockArg],
-             return_types: List[Attribute]) -> Operation:
-        return Call.create(
-            [get_ssa_value(op) for op in ops],
-            return_types,
-            attributes={"callee": FlatSymbolRefAttr.get(callee)})
-
-    def return_(self, *ops: OpOrBlockArg) -> Operation:
-        return Return.create([get_ssa_value(op) for op in ops], [])
-
-    # TODO these operations should support all kinds of integer types
-    def muli(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Muli.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
-
-    def addi(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Addi.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
-
-    def subi(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Subi.create([get_ssa_value(x), get_ssa_value(y)], [self.i32])
-
-    def floordivi_signed(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return FloordiviSigned.create(
-            [get_ssa_value(x), get_ssa_value(y)], [self.i32])
-
-    def remi_signed(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return RemiSigned.create(
-            [get_ssa_value(x), get_ssa_value(y)], [self.i32])
-
-    # TODO these operations should support all kinds of integer types
-    def and_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return And.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
-
-    def or_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Or.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
-
-    def xor_(self, x: OpOrBlockArg, y: OpOrBlockArg) -> Operation:
-        return Xor.create([get_ssa_value(x), get_ssa_value(y)], [self.i1])
-
-    def cmpi(self, x: OpOrBlockArg, y: OpOrBlockArg, arg: int) -> Operation:
-        return Cmpi.create(
-            [get_ssa_value(x), get_ssa_value(y)], [self.i1],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
-
 
 @irdl_op_definition
 class Constant(Operation):
@@ -99,9 +43,19 @@ class Constant(Operation):
     value = AttributeDef(AnyAttr())
 
     # TODO verify that the output and value type are equal
-    def verify_(self) -> None:
-        # TODO how to force the attr to have a type? and how to query it?
-        pass
+
+    @staticmethod
+    def from_attr(attr: Attribute, typ: Attribute) -> Constant:
+        return Constant.create(result_types=[typ], attributes={"value": attr})
+
+    @staticmethod
+    def from_int_constant(val: Union[int, Attribute],
+                          typ: Union[int, Attribute]) -> Constant:
+        if isinstance(typ, int):
+            typ = IntegerType.from_width(typ)
+        return Constant.create(
+            result_types=[typ],
+            attributes={"value": IntegerAttr.from_params(val, typ)})
 
 
 @irdl_op_definition
@@ -116,6 +70,12 @@ class Addi(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Addi:
+        return Addi.build(operands=[operand1, operand2],
+                          result_types=[IntegerType.from_width(32)])
+
 
 @irdl_op_definition
 class Muli(Operation):
@@ -128,6 +88,12 @@ class Muli(Operation):
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Muli:
+        return Muli.build(operands=[operand1, operand2],
+                          result_types=[IntegerType.from_width(32)])
 
 
 @irdl_op_definition
@@ -142,6 +108,12 @@ class Subi(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Subi:
+        return Subi.build(operands=[operand1, operand2],
+                          result_types=[IntegerType.from_width(32)])
+
 
 @irdl_op_definition
 class FloordiviSigned(Operation):
@@ -154,6 +126,12 @@ class FloordiviSigned(Operation):
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> FloordiviSigned:
+        return FloordiviSigned.build(operands=[operand1, operand2],
+                                     result_types=[IntegerType.from_width(32)])
 
 
 @irdl_op_definition
@@ -168,6 +146,12 @@ class RemiSigned(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> RemiSigned:
+        return RemiSigned.build(operands=[operand1, operand2],
+                                result_types=[IntegerType.from_width(32)])
+
 
 @irdl_op_definition
 class Call(Operation):
@@ -179,11 +163,23 @@ class Call(Operation):
     res = VarResultDef(AnyAttr())
     # TODO how do we verify that the types are correct?
 
+    @staticmethod
+    def get(callee: Union[str, FlatSymbolRefAttr],
+            operands: List[Union[SSAValue, Operation]],
+            return_types: List[Attribute]) -> Call:
+        return Call.build(operands=operands,
+                          result_types=return_types,
+                          attributes={"callee": callee})
+
 
 @irdl_op_definition
 class Return(Operation):
     name: str = "std.return"
     arguments = VarOperandDef(AnyAttr())
+
+    @staticmethod
+    def get(*ops: Union[Operation, SSAValue]) -> Return:
+        return Return.build(operands=[[op for op in ops]])
 
 
 @irdl_op_definition
@@ -198,6 +194,12 @@ class And(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> And:
+        return And.build(operands=[operand1, operand2],
+                         result_types=[IntegerType.from_width(1)])
+
 
 @irdl_op_definition
 class Or(Operation):
@@ -210,6 +212,12 @@ class Or(Operation):
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Or:
+        return Or.build(operands=[operand1, operand2],
+                        result_types=[IntegerType.from_width(1)])
 
 
 @irdl_op_definition
@@ -224,6 +232,12 @@ class Xor(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Xor:
+        return Xor.build(operands=[operand1, operand2],
+                         result_types=[IntegerType.from_width(1)])
+
 
 @irdl_op_definition
 class Cmpi(Operation):
@@ -232,6 +246,14 @@ class Cmpi(Operation):
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
     output = ResultDef(IntegerType.from_width(1))
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue], arg: int) -> Cmpi:
+        return Cmpi.build(
+            operands=[operand1, operand2],
+            result_types=[IntegerType.from_width(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
 
 @irdl_op_definition
@@ -246,6 +268,12 @@ class Addf(Operation):
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
 
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Addf:
+        return Addf.build(operands=[operand1, operand2],
+                          result_types=[Float32Type()])
+
 
 @irdl_op_definition
 class Mulf(Operation):
@@ -258,3 +286,9 @@ class Mulf(Operation):
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
             raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Mulf:
+        return Mulf.build(operands=[operand1, operand2],
+                          result_types=[Float32Type()])
