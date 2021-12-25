@@ -7,6 +7,7 @@ from xdsl.parser import *
 from xdsl.printer import *
 from xdsl.dialects.std import *
 from xdsl.dialects.scf import *
+from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
 from xdsl.dialects.builtin import *
 
@@ -22,6 +23,7 @@ def __main__(input_str: str):
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
     affine = Affine(ctx)
     scf = Scf(ctx)
 

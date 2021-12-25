@@ -1,7 +1,8 @@
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import Builtin, IntegerAttr
 from xdsl.parser import Parser
-from xdsl.dialects.std import Std, Constant, Addi, Muli
+from xdsl.dialects.std import Std
+from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.ir import MLContext
 from xdsl.rewriter import *
 from io import StringIO
@@ -24,17 +25,18 @@ def test_non_recursive_rewrite():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
     """module() {
-%0 : !i32 = std.constant() ["value" = 42 : !i32]
-%1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+%0 : !i32 = arith.constant() ["value" = 42 : !i32]
+%1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -59,17 +61,18 @@ def test_op_type_rewrite_pattern_method_decorator():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 42 : !i32]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -93,17 +96,18 @@ def test_op_type_rewrite_pattern_static_decorator():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 42 : !i32]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern
@@ -125,23 +129,24 @@ def test_recursive_rewriter():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 5 : !i32]
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 1 : !i64]
-  %1 : !i32 = std.constant() ["value" = 1 : !i64]
-  %2 : !i32 = std.addi(%0 : !i32, %1 : !i32)
-  %3 : !i32 = std.constant() ["value" = 1 : !i64]
-  %4 : !i32 = std.addi(%2 : !i32, %3 : !i32)
-  %5 : !i32 = std.constant() ["value" = 1 : !i64]
-  %6 : !i32 = std.addi(%4 : !i32, %5 : !i32)
-  %7 : !i32 = std.constant() ["value" = 1 : !i64]
-  %8 : !i32 = std.addi(%6 : !i32, %7 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 1 : !i64]
+  %1 : !i32 = arith.constant() ["value" = 1 : !i64]
+  %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+  %3 : !i32 = arith.constant() ["value" = 1 : !i64]
+  %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+  %5 : !i32 = arith.constant() ["value" = 1 : !i64]
+  %6 : !i32 = arith.addi(%4 : !i32, %5 : !i32)
+  %7 : !i32 = arith.constant() ["value" = 1 : !i64]
+  %8 : !i32 = arith.addi(%6 : !i32, %7 : !i32)
 }"""
 
     @op_type_rewrite_pattern
@@ -169,17 +174,18 @@ def test_greedy_rewrite_pattern_applier():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 42 : !i32]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 43 : !i64]
-  %1 : !i32 = std.muli(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern
@@ -210,10 +216,11 @@ def test_operation_deletion():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 5 : !i32]
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
@@ -235,11 +242,12 @@ def test_operation_deletion_failure():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
 
     prog = \
 """module() {
-  %0 : !i32 = std.constant() ["value" = 5 : !i32]
-  %1 : !i32 = std.addi(%0 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern

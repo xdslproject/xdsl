@@ -1,5 +1,6 @@
 from xdsl.dialects.builtin import *
 from xdsl.dialects.std import *
+from xdsl.dialects.arith import *
 from xdsl.printer import Printer
 from xdsl.dialects.affine import *
 
@@ -36,6 +37,7 @@ def test_affine():
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
+    arith = Arith(ctx)
     affine = Affine(ctx)
 
     test_empty = new_op("test_empty", 0, 0, 0)
