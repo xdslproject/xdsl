@@ -7,7 +7,7 @@ from xdsl.irdl import *
 import pytest
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import VectorAttr
+from xdsl.dialects.builtin import VectorAttr, IntegerAttr
 
 
 @irdl_attr_definition
@@ -80,8 +80,8 @@ def test_two_var_result_builder():
         StringAttr.from_int(3)
     ]
     assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == VectorAttr.from_int_list(
-            [2, 2], 64)
+        AttrSizedResultSegments.attribute_name] == VectorAttr.from_list(
+            [IntegerAttr.from_index_int_value(2)] * 2)
 
 
 def test_two_var_result_builder2():
@@ -94,8 +94,10 @@ def test_two_var_result_builder2():
         StringAttr.from_int(3)
     ]
     assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == VectorAttr.from_int_list(
-            [1, 3], 64)
+        AttrSizedResultSegments.attribute_name] == VectorAttr.from_list([
+            IntegerAttr.from_index_int_value(1),
+            IntegerAttr.from_index_int_value(3)
+        ])
 
 
 @irdl_op_definition
@@ -153,8 +155,8 @@ def test_two_var_operand_builder():
     op2.verify()
     assert op2.operands == [op1.res] * 4
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_int_list(
-            [2, 2], 64)
+        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_list(
+            [IntegerAttr.from_index_int_value(2)] * 2)
 
 
 def test_two_var_operand_builder2():
@@ -163,8 +165,10 @@ def test_two_var_operand_builder2():
     op2.verify()
     assert op2.operands == [op1.res] * 4
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_int_list(
-            [1, 3], 64)
+        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_list([
+            IntegerAttr.from_index_int_value(1),
+            IntegerAttr.from_index_int_value(3)
+        ])
 
 
 @irdl_op_definition
