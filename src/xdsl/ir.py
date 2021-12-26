@@ -51,6 +51,7 @@ class SSAValue(ABC):
 
     typ: Attribute
     """Each SSA variable is associated to a type."""
+
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
@@ -74,6 +75,7 @@ class OpResult(SSAValue):
 
     result_index: int
     """The index of the result in the defining operation."""
+
     def __hash__(self):
         return hash((id(self.op), self.result_index))
 
@@ -87,6 +89,7 @@ class BlockArgument(SSAValue):
 
     index: int
     """The index of the variable in the block arguments."""
+
     def __hash__(self):
         return hash((id(self.block), self.index))
 
@@ -104,6 +107,7 @@ class Attribute(ABC):
 
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
+
     @classmethod
     def build(cls: typing.Type[AttrClass], *args) -> AttrClass:
         """Create a new attribute using one of the builder defined in IRDL."""
@@ -113,6 +117,7 @@ class Attribute(ABC):
 @dataclass(frozen=True)
 class Data(Attribute):
     """An attribute represented by a Python structure."""
+
     @staticmethod
     @abstractmethod
     def parse(parser: Parser) -> Data:
@@ -166,6 +171,7 @@ class Operation:
 
     parent: Optional[Block] = field(default=None)
     """The block containing this operation."""
+
     def __post_init__(self):
         assert (self.name != "")
         assert (isinstance(self.name, str))
@@ -251,6 +257,7 @@ class Block:
 
     parent: Optional[Region] = field(default=None)
     """Parent region containing the block."""
+
     @staticmethod
     def from_arg_types(arg_types: List[Attribute]) -> Block:
         b = Block()
@@ -310,6 +317,7 @@ class Region:
 
     parent: Optional[Operation] = field(default=None)
     """Operation containing the region."""
+
     @staticmethod
     def from_operation_list(ops: List[Operation]) -> Region:
         block = Block([], ops)

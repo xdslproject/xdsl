@@ -21,6 +21,7 @@ class RewriteAction:
 
     new_results: List[Optional[SSAValue]]
     """SSA values that replace the matched operation results. None values are deleted SSA Values."""
+
     @staticmethod
     def from_op_list(new_ops: List[Operation]) -> RewriteAction:
         """
@@ -37,6 +38,7 @@ class RewritePattern(ABC):
     """
     A side-effect free rewrite pattern matching on a DAG.
     """
+
     @abstractmethod
     def match_and_rewrite(
             self, op: Operation,
@@ -119,6 +121,7 @@ class GreedyRewritePatternApplier(RewritePattern):
 
     rewrite_patterns: List[RewritePattern]
     """The list of rewrites to apply in order."""
+
     def match_and_rewrite(
             self, op: Operation,
             new_operands: List[SSAValue]) -> Optional[RewriteAction]:
@@ -139,6 +142,7 @@ class OperandUpdater:
     result_mapping: Dict[SSAValue,
                          Optional[SSAValue]] = field(default_factory=dict)
     """Map old ssa values to new values. Deleted values are mapped to None."""
+
     def bookkeep_results(self, old_op: Operation,
                          action: RewriteAction) -> None:
         """Bookkeep the changes made by a rewrite action matching on `old_op`."""
@@ -192,6 +196,7 @@ class PatternRewriteWalker:
     _updater: OperandUpdater = field(init=False,
                                      default_factory=OperandUpdater)
     """Takes care of bookkeeping the changes made during the walk."""
+
     def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
         new_ops = self.rewrite_op(op)
