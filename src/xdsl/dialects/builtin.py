@@ -139,7 +139,7 @@ class IntegerAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_params(value: Union[int, IntAttr],
-                    typ: Union[int, Attribute] = 64) -> IntegerAttr:
+                    typ: Union[int, Attribute]) -> IntegerAttr:
         value = IntAttr.build(value)
         if not isinstance(typ, IndexType):
             typ = IntegerType.build(typ)
@@ -196,7 +196,7 @@ class VectorAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_int_list(data: List[int], bitwidth=64) -> VectorAttr:
+    def from_int_list(data: List[int], bitwidth) -> VectorAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return VectorAttr([ArrayAttr.from_list(data_attr)])
 
