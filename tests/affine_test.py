@@ -6,6 +6,7 @@ from xdsl.dialects.affine import *
 
 def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
                                affine: Affine) -> Operation:
+
     def affine_mm(arg0: BlockArgument, arg1: BlockArgument,
                   arg2: BlockArgument) -> List[Operation]:
         # yapf: disable

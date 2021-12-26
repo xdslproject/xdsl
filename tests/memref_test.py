@@ -5,6 +5,7 @@ from xdsl.printer import Printer
 
 def get_example_memref_program(ctx: MLContext, std: Std,
                                memref: MemRef) -> Operation:
+
     def test() -> List[Operation]:
         # yapf: disable
         return [
