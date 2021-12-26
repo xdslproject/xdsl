@@ -38,6 +38,7 @@ def test_non_recursive_rewrite():
 }"""
 
     class RewriteConst(RewritePattern):
+
         def match_and_rewrite(
                 self, op: Operation, new_operands: Optional[List[SSAValue]]
         ) -> Optional[RewriteAction]:
@@ -72,6 +73,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 }"""
 
     class RewriteConst(RewritePattern):
+
         @op_type_rewrite_pattern
         def match_and_rewrite(
                 self, op: Constant, new_operands: Optional[List[SSAValue]]

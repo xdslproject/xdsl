@@ -14,6 +14,7 @@ from xdsl import util
 @dataclass
 class AttrConstraint(ABC):
     """Constrain an attribute to a certain value."""
+
     @abstractmethod
     def verify(self, attr: Attribute) -> None:
         """
@@ -29,6 +30,7 @@ class EqAttrConstraint(AttrConstraint):
 
     attr: Attribute
     """The attribute we want to check equality with."""
+
     def verify(self, attr: Attribute) -> None:
         if attr != self.attr:
             raise Exception(f"Expected attribute {self.attr} but got {attr}")
@@ -40,6 +42,7 @@ class BaseAttr(AttrConstraint):
 
     attr: typing.Type[Attribute]
     """The expected attribute base type."""
+
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, self.attr):
             raise Exception(
@@ -63,6 +66,7 @@ def attr_constr_coercion(
 @dataclass
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
+
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, Attribute):
             raise Exception(f"Expected attribute, but got {attr}")
@@ -74,6 +78,7 @@ class AnyOf(AttrConstraint):
 
     attr_constrs: List[AttrConstraint]
     """The list of constraints that are checked."""
+
     def __init__(self,
                  attr_constrs: List[Union[Attribute, typing.Type[Attribute],
                                           AttrConstraint]]):
@@ -105,6 +110,7 @@ class ParamAttrConstraint(AttrConstraint):
 
     param_constrs: List[AttrConstraint]
     """The attribute parameter constraints"""
+
     def __init__(self, base_attr: typing.Type[Attribute],
                  param_constrs: List[Union[Attribute, typing.Type[Attribute],
                                            AttrConstraint]]):
@@ -173,6 +179,7 @@ class OperandDef(OperandOrResultDef):
 
     constr: AttrConstraint
     """The operand constraint."""
+
     def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
                                   AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
@@ -194,6 +201,7 @@ class ResultDef(OperandOrResultDef):
 
     constr: AttrConstraint
     """The result constraint."""
+
     def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
                                   AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
@@ -230,6 +238,7 @@ class AttributeDef:
 
     constr: AttrConstraint
     """The attribute constraint."""
+
     def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
                                   AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
