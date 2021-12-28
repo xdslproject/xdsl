@@ -184,12 +184,11 @@ class Operation:
                           successors: Optional[List[Block]] = None,
                           regions: Optional[List[Region]] = None) -> Operation:
 
-        for operation in operands:
-            assert isinstance(operation,
-                              SSAValue), "Operands must be of type SSAValue"
-
         operation = op()
         if operands is not None:
+            for operand in operands:
+                assert isinstance(
+                    operand, SSAValue), "Operands must be of type SSAValue"
             operation.operands = operands
         if result_types is not None:
             operation.results = [
