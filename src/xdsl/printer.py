@@ -7,7 +7,6 @@ indentNumSpaces = 2
 
 
 class Printer:
-
     def __init__(self, stream=sys.stdout):
         self._indent: int = 0
         self._ssaValues: Dict[SSAValue, int] = dict()

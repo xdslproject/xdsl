@@ -8,7 +8,6 @@ from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
 
 def new_op(op_name, num_results, num_operands,
            num_regions) -> typing.Type[Operation]:
-
     @dataclass(eq=False)
     class OpBase(Operation):
         name: str = op_name
@@ -23,7 +22,6 @@ def new_op(op_name, num_results, num_operands,
 
 
 def new_type(type_name):
-
     @dataclass(frozen=True, eq=False)
     class TypeBase(Attribute):
         name: str = type_name

@@ -32,7 +32,6 @@ builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "
 
 
 class MLIRConverter:
-
     def __init__(self, ctx):
         self.ctx = ctx
         self.op_to_mlir_ops: Dict[Operation, mlir.ir.Operation] = dict()
