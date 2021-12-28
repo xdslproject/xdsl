@@ -215,12 +215,12 @@ class Operation:
                                            attributes, successors, regions)
 
     @classmethod
-    def build(cls: typing.Type[T],
+    def build(cls: typing.Type[OperationType],
               operands=[],
               result_types=[],
               attributes=[],
               successors=[],
-              regions=[]) -> T:
+              regions=[]) -> OperationType:
         """Create a new operation using builders."""
         ...
 
