@@ -247,8 +247,7 @@ class FuncOp(Operation):
             name: str, input_types: List[Attribute],
             return_types: Union[Attribute, List[Attribute]],
             func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
-        if not isinstance(return_types, list) and not isinstance(
-                return_types, ArrayAttr):
+        if not isinstance(return_types, list):
             return_types = [return_types]
         type_attr = FunctionType.from_lists(input_types, return_types)
         op = FuncOp.build(
