@@ -262,7 +262,7 @@ class Parser:
                 self.parse_char(":")
                 typ = self.parse_attribute()
             else:
-                typ = IntegerType.get(64)
+                typ = IntegerType.from_width(64)
             return IntegerAttr.from_params(integer_lit, typ)
 
         # Shorthand for ArrayAttr
