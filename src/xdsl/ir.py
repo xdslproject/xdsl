@@ -283,7 +283,7 @@ class Block:
 
     @staticmethod
     def from_callable(block_arg_types: List[Attribute],
-                      f: Callable[[Attribute, ...], List[Operation]]):
+                      f: Callable[[BlockArgument, ...], List[Operation]]):
         b = Block.from_arg_types(block_arg_types)
         b.add_ops(f(*b.args))
         return b
