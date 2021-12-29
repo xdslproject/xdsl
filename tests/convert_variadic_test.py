@@ -8,7 +8,7 @@ test_prog = """
 module() {
   builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
   {
-    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !vector<[0 : !i64, 0 : !i64]>]
+    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
 
     std.return()
   }

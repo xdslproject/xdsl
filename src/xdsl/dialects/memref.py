@@ -196,7 +196,8 @@ class GetGlobal(Operation):
 @irdl_op_definition
 class Global(Operation):
     name = "memref.global"
-    sym_name = AttributeDef(SymbolNameAttr)
+    sym_name = AttributeDef(StringAttr)
+    #sym_name = AttributeDef(SymbolNameAttr)
     sym_visibility = AttributeDef(StringAttr)
     type = AttributeDef(AnyAttr())
 
@@ -207,7 +208,7 @@ class Global(Operation):
     # constant = AttributeDef(UnitAttr)
 
     @staticmethod
-    def get(sym_name,
+    def get(sym_name: StringAttr,
             typ: Attribute,
             initial_value: Optional[Attribute],
             sym_visibility="private") -> Global:

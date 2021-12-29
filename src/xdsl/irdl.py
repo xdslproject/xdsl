@@ -247,9 +247,10 @@ class AttributeDef:
 def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
     """Get variadic sizes of operands or results."""
 
-    # We need irdl to define VectorAttr, but here we need VectorAttr.
+    # We need irdl to define DenseIntOrFPElementsAttr, but here we need
+    # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import VectorAttr
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
 
     operand_or_result_defs = op.irdl_operand_defs if is_operand else op.irdl_result_defs
     variadic_defs = [(arg_name, arg_def)
@@ -270,9 +271,9 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
                 f"Expected {size_attribute_name} attribute in {op.name} operation."
             )
         attribute = op.attributes[size_attribute_name]
-        if not isinstance(attribute, VectorAttr):
+        if not isinstance(attribute, DenseIntOrFPElementsAttr):
             raise Exception(
-                f"{size_attribute_name} attribute is expected to be a VectorAttr."
+                f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
             )
         variadic_sizes = [
             size_attr.value.data for size_attr in attribute.data.data
@@ -433,9 +434,10 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                     regions, options) -> OpT:
     """Builder for an irdl operation."""
 
-    # We need irdl to define VectorAttr, but here we need VectorAttr.
+    # We need irdl to define DenseIntOrFPElementsAttr, but here we need
+    # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import VectorAttr, IntegerAttr
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
 
     # Build operands by forwarding the values to SSAValue.get
     if len(operand_defs) != len(operands):
@@ -493,8 +495,10 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             for operand, (_, operand_def) in zip(operands, operand_defs)
             if isinstance(operand_def, VarOperandDef)
         ]
+        dense_type = VectorType.from_type_and_list(IntegerType.from_width(64),
+                                                   [len(sizes)])
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            VectorAttr.from_list([IntegerAttr.from_index_int_value(size) for size in sizes])
+            DenseIntOrFPElementsAttr.from_list(dense_type, [IntegerAttr.from_index_int_value(size) for size in sizes])
 
     if AttrSizedResultSegments() in options:
         sizes = [
@@ -502,8 +506,10 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             for result, (_, result_def) in zip(res_types, res_defs)
             if isinstance(result_def, VarResultDef)
         ]
+        dense_type = VectorType.from_type_and_list(IntegerType.from_width(64),
+                                                   [len(sizes)])
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            VectorAttr.from_list([IntegerAttr.from_index_int_value(size) for size in sizes])
+            DenseIntOrFPElementsAttr.from_list(dense_type,[IntegerAttr.from_index_int_value(size) for size in sizes])
 
     # Build regions using `Region.get`.
     regions = [Region.get(region) for region in regions]

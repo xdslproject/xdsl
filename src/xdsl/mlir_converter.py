@@ -6,29 +6,28 @@ from xdsl.dialects.std import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.affine import *
+from xdsl.dialects.arith import *
 from xdsl.parser import *
 
 test_prog = """
 module() {
+memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public", "alignment" = 64 : !i64]
 builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
 {
-  memref.global() ["sym_name" = !symbol_name<"g">, "type" = !i32, "initial_value" = 0 : !i32, "sym_visibility" = "public"]
-  %0 : !memref<[1 : !i64], !i32> = memref.get_global() ["name" = @g]
-  %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !vector<[0 : !i64, 0 : !i64]>]
-  %2 : !i32 = std.constant() ["value" = 42 : !i32]
-  memref.store(%2 : !i32, %1 : !memref<[1 : !i64], !i32>) 
-  %3 : !i32 = memref.load(%1 : !memref<[1 : !i64], !i32>) 
-  %4 : !memref<[10 : !i64, 2 : !i64], !i32> = memref.alloc() ["alignment" = 0 : !i64, "operand_segment_sizes" = !vector<[0 : !i64, 0 : !i64]>]
-  memref.store(%2 : !i32, %4 : !memref<[10 : !i64, 2 : !i64], !i32>, %2 : !i32, %3 : !i32
-) 
-  memref.dealloc(%1 : !memref<[1 : !i64], !i32>) 
-  memref.dealloc(%4 : !memref<[10 : !i64, 2 : !i64], !i32>) 
+  %0 : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
+  %zero : !index = arith.constant() ["value" = 42 : !index]
+  %1 : !memref<[1 : !i64], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
+  %2 : !index = arith.constant() ["value" = 42 : !index]
+  memref.store(%2 : !index, %1 : !memref<[1 : !i64], !index>, %zero : !index) 
+  %3 : !index = memref.load(%1 : !memref<[1 : !i64], !index>, %zero : !index) 
+  %4 : !memref<[10 : !i64, 2 : !i64], !index> = memref.alloc() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
+  memref.store(%2 : !index, %4 : !memref<[10 : !i64, 2 : !i64], !index>, %2 : !index, %3 : !index) 
+  memref.dealloc(%1 : !memref<[1 : !i64], !index>) 
+  memref.dealloc(%4 : !memref<[10 : !i64, 2 : !i64], !index>) 
+  std.return()
 }
 }
 """
-
-#memref.store(%2 : !i32, %4 : !memref<[10 : !i64, 2 : !i64], !i32>, %2 : !i32, %3 : !i32)
-#memref.dealloc(%4 : !memref<[10 : !i64, 2 : !i64], !i32>)
 
 
 class MLIRConverter:
@@ -83,10 +82,15 @@ class MLIRConverter:
         if isinstance(attr, ArrayAttr):
             return mlir.ir.ArrayAttr.get(
                 [self.convert_attribute(sub_attr) for sub_attr in attr.data])
-        if isinstance(attr, VectorAttr):
-            # TODO ugliest hack I ever wrote
+        if isinstance(attr, DenseIntOrFPElementsAttr):
+            # TODO fix this as soon as DEneIntElementsAttr allow us to pass
+            #   vector or tensor
+            assert (attr.type.get_num_dims() == 1)
+            element_type = self.convert_type(attr.type.element_type)
+            typ = "vector" if isinstance(attr.type, VectorType) else "tensor"
+
             return mlir.ir.DenseIntElementsAttr.parse(
-                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : vector<{len(attr.data.data)}xi32>"
+                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : {typ}<{len(attr.data.data)}x{element_type}>"
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
@@ -158,6 +162,7 @@ def __main__():
     builtin = Builtin(ctx)
     std = Std(ctx)
     affine = Affine(ctx)
+    arith = Arith(ctx)
     scf = Scf(ctx)
     memref = MemRef(ctx)
 
