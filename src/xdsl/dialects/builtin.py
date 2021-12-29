@@ -259,6 +259,18 @@ class FuncOp(Operation):
             regions=[Region([Block.from_callable(input_types, func)])])
         return op
 
+    @staticmethod
+    def from_region(name: str, input_types: List[Attribute],
+                    return_types: List[Attribute], region: Region) -> FuncOp:
+        type_attr = FunctionType.from_lists(input_types, return_types)
+        op = FuncOp.build(attributes={
+            "sym_name": name,
+            "type": type_attr,
+            "sym_visibility": "private"
+        },
+                          regions=[region])
+        return op
+
 
 @irdl_op_definition
 class ModuleOp(Operation):
