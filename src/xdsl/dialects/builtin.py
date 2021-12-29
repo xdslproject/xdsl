@@ -21,7 +21,9 @@ class Builtin:
         self.ctx.register_attr(IntAttr)
         self.ctx.register_attr(IntegerAttr)
         self.ctx.register_attr(ArrayAttr)
-        self.ctx.register_attr(VectorAttr)
+        self.ctx.register_attr(VectorType)
+        self.ctx.register_attr(TensorType)
+        self.ctx.register_attr(DenseIntOrFPElementsAttr)
 
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
@@ -190,21 +192,95 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class VectorAttr(ParametrizedAttribute):
+class VectorType(ParametrizedAttribute):
     name = "vector"
+
+    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
+    element_type = ParameterDef(AnyAttr())
+
+    def get_num_dims(self) -> int:
+        return len(self.parameters[0].data)
+
+    def get_shape(self) -> List[int]:
+        return [i.parameters[0].data for i in self.shape.data]
+
+    @staticmethod
+    @builder
+    def from_type_and_list(
+            referenced_type: Attribute,
+            shape: List[Union[int, IntegerAttr]] = None) -> VectorType:
+        if shape is None:
+            shape = [1]
+        return VectorType([
+            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
+            referenced_type
+        ])
+
+    @staticmethod
+    @builder
+    def from_params(
+        referenced_type: Attribute,
+        shape: ArrayAttr = ArrayAttr.from_list(
+            [IntegerAttr.from_int_and_width(1, 64)])
+    ) -> VectorType:
+        return VectorType([shape, referenced_type])
+
+
+@irdl_attr_definition
+class TensorType(ParametrizedAttribute):
+    name = "tensor"
+
+    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
+    element_type = ParameterDef(AnyAttr())
+
+    def get_num_dims(self) -> int:
+        return len(self.parameters[0].data)
+
+    def get_shape(self) -> List[int]:
+        return [i.parameters[0].data for i in self.shape.data]
+
+    @staticmethod
+    @builder
+    def from_type_and_list(
+            referenced_type: Attribute,
+            shape: List[Union[int, IntegerAttr]] = None) -> TensorType:
+        if shape is None:
+            shape = [1]
+        return TensorType([
+            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
+            referenced_type
+        ])
+
+    @staticmethod
+    @builder
+    def from_params(
+        referenced_type: Attribute,
+        shape: ArrayAttr = ArrayAttr.from_list(
+            [IntegerAttr.from_int_and_width(1, 64)])
+    ) -> TensorType:
+        return TensorType([shape, referenced_type])
+
+
+@irdl_attr_definition
+class DenseIntOrFPElementsAttr(ParametrizedAttribute):
+    name = "dense"
+    # TODO add support for FPElements
+    type = ParameterDef(AnyOf([VectorType, TensorType]))
     data = ParameterDef(ArrayOfConstraint(IntegerAttr))
 
     @staticmethod
     @builder
-    def from_int_list(data: List[int], bitwidth) -> VectorAttr:
+    def from_int_list(type: Union[VectorType, TensorType], data: List[int],
+                      bitwidth) -> VectorAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
-        return VectorAttr([ArrayAttr.from_list(data_attr)])
+        return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
-    def from_list(data: List[Union[int, IntegerAttr]]) -> VectorAttr:
+    def from_list(type: Union[VectorType, TensorType],
+                  data: List[Union[int, IntegerAttr]]) -> VectorAttr:
         data_attr = [IntegerAttr.build(d) for d in data]
-        return VectorAttr([ArrayAttr.from_list(data_attr)])
+        return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
 
 @irdl_attr_definition

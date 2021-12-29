@@ -7,7 +7,7 @@ from xdsl.irdl import *
 import pytest
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import VectorAttr, IntegerAttr
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
 
 
 @irdl_attr_definition
@@ -79,9 +79,16 @@ def test_two_var_result_builder():
         StringAttr.from_int(2),
         StringAttr.from_int(3)
     ]
-    assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == VectorAttr.from_list(
-            [IntegerAttr.from_index_int_value(2)] * 2)
+
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(64), [2])
+
+    assert op.attributes[AttrSizedResultSegments.
+                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                             dense_type,
+                             [IntegerAttr.from_index_int_value(2)] * 2)
+
+
+test_two_var_result_builder()
 
 
 def test_two_var_result_builder2():
@@ -93,11 +100,13 @@ def test_two_var_result_builder2():
         StringAttr.from_int(2),
         StringAttr.from_int(3)
     ]
-    assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == VectorAttr.from_list([
-            IntegerAttr.from_index_int_value(1),
-            IntegerAttr.from_index_int_value(3)
-        ])
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(64), [2])
+    assert op.attributes[AttrSizedResultSegments.
+                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                             dense_type, [
+                                 IntegerAttr.from_index_int_value(1),
+                                 IntegerAttr.from_index_int_value(3)
+                             ])
 
 
 @irdl_op_definition
@@ -154,9 +163,11 @@ def test_two_var_operand_builder():
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
     assert op2.operands == [op1.res] * 4
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(64), [2])
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_list(
-            [IntegerAttr.from_index_int_value(2)] * 2)
+        AttrSizedOperandSegments.
+        attribute_name] == DenseIntOrFPElementsAttr.from_list(
+            dense_type, [IntegerAttr.from_index_int_value(2)] * 2)
 
 
 def test_two_var_operand_builder2():
@@ -164,11 +175,14 @@ def test_two_var_operand_builder2():
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
     assert op2.operands == [op1.res] * 4
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(64), [2])
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == VectorAttr.from_list([
-            IntegerAttr.from_index_int_value(1),
-            IntegerAttr.from_index_int_value(3)
-        ])
+        AttrSizedOperandSegments.
+        attribute_name] == DenseIntOrFPElementsAttr.from_list(
+            dense_type, [
+                IntegerAttr.from_index_int_value(1),
+                IntegerAttr.from_index_int_value(3)
+            ])
 
 
 @irdl_op_definition
