@@ -417,13 +417,9 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result) -> Attribute:
         if isinstance(result, Tuple):
             return irdl_def.attr.build(*result)
         return irdl_def.attr.build(result)
-    elif irdl_def == AnyAttr():
-        if isinstance(result, Attribute):
-            return result
-        raise Exception(f"builder expected an attribute, got {result}")
-    else:
-        raise NotImplementedError(
-            f"Builder does not support IRDL definition {irdl_def}")
+    if isinstance(result, Attribute):
+        return result
+    raise Exception(f"builder expected an attribute, got {result}")
 
 
 OpT = TypeVar('OpT', bound='Operation')
