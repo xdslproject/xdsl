@@ -526,19 +526,23 @@ def irdl_op_definition(
         cls,
         Operation), f"class {cls.__name__} should be a subclass of Operation"
 
+    # Get all fields of the class, including the parent classes
+    clsdict = dict()
+    for parent_cls in cls.mro():
+        clsdict = {**clsdict, **parent_cls.__dict__}
+
     operand_defs = [(field_name, field)
-                    for field_name, field in cls.__dict__.items()
+                    for field_name, field in clsdict.items()
                     if isinstance(field, OperandDef)]
     result_defs = [(field_name, field)
-                   for field_name, field in cls.__dict__.items()
+                   for field_name, field in clsdict.items()
                    if isinstance(field, ResultDef)]
     region_defs = [(field_name, field)
-                   for field_name, field in cls.__dict__.items()
+                   for field_name, field in clsdict.items()
                    if isinstance(field, RegionDef)]
-    attr_defs = [(field_name, field)
-                 for field_name, field in cls.__dict__.items()
+    attr_defs = [(field_name, field) for field_name, field in clsdict.items()
                  if isinstance(field, AttributeDef)]
-    options = cls.__dict__.get("irdl_options", [])
+    options = clsdict.get("irdl_options", [])
     new_attrs = dict()
 
     # Add operand access fields
@@ -582,8 +586,8 @@ def irdl_op_definition(
 
     new_attrs["verify_"] = lambda op: irdl_op_verify(
         op, operand_defs, result_defs, region_defs, attr_defs)
-    if "verify_" in cls.__dict__:
-        custom_verifier = cls.__dict__["verify_"]
+    if "verify_" in clsdict:
+        custom_verifier = clsdict["verify_"]
 
         def new_verifier(verifier, op):
             verifier(op)
