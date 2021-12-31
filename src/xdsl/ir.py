@@ -342,7 +342,7 @@ class Region:
             return arg
         if isinstance(arg, list):
             if len(arg) == 0:
-                raise ValueError("Can't construct a region with an empty list")
+                return Region.from_operation_list([])
             if isinstance(arg[0], Block):
                 return Region.from_block_list(arg)
             if isinstance(arg[0], Operation):
