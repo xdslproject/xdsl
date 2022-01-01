@@ -11,9 +11,9 @@ module() {
 
     %7 : !i1 = arith.constant() ["value" = 0 : !i1]
     %8 : !i1 = arith.constant() ["value" = 1 : !i1]
-    %9 : !i1 = std.and(%7 : !i1, %8 : !i1)
-    %10 : !i1 = std.or(%7 : !i1, %8 : !i1)
-    %11 : !i1 = std.xor(%7 : !i1, %8 : !i1)
+    %9 : !i1 = arith.andi(%7 : !i1, %8 : !i1)
+    %10 : !i1 = arith.ori(%7 : !i1, %8 : !i1)
+    %11 : !i1 = arith.xori(%7 : !i1, %8 : !i1)
   }
 
   builtin.func() ["sym_name" = "rec", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]

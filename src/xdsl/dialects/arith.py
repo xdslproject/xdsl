@@ -23,6 +23,10 @@ class Arith:
 
         self.ctx.register_op(Cmpi)
 
+        self.ctx.register_op(AndI)
+        self.ctx.register_op(OrI)
+        self.ctx.register_op(XOrI)
+
 
 @irdl_op_definition
 class Constant(Operation):
@@ -142,8 +146,8 @@ class RemSI(Operation):
 
 
 @irdl_op_definition
-class And(Operation):
-    name: str = "arith.and"
+class AndI(Operation):
+    name: str = "arith.andi"
     input1 = OperandDef(IntegerType)
     input2 = OperandDef(IntegerType)
     output = ResultDef(IntegerType)
@@ -155,9 +159,48 @@ class And(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> And:
-        return And.build(operands=[operand1, operand2],
-                         result_types=[IntegerType.from_width(1)])
+            operand2: Union[Operation, SSAValue]) -> AndI:
+        return AndI.build(operands=[operand1, operand2],
+                          result_types=[SSAValue.get(operand1).typ])
+
+
+@irdl_op_definition
+class OrI(Operation):
+    name: str = "arith.ori"
+    input1 = OperandDef(IntegerType)
+    input2 = OperandDef(IntegerType)
+    output = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
+            raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Or:
+
+        return Or.build(operands=[operand1, operand2],
+                        result_types=[SSAValue.get(operand1).typ])
+
+
+@irdl_op_definition
+class XOrI(Operation):
+    name: str = "arith.xori"
+    input1 = OperandDef(IntegerType)
+    input2 = OperandDef(IntegerType)
+    output = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
+            raise Exception("expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Xor:
+        return Xor.build(operands=[operand1, operand2],
+                         result_types=[SSAValue.get(operand1).typ])
 
 
 @irdl_op_definition
