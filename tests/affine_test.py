@@ -12,9 +12,9 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
                   arg2: BlockArgument) -> List[Operation]:
         # yapf: disable
         return [
-            affine.for_(0, 256, Block.from_callable([std.i64], lambda i: [
-                affine.for_(0, 256, Block.from_callable([std.i64], lambda j: [
-                    affine.for_(0, 250, Block.from_callable([std.i64], lambda k: [
+            affine.for_(0, 256, Block.from_callable([i64], lambda i: [
+                affine.for_(0, 256, Block.from_callable([i64], lambda j: [
+                    affine.for_(0, 250, Block.from_callable([i64], lambda k: [
                         l := affine.load(arg0, i, k),
                         r := affine.load(arg1, k, j),
                         o := affine.load(arg2, i, j),
@@ -28,7 +28,6 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
         ]
     # yapf: enable
 
-    f32 = std.f32
     f = FuncOp.from_callable("affine_mm", [f32, f32, f32], [f32], affine_mm)
     return f
 
