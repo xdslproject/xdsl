@@ -1,5 +1,5 @@
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr
+from xdsl.dialects.builtin import Builtin, IntegerAttr, i32
 from xdsl.parser import Parser
 from xdsl.dialects.std import Std
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
@@ -47,7 +47,7 @@ def test_non_recursive_rewrite():
             if isinstance(op, Constant):
                 return RewriteAction.from_op_list([
                     Constant.from_attr(IntegerAttr.from_int_and_width(43, 64),
-                                       std.i32)
+                                       i32)
                 ])
             return None
 
@@ -82,8 +82,7 @@ def test_op_type_rewrite_pattern_method_decorator():
                 self, op: Constant, new_operands: Optional[List[SSAValue]]
         ) -> Optional[RewriteAction]:
             return RewriteAction.from_op_list([
-                Constant.from_attr(IntegerAttr.from_int_and_width(43, 64),
-                                   std.i32)
+                Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)
             ])
 
     rewrite_and_compare(
@@ -114,9 +113,8 @@ def test_op_type_rewrite_pattern_static_decorator():
     def match_and_rewrite(
             op: Constant,
             new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
-        return RewriteAction.from_op_list([
-            Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), std.i32)
-        ])
+        return RewriteAction.from_op_list(
+            [Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -157,9 +155,9 @@ def test_recursive_rewriter():
         if val == 0 or val == 1:
             return None
         constant_op = Constant.from_attr(
-            IntegerAttr.from_int_and_width(val - 1, 64), std.i32)
+            IntegerAttr.from_int_and_width(val - 1, 64), i32)
         constant_one = Constant.from_attr(
-            IntegerAttr.from_int_and_width(1, 64), std.i32)
+            IntegerAttr.from_int_and_width(1, 64), i32)
         add_op = Addi.get(constant_op, constant_one)
         return RewriteAction.from_op_list([constant_op, constant_one, add_op])
 
@@ -192,9 +190,8 @@ def test_greedy_rewrite_pattern_applier():
     def constant_rewrite(
             op: Constant,
             new_operands: List[SSAValue]) -> Optional[RewriteAction]:
-        return RewriteAction.from_op_list([
-            Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), std.i32)
-        ])
+        return RewriteAction.from_op_list(
+            [Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)])
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi,

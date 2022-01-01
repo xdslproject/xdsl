@@ -115,6 +115,11 @@ class IntegerType(ParametrizedAttribute):
         return IntegerType([IntAttr.from_int(width)])
 
 
+i64 = IntegerType.from_width(64)
+i32 = IntegerType.from_width(32)
+i1 = IntegerType.from_width(1)
+
+
 @irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
@@ -286,6 +291,9 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute):
     name = "f32"
+
+
+f32 = Float32Type()
 
 
 @irdl_attr_definition

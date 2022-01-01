@@ -17,12 +17,6 @@ class Std:
         self.ctx.register_op(Or)
         self.ctx.register_op(Xor)
 
-        # TODO move to builtin
-        self.f32 = Float32Type()
-        self.i64 = IntegerType.from_width(64)
-        self.i32 = IntegerType.from_width(32)
-        self.i1 = IntegerType.from_width(1)
-
 
 @irdl_op_definition
 class Call(Operation):
