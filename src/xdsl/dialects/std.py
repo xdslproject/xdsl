@@ -13,10 +13,6 @@ class Std:
         self.ctx.register_op(Call)
         self.ctx.register_op(Return)
 
-        self.ctx.register_op(And)
-        self.ctx.register_op(Or)
-        self.ctx.register_op(Xor)
-
 
 @irdl_op_definition
 class Call(Operation):
@@ -45,60 +41,3 @@ class Return(Operation):
     @staticmethod
     def get(*ops: Union[Operation, SSAValue]) -> Return:
         return Return.build(operands=[[op for op in ops]])
-
-
-@irdl_op_definition
-class And(Operation):
-    name: str = "std.and"
-    input1 = OperandDef(IntegerType)
-    input2 = OperandDef(IntegerType)
-    output = ResultDef(IntegerType)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
-
-    @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> And:
-        return And.build(operands=[operand1, operand2],
-                         result_types=[IntegerType.from_width(1)])
-
-
-@irdl_op_definition
-class Or(Operation):
-    name: str = "std.or"
-    input1 = OperandDef(IntegerType)
-    input2 = OperandDef(IntegerType)
-    output = ResultDef(IntegerType)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
-
-    @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Or:
-        return Or.build(operands=[operand1, operand2],
-                        result_types=[IntegerType.from_width(1)])
-
-
-@irdl_op_definition
-class Xor(Operation):
-    name: str = "std.xor"
-    input1 = OperandDef(IntegerType)
-    input2 = OperandDef(IntegerType)
-    output = ResultDef(IntegerType)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
-
-    @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Xor:
-        return Xor.build(operands=[operand1, operand2],
-                         result_types=[IntegerType.from_width(1)])
