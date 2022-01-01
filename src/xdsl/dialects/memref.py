@@ -197,7 +197,7 @@ class GetGlobal(Operation):
 class Global(Operation):
     name = "memref.global"
     sym_name = AttributeDef(StringAttr)
-    #sym_name = AttributeDef(SymbolNameAttr)
+
     sym_visibility = AttributeDef(StringAttr)
     type = AttributeDef(AnyAttr())
 

@@ -437,7 +437,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
     # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType, i64
 
     # Build operands by forwarding the values to SSAValue.get
     if len(operand_defs) != len(operands):
@@ -495,10 +495,8 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             for operand, (_, operand_def) in zip(operands, operand_defs)
             if isinstance(operand_def, VarOperandDef)
         ]
-        dense_type = VectorType.from_type_and_list(IntegerType.from_width(64),
-                                                   [len(sizes)])
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.from_list(dense_type, [IntegerAttr.from_index_int_value(size) for size in sizes])
+            DenseIntOrFPElementsAttr.vector_from_list(sizes, i64)
 
     if AttrSizedResultSegments() in options:
         sizes = [
@@ -506,10 +504,8 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             for result, (_, result_def) in zip(res_types, res_defs)
             if isinstance(result_def, VarResultDef)
         ]
-        dense_type = VectorType.from_type_and_list(IntegerType.from_width(64),
-                                                   [len(sizes)])
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.from_list(dense_type,[IntegerAttr.from_index_int_value(size) for size in sizes])
+            DenseIntOrFPElementsAttr.vector_from_list(sizes, i64)
 
     # Build regions using `Region.get`.
     regions = [Region.get(region) for region in regions]

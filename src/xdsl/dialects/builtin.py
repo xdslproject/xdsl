@@ -271,21 +271,39 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
     # TODO add support for FPElements
     type = ParameterDef(AnyOf([VectorType, TensorType]))
+    # TODO add support for multi-dimensional data
     data = ParameterDef(ArrayOfConstraint(IntegerAttr))
 
     @staticmethod
     @builder
     def from_int_list(type: Union[VectorType, TensorType], data: List[int],
-                      bitwidth) -> VectorAttr:
+                      bitwidth) -> DenseIntOrFPElementsAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
-    def from_list(type: Union[VectorType, TensorType],
-                  data: List[Union[int, IntegerAttr]]) -> VectorAttr:
+    def from_list(
+            type: Union[VectorType, TensorType],
+            data: List[Union[int, IntegerAttr]]) -> DenseIntOrFPElementsAttr:
         data_attr = [IntegerAttr.build(d) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
+
+    @staticmethod
+    @builder
+    def vector_from_list(
+            data: List[int],
+            typ: Union[IntegerType, IndexType]) -> DenseIntOrFPElementsAttr:
+        t = VectorType.from_type_and_list(typ, [len(data)])
+        return DenseIntOrFPElementsAttr.from_list(t, data)
+
+    @staticmethod
+    @builder
+    def tensor_from_list(
+            data: List[int],
+            typ: Union[IntegerType, IndexType]) -> DenseIntOrFPElementsAttr:
+        t = TensorType.from_type_and_list(typ, [len(data)])
+        return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
 @irdl_attr_definition
