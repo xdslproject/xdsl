@@ -208,7 +208,7 @@ class Global(Operation):
     # constant = AttributeDef(UnitAttr)
 
     @staticmethod
-    def get(sym_name: StringAttr,
+    def get(sym_name: Union[str, StringAttr],
             typ: Attribute,
             initial_value: Optional[Attribute],
             sym_visibility="private") -> Global:
