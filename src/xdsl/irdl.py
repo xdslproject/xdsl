@@ -437,7 +437,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
     # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType, i64
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType, i32
 
     # Build operands by forwarding the values to SSAValue.get
     if len(operand_defs) != len(operands):
@@ -496,7 +496,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             if isinstance(operand_def, VarOperandDef)
         ]
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i64)
+            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in options:
         sizes = [
@@ -505,7 +505,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
             if isinstance(result_def, VarResultDef)
         ]
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i64)
+            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     # Build regions using `Region.get`.
     regions = [Region.get(region) for region in regions]

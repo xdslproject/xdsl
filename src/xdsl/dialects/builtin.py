@@ -286,7 +286,10 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     def from_list(
             type: Union[VectorType, TensorType],
             data: List[Union[int, IntegerAttr]]) -> DenseIntOrFPElementsAttr:
-        data_attr = [IntegerAttr.build(d) for d in data]
+        element_type = type.element_type
+        # Only use the element_type if the passed data is an int, o/w use the IntegerAttr
+        data_attr = [(IntegerAttr.from_params(d, element_type) if isinstance(
+            d, int) else d) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
