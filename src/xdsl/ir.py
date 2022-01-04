@@ -1,8 +1,9 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING, TypeVar
+from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING, TypeVar, Set, Union
 import typing
+from frozenlist import FrozenList
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -44,6 +45,17 @@ class MLContext:
         return self._registeredAttrs[name]
 
 
+@dataclass(frozen=True)
+class Use:
+    """The use of a SSA value."""
+
+    operation: Operation
+    """The operation using the value."""
+
+    index: int
+    """The index of the operand using the value in the operation."""
+
+
 @dataclass
 class SSAValue(ABC):
     """A reference to an SSA variable.
@@ -51,6 +63,9 @@ class SSAValue(ABC):
 
     typ: Attribute
     """Each SSA variable is associated to a type."""
+
+    uses: Set[Use] = field(init=False, default_factory=set)
+    """All uses of the value."""
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -64,6 +79,15 @@ class SSAValue(ABC):
                 "SSAValue.build: expected operation with a single result.")
         raise TypeError(
             f"Expected SSAValue or Operation for SSAValue.get, but got {arg}")
+
+    def add_use(self, use: Use):
+        """Add a new use of the value."""
+        self.uses.add(use)
+
+    def remove_use(self, use: Use):
+        """Remove a use of the value."""
+        assert use in self.uses, "use to be removed was not in use list"
+        self.uses.remove(use)
 
 
 @dataclass
@@ -151,7 +175,7 @@ class Operation:
     name: str = field(default="", init=False)
     """The operation name. Should be a static member of the class"""
 
-    operands: List[SSAValue] = field(default_factory=list)
+    _operands: FrozenList[SSAValue] = field(default_factory=FrozenList)
     """The operation operands."""
 
     results: List[OpResult] = field(default_factory=list)
@@ -171,6 +195,21 @@ class Operation:
 
     parent: Optional[Block] = field(default=None)
     """The block containing this operation."""
+
+    @property
+    def operands(self) -> FrozenList[SSAValue]:
+        return self._operands
+
+    @operands.setter
+    def operands(self, new: Union[List[SSAValue], FrozenList[SSAValue]]):
+        if isinstance(new, list):
+            new = FrozenList(new)
+        for idx, operand in enumerate(self._operands):
+            operand.remove_use(Use(self, idx))
+        for idx, operand in enumerate(new):
+            operand.add_use(Use(self, idx))
+        self._operands = new
+        self._operands.freeze()
 
     def __post_init__(self):
         assert (self.name != "")
