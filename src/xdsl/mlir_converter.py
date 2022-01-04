@@ -1,33 +1,7 @@
 import mlir.ir
 import array
-from tests.affine_test import *
-from xdsl.dialects.scf import *
-from xdsl.dialects.std import *
 from xdsl.dialects.builtin import *
-from xdsl.dialects.memref import *
-from xdsl.dialects.affine import *
-from xdsl.dialects.arith import *
-from xdsl.parser import *
-
-test_prog = """
-module() {
-memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public", "alignment" = 64 : !i64]
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
-{
-  %0 : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
-  %zero : !index = arith.constant() ["value" = 42 : !index]
-  %1 : !memref<[1 : !i64], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
-  %2 : !index = arith.constant() ["value" = 42 : !index]
-  memref.store(%2 : !index, %1 : !memref<[1 : !i64], !index>, %zero : !index) 
-  %3 : !index = memref.load(%1 : !memref<[1 : !i64], !index>, %zero : !index) 
-  %4 : !memref<[10 : !i64, 2 : !i64], !index> = memref.alloc() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
-  memref.store(%2 : !index, %4 : !memref<[10 : !i64, 2 : !i64], !index>, %2 : !index, %3 : !index) 
-  memref.dealloc(%1 : !memref<[1 : !i64], !index>) 
-  memref.dealloc(%4 : !memref<[10 : !i64, 2 : !i64], !index>) 
-  std.return()
-}
-}
-"""
+from xdsl.dialects.memref import MemRefType
 
 
 class MLIRConverter:
@@ -155,32 +129,3 @@ class MLIRConverter:
                 for op in block.ops:
                     ip.insert(self.convert_op(op))
                 return mlir_module
-
-
-def __main__():
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    affine = Affine(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
-    memref = MemRef(ctx)
-
-    parser = Parser(ctx, test_prog)
-    module = parser.parse_op()
-    module.verify()
-
-    converter = MLIRConverter(ctx)
-    mlir_module = converter.convert_module(module)
-    print(mlir_module)
-
-    affine_func = get_example_affine_program(ctx, builtin, std, affine)
-    with mlir.ir.Context() as mlir_ctx:
-        mlir_ctx.allow_unregistered_dialects = True
-        with mlir.ir.Location.unknown(mlir_ctx):
-            mlir_affine_func = converter.convert_op(affine_func)
-            print(mlir_affine_func)
-
-
-if __name__ == "__main__":
-    __main__()
