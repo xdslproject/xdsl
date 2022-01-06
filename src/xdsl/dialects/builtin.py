@@ -353,13 +353,15 @@ class FuncOp(Operation):
             return_types: List[Attribute],
             func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(
-            attributes={
-                "sym_name": name,
-                "type": type_attr,
-                "sym_visibility": "private"
-            },
-            regions=[Region([Block.from_callable(input_types, func)])])
+        op = FuncOp.build(attributes={
+            "sym_name": name,
+            "type": type_attr,
+            "sym_visibility": "private"
+        },
+                          regions=[
+                              Region.from_block_list(
+                                  [Block.from_callable(input_types, func)])
+                          ])
         return op
 
     @staticmethod
@@ -388,7 +390,7 @@ class ModuleOp(Operation):
     @staticmethod
     def from_region_or_ops(ops: Union[List[Operation], Region]) -> ModuleOp:
         if isinstance(ops, list):
-            region = Region([Block([], ops)])
+            region = Region.from_operation_list(ops)
         elif isinstance(ops, Region):
             region = ops
         else:
