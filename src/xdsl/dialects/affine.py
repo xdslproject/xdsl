@@ -15,8 +15,8 @@ class Affine:
 
     def for_(self, lower_bound: int, upper_bound: int,
              block: Block) -> Operation:
-        op = self.ctx.get_op("affine.for").create([], [],
-                                                  regions=[Region([block])])
+        op = self.ctx.get_op("affine.for").create(
+            [], [], regions=[Region.from_block_list([block])])
         return op
 
     def load(self, value: Union[Operation, SSAValue],

@@ -253,13 +253,13 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
-    args: List[BlockArgument] = field(default_factory=list)
+    args: List[BlockArgument] = field(default_factory=list, init=False)
     """The basic block arguments."""
 
-    ops: List[Operation] = field(default_factory=list)
+    ops: List[Operation] = field(default_factory=list, init=False)
     """Ordered operations contained in the block."""
 
-    parent: Optional[Region] = field(default=None)
+    parent: Optional[Region] = field(default=None, init=False)
     """Parent region containing the block."""
 
     @staticmethod
@@ -316,15 +316,15 @@ class Block:
 class Region:
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
-    blocks: List[Block] = field(default_factory=list)
+    blocks: List[Block] = field(default_factory=list, init=False)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Optional[Operation] = field(default=None)
+    parent: Optional[Operation] = field(default=None, init=False)
     """Operation containing the region."""
 
     @staticmethod
     def from_operation_list(ops: List[Operation]) -> Region:
-        block = Block([], ops)
+        block = Block.from_ops(ops)
         region = Region()
         region.add_block(block)
         return region
