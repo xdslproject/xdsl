@@ -267,6 +267,17 @@ class Operation:
         self.regions.append(region)
         region.parent = self
 
+    def drop_all_references(self) -> None:
+        """
+        Drop all references to other operations.
+        This function is called prior to deleting an operation.
+        """
+        self.parent = None
+        for idx, operand in enumerate(self.operands):
+            operand.remove_use(Use(self, idx))
+        for region in self.regions:
+            region.drop_all_references()
+
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the operation (including this one)"""
         fun(self)
@@ -344,6 +355,15 @@ class Block:
         for operation in self.ops:
             operation.verify()
 
+    def drop_all_references(self) -> None:
+        """
+        Drop all references to other operations.
+        This function is called prior to deleting a block.
+        """
+        self.parent = None
+        for op in self.ops:
+            op.drop_all_references()
+
     def __eq__(self, other: Block) -> bool:
         return self is other
 
@@ -400,3 +420,12 @@ class Region:
     def verify(self) -> None:
         for block in self.blocks:
             block.verify()
+
+    def drop_all_references(self) -> None:
+        """
+        Drop all references to other operations.
+        This function is called prior to deleting a region.
+        """
+        self.parent = None
+        for block in self.blocks:
+            block.drop_all_references()
