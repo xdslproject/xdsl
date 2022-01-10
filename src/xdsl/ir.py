@@ -300,8 +300,9 @@ class Operation:
         assert self.parent is not None, "Operation with parents should first be detached before erasure."
         if drop_references:
             self.drop_all_references()
-        for result in self.results:
-            assert len(result.uses) == 0
+        if safe_erase:
+            for result in self.results:
+                assert len(result.uses) == 0
 
     def __eq__(self, other: Operation) -> bool:
         return self is other
