@@ -471,3 +471,8 @@ class Region:
         """
         assert self.parent is not None, "Regions with parents should first be detached before erasure."
         self.drop_all_references()
+
+    def move_blocks(self, region: Region) -> None:
+        """Move the blocks of this region to another region. Leave no blocks in this region."""
+        region.blocks = self.blocks
+        self.blocks = []
