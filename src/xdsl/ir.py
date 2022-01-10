@@ -292,6 +292,17 @@ class Operation:
     def verify_(self) -> None:
         pass
 
+    def erase(self, safe_erase=True, drop_references=True) -> None:
+        """
+        Erase the operation, and remove all its references to other operations.
+        If safe_erase is specified, check that the operation results are not used.
+        """
+        assert self.parent is not None, "Operation with parents should first be detached before erasure."
+        if drop_references:
+            self.drop_all_references()
+        for result in self.results:
+            assert len(result.uses) == 0
+
     def __eq__(self, other: Operation) -> bool:
         return self is other
 
@@ -364,6 +375,16 @@ class Block:
         for op in self.ops:
             op.drop_all_references()
 
+    def erase(self, safe_erase=True) -> None:
+        """
+        Erase the block, and remove all its references to other operations.
+        If safe_erase is specified, check that no operation results are used outside the block.
+        """
+        assert self.parent is not None, "Blocks with parents should first be detached before erasure."
+        self.drop_all_references()
+        for op in self.ops:
+            op.erase(safe_erase=safe_erase, drop_references=False)
+
     def __eq__(self, other: Block) -> bool:
         return self is other
 
@@ -429,3 +450,10 @@ class Region:
         self.parent = None
         for block in self.blocks:
             block.drop_all_references()
+
+    def erase(self) -> None:
+        """
+        Erase the region, and remove all its references to other operations.
+        """
+        assert self.parent is not None, "Regions with parents should first be detached before erasure."
+        self.drop_all_references()
