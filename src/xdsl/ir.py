@@ -292,6 +292,19 @@ class Operation:
     def verify_(self) -> None:
         pass
 
+    def clone_without_regions(self: OperationType) -> OperationType:
+        """Clone an operation, with empty regions instead."""
+        operands = self.operands
+        result_types = [res.typ for res in self.results]
+        attributes = self.attributes.copy()
+        successors = self.successors.copy()
+        regions = [Region() for _ in self.regions]
+        return self.create(operands=operands,
+                           result_types=result_types,
+                           attributes=attributes,
+                           successors=successors,
+                           regions=regions)
+
     def erase(self, safe_erase=True, drop_references=True) -> None:
         """
         Erase the operation, and remove all its references to other operations.
