@@ -197,14 +197,13 @@ class PatternRewriteWalker:
                                      default_factory=OperandUpdater)
     """Takes care of bookkeeping the changes made during the walk."""
 
-    def rewrite_module(self, op: ModuleOp):
+    def rewrite_module(self, op: ModuleOp) -> ModuleOp:
         """Rewrite an entire module operation."""
         new_ops = self.rewrite_op(op)
         if len(new_ops) == 1:
             res_op = new_ops[0]
             if isinstance(res_op, ModuleOp):
-                op = res_op
-                return
+                return res_op
         raise Exception(
             "Rewrite pattern did not rewrite a module into another module.")
 
@@ -224,6 +223,7 @@ class PatternRewriteWalker:
             if self.apply_recursively:
                 new_ops = []
                 for new_op in action.new_ops:
+                    self._updater.update_operands(new_op)
                     new_ops.extend(self.rewrite_op(new_op))
                 return new_ops
             else:
@@ -232,10 +232,15 @@ class PatternRewriteWalker:
                 return action.new_ops
 
         # Otherwise, we update their operands, and walk recursively their regions if needed
-        self._updater.update_operands(op)
         if not self.walk_regions_first:
             self.rewrite_op_regions(op)
-        return [op]
+        new_op = op.clone_without_regions()
+        self._updater.update_operands(new_op)
+        for (old_res, new_res) in zip(op.results, new_op.results):
+            self._updater.result_mapping[old_res] = new_res
+        for region_idx in range(len(new_op.regions)):
+            op.regions[region_idx].move_blocks(new_op.regions[region_idx])
+        return [new_op]
 
     def add_block_args(self, new: Block, old: Block):
         """Duplicate the old BlockArguments, adds them to the new Block, and bookkeeps them."""

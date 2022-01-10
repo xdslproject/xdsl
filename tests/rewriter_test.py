@@ -13,10 +13,10 @@ def rewrite_and_compare(ctx: MLContext, prog: str, expected_prog: str,
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    walker.rewrite_module(module)
+    new_module = walker.rewrite_module(module)
     file = StringIO("")
     printer = Printer(stream=file)
-    printer.print_op(module)
+    printer.print_op(new_module)
     assert file.getvalue().strip() == expected_prog.strip()
 
 
