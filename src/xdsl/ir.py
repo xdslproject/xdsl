@@ -376,6 +376,10 @@ class Block:
         return b
 
     def add_op(self, operation: Operation) -> None:
+        if operation.parent is not None:
+            raise ValueError(
+                "Can't add to a block an operation already attached to a block."
+            )
         self.ops.append(operation)
         operation.parent = self
 
