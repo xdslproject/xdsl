@@ -273,7 +273,7 @@ class Operation:
         """Replace an operand with another operand."""
         self.operands = list(self._operands[:operand_idx]) + [
             new_operand
-        ] + list(self._operands[operand_idx:])
+        ] + list(self._operands[operand_idx + 1:])
 
     def add_region(self, region: Region) -> None:
         self.regions.append(region)
