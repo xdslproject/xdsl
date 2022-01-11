@@ -9,9 +9,6 @@ class Rewriter:
         Erase an operation.
         Check that the operation has no uses, and has a parent.
         """
-        for result in op.results:
-            assert len(result.uses
-                       ) == 0, "Cannot erase an operation that still has uses"
         assert op.parent is not None, "Cannot erase an operation that has no parents"
 
         block = op.parent
