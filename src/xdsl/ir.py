@@ -375,17 +375,32 @@ class Block:
         b.add_ops(f(*b.args))
         return b
 
-    def add_op(self, operation: Operation) -> None:
+    def _attach_op(self, operation: Operation) -> None:
         if operation.parent is not None:
             raise ValueError(
                 "Can't add to a block an operation already attached to a block."
             )
-        self.ops.append(operation)
         operation.parent = self
+
+    def add_op(self, operation: Operation) -> None:
+        self._attach_op(operation)
+        self.ops.append(operation)
 
     def add_ops(self, ops: List[Operation]) -> None:
         for op in ops:
             self.add_op(op)
+
+    def insert_op(self, ops: Union[Operation, List[Operation]],
+                  index: int) -> None:
+        if index < 0 or index > len(self.ops):
+            raise ValueError(
+                f"Can't insert operation in index {index} in a block with {len(self.ops)} operations."
+            )
+        if not isinstance(ops, list):
+            ops = [ops]
+        for op in ops:
+            self._attach_op(op)
+        self.ops = self.ops[:index] + ops + self.ops[index + 1:]
 
     def get_operation_index(self, op: Operation) -> int:
         for idx, block_op in enumerate(self.ops):
