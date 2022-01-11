@@ -371,6 +371,25 @@ class Block:
         for op in ops:
             self.add_op(op)
 
+    def get_operation_index(self, op: Operation) -> int:
+        for idx, block_op in enumerate(self.ops):
+            if block_op is op:
+                return idx
+        assert False, "Cannot find operation in block"
+
+    def erase_op(self, op: Union[int, Operation], safe_erase=True) -> None:
+        """
+        Erase an operation from the block.
+        If safe_erase is True, check that the operation has no uses.
+        """
+        if isinstance(op, Operation):
+            op_idx = self.get_operation_index(op)
+        else:
+            op_idx = op
+            op = self.ops[op_idx]
+        self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
+        op.erase(safe_erase=safe_erase)
+
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the block."""
         for op in self.ops:
