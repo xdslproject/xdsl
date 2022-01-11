@@ -13,10 +13,10 @@ def rewrite_and_compare(ctx: MLContext, prog: str, expected_prog: str,
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    new_module = walker.rewrite_module(module)
+    walker.rewrite_module(module)
     file = StringIO("")
     printer = Printer(stream=file)
-    printer.print_op(new_module)
+    printer.print_op(module)
     assert file.getvalue().strip() == expected_prog.strip()
 
 
@@ -35,21 +35,16 @@ def test_non_recursive_rewrite():
 
     expected = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
 
-        def match_and_rewrite(
-                self, op: Operation, new_operands: Optional[List[SSAValue]]
-        ) -> Optional[RewriteAction]:
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                return RewriteAction.from_op_list([
-                    Constant.from_attr(IntegerAttr.from_int_and_width(43, 64),
-                                       i32)
-                ])
-            return None
+                new_constant = Constant.from_int_constant(43, i32)
+                rewriter.replace_op([new_constant])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -71,19 +66,15 @@ def test_op_type_rewrite_pattern_method_decorator():
 
     expected = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     class RewriteConst(RewritePattern):
 
         @op_type_rewrite_pattern
-        def match_and_rewrite(
-                self, op: Constant, new_operands: Optional[List[SSAValue]]
-        ) -> Optional[RewriteAction]:
-            return RewriteAction.from_op_list([
-                Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)
-            ])
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            rewriter.replace_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -105,16 +96,13 @@ def test_op_type_rewrite_pattern_static_decorator():
 
     expected = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-            op: Constant,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
-        return RewriteAction.from_op_list(
-            [Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)])
+    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        rewriter.replace_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -148,9 +136,7 @@ def test_recursive_rewriter():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-            op: Constant,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
+    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -159,7 +145,7 @@ def test_recursive_rewriter():
         constant_one = Constant.from_attr(
             IntegerAttr.from_int_and_width(1, 64), i32)
         add_op = Addi.get(constant_op, constant_one)
-        return RewriteAction.from_op_list([constant_op, constant_one, add_op])
+        rewriter.replace_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -182,22 +168,17 @@ def test_greedy_rewrite_pattern_applier():
 
     expected = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i64]
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
 }"""
 
     @op_type_rewrite_pattern
-    def constant_rewrite(
-            op: Constant,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
-        return RewriteAction.from_op_list(
-            [Constant.from_attr(IntegerAttr.from_int_and_width(43, 64), i32)])
+    def constant_rewrite(op: Constant, rewriter: PatternRewriter):
+        rewriter.replace_op([Constant.from_int_constant(43, i32)])
 
     @op_type_rewrite_pattern
-    def addi_rewrite(op: Addi,
-                     new_operands: List[SSAValue]) -> Optional[RewriteAction]:
-        return RewriteAction.from_op_list(
-            [Muli.get(op.input1.op, op.input2.op)])
+    def addi_rewrite(op: Addi, rewriter: PatternRewriter):
+        rewriter.replace_op([Muli.get(op.input1, op.input2)])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -224,10 +205,8 @@ def test_operation_deletion():
 """module() {}"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-            op: Constant,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
-        return RewriteAction([], [None])
+    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        rewriter.erase_op()
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -248,10 +227,8 @@ def test_operation_deletion_failure():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-            op: Constant,
-            new_operands: Optional[List[SSAValue]]) -> Optional[RewriteAction]:
-        return RewriteAction([], [None])
+    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        rewriter.erase_op()
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()

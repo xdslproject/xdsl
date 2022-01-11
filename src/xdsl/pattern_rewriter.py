@@ -2,36 +2,38 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Dict
+from typing import List, Optional, Callable, Union
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, SSAValue, Region, Block, BlockArgument
+from xdsl.ir import Operation, OpResult
+from xdsl.rewriter import Rewriter
 
 
-@dataclass(eq=False, repr=False)
-class RewriteAction:
-    """
-    Action that a single rewrite may execute.
-    A rewrite always delete the matched operation, and replace it with new operations.
-    The matched operation results are replaced with new ones.
-    """
+@dataclass(eq=False)
+class PatternRewriter:
+    current_operation: Operation
+    has_done_action: bool = field(default=False, init=False)
+    added_operations: List[Operation] = field(default_factory=list)
 
-    new_ops: List[Operation]
-    """New operations that replace the one matched."""
+    def _check_can_act(self) -> None:
+        if self.has_done_action:
+            raise ValueError(
+                "Cannot replace or erase multiple time in the same match")
 
-    new_results: List[Optional[SSAValue]]
-    """SSA values that replace the matched operation results. None values are deleted SSA Values."""
+    def erase_op(self):
+        self._check_can_act()
+        Rewriter.erase_op(self.current_operation)
+        self.has_done_action = True
 
-    @staticmethod
-    def from_op_list(new_ops: List[Operation]) -> RewriteAction:
-        """
-        Case where the old results will be replaced by the results of the last operation to be added.
-        Can also be used with no operations (to represent deletion).
-        """
-        if len(new_ops) == 0:
-            return RewriteAction(new_ops, [])
-        else:
-            return RewriteAction(new_ops, new_ops[-1].results)
+    def replace_op(self,
+                   new_ops: Union[Operation, List[Operation]],
+                   new_results: Optional[List[OpResult]] = None):
+        if not isinstance(new_ops, list):
+            new_ops = [new_ops]
+        self._check_can_act()
+        Rewriter.replace_op(self.current_operation, new_ops, new_results)
+        self.added_operations += new_ops
+        self.has_done_action = True
 
 
 class RewritePattern(ABC):
@@ -40,14 +42,9 @@ class RewritePattern(ABC):
     """
 
     @abstractmethod
-    def match_and_rewrite(
-            self, op: Operation,
-            new_operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         """
-        Match an operation, and optionally returns a rewrite to be performed.
-        `op` is the operation to match, and `new_operands` are the potential new values of the operands.
-        `None` values in new_operands are deleted SSA values.
-        This function returns `None` if the pattern did not match, and a rewrite action otherwise.
+        Match an operation, and optionally perform a rewrite using the rewriter.
         """
         ...
 
@@ -57,13 +54,11 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
-    func: Callable[[Operation, List[Optional[SSAValue]]],
-                   Optional[RewriteAction]]
+    func: Callable[[Operation, PatternRewriter], None]
 
-    def match_and_rewrite(
-            self, op: Operation,
-            new_operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
-        return self.func(op, new_operands)
+    def match_and_rewrite(self, op: Operation,
+                          rewriter: PatternRewriter) -> None:
+        self.func(op, rewriter)
 
 
 def op_type_rewrite_pattern(func):
@@ -97,20 +92,18 @@ def op_type_rewrite_pattern(func):
     if not is_method:
 
         def op_type_rewrite_pattern_static_wrapper(
-                op: Operation,
-                operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
+                op: Operation, rewriter: PatternRewriter) -> None:
             if not isinstance(op, expected_type):
                 return None
-            return func(op, operands)
+            func(op, rewriter)
 
         return op_type_rewrite_pattern_static_wrapper
 
     def op_type_rewrite_pattern_method_wrapper(
-            self, op: Operation,
-            operands: List[Optional[SSAValue]]) -> Optional[RewriteAction]:
+            self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, expected_type):
             return None
-        return func(self, op, operands)
+        func(self, op, rewriter)
 
     return op_type_rewrite_pattern_method_wrapper
 
@@ -122,57 +115,13 @@ class GreedyRewritePatternApplier(RewritePattern):
     rewrite_patterns: List[RewritePattern]
     """The list of rewrites to apply in order."""
 
-    def match_and_rewrite(
-            self, op: Operation,
-            new_operands: List[SSAValue]) -> Optional[RewriteAction]:
+    def match_and_rewrite(self, op: Operation,
+                          rewriter: PatternRewriter) -> None:
         for pattern in self.rewrite_patterns:
-            res = pattern.match_and_rewrite(op, new_operands)
-            if res is not None:
-                return res
-
-        return None
-
-
-@dataclass(repr=False, eq=False)
-class OperandUpdater:
-    """
-    Provides functionality to bookkeep changed results and to access and update them.
-    """
-
-    result_mapping: Dict[SSAValue,
-                         Optional[SSAValue]] = field(default_factory=dict)
-    """Map old ssa values to new values. Deleted values are mapped to None."""
-
-    def bookkeep_results(self, old_op: Operation,
-                         action: RewriteAction) -> None:
-        """Bookkeep the changes made by a rewrite action matching on `old_op`."""
-        if len(old_op.results) == 0:
-            return
-
-        assert len(old_op.results) == len(action.new_results)
-
-        for (old_res, new_res) in zip(old_op.results, action.new_results):
-            self.result_mapping[old_res] = new_res
-
-    def bookkeep_blockargs(self, old_block: Block, new_block: Block):
-        """ Map old block arguments to the new arguments """
-        for (old_arg, new_arg) in zip(old_block.args, new_block.args):
-            self.result_mapping[old_arg] = new_arg
-
-    def get_new_value(self, value: SSAValue) -> Optional[SSAValue]:
-        """Get the updated value, if it exists, or returns the same one."""
-        return self.result_mapping.get(value, value)
-
-    def get_new_operands(self, op: Operation) -> [Optional[SSAValue]]:
-        """Get the new operation updated operands"""
-        return [self.get_new_value(operand) for operand in op.operands]
-
-    def update_operands(self, op: Operation) -> None:
-        """Update an operation operands with the new operands."""
-        new_operands = self.get_new_operands(op)
-        if None in new_operands:
-            raise Exception("Use of deleted SSA Value")
-        op.operands = new_operands
+            pattern.match_and_rewrite(op, rewriter)
+            if rewriter.has_done_action:
+                return
+        return
 
 
 @dataclass(eq=False, repr=False)
@@ -193,72 +142,40 @@ class PatternRewriteWalker:
     apply_recursively: bool = field(default=True)
     """Apply recursively rewrites on new operations."""
 
-    _updater: OperandUpdater = field(init=False,
-                                     default_factory=OperandUpdater)
-    """Takes care of bookkeeping the changes made during the walk."""
-
-    def rewrite_module(self, op: ModuleOp) -> ModuleOp:
+    def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
-        new_ops = self.rewrite_op(op)
-        if len(new_ops) == 1:
-            res_op = new_ops[0]
-            if isinstance(res_op, ModuleOp):
-                return res_op
-        raise Exception(
-            "Rewrite pattern did not rewrite a module into another module.")
+        self.rewrite_op(op)
 
-    def rewrite_op(self, op: Operation) -> List[Operation]:
+    def rewrite_op(self, op: Operation) -> int:
         """Rewrite an operation, along with its regions."""
-        # First, we walk the regions if needed
+        # First, we rewrite the regions if needed
         if self.walk_regions_first:
             self.rewrite_op_regions(op)
 
         # We then match for a pattern in the current operation
-        action = self.pattern.match_and_rewrite(
-            op, self._updater.get_new_operands(op))
+        rewriter = PatternRewriter(op)
+        self.pattern.match_and_rewrite(op, rewriter)
 
-        # If we produce new operations, we rewrite them recursively if requested
-        if action is not None:
-            self._updater.bookkeep_results(op, action)
+        if rewriter.has_done_action:
+            # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                new_ops = []
-                for new_op in action.new_ops:
-                    self._updater.update_operands(new_op)
-                    new_ops.extend(self.rewrite_op(new_op))
-                return new_ops
+                return 0
+            # Else, we rewrite only their regions if they are supposed to be rewritten after
             else:
-                for new_op in action.new_ops:
-                    self._updater.update_operands(new_op)
-                return action.new_ops
+                for new_op in rewriter.added_operations:
+                    if not self.walk_regions_first:
+                        self.rewrite_op_regions(new_op)
+                return len(rewriter.added_operations)
 
-        # Otherwise, we update their operands, and walk recursively their regions if needed
+        # Otherwise, we only rewrite the regions of the operation if needed
         if not self.walk_regions_first:
             self.rewrite_op_regions(op)
-        new_op = op.clone_without_regions()
-        self._updater.update_operands(new_op)
-        for (old_res, new_res) in zip(op.results, new_op.results):
-            self._updater.result_mapping[old_res] = new_res
-        for region_idx in range(len(new_op.regions)):
-            op.regions[region_idx].move_blocks(new_op.regions[region_idx])
-        return [new_op]
-
-    def add_block_args(self, new: Block, old: Block):
-        """Duplicate the old BlockArguments, adds them to the new Block, and bookkeeps them."""
-        new.args = [BlockArgument(arg.typ, new, arg.index) for arg in old.args]
-        self._updater.bookkeep_blockargs(old, new)
+        return 1
 
     def rewrite_op_regions(self, op: Operation):
         """Rewrite the regions of an operation, and update the operation with the new regions."""
-        new_regions = []
         for region in op.regions:
-            new_region = Region()
             for block in region.blocks:
-                new_block = Block()
-                self.add_block_args(new_block, block)
-                for sub_op in block.ops:
-                    new_block.add_ops(self.rewrite_op(sub_op))
-                new_region.add_block(new_block)
-            new_regions.append(new_region)
-        op.regions = []
-        for region in new_regions:
-            op.add_region(region)
+                idx = 0
+                while idx < len(block.ops):
+                    idx += self.rewrite_op(block.ops[idx])
