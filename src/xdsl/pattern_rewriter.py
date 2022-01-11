@@ -144,13 +144,13 @@ class PatternRewriteWalker:
 
     def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
-        self.rewrite_op(op)
+        self._rewrite_op(op)
 
-    def rewrite_op(self, op: Operation) -> int:
+    def _rewrite_op(self, op: Operation) -> int:
         """Rewrite an operation, along with its regions."""
         # First, we rewrite the regions if needed
         if self.walk_regions_first:
-            self.rewrite_op_regions(op)
+            self._rewrite_op_regions(op)
 
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
@@ -164,18 +164,18 @@ class PatternRewriteWalker:
             else:
                 for new_op in rewriter.added_operations:
                     if not self.walk_regions_first:
-                        self.rewrite_op_regions(new_op)
+                        self._rewrite_op_regions(new_op)
                 return len(rewriter.added_operations)
 
         # Otherwise, we only rewrite the regions of the operation if needed
         if not self.walk_regions_first:
-            self.rewrite_op_regions(op)
+            self._rewrite_op_regions(op)
         return 1
 
-    def rewrite_op_regions(self, op: Operation):
+    def _rewrite_op_regions(self, op: Operation):
         """Rewrite the regions of an operation, and update the operation with the new regions."""
         for region in op.regions:
             for block in region.blocks:
                 idx = 0
                 while idx < len(block.ops):
-                    idx += self.rewrite_op(block.ops[idx])
+                    idx += self._rewrite_op(block.ops[idx])
