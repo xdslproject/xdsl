@@ -4,7 +4,7 @@ from xdsl.parser import Parser
 from xdsl.dialects.std import Std
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.ir import MLContext
-from xdsl.rewriter import *
+from xdsl.pattern_rewriter import *
 from io import StringIO
 
 
