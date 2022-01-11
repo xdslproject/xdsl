@@ -271,9 +271,9 @@ class Operation:
 
     def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
         """Replace an operand with another operand."""
-        self._operands[operand_idx].remove_use(Use(self, operand_idx))
-        self._operands[operand_idx] = new_operand
-        new_operand.uses.add(Use(self, operand_idx))
+        self.operands = list(self._operands[:operand_idx]) + [
+            new_operand
+        ] + list(self._operands[operand_idx:])
 
     def add_region(self, region: Region) -> None:
         self.regions.append(region)
