@@ -20,7 +20,12 @@ class Rewriter:
     @staticmethod
     def replace_op(op: Operation,
                    new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[OpResult]] = None):
+                   new_results: Optional[List[SSAValue]] = None):
+        """
+        Replace an operation with multiple new ones.
+        If new_results is specified, map the results of the deleted operations with these SSA values.
+        Otherwise, use the results of the last operation added.
+        """
         if op.parent is None:
             raise ValueError("Cannot replace an operation without a parent")
         block = op.parent
