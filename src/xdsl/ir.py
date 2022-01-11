@@ -400,7 +400,7 @@ class Block:
             ops = [ops]
         for op in ops:
             self._attach_op(op)
-        self.ops = self.ops[:index] + ops + self.ops[index + 1:]
+        self.ops = self.ops[:index] + ops + self.ops[index:]
 
     def get_operation_index(self, op: Operation) -> int:
         for idx, block_op in enumerate(self.ops):
