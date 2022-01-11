@@ -89,6 +89,12 @@ class SSAValue(ABC):
         assert use in self.uses, "use to be removed was not in use list"
         self.uses.remove(use)
 
+    def replace_by(self, value: SSAValue) -> None:
+        """Replace the value by another value in all its uses."""
+        for use in self.uses.copy():
+            use.operation.replace_operand(use.index, value)
+        assert len(self.uses) == 0, "unexpected error in xdsl"
+
 
 @dataclass
 class OpResult(SSAValue):
@@ -262,6 +268,12 @@ class Operation:
               regions=[]) -> OperationType:
         """Create a new operation using builders."""
         ...
+
+    def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
+        """Replace an operand with another operand."""
+        self._operands[operand_idx].remove_use(Use(self, operand_idx))
+        self._operands[operand_idx] = new_operand
+        new_operand.uses.add(Use(self, operand_idx))
 
     def add_region(self, region: Region) -> None:
         self.regions.append(region)
