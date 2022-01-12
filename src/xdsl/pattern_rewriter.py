@@ -27,11 +27,15 @@ class PatternRewriter:
 
     def replace_op(self,
                    new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[OpResult]] = None):
+                   new_results: Optional[List[OpResult]] = None,
+                   safe_erase: bool = True):
         if not isinstance(new_ops, list):
             new_ops = [new_ops]
         self._check_can_act()
-        Rewriter.replace_op(self.current_operation, new_ops, new_results)
+        Rewriter.replace_op(self.current_operation,
+                            new_ops,
+                            new_results,
+                            safe_erase=safe_erase)
         self.added_operations += new_ops
         self.has_done_action = True
 
