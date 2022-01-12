@@ -17,11 +17,14 @@ class Rewriter:
     @staticmethod
     def replace_op(op: Operation,
                    new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[SSAValue]] = None):
+                   new_results: Optional[List[SSAValue]] = None,
+                   safe_erase: bool = True):
         """
         Replace an operation with multiple new ones.
         If new_results is specified, map the results of the deleted operations with these SSA values.
         Otherwise, use the results of the last operation added.
+        None elements in new_results are the SSA values to delete.
+        If safe_erase is False, then operations can be deleted even if they are still used.
         """
         if op.parent is None:
             raise ValueError("Cannot replace an operation without a parent")
@@ -43,5 +46,5 @@ class Rewriter:
             old_result.replace_by(new_result)
 
         op_idx = block.get_operation_index(op)
-        block.erase_op(op_idx)
+        block.erase_op(op_idx, safe_erase=safe_erase)
         block.insert_op(new_ops, op_idx)
