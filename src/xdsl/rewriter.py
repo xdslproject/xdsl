@@ -43,6 +43,8 @@ class Rewriter:
             )
 
         for old_result, new_result in zip(op.results, new_results):
+            if new_result is None:
+                new_result = ErasedSSAValue(old_result.typ)
             old_result.replace_by(new_result)
 
         op_idx = block.get_operation_index(op)
