@@ -124,6 +124,14 @@ class BlockArgument(SSAValue):
         return hash((id(self.block), self.index))
 
 
+@dataclass
+class ErasedSSAValue(SSAValue):
+    """
+    An erased SSA variable.
+    This is used during transformations when a SSA variable is destroyed but still used.
+    """
+
+
 AttrClass = TypeVar('AttrClass', bound='Attribute')
 
 
@@ -297,6 +305,9 @@ class Operation:
             region.walk(fun)
 
     def verify(self) -> None:
+        for operand in self.operands:
+            if isinstance(operand, ErasedSSAValue):
+                raise Exception("Erased SSA value is used by the operation")
         self.verify_()
         for region in self.regions:
             region.verify()
@@ -328,6 +339,9 @@ class Operation:
         if safe_erase:
             for result in self.results:
                 assert len(result.uses) == 0
+        else:
+            for result in self.results:
+                result.replace_by(ErasedSSAValue())
 
     def __eq__(self, other: Operation) -> bool:
         return self is other
