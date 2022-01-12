@@ -27,7 +27,7 @@ class PatternRewriter:
 
     def replace_op(self,
                    new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[OpResult]] = None,
+                   new_results: Optional[List[Optional[OpResult]]] = None,
                    safe_erase: bool = True):
         if not isinstance(new_ops, list):
             new_ops = [new_ops]

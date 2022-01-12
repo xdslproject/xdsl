@@ -17,7 +17,7 @@ class Rewriter:
     @staticmethod
     def replace_op(op: Operation,
                    new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[SSAValue]] = None,
+                   new_results: Optional[List[Optional[SSAValue]]] = None,
                    safe_erase: bool = True):
         """
         Replace an operation with multiple new ones.
