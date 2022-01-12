@@ -131,6 +131,9 @@ class ErasedSSAValue(SSAValue):
     This is used during transformations when a SSA variable is destroyed but still used.
     """
 
+    def __hash__(self):
+        return hash(id(self))
+
 
 AttrClass = TypeVar('AttrClass', bound='Attribute')
 
