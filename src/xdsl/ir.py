@@ -341,7 +341,7 @@ class Operation:
                 assert len(result.uses) == 0
         else:
             for result in self.results:
-                result.replace_by(ErasedSSAValue())
+                result.replace_by(ErasedSSAValue(result.typ))
 
     def __eq__(self, other: Operation) -> bool:
         return self is other
