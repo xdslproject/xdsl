@@ -110,7 +110,7 @@ def op_type_rewrite_pattern(func):
 
 @dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
-    """Apply a list of patterns in order until one pattern match, and then use this rewrite."""
+    """Apply a list of patterns in order until one pattern matches, and then use this rewrite."""
 
     rewrite_patterns: List[RewritePattern]
     """The list of rewrites to apply in order."""
