@@ -44,8 +44,14 @@ class Rewriter:
 
         for old_result, new_result in zip(op.results, new_results):
             if new_result is None:
-                new_result = ErasedSSAValue(old_result.typ)
-            old_result.replace_by(new_result)
+                if safe_erase:
+                    old_result.replace_by(ErasedSSAValue(old_result.typ))
+                elif len(old_result.uses) != 0:
+                    raise Exception(
+                        "SSA value was supposed to be destroyed, but still has uses."
+                    )
+            else:
+                old_result.replace_by(new_result)
 
         op_idx = block.get_operation_index(op)
         block.erase_op(op_idx, safe_erase=safe_erase)
