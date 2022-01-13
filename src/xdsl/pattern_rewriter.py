@@ -5,39 +5,73 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Callable, Union, Tuple
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, OpResult
+from xdsl.ir import Operation, OpResult, Region, Block
 from xdsl.rewriter import Rewriter
 
 
 @dataclass(eq=False)
 class PatternRewriter:
     current_operation: Operation
+    has_erased_matched_operation: bool = field(default=False, init=False)
+    added_operations: List[Operation] = field(default_factory=list, init=False)
     has_done_action: bool = field(default=False, init=False)
-    added_operations: List[Operation] = field(default_factory=list)
 
-    def _check_can_act(self) -> None:
-        if self.has_done_action:
-            raise ValueError(
-                "Cannot replace or erase multiple time in the same match")
+    def _can_modify_op(self, op: Operation) -> bool:
+        if op == self.current_operation:
+            return True
+        if op.parent is None:
+            return False
+        return self._can_modify_block(op.parent)
 
-    def erase_op(self):
-        self._check_can_act()
-        Rewriter.erase_op(self.current_operation)
+    def _can_modify_block(self, block: Block) -> bool:
+        return self._can_modify_region(block.parent)
+
+    def _can_modify_region(self, region: Region) -> bool:
+        return self._can_modify_op(region.parent)
+
+    def erase_matched_op(self):
         self.has_done_action = True
+        self.has_erased_matched_operation = True
+        Rewriter.erase_op(self.current_operation)
 
-    def replace_op(self,
-                   new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[Optional[OpResult]]] = None,
-                   safe_erase: bool = True):
+    def erase_op(self, op: Operation):
+        self.has_done_action = True
+        if op == self.current_operation:
+            return self.erase_matched_op()
+        if not self._can_modify_op(op):
+            raise Exception(
+                "PatternRewriter can only erase operations that are the matched operation"
+                ", or that are contained in the matched operation.")
+        Rewriter.erase_op(op)
+
+    def replace_matched_op(
+            self,
+            new_ops: Union[Operation, List[Operation]],
+            new_results: Optional[List[Optional[OpResult]]] = None,
+            safe_erase: bool = True):
+        self.has_done_action = True
         if not isinstance(new_ops, list):
             new_ops = [new_ops]
-        self._check_can_act()
+        self.has_erased_matched_operation = True
         Rewriter.replace_op(self.current_operation,
                             new_ops,
                             new_results,
                             safe_erase=safe_erase)
         self.added_operations += new_ops
+
+    def replace_op(self,
+                   op: Operation,
+                   new_ops: Union[Operation, List[Operation]],
+                   new_results: Optional[List[Optional[OpResult]]] = None,
+                   safe_erase: bool = True):
         self.has_done_action = True
+        if op == self.current_operation:
+            return self.replace_matched_op(new_ops, new_results, safe_erase)
+        if not self._can_modify_op(op):
+            raise Exception(
+                "PatternRewriter can only replace operations that are the matched operation"
+                ", or that are contained in the matched operation.")
+        Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
 
 
 class RewritePattern(ABC):

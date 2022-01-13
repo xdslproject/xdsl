@@ -44,7 +44,7 @@ def test_non_recursive_rewrite():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
                 new_constant = Constant.from_int_constant(43, i32)
-                rewriter.replace_op([new_constant])
+                rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -75,7 +75,7 @@ def test_non_recursive_rewrite_reversed():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
                 new_constant = Constant.from_int_constant(43, i32)
-                rewriter.replace_op([new_constant])
+                rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -107,7 +107,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            rewriter.replace_op(Constant.from_int_constant(43, i32))
+            rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -135,7 +135,7 @@ def test_op_type_rewrite_pattern_static_decorator():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_op(Constant.from_int_constant(43, i32))
+        rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -178,7 +178,7 @@ def test_recursive_rewriter():
         constant_one = Constant.from_attr(
             IntegerAttr.from_int_and_width(1, 64), i32)
         add_op = Addi.get(constant_op, constant_one)
-        rewriter.replace_op([constant_op, constant_one, add_op])
+        rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -221,7 +221,7 @@ def test_recursive_rewriter_reversed():
         constant_one = Constant.from_attr(
             IntegerAttr.from_int_and_width(1, 64), i32)
         add_op = Addi.get(constant_op, constant_one)
-        rewriter.replace_op([constant_op, constant_one, add_op])
+        rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -251,11 +251,11 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def constant_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_op([Constant.from_int_constant(43, i32)])
+        rewriter.replace_matched_op([Constant.from_int_constant(43, i32)])
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
-        rewriter.replace_op([Muli.get(op.input1, op.input2)])
+        rewriter.replace_matched_op([Muli.get(op.input1, op.input2)])
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -283,7 +283,7 @@ def test_operation_deletion():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.erase_op()
+        rewriter.erase_matched_op()
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -311,7 +311,7 @@ def test_operation_deletion_reversed():
 
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
-            rewriter.erase_op()
+            rewriter.erase_matched_op()
 
     rewrite_and_compare(
         ctx, prog, expected,
@@ -334,7 +334,7 @@ def test_operation_deletion_failure():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.erase_op()
+        rewriter.erase_matched_op()
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -346,3 +346,55 @@ def test_operation_deletion_failure():
         assert False
     except Exception as e:
         pass
+
+
+def test_delete_inner_op():
+    """Test rewrites where an operation inside a region of the matched op is deleted."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+    arith = Arith(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+
+    expected = \
+"""module() {}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+        rewriter.erase_op(op.ops[0])
+
+    rewrite_and_compare(
+        ctx, prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_replace_inner_op():
+    """Test rewrites where an operation inside a region of the matched op is deleted."""
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+    arith = Arith(ctx)
+
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+        rewriter.replace_op(op.ops[0], [Constant.from_int_constant(42, i32)])
+
+    rewrite_and_compare(
+        ctx, prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
