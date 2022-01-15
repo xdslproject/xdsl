@@ -97,21 +97,18 @@ def test_replace_op_new_results():
     """module() {
 %0 : !i32 = arith.constant() ["value" = 2 : !i32]
 %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+%2 : !i32 = arith.muli(%1 : !i32, %1 : !i32)
 }"""
 
     expected = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-  %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 2 : !i32]
+  %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
-        new_constant = Constant.from_int_constant(1, i32)
-        new_add = Addi.get(new_constant, new_constant)
+        add_op = module.ops[1]
 
-        rewriter.replace_op(constant_op, [new_constant, new_add],
-                            [new_add.output])
+        rewriter.replace_op(add_op, [], [add_op.input1])
 
     rewrite_and_compare(prog, expected, transformation)
