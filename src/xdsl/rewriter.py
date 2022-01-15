@@ -32,10 +32,8 @@ class Rewriter:
 
         if not isinstance(new_ops, list):
             new_ops = [new_ops]
-        if len(new_ops) == 0:
-            new_results = []
         if new_results is None:
-            new_results = new_ops[-1].results
+            new_results = [] if len(new_ops) == 0 else new_ops[-1].results
 
         if len(op.results) != len(new_results):
             raise ValueError(
