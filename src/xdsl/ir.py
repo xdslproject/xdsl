@@ -336,7 +336,7 @@ class Operation:
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
         """
-        assert self.parent is not None, "Operation with parents should first be detached before erasure."
+        assert self.parent is None, "Operation with parents should first be detached before erasure."
         if drop_references:
             self.drop_all_references()
         if safe_erase:
@@ -345,6 +345,12 @@ class Operation:
         else:
             for result in self.results:
                 result.replace_by(ErasedSSAValue(result.typ))
+
+    def detach(self):
+        """Detach the operation from its parent block."""
+        if self.parent is None:
+            raise Exception("Cannot detach a toplevel operation.")
+        self.parent.detach_op(self)
 
     def __eq__(self, other: Operation) -> bool:
         return self is other
@@ -392,6 +398,20 @@ class Block:
         b.add_ops(f(*b.args))
         return b
 
+    def is_ancestor(self, op: Union[Operation, Block, Region]) -> bool:
+        """Returns true if the block is an ancestor of the operation, block, or region."""
+        if isinstance(op, Block):
+            if op is self:
+                return True
+            op = op.parent.parent
+        if isinstance(op, Region):
+            op = op.parent
+        if op.parent is None:
+            return False
+        if op.parent is self:
+            return True
+        return self.is_ancestor(op.parent.parent.parent)
+
     def _attach_op(self, operation: Operation) -> None:
         if operation.parent is not None:
             raise ValueError(
@@ -425,17 +445,28 @@ class Block:
                 return idx
         assert False, "Cannot find operation in block"
 
-    def erase_op(self, op: Union[int, Operation], safe_erase=True) -> None:
+    def detach_op(self, op: Union[int, Operation]) -> Operation:
         """
-        Erase an operation from the block.
-        If safe_erase is True, check that the operation has no uses.
+        Detach an operation from the block.
+        Returns the detached operation.
         """
         if isinstance(op, Operation):
             op_idx = self.get_operation_index(op)
         else:
             op_idx = op
             op = self.ops[op_idx]
+        if op.parent is not self:
+            raise Exception("Cannot detach operation from a different block.")
+        op.parent = None
         self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
+        return op
+
+    def erase_op(self, op: Union[int, Operation], safe_erase=True) -> None:
+        """
+        Erase an operation from the block.
+        If safe_erase is True, check that the operation has no uses.
+        """
+        op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
