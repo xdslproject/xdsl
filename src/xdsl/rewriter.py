@@ -54,3 +54,30 @@ class Rewriter:
         op_idx = block.get_operation_index(op)
         block.erase_op(op_idx, safe_erase=safe_erase)
         block.insert_op(new_ops, op_idx)
+
+    @staticmethod
+    def inline_block_at_pos(block: Block, target_block: Block, pos: int):
+        if block.is_ancestor(target_block):
+            raise Exception("Cannot inline a block in a children block.")
+        ops = block.ops.copy()
+        for op in ops:
+            op.detach()
+        target_block.insert_op(ops, pos)
+
+    @staticmethod
+    def inline_block_before(block: Block, op: Operation):
+        if op.parent is None:
+            raise Exception(
+                "Cannot inline a block before a toplevel operation")
+        op_block = op.parent
+        op_pos = op_block.get_operation_index(op)
+        Rewriter.inline_block_at_pos(block, op_block, op_pos)
+
+    @staticmethod
+    def inline_block_after(block: Block, op: Operation):
+        if op.parent is None:
+            raise Exception(
+                "Cannot inline a block before a toplevel operation")
+        op_block = op.parent
+        op_pos = op_block.get_operation_index(op)
+        Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
