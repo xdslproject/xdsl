@@ -408,13 +408,18 @@ class Block:
         if isinstance(op, Block):
             if op is self:
                 return True
-            op = op.parent.parent
+            if op.parent is None or op.parent.parent is None:
+                return False
         if isinstance(op, Region):
+            if op.parent is None:
+                return False
             op = op.parent
         if op.parent is None:
             return False
         if op.parent is self:
             return True
+        if op.parent.parent is None or op.parent.parent.parent is None:
+            return False
         return self.is_ancestor(op.parent.parent.parent)
 
     def _attach_op(self, operation: Operation) -> None:
