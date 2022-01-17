@@ -352,6 +352,11 @@ class Operation:
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
+    def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        if self.parent is None:
+            return self
+        return self.parent.get_toplevel_object()
+
     def __eq__(self, other: Operation) -> bool:
         return self is other
 
@@ -497,6 +502,11 @@ class Block:
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
+    def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        if self.parent is None:
+            return self
+        return self.parent.get_toplevel_object()
+
     def __eq__(self, other: Block) -> bool:
         return self is other
 
@@ -574,3 +584,8 @@ class Region:
         """Move the blocks of this region to another region. Leave no blocks in this region."""
         region.blocks = self.blocks
         self.blocks = []
+
+    def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        if self.parent is None:
+            return self
+        return self.parent.get_toplevel_object()
