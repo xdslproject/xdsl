@@ -20,13 +20,17 @@ class PatternRewriter:
         if op == self.current_operation:
             return True
         if op.parent is None:
-            return False
+            return self.current_operation.get_toplevel_object() is not op
         return self._can_modify_block(op.parent)
 
     def _can_modify_block(self, block: Block) -> bool:
+        if block.parent is None:
+            return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_region(block.parent)
 
     def _can_modify_region(self, region: Region) -> bool:
+        if region.parent is None:
+            return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_op(region.parent)
 
     def erase_matched_op(self):
