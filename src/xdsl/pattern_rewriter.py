@@ -73,6 +73,49 @@ class PatternRewriter:
                 ", or that are contained in the matched operation.")
         Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
 
+    def inline_block_at_pos(self, block: Block, target_block: Block, pos: int):
+        self.has_done_action = True
+        if not self._can_modify_block(
+                target_block) or not self._can_modify_block(block):
+            raise Exception(
+                "Cannot modify blocks that are not contained in the matched operation."
+            )
+        Rewriter.inline_block_at_pos(block, target_block, pos)
+
+    def inline_block_before_matched_op(self, block: Block):
+        self.has_done_action = True
+        if not self._can_modify_block(block):
+            raise Exception(
+                "Cannot move blocks that are not contained in the matched operation."
+            )
+        self.added_operations += block.ops
+        Rewriter.inline_block_before(block, self.current_operation)
+
+    def inline_block_before(self, block: Block, op: Operation):
+        self.has_done_action = True
+        if op is self.current_operation:
+            return self.inline_block_before_matched_op(block)
+        if not self._can_modify_block(block):
+            raise Exception(
+                "Cannot move blocks that are not contained in the matched operation."
+            )
+        if not self._can_modify_op(op):
+            raise Exception(
+                "Cannot move block elsewhere than before the matched operation,"
+                " or before an operation child")
+        Rewriter.inline_block_before(block, op)
+
+    def inline_block_after(self, block: Block, op: Operation):
+        self.has_done_action = True
+        if op is self.current_operation:
+            return self.inline_block_before_matched_op(block)
+        if not self._can_modify_block(block) or not self._can_modify_block(
+                op.parent):
+            raise Exception(
+                "Cannot move blocks that are not contained in the matched operation."
+            )
+        Rewriter.inline_block_after(block, op)
+
 
 class RewritePattern(ABC):
     """
@@ -200,15 +243,19 @@ class PatternRewriteWalker:
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                return len(
-                    rewriter.added_operations) - 1 if self.walk_reverse else 0
+                return len(rewriter.added_operations) - int(
+                    rewriter.has_erased_matched_operation
+                ) if self.walk_reverse else 0
             # Else, we rewrite only their regions if they are supposed to be rewritten after
             else:
-                for new_op in rewriter.added_operations:
-                    if not self.walk_regions_first:
+                if not self.walk_regions_first:
+                    for new_op in rewriter.added_operations:
                         self._rewrite_op_regions(new_op)
+                    if not rewriter.has_erased_matched_operation:
+                        self._rewrite_op_regions(op)
                 return -1 if self.walk_reverse else len(
-                    rewriter.added_operations)
+                    rewriter.added_operations) + int(
+                        not rewriter.has_erased_matched_operation)
 
         # Otherwise, we only rewrite the regions of the operation if needed
         if not self.walk_regions_first:
