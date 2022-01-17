@@ -1,3 +1,5 @@
+from xdsl.dialects.scf import Scf, If
+
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import Builtin, IntegerAttr, i32
 from xdsl.parser import Parser
@@ -8,8 +10,14 @@ from xdsl.pattern_rewriter import *
 from io import StringIO
 
 
-def rewrite_and_compare(ctx: MLContext, prog: str, expected_prog: str,
+def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
+    ctx = MLContext()
+    builtin = Builtin(ctx)
+    std = Std(ctx)
+    arith = Arith(ctx)
+    scf = Scf(ctx)
+
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
@@ -22,11 +30,6 @@ def rewrite_and_compare(ctx: MLContext, prog: str, expected_prog: str,
 
 # Test a simple non-recursive rewrite
 def test_non_recursive_rewrite():
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
     """module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -47,17 +50,12 @@ def test_non_recursive_rewrite():
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(RewriteConst(), apply_recursively=False))
 
 
 # Test a simple non-recursive rewrite
 def test_non_recursive_rewrite_reversed():
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
     """module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -78,7 +76,7 @@ def test_non_recursive_rewrite_reversed():
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(RewriteConst(),
                              apply_recursively=False,
                              walk_reverse=True))
@@ -86,11 +84,6 @@ def test_non_recursive_rewrite_reversed():
 
 def test_op_type_rewrite_pattern_method_decorator():
     """Test op_type_rewrite_pattern decorator on methods."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -110,17 +103,12 @@ def test_op_type_rewrite_pattern_method_decorator():
             rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(RewriteConst(), apply_recursively=False))
 
 
 def test_op_type_rewrite_pattern_static_decorator():
     """Test op_type_rewrite_pattern decorator on static functions."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -138,18 +126,13 @@ def test_op_type_rewrite_pattern_static_decorator():
         rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              apply_recursively=False))
 
 
 def test_recursive_rewriter():
     """Test recursive walks on operations created by rewrites."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -181,18 +164,13 @@ def test_recursive_rewriter():
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              apply_recursively=True))
 
 
 def test_recursive_rewriter_reversed():
     """Test recursive walks on operations created by rewrites."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -224,7 +202,7 @@ def test_recursive_rewriter_reversed():
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              apply_recursively=True,
                              walk_reverse=True))
@@ -232,11 +210,6 @@ def test_recursive_rewriter_reversed():
 
 def test_greedy_rewrite_pattern_applier():
     """Test GreedyRewritePatternApplier."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -258,7 +231,7 @@ def test_greedy_rewrite_pattern_applier():
         rewriter.replace_matched_op([Muli.get(op.input1, op.input2)])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(GreedyRewritePatternApplier([
             AnonymousRewritePattern(constant_rewrite),
             AnonymousRewritePattern(addi_rewrite)
@@ -268,11 +241,6 @@ def test_greedy_rewrite_pattern_applier():
 
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -286,7 +254,7 @@ def test_operation_deletion():
         rewriter.erase_matched_op()
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
 
 
@@ -295,11 +263,6 @@ def test_operation_deletion_reversed():
     Test rewrites where SSA values are deleted.
     They have to be deleted in order for the rewrite to not fail.
     """
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -314,7 +277,7 @@ def test_operation_deletion_reversed():
             rewriter.erase_matched_op()
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              walk_reverse=True))
 
@@ -350,11 +313,6 @@ def test_operation_deletion_failure():
 
 def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -369,17 +327,12 @@ def test_delete_inner_op():
         rewriter.erase_op(op.ops[0])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
 
 
 def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-
     prog = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
@@ -396,5 +349,166 @@ def test_replace_inner_op():
         rewriter.replace_op(op.ops[0], [Constant.from_int_constant(42, i32)])
 
     rewrite_and_compare(
-        ctx, prog, expected,
+        prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_inline_block_at_pos():
+    """Test the inlining of a block at a certain position."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  }
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    scf.if(%0 : !i1) {}
+  }
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
+                op.true_region.blocks[0].ops[0], If):
+            inner_if_block = op.true_region.blocks[0].ops[
+                0].true_region.blocks[0]
+            rewriter.inline_block_at_pos(inner_if_block,
+                                         op.true_region.blocks[0], 0)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_inline_block_before_matched_op():
+    """Test the inlining of a block before the matched operation."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  scf.if(%0 : !i1) {}
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        rewriter.inline_block_before_matched_op(op.true_region.blocks[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_inline_block_before():
+    """Test the inlining of a block before an operation."""
+    prog = \
+"""module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  }
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    scf.if(%0 : !i1) {}
+  }
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
+                op.true_region.blocks[0].ops[0], If):
+            inner_if_block = op.true_region.blocks[0].ops[
+                0].true_region.blocks[0]
+            rewriter.inline_block_before(inner_if_block,
+                                         op.true_region.blocks[0].ops[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_inline_block_at_before_when_op_is_matched_op():
+    """Test the inlining of a block before an operation, being the matched one."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  scf.if(%0 : !i1) {}
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        rewriter.inline_block_before(op.true_region.blocks[0], op)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_inline_block_after():
+    """Test the inlining of a block after an operation."""
+    prog = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {
+    scf.if(%0 : !i1) {
+      %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    }
+  }
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {
+    scf.if(%0 : !i1) {}
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  }
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
+                op.true_region.blocks[0].ops[0], If):
+            inner_if_block = op.true_region.blocks[0].ops[
+                0].true_region.blocks[0]
+            rewriter.inline_block_after(inner_if_block,
+                                        op.true_region.blocks[0].ops[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
