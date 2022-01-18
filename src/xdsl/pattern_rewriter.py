@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Callable, Union, Tuple
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, OpResult, Region, Block
+from xdsl.ir import Operation, OpResult, Region, Block, BlockArgument, Attribute
 from xdsl.rewriter import Rewriter
 
 
@@ -76,6 +76,45 @@ class PatternRewriter:
                 "PatternRewriter can only replace operations that are the matched operation"
                 ", or that are contained in the matched operation.")
         Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
+
+    def modify_block_argument_type(self, arg: BlockArgument,
+                                   new_type: Attribute):
+        """
+        Modify the type of a block argument.
+        The block should be contained in the matched operation.
+        """
+        if not self._can_modify_block(arg.block):
+            raise Exception(
+                "Cannot modify blocks that are not contained in the matched operation"
+            )
+        arg.typ = new_type
+
+    def insert_block_argument(self, block: Block, index: int,
+                              typ: Attribute) -> BlockArgument:
+        """
+        Insert a new block argument.
+        The block should be contained in the matched operation.
+        """
+        if not self._can_modify_block(block):
+            raise Exception(
+                "Cannot modify blocks that are not contained in the matched operation"
+            )
+        return block.insert_arg(typ, index)
+
+    def erase_block_argument(self,
+                             arg: BlockArgument,
+                             safe_erase: bool = True) -> None:
+        """
+        Erase a new block argument.
+        The block should be contained in the matched operation.
+        If safe_erase is true, then raise an exception if the block argument has still uses,
+        otherwise, replace it with an ErasedSSAValue.
+        """
+        if not self._can_modify_block(arg.block):
+            raise Exception(
+                "Cannot modify blocks that are not contained in the matched operation"
+            )
+        arg.block.erase_arg(arg, safe_erase=safe_erase)
 
     def inline_block_at_pos(self, block: Block, target_block: Block, pos: int):
         self.has_done_action = True
