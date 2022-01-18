@@ -1,7 +1,7 @@
 from xdsl.dialects.scf import Scf, If
 
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr, i32
+from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64
 from xdsl.parser import Parser
 from xdsl.dialects.std import Std
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
@@ -347,6 +347,85 @@ def test_replace_inner_op():
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
         rewriter.replace_op(op.ops[0], [Constant.from_int_constant(42, i32)])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_block_argument_type_change():
+    """Test the modification of a block argument type."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+^0(%1 : !i32):
+  %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1){
+  ^0(%1 : !i64): 
+    %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
+  }
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        rewriter.modify_block_argument_type(op.true_region.blocks[0].args[0],
+                                            i64)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_block_argument_erasure():
+    """Test the erasure of a block argument."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {
+^0(%1 : !i32):
+}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {}
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        rewriter.erase_block_argument(op.true_region.blocks[0].args[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+
+
+def test_block_argument_insertion():
+    """Test the insertion of a block argument."""
+    prog = \
+    """module() {
+%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+scf.if(%0 : !i1) {}
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1){
+  ^0(%1 : !i32): }
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        rewriter.insert_block_argument(op.true_region.blocks[0], 0, i32)
 
     rewrite_and_compare(
         prog, expected,
