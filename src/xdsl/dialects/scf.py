@@ -28,7 +28,7 @@ class If(Operation):
             true_region: Union[Region, List[Block], List[Operation]],
             false_region: Union[Region, List[Block], List[Operation]]):
         return If.build(operands=[cond],
-                        result_types=return_types,
+                        result_types=[return_types],
                         regions=[true_region, false_region])
 
 
