@@ -690,3 +690,36 @@ def test_inline_block_after():
         prog, expected,
         PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
                              apply_recursively=False))
+
+
+def test_move_region_contents_to_new_regions():
+    """Test moving a region outside of a region."""
+    prog = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  }
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  scf.if(%0 : !i1){}
+  scf.if(%0 : !i1) {
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  } {}
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+        new_region = rewriter.move_region_contents_to_new_regions(
+            op.ops[1].regions[0])
+        new_if = If.get(op.ops[1].cond, [], new_region,
+                        Region.from_operation_list([]))
+        rewriter.insert_op_after(new_if, op.ops[1])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))

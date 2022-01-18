@@ -221,6 +221,20 @@ class PatternRewriter:
             )
         Rewriter.inline_block_after(block, op)
 
+    def move_region_contents_to_new_regions(self, region: Region) -> Region:
+        if region.parent is None:
+            raise Exception("Cannot detach an already detached region")
+        if not self._can_modify_region(region):
+            raise Exception(
+                "Cannot move regions that are not children of the matched operation"
+            )
+        new_region = Region()
+        for block in region.blocks:
+            block.parent = None
+            new_region.add_block(block)
+        region.blocks = []
+        return new_region
+
 
 class RewritePattern(ABC):
     """
