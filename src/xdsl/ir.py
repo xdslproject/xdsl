@@ -95,6 +95,12 @@ class SSAValue(ABC):
             use.operation.replace_operand(use.index, value)
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
+    def erase(self, safe_erase: bool = True) -> None:
+        if safe_erase and len(self.uses) != 0:
+            raise Exception(
+                "Attempting to delete SSA value that still has uses.")
+        self.replace_by(ErasedSSAValue(self.typ))
+
 
 @dataclass
 class OpResult(SSAValue):
@@ -106,8 +112,11 @@ class OpResult(SSAValue):
     result_index: int
     """The index of the result in the defining operation."""
 
+    def __eq__(self, other):
+        return self is other
+
     def __hash__(self):
-        return hash((id(self.op), self.result_index))
+        return id(self)
 
 
 @dataclass
@@ -120,8 +129,11 @@ class BlockArgument(SSAValue):
     index: int
     """The index of the variable in the block arguments."""
 
+    def __eq__(self, other):
+        return self is other
+
     def __hash__(self):
-        return hash((id(self.block), self.index))
+        return id(self)
 
 
 @dataclass
@@ -339,12 +351,8 @@ class Operation:
         assert self.parent is None, "Operation with parents should first be detached before erasure."
         if drop_references:
             self.drop_all_references()
-        if safe_erase:
-            for result in self.results:
-                assert len(result.uses) == 0
-        else:
-            for result in self.results:
-                result.replace_by(ErasedSSAValue(result.typ))
+        for result in self.results:
+            result.erase(safe_erase=safe_erase)
 
     def detach(self):
         """Detach the operation from its parent block."""
@@ -368,7 +376,7 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
-    args: List[BlockArgument] = field(default_factory=list, init=False)
+    _args: FrozenList[BlockArgument] = field(default_factory=list, init=False)
     """The basic block arguments."""
 
     ops: List[Operation] = field(default_factory=list, init=False)
@@ -377,19 +385,25 @@ class Block:
     parent: Optional[Region] = field(default=None, init=False)
     """Parent region containing the block."""
 
+    @property
+    def args(self) -> FrozenList[BlockArgument]:
+        """Returns the block arguments."""
+        return self._args
+
     @staticmethod
     def from_arg_types(arg_types: List[Attribute]) -> Block:
         b = Block()
-        b.args = [
+        b._args = FrozenList([
             BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
-        ]
+        ])
+        b._args.freeze()
         return b
 
     @staticmethod
     def from_ops(ops: List[Operation], arg_types: List[Attribute] = None):
         b = Block()
         if arg_types is not None:
-            b.args = [
+            b._args = [
                 BlockArgument(typ, b, index)
                 for index, typ in enumerate(arg_types)
             ]
@@ -421,6 +435,23 @@ class Block:
         if op.parent.parent is None or op.parent.parent.parent is None:
             return False
         return self.is_ancestor(op.parent.parent.parent)
+
+    def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
+        new_arg = BlockArgument(typ, self, index)
+        for arg in self._args[index:]:
+            arg.index += 1
+        self._args = FrozenList(
+            list(self._args[:index]) + [new_arg] + list(self._args[index:]))
+        self._args.freeze()
+        return new_arg
+
+    def erase_arg(self, arg: BlockArgument, safe_erase: bool = True) -> None:
+        if arg.block is not self:
+            raise Exception(
+                "Attempting to delete an argument of the wrong block")
+        self._args = FrozenList(
+            list(self._args[:arg.index]) + list(self._args[arg.index + 1:]))
+        arg.erase(safe_erase=safe_erase)
 
     def _attach_op(self, operation: Operation) -> None:
         if operation.parent is not None:
