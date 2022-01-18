@@ -33,6 +33,65 @@ class PatternRewriter:
             return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_op(region.parent)
 
+    def insert_op_before_matched_op(self, op: Union[Operation,
+                                                    List[Operation]]):
+        """Insert operations before the matched operation."""
+        if self.current_operation.parent is None:
+            raise Exception(
+                "Cannot insert an operation before a toplevel operation.")
+        self.has_done_action = True
+        block = self.current_operation.parent
+        op = op if isinstance(op, list) else [op]
+        if len(op) == 0:
+            return
+        op_idx = block.get_operation_index(self.current_operation)
+        block.insert_op(op, op_idx)
+        self.added_operations += op
+
+    def insert_op_at_pos(self, op: Union[Operation, List[Operation]],
+                         block: Block, pos: int):
+        """Insert operations in a block contained in the matched operation."""
+        if not self._can_modify_block(block):
+            raise Exception("Cannot insert operations in block.")
+        self.has_done_action = True
+        op = op if isinstance(op, list) else [op]
+        if len(op) == 0:
+            return
+        block.insert_op(op, pos)
+
+    def insert_op_before(self, op: Union[Operation, List[Operation]],
+                         target_op: Operation):
+        """Insert operations before an operation contained in the matched operation."""
+        if target_op.parent is None:
+            raise Exception(
+                "Cannot insert operations before toplevel operation.")
+        target_block = target_op.parent
+        if not self._can_modify_block(target_block):
+            raise Exception("Cannot insert operations in this block.")
+        self.has_done_action = True
+        op = op if isinstance(op, list) else [op]
+        if len(op) == 0:
+            return
+        target_op.parent.insert_op(op,
+                                   target_block.get_operation_index(target_op))
+
+    def insert_op_after(self, op: Union[Operation, List[Operation]],
+                        target_op: Operation):
+        """Insert operations after an operation contained in the matched operation."""
+        if target_op.parent is None:
+            raise Exception(
+                "Cannot insert operations after toplevel operation.")
+        target_block = target_op.parent
+        if not self._can_modify_block(target_block):
+            raise Exception("Cannot insert operations in this block.")
+        self.has_done_action = True
+        op = op if isinstance(op, list) else [op]
+        if len(op) == 0:
+            return
+        target_op.parent.insert_op(
+            op,
+            target_block.get_operation_index(target_op) + 1)
+
     def erase_matched_op(self):
         self.has_done_action = True
         self.has_erased_matched_operation = True
@@ -87,6 +146,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot modify blocks that are not contained in the matched operation"
             )
+        self.has_done_action = True
         arg.typ = new_type
 
     def insert_block_argument(self, block: Block, index: int,
@@ -99,6 +159,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot modify blocks that are not contained in the matched operation"
             )
+        self.has_done_action = True
         return block.insert_arg(typ, index)
 
     def erase_block_argument(self,
@@ -114,6 +175,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot modify blocks that are not contained in the matched operation"
             )
+        self.has_done_action = True
         arg.block.erase_arg(arg, safe_erase=safe_erase)
 
     def inline_block_at_pos(self, block: Block, target_block: Block, pos: int):
