@@ -380,7 +380,8 @@ scf.if(%0 : !i1) {
 
     rewrite_and_compare(
         prog, expected,
-        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
 
 
 def test_block_argument_erasure():
@@ -405,7 +406,8 @@ scf.if(%0 : !i1) {
 
     rewrite_and_compare(
         prog, expected,
-        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
 
 
 def test_block_argument_insertion():
@@ -429,7 +431,8 @@ scf.if(%0 : !i1) {}
 
     rewrite_and_compare(
         prog, expected,
-        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite)))
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
 
 
 def test_inline_block_at_pos():
