@@ -239,6 +239,102 @@ def test_greedy_rewrite_pattern_applier():
                              apply_recursively=False))
 
 
+def test_insert_op_before_matched_op():
+    """Test rewrites where operations are inserted."""
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_before_matched_op(new_cst)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_insert_op_at_pos():
+    """Test rewrites where operations are inserted."""
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_insert_op_before():
+    """Test rewrites where operations are inserted."""
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_before(new_cst, mod.ops[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_insert_op_after():
+    """Test rewrites where operations are inserted."""
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_after(new_cst, mod.ops[0])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
     prog = \
