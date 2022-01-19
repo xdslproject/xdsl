@@ -57,6 +57,10 @@ class Rewriter:
 
     @staticmethod
     def inline_block_at_pos(block: Block, target_block: Block, pos: int):
+        """
+        Move the block operations to a given position in another block.
+        This block should not be a parent of the block to move to.
+        """
         if block.is_ancestor(target_block):
             raise Exception("Cannot inline a block in a children block.")
         ops = block.ops.copy()
@@ -66,6 +70,10 @@ class Rewriter:
 
     @staticmethod
     def inline_block_before(block: Block, op: Operation):
+        """
+        Move the block operations before another operation.
+        The block should not be a parent of the operation.
+        """
         if op.parent is None:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
@@ -75,6 +83,10 @@ class Rewriter:
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
+        """
+        Move the block operations after another operation.
+        The block should not be a parent of the operation.
+        """
         if op.parent is None:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
