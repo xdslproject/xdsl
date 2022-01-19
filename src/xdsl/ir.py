@@ -451,6 +451,8 @@ class Block:
                 "Attempting to delete an argument of the wrong block")
         self._args = FrozenList(
             list(self._args[:arg.index]) + list(self._args[arg.index + 1:]))
+        for arg in self._args[arg.index + 1:]:
+            arg.index -= 1
         arg.erase(safe_erase=safe_erase)
 
     def _attach_op(self, operation: Operation) -> None:
