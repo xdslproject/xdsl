@@ -4,15 +4,17 @@ from xdsl.ir import *
 class Rewriter:
 
     @staticmethod
-    def erase_op(op: Operation):
+    def erase_op(op: Operation, safe_erase: bool = True):
         """
         Erase an operation.
         Check that the operation has no uses, and has a parent.
+        If safe_erase is True, check that the operation has no uses.
+        Otherwise, replace its uses with ErasedSSAValue.
         """
         assert op.parent is not None, "Cannot erase an operation that has no parents"
 
         block = op.parent
-        block.erase_op(op)
+        block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
     def replace_op(op: Operation,
@@ -62,7 +64,7 @@ class Rewriter:
         This block should not be a parent of the block to move to.
         """
         if block.is_ancestor(target_block):
-            raise Exception("Cannot inline a block in a children block.")
+            raise Exception("Cannot inline a block in a child block.")
         ops = block.ops.copy()
         for op in ops:
             op.detach()
@@ -93,3 +95,13 @@ class Rewriter:
         op_block = op.parent
         op_pos = op_block.get_operation_index(op)
         Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
+
+    @staticmethod
+    def move_region_contents_to_new_regions(region: Region) -> Region:
+        """Move the region blocks to a new region."""
+        new_region = Region()
+        for block in region.blocks:
+            block.parent = None
+            new_region.add_block(block)
+        region.blocks = []
+        return new_region
