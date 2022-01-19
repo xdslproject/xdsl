@@ -35,11 +35,13 @@ class MLContext:
         self._registeredAttrs[attr.name] = attr
 
     def get_op(self, name: str) -> typing.Type[Operation]:
+        """Get an operation class from its name."""
         if name not in self._registeredOps:
             raise Exception(f"Operation {name} is not registered")
         return self._registeredOps[name]
 
     def get_attr(self, name: str) -> typing.Type[Attribute]:
+        """Get an attribute class from its name."""
         if name not in self._registeredAttrs:
             raise Exception(f"Attribute {name} is not registered")
         return self._registeredAttrs[name]
@@ -96,6 +98,11 @@ class SSAValue(ABC):
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
+        """
+        Erase the value.
+        If safe_erase is True, then check that no operations use the value anymore.
+        If safe_erase is False, then replace its uses by an ErasedSSAValue.
+        """
         if safe_erase and len(self.uses) != 0:
             raise Exception(
                 "Attempting to delete SSA value that still has uses.")
@@ -299,6 +306,10 @@ class Operation:
         ] + list(self._operands[operand_idx + 1:])
 
     def add_region(self, region: Region) -> None:
+        """Add an unattached region to the operation."""
+        if region.parent is not None:
+            raise Exception(
+                "Cannot add region that is already attached on an operation.")
         self.regions.append(region)
         region.parent = self
 
@@ -361,6 +372,7 @@ class Operation:
         self.parent.detach_op(self)
 
     def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        """Get the operation, block, or region ancestor that has no parents."""
         if self.parent is None:
             return self
         return self.parent.get_toplevel_object()
@@ -437,6 +449,12 @@ class Block:
         return self.is_ancestor(op.parent.parent.parent)
 
     def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
+        """
+        Insert a new argument with a given type to the arguments list at a specific index.
+        Returns the new argument.
+        """
+        if index < 0 or index > len(self._args):
+            raise Exception("Unexpected index")
         new_arg = BlockArgument(typ, self, index)
         for arg in self._args[index:]:
             arg.index += 1
@@ -446,6 +464,11 @@ class Block:
         return new_arg
 
     def erase_arg(self, arg: BlockArgument, safe_erase: bool = True) -> None:
+        """
+        Erase a block argument.
+        If safe_erase is True, check that the block argument is not used.
+        If safe_erase is False, replace the block argument uses with an ErasedSSAVAlue.
+        """
         if arg.block is not self:
             raise Exception(
                 "Attempting to delete an argument of the wrong block")
@@ -456,6 +479,7 @@ class Block:
         arg.erase(safe_erase=safe_erase)
 
     def _attach_op(self, operation: Operation) -> None:
+        """Attach an operation to the block, and check that it has no parents."""
         if operation.parent is not None:
             raise ValueError(
                 "Can't add to a block an operation already attached to a block."
@@ -463,15 +487,27 @@ class Block:
         operation.parent = self
 
     def add_op(self, operation: Operation) -> None:
+        """
+        Add an operation at the end of the block.
+        The operation should not be attached to another block already.
+        """
         self._attach_op(operation)
         self.ops.append(operation)
 
     def add_ops(self, ops: List[Operation]) -> None:
+        """
+        Add operations at the end of the block.
+        The operations should not be attached to another block.
+        """
         for op in ops:
             self.add_op(op)
 
     def insert_op(self, ops: Union[Operation, List[Operation]],
                   index: int) -> None:
+        """
+        Insert one or multiple operations at a given index in the block.
+        The operations should not be attached to another block.
+        """
         if index < 0 or index > len(self.ops):
             raise ValueError(
                 f"Can't insert operation in index {index} in a block with {len(self.ops)} operations."
@@ -483,10 +519,13 @@ class Block:
         self.ops = self.ops[:index] + ops + self.ops[index:]
 
     def get_operation_index(self, op: Operation) -> int:
+        """Get the operation position in a block."""
+        if op.parent is not self:
+            raise Exception("Operation is not a children of the block.")
         for idx, block_op in enumerate(self.ops):
             if block_op is op:
                 return idx
-        assert False, "Cannot find operation in block"
+        assert False, "Unexpected xdsl error"
 
     def detach_op(self, op: Union[int, Operation]) -> Operation:
         """
@@ -541,6 +580,7 @@ class Block:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
     def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        """Get the operation, block, or region ancestor that has no parents."""
         if self.parent is None:
             return self
         return self.parent.get_toplevel_object()
@@ -590,6 +630,7 @@ class Region:
         raise TypeError(f"Can't build a region with argument {arg}")
 
     def add_block(self, block: Block) -> None:
+        """Add a block to the region."""
         self.blocks.append(block)
         block.parent = self
 
@@ -624,6 +665,7 @@ class Region:
         self.blocks = []
 
     def get_toplevel_object(self) -> Union[Operation, Block, Region]:
+        """Get the operation, block, or region ancestor that has no parents."""
         if self.parent is None:
             return self
         return self.parent.get_toplevel_object()
