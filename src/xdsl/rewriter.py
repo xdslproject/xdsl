@@ -62,9 +62,17 @@ class Rewriter:
         """
         Move the block operations to a given position in another block.
         This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
         """
         if block.is_ancestor(target_block):
             raise Exception("Cannot inline a block in a child block.")
+        for op in block.ops:
+            for operand in op.operands:
+                if isinstance(operand,
+                              BlockArgument) and operand.block is block:
+                    raise Exception(
+                        "Cannot inline block which has operations using the block arguments."
+                    )
         ops = block.ops.copy()
         for op in ops:
             op.detach()
@@ -75,6 +83,7 @@ class Rewriter:
         """
         Move the block operations before another operation.
         The block should not be a parent of the operation.
+        The block operations should not use the block arguments.
         """
         if op.parent is None:
             raise Exception(
@@ -88,6 +97,7 @@ class Rewriter:
         """
         Move the block operations after another operation.
         The block should not be a parent of the operation.
+        The block operations should not use the block arguments.
         """
         if op.parent is None:
             raise Exception(
