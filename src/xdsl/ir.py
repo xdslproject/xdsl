@@ -330,13 +330,14 @@ class Operation:
         for region in self.regions:
             region.walk(fun)
 
-    def verify(self) -> None:
+    def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
         self.verify_()
-        for region in self.regions:
-            region.verify()
+        if verify_nested_ops:
+            for region in self.regions:
+                region.verify()
 
     def verify_(self) -> None:
         pass
