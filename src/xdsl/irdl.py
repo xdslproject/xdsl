@@ -530,7 +530,7 @@ def irdl_op_definition(
 
     # Get all fields of the class, including the parent classes
     clsdict = dict()
-    for parent_cls in cls.mro():
+    for parent_cls in cls.mro()[::-1]:
         clsdict = {**clsdict, **parent_cls.__dict__}
 
     operand_defs = [(field_name, field)
