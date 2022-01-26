@@ -1,0 +1,15 @@
+// RUN: ../../src/xdsl/xdsl_opt.py -f %s | ../../src/xdsl/xdsl_opt.py | filecheck %s
+
+module() {
+  builtin.func() ["sym_name" = "\"", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  builtin.func() ["sym_name" = "\n", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  builtin.func() ["sym_name" = "\t", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  builtin.func() ["sym_name" = "\\", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  builtin.func() ["sym_name" = "\r", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+}
+
+// CHECK: builtin.func() ["sym_name" = "\"", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: builtin.func() ["sym_name" = "\n", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: builtin.func() ["sym_name" = "\t", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: builtin.func() ["sym_name" = "\\", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: builtin.func() ["sym_name" = "\r", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
