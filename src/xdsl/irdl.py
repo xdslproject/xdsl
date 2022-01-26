@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, Union, TypeVar
 from inspect import isclass
 import typing
 
-from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region
+from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
 
 
@@ -224,6 +224,7 @@ class RegionDef:
     If the block_args is specified, then the region expect to have the entry block with these arguments.
     """
     block_args: Optional[List[Attribute]] = None
+    blocks: List[Block] = field(default_factory=list)
 
 
 @dataclass
@@ -238,6 +239,8 @@ class AttributeDef:
 
     constr: AttrConstraint
     """The attribute constraint."""
+
+    data: Any
 
     def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
                                   AttrConstraint]):
