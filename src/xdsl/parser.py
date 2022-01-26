@@ -64,8 +64,23 @@ class Parser:
         parsed = self.parse_optional_char('"')
         if parsed is None:
             return None
-        res = self.parse_while(lambda char: char != '"',
-                               skip_white_space=False)
+        start_idx = self._idx
+        while self._idx < len(self._str):
+            char = self._str[self._idx]
+            if char == '\\':
+                if self._idx + 1 < len(self._str):
+                    if self._str[self._idx + 1] in ['\\', 'n', 't', 'r', '"']:
+                        self._idx += 1
+                    else:
+                        raise Exception(
+                            f"Unrecognized escaped character: \\{self._str[self._idx + 1]}"
+                        )
+                else:
+                    raise Exception("Unexpected end of file")
+            elif char == '"':
+                break
+            self._idx += 1
+        res = self._str[start_idx:self._idx]
         self.parse_char('"')
         return res
 
