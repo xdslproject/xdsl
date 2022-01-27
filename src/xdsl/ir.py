@@ -378,6 +378,14 @@ class Operation:
             return self
         return self.parent.get_toplevel_object()
 
+    def is_ancestor(self, op: Union[Operation, Block, Region]) -> bool:
+        """Returns true if the operation is an ancestor of the operation, block, or region."""
+        if op is self:
+            return True
+        if op.parent is None:
+            return False
+        return self.is_ancestor(op.parent)
+
     def __eq__(self, other: Operation) -> bool:
         return self is other
 
@@ -432,22 +440,11 @@ class Block:
 
     def is_ancestor(self, op: Union[Operation, Block, Region]) -> bool:
         """Returns true if the block is an ancestor of the operation, block, or region."""
-        if isinstance(op, Block):
-            if op is self:
-                return True
-            if op.parent is None or op.parent.parent is None:
-                return False
-        if isinstance(op, Region):
-            if op.parent is None:
-                return False
-            op = op.parent
+        if op is self:
+            return True
         if op.parent is None:
             return False
-        if op.parent is self:
-            return True
-        if op.parent.parent is None or op.parent.parent.parent is None:
-            return False
-        return self.is_ancestor(op.parent.parent.parent)
+        return self.is_ancestor(op.parent)
 
     def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
         """
@@ -670,3 +667,11 @@ class Region:
         if self.parent is None:
             return self
         return self.parent.get_toplevel_object()
+
+    def is_ancestor(self, op: Union[Operation, Block, Region]) -> bool:
+        """Returns true if the region is an ancestor of the operation, block, or region."""
+        if op is self:
+            return True
+        if op.parent is None:
+            return False
+        return self.is_ancestor(op.parent)
