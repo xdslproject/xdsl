@@ -346,6 +346,57 @@ def test_insert_op_after():
                              apply_recursively=False))
 
 
+def test_insert_op_after_matched_op():
+    """Test rewrites where operations are inserted after a given operation."""
+
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_after_matched_op(new_cst)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_insert_op_after_matched_op_reversed():
+    """Test rewrites where operations are inserted after a given operation."""
+
+    prog = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+}"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+        new_cst = Constant.from_int_constant(42, i32)
+        rewriter.insert_op_after_matched_op(new_cst)
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False,
+                             walk_reverse=True))
+
+
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
 
