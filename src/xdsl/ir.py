@@ -482,6 +482,10 @@ class Block:
             raise ValueError(
                 "Can't add to a block an operation already attached to a block."
             )
+        if operation.is_ancestor(self):
+            raise ValueError(
+                "Can't add an operation to a block contained in the operation."
+            )
         operation.parent = self
 
     def add_op(self, operation: Operation) -> None:
