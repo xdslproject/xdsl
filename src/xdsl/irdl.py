@@ -240,11 +240,20 @@ class AttributeDef:
     constr: AttrConstraint
     """The attribute constraint."""
 
-    data: Any
+    data: typing.Any
 
     def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
                                   AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
+
+
+@dataclass(init=False)
+class OptAttributeDef(AttributeDef):
+    """An IRDL attribute definition for an optional attribute."""
+
+    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
+                                  AttrConstraint]):
+        super().__init__(typ)
 
 
 def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
@@ -412,6 +421,8 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
 
     for attr_name, attr_def in attributes:
         if attr_name not in op.attributes:
+            if isinstance(attr_def, OptAttributeDef):
+                continue
             raise Exception(f"attribute {attr_name} expected")
         attr_def.constr.verify(op.attributes[attr_name])
 
