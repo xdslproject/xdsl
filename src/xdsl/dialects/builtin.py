@@ -24,6 +24,7 @@ class Builtin:
         self.ctx.register_attr(VectorType)
         self.ctx.register_attr(TensorType)
         self.ctx.register_attr(DenseIntOrFPElementsAttr)
+        self.ctx.register_attr(UnitAttr)
 
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
@@ -315,6 +316,11 @@ class Float32Type(ParametrizedAttribute):
 
 
 f32 = Float32Type()
+
+
+@irdl_op_definition
+class UnitAttr(ParametrizedAttribute):
+    name: str = "unit"
 
 
 @irdl_attr_definition
