@@ -318,7 +318,7 @@ class Float32Type(ParametrizedAttribute):
 f32 = Float32Type()
 
 
-@irdl_op_definition
+@irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name: str = "unit"
 
