@@ -224,3 +224,25 @@ def test_region_op_ops():
     op.verify()
     assert len(op.region.blocks) == 1
     assert len(op.region.blocks[0].ops) == 2
+
+
+@irdl_op_definition
+class OptionalAttrOp(Operation):
+    name: str = "test.opt_attr_op"
+
+    opt_attr = OptAttributeDef(StringAttr)
+
+
+def test_optional_attr_op_empty():
+    op = OptionalAttrOp.build()
+    op.verify()
+
+
+def test_optional_attr_op_non_empty_attr():
+    op = OptionalAttrOp.build(attributes={"opt_attr": StringAttr.from_int(1)})
+    op.verify()
+
+
+def test_optional_attr_op_non_empty_builder():
+    op1 = OptionalAttrOp.build(attributes={"opt_attr": 1})
+    op1.verify()
