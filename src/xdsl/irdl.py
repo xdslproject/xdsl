@@ -590,9 +590,15 @@ def irdl_op_definition(
         new_attrs[region_name] = property(
             (lambda idx: lambda self: self.regions[idx])(region_idx))
 
-    for attribute_name, _ in attr_defs:
-        new_attrs[attribute_name] = property(
-            (lambda name: lambda self: self.attributes[name])(attribute_name))
+    for attribute_name, attr_def in attr_defs:
+        if isinstance(attr_def, OptAttributeDef):
+            new_attrs[attribute_name] = property(
+                (lambda name: lambda self: self.attributes.get(name, None)
+                 )(attribute_name))
+        else:
+            new_attrs[attribute_name] = property(
+                (lambda name: lambda self: self.attributes[name]
+                 )(attribute_name))
 
     new_attrs["irdl_operand_defs"] = operand_defs
     new_attrs["irdl_result_defs"] = result_defs
