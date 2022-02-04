@@ -236,13 +236,16 @@ class OptionalAttrOp(Operation):
 def test_optional_attr_op_empty():
     op = OptionalAttrOp.build()
     op.verify()
+    assert op.opt_attr is None
 
 
 def test_optional_attr_op_non_empty_attr():
     op = OptionalAttrOp.build(attributes={"opt_attr": StringAttr.from_int(1)})
     op.verify()
+    assert op.opt_attr == StringAttr.from_int(1)
 
 
 def test_optional_attr_op_non_empty_builder():
-    op1 = OptionalAttrOp.build(attributes={"opt_attr": 1})
-    op1.verify()
+    op = OptionalAttrOp.build(attributes={"opt_attr": 1})
+    op.verify()
+    assert op.opt_attr == StringAttr.from_int(1)
