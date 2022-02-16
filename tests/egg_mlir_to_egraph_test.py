@@ -16,10 +16,10 @@ from xdsl.dialects.builtin import *
 EgraphValueMap = dict
 
 # define nodes for egraph structure
-arith_constant = namedtuple('arith_constant', 'c') 
-arith_andi = namedtuple('arith_andi', 'a b') 
-arith_ori = namedtuple('arith_ori', 'a b') 
-arith_xori = namedtuple('arith_xori', 'a b') 
+arith_constant = namedtuple('arith_constant', 'c')
+arith_andi = namedtuple('arith_andi', 'a b')
+arith_ori = namedtuple('arith_ori', 'a b')
+arith_xori = namedtuple('arith_xori', 'a b')
 foo = namedtuple('foo', 'x y z')
 
 a, b, _ = vars('a b _')
@@ -74,9 +74,9 @@ def add_to_egraph(op: Operation, nodeContext: EgraphValueMap, egraph: EGraph):
             return
         case Constant():
             const : Constant = op
-            constNode = egraph.add(arith_constant(const.value.value))
+            constNode = egraph.add(arith_constant(const.value.value.data))
             nodeContext[const] = constNode
-            print(str(constNode) + " - constant: " +  str(const.value.value))
+            print(str(constNode) + " - constant: " +  str(const.value.value.data))
             return
         case AndI():
             andi : AndI = op
@@ -104,7 +104,6 @@ prog = """
 module() {
   builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
   {
-
     %7 : !i1 = arith.constant() ["value" = 0 : !i1]
     %8 : !i1 = arith.constant() ["value" = 1 : !i1]
     %9 : !i1 = arith.andi(%7 : !i1, %8 : !i1)
@@ -130,4 +129,4 @@ egraph = EGraph()
 add_to_egraph(module, {}, egraph)
 
 egraph.run(rules, iter_limit=1)
-# TODO print the egraph
+egraph.save_png("eggs/egg.png")
