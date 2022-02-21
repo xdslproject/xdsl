@@ -631,6 +631,29 @@ class Region:
                 return Region.from_operation_list(arg)
         raise TypeError(f"Can't build a region with argument {arg}")
 
+    @property
+    def ops(self) -> List[Operation]:
+        """
+        Get the operations of a single-block region.
+        Returns an exception if the region is not single-block.
+        """
+        if len(self.blocks) != 1:
+            raise ValueError(
+                "'ops' property of Region class is only available for single-block regions."
+            )
+        return self.blocks[0].ops
+
+    @property
+    def op(self) -> Operation:
+        """
+        Get the operation of a single-operation single-block region.
+        Returns an exception if the region is not single-operation single-block.
+        """
+        if len(self.blocks) != 1 or len(self.blocks[0].ops) != 1:
+            raise ValueError("'op' property of Region class is only available "
+                             "for single-operation single-block regions.")
+        return self.blocks[0].ops[0]
+
     def add_block(self, block: Block) -> None:
         """Add a block to the region."""
         self.blocks.append(block)
