@@ -218,7 +218,7 @@ class OptResultDef(VarResultDef, OptionalDef):
 
 
 @dataclass
-class RegionDef:
+class RegionDef(Region):
     """
     An IRDL region definition.
     If the block_args is specified, then the region expect to have the entry block with these arguments.
@@ -531,11 +531,8 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                       regions=regions)
 
 
-OperationType = TypeVar("OperationType", bound=Operation)
-
-
 def irdl_op_definition(
-        cls: typing.Type[OperationType]) -> typing.Type[OperationType]:
+        cls: typing.Type[Operation]) -> typing.Type[_]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -631,7 +628,7 @@ def irdl_op_definition(
 
     new_attrs["build"] = classmethod(builder)
 
-    return type(cls.__name__, (cls, ), {**cls.__dict__, **new_attrs})
+    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
 @dataclass
