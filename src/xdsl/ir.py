@@ -291,11 +291,11 @@ class Operation:
 
     @classmethod
     def build(cls: typing.Type[OperationType],
-              operands=None,
-              result_types=None,
-              attributes=None,
-              successors=None,
-              regions=None) -> OperationType:
+              operands: List[Any] = None,
+              result_types: List[Any] = None,
+              attributes: Dict[str, Any] = None,
+              successors: List[Any] = None,
+              regions: List[Any] = None) -> OperationType:
         """Create a new operation using builders."""
         ...
 
