@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from xdsl.irdl import *
 from xdsl.ir import *
-from typing import overload
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -36,6 +35,7 @@ class Builtin:
 
 
 @irdl_attr_definition
+@dataclass
 class StringAttr(Data):
     name = "string"
     data: str
@@ -87,6 +87,7 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+@dataclass
 class IntAttr(Data):
     name = "int"
     data: int
@@ -155,18 +156,19 @@ class IntegerAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+@dataclass
 class ArrayAttr(Data):
     name = "array"
     data: List[Attribute]
 
     @staticmethod
-    def parse(parser) -> ArrayAttr:
+    def parse(parser: Parser) -> ArrayAttr:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
-        return ArrayAttr.get(data)
+        return ArrayAttr.from_list(data)
 
-    def print(self, printer) -> None:
+    def print(self, printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")
@@ -189,11 +191,11 @@ class ArrayOfConstraint(AttrConstraint):
                                      AttrConstraint]):
         self.elem_constr = attr_constr_coercion(constr)
 
-    def verify(self, data: Data) -> None:
-        if not isinstance(data, ArrayAttr):
-            raise Exception(f"expected data ArrayData but got {data}")
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise Exception(f"expected data ArrayData but got {attr}")
 
-        for e in data.data:
+        for e in attr.data:
             self.elem_constr.verify(e)
 
 
@@ -214,8 +216,8 @@ class VectorType(ParametrizedAttribute):
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> VectorType:
-        if shape is None:
+            shape: List[Union[int, IntegerAttr]] = []) -> VectorType:
+        if not shape:
             shape = [1]
         return VectorType([
             ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
@@ -249,8 +251,8 @@ class TensorType(ParametrizedAttribute):
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> TensorType:
-        if shape is None:
+            shape: List[Union[int, IntegerAttr]] = []) -> TensorType:
+        if not shape:
             shape = [1]
         return TensorType([
             ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
@@ -278,7 +280,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_int_list(type: Union[VectorType, TensorType], data: List[int],
-                      bitwidth) -> DenseIntOrFPElementsAttr:
+                      bitwidth: int) -> DenseIntOrFPElementsAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 

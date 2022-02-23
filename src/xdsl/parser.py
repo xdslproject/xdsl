@@ -28,7 +28,7 @@ class Parser:
 
     def parse_while(self,
                     cond: Callable[[str], bool],
-                    skip_white_space=True) -> str:
+                    skip_white_space: bool = True) -> str:
         if skip_white_space:
             self.skip_white_space()
         start_idx = self._idx
@@ -40,20 +40,20 @@ class Parser:
         return self._str[start_idx:]
 
     # TODO why two different functions, no nums in ident?
-    def parse_optional_ident(self, skip_white_space=True) -> Optional[str]:
+    def parse_optional_ident(self, skip_white_space: bool = True) -> Optional[str]:
         res = self.parse_while(lambda x: x.isalpha() or x == "_" or x == ".",
                                skip_white_space=skip_white_space)
         if len(res) == 0:
             return None
         return res
 
-    def parse_ident(self, skip_white_space=True) -> str:
+    def parse_ident(self, skip_white_space: bool = True) -> str:
         res = self.parse_optional_ident(skip_white_space=skip_white_space)
         if res is None:
             raise Exception("ident expected")
         return res
 
-    def parse_alpha_num(self, skip_white_space=True) -> str:
+    def parse_alpha_num(self, skip_white_space: bool = True) -> str:
         res = self.parse_while(lambda x: x.isalnum() or x == "_" or x == ".",
                                skip_white_space=skip_white_space)
         if len(res) == 0:
@@ -137,9 +137,9 @@ class Parser:
 
     def parse_list(self,
                    parse_optional_one: Callable[[], Optional[T]],
-                   delimiter=",") -> List[T]:
+                   delimiter: str = ",") -> List[T]:
         assert (len(delimiter) <= 1)
-        res = []
+        res: List[T] = []
         one = parse_optional_one()
         if one is not None:
             res.append(one)
@@ -152,14 +152,14 @@ class Parser:
         return res
 
     def parse_optional_block_argument(
-            self) -> Optional[Tuple[str, BlockArgument]]:
+            self, block: Block) -> Optional[Tuple[str, BlockArgument]]:
         name = self.parse_optional_ssa_name()
         if name is None:
             return None
         self.parse_char(":")
         typ = self.parse_attribute()
         # TODO how to get the id?
-        return name, BlockArgument(typ, None, 0)
+        return name, BlockArgument(typ, block, 0)
 
     def parse_optional_named_block(self) -> Optional[Block]:
         if self.parse_optional_char("^") is None:
@@ -172,7 +172,7 @@ class Parser:
             self._blocks[block_name] = block
 
         if self.parse_optional_char("("):
-            tuple_list = self.parse_list(self.parse_optional_block_argument)
+            tuple_list = self.parse_list(lambda: self.parse_optional_block_argument(block))
             # TODO can we clean this up a bit?
             # Register the BlockArguments as ssa values and add them to
             # the block
@@ -257,7 +257,7 @@ class Parser:
                             (typ, value.typ))
         return value
 
-    def parse_operands(self) -> List[Optional[SSAValue]]:
+    def parse_operands(self) -> List[SSAValue]:
         self.parse_char("(")
         res = self.parse_list(lambda: self.parse_optional_operand())
         self.parse_char(")")
@@ -318,7 +318,7 @@ class Parser:
 
         param_list = self.parse_list(self.parse_optional_attribute)
         self.parse_char(">")
-        return attr_def(param_list)
+        return attr_def(param_list) # type: ignore reportGeneralTypeIssues
 
     def parse_attribute(self) -> Attribute:
         res = self.parse_optional_attribute()
@@ -358,7 +358,7 @@ class Parser:
     def parse_successors(self) -> List[Block]:
         parsed = self.parse_optional_char("(")
         if parsed is None:
-            return None
+            return []
         res = self.parse_list(self.parse_optional_successor, delimiter=',')
         self.parse_char(")")
         return res
@@ -376,7 +376,7 @@ class Parser:
         operands = self.parse_operands()
         successors = self.parse_successors()
         attributes = self.parse_op_attributes()
-        result_types = [typ for (name, typ) in results]
+        result_types = [typ for (_, typ) in results]
         op = self._ctx.get_op(op_name).create(operands,
                                               result_types,
                                               attributes=attributes,

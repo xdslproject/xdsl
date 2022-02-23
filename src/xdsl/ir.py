@@ -1,46 +1,46 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING, TypeVar, Set, Union
-import typing
+from typing import Dict, List, Callable, Optional, TYPE_CHECKING, Protocol, Tuple, Type, TypeVar, Set, Union, Any, cast
 from frozenlist import FrozenList
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
+    from xdsl.irdl import AttributeDef, IRDLOption, OperandDef, RegionDef, ResultDef
 
-OperationType = TypeVar('OperationType', bound='Operation', covariant=True)
+OperationType = TypeVar('OperationType', bound='Operation')
 
 
 @dataclass
 class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: Dict[str,
-                         typing.Type[Operation]] = field(default_factory=dict)
-    _registeredAttrs: Dict[str, typing.Type[Attribute]] = field(
+                         Type[Operation]] = field(default_factory=dict)
+    _registeredAttrs: Dict[str, Type[Attribute]] = field(
         default_factory=dict)
 
-    def register_op(self, op: typing.Type[Operation]) -> None:
+    def register_op(self, op: Type[Operation]) -> None:
         """Register an operation definition. Operation names should be unique."""
         if op.name in self._registeredOps:
             raise Exception(f"Operation {op.name} has already been registered")
         self._registeredOps[op.name] = op
 
-    def register_attr(self, attr: typing.Type[Attribute]) -> None:
+    def register_attr(self, attr: Type[Attribute]) -> None:
         """Register an attribute definition. Attribute names should be unique."""
         if attr.name in self._registeredAttrs:
             raise Exception(
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_op(self, name: str) -> typing.Type[Operation]:
+    def get_op(self, name: str) -> Type[Operation]:
         """Get an operation class from its name."""
         if name not in self._registeredOps:
             raise Exception(f"Operation {name} is not registered")
         return self._registeredOps[name]
 
-    def get_attr(self, name: str) -> typing.Type[Attribute]:
+    def get_attr(self, name: str) -> Type[Attribute]:
         """Get an attribute class from its name."""
         if name not in self._registeredAttrs:
             raise Exception(f"Attribute {name} is not registered")
@@ -74,7 +74,7 @@ class SSAValue(ABC):
         """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
         if isinstance(arg, SSAValue):
             return arg
-        if isinstance(arg, Operation):
+        if isinstance(arg, Operation):  # type: ignore reportUnnecessaryIsInstance
             if len(arg.results) == 1:
                 return arg.results[0]
             raise ValueError(
@@ -108,6 +108,9 @@ class SSAValue(ABC):
                 "Attempting to delete SSA value that still has uses.")
         self.replace_by(ErasedSSAValue(self.typ))
 
+    def __hash__(self) -> int:
+        raise Exception("SSAValue not hashable")
+
 
 @dataclass
 class OpResult(SSAValue):
@@ -119,10 +122,10 @@ class OpResult(SSAValue):
     result_index: int
     """The index of the result in the defining operation."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: object):
         return self is other
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -136,10 +139,10 @@ class BlockArgument(SSAValue):
     index: int
     """The index of the variable in the block arguments."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: object):
         return self is other
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -150,7 +153,7 @@ class ErasedSSAValue(SSAValue):
     This is used during transformations when a SSA variable is destroyed but still used.
     """
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(id(self))
 
 
@@ -169,7 +172,7 @@ class Attribute(ABC):
     """The attribute name should be a static field in the attribute classes."""
 
     @classmethod
-    def build(cls: typing.Type[AttrClass], *args) -> AttrClass:
+    def build(cls: Type[AttrClass], *args: Any) -> AttrClass:
         """Create a new attribute using one of the builder defined in IRDL."""
         assert False
 
@@ -203,6 +206,7 @@ class ParametrizedAttribute(Attribute):
     def verify(self) -> None:
         ...
 
+ListOrFrozenSSAList = Union[List[SSAValue], FrozenList[SSAValue]]
 
 @dataclass
 class Operation:
@@ -232,6 +236,12 @@ class Operation:
     parent: Optional[Block] = field(default=None)
     """The block containing this operation."""
 
+    irdl_operand_defs: List[Tuple[str, OperandDef]] = []
+    irdl_result_defs: List[Tuple[str, ResultDef]] = []
+    irdl_region_defs: List[Tuple[str, RegionDef]] = []
+    irdl_attribte_defs: List[Tuple[str, AttributeDef]] = []
+    irdl_options: List[IRDLOption] = []
+
     @property
     def operands(self) -> FrozenList[SSAValue]:
         return self._operands
@@ -252,12 +262,12 @@ class Operation:
         assert (isinstance(self.name, str))
 
     @staticmethod
-    def with_result_types(op: Any,
-                          operands: Optional[List[SSAValue]] = None,
+    def with_result_types(op: Type[OperationType],
+                          operands: Optional[ListOrFrozenSSAList] = None,
                           result_types: Optional[List[Attribute]] = None,
                           attributes: Optional[Dict[str, Attribute]] = None,
                           successors: Optional[List[Block]] = None,
-                          regions: Optional[List[Region]] = None) -> Operation:
+                          regions: Optional[List[Region]] = None) -> OperationType:
 
         operation = op()
         if operands is not None:
@@ -280,8 +290,8 @@ class Operation:
         return operation
 
     @classmethod
-    def create(cls: typing.Type[OperationType],
-               operands: Optional[List[SSAValue]] = None,
+    def create(cls: Type[OperationType],
+               operands: Optional[ListOrFrozenSSAList] = None,
                result_types: Optional[List[Attribute]] = None,
                attributes: Optional[Dict[str, Attribute]] = None,
                successors: Optional[List[Block]] = None,
@@ -290,12 +300,12 @@ class Operation:
                                            attributes, successors, regions)
 
     @classmethod
-    def build(cls: typing.Type[OperationType],
-              operands=[],
-              result_types=[],
-              attributes=[],
-              successors=[],
-              regions=[]) -> OperationType:
+    def build(cls: Type[OperationType],
+              operands: List[SSAValue] = [],
+              result_types: List[Attribute] = [],
+              attributes: Dict[str, Attribute] = {},
+              successors: List[Block] = [],
+              regions: List[Region] = []) -> OperationType:
         """Create a new operation using builders."""
         ...
 
@@ -355,7 +365,7 @@ class Operation:
                            successors=successors,
                            regions=regions)
 
-    def erase(self, safe_erase=True, drop_references=True) -> None:
+    def erase(self, safe_erase: bool = True, drop_references:bool = True) -> None:
         """
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
@@ -386,7 +396,7 @@ class Operation:
             return False
         return self.is_ancestor(op.parent)
 
-    def __eq__(self, other: Operation) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -397,7 +407,7 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
-    _args: FrozenList[BlockArgument] = field(default_factory=list, init=False)
+    _args: FrozenList[BlockArgument] = field(default_factory=FrozenList, init=False)
     """The basic block arguments."""
 
     ops: List[Operation] = field(default_factory=list, init=False)
@@ -421,19 +431,23 @@ class Block:
         return b
 
     @staticmethod
-    def from_ops(ops: List[Operation], arg_types: List[Attribute] = None):
+    def from_ops(ops: List[Operation], arg_types: Optional[List[Attribute]] = None):
         b = Block()
         if arg_types is not None:
-            b._args = [
+            b._args = FrozenList([
                 BlockArgument(typ, b, index)
                 for index, typ in enumerate(arg_types)
-            ]
+            ])
         b.add_ops(ops)
         return b
 
+
+    class CallableWithVariadicBlockArguments(Protocol):
+        def __call__(self, *args: BlockArgument) -> List[Operation]: ...
+
     @staticmethod
     def from_callable(block_arg_types: List[Attribute],
-                      f: Callable[[BlockArgument, ...], List[Operation]]):
+                    f: CallableWithVariadicBlockArguments):
         b = Block.from_arg_types(block_arg_types)
         b.add_ops(f(*b.args))
         return b
@@ -545,7 +559,7 @@ class Block:
         self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
         return op
 
-    def erase_op(self, op: Union[int, Operation], safe_erase=True) -> None:
+    def erase_op(self, op: Union[int, Operation], safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
@@ -571,7 +585,7 @@ class Block:
         for op in self.ops:
             op.drop_all_references()
 
-    def erase(self, safe_erase=True) -> None:
+    def erase(self, safe_erase:bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
         If safe_erase is specified, check that no operation results are used outside the block.
@@ -587,7 +601,7 @@ class Block:
             return self
         return self.parent.get_toplevel_object()
 
-    def __eq__(self, other: Block) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -622,13 +636,13 @@ class Region:
     def get(arg: Region | List[Block] | List[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
-        if isinstance(arg, list):
+        if isinstance(arg, list): # type: ignore reportUnnecessaryIsInstance
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
-                return Region.from_block_list(arg)
-            if isinstance(arg[0], Operation):
-                return Region.from_operation_list(arg)
+                return Region.from_block_list(cast(list[Block], arg))
+            if isinstance(arg[0], Operation): # type: ignore reportUnnecessaryIsInstance
+                return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property

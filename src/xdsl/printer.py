@@ -1,6 +1,6 @@
 from __future__ import annotations
 from xdsl.dialects.builtin import *
-from typing import TypeVar
+from typing import IO, TypeVar
 import sys
 
 indentNumSpaces = 2
@@ -8,7 +8,7 @@ indentNumSpaces = 2
 
 class Printer:
 
-    def __init__(self, stream=sys.stdout):
+    def __init__(self, stream: IO[str] = sys.stdout):
         self._indent: int = 0
         self._ssaValues: Dict[SSAValue, int] = dict()
         self._blockNames: Dict[Block, int] = dict()
@@ -16,15 +16,15 @@ class Printer:
         self._nextValidBlockId: int = 0
         self.stream = stream
 
-    def _print(self, *args, **kwargs):
+    def _print(self, *args: object, **kwargs: Any):
         print(*args, **kwargs, file=self.stream)
 
-    def print_string(self, string) -> None:
+    def print_string(self, string: str) -> None:
         self._print(string, end='')
 
     T = TypeVar('T')
 
-    def print_list(self, elems: List[T], print_fn: Callable[[T],
+    def print_list(self, elems: Sequence[T], print_fn: Callable[[T],
                                                             None]) -> None:
         if len(elems) == 0:
             return
@@ -126,11 +126,11 @@ class Printer:
             self._print_named_block(block)
         self._print("}", end='')
 
-    def _print_regions(self, regions: List[Region]) -> None:
+    def _print_regions(self, regions: Sequence[Region]) -> None:
         for region in regions:
             self._print_region(region)
 
-    def _print_operands(self, operands: List[SSAValue]) -> None:
+    def _print_operands(self, operands: Sequence[SSAValue]) -> None:
         if len(operands) == 0:
             self._print("()", end='')
             return

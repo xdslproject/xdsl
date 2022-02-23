@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, Union, TypeVar
+from typing import Any, Callable, List, Dict, Protocol, Sequence, Tuple, Optional, Union, TypeVar, cast, Type
 from inspect import isclass
 import typing
 
@@ -60,6 +60,7 @@ def attr_constr_coercion(
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
         return BaseAttr(attr)
+    assert isinstance(attr, AttrConstraint)
     return attr
 
 
@@ -68,7 +69,7 @@ class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
     def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, Attribute):
+        if not isinstance(attr, Attribute): # type: ignore reportUnnecessaryIsInstance
             raise Exception(f"Expected attribute, but got {attr}")
 
 
@@ -121,9 +122,10 @@ class ParamAttrConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         assert isinstance(attr, ParametrizedAttribute)
+        name = attr.name
         if not isinstance(attr, self.base_attr):
             raise Exception(
-                f"Base attribute {self.base_attr.name} expected, but got {attr.name}"
+                f"Base attribute {self.base_attr.name} expected, but got {name}"
             )
         if len(self.param_constrs) != len(attr.parameters):
             raise Exception(
@@ -234,7 +236,7 @@ class SingleBlockRegionDef(RegionDef):
 
 
 @dataclass(init=False)
-class AttributeDef:
+class AttributeDef(Attribute):
     """An IRDL attribute definition."""
 
     constr: AttrConstraint
@@ -287,8 +289,8 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
             raise Exception(
                 f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
             )
-        variadic_sizes = [
-            size_attr.value.data for size_attr in attribute.data.data
+        variadic_sizes: List[int] = [
+            size_attr.value.data for size_attr in attribute.data.data # type: ignore reportGeneralTypeIssues
         ]
         if len(variadic_sizes) != len(variadic_defs):
             raise Exception(
@@ -336,7 +338,10 @@ def get_operand_or_result(
     :return:
     """
     argument_defs = op.irdl_operand_defs if is_operand else op.irdl_result_defs
-    op_arguments = op.operands if is_operand else op.results
+    if is_operand:
+        op_arguments: List[SSAValue] = list(op.operands)
+    else:
+        op_arguments: List[SSAValue] = list(op.results)
 
     variadic_sizes = get_variadic_sizes(op, is_operand)
 
@@ -366,9 +371,9 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
     operand_sizes = get_variadic_sizes(op, is_operand=True)
     current_operand = 0
     current_var_operand = 0
-    for operand_name, operand_def in operands:
+    for _, operand_def in operands:
         if isinstance(operand_def, VarOperandDef):
-            for i in range(operand_sizes[current_var_operand]):
+            for _ in range(operand_sizes[current_var_operand]):
                 operand_def.constr.verify(op.operands[current_operand].typ)
                 current_operand += 1
         else:
@@ -380,9 +385,9 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
     result_sizes = get_variadic_sizes(op, is_operand=False)
     current_result = 0
     current_var_result = 0
-    for result_name, result_def in results:
+    for _, result_def in results:
         if isinstance(result_def, VarResultDef):
-            for i in range(result_sizes[current_var_result]):
+            for _ in range(result_sizes[current_var_result]):
                 result_def.constr.verify(op.results[current_result].typ)
                 current_result += 1
         else:
@@ -427,7 +432,8 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
         attr_def.constr.verify(op.attributes[attr_name])
 
 
-def irdl_build_attribute(irdl_def: AttrConstraint, result) -> Attribute:
+def irdl_build_attribute(irdl_def: AttrConstraint,
+                         result: Union[Tuple[typing.Any, ...], Attribute]) -> Attribute:
     if isinstance(irdl_def, BaseAttr):
         if isinstance(result, Tuple):
             return irdl_def.attr.build(*result)
@@ -440,25 +446,29 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result) -> Attribute:
 OpT = TypeVar('OpT', bound='Operation')
 
 
-def irdl_op_builder(cls: typing.Type[OpT], operands: List,
+def irdl_op_builder(cls: typing.Type[OpT],
+                    operands: Union[List[SSAValue], List[List[SSAValue]]],
                     operand_defs: List[Tuple[str, OperandDef]],
-                    res_types: List, res_defs: List[Tuple[str, ResultDef]],
+                    res_types: Union[List[Attribute], List[List[Attribute]]],
+                    res_defs: List[Tuple[str, ResultDef]],
                     attributes: typing.Dict[str, typing.Any],
-                    attr_defs: typing.Dict[str, AttributeDef], successors,
-                    regions, options) -> OpT:
+                    attr_defs: typing.Dict[str, AttributeDef],
+                    successors: List[Block],
+                    regions: List[Region],
+                    options: List[IRDLOption]) -> OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
     # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType, i32
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, i32
 
     # Build operands by forwarding the values to SSAValue.get
     if len(operand_defs) != len(operands):
         raise ValueError(
             f"Expected {len(operand_defs)} operands, got {len(operands)}")
 
-    built_operands = []
+    built_operands: List[SSAValue] = []
     for ((_, operand_def), operand) in zip(operand_defs, operands):
         if isinstance(operand_def, VarOperandDef):
             if not isinstance(operand, list):
@@ -467,6 +477,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                 )
             built_operands.extend([SSAValue.get(arg) for arg in operand])
         else:
+            assert isinstance(operand, SSAValue)
             built_operands.append(SSAValue.get(operand))
 
     # Build results by forwarding the values to the attribute builders
@@ -474,7 +485,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
         raise ValueError(
             f"Expected {len(res_defs)} results, got {len(res_types)}")
 
-    built_res_types = []
+    built_res_types: List[Attribute] = []
     for ((_, res_def), res_type) in zip(res_defs, res_types):
         if isinstance(res_def, VarResultDef):
             if not isinstance(res_type, list):
@@ -485,12 +496,13 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                 irdl_build_attribute(res_def.constr, res) for res in res_type
             ])
         else:
+            assert isinstance(res_type, Attribute)
             built_res_types.append(
                 irdl_build_attribute(res_def.constr, res_type))
 
     # Build attributes by forwarding the values to the attribute builders
-    attr_defs = {name: def_ for (name, def_) in attr_defs}
-    built_attributes = dict()
+    attr_defs = {name: def_ for (name, def_) in attr_defs} # type: ignore reportGeneralTypeIssues
+    built_attributes: Dict[str, Attribute] = dict()
     for attr_name, attr in attributes.items():
         if attr_name not in attr_defs:
             if isinstance(attr, Attribute):
@@ -504,20 +516,20 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
 
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in options:
-        sizes = [
-            len(operand)
-            for operand, (_, operand_def) in zip(operands, operand_defs)
-            if isinstance(operand_def, VarOperandDef)
-        ]
+        sizes: List[int] = []
+        for operand, (_, operand_def) in zip(operands, operand_defs):
+            if isinstance(operand_def, VarOperandDef):
+                assert type(operand) is List[SSAValue]
+                sizes.append(len(operand))
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in options:
-        sizes = [
-            len(result)
-            for result, (_, result_def) in zip(res_types, res_defs)
-            if isinstance(result_def, VarResultDef)
-        ]
+        sizes: List[int] = []
+        for result, (_, result_def) in zip(res_types, res_defs):
+            if isinstance(result_def, VarResultDef):
+                assert type(result) is List[Attribute]
+                sizes.append(len(result))
         built_attributes[AttrSizedResultSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
@@ -531,15 +543,23 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                       regions=regions)
 
 
-def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
+OperationType = TypeVar("OperationType", bound=Operation)
+
+
+def irdl_op_definition(
+        cls: typing.Type[OperationType]) -> typing.Type[OperationType]:
     """Decorator used on classes to define a new operation definition."""
 
+    cls_name = cls.__name__
     assert issubclass(
         cls,
-        Operation), f"class {cls.__name__} should be a subclass of Operation"
+        Operation), f"class {cls_name} should be a subclass of Operation"
+
+    VerifyCallable = Callable[[Operation], None]
+    Field = Union[OperandDef, ResultDef, RegionDef, AttributeDef, IRDLOption, VerifyCallable]
 
     # Get all fields of the class, including the parent classes
-    clsdict = dict()
+    clsdict: dict[str, Field] = dict()
     for parent_cls in cls.mro()[::-1]:
         clsdict = {**clsdict, **parent_cls.__dict__}
 
@@ -554,15 +574,14 @@ def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
                    if isinstance(field, RegionDef)]
     attr_defs = [(field_name, field) for field_name, field in clsdict.items()
                  if isinstance(field, AttributeDef)]
-    options = clsdict.get("irdl_options", [])
-    new_attrs = dict()
+    options = typing.cast(List[IRDLOption], clsdict.get("irdl_options", []))
+    new_attrs: dict[str, Any] = dict()
 
     # Add operand access fields
     previous_variadics = 0
     for operand_idx, (operand_name, operand_def) in enumerate(operand_defs):
-        new_attrs[operand_name] = property(
-            lambda self, idx=operand_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, idx, previous_vars, True))
+        new_attrs[operand_name] = property(lambda self:
+            get_operand_or_result(self, operand_idx, previous_variadics, True))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
@@ -573,9 +592,8 @@ def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
     # Add result access fields
     previous_variadics = 0
     for result_idx, (result_name, result_def) in enumerate(result_defs):
-        new_attrs[result_name] = property(
-            lambda self, idx=result_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, idx, previous_vars, False))
+        new_attrs[result_name] = property(lambda self:
+            get_operand_or_result(self, result_idx, previous_variadics, False))
         if isinstance(result_def, VarResultDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedResultSegments() not in options:
@@ -583,18 +601,15 @@ def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
                         "but do not define the AttrSizedResultSegments option")
 
     for region_idx, (region_name, _) in enumerate(region_defs):
-        new_attrs[region_name] = property(
-            (lambda idx: lambda self: self.regions[idx])(region_idx))
+        new_attrs[region_name] = property(lambda self: self.regions[region_idx])
 
     for attribute_name, attr_def in attr_defs:
         if isinstance(attr_def, OptAttributeDef):
             new_attrs[attribute_name] = property(
-                (lambda name: lambda self: self.attributes.get(name, None)
-                 )(attribute_name))
+                lambda self: self.attributes.get(attribute_name, None))
         else:
             new_attrs[attribute_name] = property(
-                (lambda name: lambda self: self.attributes[name]
-                 )(attribute_name))
+                lambda self: self.attributes[attribute_name])
 
     new_attrs["irdl_operand_defs"] = operand_defs
     new_attrs["irdl_result_defs"] = result_defs
@@ -602,32 +617,34 @@ def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
     new_attrs["irdl_attribute_defs"] = attr_defs
     new_attrs["irdl_options"] = options
 
-    new_attrs["verify_"] = lambda op: irdl_op_verify(
-        op, operand_defs, result_defs, region_defs, attr_defs)
+    def verify_(op: Operation):
+        irdl_op_verify(op, operand_defs, result_defs, region_defs, attr_defs)
+    new_attrs["verify_"] = verify_
     if "verify_" in clsdict:
-        custom_verifier = clsdict["verify_"]
+        custom_verifier = typing.cast(VerifyCallable, clsdict["verify_"])
 
-        def new_verifier(verifier, op):
+        def new_verifier(verifier: Callable[[Operation], None], op: Operation):
             verifier(op)
             custom_verifier(op)
 
-        new_attrs["verify_"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_attrs["verify_"])
+        def verify_(op: Operation):
+            new_verifier(new_attrs["verify_"], op)
+        new_attrs["verify_"] = verify_
 
-    def builder(cls,
-                operands=[],
-                result_types=[],
-                attributes=dict(),
-                successors=[],
-                regions=[]):
+    def builder(cls: typing.Type[OpT],
+                operands: Union[List[SSAValue], List[List[SSAValue]]] = [],
+                result_types: List[Attribute] = [],
+                attributes: Dict[str, Attribute] = {},
+                successors: List[Block] = [],
+                regions: List[Region] = []) -> OpT:
         return irdl_op_builder(cls, operands, operand_defs, result_types,
-                               result_defs, attributes, attr_defs, successors,
+                               result_defs, attributes, dict(attr_defs), successors,
                                regions, options)
 
     new_attrs["build"] = classmethod(builder)
 
-    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
+    return typing.cast(typing.Type[OperationType],
+        type(cls_name, (cls, ), {**cls.__dict__, **new_attrs}))
 
 
 @dataclass
@@ -651,21 +668,21 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
     for idx, param_def in enumerate(parameters):
         param_def.constr.verify(attr.parameters[idx])
 
+class BuilderFunction(Protocol):
+    def __call__(*args: Any) -> Any: ...
 
-C = TypeVar('C', bound='Callable')
 
-
-def builder(f: C) -> C:
+def builder(f: BuilderFunction) -> BuilderFunction:
     """
     Annotate a function and mark it as an IRDL builder.
     This should only be used as decorator in classes decorated by irdl_attr_builder.
     """
-    f.__irdl_is_builder = True
+    f.__irdl_is_builder = True # type: ignore reportGeneralTypeIssues
     return f
 
 
-def irdl_get_builders(cls) -> List[typing.Callable]:
-    builders = []
+def irdl_get_builders(cls: typing.Type[...]) -> List[BuilderFunction]:
+    builders: List[BuilderFunction] = []
     for field_name in cls.__dict__:
         field_ = cls.__dict__[field_name]
         # Builders are staticmethods, so we need to get back the original function with __func__
@@ -675,7 +692,7 @@ def irdl_get_builders(cls) -> List[typing.Callable]:
     return builders
 
 
-def irdl_attr_try_builder(builder, *args):
+def irdl_attr_try_builder(builder: BuilderFunction, *args: Any) -> Optional[Any]:
     params_dict = typing.get_type_hints(builder)
     builder_params = inspect.signature(builder).parameters
     params = [params_dict[param.name] for param in builder_params.values()]
@@ -689,7 +706,9 @@ def irdl_attr_try_builder(builder, *args):
     return builder(*args, *defaults[len(args):])
 
 
-def irdl_attr_builder(cls, builders, *args):
+def irdl_attr_builder(cls: typing.Type[...],
+                      builders: Sequence[BuilderFunction],
+                      *args: Any) -> Any:
     """Try to apply all builders to construct an attribute instance."""
     if len(args) == 1 and isinstance(args[0], cls):
         return args[0]
@@ -700,22 +719,23 @@ def irdl_attr_builder(cls, builders, *args):
     raise TypeError(
         f"No available {cls.__name__} builders for arguments {args}")
 
-
 T = TypeVar('T')
 
 
-def irdl_data_definition(cls: typing.Type[T]) -> typing.Type[T]:
+def irdl_data_definition(cls: Type[T]) -> Type[T]:
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:
         raise Exception(
             f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
         )
-    new_attrs = dict()
+    
+    new_attrs: Dict[str, BuilderFunction] = dict()
     new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
-    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
-        **cls.__dict__,
-        **new_attrs
-    }))
+    return cast(Type[T],
+        dataclass(frozen=True)(type(cls.__name__, (cls, ), { # type: ignore
+            **cls.__dict__,
+            **new_attrs
+        })))
 
 
 AttributeType = TypeVar("AttributeType", bound=ParametrizedAttribute)
@@ -725,47 +745,51 @@ def irdl_param_attr_definition(
         cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
     """Decorator used on classes to define a new attribute definition."""
 
-    parameters = []
-    new_attrs = dict()
+    parameters: List[ParameterDef] = []
+    new_attrs: Dict[str, Any] = dict()
     for field_name in cls.__dict__:
         field_ = cls.__dict__[field_name]
         if isinstance(field_, ParameterDef):
-            new_attrs[field_name] = property(
-                (lambda idx: lambda self: self.parameters[idx])(
-                    len(parameters)))
+            def property_def(attr: ParametrizedAttribute):
+                attr.parameters[len(parameters)]
+            new_attrs[field_name] = property(property_def)
             parameters.append(field_)
 
-    new_attrs["verify"] = lambda typ: irdl_attr_verify(typ, parameters)
+    def verify(attr: ParametrizedAttribute):
+        irdl_attr_verify(attr, parameters)
+    new_attrs["verify"] = verify
 
     if "verify" in cls.__dict__:
         custom_verifier = cls.__dict__["verify"]
 
-        def new_verifier(verifier, op):
-            verifier(op)
-            custom_verifier(op)
+        def new_verifier(verifier: Callable[[ParametrizedAttribute], None],
+                         attr: ParametrizedAttribute):
+            verifier(attr)
+            custom_verifier(attr)
 
-        new_attrs["verify"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_attrs["verify"])
+        def verify(attr: ParametrizedAttribute):
+            new_verifier(new_attrs["verify"], attr)
+        new_attrs["verify"] = verify
 
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:
         raise Exception(
             f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
         )
-    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+    builder: BuilderFunction = lambda *args: irdl_attr_builder(cls, builders, *args)
+    new_attrs["build"] = builder
 
-    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
-        **cls.__dict__,
-        **new_attrs
-    }))
-
+    return cast(typing.Type[AttributeType],
+        dataclass(frozen=True)(type(cls.__name__, (cls, ), { # type: ignore
+            **cls.__dict__,
+            **new_attrs
+        })))
 
 def irdl_attr_definition(cls: typing.Type[T]) -> typing.Type[T]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return irdl_data_definition(cls)
+        return irdl_data_definition(cls)  # type: ignore
     raise Exception(
         f"Class {cls.__name__} should either be a subclass of 'Data' or 'ParametrizedAttribute'"
     )
