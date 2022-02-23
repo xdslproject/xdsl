@@ -16,10 +16,8 @@ OperationType = TypeVar('OperationType', bound='Operation')
 @dataclass
 class MLContext:
     """Contains structures for operations/attributes registration."""
-    _registeredOps: Dict[str,
-                         Type[Operation]] = field(default_factory=dict)
-    _registeredAttrs: Dict[str, Type[Attribute]] = field(
-        default_factory=dict)
+    _registeredOps: Dict[str, Type[Operation]] = field(default_factory=dict)
+    _registeredAttrs: Dict[str, Type[Attribute]] = field(default_factory=dict)
 
     def register_op(self, op: Type[Operation]) -> None:
         """Register an operation definition. Operation names should be unique."""
@@ -74,7 +72,8 @@ class SSAValue(ABC):
         """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
         if isinstance(arg, SSAValue):
             return arg
-        if isinstance(arg, Operation):  # type: ignore reportUnnecessaryIsInstance
+        if isinstance(arg,
+                      Operation):  # type: ignore reportUnnecessaryIsInstance
             if len(arg.results) == 1:
                 return arg.results[0]
             raise ValueError(
@@ -206,7 +205,9 @@ class ParametrizedAttribute(Attribute):
     def verify(self) -> None:
         ...
 
+
 ListOrFrozenSSAList = Union[List[SSAValue], FrozenList[SSAValue]]
+
 
 @dataclass
 class Operation:
@@ -262,12 +263,13 @@ class Operation:
         assert (isinstance(self.name, str))
 
     @staticmethod
-    def with_result_types(op: Type[OperationType],
-                          operands: Optional[ListOrFrozenSSAList] = None,
-                          result_types: Optional[List[Attribute]] = None,
-                          attributes: Optional[Dict[str, Attribute]] = None,
-                          successors: Optional[List[Block]] = None,
-                          regions: Optional[List[Region]] = None) -> OperationType:
+    def with_result_types(
+            op: Type[OperationType],
+            operands: Optional[ListOrFrozenSSAList] = None,
+            result_types: Optional[List[Attribute]] = None,
+            attributes: Optional[Dict[str, Attribute]] = None,
+            successors: Optional[List[Block]] = None,
+            regions: Optional[List[Region]] = None) -> OperationType:
 
         operation = op()
         if operands is not None:
@@ -365,7 +367,9 @@ class Operation:
                            successors=successors,
                            regions=regions)
 
-    def erase(self, safe_erase: bool = True, drop_references:bool = True) -> None:
+    def erase(self,
+              safe_erase: bool = True,
+              drop_references: bool = True) -> None:
         """
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
@@ -407,7 +411,8 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
-    _args: FrozenList[BlockArgument] = field(default_factory=FrozenList, init=False)
+    _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
+                                             init=False)
     """The basic block arguments."""
 
     ops: List[Operation] = field(default_factory=list, init=False)
@@ -431,7 +436,8 @@ class Block:
         return b
 
     @staticmethod
-    def from_ops(ops: List[Operation], arg_types: Optional[List[Attribute]] = None):
+    def from_ops(ops: List[Operation],
+                 arg_types: Optional[List[Attribute]] = None):
         b = Block()
         if arg_types is not None:
             b._args = FrozenList([
@@ -441,13 +447,14 @@ class Block:
         b.add_ops(ops)
         return b
 
-
     class CallableWithVariadicBlockArguments(Protocol):
-        def __call__(self, *args: BlockArgument) -> List[Operation]: ...
+
+        def __call__(self, *args: BlockArgument) -> List[Operation]:
+            ...
 
     @staticmethod
     def from_callable(block_arg_types: List[Attribute],
-                    f: CallableWithVariadicBlockArguments):
+                      f: CallableWithVariadicBlockArguments):
         b = Block.from_arg_types(block_arg_types)
         b.add_ops(f(*b.args))
         return b
@@ -559,7 +566,9 @@ class Block:
         self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
         return op
 
-    def erase_op(self, op: Union[int, Operation], safe_erase: bool = True) -> None:
+    def erase_op(self,
+                 op: Union[int, Operation],
+                 safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
@@ -585,7 +594,7 @@ class Block:
         for op in self.ops:
             op.drop_all_references()
 
-    def erase(self, safe_erase:bool = True) -> None:
+    def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
         If safe_erase is specified, check that no operation results are used outside the block.
@@ -636,12 +645,14 @@ class Region:
     def get(arg: Region | List[Block] | List[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
-        if isinstance(arg, list): # type: ignore reportUnnecessaryIsInstance
+        if isinstance(arg, list):  # type: ignore reportUnnecessaryIsInstance
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
                 return Region.from_block_list(cast(list[Block], arg))
-            if isinstance(arg[0], Operation): # type: ignore reportUnnecessaryIsInstance
+            if isinstance(
+                    arg[0],
+                    Operation):  # type: ignore reportUnnecessaryIsInstance
                 return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")
 

@@ -56,7 +56,8 @@ def is_satisfying_hint(arg: Any, hint: Any) -> bool:
         if not arg:
             return True
         arg_dict: Dict[Any, Any] = arg
-        return is_satisfying_hint(next(iter(arg_dict)), typing.get_args(hint)[0])
+        return is_satisfying_hint(next(iter(arg_dict)),
+                                  typing.get_args(hint)[0])
 
     if typing.get_origin(hint) == typing.Union:
         for union_arg in typing.get_args(hint):

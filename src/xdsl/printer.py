@@ -25,7 +25,7 @@ class Printer:
     T = TypeVar('T')
 
     def print_list(self, elems: Sequence[T], print_fn: Callable[[T],
-                                                            None]) -> None:
+                                                                None]) -> None:
         if len(elems) == 0:
             return
         print_fn(elems[0])

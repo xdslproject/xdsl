@@ -40,7 +40,8 @@ class Parser:
         return self._str[start_idx:]
 
     # TODO why two different functions, no nums in ident?
-    def parse_optional_ident(self, skip_white_space: bool = True) -> Optional[str]:
+    def parse_optional_ident(self,
+                             skip_white_space: bool = True) -> Optional[str]:
         res = self.parse_while(lambda x: x.isalpha() or x == "_" or x == ".",
                                skip_white_space=skip_white_space)
         if len(res) == 0:
@@ -172,7 +173,8 @@ class Parser:
             self._blocks[block_name] = block
 
         if self.parse_optional_char("("):
-            tuple_list = self.parse_list(lambda: self.parse_optional_block_argument(block))
+            tuple_list = self.parse_list(
+                lambda: self.parse_optional_block_argument(block))
             # TODO can we clean this up a bit?
             # Register the BlockArguments as ssa values and add them to
             # the block
@@ -318,7 +320,7 @@ class Parser:
 
         param_list = self.parse_list(self.parse_optional_attribute)
         self.parse_char(">")
-        return attr_def(param_list) # type: ignore reportGeneralTypeIssues
+        return attr_def(param_list)  # type: ignore reportGeneralTypeIssues
 
     def parse_attribute(self) -> Attribute:
         res = self.parse_optional_attribute()
