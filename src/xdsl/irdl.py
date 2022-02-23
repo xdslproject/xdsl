@@ -531,7 +531,11 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                       regions=regions)
 
 
-def irdl_op_definition(cls: typing.Type[Operation]) -> typing.Type[_]:
+OperationType = TypeVar("OperationType", bound=Operation)
+
+
+def irdl_op_definition(
+        cls: typing.Type[OperationType]) -> typing.Type[OperationType]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
