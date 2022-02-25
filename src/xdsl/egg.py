@@ -3,6 +3,7 @@ from snake_egg import EGraph, Rewrite, Var, vars
 from snake_egg import *
 
 from collections import namedtuple
+from typing import NamedTuple
 
 from xdsl.ir import *
 from xdsl.parser import *
@@ -13,16 +14,32 @@ from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
 from xdsl.dialects.builtin import *
 
-from xdsl.egg import *
+
+
+def namedENode(typename, field_names, *, rename=False, defaults=None, module=None):
+    def __repr__custom(self):
+        return 'custom repr'
+    def __str__custom(self):
+        return 'custom str'
+
+    result = namedtuple(typename, field_names, rename=False, defaults=None, module=None)
+    result.__repr__ = __repr__custom
+    result.__str__ = __str__custom
+    # setattr(result, "__repr__", __repr__custom)
+    # setattr(result, "__str__", __str__custom)
+
+    return result
+
 
 EgraphValueMap = dict
+eNodes = {}
 
 # define nodes for egraph structure
-arith_constant = namedtuple('arith_constant', 'c')
-arith_andi = namedtuple('arith_andi', 'a b')
-arith_ori = namedtuple('arith_ori', 'a b')
-arith_xori = namedtuple('arith_xori', 'a b')
-foo = namedtuple('foo', 'x y z')
+arith_constant = namedENode('arith_constant', 'c')
+arith_andi = namedENode('arith_andi', 'a b')
+arith_ori = namedENode('arith_ori', 'a b')
+arith_xori = namedENode('arith_xori', 'a b')
+foo = namedENode('foo', 'x y z')
 
 a, b, _ = vars('a b _')
 rules = [
@@ -42,34 +59,39 @@ rules = [
     Rewrite(arith_xori(arith_constant(0), arith_constant(1)),       arith_constant(1)),
 ]
 
+def add_to_egraph(ctx: MLContext, op: Operation, nodeContext: EgraphValueMap, egraph: EGraph):
+    for registered_op in ctx._registeredOps:
+        opName = registered_op.replace(".", "_")
+        print(opName)
+        # if operation has operands
+        operands = []
+        if ctx._registeredOps[registered_op].irdl_operand_defs:
+            operands = list(map(str, list(zip(*ctx._registeredOps[registered_op].irdl_operand_defs))[0]))
+            print("operands:")
+            print(operands)
+        if not ctx._registeredOps[registered_op].irdl_region_defs:
+            eNodes[opName] = namedENode(opName, operands)
 
-def parse(prog: str) -> ModuleOp():
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
+    add_to_egraph_rec(ctx, op, nodeContext, egraph)
+    for enode in eNodes:
+        # not sure why these printing forms are not identical. 
+        print(eNodes[enode].__str__(eNodes[enode]))
+        print(eNodes[enode])
 
-    parser = Parser(ctx, prog)
-    module = parser.parse_op()
-
-    return module
-
-
-def add_to_egraph_test(op: Operation, nodeContext: EgraphValueMap, egraph: EGraph):
+def add_to_egraph_rec(ctx: MLContext, op: Operation, nodeContext: EgraphValueMap, egraph: EGraph):
     match op:
         case ModuleOp():
             mod: ModuleOp = op
             print("module:")
             for operation in mod.ops:
-                add_to_egraph_test(operation, nodeContext, egraph)
+                add_to_egraph_rec(ctx, operation, nodeContext, egraph)
             return
         case FuncOp():
             func: FuncOp = op
             print("func:")
             for block in func.body.blocks:
                 for operation in block.ops:
-                    add_to_egraph_test(operation, nodeContext, egraph)
+                    add_to_egraph_rec(ctx, operation, nodeContext, egraph)
             return
         case Call():
             print("call")
@@ -102,53 +124,4 @@ def add_to_egraph_test(op: Operation, nodeContext: EgraphValueMap, egraph: EGrap
             return
 
 
-prog = """
-module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
-  {
-    %7 : !i1 = arith.constant() ["value" = 0 : !i1]
-    %8 : !i1 = arith.constant() ["value" = 1 : !i1]
-    %9 : !i1 = arith.andi(%7 : !i1, %8 : !i1)
-    %10 : !i1 = arith.ori(%7 : !i1, %8 : !i1)
-    %11 : !i1 = arith.xori(%7 : !i1, %8 : !i1)
-  }
-
-  builtin.func() ["sym_name" = "rec", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
-  {
-  ^1(%20: !i32):
-    %21 : !i32 = std.call(%20 : !i32) ["callee" = @rec] 
-    std.return(%21 :!i32)
-  }
-}
-"""
-
-def test():
-    module = parse(prog)
-
-    printer = Printer()
-    printer.print_op(module)
-
-    egraph = EGraph()
-    add_to_egraph_test(module, {}, egraph)
-
-    egraph.run(rules, iter_limit=1)
-    egraph.save_png("eggs/egg.png")
-
-def test_generic():
-    ctx = MLContext()
-    builtin = Builtin(ctx)
-    std = Std(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
-
-    parser = Parser(ctx, prog)
-    module = parser.parse_op()
-
-
-    egraph = EGraph()
-    add_to_egraph(ctx, module, {}, egraph)
-
-    egraph.run(rules, iter_limit=1)
-    egraph.save_png("eggs/egg_generic.png")
-
-test_generic()
+            
