@@ -33,6 +33,7 @@ def namedENode(typename, field_names, *, rename=False, defaults=None, module=Non
 
 EgraphValueMap = dict
 eNodes = {}
+eNodesGreedy = {}
 
 # define nodes for egraph structure
 arith_constant = namedENode('arith_constant', 'c')
@@ -79,6 +80,7 @@ def add_to_egraph(ctx: MLContext, op: Operation, nodeContext: EgraphValueMap, eg
         print(eNodes[enode])
 
 def add_to_egraph_rec(ctx: MLContext, op: Operation, nodeContext: EgraphValueMap, egraph: EGraph):
+    opName = op.name.replace(".", "_")
     match op:
         case ModuleOp():
             mod: ModuleOp = op
@@ -93,35 +95,65 @@ def add_to_egraph_rec(ctx: MLContext, op: Operation, nodeContext: EgraphValueMap
                 for operation in block.ops:
                     add_to_egraph_rec(ctx, operation, nodeContext, egraph)
             return
-        case Call():
-            print("call")
-            return
-        case Constant():
-            const : Constant = op
-            constNode = egraph.add(arith_constant(const.value.value.data))
-            nodeContext[const] = constNode
-            print(str(constNode) + " - constant: " +  str(const.value.value.data))
-            return
-        case AndI():
-            andi : AndI = op
-            andiNode = egraph.add(arith_andi(nodeContext[andi.input1.op], nodeContext[andi.input2.op]))
-            nodeContext[andi] = andiNode
-            print(str(andiNode) + " - andi(" + str(nodeContext[andi.input1.op]) + "," + str(nodeContext[andi.input2.op]) + ")")
-            return
-        case OrI():
-            ori : OrI = op
-            oriNode = egraph.add(arith_ori(nodeContext[ori.input1.op], nodeContext[ori.input2.op]))
-            nodeContext[ori] = oriNode
-            print(str(oriNode) + " - ori(" + str(nodeContext[ori.input1.op]) + "," + str(nodeContext[ori.input2.op]) + ")")
-            return
-        case XOrI():
-            xori : XOrI = op
-            xoriNode = egraph.add(arith_xori(nodeContext[xori.input1.op], nodeContext[xori.input2.op]))
-            nodeContext[xori] = xoriNode
-            print(str(xoriNode) + " - xori(" + str(nodeContext[xori.input1.op]) + "," + str(nodeContext[xori.input2.op]) + ")")
-            return
         case _:
+            if not len(op.operands):
+                print("adding without operands")
+                egraph.add(opName)
+                return
+            if not opName in eNodesGreedy:
+                print(op.name)
+                print(ctx._registeredOps[op.name].irdl_operand_defs)
+                print(list(map(str, list(zip(*ctx._registeredOps[op.name].irdl_operand_defs))[0])))
+                NewNode = namedtuple(opName, list(map(str, list(zip(*ctx._registeredOps[op.name].irdl_operand_defs))[0])))
+                print(NewNode)
+                if (not NewNode): return
+                eNodesGreedy[opName] = NewNode
+            print(eNodesGreedy)
+            print("read from here:")
+            # now we have to expand the operands, get the eNode for each of them 
+            # (were previously added to the egraph) and construct the new enode for this op
+
+            # this needs to check whether x is an opresult or a blockArg. 
+            # Blockargs have to be added to the graph as well beforehand. 
+            # Think about where. Then, when we enter the region of an op, e.g. func
+            
+            print(list(x.op for x in op.operands))
+
+            # opNode = NewNode()
+            # nodeContext[op] = opNode
+            # egraph.add()
+            # print("added new node!")
             return
+
+        # case Call():
+        #     print("call")
+        #     return
+        # case Constant():
+        #     const : Constant = op
+        #     constNode = egraph.add(arith_constant(const.value.value.data))
+        #     nodeContext[const] = constNode
+        #     print(str(constNode) + " - constant: " +  str(const.value.value.data))
+        #     return
+        # case AndI():
+        #     andi : AndI = op
+        #     andiNode = egraph.add(arith_andi(nodeContext[andi.input1.op], nodeContext[andi.input2.op]))
+        #     nodeContext[andi] = andiNode
+        #     print(str(andiNode) + " - andi(" + str(nodeContext[andi.input1.op]) + "," + str(nodeContext[andi.input2.op]) + ")")
+        #     return
+        # case OrI():
+        #     ori : OrI = op
+        #     oriNode = egraph.add(arith_ori(nodeContext[ori.input1.op], nodeContext[ori.input2.op]))
+        #     nodeContext[ori] = oriNode
+        #     print(str(oriNode) + " - ori(" + str(nodeContext[ori.input1.op]) + "," + str(nodeContext[ori.input2.op]) + ")")
+        #     return
+        # case XOrI():
+        #     xori : XOrI = op
+        #     xoriNode = egraph.add(arith_xori(nodeContext[xori.input1.op], nodeContext[xori.input2.op]))
+        #     nodeContext[xori] = xoriNode
+        #     print(str(xoriNode) + " - xori(" + str(nodeContext[xori.input1.op]) + "," + str(nodeContext[xori.input2.op]) + ")")
+        #     return
+        # case _:
+        #     return
 
 
             
