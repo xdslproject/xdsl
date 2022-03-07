@@ -658,10 +658,69 @@ class Region:
                              "for single-operation single-block regions.")
         return self.blocks[0].ops[0]
 
+    def _attach_block(self, block: Block) -> None:
+        """Attach a block to the region, and check that it has no parents."""
+        if block.parent is not None:
+            raise ValueError(
+                "Can't add to a region a block already attached to a region.")
+        if block.is_ancestor(self):
+            raise ValueError(
+                "Can't add a block to a region contained in the block.")
+        block.parent = self
+
     def add_block(self, block: Block) -> None:
         """Add a block to the region."""
+        self._attach_block(block)
         self.blocks.append(block)
-        block.parent = self
+
+    def insert_block(self, blocks: Union[Block, List[Block]],
+                     index: int) -> None:
+        """
+        Insert one or multiple blocks at a given index in the region.
+        The blocks should not be attached to another region.
+        """
+        if index < 0 or index > len(self.blocks):
+            raise ValueError(
+                f"Can't insert block in index {index} in a block with {len(self.blocks)} blocks."
+            )
+        if not isinstance(blocks, list):
+            blocks = [blocks]
+        for block in blocks:
+            self._attach_block(block)
+        self.blocks = self.blocks[:index] + blocks + self.blocks[index:]
+
+    def get_block_index(self, block: Block) -> int:
+        """Get the block position in a region."""
+        if block.parent is not self:
+            raise Exception("Block is not a child of the region.")
+        for idx, region_block in enumerate(self.blocks):
+            if region_block is block:
+                return idx
+        assert False, "Unexpected xdsl error"
+
+    def detach_block(self, block: Union[int, Block]) -> Block:
+        """
+        Detach a block from the region.
+        Returns the detached block.
+        """
+        if isinstance(block, Block):
+            block_idx = self.get_block_index(block)
+        else:
+            block_idx = block
+            op = self.blocks[block_idx]
+        if block.parent is not self:
+            raise Exception("Cannot detach block from a different region.")
+        block.parent = None
+        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
+        return block
+
+    def erase_block(self, block: Union[int, Block], safe_erase=True) -> None:
+        """
+        Erase a block from the region.
+        If safe_erase is True, check that the block has no uses.
+        """
+        block = self.detach_block(block)
+        block.erase(safe_erase=safe_erase)
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the region."""
