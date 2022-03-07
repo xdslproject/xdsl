@@ -4,7 +4,7 @@ from typing import Callable
 from xdsl.dialects.arith import Arith, Constant, Addi
 from xdsl.dialects.builtin import ModuleOp, Builtin, i32
 from xdsl.dialects.scf import Scf
-from xdsl.ir import MLContext
+from xdsl.ir import MLContext, Block
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
@@ -192,5 +192,81 @@ scf.if(%0 : !i1) {
         if_block = if_op.regions[0].blocks[0]
 
         rewriter.inline_block_after(if_block, constant_op)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_block():
+    """Test the insertion of a block in a region."""
+    prog = \
+    """module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    expected = \
+"""module() {
+^0: ^1: 
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        module.regions[0].insert_block(Block(), 0)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_block2():
+    """Test the insertion of a block in a region."""
+    prog = \
+    """module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    expected = \
+"""module() {
+^0: 
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+^1: }"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        module.regions[0].insert_block(Block(), 1)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_block_before():
+    """Test the insertion of a block before another block."""
+    prog = \
+    """module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    expected = \
+"""module() {
+^0: ^1: 
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_block_after():
+    """Test the insertion of a block after another block."""
+    prog = \
+    """module() {
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+}"""
+
+    expected = \
+"""module() {
+^0: 
+  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+^1: }"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
 
     rewrite_and_compare(prog, expected, transformation)
