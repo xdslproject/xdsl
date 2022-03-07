@@ -560,6 +560,10 @@ class Block:
 
     def verify(self) -> None:
         for operation in self.ops:
+            if operation.parent != self:
+                raise Exception(
+                    "Parent pointer of operation does not refer to containing region"
+                )
             operation.verify()
 
     def drop_all_references(self) -> None:
@@ -667,6 +671,10 @@ class Region:
     def verify(self) -> None:
         for block in self.blocks:
             block.verify()
+            if block.parent != self:
+                raise Exception(
+                    "Parent pointer of block does not refer to containing region"
+                )
 
     def drop_all_references(self) -> None:
         """
@@ -688,6 +696,8 @@ class Region:
         """Move the blocks of this region to another region. Leave no blocks in this region."""
         region.blocks = self.blocks
         self.blocks = []
+        for block in region.blocks:
+            block.parent = region
 
     def get_toplevel_object(self) -> Union[Operation, Block, Region]:
         """Get the operation, block, or region ancestor that has no parents."""
