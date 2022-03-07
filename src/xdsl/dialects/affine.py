@@ -85,6 +85,13 @@ class AffineExpr:
         return self * -1
 
     def parse(parser: Parser) -> AffineExpr:
+        def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr, rhs: AffineExpr) -> AffineBinaryExpr:
+            match op:
+                case AffineOperation.neg:
+                    return AffineBinaryExpr(AffineOperation.add, lhs, AffineBinaryExpr(AffineOperation.mul, AffineConstantExpr(-1), rhs))
+                case _:
+                    return AffineBinaryExpr(op, lhs, rhs)
+        
         def parse_optional_affine_low_prec_op() -> AffineOperation:
             if parser.parse_optional_char('+'):
                 return AffineOperation.add
@@ -102,8 +109,7 @@ class AffineExpr:
                 return AffineOperation.ceildiv
             if parser.parse_optional_char('%'):      
                 return AffineOperation.mod
-        
-        
+
         def parse_affine_operand() -> AffineExpr:
             if parser.parse_optional_char('d'):
                 index = parser.parse_int_literal()
@@ -117,21 +123,14 @@ class AffineExpr:
             if parser.parse_optional_char('('):
                 if parser.peek_char(')'):
                     raise Exception("no expression inside parentheses")
-                expr = parse_affine_low_prec_op_expr()
+                expr = parse_affine_expr()
                 parser.parse_char(')')
                 return expr
             if parser.parse_optional_char('-'):
                 expr = parse_affine_operand()
                 return expr * -1
         
-        def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr, rhs: AffineExpr) -> AffineBinaryExpr:
-            match op:
-                case AffineOperation.neg:
-                    return AffineBinaryExpr(AffineOperation.add, lhs, AffineBinaryExpr(AffineOperation.mul, AffineConstantExpr(-1), rhs))
-                case _:
-                    return AffineBinaryExpr(op, lhs, rhs)
-        
-        def parse_affine_low_prec_op_expr(llhs: optional[AffineExpr] = None, llhsOp: optional[AffineOperation] = None) -> AffineExpr:
+        def parse_affine_expr(llhs: optional[AffineExpr] = None, llhsOp: optional[AffineOperation] = None) -> AffineExpr:
             lhs = parse_affine_operand()
             if not lhs:
                 return
@@ -139,9 +138,9 @@ class AffineExpr:
             if lOp:
                 if llhs:
                     expr = get_affine_binary_expr(llhsOp, llhs, lhs)
-                    return parse_affine_low_prec_op_expr(expr, lOp)
+                    return parse_affine_expr(expr, lOp)
                 # no llhs, get rhs and form the expression
-                return parse_affine_low_prec_op_expr(lhs, lOp)
+                return parse_affine_expr(lhs, lOp)
             hOp = parse_optional_affine_high_prec_op()
             if hOp:
                 # first evaluate higher order precedence expr:
@@ -154,14 +153,14 @@ class AffineExpr:
                     expr = highExpr
                 nextOp = parse_optional_affine_low_prec_op()
                 if nextOp:
-                    return parse_affine_low_prec_op_expr(expr, nextOp)
+                    return parse_affine_expr(expr, nextOp)
                 return expr
         
             if llhs: 
                 return get_affine_binary_expr(llhsOp, llhs, lhs)
             return lhs
     
-        # essentially the same structure as parsing low_prec_op_expr but for high_prec_op
+        # essentially the same structure as parsing parse_affine_expr but for higher precedence ops
         # this is mirrored to the approach in MLIR. TODO look whether the two functions could be combined
         def parse_affine_high_prec_op_expr(llhs: optional[AffineExpr] = None, llhsOp: optional[AffineOperation] = None) -> AffineExpr:
             lhs = parse_affine_operand()
@@ -180,7 +179,7 @@ class AffineExpr:
         
         if parser.peek_char(')'):
             return
-        return parse_affine_low_prec_op_expr()
+        return parse_affine_expr()
 
 
 @dataclass
