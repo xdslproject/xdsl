@@ -111,7 +111,7 @@ class Printer:
 
     def _print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
-            self._print("{}", end='')
+            self._print(" {}", end='')
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
@@ -120,7 +120,7 @@ class Printer:
             self._print("}", end='')
             return
 
-        self._print("{", end='')
+        self._print(" {", end='')
         self._print_new_line()
         for block in region.blocks:
             self._print_named_block(block)
