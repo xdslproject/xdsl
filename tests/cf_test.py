@@ -20,7 +20,7 @@ def get_example_cf_program_unconditional_noargs(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]{
+builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0: 
   cf.br() (^1)
 ^1: 
@@ -42,7 +42,7 @@ def get_example_cf_program_unconditional_args(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]{
+builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0(%0 : !i32): 
   cf.br(%0 : !i32) (^1)
 ^1(%1 : !i32): 
@@ -67,7 +67,7 @@ def get_example_cf_program_conditional_args(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]{
+builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0(%0 : !i32): 
   cf.br(%0 : !i32) (^1)
 ^1(%1 : !i32): 
