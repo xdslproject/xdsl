@@ -378,16 +378,16 @@ class Parser:
         op_def = self._ctx.get_op(op_name)
         custom_parser = getattr(op_def, "parse", None)
         if callable(custom_parser):
-            op =  custom_parser(self)
+            op = custom_parser(self)
         else:
             operands = self.parse_operands()
             successors = self.parse_successors()
             attributes = self.parse_op_attributes()
             result_types = [typ for (name, typ) in results]
             op = self._ctx.get_op(op_name).create(operands,
-                                                result_types,
-                                                attributes=attributes,
-                                                successors=successors)
+                                                  result_types,
+                                                  attributes=attributes,
+                                                  successors=successors)
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
             if res[0] in self._ssaValues:

@@ -6,13 +6,15 @@ from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr, FlatSymbolRefAttr
 from xdsl.parser import Parser
 
+
 @dataclass
 class Linalg:
-    ctx: MLContext 
+    ctx: MLContext
 
     def __post_init__(self):
         self.ctx.register_op(Generic)
         self.ctx.register_op(Yield)
+
 
 @irdl_op_definition
 class Generic(Operation):
@@ -27,7 +29,7 @@ class Generic(Operation):
 
     region = RegionDef()
     # output type should be VarResultDef(AnyRankedTensor())
-    # if this operates on memrefs, no output result is produced, 
+    # if this operates on memrefs, no output result is produced,
     # on tensors the result is of tensor type
     output = VarResultDef(AnyAttr())
 
@@ -42,11 +44,12 @@ class Generic(Operation):
 
         attributes | parser.parse_op_attributes()
 
-        op = Generic.create(operands,[],attributes,[])
+        op = Generic.create(operands, [], attributes, [])
         return op
 
     def verify(self) -> None:
         return
+
 
 class Yield(Operation):
     name: str = "linalg.yield"
