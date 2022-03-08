@@ -14,24 +14,22 @@ class Linalg:
     def __post_init__(self):
         self.ctx.register_op(Generic)
         self.ctx.register_op(Yield)
+        self.ctx.register_op(Fill)
+        self.ctx.register_op(Index)
 
 
 @irdl_op_definition
 class Generic(Operation):
     name: str = "linalg.generic"
     inputs = VarOperandDef(AnyAttr)
-    # should be VarOperandDef(AnyShaped)
-    outputs = VarOperandDef(AnyAttr)
+    outputs = VarOperandDef(AnyOf([MemRefType, TensorType]))
     indexing_maps = AttributeDef(ArrayAttr)
     iterator_types = AttributeDef(ArrayAttr)
     doc = AttributeDef(StringAttr)
     library_call = AttributeDef(StringAttr)
 
     region = RegionDef()
-    # output type should be VarResultDef(AnyRankedTensor())
-    # if this operates on memrefs, no output result is produced,
-    # on tensors the result is of tensor type
-    output = VarResultDef(AnyAttr())
+    output = VarResultDef(TensorType)
 
     @staticmethod
     def parse(parser: Parser) -> Generic:
@@ -51,6 +49,22 @@ class Generic(Operation):
         return
 
 
+@irdl_op_definition
 class Yield(Operation):
     name: str = "linalg.yield"
     values = VarOperandDef(AnyAttr)
+
+
+@irdl_op_definition
+class Fill(Operation):
+    name: str = "linalg.fill"
+    value = OperandDef(AnyOf([Float32Type, IntegerAttr, VectorType]))
+    output = OperandDef(AnyOf([MemRefType, TensorType]))  # should be AnyShaped
+    result = OptResultDef(TensorType)
+
+
+@irdl_op_definition
+class Index(Operation):
+    name: str = "linalg.index"
+    dim = AttributeDef(i64)
+    result = ResultDef(IndexType)

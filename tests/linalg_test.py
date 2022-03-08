@@ -1,4 +1,4 @@
-from xdsl.ir import *
+from xdsl.ir import MLContext
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.std import Std
@@ -33,7 +33,7 @@ def test_linalg_generic_matmul():
 module() {
   builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
   {
-  ^1(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>, %C: !memref<[32, 32], !f32>):
+  ^bb1(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>, %C: !memref<[32, 32], !f32>):
     linalg.generic [
         "doc" = "C(d0, d1) += A(d0, d2) * B(d2, d1)",
         "indexing_maps" = [
@@ -44,7 +44,40 @@ module() {
         "iterator_types" = ["parallel", "parallel", "reduction"]]
         ins(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>) 
         outs(%C: !memref<[32, 32], !f32>) {
-          ^2(%a: !f32, %b: !f32, %c: !f32):
+          ^bb2(%a: !f32, %b: !f32, %c: !f32):
+            %d : !f32 = arith.mulf(%a : !f32, %b: !f32)
+            %e : !f32 = arith.addf(%c : !f32, %d: !f32)
+            linalg.yield(%e : !f32)
+        }
+  }
+  std.call() ["callee" = !flat_symbol_ref<"test">]
+}
+    """
+    parse_and_verify(test_prog)
+
+
+# name coding:
+# test_linalg_(filename where the linalg mlir test is taken from)_(name of func in that file)
+def test_linalg_fusion_pattern_basic_fusion():
+    test_prog = """
+module() {
+  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  {
+  ^bb1(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>, %C: !memref<[32, 32], !f32>):
+    // parsing of float attributes not implemented
+    // %cst : !f32 = arith.constant() ["value" = 0.0 : !f32]
+    // linalg.fill(%cst: !f32, %A: !memref<[32, 32], !f32>)
+    linalg.generic [
+        "doc" = "C(d0, d1) += A(d0, d2) * B(d2, d1)",
+        "indexing_maps" = [
+          !affine_map<(d0, d1, d2)[] -> (d0, d2)>, 
+          !affine_map<(d0, d1, d2)[] -> (d2, d1)>,
+          !affine_map<(d0, d1, d2)[] -> (d0, d1)>],
+        "library_call" = "linalg_matmul",
+        "iterator_types" = ["parallel", "parallel", "reduction"]]
+        ins(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>) 
+        outs(%C: !memref<[32, 32], !f32>) {
+          ^bb2(%a: !f32, %b: !f32, %c: !f32):
             %d : !f32 = arith.mulf(%a : !f32, %b: !f32)
             %e : !f32 = arith.addf(%c : !f32, %d: !f32)
             linalg.yield(%e : !f32)
@@ -58,3 +91,4 @@ module() {
 
 if __name__ == "__main__":
     test_linalg_generic_matmul()
+    test_linalg_fusion_pattern_basic_fusion()

@@ -1,9 +1,6 @@
 from __future__ import annotations
-from re import L
 from typing import Union
 from enum import Enum
-
-from idna import valid_contextj
 from pyrsistent import optional
 
 from xdsl.ir import *
@@ -88,7 +85,8 @@ class AffineExpr:
         def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr, rhs: AffineExpr) -> AffineBinaryExpr:
             match op:
                 case AffineOperation.neg:
-                    return AffineBinaryExpr(AffineOperation.add, lhs, AffineBinaryExpr(AffineOperation.mul, AffineConstantExpr(-1), rhs))
+                    return AffineBinaryExpr(AffineOperation.add, lhs, AffineBinaryExpr
+                    (AffineOperation.mul, AffineConstantExpr(-1), rhs))
                 case _:
                     return AffineBinaryExpr(op, lhs, rhs)
         
