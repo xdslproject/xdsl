@@ -74,6 +74,10 @@ class Printer:
         self._print(") = ", end='')
 
     def _print_operand(self, operand: SSAValue) -> None:
+        if (self._ssaValues.get(operand) == None):
+            raise KeyError(
+                "SSAValue is not part of the IR, are you sure all operations are added before their uses?"
+            )
         self._print("%", end='')
         self._print("%s : " % self._ssaValues[operand], end='')
         self.print_attribute(operand.typ)
