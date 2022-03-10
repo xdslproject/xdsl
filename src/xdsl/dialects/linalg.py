@@ -58,7 +58,7 @@ class Yield(Operation):
 @irdl_op_definition
 class Fill(Operation):
     name: str = "linalg.fill"
-    value = OperandDef(AnyOf([Float32Type, IntegerAttr, VectorType]))
+    value = OperandDef(AnyOf([FloatType, IntegerType, VectorType]))
     output = OperandDef(AnyOf([MemRefType, TensorType]))  # should be AnyShaped
     result = OptResultDef(TensorType)
 

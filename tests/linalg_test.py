@@ -63,10 +63,9 @@ def test_linalg_fusion_pattern_basic_fusion():
 module() {
   builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
   {
-  ^bb1(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>, %C: !memref<[32, 32], !f32>):
-    // parsing of float attributes not implemented
-    // %cst : !f32 = arith.constant() ["value" = 0.0 : !f32]
-    // linalg.fill(%cst: !f32, %A: !memref<[32, 32], !f32>)
+  ^bb1(%A: !memref<[-1, -1], !f32>, %B: !memref<[-1, -1], !f32>, %C: !memref<[-1, -1], !f32>):
+    %cst : !f32 = arith.constant() ["value" = 0.0f : !f32]
+    linalg.fill(%cst: !f32, %A: !memref<[-1, -1], !f32>)
     linalg.generic [
         "doc" = "C(d0, d1) += A(d0, d2) * B(d2, d1)",
         "indexing_maps" = [
@@ -75,8 +74,8 @@ module() {
           !affine_map<(d0, d1, d2)[] -> (d0, d1)>],
         "library_call" = "linalg_matmul",
         "iterator_types" = ["parallel", "parallel", "reduction"]]
-        ins(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>) 
-        outs(%C: !memref<[32, 32], !f32>) {
+        ins(%A: !memref<[-1, -1], !f32>, %B: !memref<[-1, -1], !f32>) 
+        outs(%C: !memref<[-1, -1], !f32>) {
           ^bb2(%a: !f32, %b: !f32, %c: !f32):
             %d : !f32 = arith.mulf(%a : !f32, %b: !f32)
             %e : !f32 = arith.addf(%c : !f32, %d: !f32)
