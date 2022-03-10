@@ -311,11 +311,66 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class FloatType(ParametrizedAttribute):
+    name = "float_type"
+    width = ParameterDef(IntAttr)
+
+    @staticmethod
+    @builder
+    def from_width(width: int) -> Attribute:
+        return FloatType([IntAttr.from_int(width)])
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(f'f{self.width}')
+
+
+f32 = FloatType.from_width(32)
+
+
+@irdl_attr_definition
 class Float32Type(ParametrizedAttribute):
     name = "f32"
 
 
 f32 = Float32Type()
+
+
+@irdl_attr_definition
+class FloatAttr(Data):
+    name = "float"
+    data: float
+
+    @staticmethod
+    def parse(parser: Parser) -> IntAttr:
+        data = parser.parse_float_literal()
+        return FloatAttr(data)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
+
+    @staticmethod
+    @builder
+    def from_float(data: float) -> FloatAttr:
+        return FloatAttr(data)
+
+
+@irdl_attr_definition
+class FloatingAttr(ParametrizedAttribute):
+    name = "floating"
+    value = ParameterDef(FloatAttr)
+    typ = ParameterDef(FloatType)
+
+    @staticmethod
+    @builder
+    def from_float(value: float) -> FloatingAttr:
+        return FloatingAttr(FloatAttr(value), f32)
+
+    @staticmethod
+    @builder
+    def from_params(value: float, typ: Union[int, FloatType]) -> FloatingAttr:
+        if not isinstance(typ, FloatType):
+            typ = FloatType(typ)
+        return FloatingAttr([FloatAttr(value), typ])
 
 
 @irdl_attr_definition
