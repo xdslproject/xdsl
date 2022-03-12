@@ -531,8 +531,8 @@ scf.if(%0 : !i1) {
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-  scf.if(%0 : !i1){
-  ^0(%1 : !i64): 
+  scf.if(%0 : !i1) {
+  ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
   }
 }"""
@@ -587,8 +587,9 @@ scf.if(%0 : !i1) {}
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-  scf.if(%0 : !i1){
-  ^0(%1 : !i32): }
+  scf.if(%0 : !i1) {
+  ^0(%1 : !i32):
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -781,7 +782,7 @@ def test_move_region_contents_to_new_regions():
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-  scf.if(%0 : !i1){}
+  scf.if(%0 : !i1) {}
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   } {}

@@ -103,8 +103,11 @@ class Printer:
             self._print("(", end='')
             self.print_list(block.args, self._print_block_arg)
             self._print(")", end='')
-        self._print(": ", end='')
-        self._print_ops(block.ops)
+        self._print(":", end='')
+        if len(block.ops) > 0:
+            self._print_ops(block.ops)
+        else:
+            self._print_new_line()
 
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self._print("%", end='')
@@ -115,7 +118,7 @@ class Printer:
 
     def _print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
-            self._print("{}", end='')
+            self._print(" {}", end='')
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
@@ -124,7 +127,7 @@ class Printer:
             self._print("}", end='')
             return
 
-        self._print("{", end='')
+        self._print(" {", end='')
         self._print_new_line()
         for block in region.blocks:
             self._print_named_block(block)
