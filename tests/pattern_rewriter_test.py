@@ -532,7 +532,7 @@ scf.if(%0 : !i1) {
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
-  ^0(%1 : !i64): 
+  ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
   }
 }"""
@@ -588,7 +588,8 @@ scf.if(%0 : !i1) {}
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
-  ^0(%1 : !i32): }
+  ^0(%1 : !i32):
+  }
 }"""
 
     @op_type_rewrite_pattern

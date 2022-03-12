@@ -205,7 +205,8 @@ def test_insert_block():
 
     expected = \
 """module() {
-^0: ^1: 
+^0:
+^1:
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 }"""
 
@@ -224,9 +225,10 @@ def test_insert_block2():
 
     expected = \
 """module() {
-^0: 
+^0:
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-^1: }"""
+^1:
+}"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         module.regions[0].insert_block(Block(), 1)
@@ -243,7 +245,8 @@ def test_insert_block_before():
 
     expected = \
 """module() {
-^0: ^1: 
+^0:
+^1:
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 }"""
 
@@ -262,9 +265,10 @@ def test_insert_block_after():
 
     expected = \
 """module() {
-^0: 
+^0:
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-^1: }"""
+^1:
+}"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
