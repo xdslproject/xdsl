@@ -1,7 +1,7 @@
 from __future__ import annotations
 from xdsl.dialects.builtin import *
 from typing import TypeVar
-import sys
+from dataclasses import dataclass
 
 indentNumSpaces = 2
 
@@ -21,6 +21,8 @@ class Printer:
     _current_column: int = field(default=0, init=False)
     _operation_messages: Dict[Operation, str] = field(default_factory=dict,
                                                       init=False)
+    _next_line_callback: Optional[Callable[[], None]] = field(default=None,
+                                                              init=False)
 
     def _print(self, text: Any):
         text = str(text)
@@ -35,6 +37,46 @@ class Printer:
     def print_string(self, string) -> None:
         self._print(string)
 
+    def _add_message_on_next_line(self, message: str, begin_pos: int,
+                                  end_pos: int):
+        """Add a message that will be displayed on the next line."""
+        if self._next_line_callback is not None:
+            raise Exception("Cannot print two messages at the same line.")
+        self._next_line_callback = (lambda indent: lambda: self._print_message(
+            message, begin_pos, end_pos, indent))(self._indent)
+
+    def _print_message(self,
+                       message: str,
+                       begin_pos: int,
+                       end_pos: int,
+                       indent=None):
+        """
+        Print a message.
+        This is expected to be called on the beginning of a new line, and expect to create a new line at the end.
+        """
+        indent = self._indent if indent is None else indent
+        self._print(" " * indent * indentNumSpaces)
+        indent_size = indent * indentNumSpaces
+        message_end_pos = max([len(line) for line in message.split("\n")]) + 2
+        first_line = (begin_pos - indent_size) * "-" + (
+            end_pos - begin_pos + 1) * "^" + (max(message_end_pos, end_pos) -
+                                              end_pos) * "-"
+        self._print(first_line)
+        self._print_new_line(indent=indent)
+        message_lines = message.split("\n")
+        for message_line in message_lines:
+            self._print("| ")
+            self._print(message_line)
+            self._print_new_line(indent=indent)
+        self._print("-" * (max(message_end_pos, end_pos) - indent_size + 1))
+        self._print_new_line(indent=0)
+
+    def add_operation_message(self, op: Operation, message: str):
+        """Add a message to an operation."""
+        if op in self._operation_messages:
+            raise Exception("Operation cannot have multiple messages")
+        self._operation_messages[op] = message
+
     T = TypeVar('T')
 
     def print_list(self, elems: List[T], print_fn: Callable[[T],
@@ -46,9 +88,15 @@ class Printer:
             self._print(", ")
             print_fn(elem)
 
-    def _print_new_line(self) -> None:
+    def _print_new_line(self, indent=None) -> None:
+        indent = self._indent if indent is None else indent
         self._print("\n")
-        self._print(" " * self._indent * indentNumSpaces)
+        if self._next_line_callback is not None:
+            callback = self._next_line_callback
+            self._next_line_callback = None
+            callback()
+        else:
+            self._print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> int:
         self._next_valid_name_id += 1
@@ -238,11 +286,16 @@ class Printer:
         self._print("]")
 
     def _print_op(self, op: Operation) -> None:
+        begin_op_pos = self._current_column
         self._print_results(op)
         self._print(op.name)
         self._print_operands(op.operands)
         self.print_successors(op.successors)
         self._print_op_attributes(op.attributes)
+        end_op_pos = self._current_column - 1
+        if op in self._operation_messages:
+            self._add_message_on_next_line(self._operation_messages[op],
+                                           begin_op_pos, end_op_pos)
         self._print_regions(op.regions)
 
     def print_op(self, op: Operation) -> None:
