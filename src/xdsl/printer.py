@@ -6,20 +6,17 @@ import sys
 indentNumSpaces = 2
 
 
+@dataclass(eq=False, repr=False)
 class Printer:
 
-    def __init__(self,
-                 stream=sys.stdout,
-                 print_operand_types=True,
-                 print_result_types=True):
-        self._indent: int = 0
-        self._ssaValues: Dict[SSAValue, int] = dict()
-        self._blockNames: Dict[Block, int] = dict()
-        self._nextValidNameId: int = 0
-        self._nextValidBlockId: int = 0
-        self.stream = stream
-        self.print_operand_types = print_operand_types
-        self.print_result_types = print_result_types
+    stream: Optional[Any] = field(default=None)
+    print_operand_types: bool = field(default=True)
+    print_result_types: bool = field(default=True)
+    _indent: int = field(default=0, init=False)
+    _ssa_values: Dict[SSAValue, int] = field(default_factory=dict, init=False)
+    _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
+    _next_valid_name_id: int = field(default=0, init=False)
+    _next_valid_block_id: int = field(default=0, init=False)
 
     def _print(self, *args, **kwargs):
         print(*args, **kwargs, file=self.stream)
@@ -43,21 +40,21 @@ class Printer:
         self._print(" " * self._indent * indentNumSpaces, end='')
 
     def _get_new_valid_name_id(self) -> int:
-        self._nextValidNameId += 1
-        return self._nextValidNameId - 1
+        self._next_valid_name_id += 1
+        return self._next_valid_name_id - 1
 
     def _get_new_valid_block_id(self) -> int:
-        self._nextValidBlockId += 1
-        return self._nextValidBlockId - 1
+        self._next_valid_block_id += 1
+        return self._next_valid_block_id - 1
 
     def _print_result_value(self, op: Operation, idx: int) -> None:
         val = op.results[idx]
         self._print("%", end='')
-        if val in self._ssaValues.keys():
-            name = self._ssaValues[val]
+        if val in self._ssa_values.keys():
+            name = self._ssa_values[val]
         else:
             name = self._get_new_valid_name_id()
-            self._ssaValues[val] = name
+            self._ssa_values[val] = name
         self._print("%s" % name, end='')
         if self.print_result_types:
             self._print(" : ", end='')
@@ -84,13 +81,13 @@ class Printer:
         self._print(") = ", end='')
 
     def _print_operand(self, operand: SSAValue) -> None:
-        if (self._ssaValues.get(operand) == None):
+        if (self._ssa_values.get(operand) == None):
             raise KeyError(
                 "SSAValue is not part of the IR, are you sure all operations are added before their uses?"
             )
         self._print("%", end='')
 
-        self._print("%s" % self._ssaValues[operand], end='')
+        self._print("%s" % self._ssa_values[operand], end='')
 
         if self.print_operand_types:
             self._print(" : ", end='')
@@ -107,9 +104,9 @@ class Printer:
 
     def print_block_name(self, block: Block) -> None:
         self._print("^", end='')
-        if block not in self._blockNames:
-            self._blockNames[block] = self._get_new_valid_block_id()
-        self._print(self._blockNames[block], end='')
+        if block not in self._block_names:
+            self._block_names[block] = self._get_new_valid_block_id()
+        self._print(self._block_names[block], end='')
 
     def _print_named_block(self, block: Block) -> None:
         self.print_block_name(block)
@@ -126,7 +123,7 @@ class Printer:
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self._print("%", end='')
         name = self._get_new_valid_name_id()
-        self._ssaValues[arg] = name
+        self._ssa_values[arg] = name
         self._print("%s : " % name, end='')
         self.print_attribute(arg.typ)
 
