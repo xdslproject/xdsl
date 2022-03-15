@@ -19,10 +19,10 @@ class Printer:
     _next_valid_block_id: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
-    _operation_messages: Dict[Operation, str] = field(default_factory=dict,
-                                                      init=False)
-    _next_line_callback: Optional[Callable[[], None]] = field(default=None,
-                                                              init=False)
+    _operation_messages: Dict[Operation, [str]] = field(default_factory=dict,
+                                                        init=False)
+    _next_line_callback: List[Callable[[], None]] = field(default_factory=list,
+                                                          init=False)
 
     def _print(self, text: Any):
         text = str(text)
@@ -40,10 +40,9 @@ class Printer:
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        if self._next_line_callback is not None:
-            raise Exception("Cannot print two messages at the same line.")
-        self._next_line_callback = (lambda indent: lambda: self._print_message(
-            message, begin_pos, end_pos, indent))(self._indent)
+        self._next_line_callback.append(
+            (lambda indent: lambda: self._print_message(
+                message, begin_pos, end_pos, indent))(self._indent))
 
     def _print_message(self,
                        message: str,
@@ -62,20 +61,19 @@ class Printer:
             end_pos - begin_pos + 1) * "^" + (max(message_end_pos, end_pos) -
                                               end_pos) * "-"
         self._print(first_line)
-        self._print_new_line(indent=indent)
+        self._print_new_line(indent=indent, print_message=False)
         message_lines = message.split("\n")
         for message_line in message_lines:
             self._print("| ")
             self._print(message_line)
-            self._print_new_line(indent=indent)
+            self._print_new_line(indent=indent, print_message=False)
         self._print("-" * (max(message_end_pos, end_pos) - indent_size + 1))
-        self._print_new_line(indent=0)
+        self._print_new_line(indent=0, print_message=False)
 
     def add_operation_message(self, op: Operation, message: str):
         """Add a message to an operation."""
-        if op in self._operation_messages:
-            raise Exception("Operation cannot have multiple messages")
-        self._operation_messages[op] = message
+        messages = self._operation_messages.setdefault(op, [])
+        messages.append(message)
 
     T = TypeVar('T')
 
@@ -88,15 +86,15 @@ class Printer:
             self._print(", ")
             print_fn(elem)
 
-    def _print_new_line(self, indent=None) -> None:
+    def _print_new_line(self, indent=None, print_message=True) -> None:
         indent = self._indent if indent is None else indent
         self._print("\n")
-        if self._next_line_callback is not None:
-            callback = self._next_line_callback
-            self._next_line_callback = None
-            callback()
-        else:
-            self._print(" " * indent * indentNumSpaces)
+        if print_message:
+            while len(self._next_line_callback) != 0:
+                callback = self._next_line_callback[0]
+                self._next_line_callback = self._next_line_callback[1:]
+                callback()
+        self._print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> int:
         self._next_valid_name_id += 1
@@ -294,8 +292,9 @@ class Printer:
         self._print_op_attributes(op.attributes)
         end_op_pos = self._current_column - 1
         if op in self._operation_messages:
-            self._add_message_on_next_line(self._operation_messages[op],
-                                           begin_op_pos, end_op_pos)
+            for message in self._operation_messages[op]:
+                self._add_message_on_next_line(message, begin_op_pos,
+                                               end_op_pos)
         self._print_regions(op.regions)
 
     def print_op(self, op: Operation) -> None:

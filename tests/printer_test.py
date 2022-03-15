@@ -55,6 +55,76 @@ def test_op_message():
     assert file.getvalue().strip() == expected.strip()
 
 
+def test_two_different_op_messages():
+    """Test that an operation message can be printed."""
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+    }"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | Test message 1
+  --------------------------------------------------
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | Test message 2
+  --------------------------------------------
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.add_operation_message(module.ops[0], "Test message 1")
+    printer.add_operation_message(module.ops[1], "Test message 2")
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_two_same_op_messages():
+    """Test that an operation message can be printed."""
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+    }"""
+
+    expected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | Test message 1
+  --------------------------------------------------
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | Test message 2
+  --------------------------------------------------
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.add_operation_message(module.ops[0], "Test message 1")
+    printer.add_operation_message(module.ops[0], "Test message 2")
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
     prog = \
