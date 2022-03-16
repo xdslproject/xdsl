@@ -8,13 +8,18 @@ indentNumSpaces = 2
 
 class Printer:
 
-    def __init__(self, stream=sys.stdout):
+    def __init__(self,
+                 stream=sys.stdout,
+                 print_operand_types=True,
+                 print_result_types=True):
         self._indent: int = 0
         self._ssaValues: Dict[SSAValue, int] = dict()
         self._blockNames: Dict[Block, int] = dict()
         self._nextValidNameId: int = 0
         self._nextValidBlockId: int = 0
         self.stream = stream
+        self.print_operand_types = print_operand_types
+        self.print_result_types = print_result_types
 
     def _print(self, *args, **kwargs):
         print(*args, **kwargs, file=self.stream)
@@ -48,10 +53,15 @@ class Printer:
     def _print_result_value(self, op: Operation, idx: int) -> None:
         val = op.results[idx]
         self._print("%", end='')
-        name = self._get_new_valid_name_id()
-        self._ssaValues[val] = name
-        self._print("%s : " % name, end='')
-        self.print_attribute(val.typ)
+        if val in self._ssaValues.keys():
+            name = self._ssaValues[val]
+        else:
+            name = self._get_new_valid_name_id()
+            self._ssaValues[val] = name
+        self._print("%s" % name, end='')
+        if self.print_result_types:
+            self._print(" : ", end='')
+            self.print_attribute(val.typ)
 
     def _print_results(self, op: Operation) -> None:
         results = op.results
@@ -79,8 +89,12 @@ class Printer:
                 "SSAValue is not part of the IR, are you sure all operations are added before their uses?"
             )
         self._print("%", end='')
-        self._print("%s : " % self._ssaValues[operand], end='')
-        self.print_attribute(operand.typ)
+
+        self._print("%s" % self._ssaValues[operand], end='')
+
+        if self.print_operand_types:
+            self._print(" : ", end='')
+            self.print_attribute(operand.typ)
 
     def _print_ops(self, ops: List[Operation]) -> None:
         self._indent += 1
@@ -206,6 +220,7 @@ class Printer:
 
         self._print(" ", end='')
         self._print("[", end='')
+
         attribute_list = [p for p in attributes.items()]
         self._print("\"%s\" = " % attribute_list[0][0], end='')
         self.print_attribute(attribute_list[0][1])
