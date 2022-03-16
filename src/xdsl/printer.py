@@ -1,5 +1,6 @@
 from __future__ import annotations
 from xdsl.dialects.builtin import *
+from xdsl.diagnostic import *
 from typing import TypeVar
 from dataclasses import dataclass
 
@@ -12,6 +13,7 @@ class Printer:
     stream: Optional[Any] = field(default=None)
     print_operand_types: bool = field(default=True)
     print_result_types: bool = field(default=True)
+    diagnostic: Diagnostic = field(default_factory=Diagnostic)
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, int] = field(default_factory=dict, init=False)
     _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
@@ -19,8 +21,6 @@ class Printer:
     _next_valid_block_id: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
-    _operation_messages: Dict[Operation, [str]] = field(default_factory=dict,
-                                                        init=False)
     _next_line_callback: List[Callable[[], None]] = field(default_factory=list,
                                                           init=False)
 
@@ -69,11 +69,6 @@ class Printer:
             self._print_new_line(indent=indent, print_message=False)
         self._print("-" * (max(message_end_pos, end_pos) - indent_size + 1))
         self._print_new_line(indent=0, print_message=False)
-
-    def add_operation_message(self, op: Operation, message: str):
-        """Add a message to an operation."""
-        messages = self._operation_messages.setdefault(op, [])
-        messages.append(message)
 
     T = TypeVar('T')
 
@@ -291,8 +286,8 @@ class Printer:
         self.print_successors(op.successors)
         self._print_op_attributes(op.attributes)
         end_op_pos = self._current_column - 1
-        if op in self._operation_messages:
-            for message in self._operation_messages[op]:
+        if op in self.diagnostic.op_messages:
+            for message in self.diagnostic.op_messages[op]:
                 self._add_message_on_next_line(message, begin_op_pos,
                                                end_op_pos)
         self._print_regions(op.regions)
