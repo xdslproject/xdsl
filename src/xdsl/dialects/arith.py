@@ -27,6 +27,14 @@ class Arith:
         self.ctx.register_op(OrI)
         self.ctx.register_op(XOrI)
 
+    def addf(self, input1: Union[Operation, SSAValue],
+             input2: Union[Operation, SSAValue]) -> Operation:
+        return Addf.get(input1, input2)
+
+    def mulf(self, input1: Union[Operation, SSAValue],
+             input2: Union[Operation, SSAValue]) -> Operation:
+        return Mulf.get(input1, input2)
+
 
 @irdl_op_definition
 class Constant(Operation):

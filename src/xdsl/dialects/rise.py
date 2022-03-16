@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from numpy import array
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
@@ -49,7 +48,11 @@ class Rise:
 
     def inOp(self, value: Union[Operation, SSAValue],
              type: DataType) -> Operation:
-        return In.create([value], [type], {"type": type})
+        return In.create([SSAValue.get(value)], [type], {"type": type})
+
+    def out(self, input: Union[Operation, SSAValue],
+            output: Union[Operation, SSAValue]) -> Operation:
+        return Out.create([SSAValue.get(input), SSAValue.get(output)])
 
     def zip(self, n: NatAttr, s: DataType, t: DataType) -> Operation:
         return Zip.create([],
@@ -59,23 +62,36 @@ class Rise:
                                   self.fun(self.array(n, t),
                                            self.array(n, self.tuple(s, t))))
                           ],
-                          attributes=[n, s, t])
+                          attributes={
+                              "n": n,
+                              "s": s,
+                              "t": t
+                          })
 
     def tupleOp(self, s: DataType, t: DataType) -> Operation:
         return Tuple.create(
             [],
             result_types=[self.fun(s, self.fun(t, self.tuple(s, t)))],
-            attributes=[s, t])
+            attributes={
+                "s": s,
+                "t": t
+            })
 
     def fst(self, s: DataType, t: DataType) -> Operation:
         return Fst.create([],
                           result_types=[self.fun(self.tuple(s, t), s)],
-                          attributes=[s, t])
+                          attributes={
+                              "s": s,
+                              "t": t
+                          })
 
     def snd(self, s: DataType, t: DataType) -> Operation:
         return Snd.create([],
                           result_types=[self.fun(self.tuple(s, t), t)],
-                          attributes=[s, t])
+                          attributes={
+                              "s": s,
+                              "t": t
+                          })
 
     def map(self, n: NatAttr, s: DataType, t: DataType) -> Operation:
         return Map.create([],
@@ -84,7 +100,11 @@ class Rise:
                                   self.fun(s, t),
                                   self.fun(self.array(n, s), self.array(n, t)))
                           ],
-                          attributes=[n, s, t])
+                          attributes={
+                              "n": n,
+                              "s": s,
+                              "t": t
+                          })
 
     def reduce(self, n: NatAttr, s: DataType, t: DataType) -> Operation:
         return Reduce.create([],
@@ -94,11 +114,40 @@ class Rise:
                                      self.fun(t, self.fun(self.array(n, s),
                                                           t)))
                              ],
-                             attributes=[n, s, t])
+                             attributes={
+                                 "n": n,
+                                 "s": s,
+                                 "t": t
+                             })
 
     def apply(self, fun: Union[Operation, SSAValue],
               *args: Union[Operation, SSAValue]) -> Operation:
-        return Apply.create([fun, *args], [fun.typ.get_output_recursive()])
+        return Apply.create(
+            [SSAValue.get(fun), *[SSAValue.get(arg) for arg in args]],
+            [SSAValue.get(fun).typ.get_output_recursive()])
+
+    def _lambda(self, type: FunType, block: Block) -> Operation:
+        return Lambda.create([], [type], [], [],
+                             regions=[Region.from_block_list([block])])
+
+    def embed(self, *args: Union[Operation, SSAValue], resultType: Attribute,
+              block: Block) -> Operation:
+        # assert (len(block.args) == args.count)
+        return Embed.create([SSAValue.get(arg) for arg in args], [resultType],
+                            [], [],
+                            regions=[Region.from_block_list([block])])
+
+    def _return(self, value: Union[Operation, SSAValue]) -> Operation:
+        return Return.create([value.results[0]])
+
+    # to do this properly the float additions in the open PR are required
+    def literal(self, value: int, type: Attribute):
+        return Literal.create([], [f32],
+                              {"value": IntegerAttr.from_params(value, type)})
+
+    def lowering_unit(self, region: Block) -> Operation:
+        return LoweringUnit.create([], [], [], [],
+                                   regions=[Region.from_block_list([region])])
 
 
 ############### rise type system ###############
@@ -183,9 +232,9 @@ class FunType(RiseType):
         return FunType([input, output])
 
     def get_output_recursive(self):
-        type = self.parameters["output"]
+        type = self.output
         while isinstance(type, FunType):
-            type = type.parameters["output"]
+            type = type.parameters[1]
         return type
 
 
@@ -199,6 +248,13 @@ class In(Operation):
     type = AttributeDef(DataType)
 
     output = ResultDef(DataType)
+
+
+@irdl_op_definition
+class Out(Operation):
+    name: str = "rise.out"
+    input = OperandDef(Attribute)
+    output = OperandDef(Attribute)
 
 
 @irdl_op_definition
@@ -252,7 +308,8 @@ class Map(Operation):
 class Reduce(Operation):
     name: str = "rise.reduce"
     n = AttributeDef(NatAttr)
-    dt = AttributeDef(DataType)
+    s = AttributeDef(DataType)
+    t = AttributeDef(DataType)
 
     output = ResultDef(FunType)
 
@@ -273,3 +330,30 @@ class Apply(Operation):
     args = VarOperandDef(Attribute)
 
     output = ResultDef(DataType)
+
+
+@irdl_op_definition
+class Embed(Operation):
+    name: str = "rise.embed"
+    args = VarOperandDef(Attribute)
+    body = SingleBlockRegionDef()
+    output = ResultDef(Attribute)
+
+
+@irdl_op_definition
+class Return(Operation):
+    name: str = "rise.return"
+    value = OperandDef(Attribute)
+
+
+@irdl_op_definition
+class Literal(Operation):
+    name: str = "rise.literal"
+    value = AttributeDef(AnyAttr())
+    output = ResultDef(AnyAttr())
+
+
+@irdl_op_definition
+class LoweringUnit(Operation):
+    name: str = "rise.lowering_unit"
+    region = SingleBlockRegionDef()
