@@ -66,7 +66,7 @@ class SSAValue(ABC):
     typ: Attribute
     """Each SSA variable is associated to a type."""
 
-    uses: Set[Use] = field(init=False, default_factory=set)
+    uses: Set[Use] = field(init=False, default_factory=set, repr=False)
     """All uses of the value."""
 
     @staticmethod
@@ -119,6 +119,10 @@ class OpResult(SSAValue):
     result_index: int
     """The index of the result in the defining operation."""
 
+    def __repr__(self) -> str:
+        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
+            f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}"
+
     def __eq__(self, other):
         return self is other
 
@@ -135,6 +139,15 @@ class BlockArgument(SSAValue):
 
     index: int
     """The index of the variable in the block arguments."""
+
+    def __repr__(self) -> str:
+        if isinstance(self.block, Block):
+            block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
+        else:
+            block_repr = repr(self.block)
+        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
+            f", block={block_repr}," \
+            " index={repr(self.index)}"
 
     def __eq__(self, other):
         return self is other
@@ -229,7 +242,7 @@ class Operation:
     regions: List[Region] = field(default_factory=list)
     """Regions arguments of the operation."""
 
-    parent: Optional[Block] = field(default=None)
+    parent: Optional[Block] = field(default=None, repr=False)
     """The block containing this operation."""
 
     @property
@@ -403,8 +416,11 @@ class Block:
     ops: List[Operation] = field(default_factory=list, init=False)
     """Ordered operations contained in the block."""
 
-    parent: Optional[Region] = field(default=None, init=False)
+    parent: Optional[Region] = field(default=None, init=False, repr=False)
     """Parent region containing the block."""
+
+    def __repr__(self) -> str:
+        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
     @property
     def args(self) -> FrozenList[BlockArgument]:
@@ -605,8 +621,11 @@ class Region:
     blocks: List[Block] = field(default_factory=list, init=False)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Optional[Operation] = field(default=None, init=False)
+    parent: Optional[Operation] = field(default=None, init=False, repr=False)
     """Operation containing the region."""
+
+    def __repr__(self) -> str:
+        return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
     def from_operation_list(ops: List[Operation]) -> Region:
