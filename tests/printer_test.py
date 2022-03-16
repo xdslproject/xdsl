@@ -4,6 +4,7 @@ from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.arith import *
+from xdsl.diagnostic import Diagnostic
 
 
 def test_forgotten_op():
@@ -49,8 +50,9 @@ def test_op_message():
     module = parser.parse_op()
 
     file = StringIO("")
-    printer = Printer(stream=file)
-    printer.add_operation_message(module.ops[0], "Test message")
+    diagnostic = Diagnostic()
+    diagnostic.add_message(module.ops[0], "Test message")
+    printer = Printer(stream=file, diagnostic=diagnostic)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -83,9 +85,10 @@ def test_two_different_op_messages():
     module = parser.parse_op()
 
     file = StringIO("")
-    printer = Printer(stream=file)
-    printer.add_operation_message(module.ops[0], "Test message 1")
-    printer.add_operation_message(module.ops[1], "Test message 2")
+    diagnostic = Diagnostic()
+    diagnostic.add_message(module.ops[0], "Test message 1")
+    diagnostic.add_message(module.ops[1], "Test message 2")
+    printer = Printer(stream=file, diagnostic=diagnostic)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -118,9 +121,10 @@ def test_two_same_op_messages():
     module = parser.parse_op()
 
     file = StringIO("")
-    printer = Printer(stream=file)
-    printer.add_operation_message(module.ops[0], "Test message 1")
-    printer.add_operation_message(module.ops[0], "Test message 2")
+    diagnostic = Diagnostic()
+    printer = Printer(stream=file, diagnostic=diagnostic)
+    diagnostic.add_message(module.ops[0], "Test message 1")
+    diagnostic.add_message(module.ops[0], "Test message 2")
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -151,8 +155,9 @@ module() {
     module = parser.parse_op()
 
     file = StringIO("")
-    printer = Printer(stream=file)
-    printer.add_operation_message(module, "Test")
+    diagnostic = Diagnostic()
+    printer = Printer(stream=file, diagnostic=diagnostic)
+    diagnostic.add_message(module, "Test")
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -186,7 +191,46 @@ module() {
     module = parser.parse_op()
 
     file = StringIO("")
-    printer = Printer(stream=file)
-    printer.add_operation_message(module, "Test message")
+    diagnostic = Diagnostic()
+    printer = Printer(stream=file, diagnostic=diagnostic)
+    diagnostic.add_message(module, "Test message")
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+
+
+def test_diagnostic():
+    """
+    Test that an operation message can be printed on an operation with a region,
+    where the message is bigger than the operation.
+    """
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+    }"""
+
+    expected = \
+"""\
+Exception: test message
+
+module() {
+^^^^^^^^-------
+| Test message
+---------------
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    diag = Diagnostic()
+    diag.add_message(module, "Test")
+    try:
+        diag.raise_exception("test message", module)
+    except Exception as e:
+        assert str(e)
