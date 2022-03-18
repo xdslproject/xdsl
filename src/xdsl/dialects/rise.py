@@ -126,7 +126,12 @@ class Rise:
             [SSAValue.get(fun), *[SSAValue.get(arg) for arg in args]],
             [SSAValue.get(fun).typ.get_output_recursive()])
 
-    def _lambda(self, type: FunType, block: Block) -> Operation:
+    def _lambda(self, block: Block) -> Operation:
+        # build type of lambda
+        assert (isinstance(block.ops[-1], Return))
+        type = SSAValue.get(block.ops[-1].operands[0]).typ
+        for arg in reversed(block.args):
+            type = FunType.from_types(arg.typ, type)
         return Lambda.create([], [type], [], [],
                              regions=[Region.from_block_list([block])])
 
@@ -357,3 +362,193 @@ class Literal(Operation):
 class LoweringUnit(Operation):
     name: str = "rise.lowering_unit"
     region = SingleBlockRegionDef()
+
+
+@dataclass
+class RiseDSL:
+    ctx: MLContext
+
+    def getSSAValue(self, opList) -> SSAValue:
+        # last op in the list is the one we want. usually the apply
+        if isinstance(opList, List):
+            opList = opList[-1]
+        return SSAValue.get(opList)
+
+    def nat(self, value: int) -> NatAttr:
+        return NatAttr.from_int(value)
+
+    def array(self, size: Union[int, NatAttr], elemT: DataType):
+        if isinstance(size, int):
+            size = NatAttr.from_int(size)
+        return ArrayType.from_length_and_elemT(size, elemT)
+
+    def scalar(self, wrapped: Attribute):
+        return ScalarType.from_wrapped_type(wrapped)
+
+    def tuple(self, left: DataType, right: DataType):
+        return TupleType.from_types(left, right)
+
+    def fun(self, left: Union[RiseType, DataType], right: Union[RiseType,
+                                                                DataType]):
+        return FunType.from_types(left, right)
+
+    def inOp(self, value: Union[Operation, SSAValue],
+             type: DataType) -> list(Operation):
+        return In.create([self.getSSAValue(value)], [type], {"type": type})
+
+    def out(self, input: Union[Operation, SSAValue],
+            output: Union[Operation, SSAValue]) -> list(Operation):
+        return Out.create([self.getSSAValue(input), self.getSSAValue(output)])
+
+    def apply(self, fun: Union[Operation, SSAValue],
+              *args: Union[Operation, SSAValue]) -> Operation:
+        return Apply.create(
+            [self.getSSAValue(fun), *[self.getSSAValue(arg) for arg in args]],
+            [self.getSSAValue(fun).typ.get_output_recursive()])
+
+    def zip(self, left: Union[Operation, SSAValue],
+            right: Union[Operation, SSAValue]) -> Operation:
+        left = self.getSSAValue(left)
+        right = self.getSSAValue(right)
+
+        assert (isinstance(left.typ, ArrayType)
+                & isinstance(right.typ, ArrayType))
+
+        assert (left.typ.size == right.typ.size)
+        n = left.typ.size
+        s = left.typ.elemType
+        t = right.typ.elemType
+
+        zip = Zip.create([],
+                         result_types=[
+                             self.fun(
+                                 self.array(n, s),
+                                 self.fun(self.array(n, t),
+                                          self.array(n, self.tuple(s, t))))
+                         ],
+                         attributes={
+                             "n": n,
+                             "s": s,
+                             "t": t
+                         })
+        retVal = [zip, self.apply(zip, left, right)]
+        return retVal
+
+    def tupleOp(self, left: Union[Operation, SSAValue],
+                right: Union[Operation, SSAValue]) -> list(Operation):
+        left = self.getSSAValue(left)
+        right = self.getSSAValue(right)
+        assert (isinstance(left.typ, ArrayType)
+                & isinstance(right.typ, ArrayType))
+        s = left.typ.elemType
+        t = right.typ.elemType
+
+        tuple = Tuple.create(
+            [],
+            result_types=[self.fun(s, self.fun(t, self.tuple(s, t)))],
+            attributes={
+                "s": s,
+                "t": t
+            })
+        return [tuple, self.apply(tuple, left, right)]
+
+    def fst(self, value: Union[Operation, SSAValue]) -> list(Operation):
+        assert (isinstance(value.typ, TupleType))
+        value = self.getSSAValue(value)
+        s = value.typ.left
+        t = value.typ.right
+        fst = Fst.create([],
+                         result_types=[self.fun(self.tuple(s, t), s)],
+                         attributes={
+                             "s": s,
+                             "t": t
+                         })
+        return [fst, self.apply(fst, value)]
+
+    def snd(self, value: Union[Operation, SSAValue]) -> list(Operation):
+        assert (isinstance(value.typ, TupleType))
+        value = self.getSSAValue(value)
+        s = value.typ.left
+        t = value.typ.right
+        snd = Snd.create([],
+                         result_types=[self.fun(self.tuple(s, t), t)],
+                         attributes={
+                             "s": s,
+                             "t": t
+                         })
+        return [snd, self.apply(snd, value)]
+
+    def map(self, _lambda: Union[Operation, SSAValue],
+            array: Union[Operation, SSAValue]) -> list(Operation):
+        _lambda = self.getSSAValue(_lambda)
+        array = self.getSSAValue(array)
+        assert (isinstance(array.typ, ArrayType))
+        n = array.typ.size
+        s = array.typ.elemType
+        lambdaOutputType = _lambda.typ.get_output_recursive()
+        assert (isinstance(lambdaOutputType, ArrayType))
+        t = lambdaOutputType.elemType
+        map = Map.create([],
+                         result_types=[
+                             self.fun(
+                                 self.fun(s, t),
+                                 self.fun(self.array(n, s), self.array(n, t)))
+                         ],
+                         attributes={
+                             "n": n,
+                             "s": s,
+                             "t": t
+                         })
+        return [map, self.apply(map, _lambda, array)]
+
+    def reduce(self, init: Union[Operation, SSAValue], array: Union[Operation,
+                                                                    SSAValue],
+               block: Block) -> list(Operation):
+        init = self.getSSAValue(init)
+        array = self.getSSAValue(array)
+        assert (isinstance(array.typ, ArrayType))
+        n = array.typ.size
+        s = array.typ.elemType
+        _lambda = self._lambda(block)
+        t = self.getSSAValue(_lambda).typ.get_output_recursive()
+        reduce = Reduce.create([],
+                               result_types=[
+                                   self.fun(
+                                       self.fun(s, self.fun(t, t)),
+                                       self.fun(t,
+                                                self.fun(self.array(n, s), t)))
+                               ],
+                               attributes={
+                                   "n": n,
+                                   "s": s,
+                                   "t": t
+                               })
+        return [_lambda, reduce, self.apply(reduce, _lambda, init, array)]
+
+    def _lambda(self, block: Block) -> Operation:
+        # build type of lambda
+        assert (isinstance(block.ops[-1], Return))
+        type = SSAValue.get(block.ops[-1].operands[0]).typ
+        for arg in reversed(block.args):
+            type = FunType.from_types(arg.typ, type)
+        return Lambda.create([], [type], [], [],
+                             regions=[Region.from_block_list([block])])
+
+    def embed(self, *args: Union[Operation, SSAValue], resultType: Attribute,
+              block: Block) -> Operation:
+        # assert (len(block.args) == args.count)
+        return Embed.create([self.getSSAValue(arg) for arg in args],
+                            [resultType], [], [],
+                            regions=[Region.from_block_list([block])])
+
+    def _return(self, value: Union[Operation, SSAValue]) -> Operation:
+        return Return.create([value.results[0]])
+
+    # to do this properly the float additions in the open PR are required
+    def literal(self, value: int, type: Attribute):
+        return Literal.create([], [f32],
+                              {"value": IntegerAttr.from_params(value, type)})
+
+    def lowering_unit(self, region: Block) -> Operation:
+        return LoweringUnit.create([], [], [], [],
+                                   regions=[Region.from_block_list([region])])

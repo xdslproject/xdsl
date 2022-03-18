@@ -431,11 +431,30 @@ class Block:
         b.add_ops(ops)
         return b
 
+    # helper function to flatten an irrgulat list of operations, e.g. [op,op,[op, op]]
+    # maybe this could better life in a utils.py or something
+    flatten_list = lambda irregular_list: [
+        element for item in irregular_list
+        for element in Block.flatten_list(item)
+    ] if type(irregular_list) is list else [irregular_list]
+
+    @staticmethod
+    def from_op_lists(ops: List[Operation], arg_types: List[Attribute] = None):
+        b = Block()
+        if arg_types is not None:
+            b._args = [
+                BlockArgument(typ, b, index)
+                for index, typ in enumerate(arg_types)
+            ]
+
+        b.add_ops(Block.flatten_list(ops))
+        return b
+
     @staticmethod
     def from_callable(block_arg_types: List[Attribute],
                       f: Callable[[BlockArgument, ...], List[Operation]]):
         b = Block.from_arg_types(block_arg_types)
-        b.add_ops(f(*b.args))
+        b.add_ops(Block.flatten_list(f(*b.args)))
         return b
 
     def is_ancestor(self, op: Union[Operation, Block, Region]) -> bool:
