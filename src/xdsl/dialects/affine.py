@@ -80,7 +80,8 @@ class AffineExpr:
         return AffineBinaryExpr(AffineOperation.mod, self, other)       
     def __neg__(self):
         return self * -1
-
+        
+    # yapf: disable
     def parse(parser: Parser) -> AffineExpr:
         def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr, rhs: AffineExpr) -> AffineBinaryExpr:
             match op:
@@ -89,7 +90,7 @@ class AffineExpr:
                     (AffineOperation.mul, AffineConstantExpr(-1), rhs))
                 case _:
                     return AffineBinaryExpr(op, lhs, rhs)
-        
+    # yapf: enable
         def parse_optional_affine_low_prec_op() -> AffineOperation:
             if parser.parse_optional_char('+'):
                 return AffineOperation.add
