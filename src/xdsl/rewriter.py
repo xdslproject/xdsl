@@ -52,7 +52,9 @@ class Rewriter:
 
         op_idx = block.get_operation_index(op)
         block.erase_op(op_idx, safe_erase=safe_erase)
-        block.insert_op(new_ops, op_idx)
+        if len(op.results) == 0:
+            block.insert_op(new_ops, op_idx)
+        block.insert_op(new_ops, op_idx, op.results[0].name)
 
     @staticmethod
     def inline_block_at_pos(block: Block, target_block: Block, pos: int):

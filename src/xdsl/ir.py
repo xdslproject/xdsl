@@ -69,6 +69,8 @@ class SSAValue(ABC):
     uses: Set[Use] = field(init=False, default_factory=set, repr=False)
     """All uses of the value."""
 
+    name: Optional[str] = field(init=False, default=None)
+
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
@@ -121,7 +123,7 @@ class OpResult(SSAValue):
 
     def __repr__(self) -> str:
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-            f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}"
+            f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}, name={repr(self.name)})"
 
     def __eq__(self, other):
         return self is other
@@ -540,8 +542,10 @@ class Block:
         for op in ops:
             self.add_op(op)
 
-    def insert_op(self, ops: Union[Operation, List[Operation]],
-                  index: int) -> None:
+    def insert_op(self,
+                  ops: Union[Operation, List[Operation]],
+                  index: int,
+                  name: Optional[str] = None) -> None:
         """
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
@@ -552,6 +556,10 @@ class Block:
             )
         if not isinstance(ops, list):
             ops = [ops]
+        if name:
+            for curr_op in ops:
+                for res in curr_op.results:
+                    res.name = name
         for op in ops:
             self._attach_op(op)
         self.ops = self.ops[:index] + ops + self.ops[index:]

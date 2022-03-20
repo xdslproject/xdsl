@@ -15,7 +15,8 @@ class Printer:
     print_result_types: bool = field(default=True)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
     _indent: int = field(default=0, init=False)
-    _ssa_values: Dict[SSAValue, int] = field(default_factory=dict, init=False)
+    _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
     _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
     _next_valid_name_id: int = field(default=0, init=False)
     _next_valid_block_id: int = field(default=0, init=False)
@@ -91,9 +92,9 @@ class Printer:
                 callback()
         self._print(" " * indent * indentNumSpaces)
 
-    def _get_new_valid_name_id(self) -> int:
+    def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id += 1
-        return self._next_valid_name_id - 1
+        return str(self._next_valid_name_id - 1)
 
     def _get_new_valid_block_id(self) -> int:
         self._next_valid_block_id += 1
@@ -104,6 +105,11 @@ class Printer:
         self._print("%")
         if val in self._ssa_values.keys():
             name = self._ssa_values[val]
+        elif val.name:
+            curr_ind = self._ssa_names.get(val.name, 0)
+            name = val.name + (str(curr_ind) if curr_ind != 0 else "")
+            self._ssa_values[val] = name
+            self._ssa_names[val.name] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
