@@ -234,3 +234,33 @@ module() {
         diag.raise_exception("test message", module)
     except Exception as e:
         assert str(e)
+
+
+def test_print_costum_name():
+    """
+    Test that an SSAValue, that is a name and not a number, reserves that name
+    """
+    prog = \
+        """module() {
+    %i : !i32 = arith.constant() ["value" = 42 : !i32]
+    %213 : !i32 = arith.addi(%i : !i32, %i : !i32)
+    }"""
+
+    expected = \
+"""\
+module() {
+  %i : !i32 = arith.constant() ["value" = 42 : !i32]
+  %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()

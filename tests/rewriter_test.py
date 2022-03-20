@@ -274,3 +274,51 @@ def test_insert_block_after():
         rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
 
     rewrite_and_compare(prog, expected, transformation)
+
+
+def test_preserve_naming_single_op():
+    """Test the preservation of names of SSAValues"""
+    prog = \
+    """module() {
+   %i : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = arith.addi(%i : !i32, %i : !i32)
+}"""
+
+    expected = \
+"""module() {
+  %i : !i32 = arith.constant() ["value" = 1 : !i32]
+  %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant_op = module.ops[0]
+        new_constant = Constant.from_int_constant(1, i32)
+
+        rewriter.replace_op(constant_op, [new_constant])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_preserve_naming_multiple_ops():
+    """Test the preservation of names of SSAValues for transformations to multiple ops"""
+    prog = \
+    """module() {
+   %i : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = arith.addi(%i : !i32, %i : !i32)
+}"""
+
+    expected = \
+"""module() {
+  %i : !i32 = arith.constant() ["value" = 1 : !i32]
+  %i1 : !i32 = arith.addi(%i : !i32, %i : !i32)
+  %0 : !i32 = arith.addi(%i1 : !i32, %i1 : !i32)
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant_op = module.ops[0]
+        new_constant = Constant.from_int_constant(1, i32)
+        new_add = Addi.get(new_constant, new_constant)
+
+        rewriter.replace_op(constant_op, [new_constant, new_add])
+
+    rewrite_and_compare(prog, expected, transformation)
