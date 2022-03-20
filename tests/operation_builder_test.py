@@ -249,3 +249,35 @@ def test_optional_attr_op_non_empty_builder():
     op = OptionalAttrOp.build(attributes={"opt_attr": 1})
     op.verify()
     assert op.opt_attr == StringAttr.from_int(1)
+
+
+def test_parent_pointers():
+    op = ResultOp.build(result_types=[0])
+    block = Block.from_ops([op])
+    reg = Region.from_block_list([block])
+    reg_op = RegionOp.build(regions=[reg])
+
+    block_2 = Block.from_ops([reg_op])
+    reg_2 = Region.from_block_list([block_2])
+    reg_op_2 = RegionOp.build(regions=[reg_2])
+
+    assert op.parent_block() is block
+    assert op.parent_region() is reg
+    assert op.parent_op() is reg_op
+
+    assert reg_op_2.parent_block() is None
+    assert reg_op_2.parent_region() is None
+    assert reg_op_2.parent_op() is None
+
+    assert reg.parent_op() is reg_op
+    assert reg.parent_block() is block_2
+    assert reg.parent_region() is reg_2
+
+    assert reg_2.parent_block() is None
+    assert reg_2.parent_region() is None
+
+    assert block.parent_region() is reg
+    assert block.parent_op() is reg_op
+    assert block.parent_block() is block_2
+
+    assert block_2.parent_block() is None
