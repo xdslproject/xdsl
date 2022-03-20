@@ -247,6 +247,15 @@ class Operation:
     parent: Optional[Block] = field(default=None, repr=False)
     """The block containing this operation."""
 
+    def parent_block(self) -> Optional[Block]:
+        return self.parent
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent.parent if self.parent else None
+
     @property
     def operands(self) -> FrozenList[SSAValue]:
         return self._operands
@@ -420,6 +429,15 @@ class Block:
 
     parent: Optional[Region] = field(default=None, init=False, repr=False)
     """Parent region containing the block."""
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent.parent if self.parent else None
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent
+
+    def parent_block(self) -> Optional[Block]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
         return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
@@ -625,6 +643,15 @@ class Region:
 
     parent: Optional[Operation] = field(default=None, init=False, repr=False)
     """Operation containing the region."""
+
+    def parent_block(self) -> Optional[Block]:
+        return self.parent.parent if self.parent else None
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
