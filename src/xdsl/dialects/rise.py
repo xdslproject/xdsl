@@ -303,8 +303,8 @@ class Snd(Operation):
 class Map(Operation):
     name: str = "rise.map"
     n = AttributeDef(NatAttr)
-    dt1 = AttributeDef(DataType)
-    dt2 = AttributeDef(DataType)
+    s = AttributeDef(DataType)
+    t = AttributeDef(DataType)
 
     output = ResultDef(FunType)
 
