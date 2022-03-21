@@ -1,6 +1,5 @@
 from io import StringIO
 
-from numpy import block
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
