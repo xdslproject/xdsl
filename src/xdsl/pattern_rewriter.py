@@ -243,11 +243,11 @@ class PatternRewriter:
         should be child of the matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_block(
-                target_block) or not self._can_modify_block(block):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation."
-            )
+        # if not self._can_modify_block(
+        #         target_block) or not self._can_modify_block(block):
+        #     raise Exception(
+        #         "Cannot modify blocks that are not contained in the matched operation."
+        #     )
         Rewriter.inline_block_at_pos(block, target_block, pos)
 
     def inline_block_before_matched_op(self, block: Block):
@@ -256,10 +256,10 @@ class PatternRewriter:
         The block should not be a parent of the operation, and should be a child of the matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_block(block):
-            raise Exception(
-                "Cannot move blocks that are not contained in the matched operation."
-            )
+        # if not self._can_modify_block(block):
+        #     raise Exception(
+        #         "Cannot move blocks that are not contained in the matched operation."
+        #     )
         self.added_operations_before += block.ops
         Rewriter.inline_block_before(block, self.current_operation)
 
