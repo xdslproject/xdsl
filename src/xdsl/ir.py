@@ -106,7 +106,7 @@ class SSAValue(ABC):
         if safe_erase and len(self.uses) != 0:
             raise Exception(
                 "Attempting to delete SSA value that still has uses.")
-        self.replace_by(ErasedSSAValue(self.typ))
+        self.replace_by(ErasedSSAValue(self.typ, self))
 
 
 @dataclass
@@ -162,6 +162,8 @@ class ErasedSSAValue(SSAValue):
     An erased SSA variable.
     This is used during transformations when a SSA variable is destroyed but still used.
     """
+
+    old_value: SSAValue
 
     def __hash__(self):
         return hash(id(self))
