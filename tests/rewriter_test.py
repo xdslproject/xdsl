@@ -3,7 +3,8 @@ from typing import Callable
 
 from xdsl.dialects.arith import Arith, Constant, Addi
 from xdsl.dialects.builtin import ModuleOp, Builtin, i32
-from xdsl.dialects.scf import Scf
+from xdsl.dialects.scf import Scf, Yield
+from xdsl.dialects.std import Std
 from xdsl.ir import MLContext, Block
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -16,6 +17,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     builtin = Builtin(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
+    std = Std(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -320,5 +322,26 @@ def test_preserve_naming_multiple_ops():
         new_add = Addi.get(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_no_result_rewriter():
+    """Test rewriter on ops without results"""
+    prog = \
+    """module() {
+   std.return()
+}"""
+
+    expected = \
+"""module() {
+  scf.yield()
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        return_op = module.ops[0]
+        new_op = Yield.get()
+
+        rewriter.replace_op(return_op, [new_op])
 
     rewrite_and_compare(prog, expected, transformation)
