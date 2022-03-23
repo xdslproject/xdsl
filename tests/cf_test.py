@@ -4,11 +4,11 @@ from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.cf import *
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.arith import *
 
 
-def get_example_cf_program_unconditional_noargs(ctx: MLContext, std: Std,
+def get_example_cf_program_unconditional_noargs(ctx: MLContext, func: Func,
                                                 cf: Cf) -> (Operation, str):
 
     a = Block()
@@ -20,7 +20,7 @@ def get_example_cf_program_unconditional_noargs(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
+func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0:
   cf.br() (^1)
 ^1:
@@ -30,7 +30,7 @@ builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "
     return f, prog
 
 
-def get_example_cf_program_unconditional_args(ctx: MLContext, std: Std,
+def get_example_cf_program_unconditional_args(ctx: MLContext, func: Func,
                                               cf: Cf) -> (Operation, str):
 
     a = Block.from_arg_types([IntegerType.from_width(32)])
@@ -42,7 +42,7 @@ def get_example_cf_program_unconditional_args(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
+func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0(%0 : !i32):
   cf.br(%0 : !i32) (^1)
 ^1(%1 : !i32):
@@ -52,7 +52,7 @@ builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "
     return f, prog
 
 
-def get_example_cf_program_conditional_args(ctx: MLContext, std: Std,
+def get_example_cf_program_conditional_args(ctx: MLContext, func: Func,
                                             cf: Cf) -> (Operation, str):
 
     a = Block.from_arg_types([IntegerType.from_width(32)])
@@ -67,7 +67,7 @@ def get_example_cf_program_conditional_args(ctx: MLContext, std: Std,
     f = FuncOp.from_region("test", [], [], [a, b])
 
     prog = """
-builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"] {
+func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
 ^0(%0 : !i32):
   cf.br(%0 : !i32) (^1)
 ^1(%1 : !i32):
@@ -80,10 +80,10 @@ builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "
 
 def test_get():
     ctx = MLContext()
-    std = Std(ctx)
+    func = Func(ctx)
     cf = Cf(ctx)
 
-    f, prog = get_example_cf_program_unconditional_noargs(ctx, std, cf)
+    f, prog = get_example_cf_program_unconditional_noargs(ctx, func, cf)
 
     f.verify()
 
@@ -92,7 +92,7 @@ def test_get():
     printer.print_op(f)
     assert file.getvalue().strip() == prog.strip()
 
-    f, prog = get_example_cf_program_unconditional_args(ctx, std, cf)
+    f, prog = get_example_cf_program_unconditional_args(ctx, func, cf)
 
     f.verify()
     file = StringIO("")
@@ -100,7 +100,7 @@ def test_get():
     printer.print_op(f)
     assert file.getvalue().strip() == prog.strip()
 
-    f, prog = get_example_cf_program_conditional_args(ctx, std, cf)
+    f, prog = get_example_cf_program_conditional_args(ctx, func, cf)
 
     f.verify()
     printer = Printer()
@@ -113,18 +113,18 @@ def test_get():
 
 test_prog = """
 module() {
-  builtin.func() ["sym_name" = "br", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "br", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
   {
   ^2(%22: !i32):
     cf.br(%22: !i32)(^2)
   }
 
-  builtin.func() ["sym_name" = "cond_br", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "cond_br", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
   {
   ^3(%cond : !i1, %arg: !i32):
     cf.cond_br(%cond: !i1, %cond: !i1, %arg : !i32, %arg : !i32, %arg : !i32, %arg : !i32)(^3, ^4) ["operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [2 : !i32, 3 : !i32]>]
   ^4(%24 : !i32, %25 : !i32, %26 : !i32):
-    std.return(%24 : !i32)
+    func.return(%24 : !i32)
   }
 }
 """
@@ -134,7 +134,7 @@ def test_main():
     ctx = MLContext()
     builtin = Builtin(ctx)
     cf = Cf(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()

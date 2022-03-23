@@ -1,14 +1,14 @@
 from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.arith import *
 from xdsl.dialects.scf import *
 
 # TODO setup file check tests
 test_prog = """
 module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     scf.if(%0 : !i1) 
@@ -29,7 +29,7 @@ module() {
     }
   }
 
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
     %init : !i32 = arith.constant()["value" = 0 : !i32]
     %res : !i32 = scf.while(%init : !i32)
@@ -51,7 +51,7 @@ module() {
 def test_scf():
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
 

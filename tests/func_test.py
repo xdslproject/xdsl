@@ -1,12 +1,12 @@
 from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.arith import *
 
 test_prog = """
 module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
 
     %7 : !i1 = arith.constant() ["value" = 0 : !i1]
@@ -16,11 +16,11 @@ module() {
     %11 : !i1 = arith.xori(%7 : !i1, %8 : !i1)
   }
 
-  builtin.func() ["sym_name" = "rec", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "rec", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]
   {
   ^1(%20: !i32):
-    %21 : !i32 = std.call(%20 : !i32) ["callee" = @rec] 
-    std.return(%21 :!i32)
+    %21 : !i32 = func.call(%20 : !i32) ["callee" = @rec] 
+    func.return(%21 :!i32)
   }
 }
 """
@@ -29,7 +29,7 @@ module() {
 def test_main():
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
 
     parser = Parser(ctx, test_prog)

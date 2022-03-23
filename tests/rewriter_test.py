@@ -4,7 +4,7 @@ from typing import Callable
 from xdsl.dialects.arith import Arith, Constant, Addi
 from xdsl.dialects.builtin import ModuleOp, Builtin, i32
 from xdsl.dialects.scf import Scf, Yield
-from xdsl.dialects.std import Std
+from xdsl.dialects.func import Func
 from xdsl.ir import MLContext, Block
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -17,7 +17,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     builtin = Builtin(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -330,7 +330,7 @@ def test_no_result_rewriter():
     """Test rewriter on ops without results"""
     prog = \
     """module() {
-   std.return()
+   func.return()
 }"""
 
     expected = \

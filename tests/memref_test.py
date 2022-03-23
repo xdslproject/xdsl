@@ -1,10 +1,10 @@
 from xdsl.dialects.memref import *
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.arith import *
 from xdsl.printer import Printer
 
 
-def get_example_memref_program(ctx: MLContext, std: Std,
+def get_example_memref_program(ctx: MLContext, func: Func,
                                memref: MemRef) -> Operation:
 
     def test() -> List[Operation]:
@@ -38,11 +38,11 @@ def get_example_memref_program(ctx: MLContext, std: Std,
 
 def test_memref():
     ctx = MLContext()
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     memref = MemRef(ctx)
 
-    f = get_example_memref_program(ctx, std, memref)
+    f = get_example_memref_program(ctx, func, memref)
 
     f.verify()
     printer = Printer()

@@ -1,7 +1,7 @@
 // RUN: ../../src/xdsl/xdsl_opt.py -f %s | ../../src/xdsl/xdsl_opt.py | filecheck %s
 
 module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]{
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]{
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.constant() ["value" = 42 : !i32]
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32) 
@@ -12,7 +12,7 @@ module() {
   }
 }
 
-// CHECK: builtin.func() ["sym_name" = "test"
+// CHECK: func.func() ["sym_name" = "test"
 // CHECK-NEXT: %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32] 
 // CHECK-NEXT: %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
 // CHECK-NEXT: %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32) 
