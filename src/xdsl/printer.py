@@ -1,9 +1,8 @@
 from __future__ import annotations
 from xdsl.dialects.builtin import *
 from xdsl.diagnostic import *
-from typing import IO, TypeVar
+from typing import TypeVar
 from dataclasses import dataclass
-import sys
 
 indentNumSpaces = 2
 
@@ -36,22 +35,20 @@ class Printer:
             self._current_column += len(lines[-1])
         print(text, end='', file=self.stream)
 
-
-    def print_string(self, string) -> None:
+    def print_string(self, string: str) -> None:
         self._print(string)
 
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        self._next_line_callback.append(
-            (lambda indent: lambda: self._print_message(
-                message, begin_pos, end_pos, indent))(self._indent))
+        self._next_line_callback.append(lambda: self._print_message(
+            message, begin_pos, end_pos, self._indent))
 
     def _print_message(self,
                        message: str,
                        begin_pos: int,
                        end_pos: int,
-                       indent=None):
+                       indent: Optional[int] = None):
         """
         Print a message.
         This is expected to be called on the beginning of a new line, and expect to create a new line at the end.
@@ -84,7 +81,9 @@ class Printer:
             self._print(", ")
             print_fn(elem)
 
-    def _print_new_line(self, indent=None, print_message=True) -> None:
+    def _print_new_line(self,
+                        indent: Optional[int] = None,
+                        print_message: bool = True) -> None:
         indent = self._indent if indent is None else indent
         self._print("\n")
         if print_message:
@@ -232,7 +231,7 @@ class Printer:
             return
 
         if isinstance(attribute, FlatSymbolRefAttr):
-            self._print(f'@{attribute.parameters[0].data}')
+            self._print(f'@{attribute.parameters[0].data}')  # type: ignore
             return
 
         if isinstance(attribute, IntegerAttr):

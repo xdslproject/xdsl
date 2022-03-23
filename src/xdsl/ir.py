@@ -145,10 +145,7 @@ class BlockArgument(SSAValue):
     """The index of the variable in the block arguments."""
 
     def __repr__(self) -> str:
-        if isinstance(self.block, Block):
-            block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
-        else:
-            block_repr = repr(self.block)
+        block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
             f", block={block_repr}," \
             " index={repr(self.index)}"
@@ -263,11 +260,13 @@ class Operation:
     def parent_region(self) -> Optional[Region]:
         return self.parent.parent if self.parent else None
 
-    irdl_operand_defs: List[Tuple[str, OperandDef]] = []
-    irdl_result_defs: List[Tuple[str, ResultDef]] = []
-    irdl_region_defs: List[Tuple[str, RegionDef]] = []
-    irdl_attribte_defs: List[Tuple[str, AttributeDef]] = []
-    irdl_options: List[IRDLOption] = []
+    irdl_operand_defs: List[Tuple[str,
+                                  OperandDef]] = field(default_factory=list)
+    irdl_result_defs: List[Tuple[str, ResultDef]] = field(default_factory=list)
+    irdl_region_defs: List[Tuple[str, RegionDef]] = field(default_factory=list)
+    irdl_attribte_defs: List[Tuple[str,
+                                   AttributeDef]] = field(default_factory=list)
+    irdl_options: List[IRDLOption] = field(default_factory=list)
 
     @property
     def operands(self) -> FrozenList[SSAValue]:
@@ -328,7 +327,7 @@ class Operation:
                                            attributes, successors, regions)
 
     @classmethod
-    def build(cls: typing.Type[OperationType],
+    def build(cls: Type[OperationType],
               operands: Optional[List[SSAValue]] = None,
               result_types: Optional[List[Attribute]] = None,
               attributes: Optional[Dict[str, Attribute]] = None,
@@ -433,6 +432,12 @@ class Operation:
         return id(self)
 
 
+class CallableWithVariadicBlockArguments(Protocol):
+
+    def __call__(self, *args: BlockArgument) -> List[Operation]:
+        ...
+
+
 @dataclass(eq=False)
 class Block:
     """A sequence of operations"""
@@ -484,11 +489,6 @@ class Block:
             ])
         b.add_ops(ops)
         return b
-
-    class CallableWithVariadicBlockArguments(Protocol):
-
-        def __call__(self, *args: BlockArgument) -> List[Operation]:
-            ...
 
     @staticmethod
     def from_callable(block_arg_types: List[Attribute],
@@ -788,14 +788,16 @@ class Region:
             block_idx = self.get_block_index(block)
         else:
             block_idx = block
-            op = self.blocks[block_idx]
+            block = self.blocks[block_idx]
         if block.parent is not self:
             raise Exception("Cannot detach block from a different region.")
         block.parent = None
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block
 
-    def erase_block(self, block: Union[int, Block], safe_erase=True) -> None:
+    def erase_block(self,
+                    block: Union[int, Block],
+                    safe_erase: bool = True) -> None:
         """
         Erase a block from the region.
         If safe_erase is True, check that the block has no uses.

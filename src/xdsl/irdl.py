@@ -299,7 +299,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
                 f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
             )
         variadic_sizes: List[int] = [
-            size_attr.value.data for size_attr in
+            size_attr.value.data for size_attr in  # type: ignore
             attribute.data.data  # type: ignore reportGeneralTypeIssues
         ]
         if len(variadic_sizes) != len(variadic_defs):
@@ -381,7 +381,7 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
     operand_sizes = get_variadic_sizes(op, is_operand=True)
     current_operand = 0
     current_var_operand = 0
-    for _, operand_def in operands:
+    for operand_name, operand_def in operands:
         if isinstance(operand_def, VarOperandDef):
             for _ in range(operand_sizes[current_var_operand]):
                 operand_def.constr.verify(op.operands[current_operand].typ)
@@ -709,7 +709,7 @@ def builder(f: BuilderFunction) -> BuilderFunction:
     return f
 
 
-def irdl_get_builders(cls: typing.Type[...]) -> List[BuilderFunction]:
+def irdl_get_builders(cls: typing.Type[Any]) -> List[BuilderFunction]:
     builders: List[BuilderFunction] = []
     for field_name in cls.__dict__:
         field_ = cls.__dict__[field_name]
@@ -735,7 +735,7 @@ def irdl_attr_try_builder(builder: BuilderFunction,
     return builder(*args, *defaults[len(args):])
 
 
-def irdl_attr_builder(cls: typing.Type[...],
+def irdl_attr_builder(cls: typing.Type[Any],
                       builders: Sequence[BuilderFunction], *args: Any) -> Any:
     """Try to apply all builders to construct an attribute instance."""
     if len(args) == 1 and isinstance(args[0], cls):
@@ -765,8 +765,8 @@ def irdl_data_definition(cls: Type[T]) -> Type[T]:
         dataclass(frozen=True)(
             type(
                 cls.__name__,
-                (cls, ),
-                {  # type: ignore
+                (cls, ),  # type: ignore
+                {
                     **cls.__dict__,
                     **new_attrs
                 })))

@@ -207,17 +207,18 @@ class VectorType(ParametrizedAttribute):
     element_type = ParameterDef(AnyAttr())
 
     def get_num_dims(self) -> int:
-        return len(self.parameters[0].data)
+        return len(self.parameters[0].data)  # type: ignore
 
     def get_shape(self) -> List[int]:
-        return [i.parameters[0].data for i in self.shape.data]
+        return [i.parameters[0].data for i in self.shape.data]  # type: ignore
 
     @staticmethod
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = []) -> VectorType:
-        if not shape:
+            shape: Optional[List[Union[int,
+                                       IntegerAttr]]] = None) -> VectorType:
+        if shape is None:
             shape = [1]
         return VectorType([
             ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
@@ -242,17 +243,18 @@ class TensorType(ParametrizedAttribute):
     element_type = ParameterDef(AnyAttr())
 
     def get_num_dims(self) -> int:
-        return len(self.parameters[0].data)
+        return len(self.parameters[0].data)  # type: ignore
 
     def get_shape(self) -> List[int]:
-        return [i.parameters[0].data for i in self.shape.data]
+        return [i.parameters[0].data for i in self.shape.data]  # type: ignore
 
     @staticmethod
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = []) -> TensorType:
-        if not shape:
+            shape: Optional[List[Union[int,
+                                       IntegerAttr]]] = None) -> TensorType:
+        if shape is None:
             shape = [1]
         return TensorType([
             ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
@@ -356,10 +358,9 @@ class FuncOp(Operation):
     sym_visibility = AttributeDef(StringAttr)
 
     @staticmethod
-    def from_callable(
-            name: str, input_types: List[Attribute],
-            return_types: List[Attribute],
-            func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
+    def from_callable(name: str, input_types: List[Attribute],
+                      return_types: List[Attribute],
+                      func: CallableWithVariadicBlockArguments) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         op = FuncOp.build(attributes={
             "sym_name": name,
@@ -399,7 +400,7 @@ class ModuleOp(Operation):
     def from_region_or_ops(ops: Union[List[Operation], Region]) -> ModuleOp:
         if isinstance(ops, list):
             region = Region.from_operation_list(ops)
-        elif isinstance(ops, Region):
+        elif isinstance(ops, Region):  # type: ignore
             region = ops
         else:
             raise TypeError(

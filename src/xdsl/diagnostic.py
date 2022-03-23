@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Union, Type
 from dataclasses import dataclass, field
 
 from xdsl.ir import Block, Operation, Region
@@ -15,9 +15,9 @@ class Diagnostic:
         self.op_messages.setdefault(op, []).append(message)
 
     def raise_exception(self,
-                        message,
+                        message: str,
                         ir: Union[Operation, Block, Region],
-                        exception_type=Exception) -> None:
+                        exception_type: Type[Exception] = Exception) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
         f = StringIO()
@@ -26,9 +26,9 @@ class Diagnostic:
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
         elif isinstance(toplevel, Block):
-            p._print_named_block(toplevel)
-        elif isinstance(toplevel, Region):
-            p._print_region(toplevel)
+            p._print_named_block(toplevel)  # type: ignore
+        elif isinstance(toplevel, Region):  # type: ignore
+            p._print_region(toplevel)  # type: ignore
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
 
