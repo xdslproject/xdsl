@@ -14,11 +14,13 @@ TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
 This project includes pytest unit test and llvm-style filecheck tests. They can be executed using to following commands from within the root directory of the project:
 
+```
 # Executes pytests which are located in tests/
 pytest
 
 # Executes filecheck tests
 lit tests/filecheck
+```
 
 ## Formatting
 
