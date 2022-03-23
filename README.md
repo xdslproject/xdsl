@@ -6,7 +6,9 @@ TODO
 
 To install all required dependencies, execute the following command:
 
+```
 pip install -r requirements.txt
+```
 
 TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
