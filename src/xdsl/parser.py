@@ -365,6 +365,9 @@ class Parser:
         self.parse_char(")")
         return res
 
+    def is_valid_name(self, name: str) -> bool:
+        return not name[-1].isnumeric()
+
     def parse_optional_op(self) -> Optional[Operation]:
         results = self.parse_optional_results()
         if results is None:
@@ -388,6 +391,8 @@ class Parser:
             if res[0] in self._ssaValues:
                 raise Exception("SSA value %s is already defined" % res[0])
             self._ssaValues[res[0]] = op.results[idx]
+            if self.is_valid_name(res[0]):
+                self._ssaValues[res[0]].name = res[0]
 
         region = self.parse_optional_region()
         while region is not None:

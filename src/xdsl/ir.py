@@ -64,8 +64,10 @@ class SSAValue(ABC):
     typ: Attribute
     """Each SSA variable is associated to a type."""
 
-    uses: Set[Use] = field(init=False, default_factory=set)
+    uses: Set[Use] = field(init=False, default_factory=set, repr=False)
     """All uses of the value."""
+
+    name: Optional[str] = field(init=False, default=None)
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -105,7 +107,7 @@ class SSAValue(ABC):
         if safe_erase and len(self.uses) != 0:
             raise Exception(
                 "Attempting to delete SSA value that still has uses.")
-        self.replace_by(ErasedSSAValue(self.typ))
+        self.replace_by(ErasedSSAValue(self.typ, self))
 
     def __hash__(self) -> int:
         raise Exception("SSAValue not hashable")
@@ -120,6 +122,10 @@ class OpResult(SSAValue):
 
     result_index: int
     """The index of the result in the defining operation."""
+
+    def __repr__(self) -> str:
+        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
+            f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}, name={repr(self.name)})"
 
     def __eq__(self, other: object):
         return self is other
@@ -138,6 +144,15 @@ class BlockArgument(SSAValue):
     index: int
     """The index of the variable in the block arguments."""
 
+    def __repr__(self) -> str:
+        if isinstance(self.block, Block):
+            block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
+        else:
+            block_repr = repr(self.block)
+        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
+            f", block={block_repr}," \
+            " index={repr(self.index)}"
+
     def __eq__(self, other: object):
         return self is other
 
@@ -151,6 +166,8 @@ class ErasedSSAValue(SSAValue):
     An erased SSA variable.
     This is used during transformations when a SSA variable is destroyed but still used.
     """
+
+    old_value: SSAValue
 
     def __hash__(self) -> int:
         return hash(id(self))
@@ -234,8 +251,17 @@ class Operation:
     regions: List[Region] = field(default_factory=list)
     """Regions arguments of the operation."""
 
-    parent: Optional[Block] = field(default=None)
+    parent: Optional[Block] = field(default=None, repr=False)
     """The block containing this operation."""
+
+    def parent_block(self) -> Optional[Block]:
+        return self.parent
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent.parent if self.parent else None
 
     irdl_operand_defs: List[Tuple[str, OperandDef]] = []
     irdl_result_defs: List[Tuple[str, ResultDef]] = []
@@ -302,12 +328,12 @@ class Operation:
                                            attributes, successors, regions)
 
     @classmethod
-    def build(cls: Type[OperationType],
-              operands: List[SSAValue] = [],
-              result_types: List[Attribute] = [],
-              attributes: Dict[str, Attribute] = {},
-              successors: List[Block] = [],
-              regions: List[Region] = []) -> OperationType:
+    def build(cls: typing.Type[OperationType],
+              operands: Optional[List[SSAValue]] = None,
+              result_types: Optional[List[Attribute]] = None,
+              attributes: Optional[Dict[str, Attribute]] = None,
+              successors: Optional[List[Block]] = None,
+              regions: Optional[List[Region]] = None) -> OperationType:
         """Create a new operation using builders."""
         ...
 
@@ -418,8 +444,20 @@ class Block:
     ops: List[Operation] = field(default_factory=list, init=False)
     """Ordered operations contained in the block."""
 
-    parent: Optional[Region] = field(default=None, init=False)
+    parent: Optional[Region] = field(default=None, init=False, repr=False)
     """Parent region containing the block."""
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent.parent if self.parent else None
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent
+
+    def parent_block(self) -> Optional[Block]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
+
+    def __repr__(self) -> str:
+        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
     @property
     def args(self) -> FrozenList[BlockArgument]:
@@ -525,8 +563,10 @@ class Block:
         for op in ops:
             self.add_op(op)
 
-    def insert_op(self, ops: Union[Operation, List[Operation]],
-                  index: int) -> None:
+    def insert_op(self,
+                  ops: Union[Operation, List[Operation]],
+                  index: int,
+                  name: Optional[str] = None) -> None:
         """
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
@@ -537,6 +577,10 @@ class Block:
             )
         if not isinstance(ops, list):
             ops = [ops]
+        if name:
+            for curr_op in ops:
+                for res in curr_op.results:
+                    res.name = name
         for op in ops:
             self._attach_op(op)
         self.ops = self.ops[:index] + ops + self.ops[index:]
@@ -583,6 +627,10 @@ class Block:
 
     def verify(self) -> None:
         for operation in self.ops:
+            if operation.parent != self:
+                raise Exception(
+                    "Parent pointer of operation does not refer to containing region"
+                )
             operation.verify()
 
     def drop_all_references(self) -> None:
@@ -624,8 +672,20 @@ class Region:
     blocks: List[Block] = field(default_factory=list, init=False)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Optional[Operation] = field(default=None, init=False)
+    parent: Optional[Operation] = field(default=None, init=False, repr=False)
     """Operation containing the region."""
+
+    def parent_block(self) -> Optional[Block]:
+        return self.parent.parent if self.parent else None
+
+    def parent_op(self) -> Optional[Operation]:
+        return self.parent
+
+    def parent_region(self) -> Optional[Region]:
+        return self.parent.parent.parent if self.parent and self.parent.parent else None
+
+    def __repr__(self) -> str:
+        return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
     def from_operation_list(ops: List[Operation]) -> Region:
@@ -679,10 +739,69 @@ class Region:
                              "for single-operation single-block regions.")
         return self.blocks[0].ops[0]
 
+    def _attach_block(self, block: Block) -> None:
+        """Attach a block to the region, and check that it has no parents."""
+        if block.parent is not None:
+            raise ValueError(
+                "Can't add to a region a block already attached to a region.")
+        if block.is_ancestor(self):
+            raise ValueError(
+                "Can't add a block to a region contained in the block.")
+        block.parent = self
+
     def add_block(self, block: Block) -> None:
         """Add a block to the region."""
+        self._attach_block(block)
         self.blocks.append(block)
-        block.parent = self
+
+    def insert_block(self, blocks: Union[Block, List[Block]],
+                     index: int) -> None:
+        """
+        Insert one or multiple blocks at a given index in the region.
+        The blocks should not be attached to another region.
+        """
+        if index < 0 or index > len(self.blocks):
+            raise ValueError(
+                f"Can't insert block in index {index} in a block with {len(self.blocks)} blocks."
+            )
+        if not isinstance(blocks, list):
+            blocks = [blocks]
+        for block in blocks:
+            self._attach_block(block)
+        self.blocks = self.blocks[:index] + blocks + self.blocks[index:]
+
+    def get_block_index(self, block: Block) -> int:
+        """Get the block position in a region."""
+        if block.parent is not self:
+            raise Exception("Block is not a child of the region.")
+        for idx, region_block in enumerate(self.blocks):
+            if region_block is block:
+                return idx
+        assert False, "Unexpected xdsl error"
+
+    def detach_block(self, block: Union[int, Block]) -> Block:
+        """
+        Detach a block from the region.
+        Returns the detached block.
+        """
+        if isinstance(block, Block):
+            block_idx = self.get_block_index(block)
+        else:
+            block_idx = block
+            op = self.blocks[block_idx]
+        if block.parent is not self:
+            raise Exception("Cannot detach block from a different region.")
+        block.parent = None
+        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
+        return block
+
+    def erase_block(self, block: Union[int, Block], safe_erase=True) -> None:
+        """
+        Erase a block from the region.
+        If safe_erase is True, check that the block has no uses.
+        """
+        block = self.detach_block(block)
+        block.erase(safe_erase=safe_erase)
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the region."""
@@ -692,6 +811,10 @@ class Region:
     def verify(self) -> None:
         for block in self.blocks:
             block.verify()
+            if block.parent != self:
+                raise Exception(
+                    "Parent pointer of block does not refer to containing region"
+                )
 
     def drop_all_references(self) -> None:
         """
@@ -713,6 +836,8 @@ class Region:
         """Move the blocks of this region to another region. Leave no blocks in this region."""
         region.blocks = self.blocks
         self.blocks = []
+        for block in region.blocks:
+            block.parent = region
 
     def get_toplevel_object(self) -> Union[Operation, Block, Region]:
         """Get the operation, block, or region ancestor that has no parents."""

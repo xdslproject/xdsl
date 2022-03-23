@@ -10,6 +10,14 @@ import typing
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
 
+from xdsl.diagnostic import Diagnostic
+
+
+def error(op: Operation, msg: str):
+    diag = Diagnostic()
+    diag.add_message(op, msg)
+    diag.raise_exception(f"{op.name} operation does not verify", op)
+
 
 @dataclass
 class AttrConstraint(ABC):
@@ -379,7 +387,14 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
                 operand_def.constr.verify(op.operands[current_operand].typ)
                 current_operand += 1
         else:
-            operand_def.constr.verify(op.operands[current_operand].typ)
+            try:
+                operand_def.constr.verify(op.operands[current_operand].typ)
+            except Exception as e:
+                error(
+                    op,
+                    f"Operand {operand_name} at operand position {current_operand} (counted from zero) does not verify!\n{e}"
+                )
+
             current_operand += 1
 
     # Verify results
