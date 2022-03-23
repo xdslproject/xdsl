@@ -1,15 +1,15 @@
 // RUN: ../../src/xdsl/xdsl_opt.py -f %s | ../../src/xdsl/xdsl_opt.py | filecheck %s
 
 module() {
-  builtin.func() ["sym_name" = "\"", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-  builtin.func() ["sym_name" = "\n", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-  builtin.func() ["sym_name" = "\t", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-  builtin.func() ["sym_name" = "\\", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-  builtin.func() ["sym_name" = "\r", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  func.func() ["sym_name" = "\"", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  func.func() ["sym_name" = "\n", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  func.func() ["sym_name" = "\t", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  func.func() ["sym_name" = "\\", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+  func.func() ["sym_name" = "\r", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
 }
 
-// CHECK: builtin.func() ["sym_name" = "\"", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-// CHECK-NEXT: builtin.func() ["sym_name" = "\n", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-// CHECK-NEXT: builtin.func() ["sym_name" = "\t", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-// CHECK-NEXT: builtin.func() ["sym_name" = "\\", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
-// CHECK-NEXT: builtin.func() ["sym_name" = "\r", "type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK: func.func() ["sym_name" = "\"", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: func.func() ["sym_name" = "\n", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: func.func() ["sym_name" = "\t", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: func.func() ["sym_name" = "\\", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
+// CHECK-NEXT: func.func() ["sym_name" = "\r", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}

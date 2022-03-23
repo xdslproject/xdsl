@@ -5,7 +5,7 @@ import sys
 from xdsl.ir import *
 from xdsl.parser import *
 from xdsl.printer import *
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.scf import *
 from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
@@ -22,7 +22,7 @@ arg_parser.add_argument("-f",
 def __main__(input_str: str):
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     affine = Affine(ctx)
     scf = Scf(ctx)

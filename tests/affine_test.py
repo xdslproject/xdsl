@@ -1,11 +1,11 @@
 from xdsl.dialects.builtin import *
-from xdsl.dialects.std import *
+from xdsl.dialects.func import *
 from xdsl.dialects.arith import *
 from xdsl.printer import Printer
 from xdsl.dialects.affine import *
 
 
-def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
+def get_example_affine_program(ctx: MLContext, builtin: Builtin, func: Func,
                                affine: Affine) -> Operation:
 
     def affine_mm(arg0: BlockArgument, arg1: BlockArgument,
@@ -35,7 +35,7 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, std: Std,
 def test_affine():
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    std = Func(ctx)
     arith = Arith(ctx)
     affine = Affine(ctx)
 
