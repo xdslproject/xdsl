@@ -35,7 +35,7 @@ def get_example_affine_program(ctx: MLContext, builtin: Builtin, func: Func,
 def test_affine():
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Func(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     affine = Affine(ctx)
 
@@ -43,7 +43,7 @@ def test_affine():
     ctx.register_op(test_empty)
     op = test_empty()
 
-    f = get_example_affine_program(ctx, builtin, std, affine)
+    f = get_example_affine_program(ctx, builtin, func, affine)
     f.verify()
     printer = Printer()
     printer.print_op(f)
