@@ -34,6 +34,7 @@ mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --conve
 ```
 
 The generated `tmp.ll` file contains LLVMIR, so it can be directly passed to a compiler like clang.
+Notice that a `main` function is required for clang to build. Refer to `tests/filecheck/arith_ops.test` for an example.
 
 
 ## Formatting
