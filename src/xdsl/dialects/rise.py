@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from xdsl.printer import Printer
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
@@ -18,6 +18,7 @@ class Rise:
         self.ctx.register_attr(ScalarType)
         self.ctx.register_attr(TupleType)
         self.ctx.register_attr(FunType)
+
         self.ctx.register_op(In)
         self.ctx.register_op(Fst)
         self.ctx.register_op(Snd)
@@ -27,6 +28,10 @@ class Rise:
         self.ctx.register_op(Reduce)
         self.ctx.register_op(Lambda)
         self.ctx.register_op(Apply)
+        self.ctx.register_op(Embed)
+        self.ctx.register_op(Return)
+        self.ctx.register_op(Literal)
+        self.ctx.register_op(LoweringUnit)
 
     def nat(self, value: int) -> NatAttr:
         return NatAttr.from_int(value)
@@ -365,8 +370,15 @@ class LoweringUnit(Operation):
 
 
 @dataclass
-class RiseDSL:
+class RiseBuilder:
     ctx: MLContext
+    # insertion_point: Tuple[Block, int] = (None, 0)
+    current_block: Block = None
+
+    def _attach(self, op):
+        if self.current_block is None:
+            return
+        self.current_block.insert_op(op, len(self.current_block.ops))
 
     def getSSAValue(self, opList) -> SSAValue:
         # last op in the list is the one we want. usually the apply
@@ -393,18 +405,24 @@ class RiseDSL:
         return FunType.from_types(left, right)
 
     def inOp(self, value: Union[Operation, SSAValue],
-             type: DataType) -> list(Operation):
-        return In.create([self.getSSAValue(value)], [type], {"type": type})
+             type: DataType) -> Operation:
+        op = In.create([self.getSSAValue(value)], [type], {"type": type})
+        self._attach(op)
+        return op
 
     def out(self, input: Union[Operation, SSAValue],
-            output: Union[Operation, SSAValue]) -> list(Operation):
-        return Out.create([self.getSSAValue(input), self.getSSAValue(output)])
+            output: Union[Operation, SSAValue]) -> Operation:
+        op = Out.create([self.getSSAValue(input), self.getSSAValue(output)])
+        self._attach(op)
+        return op
 
     def apply(self, fun: Union[Operation, SSAValue],
               *args: Union[Operation, SSAValue]) -> Operation:
-        return Apply.create(
+        op = Apply.create(
             [self.getSSAValue(fun), *[self.getSSAValue(arg) for arg in args]],
             [self.getSSAValue(fun).typ.get_output_recursive()])
+        self._attach(op)
+        return op
 
     def zip(self, left: Union[Operation, SSAValue],
             right: Union[Operation, SSAValue]) -> Operation:
@@ -431,8 +449,9 @@ class RiseDSL:
                              "s": s,
                              "t": t
                          })
-        retVal = [zip, self.apply(zip, left, right)]
-        return retVal
+        self._attach(zip)
+        apply = self.apply(zip, left, right)
+        return [zip, apply]
 
     def tupleOp(self, left: Union[Operation, SSAValue],
                 right: Union[Operation, SSAValue]) -> list(Operation):
@@ -450,7 +469,9 @@ class RiseDSL:
                 "s": s,
                 "t": t
             })
-        return [tuple, self.apply(tuple, left, right)]
+        self._attach(tuple)
+        apply = self.apply(tuple, left, right)
+        return [tuple, apply]
 
     def fst(self, value: Union[Operation, SSAValue]) -> list(Operation):
         assert (isinstance(value.typ, TupleType))
@@ -463,7 +484,9 @@ class RiseDSL:
                              "s": s,
                              "t": t
                          })
-        return [fst, self.apply(fst, value)]
+        self._attach(fst)
+        apply = self.apply(fst, value)
+        return [fst, apply]
 
     def snd(self, value: Union[Operation, SSAValue]) -> list(Operation):
         assert (isinstance(value.typ, TupleType))
@@ -476,7 +499,9 @@ class RiseDSL:
                              "s": s,
                              "t": t
                          })
-        return [snd, self.apply(snd, value)]
+        self._attach(snd)
+        apply = self.apply(snd, value)
+        return [snd, apply]
 
     def map(self, _lambda: Union[Operation, SSAValue],
             array: Union[Operation, SSAValue]) -> list(Operation):
@@ -499,17 +524,21 @@ class RiseDSL:
                              "s": s,
                              "t": t
                          })
-        return [map, self.apply(map, _lambda, array)]
+        self._attach(map)
+        apply = self.apply(map, _lambda, array)
+        return [_lambda, map, apply]
 
-    def reduce(self, init: Union[Operation, SSAValue], array: Union[Operation,
-                                                                    SSAValue],
-               block: Block) -> list(Operation):
+    def reduce(
+        self, init: Union[Operation, SSAValue],
+        array: Union[Operation, SSAValue], lambda_arg_types: List[Attribute],
+        body: Callable[[BlockArgument, ...],
+                       List[Operation]]) -> list(Operation):
         init = self.getSSAValue(init)
         array = self.getSSAValue(array)
         assert (isinstance(array.typ, ArrayType))
         n = array.typ.size
         s = array.typ.elemType
-        _lambda = self._lambda(block)
+        _lambda = self._lambda(lambda_arg_types, body)
         t = self.getSSAValue(_lambda).typ.get_output_recursive()
         reduce = Reduce.create([],
                                result_types=[
@@ -523,32 +552,65 @@ class RiseDSL:
                                    "s": s,
                                    "t": t
                                })
-        return [_lambda, reduce, self.apply(reduce, _lambda, init, array)]
+        self._attach(reduce)
+        apply = self.apply(reduce, _lambda, init, array)
+        return [_lambda, reduce, apply]
 
-    def _lambda(self, block: Block) -> Operation:
+    def _lambda(
+            self, lambda_arg_types: List[Attribute],
+            body: Callable[[BlockArgument, ...],
+                           List[Operation]]) -> Operation:
+        saveCurrentBlock = self.current_block
+        block = Block.from_arg_types(lambda_arg_types)
+        self.current_block = block
+        body(*block.args)
+        self.current_block = saveCurrentBlock
+
         # build type of lambda
         assert (isinstance(block.ops[-1], Return))
         type = SSAValue.get(block.ops[-1].operands[0]).typ
         for arg in reversed(block.args):
             type = FunType.from_types(arg.typ, type)
-        return Lambda.create([], [type], [], [],
-                             regions=[Region.from_block_list([block])])
+        lambdaOp = Lambda.create([], [type], [], [],
+                                 regions=[Region.from_block_list([block])])
+        self._attach(lambdaOp)
+
+        return lambdaOp
 
     def embed(self, *args: Union[Operation, SSAValue], resultType: Attribute,
               block: Block) -> Operation:
         # assert (len(block.args) == args.count)
-        return Embed.create([self.getSSAValue(arg) for arg in args],
-                            [resultType], [], [],
-                            regions=[Region.from_block_list([block])])
+        embedOp = Embed.create([self.getSSAValue(arg) for arg in args],
+                               [resultType], [], [],
+                               regions=[Region.from_block_list([block])])
+        self._attach(embedOp)
+        return embedOp
 
     def _return(self, value: Union[Operation, SSAValue]) -> Operation:
-        return Return.create([value.results[0]])
+        returnOp = Return.create([value.results[0]])
+        self._attach(returnOp)
+        return returnOp
 
     # to do this properly the float additions in the open PR are required
-    def literal(self, value: int, type: Attribute):
-        return Literal.create([], [f32],
-                              {"value": IntegerAttr.from_params(value, type)})
+    def literal(self, value: int, type: Attribute) -> Operation:
+        literalOp = Literal.create(
+            [], [f32], {"value": IntegerAttr.from_params(value, type)})
+        self._attach(literalOp)
+        return literalOp
 
-    def lowering_unit(self, region: Block) -> Operation:
-        return LoweringUnit.create([], [], [], [],
-                                   regions=[Region.from_block_list([region])])
+    def lowering_unit(
+            self, body: Callable[[BlockArgument, ...],
+                                 List[Operation]]) -> Operation:
+        flatten_list = lambda irregular_list: [
+            element for item in irregular_list
+            for element in Block.flatten_list(item)
+        ] if type(irregular_list) is list else [irregular_list]
+
+        self.current_block = Block.from_arg_types([])
+        body()
+
+        op = LoweringUnit.create(
+            [], [], [], [],
+            regions=[Region.from_block_list([self.current_block])])
+
+        return op

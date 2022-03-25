@@ -19,9 +19,9 @@ def get_rise_dot(ctx: MLContext, builtin: Builtin, std: Std, arith: Arith,
             rise.lowering_unit(Block.from_ops([
                 in0 := rise.inOp(arg0, rise.array(rise.nat(5), rise.scalar(f32))),
                 in1 := rise.inOp(arg1, rise.array(rise.nat(5), rise.scalar(f32))),
+                initializer := rise.literal(0, i32),
                 zipFun := rise.zip(rise.nat(5), rise.scalar(f32), rise.scalar(f32)),
                 zipped := rise.apply(zipFun, in0, in1),
-                initializer := rise.literal(0, i32),
                 reductionLambda := rise._lambda(Block.from_callable([rise.tuple(rise.scalar(f32), rise.scalar(f32)), rise.scalar(f32)], lambda tuple, acc: [
                     fstFun := rise.fst(rise.scalar(f32), rise.scalar(f32)),
                     fst := rise.apply(fstFun, tuple),
@@ -31,7 +31,7 @@ def get_rise_dot(ctx: MLContext, builtin: Builtin, std: Std, arith: Arith,
                     result := rise.embed(fst, snd, acc, resultType=rise.scalar(f32), block=Block.from_callable([f32, f32, f32], lambda f, s, acc: [
                         product := arith.mulf(f, s),
                         result := arith.addf(product, acc),
-                        rise._return(result),
+                        stdReturn.get(result),
                     ])),
                     rise._return(result),
                 ])),
@@ -65,29 +65,24 @@ def test_rise_dot():
 
 
 def get_rise_dsl_dot(ctx: MLContext, builtin: Builtin, std: Std, arith: Arith,
-                     affine: Affine, rise: RiseDSL) -> Operation:
+                     affine: Affine, rise: RiseBuilder) -> Operation:
 
     def fun(arg0: BlockArgument, arg1: BlockArgument,
             arg2: BlockArgument) -> List[Operation]:
         # yapf: disable
         return [
-            rise.lowering_unit(Block.from_op_lists([
+            rise.lowering_unit(lambda: [
                 in0 := rise.inOp(arg0, rise.array(rise.nat(5), rise.scalar(f32))),
                 in1 := rise.inOp(arg1, rise.array(rise.nat(5), rise.scalar(f32))),
-                zipped := rise.zip(in0, in1),
-                initializer := rise.literal(0, i32),
-                reduced := rise.reduce(initializer, zipped, Block.from_callable([rise.tuple(rise.scalar(f32), rise.scalar(f32)), rise.scalar(f32)], lambda tuple, acc: [
-                    fst := rise.fst(tuple),
-                    snd := rise.snd(tuple),
-                    result := rise.embed(fst, snd, acc, resultType=rise.scalar(f32), block=Block.from_callable([f32, f32, f32], lambda f, s, acc: [
+                rise.out(rise.reduce(rise.literal(0, i32), rise.zip(in0, in1), [rise.tuple(rise.scalar(f32), rise.scalar(f32)), rise.scalar(f32)], lambda tuple, acc: [
+                    result := rise.embed(rise.fst(tuple), rise.snd(tuple), acc, resultType=rise.scalar(f32), block=Block.from_callable([f32, f32, f32], lambda f, s, acc: [
                         product := arith.mulf(f, s),
                         result := arith.addf(product, acc),
-                        rise._return(result),
+                        stdReturn.get(result),
                     ])),
                     rise._return(result),
-                ])),
-                rise.out(reduced, arg2)
-            ])),
+                ]), arg2)
+            ]),
             stdReturn.get()
         ]
     # yapf: enable
@@ -104,7 +99,7 @@ def test_rise_dsl_dot():
     builtin = Builtin(ctx)
     std = Std(ctx)
     arith = Arith(ctx)
-    rise = RiseDSL(ctx)
+    rise = RiseBuilder(ctx)
     affine = Affine(ctx)
 
     f = get_rise_dsl_dot(ctx, builtin, std, arith, affine, rise)
@@ -119,7 +114,7 @@ def test_dot_equal():
     std = Std(ctx)
     arith = Arith(ctx)
     rise = Rise(ctx)
-    riseDSL = RiseDSL(ctx)
+    riseDSL = RiseBuilder(ctx)
     affine = Affine(ctx)
 
     dot = get_rise_dot(ctx, builtin, std, arith, affine, rise)

@@ -15,7 +15,7 @@ def test_rise_rewriting_fuse_dot():
     # before
     def get_rise_dsl_dot_unfused(ctx: MLContext, builtin: Builtin, std: Std,
                                  arith: Arith, affine: Affine,
-                                 rise: RiseDSL) -> Operation:
+                                 rise: Rise) -> Operation:
 
         def fun(arg0: BlockArgument, arg1: BlockArgument,
                 arg2: BlockArgument) -> List[Operation]:
@@ -65,7 +65,7 @@ def test_rise_rewriting_fuse_dot():
     # after
     def get_rise_dsl_dot_fused(ctx: MLContext, builtin: Builtin, std: Std,
                                arith: Arith, affine: Affine,
-                               rise: RiseDSL) -> Operation:
+                               rise: Rise) -> Operation:
 
         def fun(arg0: BlockArgument, arg1: BlockArgument,
                 arg2: BlockArgument) -> List[Operation]:
@@ -107,8 +107,9 @@ def test_rise_rewriting_fuse_dot():
     @dataclass
     class FuseReduceMap(RewritePattern):
         rise: Rise
-        rise_dsl: RiseDSL
+        rise_dsl: RiseBuilder
 
+        # def match_and_rewrite(self, op: Operation) -> RewriteResult[List[Operation] ~ Program]:
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(applyReduce := op, Apply) and isinstance(
                     reduceFun := applyReduce.fun.op,
@@ -120,17 +121,19 @@ def test_rise_rewriting_fuse_dot():
                                 Map) and (mapLambda :=
                                           applyMap.args[0].op) and (
                                               mapInput := applyMap.args[1].op):
+                #TODO: return this
 
-                newReduceApply = rise_dsl.reduce(
-                    initializer, mapInput,
-                    Block.from_callable(
-                        [mapFun.s, reduceFun.t], lambda tuple, acc: [
-                            mapped := rise.apply(mapLambda, tuple),
-                            result := rise.apply(reduceLambda, mapped, acc),
-                            rise._return(result),
-                        ]))
+                result = rise_dsl.reduce(
+                    initializer, mapInput, [mapFun.s, reduceFun.t],
+                    lambda tuple, acc: [
+                        mapped := rise_dsl.apply(mapLambda, tuple),
+                        result := rise_dsl.apply(reduceLambda, mapped, acc),
+                        rise_dsl._return(result),
+                    ])
 
-                rewriter.replace_matched_op(newReduceApply)
+                rewriter.replace_matched_op(result)
+
+                #TODO: garbage collect
                 rewriter.erase_op(reduceFun)
                 rewriter.erase_op(applyMap)
                 rewriter.erase_op(mapFun)
@@ -138,7 +141,7 @@ def test_rise_rewriting_fuse_dot():
     @dataclass
     class BetaReduction(RewritePattern):
         rise: Rise
-        rise_dsl: RiseDSL
+        rise_dsl: RiseBuilder
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(lambdaApply := op, Apply) and isinstance(
@@ -162,11 +165,12 @@ def test_rise_rewriting_fuse_dot():
     @dataclass
     class FuseEmbeds(RewritePattern):
         rise: Rise
-        rise_dsl: RiseDSL
+        rise_dsl: RiseBuilder
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(secondEmbed := op, Embed) and any(
-                    isinstance(firstEmbed := arg.op, Embed)
+                    isinstance(arg, OpResult)
+                    and isinstance(firstEmbed := arg.op, Embed)
                     and len(firstEmbed.results[0].uses) == 1
                     for arg in op.operands):
                 print("performing fusion of two Embed operations")
@@ -226,7 +230,7 @@ def test_rise_rewriting_fuse_dot():
     std = Std(ctx)
     arith = Arith(ctx)
     rise = Rise(ctx)
-    rise_dsl = RiseDSL(ctx)
+    rise_dsl = RiseBuilder(ctx)
     affine = Affine(ctx)
 
     unfused = get_rise_dsl_dot_unfused(ctx, builtin, std, arith, affine, rise)
