@@ -12,6 +12,7 @@ from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
+from xdsl.dialects.cf import *
 
 
 class xDSLOptMain:
@@ -30,6 +31,7 @@ class xDSLOptMain:
         memref = MemRef(self.ctx)
         affine = Affine(self.ctx)
         scf = Scf(self.ctx)
+        cf = Cf(self.ctx)
 
     def parse_frontend(self) -> ModuleOp:
         """Parse the input file."""
