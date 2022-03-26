@@ -12,10 +12,12 @@ module() {
 
   func.func() ["sym_name" = "call_void", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     func.call() ["callee" = @call_void]
+    func.return()
   }
 
   // CHECK: func.func() ["sym_name" = "call_void", 
-  // CHECK-NEXT:   func.call() ["callee" = @call_void]
+  // CHECK-NEXT:  func.call() ["callee" = @call_void]
+  // CHECK-NEXT:  func.return()
   // CHECK-NEXT:}
 
   func.func() ["sym_name" = "arg_rec", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
