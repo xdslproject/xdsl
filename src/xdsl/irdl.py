@@ -298,14 +298,9 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
         variadic_sizes = [
             size_attr.value.data for size_attr in attribute.data.data
         ]
-        if len(variadic_sizes) != len(variadic_defs):
+        if len(variadic_sizes) != len(operand_or_result_defs):
             raise Exception(
-                f"expected {len(variadic_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
-            )
-        if len(operand_or_result_defs) - len(variadic_defs) + sum(
-                variadic_sizes) != len(op_defs):
-            raise Exception(
-                f"{size_attribute_name} values does not correspond to variadic arguments sizes."
+                f"expected {len(operand_or_result_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
             )
         return variadic_sizes
 
@@ -520,19 +515,15 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in options:
         sizes = [
-            len(operand)
+            (len(operand) if isinstance(operand_def, VarOperandDef) else 1)
             for operand, (_, operand_def) in zip(operands, operand_defs)
-            if isinstance(operand_def, VarOperandDef)
         ]
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in options:
-        sizes = [
-            len(result)
-            for result, (_, result_def) in zip(res_types, res_defs)
-            if isinstance(result_def, VarResultDef)
-        ]
+        sizes = [(len(result) if isinstance(result_def, VarResultDef) else 1)
+                 for result, (_, result_def) in zip(res_types, res_defs)]
         built_attributes[AttrSizedResultSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 

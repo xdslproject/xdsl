@@ -103,6 +103,34 @@ def test_two_var_result_builder2():
 
 
 @irdl_op_definition
+class MixedResultOp(Operation):
+    name: str = "test.mixed"
+
+    res1 = VarResultDef(StringAttr)
+    res2 = ResultDef(StringAttr)
+    res3 = VarResultDef(StringAttr)
+    irdl_options = [AttrSizedResultSegments()]
+
+
+def test_two_var_result_builder():
+    op = MixedResultOp.build(result_types=[[0, 1], 2, [3, 4]])
+    op.verify()
+    assert [res.typ for res in op.results] == [
+        StringAttr.from_int(0),
+        StringAttr.from_int(1),
+        StringAttr.from_int(2),
+        StringAttr.from_int(3),
+        StringAttr.from_int(4)
+    ]
+
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
+
+    assert op.attributes[AttrSizedResultSegments.
+                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                             dense_type, [2, 1, 2])
+
+
+@irdl_op_definition
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
