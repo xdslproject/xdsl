@@ -42,7 +42,7 @@ class xDSLOptMain:
             f = open(self.args.input_file, mode='r')
             _, file_extension = os.path.splitext(self.args.input_file)
 
-        if file_extension == '.xdsl' or file_extension == '.test':
+        if file_extension == '.xdsl':
             input_str = f.read()
             parser = Parser(self.ctx, input_str)
             module = parser.parse_op()
