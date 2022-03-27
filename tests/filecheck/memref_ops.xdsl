@@ -2,8 +2,9 @@
 
 module() {
   
+  memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public"]
+
   func.func() ["sym_name" = "memref_test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    memref.global() ["sym_name" = "g", "type" = !index, "initial_value" = 0 : !index, "sym_visibility" = "public"]
     %0 : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
     %1 : !index = arith.constant() ["value" = 0 : !index]
     %2 : !memref<[1 : !index], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
@@ -14,10 +15,11 @@ module() {
     memref.store(%3 : !index, %5 : !memref<[10 : !index, 2 : !index], !index>, %3 : !index, %4 : !index)
     memref.dealloc(%2 : !memref<[1 : !index], !index>)
     memref.dealloc(%5 : !memref<[10 : !index, 2 : !index], !index>)
+    func.return()
   }
 
-  // CHECK: func.func() ["sym_name" = "memref_test"
-  // CHECK-NEXT:  memref.global() ["sym_name" = "g", "type" = !index, "initial_value" = 0 : !index, "sym_visibility" = "public"]
+  // CHECK: memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public"]
+  // CHECK-NEXT: func.func() ["sym_name" = "memref_test"
   // CHECK-NEXT:  %{{.*}} : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
   // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
   // CHECK-NEXT:  %{{.*}} : !memref<[1 : !index], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
@@ -28,5 +30,6 @@ module() {
   // CHECK-NEXT:  memref.store(%{{.*}} : !index, %{{.*}} : !memref<[10 : !index, 2 : !index], !index>, %{{.*}} : !index, %{{.*}} : !index)
   // CHECK-NEXT:  memref.dealloc(%{{.*}} : !memref<[1 : !index], !index>)
   // CHECK-NEXT:  memref.dealloc(%{{.*}} : !memref<[10 : !index, 2 : !index], !index>)
+  // CHECK-NEXT:  func.return()
 
 }

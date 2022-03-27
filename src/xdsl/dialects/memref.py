@@ -201,11 +201,20 @@ class Global(Operation):
     sym_visibility = AttributeDef(StringAttr)
     type = AttributeDef(AnyAttr())
 
-    # TODO should be optional
-    initial_value = AttributeDef(AnyAttr())
+    initial_value = OptAttributeDef(AnyAttr())
 
     # TODO how do we represent these in MLIR-Lite
     # constant = AttributeDef(UnitAttr)
+
+    def verify_(self) -> None:
+        if not isinstance(self.type, MemRefType):
+            raise Exception("Global expects a MemRefType")
+
+        if self.initial_value and not isinstance(self.initial_value,
+                                                 DenseIntOrFPElementsAttr):
+            raise Exception(
+                "Global expects an initial value with type DenseIntOrFPElementsAttr"
+            )
 
     @staticmethod
     def get(sym_name: Union[str, StringAttr],
