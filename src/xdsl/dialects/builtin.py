@@ -186,7 +186,7 @@ class ArrayOfConstraint(AttrConstraint):
     """
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Union[Attribute, typing.Type[Attribute],
+    def __init__(self, constr: Union[Attribute, Type[Attribute],
                                      AttrConstraint]):
         self.elem_constr = attr_constr_coercion(constr)
 
