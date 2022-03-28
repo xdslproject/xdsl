@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from typing import Any, Callable, List, Dict, Protocol, Sequence, Tuple, Optional, Union, TypeVar, cast, Type, get_type_hints
 from inspect import isclass
+from functools import partial
 
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
@@ -536,7 +537,6 @@ def irdl_op_builder(cls: Type[OpT], operands: Union[List[SSAValue],
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in options:
-        # <<<<<<< HEAD
         sizes: List[int] = []
         for result, (_, result_def) in zip(res_types, res_defs):
             if isinstance(result_def, VarResultDef):
@@ -593,8 +593,11 @@ def irdl_op_definition(cls: Type[OperationType]) -> Type[OperationType]:
     # Add operand access fields
     previous_variadics = 0
     for operand_idx, (operand_name, operand_def) in enumerate(operand_defs):
-        new_attrs[operand_name] = property(lambda self: get_operand_or_result(
-            self, operand_idx, previous_variadics, True))
+        new_attrs[operand_name] = property(
+            partial(get_operand_or_result,
+                    arg_def_idx=operand_idx,
+                    previous_var_args=previous_variadics,
+                    is_operand=True))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
@@ -605,8 +608,11 @@ def irdl_op_definition(cls: Type[OperationType]) -> Type[OperationType]:
     # Add result access fields
     previous_variadics = 0
     for result_idx, (result_name, result_def) in enumerate(result_defs):
-        new_attrs[result_name] = property(lambda self: get_operand_or_result(
-            self, result_idx, previous_variadics, False))
+        new_attrs[result_name] = property(
+            partial(get_operand_or_result,
+                    arg_def_idx=result_idx,
+                    previous_var_args=previous_variadics,
+                    is_operand=False))
         if isinstance(result_def, VarResultDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedResultSegments() not in options:
@@ -615,15 +621,17 @@ def irdl_op_definition(cls: Type[OperationType]) -> Type[OperationType]:
 
     for region_idx, (region_name, _) in enumerate(region_defs):
         new_attrs[region_name] = property(
-            lambda self: self.regions[region_idx])
+            partial(lambda idx, self: self.regions[idx], region_idx))
 
     for attribute_name, attr_def in attr_defs:
         if isinstance(attr_def, OptAttributeDef):
             new_attrs[attribute_name] = property(
-                lambda self: self.attributes.get(attribute_name, None))
+                partial(lambda name, self: self.attributes.get(name, None),
+                        attribute_name))
         else:
             new_attrs[attribute_name] = property(
-                lambda self: self.attributes[attribute_name])
+                partial(lambda name, self: self.attributes[name],
+                        attribute_name))
 
     new_attrs["irdl_operand_defs"] = operand_defs
     new_attrs["irdl_result_defs"] = result_defs
@@ -642,10 +650,7 @@ def irdl_op_definition(cls: Type[OperationType]) -> Type[OperationType]:
             verifier(op)
             custom_verifier(op)
 
-        def verify_(op: Operation):
-            new_verifier(new_attrs["verify_"], op)
-
-        new_attrs["verify_"] = verify_
+        new_attrs["verify_"] = partial(new_verifier, new_attrs["verify_"])
 
     def builder(cls: Type[OpT],
                 operands: Optional[List[SSAValue]] = None,
@@ -785,10 +790,10 @@ def irdl_param_attr_definition(
         field_ = cls.__dict__[field_name]
         if isinstance(field_, ParameterDef):
 
-            def property_def(attr: ParametrizedAttribute):
-                attr.parameters[len(parameters)]
+            new_attrs[field_name] = property(
+                partial(lambda idx, self: self.parameters[idx],
+                        len(parameters)))
 
-            new_attrs[field_name] = property(property_def)
             parameters.append(field_)
 
     def verify(attr: ParametrizedAttribute):
@@ -804,10 +809,7 @@ def irdl_param_attr_definition(
             verifier(attr)
             custom_verifier(attr)
 
-        def verify(attr: ParametrizedAttribute):
-            new_verifier(new_attrs["verify"], attr)
-
-        new_attrs["verify"] = verify
+        new_attrs["verify"] = partial(new_verifier, new_attrs["verify"])
 
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:

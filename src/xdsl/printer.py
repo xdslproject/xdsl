@@ -3,6 +3,7 @@ from xdsl.dialects.builtin import *
 from xdsl.diagnostic import *
 from typing import TypeVar
 from dataclasses import dataclass
+from functools import partial
 
 indentNumSpaces = 2
 
@@ -41,8 +42,11 @@ class Printer:
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        self._next_line_callback.append(lambda: self._print_message(
-            message, begin_pos, end_pos, self._indent))
+
+        def callback(indent: int) -> None:
+            self._print_message(message, begin_pos, end_pos, indent)
+
+        self._next_line_callback.append(partial(callback, self._indent))
 
     def _print_message(self,
                        message: str,
