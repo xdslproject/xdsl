@@ -92,10 +92,13 @@ class Parser:
         return res
 
     def parse_optional_int_literal(self) -> Optional[int]:
+        is_negative = self.parse_optional_char("-")
         res = self.parse_while(lambda char: char.isnumeric())
         if len(res) == 0:
+            if is_negative is not None:
+                raise Exception("int literal expected")
             return None
-        return int(res)
+        return int(res) if is_negative is None else -int(res)
 
     def parse_int_literal(self) -> int:
         res = self.parse_optional_int_literal()

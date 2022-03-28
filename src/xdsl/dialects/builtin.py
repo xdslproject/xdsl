@@ -31,7 +31,6 @@ class Builtin:
         self.ctx.register_attr(IndexType)
 
         self.ctx.register_op(ModuleOp)
-        self.ctx.register_op(FuncOp)
 
 
 @irdl_attr_definition

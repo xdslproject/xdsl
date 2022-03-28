@@ -3,7 +3,6 @@ from xdsl.dialects.scf import Scf, If
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64
 from xdsl.parser import Parser
-from xdsl.dialects.std import Std
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import *
@@ -14,7 +13,6 @@ def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
 
@@ -447,7 +445,6 @@ def test_operation_deletion_failure():
 
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
     arith = Arith(ctx)
 
     prog = \

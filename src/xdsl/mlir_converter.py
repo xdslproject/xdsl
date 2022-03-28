@@ -85,10 +85,15 @@ class MLIRConverter:
             for name, attr in op.attributes.items()
         }
 
+        successors = [
+            self.block_to_mlir_blocks[succ] for succ in op.successors
+        ]
+
         mlir_op = mlir.ir.Operation.create(op.name,
                                            results=result_types,
                                            operands=operands,
                                            attributes=attributes,
+                                           successors=successors,
                                            regions=len(op.regions))
         self.op_to_mlir_ops[op] = mlir_op
 
@@ -113,6 +118,9 @@ class MLIRConverter:
             ]
             mlir_block = mlir_region.blocks.append(*mlir_block_args)
             self.block_to_mlir_blocks[block] = mlir_block
+
+        for block in region.blocks:
+            mlir_block = self.block_to_mlir_blocks[block]
             self.convert_block(block, mlir_block)
 
     def convert_module(self, op: Operation) -> mlir.ir.Module:
