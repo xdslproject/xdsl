@@ -1,4 +1,4 @@
-// RUN: xdsl_opt.py %s | xdsl_opt.py | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 module() {
   func.func() ["sym_name" = "if", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {

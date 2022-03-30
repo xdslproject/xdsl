@@ -1,4 +1,4 @@
-// RUN: xdsl_opt.py -t mlir %s | filecheck %s
+// RUN: xdsl-opt -t mlir %s | filecheck %s
 
 // Tests if the non generic form can be printed.
 
