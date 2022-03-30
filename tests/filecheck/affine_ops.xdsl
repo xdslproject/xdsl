@@ -1,4 +1,4 @@
-// RUN: xdsl_opt.py %s | xdsl_opt.py | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 module() {
 
