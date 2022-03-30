@@ -22,9 +22,9 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_parsers: Dict[str, Callable[[IOBase], ModuleOp]] = {}
+    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
-    A mapping from file extension to a parser that can handle this 
+    A mapping from file extension to a frontend that can handle this 
     file type.
     """
 
@@ -45,7 +45,7 @@ class xDSLOptMain:
     def __init__(self, description='xDSL modular optimizer driver'):
         self.ctx = MLContext()
         self.register_all_dialects()
-        self.register_all_parsers()
+        self.register_all_frontends()
         self.register_all_passes()
         self.register_all_targets()
 
@@ -75,6 +75,17 @@ class xDSLOptMain:
                                 choices=targets,
                                 help="target",
                                 default="xdsl")
+
+        frontends = [name for name in self.available_frontends]
+        arg_parser.add_argument(
+            "-f",
+            "--frontend",
+            type=str,
+            required=False,
+            choices=frontends,
+            help=
+            f"Frontend to be used for the input. If not set, the xdsl frontend "
+            "or the one for the file extension is used.")
 
         arg_parser.add_argument("--disable-verify",
                                 default=False,
@@ -114,11 +125,11 @@ class xDSLOptMain:
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
 
-    def register_all_parsers(self):
+    def register_all_frontends(self):
         """
-        Register all parsers that can be used.
+        Register all frontends that can be used.
 
-        Add other/additional parsers by overloading this function.
+        Add other/additional frontends by overloading this function.
         """
 
         def parse_xdsl(f: IOBase):
@@ -132,7 +143,7 @@ class xDSLOptMain:
                     "Expected module or program as toplevel operation")
             return module
 
-        self.available_parsers['.xdsl'] = parse_xdsl
+        self.available_frontends['xdsl'] = parse_xdsl
 
     def register_all_passes(self):
         """
@@ -183,22 +194,27 @@ class xDSLOptMain:
         self.pipeline = [(p, lambda op, p=p: self.available_passes[p]
                           (self.ctx, op)) for p in pipeline]
 
-    # TODO: should we extend this to support a parser flag?
     def parse_input(self) -> ModuleOp:
         """
-        Parse the input file by invoking the parser registered for this file extension
+        Parse the input file by invoking the parser specified by the `parser` 
+        argument. If not set, the parser registered for this file extension 
+        is used.
         """
         if self.args.input_file is None:
             f = sys.stdin
-            file_extension = '.xdsl'
+            file_extension = 'xdsl'
         else:
             f = open(self.args.input_file, mode='r')
             _, file_extension = os.path.splitext(self.args.input_file)
+            file_extension = file_extension.replace(".", "")
 
-        if file_extension not in self.available_parsers:
+        if self.args.frontend is not None:
+            file_extension = self.args.frontend
+
+        if file_extension not in self.available_frontends:
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        return self.available_parsers[file_extension](f)
+        return self.available_frontends[file_extension](f)
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
