@@ -56,6 +56,23 @@ class xDSLOptMain:
 
         self.setup_pipeline()
 
+    def run(self):
+        """
+        Executes the different steps.
+        """
+        module = self.parse_input()
+        if not self.args.verify_diagnostics:
+            self.apply_passes(module)
+        else:
+            try:
+                self.apply_passes(module)
+            except DiagnosticException as e:
+                print(e)
+                exit(0)
+
+        contents = self.output_resulting_program(module)
+        self.print_to_output_stream(contents)
+
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
         Registers all the command line arguments that are used by this tool.
@@ -111,6 +128,12 @@ class xDSLOptMain:
                                 action='store_true',
                                 help="Print the IR between each pass")
 
+        arg_parser.add_argument("--verify-diagnostics",
+                                default=False,
+                                action='store_true',
+                                help="Prints the content of a triggered "
+                                "exception and exits with code 0")
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -136,8 +159,6 @@ class xDSLOptMain:
             input_str = f.read()
             parser = Parser(self.ctx, input_str)
             module = parser.parse_op()
-            if not self.args.disable_verify:
-                module.verify()
             if not (isinstance(module, ModuleOp)):
                 raise Exception(
                     "Expected module or program as toplevel operation")

@@ -6,6 +6,10 @@ from xdsl.ir import Block, Operation, Region
 from io import StringIO
 
 
+class DiagnosticException(Exception):
+    ...
+
+
 @dataclass
 class Diagnostic:
     op_messages: Dict[Operation, List[str]] = field(default_factory=dict)
@@ -17,7 +21,7 @@ class Diagnostic:
     def raise_exception(self,
                         message,
                         ir: Union[Operation, Block, Region],
-                        exception_type=Exception) -> None:
+                        exception_type=DiagnosticException) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
         f = StringIO()
