@@ -60,7 +60,8 @@ class Addi(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -79,7 +80,8 @@ class Muli(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -98,7 +100,8 @@ class Subi(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -117,7 +120,8 @@ class FloorDiviSI(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -136,7 +140,8 @@ class RemSI(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -155,7 +160,8 @@ class AndI(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -174,7 +180,8 @@ class OrI(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -194,7 +201,8 @@ class XOrI(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -230,7 +238,8 @@ class Addf(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -249,7 +258,8 @@ class Mulf(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
-            raise Exception("expect all input and output types to be equal")
+            raise VerifyException(
+                "expect all input and output types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
