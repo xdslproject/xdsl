@@ -10,13 +10,17 @@ import typing
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
 
-from xdsl.diagnostic import Diagnostic
+from xdsl.diagnostic import Diagnostic, DiagnosticException
 
 
 def error(op: Operation, msg: str):
     diag = Diagnostic()
     diag.add_message(op, msg)
     diag.raise_exception(f"{op.name} operation does not verify", op)
+
+
+class VerifyException(DiagnosticException):
+    ...
 
 
 @dataclass
@@ -41,7 +45,8 @@ class EqAttrConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         if attr != self.attr:
-            raise Exception(f"Expected attribute {self.attr} but got {attr}")
+            raise VerifyException(
+                f"Expected attribute {self.attr} but got {attr}")
 
 
 @dataclass
@@ -53,7 +58,7 @@ class BaseAttr(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, self.attr):
-            raise Exception(
+            raise VerifyException(
                 f"{attr} should be of base attribute {self.attr.name}")
 
 
@@ -77,7 +82,7 @@ class AnyAttr(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, Attribute):
-            raise Exception(f"Expected attribute, but got {attr}")
+            raise VerifyException(f"Expected attribute, but got {attr}")
 
 
 @dataclass(init=False)
@@ -101,9 +106,9 @@ class AnyOf(AttrConstraint):
             try:
                 attr_constr.verify(attr)
                 return
-            except Exception:
+            except VerifyException:
                 pass
-        raise Exception(f"Unexpected attribute {attr}")
+        raise VerifyException(f"Unexpected attribute {attr}")
 
 
 @dataclass(init=False)
@@ -130,11 +135,11 @@ class ParamAttrConstraint(AttrConstraint):
     def verify(self, attr: Attribute) -> None:
         assert isinstance(attr, ParametrizedAttribute)
         if not isinstance(attr, self.base_attr):
-            raise Exception(
+            raise VerifyException(
                 f"Base attribute {self.base_attr.name} expected, but got {attr.name}"
             )
         if len(self.param_constrs) != len(attr.parameters):
-            raise Exception(
+            raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, but got {len(attr.parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
@@ -287,19 +292,19 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
     if attribute_option in options:
         size_attribute_name = AttrSizedOperandSegments.attribute_name if is_operand else AttrSizedResultSegments.attribute_name
         if size_attribute_name not in op.attributes:
-            raise Exception(
+            raise VerifyException(
                 f"Expected {size_attribute_name} attribute in {op.name} operation."
             )
         attribute = op.attributes[size_attribute_name]
         if not isinstance(attribute, DenseIntOrFPElementsAttr):
-            raise Exception(
+            raise VerifyException(
                 f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
             )
         variadic_sizes = [
             size_attr.value.data for size_attr in attribute.data.data
         ]
         if len(variadic_sizes) != len(operand_or_result_defs):
-            raise Exception(
+            raise VerifyException(
                 f"expected {len(operand_or_result_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
             )
         return variadic_sizes
@@ -307,7 +312,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
     # If there are no variadics arguments, we just check that we have the right number of arguments
     if len(variadic_defs) == 0:
         if len(op_defs) != len(operand_or_result_defs):
-            raise Exception(
+            raise VerifyException(
                 f"Expected {len(operand_or_result_defs)} {'operands' if is_operand else 'results'}, but got {len(op_defs)}"
             )
         return []
@@ -315,7 +320,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
     # If there is a single variadic argument, we can get its size from the number of arguments.
     if len(variadic_defs) == 1:
         if len(op_defs) - len(operand_or_result_defs) + 1 < 0:
-            raise Exception(
+            raise VerifyException(
                 f"Expected at least {len(operand_or_result_defs) - 1} {def_type_name}s, got {len(operand_or_result_defs)}"
             )
         return [len(op_defs) - len(operand_or_result_defs) + 1]
@@ -400,7 +405,7 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
             current_result += 1
 
     if len(regions) != len(op.regions):
-        raise Exception(
+        raise VerifyException(
             f"op has {len(op.regions)} regions, but {len(regions)} were expected"
         )
 
@@ -408,24 +413,24 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
         if isinstance(
                 region_def,
                 SingleBlockRegionDef) and len(op.regions[idx].blocks) != 1:
-            raise Exception(
+            raise VerifyException(
                 f"region {region_name} at position {idx} should have a single block, but got {len(op.regions[idx].blocks)} blocks"
             )
         if region_def.block_args is not None:
             if len(op.regions[idx].blocks) == 0:
-                raise Exception(
+                raise VerifyException(
                     f"region {region_name} at position {idx} should have at least one block"
                 )
             expected_num_args = len(region_def.block_args)
             num_args = len(op.regions[idx].blocks[0].args)
             if num_args != expected_num_args:
-                raise Exception(
+                raise VerifyException(
                     f"region {region_name} at position {idx} should have {expected_num_args} argument, but got {num_args}"
                 )
             for arg_idx, arg_type in enumerate(op.regions[idx].blocks[0].args):
                 typ = op.regions[idx].blocks[0].args[arg_idx]
                 if arg_type != typ:
-                    raise Exception(
+                    raise VerifyException(
                         f"argument at position {arg_idx} in region {region_name} at position {idx} should be of type {arg_type}, but {typ}"
                     )
 
@@ -433,7 +438,7 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
         if attr_name not in op.attributes:
             if isinstance(attr_def, OptAttributeDef):
                 continue
-            raise Exception(f"attribute {attr_name} expected")
+            raise VerifyException(f"attribute {attr_name} expected")
         attr_def.constr.verify(op.attributes[attr_name])
 
 
@@ -655,7 +660,7 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
     """Given an IRDL definition, verify that an attribute satisfies its invariants."""
 
     if len(attr.parameters) != len(parameters):
-        raise Exception(
+        raise VerifyException(
             f"{len(parameters)} parameters expected, got {len(attr.parameters)}"
         )
     for idx, param_def in enumerate(parameters):

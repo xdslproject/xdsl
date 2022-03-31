@@ -18,11 +18,7 @@ class OptMain(xDSLOptMain):
 
 def __main__():
     xdsl_main = OptMain()
-
-    module = xdsl_main.parse_input()
-
-    contents = xdsl_main.output_resulting_program(module)
-    xdsl_main.print_to_output_stream(contents)
+    xdsl_main.run()
 
 
 if __name__ == "__main__":
