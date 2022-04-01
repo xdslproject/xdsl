@@ -6,7 +6,8 @@ from xdsl.printer import Printer
 from xdsl.dialects.std import *
 from xdsl.dialects.std import Return as stdReturn
 from xdsl.dialects.arith import *
-from xdsl.dialects.rise import *
+from xdsl.dialects.rise.rise import Rise
+from xdsl.dialects.rise.riseBuilder import RiseBuilder
 
 
 def get_rise_dot(ctx: MLContext, builtin: Builtin, std: Std, arith: Arith,
