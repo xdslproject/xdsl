@@ -38,26 +38,24 @@ std.return(%2 : !i32)
 }
 """
 
-    @dataclass
-    class ImmutableSSAValueView:
-        _value: SSAValue
+    # @dataclass
+    # class ImmutableSSAValueView:
+    #     _value: SSAValue
 
-    @dataclass
-    class ImmutableOpResultView(ImmutableSSAValueView):
-        _op: ImmutableOpView
-        _result_index: int
+    # @dataclass
+    # class ImmutableOpResultView(ImmutableSSAValueView):
+    #     _op: ImmutableOpView
+    #     _result_index: int
 
     @dataclass
     class ImmutableOpView:
         name: str
         _op: Operation
-        _operands: FrozenList[Union[SSAValue, ImmutableSSAValueView]]
-        result: ImmutableOpResultView
 
         @classmethod
         def from_op(cls, op: Operation) -> ImmutableOpView:
             assert isinstance(op, Operation)
-            return ImmutableOpView(op.name, op, op.operands, op.results[0])
+            return ImmutableOpView(op.name, op)
 
         def attribute(self, name: str):
             return self._op.attributes[name]
@@ -65,7 +63,8 @@ std.return(%2 : !i32)
     @dataclass
     class ImmutableRewrite:
 
-        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: Operation,
+                              rewriter: PatternRewriter) -> Operation:
             matchedOps = self.match(op)
             if matchedOps is None:
                 return
@@ -106,7 +105,8 @@ std.return(%2 : !i32)
                 assert (isinstance(op.input2.op.value.typ, IntegerType))
                 return [op, op.input1.op, op.input2.op]
 
-        def rewrite(self, addOp, c1, c2) -> List[Operation]:
+        def rewrite(self, addOp: ImmutableOpView, c1: ImmutableOpView,
+                    c2: ImmutableOpView) -> List[Operation]:
             c1Val = c1.attribute("value")
             c2Val = c2.attribute("value")
             return [
