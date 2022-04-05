@@ -3,8 +3,6 @@ from io import StringIO
 from mimetypes import init
 from pprint import pprint
 
-from numpy import isin
-
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
@@ -38,15 +36,6 @@ std.return(%2 : !i32)
 }
 """
 
-    # @dataclass
-    # class ImmutableSSAValueView:
-    #     _value: SSAValue
-
-    # @dataclass
-    # class ImmutableOpResultView(ImmutableSSAValueView):
-    #     _op: ImmutableOpView
-    #     _result_index: int
-
     @dataclass
     class ImmutableOpView:
         name: str
@@ -57,7 +46,7 @@ std.return(%2 : !i32)
             assert isinstance(op, Operation)
             return ImmutableOpView(op.name, op)
 
-        def attribute(self, name: str):
+        def get_attribute(self, name: str) -> Attribute:
             return self._op.attributes[name]
 
     @dataclass
@@ -107,8 +96,8 @@ std.return(%2 : !i32)
 
         def rewrite(self, addOp: ImmutableOpView, c1: ImmutableOpView,
                     c2: ImmutableOpView) -> List[Operation]:
-            c1Val = c1.attribute("value")
-            c2Val = c2.attribute("value")
+            c1Val = c1.get_attribute("value")
+            c2Val = c2.get_attribute("value")
             return [
                 Constant.from_int_constant(c1Val.value.data + c2Val.value.data,
                                            c1Val.typ)
@@ -140,10 +129,6 @@ std.return(%2 : !i32)
     print(file.getvalue().strip())
 
     assert file.getvalue().strip() == expected.strip()
-
-    # Now do rewriting
-
-    # Do easiest thing first. Do a complete clone of everything
 
 
 if __name__ == "__main__":
