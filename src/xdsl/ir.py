@@ -368,18 +368,35 @@ class Operation:
     def verify_(self) -> None:
         pass
 
-    def clone_without_regions(self: OperationType) -> OperationType:
+    def clone_without_regions(self: OperationType,
+                              mapper=None) -> OperationType:
         """Clone an operation, with empty regions instead."""
-        operands = self.operands
+        if mapper is None:
+            mapper = {}
+        operands = [(mapper[operand] if operand in mapper else operand)
+                    for operand in self.operands]
         result_types = [res.typ for res in self.results]
         attributes = self.attributes.copy()
-        successors = self.successors.copy()
+        successors = [(mapper[successor] if successor in mapper else successor)
+                      for successor in self.successors]
         regions = [Region() for _ in self.regions]
-        return self.create(operands=operands,
-                           result_types=result_types,
-                           attributes=attributes,
-                           successors=successors,
-                           regions=regions)
+        clonedOp = self.create(operands=operands,
+                               result_types=result_types,
+                               attributes=attributes,
+                               successors=successors,
+                               regions=regions)
+        for idx, result in enumerate(clonedOp.results):
+            mapper[self.results[idx]] = result
+        return clonedOp
+
+    def clone(self: OperationType, mapper=None) -> OperationType:
+        """Clone an operation with all its regions and operations in them."""
+        if mapper is None:
+            mapper = {}
+        op = self.clone_without_regions(mapper)
+        for idx, region in enumerate(self.regions):
+            region.clone_into(op.regions[idx], mapper)
+        return op
 
     def erase(self, safe_erase=True, drop_references=True) -> None:
         """
@@ -777,6 +794,25 @@ class Region:
         """
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
+
+    def clone_into(self, dest: Region, mapper: dict):
+        """
+        Clone all block of this region into `dest`
+        """
+        assert (dest is not None)
+        assert (dest != self)
+        if mapper is None:
+            mapper = {}
+
+        for block in self.blocks:
+            newBlock = Block()
+            mapper[block] = newBlock
+            for idx, blockArg in enumerate(block.args):
+                newBlock.insert_arg(blockArg.typ, idx)
+                mapper[blockArg] = newBlock.args[idx]
+            for op in block.ops:
+                newBlock.add_op(op.clone(mapper))
+            dest.add_block(newBlock)
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the region."""
