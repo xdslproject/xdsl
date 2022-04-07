@@ -40,8 +40,6 @@ class Generic(Operation):
         parser.parse_string("outs")
         operands.extend(parser.parse_operands())
 
-        attributes | parser.parse_op_attributes()
-
         op = Generic.create(operands, [], attributes, [])
         return op
 

@@ -144,14 +144,12 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, IntegerType):
-            width = attribute.parameters[0]
-            assert isinstance(width, IntAttr)
+            assert isinstance(width := attribute.width, IntAttr)
             self._print(f'!i{width.data}', end='')
             return
 
         if isinstance(attribute, FloatType):
-            width = attribute.parameters[0]
-            assert isinstance(width, IntAttr)
+            assert isinstance(width := attribute.width, IntAttr)
             self._print(f'!f{width.data}', end='')
             return
 
@@ -164,21 +162,17 @@ class Printer:
             return
 
         if isinstance(attribute, IntegerAttr):
-            value = attribute.parameters[0]
-            typ = attribute.parameters[1]
-            assert (isinstance(value, IntAttr))
+            assert (isinstance(value := attribute.value, IntAttr))
             self._print(value.data, end='')
             self._print(" : ", end='')
-            self.print_attribute(typ)
+            self.print_attribute(attribute.typ)
             return
 
         if isinstance(attribute, FloatingAttr):
-            value = attribute.parameters[0]
-            typ = attribute.parameters[1]
-            assert (isinstance(value, FloatAttr))
+            assert (isinstance(value := attribute.value, FloatAttr))
             self._print(value.data, end='')
             self._print(" : ", end='')
-            self.print_attribute(typ)
+            self.print_attribute(attribute.typ)
             return
 
         if isinstance(attribute, ArrayAttr):

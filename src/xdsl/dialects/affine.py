@@ -1,13 +1,12 @@
 from __future__ import annotations
-from typing import Union
+from typing import Union, Optional
 from enum import Enum
-from pyrsistent import optional
-
 from xdsl.ir import *
 from xdsl.util import new_op
 from xdsl.irdl import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+
 
 @dataclass
 class Affine:
@@ -43,6 +42,7 @@ class Affine:
             SSAValue.get(j)
         ], [], {})
 
+
 class AffineOperation(Enum):
     add = '+'
     mul = '*'
@@ -51,52 +51,68 @@ class AffineOperation(Enum):
     mod = '%'
     neg = '-'
 
+
 @dataclass
 class AffineExpr:
+
     def __add__(self, other: int):
         return self + AffineConstantExpr(other)
+
     def __add__(self, otherExpr: AffineExpr):
         return AffineBinaryExpr(AffineOperation.add, self, otherExpr)
+
     def __sub__(self, other: int):
         return self - AffineConstantExpr(other)
+
     def __sub__(self, other: AffineExpr):
         return AffineBinaryExpr(AffineOperation.add, self, (other * -1))
+
     def __mul__(self, other: int):
         return self * AffineConstantExpr(other)
+
     def __mul__(self, other: AffineExpr):
         return AffineBinaryExpr(AffineOperation.mul, self, other)
+
     # used for ceildiv
-    def __truediv__(self, other: int): 
+    def __truediv__(self, other: int):
         return self / AffineConstantExpr(int)
-    def __truediv__(self, other: AffineExpr): 
+
+    def __truediv__(self, other: AffineExpr):
         return AffineBinaryExpr(AffineOperation.ceildiv, self, other)
+
     def __floordiv__(self, other: int):
         return self // AffineConstantExpr(int)
+
     def __floordiv__(self, other: AffineExpr):
         return AffineBinaryExpr(AffineOperation.floordiv, self, other)
+
     def __mod__(self, other: int):
         return self % AffineConstantExpr(int)
+
     def __mod__(self, other: AffineExpr):
-        return AffineBinaryExpr(AffineOperation.mod, self, other)       
+        return AffineBinaryExpr(AffineOperation.mod, self, other)
+
     def __neg__(self):
         return self * -1
-        
-    # yapf: disable
+
     def parse(parser: Parser) -> AffineExpr:
-        def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr, rhs: AffineExpr) -> AffineBinaryExpr:
-            match op:
-                case AffineOperation.neg:
-                    return AffineBinaryExpr(AffineOperation.add, lhs, AffineBinaryExpr
-                    (AffineOperation.mul, AffineConstantExpr(-1), rhs))
-                case _:
-                    return AffineBinaryExpr(op, lhs, rhs)
-    # yapf: enable
+
+        def get_affine_binary_expr(op: AffineOperation, lhs: AffineExpr,
+                                   rhs: AffineExpr) -> AffineBinaryExpr:
+            if op == AffineOperation.neg:
+                return AffineBinaryExpr(
+                    AffineOperation.add, lhs,
+                    AffineBinaryExpr(AffineOperation.mul,
+                                     AffineConstantExpr(-1), rhs))
+            else:
+                return AffineBinaryExpr(op, lhs, rhs)
+
         def parse_optional_affine_low_prec_op() -> AffineOperation:
             if parser.parse_optional_char('+'):
                 return AffineOperation.add
             if parser.parse_optional_char('-'):
                 return AffineOperation.neg
-        
+
         def parse_optional_affine_high_prec_op() -> AffineOperation:
             if parser.parse_optional_char('*'):
                 return AffineOperation.mul
@@ -104,9 +120,9 @@ class AffineExpr:
                 return AffineOperation.neg
             if parser.parse_optional_char('/'):
                 if parser.parse_optional_char('/'):
-                    return AffineOperation.floordiv  
+                    return AffineOperation.floordiv
                 return AffineOperation.ceildiv
-            if parser.parse_optional_char('%'):      
+            if parser.parse_optional_char('%'):
                 return AffineOperation.mod
 
         def parse_affine_operand() -> AffineExpr:
@@ -128,8 +144,10 @@ class AffineExpr:
             if parser.parse_optional_char('-'):
                 expr = parse_affine_operand()
                 return expr * -1
-        
-        def parse_affine_expr(llhs: optional[AffineExpr] = None, llhsOp: optional[AffineOperation] = None) -> AffineExpr:
+
+        def parse_affine_expr(
+                llhs: Optional[AffineExpr] = None,
+                llhsOp: Optional[AffineOperation] = None) -> AffineExpr:
             lhs = parse_affine_operand()
             if not lhs:
                 return
@@ -154,14 +172,16 @@ class AffineExpr:
                 if nextOp:
                     return parse_affine_expr(expr, nextOp)
                 return expr
-        
-            if llhs: 
+
+            if llhs:
                 return get_affine_binary_expr(llhsOp, llhs, lhs)
             return lhs
-    
+
         # essentially the same structure as parsing parse_affine_expr but for higher precedence ops
         # this is mirrored to the approach in MLIR. TODO look whether the two functions could be combined
-        def parse_affine_high_prec_op_expr(llhs: optional[AffineExpr] = None, llhsOp: optional[AffineOperation] = None) -> AffineExpr:
+        def parse_affine_high_prec_op_expr(
+                llhs: Optional[AffineExpr] = None,
+                llhsOp: Optional[AffineOperation] = None) -> AffineExpr:
             lhs = parse_affine_operand()
             if not lhs:
                 return
@@ -175,7 +195,7 @@ class AffineExpr:
             if llhs:
                 return get_affine_binary_expr(llhsOp, llhs, lhs)
             return lhs
-        
+
         if parser.peek_char(')'):
             return
         return parse_affine_expr()
@@ -184,42 +204,51 @@ class AffineExpr:
 @dataclass
 class AffineDimExpr(AffineExpr):
     index: int
+
     def __str__(self) -> str:
         return 'd' + str(self.index)
+
 
 @dataclass
 class AffineSymbolExpr(AffineExpr):
     index: int
+
     def __str__(self) -> str:
         return 's' + str(self.index)
+
 
 @dataclass
 class AffineConstantExpr(AffineExpr):
     value: int
+
     def __str__(self) -> str:
         return str(self.value)
+
 
 @dataclass
 class AffineBinaryExpr(AffineExpr):
     operation: AffineOperation
     lhs: AffineExpr
     rhs: AffineExpr
+
     def __str__(self) -> str:
         return "(" + str(self.lhs) + self.operation.value + str(self.rhs) + ")"
+
 
 @irdl_attr_definition
 class AffineMap(Data):
     name = "affine_map"
     dimCount: int
     symbolCount: int
-    expr : list[AffineExpr]
+    expr: list[AffineExpr]
 
     @staticmethod
     def parse(parser: Parser) -> AffineMap:
+
         def parse_optional_affineDim() -> str:
             if parser.parse_optional_char("d"):
                 return "d" + parser.parse_alpha_num()
-        
+
         def parse_optional_affineSymbol() -> str:
             if parser.parse_optional_char("s"):
                 return "s" + parser.parse_alpha_num()
@@ -236,14 +265,16 @@ class AffineMap(Data):
         parser.parse_char(">")
 
         parser.parse_char("(")
-        exprList = parser.parse_list(lambda : AffineExpr.parse(parser))
+        exprList = parser.parse_list(lambda: AffineExpr.parse(parser))
         parser.parse_char(")")
 
         return AffineMap(len(dimList), len(symbolList), exprList)
-            
+
     def print(self, printer: Printer) -> None:
-        dimString = ','.join(list(f'd{dimNum}' for dimNum in range(self.dimCount)))
-        symbolString = ','.join(list(f's{symNum}' for symNum in range(self.symbolCount)))
+        dimString = ','.join(
+            list(f'd{dimNum}' for dimNum in range(self.dimCount)))
+        symbolString = ','.join(
+            list(f's{symNum}' for symNum in range(self.symbolCount)))
         exprString = ','.join(list(f'{expr}' for expr in self.expr))
-        printer.print_string(f'({dimString})[{symbolString}] -> ({exprString})')
-        
+        printer.print_string(
+            f'({dimString})[{symbolString}] -> ({exprString})')
