@@ -323,11 +323,8 @@ class FloatType(ParametrizedAttribute):
         printer.print_string(f'f{self.width}')
 
 
-f32 = FloatType.from_width(32)
-
-
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute):
+class Float32Type(FloatType):
     name = "f32"
 
 

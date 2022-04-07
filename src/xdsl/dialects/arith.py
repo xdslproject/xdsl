@@ -2,7 +2,7 @@ from __future__ import annotations
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr, FlatSymbolRefAttr
+from xdsl.dialects.builtin import IntegerType, FloatType, IntegerAttr, FlatSymbolRefAttr
 
 
 @dataclass
@@ -223,9 +223,9 @@ class Cmpi(Operation):
 @irdl_op_definition
 class Addf(Operation):
     name: str = "arith.addf"
-    input1 = OperandDef(Float32Type)
-    input2 = OperandDef(Float32Type)
-    output = ResultDef(Float32Type)
+    input1 = OperandDef(FloatType)
+    input2 = OperandDef(FloatType)
+    output = ResultDef(FloatType)
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -236,15 +236,15 @@ class Addf(Operation):
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Addf:
         return Addf.build(operands=[operand1, operand2],
-                          result_types=[Float32Type()])
+                          result_types=[FloatType()])
 
 
 @irdl_op_definition
 class Mulf(Operation):
     name: str = "arith.mulf"
-    input1 = OperandDef(Float32Type)
-    input2 = OperandDef(Float32Type)
-    output = ResultDef(Float32Type)
+    input1 = OperandDef(FloatType)
+    input2 = OperandDef(FloatType)
+    output = ResultDef(FloatType)
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -255,4 +255,4 @@ class Mulf(Operation):
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Mulf:
         return Mulf.build(operands=[operand1, operand2],
-                          result_types=[Float32Type()])
+                          result_types=[FloatType()])

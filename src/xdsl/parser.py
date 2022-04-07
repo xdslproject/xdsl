@@ -344,9 +344,11 @@ class Parser:
                 num = self.parse_optional_int_literal()
                 if num:
                     return FloatType.from_width(num)
-                attr_def_name = "f"
+                attr_def_name = "f" + self.parse_alpha_num(
+                    skip_white_space=True)
+            else:
+                attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
-        attr_def_name += self.parse_alpha_num(skip_white_space=True)
         attr_def = self._ctx.get_attr(attr_def_name)
         if self.parse_optional_char("<") is None:
             return attr_def()
