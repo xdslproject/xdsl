@@ -12,6 +12,7 @@ from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cf import *
+from xdsl.dialects.linalg import *
 
 
 class xDSLOptMain:
@@ -124,6 +125,7 @@ class xDSLOptMain:
         affine = Affine(self.ctx)
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
+        linalg = Linalg(self.ctx)
 
     def register_all_frontends(self):
         """
