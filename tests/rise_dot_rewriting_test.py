@@ -237,10 +237,10 @@ def test_rise_rewriting_fuse_dot():
     unfused = get_rise_dsl_dot_unfused(ctx, builtin, std, arith, affine, rise)
     unfused.verify()
 
-    # PatternRewriteWalker(FuseReduceMap(rise, rise_dsl)).rewrite_module(unfused)
-    # PatternRewriteWalker(BetaReduction(rise, rise_dsl)).rewrite_module(unfused)
-    # PatternRewriteWalker(FuseEmbeds(rise, rise_dsl),
-    #                      apply_recursively=False).rewrite_module(unfused)
+    PatternRewriteWalker(FuseReduceMap(rise, rise_dsl)).rewrite_module(unfused)
+    PatternRewriteWalker(BetaReduction(rise, rise_dsl)).rewrite_module(unfused)
+    PatternRewriteWalker(FuseEmbeds(rise, rise_dsl),
+                         apply_recursively=False).rewrite_module(unfused)
 
     printer = Printer()
     printer.print_op(unfused)

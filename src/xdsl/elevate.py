@@ -15,24 +15,32 @@ from xdsl.printer import Printer
 
 @dataclass
 class RewriteResult:
-    result: Optional[Union[Operation, str]]
+    result: Union[str, List[Operation]]
 
     def flatMapSuccess(self, s: Strategy, rewriter: Rewriter) -> RewriteResult:
-        if (not isinstance(self.result, Operation)):
+        if (not isinstance(self.result, List)):
             return self
         return s(self.result, rewriter)
 
     def flatMapFailure(self, f: Callable) -> RewriteResult:
-        if (not isinstance(self.result, Operation)):
+        if (not isinstance(self.result, List)):
             return f()
         return self
 
+    def __str__(self) -> str:
+        if isinstance(self.result, str):
+            return "Failure(" + self.result + ")"
+        elif isinstance(self.result, List):
+            return "Success, " + str(len(self.result)) + " new ops"
+        else:
+            assert False
 
-def success(op: Operation):
+
+def success(op: Operation) -> RewriteResult:
     return RewriteResult(op)
 
 
-def failure(errorMsg: str):
+def failure(errorMsg: str) -> RewriteResult:
     return RewriteResult(errorMsg)
 
 
