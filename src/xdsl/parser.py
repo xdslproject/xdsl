@@ -106,11 +106,11 @@ class Parser:
         return res
 
     def parse_optional_float_literal(self) -> Optional[float]:
-        sign = self.parse_optional_char('-')
+        is_negative = self.parse_optional_char('-')
         res = self.parse_while(lambda char: (char.isnumeric() | (char == '.')))
         self.parse_optional_char('f')
         try:
-            return float(res) if not sign else -float(res)
+            return float(res) if is_negative is None else -float(res)
         except:
             return None
 
