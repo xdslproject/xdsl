@@ -31,15 +31,24 @@ class Generic(Operation):
     region = RegionDef()
     output = VarResultDef(TensorType)
 
+    irdl_options = [AttrSizedOperandSegments()]
+
     @staticmethod
     def parse(parser: Parser) -> Generic:
 
         attributes = parser.parse_op_attributes()
         parser.parse_string("ins")
         operands = parser.parse_operands()
+        numIns = len(operands)
         parser.parse_string("outs")
         operands.extend(parser.parse_operands())
+        numOuts = len(operands) - numIns
 
+        dense_type = VectorType.from_type_and_list(IntegerType.from_width(32),
+                                                   [2])
+        attributes[
+            "operand_segment_sizes"] = DenseIntOrFPElementsAttr.from_list(
+                dense_type, [numIns, numOuts])
         op = Generic.create(operands, [], attributes, [])
         return op
 

@@ -576,8 +576,7 @@ def irdl_op_definition(
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
 
-    if previous_variadics > 1 and AttrSizedOperandSegments(
-    ) not in options and not clsdict.get("parse"):
+    if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
         raise Exception(
             "Operation defines more than two variadic operands, "
             "but do not define the AttrSizedOperandSegments option")
