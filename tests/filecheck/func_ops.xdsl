@@ -1,0 +1,35 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+module() {
+  
+  func.func() ["sym_name" = "noarg_void", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+    func.return()
+  }
+
+  // CHECK: func.func() ["sym_name" = "noarg_void", 
+  // CHECK-NEXT:  func.return()
+  // CHECK-NEXT:}
+
+  func.func() ["sym_name" = "call_void", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+    func.call() ["callee" = @call_void]
+    func.return()
+  }
+
+  // CHECK: func.func() ["sym_name" = "call_void", 
+  // CHECK-NEXT:  func.call() ["callee" = @call_void]
+  // CHECK-NEXT:  func.return()
+  // CHECK-NEXT:}
+
+  func.func() ["sym_name" = "arg_rec", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32):
+    %1 : !i32 = func.call(%0 : !i32) ["callee" = @arg_rec]
+    func.return(%1 : !i32)
+  }
+
+  // CHECK: func.func() ["sym_name" = "arg_rec", 
+  // CHECK-NEXT: ^{{.*}}(%{{.*}} : !i32):
+  // CHECK-NEXT:   %{{.*}} : !i32 = func.call(%{{.*}} : !i32) ["callee" = @arg_rec]
+  // CHECK-NEXT:   func.return(%{{.*}} : !i32)
+  // CHECK-NEXT: }
+
+}

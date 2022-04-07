@@ -103,6 +103,34 @@ def test_two_var_result_builder2():
 
 
 @irdl_op_definition
+class MixedResultOp(Operation):
+    name: str = "test.mixed"
+
+    res1 = VarResultDef(StringAttr)
+    res2 = ResultDef(StringAttr)
+    res3 = VarResultDef(StringAttr)
+    irdl_options = [AttrSizedResultSegments()]
+
+
+def test_two_var_result_builder():
+    op = MixedResultOp.build(result_types=[[0, 1], 2, [3, 4]])
+    op.verify()
+    assert [res.typ for res in op.results] == [
+        StringAttr.from_int(0),
+        StringAttr.from_int(1),
+        StringAttr.from_int(2),
+        StringAttr.from_int(3),
+        StringAttr.from_int(4)
+    ]
+
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
+
+    assert op.attributes[AttrSizedResultSegments.
+                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                             dense_type, [2, 1, 2])
+
+
+@irdl_op_definition
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
@@ -236,13 +264,48 @@ class OptionalAttrOp(Operation):
 def test_optional_attr_op_empty():
     op = OptionalAttrOp.build()
     op.verify()
+    assert op.opt_attr is None
 
 
 def test_optional_attr_op_non_empty_attr():
     op = OptionalAttrOp.build(attributes={"opt_attr": StringAttr.from_int(1)})
     op.verify()
+    assert op.opt_attr == StringAttr.from_int(1)
 
 
 def test_optional_attr_op_non_empty_builder():
-    op1 = OptionalAttrOp.build(attributes={"opt_attr": 1})
-    op1.verify()
+    op = OptionalAttrOp.build(attributes={"opt_attr": 1})
+    op.verify()
+    assert op.opt_attr == StringAttr.from_int(1)
+
+
+def test_parent_pointers():
+    op = ResultOp.build(result_types=[0])
+    block = Block.from_ops([op])
+    reg = Region.from_block_list([block])
+    reg_op = RegionOp.build(regions=[reg])
+
+    block_2 = Block.from_ops([reg_op])
+    reg_2 = Region.from_block_list([block_2])
+    reg_op_2 = RegionOp.build(regions=[reg_2])
+
+    assert op.parent_block() is block
+    assert op.parent_region() is reg
+    assert op.parent_op() is reg_op
+
+    assert reg_op_2.parent_block() is None
+    assert reg_op_2.parent_region() is None
+    assert reg_op_2.parent_op() is None
+
+    assert reg.parent_op() is reg_op
+    assert reg.parent_block() is block_2
+    assert reg.parent_region() is reg_2
+
+    assert reg_2.parent_block() is None
+    assert reg_2.parent_region() is None
+
+    assert block.parent_region() is reg
+    assert block.parent_op() is reg_op
+    assert block.parent_block() is block_2
+
+    assert block_2.parent_block() is None

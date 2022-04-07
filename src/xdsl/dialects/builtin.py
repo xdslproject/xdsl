@@ -32,7 +32,6 @@ class Builtin:
         self.ctx.register_attr(IndexType)
 
         self.ctx.register_op(ModuleOp)
-        self.ctx.register_op(FuncOp)
 
 
 @irdl_attr_definition
@@ -397,45 +396,6 @@ class FunctionType(ParametrizedAttribute):
     @builder
     def from_attrs(inputs: ArrayAttr, outputs: ArrayAttr) -> Attribute:
         return FunctionType([inputs, outputs])
-
-
-@irdl_op_definition
-class FuncOp(Operation):
-    name: str = "builtin.func"
-
-    body = RegionDef()
-    sym_name = AttributeDef(StringAttr)
-    type = AttributeDef(FunctionType)
-    sym_visibility = AttributeDef(StringAttr)
-
-    @staticmethod
-    def from_callable(
-            name: str, input_types: List[Attribute],
-            return_types: List[Attribute],
-            func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(attributes={
-            "sym_name": name,
-            "type": type_attr,
-            "sym_visibility": "private"
-        },
-                          regions=[
-                              Region.from_block_list(
-                                  [Block.from_callable(input_types, func)])
-                          ])
-        return op
-
-    @staticmethod
-    def from_region(name: str, input_types: List[Attribute],
-                    return_types: List[Attribute], region: Region) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(attributes={
-            "sym_name": name,
-            "type": type_attr,
-            "sym_visibility": "private"
-        },
-                          regions=[region])
-        return op
 
 
 @irdl_op_definition

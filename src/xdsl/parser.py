@@ -91,11 +91,13 @@ class Parser:
         return res
 
     def parse_optional_int_literal(self) -> Optional[int]:
-        sign = self.parse_optional_char('-')
+        is_negative = self.parse_optional_char("-")
         res = self.parse_while(lambda char: char.isnumeric())
         if len(res) == 0:
+            if is_negative is not None:
+                raise Exception("int literal expected")
             return None
-        return int(res) if not sign else -int(res)
+        return int(res) if is_negative is None else -int(res)
 
     def parse_int_literal(self) -> int:
         res = self.parse_optional_int_literal()
@@ -185,24 +187,23 @@ class Parser:
             block = self._blocks[block_name]
         else:
             block = Block()
-            if self.parse_optional_char("("):
-                tuple_list = self.parse_list(
-                    self.parse_optional_block_argument)
-                # TODO can we clean this up a bit?
-                # Register the BlockArguments as ssa values and add them to
-                # the block
-                for (idx, res) in enumerate(tuple_list):
-                    if res[0] in self._ssaValues:
-                        raise Exception("SSA value %s is already defined" %
-                                        res[0])
-                    arg = res[1]
-                    self._ssaValues[res[0]] = arg
-                    arg.index = idx
-                    arg.block = block
-                    block.args.append(arg)
-
-                self.parse_char(")")
             self._blocks[block_name] = block
+
+        if self.parse_optional_char("("):
+            tuple_list = self.parse_list(self.parse_optional_block_argument)
+            # TODO can we clean this up a bit?
+            # Register the BlockArguments as ssa values and add them to
+            # the block
+            for (idx, res) in enumerate(tuple_list):
+                if res[0] in self._ssaValues:
+                    raise Exception("SSA value %s is already defined" % res[0])
+                arg = res[1]
+                self._ssaValues[res[0]] = arg
+                arg.index = idx
+                arg.block = block
+                block.args.append(arg)
+
+            self.parse_char(")")
         self.parse_char(":")
         for op in self.parse_list(self.parse_optional_op, delimiter=""):
             block.add_op(op)
@@ -402,6 +403,9 @@ class Parser:
         self.parse_char(")")
         return res
 
+    def is_valid_name(self, name: str) -> bool:
+        return not name[-1].isnumeric()
+
     def parse_optional_op(self) -> Optional[Operation]:
         results = self.parse_optional_results()
         if results is None:
@@ -431,6 +435,8 @@ class Parser:
             if res[0] in self._ssaValues:
                 raise Exception("SSA value %s is already defined" % res[0])
             self._ssaValues[res[0]] = op.results[idx]
+            if self.is_valid_name(res[0]):
+                self._ssaValues[res[0]].name = res[0]
 
         region = self.parse_optional_region()
         while region is not None:

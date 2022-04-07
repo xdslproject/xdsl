@@ -1,7 +1,7 @@
 from xdsl.ir import MLContext
 from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
-from xdsl.dialects.std import Std
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -13,7 +13,7 @@ from xdsl.printer import Printer
 def parse_and_verify(test_prog: str):
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     affine = Affine(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
@@ -31,7 +31,7 @@ def parse_and_verify(test_prog: str):
 def test_linalg_generic_matmul():
     test_prog = """
 module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
   ^bb1(%A: !memref<[32, 32], !f32>, %B: !memref<[32, 32], !f32>, %C: !memref<[32, 32], !f32>):
     linalg.generic [
@@ -50,7 +50,7 @@ module() {
             linalg.yield(%e : !f32)
         }
   }
-  std.call() ["callee" = !flat_symbol_ref<"test">]
+  func.call() ["callee" = !flat_symbol_ref<"test">]
 }
     """
     parse_and_verify(test_prog)
@@ -61,7 +61,7 @@ module() {
 def test_linalg_fusion_pattern_basic_fusion():
     test_prog = """
 module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[], []>, "sym_visibility" = "private"]
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
   ^bb1(%A: !memref<[-1, -1], !f32>, %B: !memref<[-1, -1], !f32>, %C: !memref<[-1, -1], !f32>):
     %cst : !f32 = arith.constant() ["value" = 0.0f : !f32]
@@ -82,7 +82,7 @@ module() {
             linalg.yield(%e : !f32)
         }
   }
-  std.call() ["callee" = !flat_symbol_ref<"test">]
+  func.call() ["callee" = !flat_symbol_ref<"test">]
 }
     """
     parse_and_verify(test_prog)

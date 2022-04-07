@@ -10,6 +10,14 @@ import typing
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
 
+from xdsl.diagnostic import Diagnostic
+
+
+def error(op: Operation, msg: str):
+    diag = Diagnostic()
+    diag.add_message(op, msg)
+    diag.raise_exception(f"{op.name} operation does not verify", op)
+
 
 @dataclass
 class AttrConstraint(ABC):
@@ -218,7 +226,7 @@ class OptResultDef(VarResultDef, OptionalDef):
 
 
 @dataclass
-class RegionDef:
+class RegionDef(Region):
     """
     An IRDL region definition.
     If the block_args is specified, then the region expect to have the entry block with these arguments.
@@ -290,14 +298,9 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> List[int]:
         variadic_sizes = [
             size_attr.value.data for size_attr in attribute.data.data
         ]
-        if len(variadic_sizes) != len(variadic_defs):
+        if len(variadic_sizes) != len(operand_or_result_defs):
             raise Exception(
-                f"expected {len(variadic_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
-            )
-        if len(operand_or_result_defs) - len(variadic_defs) + sum(
-                variadic_sizes) != len(op_defs):
-            raise Exception(
-                f"{size_attribute_name} values does not correspond to variadic arguments sizes."
+                f"expected {len(operand_or_result_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
             )
         return variadic_sizes
 
@@ -372,7 +375,14 @@ def irdl_op_verify(op: Operation, operands: List[Tuple[str, OperandDef]],
                 operand_def.constr.verify(op.operands[current_operand].typ)
                 current_operand += 1
         else:
-            operand_def.constr.verify(op.operands[current_operand].typ)
+            try:
+                operand_def.constr.verify(op.operands[current_operand].typ)
+            except Exception as e:
+                error(
+                    op,
+                    f"Operand {operand_name} at operand position {current_operand} (counted from zero) does not verify!\n{e}"
+                )
+
             current_operand += 1
 
     # Verify results
@@ -505,19 +515,15 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in options:
         sizes = [
-            len(operand)
+            (len(operand) if isinstance(operand_def, VarOperandDef) else 1)
             for operand, (_, operand_def) in zip(operands, operand_defs)
-            if isinstance(operand_def, VarOperandDef)
         ]
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in options:
-        sizes = [
-            len(result)
-            for result, (_, result_def) in zip(res_types, res_defs)
-            if isinstance(result_def, VarResultDef)
-        ]
+        sizes = [(len(result) if isinstance(result_def, VarResultDef) else 1)
+                 for result, (_, result_def) in zip(res_types, res_defs)]
         built_attributes[AttrSizedResultSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
@@ -592,9 +598,15 @@ def irdl_op_definition(
         new_attrs[region_name] = property(
             (lambda idx: lambda self: self.regions[idx])(region_idx))
 
-    for attribute_name, _ in attr_defs:
-        new_attrs[attribute_name] = property(
-            (lambda name: lambda self: self.attributes[name])(attribute_name))
+    for attribute_name, attr_def in attr_defs:
+        if isinstance(attr_def, OptAttributeDef):
+            new_attrs[attribute_name] = property(
+                (lambda name: lambda self: self.attributes.get(name, None)
+                 )(attribute_name))
+        else:
+            new_attrs[attribute_name] = property(
+                (lambda name: lambda self: self.attributes[name]
+                 )(attribute_name))
 
     new_attrs["irdl_operand_defs"] = operand_defs
     new_attrs["irdl_result_defs"] = result_defs
@@ -627,7 +639,7 @@ def irdl_op_definition(
 
     new_attrs["build"] = classmethod(builder)
 
-    return type(cls.__name__, (cls, ), {**cls.__dict__, **new_attrs})
+    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
 @dataclass

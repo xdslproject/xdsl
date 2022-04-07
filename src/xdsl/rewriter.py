@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from xdsl.ir import *
 
 
@@ -44,18 +46,16 @@ class Rewriter:
 
         for old_result, new_result in zip(op.results, new_results):
             if new_result is None:
-                if safe_erase:
-                    old_result.replace_by(ErasedSSAValue(old_result.typ))
-                elif len(old_result.uses) != 0:
-                    raise Exception(
-                        "SSA value was supposed to be destroyed, but still has uses."
-                    )
+                old_result.erase(safe_erase=safe_erase)
             else:
                 old_result.replace_by(new_result)
 
         op_idx = block.get_operation_index(op)
         block.erase_op(op_idx, safe_erase=safe_erase)
-        block.insert_op(new_ops, op_idx)
+        if len(op.results) == 0:
+            block.insert_op(new_ops, op_idx)
+            return
+        block.insert_op(new_ops, op_idx, op.results[0].name)
 
     @staticmethod
     def inline_block_at_pos(block: Block, target_block: Block, pos: int):
@@ -105,6 +105,36 @@ class Rewriter:
         op_block = op.parent
         op_pos = op_block.get_operation_index(op)
         Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
+
+    @staticmethod
+    def insert_block_after(block: Union[Block, List[Block]], target: Block):
+        """
+        Insert one or multiple blocks after another block.
+        The blocks to insert should be detached from any region.
+        The target block should not be contained in the block to insert.
+        """
+        if target.parent is None:
+            raise Exception("Cannot move a block after a toplevel op")
+        region = target.parent
+        block_list = block if isinstance(block, list) else [block]
+        if len(block_list) == 0:
+            return
+        pos = region.get_block_index(target)
+        region.insert_block(block_list, pos + 1)
+
+    @staticmethod
+    def insert_block_before(block: Union[Block, List[Block]], target: Block):
+        """
+        Insert one or multiple block before another block.
+        The blocks to insert should be detached from any region.
+        The target block should not be contained in the block to insert.
+        """
+        if target.parent is None:
+            raise Exception("Cannot move a block after a toplevel op")
+        region = target.parent
+        block_list = block if isinstance(block, list) else [block]
+        pos = region.get_block_index(target)
+        region.insert_block(block_list, pos)
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
