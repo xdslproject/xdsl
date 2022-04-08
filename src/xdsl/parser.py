@@ -131,9 +131,10 @@ class Parser:
         self.skip_white_space()
         for char in contents:
             if self._idx >= len(self._str):
-                raise Exception("'%s' expected" % str)
-            if self._str[self._idx] == char:
-                self._idx += 1
+                raise Exception(f"{contents} expected")
+            if self._str[self._idx] != char:
+                raise Exception(f"{contents} expected")
+            self._idx += 1
         return True
 
     T = TypeVar('T')
