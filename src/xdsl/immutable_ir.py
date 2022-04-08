@@ -2,6 +2,7 @@ from __future__ import annotations
 from optparse import Option
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
+from xdsl.rewriter import Rewriter
 
 
 @dataclass
@@ -61,7 +62,10 @@ class ImmutableRegion:
 class ImmutableBlock:
     args: FrozenList[ImmutableBlockArgument]
     ops: FrozenList[ImmutableOperation]
-    # parent: Optional[ImmutableRegion] = field(default=None, init=False)
+
+    def __post_init__(self):
+        for op in self.ops:
+            op.parentBlock = self
 
     @staticmethod
     def from_block(block: Block) -> ImmutableBlock:
@@ -69,8 +73,6 @@ class ImmutableBlock:
         immutableOps = [
             ImmutableOperation.from_op(op, context) for op in block.ops
         ]
-        for key in context:
-            print(key.name + ", " + context[key].name)
         args = [
             ImmutableBlockArgument(arg.typ, None, arg.index)
             for arg in block.args
@@ -101,6 +103,7 @@ class ImmutableOperation:
     _op: Operation
     operands: FrozenList[ImmutableOpResultView]  # could also be BlockArg
     regions: FrozenList[ImmutableRegion]
+    parentBlock: Optional[ImmutableBlock] = None
 
     @property
     def region(self):
@@ -108,17 +111,22 @@ class ImmutableOperation:
 
     @staticmethod
     def from_op(
-            op: Operation,
-            context: dict[Operation,
-                          ImmutableOperation]) -> ImmutableOperation:
+        op: Operation,
+        context: dict[Operation,
+                      ImmutableOperation] = None) -> ImmutableOperation:
         assert isinstance(op, Operation)
+        if context is None:
+            context = {}
 
         operands: List[ImmutableOpResultView] = []
         for operand in op.operands:
             assert (isinstance(operand, OpResult))
+            # Small workaround when we do not already have an ImmutableOperation for the operands
             operands.append(
-                ImmutableOpResultView(operand.typ, context[operand.op],
-                                      operand.result_index))
+                ImmutableOpResultView(
+                    operand.typ, context[operand.op] if operand.op in context
+                    else ImmutableOperation.from_op(operand.op),
+                    operand.result_index))
 
         regions: List[ImmutableRegion] = []
         for region in op.regions:
@@ -130,13 +138,6 @@ class ImmutableOperation:
         context[op] = immutableOp
         return immutableOp
 
-    def is_op(self, SomeOpClass):
-        # print(self)
-        if self is not None and isinstance(self._op, SomeOpClass):
-            return self
-        else:
-            return None
-
     def get_attribute(self, name: str) -> Attribute:
         return self._op.attributes[name]
 
@@ -144,3 +145,19 @@ class ImmutableOperation:
         fun(self)
         for region in self.regions:
             region.walk(fun)
+
+    def get_mutable_copy(self) -> Operation:
+        return self._op.clone()
+
+    def replace_with(self, ops: List[ImmutableOperation]):
+        assert (isinstance(ops, List))
+        assert (all([isinstance(op, ImmutableOperation) for op in ops]))
+        rewriter = Rewriter()
+        rewriter.replace_op(self._op, [op._op for op in ops])
+
+
+def isa(op: ImmutableOperation, SomeOpClass):
+    if op is not None and isinstance(op._op, SomeOpClass):
+        return True
+    else:
+        return False

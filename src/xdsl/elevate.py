@@ -7,6 +7,7 @@ from typing import List, Optional, Callable, Union, Tuple
 from numpy import true_divide
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.immutable_ir import ImmutableOperation
 from xdsl.ir import Operation, OpResult, Region, Block, BlockArgument, Attribute
 from xdsl.rewriter import Rewriter
 from xdsl.pattern_rewriter import *
@@ -20,9 +21,19 @@ class RewriteResult:
     def flatMapSuccess(self, s: Strategy, rewriter: Rewriter) -> RewriteResult:
         if (not isinstance(self.result, List)):
             return self
-        return s(self.result, rewriter)
+        return s(self.result[0], rewriter)
 
     def flatMapFailure(self, f: Callable) -> RewriteResult:
+        if (not isinstance(self.result, List)):
+            return f()
+        return self
+
+    def flatMapSuccess_imm(self, s: ImmutableRewrite) -> RewriteResult:
+        if (not isinstance(self.result, List)):
+            return self
+        return s.apply(self.result[0])
+
+    def flatMapFailure_imm(self, f: Callable) -> RewriteResult:
         if (not isinstance(self.result, List)):
             return f()
         return self
@@ -35,12 +46,17 @@ class RewriteResult:
         else:
             assert False
 
+    def isSuccess(self):
+        return isinstance(self.result, List)
 
-def success(op: Operation) -> RewriteResult:
+
+def success(op: List[ImmutableOperation]) -> RewriteResult:
+    assert (isinstance(op, List))
     return RewriteResult(op)
 
 
 def failure(errorMsg: str) -> RewriteResult:
+    assert (isinstance(errorMsg, str))
     return RewriteResult(errorMsg)
 
 
