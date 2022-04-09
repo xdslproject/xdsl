@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import (Dict, List, Callable, Optional, Any, TYPE_CHECKING,
+from typing import (Dict, Generic, List, Callable, Optional, Any, TYPE_CHECKING,
                     TypeVar, Set, Union, Tuple)
 import typing
 from frozenlist import FrozenList
@@ -192,20 +192,24 @@ class Attribute(ABC):
         assert False
 
 
+DataElement = TypeVar("DataElement")
+
+
 @dataclass(frozen=True)
-class Data(Attribute):
+class Data(Generic[DataElement], Attribute):
     """An attribute represented by a Python structure."""
+
+    data: DataElement
 
     @staticmethod
     @abstractmethod
-    def parse(parser: Parser) -> Data:
-        """Parse the attribute value."""
-        ...
+    def parse_parameter(parser: Parser) -> DataElement:
+        """Parse the attribute parameter."""
 
+    @staticmethod
     @abstractmethod
-    def print(self, printer: Printer) -> None:
-        """Print the attribute value."""
-        ...
+    def print_parameter(data: DataElement, printer: Printer) -> None:
+        """Print the attribute parameter."""
 
 
 @dataclass(frozen=True)

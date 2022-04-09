@@ -36,17 +36,17 @@ class Builtin:
 
 
 @irdl_attr_definition
-class StringAttr(Data):
+class StringAttr(Data[str]):
     name = "string"
-    data: str
 
     @staticmethod
-    def parse(parser: Parser) -> StringAttr:
+    def parse_parameter(parser: Parser) -> str:
         data = parser.parse_str_literal()
-        return StringAttr(data)
+        return data
 
-    def print(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
+        printer.print_string(f'"{data}"')
 
     @staticmethod
     @builder
@@ -87,17 +87,17 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IntAttr(Data):
+class IntAttr(Data[int]):
     name = "int"
-    data: int
 
     @staticmethod
-    def parse(parser: Parser) -> IntAttr:
+    def parse_parameter(parser: Parser) -> int:
         data = parser.parse_int_literal()
-        return IntAttr(data)
+        return data
 
-    def print(self, printer: Printer) -> None:
-        printer.print_string(f'{self.data}')
+    @staticmethod
+    def print_parameter(data: int, printer: Printer) -> None:
+        printer.print_string(f'{data}')
 
     @staticmethod
     @builder
@@ -155,18 +155,18 @@ class IntegerAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class ArrayAttr(Data):
+class ArrayAttr(Data[List[Attribute]]):
     name = "array"
-    data: List[Attribute]
 
     @staticmethod
-    def parse(parser) -> ArrayAttr:
+    def parse_parameter(parser: Parser) -> List[Attribute]:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
-        return ArrayAttr.get(data)
+        return data
 
-    def print(self, printer) -> None:
+    @staticmethod
+    def print_parameter(data: List[Attribute], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")

@@ -328,9 +328,9 @@ class Parser:
             return attr_def()
 
         if issubclass(attr_def, Data):
-            attr = attr_def.parse(self)
+            attr = attr_def.parse_parameter(self)
             self.parse_char(">")
-            return attr
+            return attr_def(attr)
 
         param_list = self.parse_list(self.parse_optional_attribute)
         self.parse_char(">")
