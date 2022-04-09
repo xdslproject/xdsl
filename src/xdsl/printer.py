@@ -250,7 +250,7 @@ class Printer:
 
         if isinstance(attribute, Data):
             self._print(f'!{attribute.name}<')
-            attribute.print(self)
+            attribute.print_parameter(attribute.data, self)
             self._print(">")
             return
 

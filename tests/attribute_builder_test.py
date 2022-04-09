@@ -25,9 +25,8 @@ def test_no_builder_exception():
 
 
 @irdl_attr_definition
-class OneBuilderAttr(Data):
+class OneBuilderAttr(Data[str]):
     name = "test.one_builder_attr"
-    param: str
 
     @staticmethod
     @builder
@@ -35,10 +34,11 @@ class OneBuilderAttr(Data):
         return OneBuilderAttr(str(i))
 
     @staticmethod
-    def parse(parser: Parser) -> Data:
+    def parse_parameter(parser: Parser) -> str:
         pass
 
-    def print(self, printer: Printer) -> None:
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
         pass
 
 
@@ -58,9 +58,8 @@ def test_one_builder_exception():
 
 
 @irdl_attr_definition
-class TwoBuildersAttr(Data):
+class TwoBuildersAttr(Data[str]):
     name = "test.two_builder_attr"
-    param: str
 
     @staticmethod
     @builder
@@ -73,10 +72,11 @@ class TwoBuildersAttr(Data):
         return TwoBuildersAttr(s)
 
     @staticmethod
-    def parse(parser: Parser) -> Data:
+    def parse_parameter(parser: Parser) -> str:
         pass
 
-    def print(self, printer: Printer) -> None:
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
         pass
 
 
@@ -101,7 +101,7 @@ def test_two_builders_bad_args():
 
 
 @irdl_attr_definition
-class BuilderDefaultArgAttr(Data):
+class BuilderDefaultArgAttr(Data[str]):
     name = "test.builder_default_arg_attr"
     param: str
 
@@ -111,10 +111,11 @@ class BuilderDefaultArgAttr(Data):
         return BuilderDefaultArgAttr(str(i))
 
     @staticmethod
-    def parse(parser: Parser) -> Data:
+    def parse_parameter(parser: Parser) -> str:
         pass
 
-    def print(self, printer: Printer) -> None:
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
         pass
 
 
@@ -129,7 +130,7 @@ def builder_default_arg_arg():
 
 
 @irdl_attr_definition
-class BuilderUnionArgAttr(Data):
+class BuilderUnionArgAttr(Data[str]):
     name = "test.builder_union_arg_attr"
     param: str
 
@@ -139,10 +140,11 @@ class BuilderUnionArgAttr(Data):
         return BuilderUnionArgAttr(str(i))
 
     @staticmethod
-    def parse(parser: Parser) -> Data:
+    def parse_parameter(parser: Parser) -> str:
         pass
 
-    def print(self, printer: Printer) -> None:
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
         pass
 
 
