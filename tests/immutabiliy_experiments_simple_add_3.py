@@ -20,13 +20,8 @@ import difflib
 
 ###
 #
-#   In this experiment we use the concepts of Elevate strategies to traverse the IR
-#   and enable that the FoldConstants rewrite actually matches the addOp and not the
-#   module containing the addop.
-#   We also clone the op we apply a Rewrite to before rewriting. Due to issues with this
-#   it is difficult to define the topDown traversal. To combat this the one traversal is
-#   defined to not only try to apply to the operands but also to the operations in the region
-#   of an op
+#   In this experiment we don't immediately clone an op we apply a Rewrite
+#   but try to clone as late as possible (i.e. when we have to mutate)
 #
 ###
 
@@ -66,14 +61,7 @@ std.return(%4 : !i32)
     class ImmutableRewrite:
 
         def apply(self, op: ImmutableOperation) -> RewriteResult:
-            print("cloning op:" + op.name)
-            # This does not always work as wanted, bcs we do not have access to the operands of clonedOp anymore
-            # Maybe implement a custom clone() for ImmutableOperation?
-
-            clonedOp = op._op.clone()
-            clonedImmutableOp = get_immutable_copy(clonedOp)
-
-            return self.impl(clonedImmutableOp)
+            return self.impl(op)
 
         @abstractmethod
         def impl(self, op: ImmutableOperation) -> RewriteResult:
@@ -166,35 +154,77 @@ std.return(%4 : !i32)
     @dataclass
     class one(ImmutableRewrite):
         """
-        Try to apply s to one the operands of op or to the next operation in the same block.
+        Try to apply s to one the operands of op or to the first op in its region
+        or to the next operation in the same block.
         """
         s: ImmutableRewrite
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
-            # TODO: handle properly for regions and blocks
-            if isa(module := op, ModuleOp):
-                for nestedOp in module.region.block.ops:
-                    rr = self.s.apply(nestedOp)
-                    if rr.isSuccess():
-                        #TODO: here we escape from Imm
-                        nestedOp.replace_with(rr.result)
-                        return success(
-                            [ImmutableOperation.from_op(module._op)])
-            for operand in op.operands:
+            for idx, operand in enumerate(op.operands):
+                # Try to apply to the operands of this op
                 if (isinstance(operand, ImmutableOpResultView)):
                     rr = self.s.apply(operand.op)
                     if rr.isSuccess():
-                        #TODO: here we escape from Imm
-                        operand.op.replace_with(rr.result)
-                        return success([ImmutableOperation.from_op(op._op)]
-                                       | rr.result)
-            # This was for also applying this to the operation after this op in the same block
-            # Does currently not work because of the cloning. We do not have access to sibling ops here
-            # if block := op.parentBlock is not None:
+                        clonedOp = op.get_mutable_copy()
+                        clonedImmutableOp = get_immutable_copy(clonedOp)
+                        clonedOperand = clonedImmutableOp.operands[idx]
+
+                        clonedImmutableOp.op.replace_with(rr.result)
+                        return success(
+                            [ImmutableOperation.from_op(clonedOp._op)]
+                            | rr.result)
+            if len(op.regions) > 0 and (numOps := len(
+                    op.region.block.ops)) > 0:
+                # Try to apply to first/all operation in the region of this op
+                onlyFirst = False
+                for idx in range(1 if onlyFirst else numOps):
+                    rr = self.s.apply(op.region.block.ops[idx])
+                    if rr.isSuccess():
+                        clonedOp = op.get_mutable_copy()
+                        clonedImmutableOp = get_immutable_copy(clonedOp)
+                        nestedClonedOp = clonedImmutableOp.region.block.ops[
+                            idx]
+
+                        nestedClonedOp.replace_with(rr.result)
+                        return success([
+                            ImmutableOperation.from_op(clonedImmutableOp._op)
+                        ])
+            #TODO: This yields an infinte loop because the same ops are reachable
+            #through this and through operands
+
+            # if (block := op.parentBlock) is not None:
+            #     # Try to apply to the next sibling of this op
             #     indexInParent = block.ops.index(op)
-            #     if len(block.ops) < indexInParent + 1:
+
+            #     print("parentBlock of " + op.name + ", index:" +
+            #           str(indexInParent))
+
+            #     if len(block.ops) > indexInParent + 1:
             #         rr = self.s.apply(block.ops[indexInParent + 1])
+            #         if rr.isSuccess():
+            #             # what do we need to clone and replace?
+
+            #             # TODO: next just try the dopdown traversal with debug
+            #             # Then try topdown with first cloning everything again
+
+            #             # clonedOp = op.get_mutable_copy()
+            #             # clonedImmutableOp = get_immutable_copy(clonedOp)
+            #             # nestedClonedOp = clonedImmutableOp.region.block.ops[idx]
+
+            #             # nestedClonedOp.replace_with(rr.result)
+            #             block.ops[indexInParent + 1].replace_with(rr.result)
+            #             return success([op])
             return failure("one traversal failure")
+
+    @dataclass
+    class topdown(ImmutableRewrite):
+        """
+        Topdown traversal
+        """
+        s: ImmutableRewrite
+
+        def impl(self, op: ImmutableOperation) -> RewriteResult:
+            return leftChoice(self.s, one(topdown(self.s))).apply(op)
 
     def get_immutable_copy(op: Operation) -> ImmutableOperation:
         return ImmutableOperation.from_op(op, {})
@@ -211,10 +241,8 @@ std.return(%4 : !i32)
     beforeM: ModuleOp = parser.parse_op()
     immBeforeM: ImmutableOperation = get_immutable_copy(beforeM)
 
-    # illustrating the copy problem
-    # rrImmM1 = one(seq(debug(), fail())).apply(immBeforeM)
-
     rrImmM1 = one(FoldConstantAdd()).apply(immBeforeM)
+    print(rrImmM1)
     assert (rrImmM1.isSuccess()
             and isinstance(rrImmM1.result[0], ImmutableOperation))
 
@@ -224,7 +252,8 @@ std.return(%4 : !i32)
 
     file = StringIO("")
     printer = Printer(stream=file)
-    printer.print_op(rrImmM2.result[0].get_mutable_copy())
+    # printer.print_op(rrImmM2.result[0].get_mutable_copy())
+    printer.print_op(rrImmM2.result[0]._op)
 
     diff = list(difflib.Differ().compare(
         file.getvalue().splitlines(True),

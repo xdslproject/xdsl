@@ -18,6 +18,15 @@ from xdsl.immutable_ir import *
 
 import difflib
 
+###
+#
+#   In this experiment we use a more expansive immutable interface, defined in immutable_ir.py
+#   Basically all IR concepts of xdsl have now an immutable counterpart.
+#   As a workaround, FoldConstant currently matches the whole module containing the addOp and
+#   replaces it.
+#
+###
+
 
 def rewriting_with_immutability_experiments():
     # constant folding

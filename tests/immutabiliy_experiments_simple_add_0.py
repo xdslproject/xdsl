@@ -17,6 +17,13 @@ from xdsl.elevate import *
 
 import difflib
 
+###
+#
+#   In this experiment we try a rough first interface for an Immutable view on ops
+#   This has now been replaced by xdsl.immutable_ir.py
+#
+###
+
 
 def rewriting_with_immutability_experiments():
     # constant folding
