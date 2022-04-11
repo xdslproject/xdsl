@@ -369,16 +369,23 @@ class Operation:
         pass
 
     def clone_without_regions(self: OperationType,
-                              mapper=None) -> OperationType:
+                              valueMapper: Dict = None,
+                              blockMapper: Dict = None) -> OperationType:
         """Clone an operation, with empty regions instead."""
-        if mapper is None:
-            mapper = {}
-        operands = [(mapper[operand] if operand in mapper else operand)
-                    for operand in self.operands]
+        if valueMapper is None:
+            valueMapper = {}
+        if blockMapper is None:
+            blockMapper = {}
+        operands = [
+            (valueMapper[operand] if operand in valueMapper else operand)
+            for operand in self.operands
+        ]
         result_types = [res.typ for res in self.results]
         attributes = self.attributes.copy()
-        successors = [(mapper[successor] if successor in mapper else successor)
-                      for successor in self.successors]
+        successors = [
+            (blockMapper[successor] if successor in blockMapper else successor)
+            for successor in self.successors
+        ]
         regions = [Region() for _ in self.regions]
         clonedOp = self.create(operands=operands,
                                result_types=result_types,
@@ -386,16 +393,20 @@ class Operation:
                                successors=successors,
                                regions=regions)
         for idx, result in enumerate(clonedOp.results):
-            mapper[self.results[idx]] = result
+            valueMapper[self.results[idx]] = result
         return clonedOp
 
-    def clone(self: OperationType, mapper=None) -> OperationType:
+    def clone(self: OperationType,
+              valueMapper: Dict = None,
+              blockMapper: Dict = None) -> OperationType:
         """Clone an operation with all its regions and operations in them."""
-        if mapper is None:
-            mapper = {}
-        op = self.clone_without_regions(mapper)
+        if valueMapper is None:
+            valueMapper = {}
+        if blockMapper is None:
+            blockMapper = {}
+        op = self.clone_without_regions(valueMapper, blockMapper)
         for idx, region in enumerate(self.regions):
-            region.clone_into(op.regions[idx], mapper)
+            region.clone_into(op.regions[idx], 0, valueMapper, blockMapper)
         return op
 
     def erase(self, safe_erase=True, drop_references=True) -> None:
@@ -795,24 +806,33 @@ class Region:
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
 
-    def clone_into(self, dest: Region, mapper: dict):
+    def clone_into(self,
+                   dest: Region,
+                   insert_index: int = None,
+                   valueMapper: Dict = None,
+                   blockMapper: Dict = None):
         """
         Clone all block of this region into `dest`
         """
         assert (dest is not None)
         assert (dest != self)
-        if mapper is None:
-            mapper = {}
+        if insert_index is None:
+            insert_index = len(dest.blocks)
+        if valueMapper is None:
+            valueMapper = {}
+        if blockMapper is None:
+            blockMapper = {}
 
         for block in self.blocks:
             newBlock = Block()
-            mapper[block] = newBlock
+            blockMapper[block] = newBlock
             for idx, blockArg in enumerate(block.args):
                 newBlock.insert_arg(blockArg.typ, idx)
-                mapper[blockArg] = newBlock.args[idx]
+                valueMapper[blockArg] = newBlock.args[idx]
             for op in block.ops:
-                newBlock.add_op(op.clone(mapper))
-            dest.add_block(newBlock)
+                newBlock.add_op(op.clone(valueMapper, blockMapper))
+            dest.insert_block(newBlock, insert_index)
+            insert_index += 1
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the region."""
