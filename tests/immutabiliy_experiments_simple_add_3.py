@@ -176,8 +176,11 @@ std.return(%4 : !i32)
             if len(op.regions) > 0 and (numOps := len(
                     op.region.block.ops)) > 0:
                 # Try to apply to first/all operation in the region of this op
-                onlyFirst = False
-                for idx in range(1 if onlyFirst else numOps):
+                onlyOne = True
+                onlyLast = True
+                for idx in range(1 if onlyOne else numOps):
+                    if onlyLast:
+                        idx = numOps - 1
                     rr = self.s.apply(op.region.block.ops[idx])
                     if rr.isSuccess():
                         clonedOp = op.get_mutable_copy()
@@ -189,8 +192,8 @@ std.return(%4 : !i32)
                         return success([
                             ImmutableOperation.from_op(clonedImmutableOp._op)
                         ])
-            #TODO: This yields an infinte loop because the same ops are reachable
-            #through this and through operands
+            #TODO: With onlyLast = False, This yields an infinte loop because
+            #the same ops are reachable through this and through operands
 
             # if (block := op.parentBlock) is not None:
             #     # Try to apply to the next sibling of this op
@@ -241,7 +244,9 @@ std.return(%4 : !i32)
     beforeM: ModuleOp = parser.parse_op()
     immBeforeM: ImmutableOperation = get_immutable_copy(beforeM)
 
-    rrImmM1 = one(FoldConstantAdd()).apply(immBeforeM)
+    # test = topdown(seq(debug(), fail())).apply(immBeforeM)
+
+    rrImmM1 = one(seq(debug(), FoldConstantAdd())).apply(immBeforeM)
     print(rrImmM1)
     assert (rrImmM1.isSuccess()
             and isinstance(rrImmM1.result[0], ImmutableOperation))
