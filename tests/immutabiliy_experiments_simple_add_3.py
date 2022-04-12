@@ -134,7 +134,7 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             rr = self.s1.apply(op)
-            return rr.flatMapSuccess_imm(self.s2)
+            return rr.flatMapSuccess(self.s2)
 
     @dataclass
     class leftChoice(ImmutableRewrite):
@@ -162,7 +162,7 @@ std.return(%4 : !i32)
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             for idx, operand in enumerate(op.operands):
                 # Try to apply to the operands of this op
-                if (isinstance(operand, ImmutableOpResultView)):
+                if (isinstance(operand, ImmutableOpResult)):
                     rr = self.s.apply(operand.op)
                     if rr.isSuccess():
                         clonedOp = op.get_mutable_copy()
@@ -170,14 +170,13 @@ std.return(%4 : !i32)
                         clonedOperand = clonedImmutableOp.operands[idx]
 
                         clonedImmutableOp.op.replace_with(rr.result)
-                        return success(
-                            [ImmutableOperation.from_op(clonedOp._op)]
-                            | rr.result)
+                        return success([ImmutableOperation.from_op(clonedOp)] +
+                                       rr.result)
             if len(op.regions) > 0 and (numOps := len(
                     op.region.block.ops)) > 0:
                 # Try to apply to first/all operation in the region of this op
-                onlyOne = True
-                onlyLast = True
+                onlyOne = False
+                onlyLast = False
                 for idx in range(1 if onlyOne else numOps):
                     if onlyLast:
                         idx = numOps - 1
@@ -189,9 +188,8 @@ std.return(%4 : !i32)
                             idx]
 
                         nestedClonedOp.replace_with(rr.result)
-                        return success([
-                            ImmutableOperation.from_op(clonedImmutableOp._op)
-                        ])
+                        return success([ImmutableOperation.from_op(clonedOp)] +
+                                       rr.result)
             #TODO: With onlyLast = False, This yields an infinte loop because
             #the same ops are reachable through this and through operands
 
@@ -244,9 +242,7 @@ std.return(%4 : !i32)
     beforeM: ModuleOp = parser.parse_op()
     immBeforeM: ImmutableOperation = get_immutable_copy(beforeM)
 
-    # test = topdown(seq(debug(), fail())).apply(immBeforeM)
-
-    rrImmM1 = one(seq(debug(), FoldConstantAdd())).apply(immBeforeM)
+    rrImmM1 = one(FoldConstantAdd()).apply(immBeforeM)
     print(rrImmM1)
     assert (rrImmM1.isSuccess()
             and isinstance(rrImmM1.result[0], ImmutableOperation))
@@ -257,7 +253,6 @@ std.return(%4 : !i32)
 
     file = StringIO("")
     printer = Printer(stream=file)
-    # printer.print_op(rrImmM2.result[0].get_mutable_copy())
     printer.print_op(rrImmM2.result[0]._op)
 
     diff = list(difflib.Differ().compare(

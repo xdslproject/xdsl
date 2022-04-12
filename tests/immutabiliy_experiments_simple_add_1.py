@@ -63,7 +63,7 @@ std.return(%4 : !i32)
     class ImmutableRewrite:
 
         def apply(self, op: ImmutableOperation) -> RewriteResult:
-            clonedOp = op._op.clone()
+            clonedOp = op.get_mutable_copy()
             clonedImmutableOp = get_immutable_copy(clonedOp)
 
             result = self.impl(clonedImmutableOp)

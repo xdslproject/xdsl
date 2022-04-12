@@ -11,7 +11,7 @@ class ImmutableSSAValue:
 
 
 @dataclass
-class ImmutableOpResultView(ImmutableSSAValue):
+class ImmutableOpResult(ImmutableSSAValue):
     op: ImmutableOperation
     result_index: int
 
@@ -101,13 +101,18 @@ class ImmutableBlock:
 class ImmutableOperation:
     name: str
     _op: Operation
-    operands: FrozenList[ImmutableOpResultView]  # could also be BlockArg
+    operands: FrozenList[SSAValue]
+    results: FrozenList[ImmutableOpResult]
     regions: FrozenList[ImmutableRegion]
     parentBlock: Optional[ImmutableBlock] = None
 
     @property
     def region(self):
         return self.regions[0]
+
+    def __post_init__(self):
+        for result in self.results:
+            result.op = self
 
     @staticmethod
     def from_op(
@@ -118,25 +123,56 @@ class ImmutableOperation:
         if context is None:
             context = {}
 
-        operands: List[ImmutableOpResultView] = []
+        operands: List[ImmutableSSAValue] = []
         for operand in op.operands:
             assert (isinstance(operand, OpResult))
             # Small workaround when we do not already have an ImmutableOperation for the operands
             operands.append(
-                ImmutableOpResultView(
+                ImmutableOpResult(
                     operand.typ, context[operand.op] if operand.op in context
                     else ImmutableOperation.from_op(operand.op),
                     operand.result_index))
+
+        results: List[ImmutableOpResult] = []
+        for result in op.results:
+            results.append(
+                ImmutableOpResult(result.typ, None, result.result_index))
 
         regions: List[ImmutableRegion] = []
         for region in op.regions:
             regions.append(ImmutableRegion.from_block_list(region.blocks))
 
         immutableOp = ImmutableOperation("immutable." + op.name, op, operands,
-                                         regions)
+                                         results, regions)
 
         context[op] = immutableOp
         return immutableOp
+
+    def create_new(OpType: OperationType,
+                   immutable_operands: List[ImmutableOpResult],
+                   op: Operation) -> List[ImmutableOperation]:
+        # TODO: finish this
+        # this should also clone all operations in the operands, which are not newly created
+        # that are those who already are attached to a parentBlock
+        dependantOperations = []
+
+        newOp = OpType.create(op.operands,
+                              [result.typ for result in op.results],
+                              op.attributes.copy(), op.successors.copy())
+
+        # This should actually return a list of operations:
+        #   the new op itself and all cloned dependant ops
+        return [ImmutableOperation.from_op(newOp)]
+
+    #         @classmethod
+    # def create(cls: typing.Type[OperationType],
+    #            operands: Optional[List[SSAValue]] = None,
+    #            result_types: Optional[List[Attribute]] = None,
+    #            attributes: Optional[Dict[str, Attribute]] = None,
+    #            successors: Optional[List[Block]] = None,
+    #            regions: Optional[List[Region]] = None) -> OperationType:
+    #     return Operation.with_result_types(cls, operands, result_types,
+    #                                        attributes, successors, regions)
 
     def get_attribute(self, name: str) -> Attribute:
         return self._op.attributes[name]

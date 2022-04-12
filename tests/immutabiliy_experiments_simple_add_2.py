@@ -70,7 +70,7 @@ std.return(%4 : !i32)
             # This does not always work as wanted, bcs we do not have access to the operands of clonedOp anymore
             # Maybe implement a custom clone() for ImmutableOperation?
 
-            clonedOp = op._op.clone()
+            clonedOp = op.get_mutable_copy()
             clonedImmutableOp = get_immutable_copy(clonedOp)
 
             return self.impl(clonedImmutableOp)
@@ -181,7 +181,7 @@ std.return(%4 : !i32)
                         return success(
                             [ImmutableOperation.from_op(module._op)])
             for operand in op.operands:
-                if (isinstance(operand, ImmutableOpResultView)):
+                if (isinstance(operand, ImmutableOpResult)):
                     rr = self.s.apply(operand.op)
                     if rr.isSuccess():
                         #TODO: here we escape from Imm
