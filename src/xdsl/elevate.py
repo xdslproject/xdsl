@@ -118,58 +118,51 @@ class one(Strategy):
     """
     s: Strategy
 
-
-    before = \
-"""module() {
-%0 : !i32 = arith.constant() ["value" = 1 : !i32]
-%1 : !i32 = arith.constant() ["value" = 2 : !i32]
-%2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-%3 : !i32 = arith.constant() ["value" = 4 : !i32]
-%4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
-std.return(%4 : !i32)
-}
-"""
-
     def impl(self, op: ImmutableOperation) -> RewriteResult:
-
-        # TODO: not recursively currently
-        def getUsedOperationsRecursively(
-                op: ImmutableOperation,
-                exceptions: List[int] = None) -> List[ImmutableOperation]:
-            if exceptions is None:
-                exceptions = []
-            usedOps = []
-            for idx, operand in enumerate(op.operands):
-                if idx in exceptions:
-                    continue
-                if isinstance(operand, ImmutableOpResult):
-                    usedOps.append(
-                        ImmutableOperation.from_op(
-                            operand.op.get_mutable_copy()))
-            return usedOps
-
         for idx, operand in enumerate(op.operands):
             # Try to apply to the operands of this op
             if (isinstance(operand, ImmutableOpResult)):
                 rr = self.s.apply(operand.op)
                 if rr.isSuccess():
-                    # recreate op
-                    tmp = getUsedOperationsRecursively(op, [idx])
-                    # newOp = op._op.clone()
-                    # newOp.replace_operand(idx, rr.result[-1]._op.results[0])
-                    # newImm = ImmutableOperation.from_op(newOp)
+                    assert isinstance(rr.result, List)
+                    # build the operands including the new operand
+                    newOperands = op.operands[:idx] + [
+                        rr.result[-1].results[operand.result_index]
+                    ] + op.operands[idx + 1:]
 
+                    # Not handled yet:
+                    #   - when the operand has regions
+                    #   - when the op has successors
                     newOps = ImmutableOperation.create_new(
-                        op._op.__class__, op.operands[:idx - 1] +
-                        [rr.result[-1]] + op.operands[idx + 1:], op._op)
-                    newOps[-1]._op.replace_operand(
-                        idx, rr.result[-1]._op.results[0])
+                        op_type=op._op.__class__,
+                        immutable_operands=newOperands,
+                        result_types=op.result_types,
+                        attributes=op.get_attributes_copy(),
+                        successors=op._op.successors)
 
-                    return success(tmp + rr.result + newOps)
-        if len(op.regions) > 0 and len(op.region.block.ops) > 0:
-            # Try to apply to last operation in the region of this op
-            rr = self.s.apply(op.region.block.ops[-1])
+                    return success(rr.result + newOps)
+        for region in op.regions:
+            # Try to apply to last operation in the last block in the regions of this op
+            if len(region.blocks) == 0:
+                continue
+
+            rr = self.s.apply(region.blocks[-1].ops[-1])
             if rr.isSuccess():
+                assert isinstance(rr.result, List)
+                # TODO: use create_new here as well
+                # should look like this:
+
+                # newOp = ImmutableOperation.create_new(
+                #     op_type=op._op.__class__,
+                #     immutable_operands=op.operands,
+                #     result_types=op.result_types,
+                #     attributes=op.get_attributes_copy(),
+                #     successors=op.successors,
+                #     regions=[
+                #         ImmutableRegion.from_immutable_operation_list(
+                #             rr.result)
+                #     ])
+
                 newOp = op._op.clone_without_regions()
                 newOp.regions.clear()
                 newRegion: Region = Region.from_operation_list(
