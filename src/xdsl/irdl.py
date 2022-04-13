@@ -1,11 +1,13 @@
 from __future__ import annotations
+from enum import Enum
 
 import inspect
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, Union, TypeVar
+from typing import Annotated, List, Tuple, Optional, TypeAlias, Union, TypeVar, Any
 from inspect import isclass
 import typing
+import types
 
 from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
@@ -21,6 +23,10 @@ def error(op: Operation, msg: str):
 
 class VerifyException(DiagnosticException):
     ...
+
+
+class IRDLAnnotations(Enum):
+    ParamDefAnnot = 1
 
 
 @dataclass
@@ -111,6 +117,18 @@ class AnyOf(AttrConstraint):
         raise VerifyException(f"Unexpected attribute {attr}")
 
 
+@dataclass()
+class AndConstraint(AttrConstraint):
+    """Ensure that an attribute satisfies all the given constraints."""
+
+    attr_constrs: List[AttrConstraint]
+    """The list of constraints that are checked."""
+
+    def verify(self, attr: Attribute) -> None:
+        for attr_constr in self.attr_constrs:
+            attr_constr.verify(attr)
+
+
 @dataclass(init=False)
 class ParamAttrConstraint(AttrConstraint):
     """
@@ -144,6 +162,46 @@ class ParamAttrConstraint(AttrConstraint):
             )
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx])
+
+
+def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
+    if isinstance(irdl, AttrConstraint):
+        return irdl
+
+    # Annotated case
+    # Each argument of the Annotated type correspond to a constraint to satisfy.
+    if typing.get_origin(irdl) == Annotated:
+        constraints = []
+        for arg in typing.get_args(irdl):
+            # We should not try to convert IRDL annotations, which do not
+            # correspond to constraints
+            if isinstance(arg, IRDLAnnotations):
+                continue
+            constraints.append(irdl_to_attr_constraint(arg))
+        if len(constraints) > 1:
+            return AndConstraint(constraints)
+        return constraints[0]
+
+    # Attribute class case
+    # This is a coercion for an `BaseAttr`.
+    if isclass(irdl) and issubclass(irdl, Attribute):
+        return BaseAttr(irdl)
+
+    # Union case
+    # This is a coercion for an `AnyOf` constraint.
+    if typing.get_origin(irdl) == types.UnionType:
+        constraints = []
+        for arg in typing.get_args(irdl):
+            # We should not try to convert IRDL annotations, which do not
+            # correspond to constraints
+            if isinstance(arg, IRDLAnnotations):
+                continue
+            constraints.append(irdl_to_attr_constraint(arg))
+        if len(constraints) > 1:
+            return AnyOf(constraints)
+        return constraints[0]
+
+    raise ValueError(f"Unexpected irdl constraint: {irdl}")
 
 
 @dataclass
@@ -645,18 +703,14 @@ def irdl_op_definition(
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
-@dataclass
-class ParameterDef:
-    """An IRDL definition of an attribute parameter."""
-    constr: AttrConstraint
+_ParameterDefT = TypeVar("_ParameterDefT", bound=Attribute)
 
-    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
-                                  AttrConstraint]):
-        self.constr = attr_constr_coercion(typ)
+ParameterDef: TypeAlias = Annotated[_ParameterDefT,
+                                    IRDLAnnotations.ParamDefAnnot]
 
 
 def irdl_attr_verify(attr: ParametrizedAttribute,
-                     parameters: List[ParameterDef]):
+                     parameters: List[AttrConstraint]):
     """Given an IRDL definition, verify that an attribute satisfies its invariants."""
 
     if len(attr.parameters) != len(parameters):
@@ -664,7 +718,16 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
             f"{len(parameters)} parameters expected, got {len(attr.parameters)}"
         )
     for idx, param_def in enumerate(parameters):
-        param_def.constr.verify(attr.parameters[idx])
+        param = attr.parameters[idx]
+        assert isinstance(param, Attribute)
+        for arg in typing.get_args(parameters):
+            if isinstance(param, IRDLAnnotations):
+                continue
+            if not isinstance(arg, AttrConstraint):
+                raise Exception(
+                    "Unexpected attribute constraint given to IRDL definition: {arg}"
+                )
+            arg.verify(param)
 
 
 C = TypeVar('C', bound='Callable')
@@ -740,39 +803,60 @@ def irdl_param_attr_definition(
         cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
     """Decorator used on classes to define a new attribute definition."""
 
+    # Get the fields from the class and its parents
+    clsdict = dict()
+    for parent_cls in cls.mro()[::-1]:
+        clsdict = {**clsdict, **parent_cls.__dict__}
+
+    # IRDL parameters definitions
     parameters = []
-    new_attrs = dict()
-    for field_name in cls.__dict__:
-        field_ = cls.__dict__[field_name]
-        if isinstance(field_, ParameterDef):
-            new_attrs[field_name] = property(
-                (lambda idx: lambda self: self.parameters[idx])(
-                    len(parameters)))
-            parameters.append(field_)
+    # New fields and methods added to the attribute
+    new_fields = dict()
 
-    new_attrs["verify"] = lambda typ: irdl_attr_verify(typ, parameters)
+    # TODO(math-fehr): Check that "name" and "parameters" are not redefined
+    for field_name, field_type in typing.get_type_hints(
+            cls, include_extras=True).items():
+        # name and parameters are reserved fields in IRDL
+        if field_name == "name" or field_name == "parameters":
+            continue
 
-    if "verify" in cls.__dict__:
-        custom_verifier = cls.__dict__["verify"]
+        # Throw an error if a parameter is not definied using `ParameterDef`
+        origin = typing.get_origin(field_type)
+        args = typing.get_args(field_type)
+        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
+            raise ValueError(
+                f"In attribute {cls.__name__} definition: Parameter " +
+                f"definition {field_name} should be defined with " +
+                f"type `ParameterDef`, got type {field_type}.")
+
+        # Add the accessors for the definition
+        new_fields[field_name] = property(
+            (lambda idx: lambda self: self.parameters[idx])(len(parameters)))
+        parameters.append(irdl_to_attr_constraint(field_type))
+
+    new_fields["verify"] = lambda typ: irdl_attr_verify(typ, parameters)
+
+    if "verify" in clsdict:
+        custom_verifier = clsdict["verify"]
 
         def new_verifier(verifier, op):
             verifier(op)
             custom_verifier(op)
 
-        new_attrs["verify"] = (
+        new_fields["verify"] = (
             lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_attrs["verify"])
+                new_fields["verify"])
 
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:
         raise Exception(
             f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
         )
-    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+    new_fields["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
 
-    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
+    return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
-        **new_attrs
+        **new_fields
     }))
 
 

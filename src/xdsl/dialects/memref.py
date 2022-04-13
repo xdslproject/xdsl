@@ -26,11 +26,11 @@ class MemRef:
 class MemRefType(ParametrizedAttribute):
     name = "memref"
 
-    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
-    element_type = ParameterDef(AnyAttr())
+    shape: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(IntegerAttr)]]
+    element_type: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
-        return len(self.parameters[0].data)
+        return len(self.shape.data)
 
     def get_shape(self) -> List[int]:
         return [i.parameters[0].data for i in self.shape.data]

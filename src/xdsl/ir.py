@@ -175,7 +175,6 @@ class ErasedSSAValue(SSAValue):
 AttrClass = TypeVar('AttrClass', bound='Attribute')
 
 
-@dataclass(frozen=True)
 class Attribute(ABC):
     """
     A compile-time value.
@@ -183,8 +182,11 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: str = field(default="", init=False)
-    """The attribute name should be a static field in the attribute classes."""
+    @property
+    @abstractmethod
+    def name(self):
+        """The attribute name should be a static field in the attribute classes."""
+        pass
 
     @classmethod
     def build(cls: typing.Type[AttrClass], *args) -> AttrClass:
@@ -216,7 +218,6 @@ class Data(Generic[DataElement], Attribute):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    name: str = field(default="", init=False)
     parameters: List[Attribute] = field(default_factory=list)
 
     def __post_init__(self):
