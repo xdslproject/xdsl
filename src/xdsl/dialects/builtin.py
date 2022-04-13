@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from xdsl.irdl import *
 from xdsl.ir import *
-from typing import overload
+from typing import Type
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -56,7 +56,7 @@ class StringAttr(Data[str]):
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
     name = "symbol_name"
-    data = ParameterDef(StringAttr)
+    data: ParameterDef[StringAttr]
 
     @staticmethod
     @builder
@@ -72,7 +72,7 @@ class SymbolNameAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class FlatSymbolRefAttr(ParametrizedAttribute):
     name = "flat_symbol_ref"
-    data = ParameterDef(StringAttr)
+    data: ParameterDef[StringAttr]
 
     @staticmethod
     @builder
@@ -107,7 +107,7 @@ class IntAttr(Data[int]):
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
     name = "integer_type"
-    width = ParameterDef(IntAttr)
+    width: ParameterDef[IntAttr]
 
     @staticmethod
     @builder
@@ -128,8 +128,8 @@ class IndexType(ParametrizedAttribute):
 @irdl_attr_definition
 class IntegerAttr(ParametrizedAttribute):
     name = "integer"
-    value = ParameterDef(IntAttr)
-    typ = ParameterDef(AnyOf([IntegerType, IndexType]))
+    value: ParameterDef[IntAttr]
+    typ: ParameterDef[IntegerType | IndexType]
 
     @staticmethod
     @builder
@@ -200,8 +200,8 @@ class ArrayOfConstraint(AttrConstraint):
 class VectorType(ParametrizedAttribute):
     name = "vector"
 
-    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
-    element_type = ParameterDef(AnyAttr())
+    shape: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(IntegerAttr)]]
+    element_type: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.parameters[0].data)
@@ -235,8 +235,8 @@ class VectorType(ParametrizedAttribute):
 class TensorType(ParametrizedAttribute):
     name = "tensor"
 
-    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
-    element_type = ParameterDef(AnyAttr())
+    shape: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(IntegerAttr)]]
+    element_type: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.parameters[0].data)
@@ -270,9 +270,9 @@ class TensorType(ParametrizedAttribute):
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
     # TODO add support for FPElements
-    type = ParameterDef(AnyOf([VectorType, TensorType]))
+    type: ParameterDef[VectorType | TensorType]
     # TODO add support for multi-dimensional data
-    data = ParameterDef(ArrayOfConstraint(IntegerAttr))
+    data: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(IntegerAttr)]]
 
     @staticmethod
     @builder
@@ -326,8 +326,8 @@ class UnitAttr(ParametrizedAttribute):
 class FunctionType(ParametrizedAttribute):
     name = "fun"
 
-    inputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
-    outputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
+    inputs: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(AnyAttr())]]
+    outputs: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(AnyAttr())]]
 
     @staticmethod
     @builder
