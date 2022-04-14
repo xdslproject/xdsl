@@ -1,5 +1,6 @@
-yapf==0.32.*
-pytest==6.2.*
-filecheck==0.0.18
-lit==12.0.*
-frozenlist==1.2.*
+yapf<0.33.*
+pytest<7.2.*
+filecheck<0.0.23
+lit<15.0.*
+frozenlist<1.4.*
+toml
