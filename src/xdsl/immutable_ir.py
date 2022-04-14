@@ -45,6 +45,11 @@ class ImmutableRegion:
     blocks: FrozenList[ImmutableBlock]
     parent_op: Optional[ImmutableOperation] = None
 
+    def __post_init__(self):
+        for block in self.blocks:
+            block.parentRegion = self
+        self.blocks.freeze()
+
     @property
     def block(self):
         return self.blocks[0]
@@ -53,24 +58,24 @@ class ImmutableRegion:
     def from_immutable_operation_list(
             ops: List[ImmutableOperation]) -> ImmutableRegion:
         block = ImmutableBlock.from_immutable_ops(ops)
-        return ImmutableRegion([block])
+        return ImmutableRegion(FrozenList([block]))
 
     @staticmethod
     def from_operation_list(ops: List[Operation]) -> ImmutableRegion:
         block = ImmutableBlock.from_ops(ops)
-        return ImmutableRegion([block])
+        return ImmutableRegion(FrozenList([block]))
 
     @staticmethod
     def from_immutable_block_list(
             blocks: List[ImmutableBlock]) -> ImmutableRegion:
-        return ImmutableRegion(blocks)
+        return ImmutableRegion(FrozenList(blocks))
 
     @staticmethod
     def from_block_list(blocks: List[Block]) -> ImmutableRegion:
         immutable_blocks = [
             ImmutableBlock.from_block(block) for block in blocks
         ]
-        return ImmutableRegion(immutable_blocks)
+        return ImmutableRegion(FrozenList(immutable_blocks))
 
     def walk(self, fun: Callable[[ImmutableOperation], None]) -> None:
         for block in self.blocks:
@@ -81,10 +86,14 @@ class ImmutableRegion:
 class ImmutableBlock:
     args: FrozenList[ImmutableBlockArgument]
     ops: FrozenList[ImmutableOperation]
+    parentRegion: Optional[ImmutableRegion] = None
 
     def __post_init__(self):
         for op in self.ops:
             op.parentBlock = self
+
+        self.args.freeze()
+        self.ops.freeze()
 
     @staticmethod
     def from_block(block: Block) -> ImmutableBlock:
@@ -97,17 +106,17 @@ class ImmutableBlock:
             ImmutableBlockArgument(arg.typ, None, arg.index)
             for arg in block.args
         ]
-        newBlock = ImmutableBlock(block._args, immutableOps)
+        newBlock = ImmutableBlock(FrozenList(args), FrozenList(immutableOps))
         for arg in args:
             arg.block = newBlock
         return newBlock
 
     @staticmethod
     def from_immutable_ops(ops: List[ImmutableOperation]) -> ImmutableBlock:
-        return ImmutableBlock([], ops)
+        return ImmutableBlock(FrozenList([]), FrozenList(ops))
 
     @staticmethod
-    def from__ops(ops: List[Operation]) -> ImmutableBlock:
+    def from_ops(ops: List[Operation]) -> ImmutableBlock:
         context: dict[Operation, ImmutableOperation] = {}
         immutable_ops = [ImmutableOperation.from_op(op, context) for op in ops]
         return ImmutableBlock.from_immutable_ops(immutable_ops)
@@ -142,6 +151,12 @@ class ImmutableOperation:
     def __post_init__(self):
         for result in self.results:
             result.op = self
+        for region in self.regions:
+            region.parent_op = self
+        self.operands.freeze()
+        self.results.freeze()
+        self.successors.freeze()
+        self.regions.freeze()
 
     @staticmethod
     def from_op(
@@ -185,11 +200,11 @@ class ImmutableOperation:
         for region in op.regions:
             regions.append(ImmutableRegion.from_block_list(region.blocks))
 
-        immutableOp = ImmutableOperation("immutable." + op.name, op, operands,
-                                         results, successors, regions)
-
-        for region in immutableOp.regions:
-            region.parent_op = immutableOp
+        immutableOp = ImmutableOperation("immutable." + op.name, op,
+                                         FrozenList(operands),
+                                         FrozenList(results),
+                                         FrozenList(successors),
+                                         FrozenList(regions))
 
         operationMap[op] = immutableOp
         return immutableOp
