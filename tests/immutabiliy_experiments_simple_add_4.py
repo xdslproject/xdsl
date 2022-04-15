@@ -27,7 +27,7 @@ import difflib
 
 def rewriting_with_immutability_experiments():
     # constant folding
-    before = \
+        before = \
 """module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -38,6 +38,17 @@ std.return(%4 : !i32)
 }
 """
 
+    before = \
+"""module() {
+  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"]{
+  ^0(%arg: !i32):
+    %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %res : !i32 = arith.addi(%0 : !i32, %1 : !i32) 
+    std.return(%res : !i32)
+  }
+}
+"""
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 7 : !i32]
@@ -50,8 +61,8 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(addOp := op, Addi)) and (isa(
-                    c1 := addOp.operands[0].get_op(), Constant)) and (isa(
-                        c2 := addOp.operands[1].get_op(), Constant)):
+                c1 := addOp.operands[0].get_op(), Constant)) and (isa(
+                    c2 := addOp.operands[1].get_op(), Constant)):
 
                 assert (isinstance((c1Attr := c1.get_attribute("value")).typ,
                                    IntegerType))
@@ -70,6 +81,22 @@ std.return(%4 : !i32)
                         }))
             else:
                 return failure("FoldConstantAdd")
+
+    @dataclass
+    class CommuteAdd(Strategy):
+
+        def impl(self, op: ImmutableOperation) -> RewriteResult:
+            if (isa(addOp := op, Addi)):
+                print("match!")
+                return success(
+                    ImmutableOperation.create_new(
+                        Addi,
+                        immutable_operands=[
+                            addOp.operands[1], addOp.operands[0]
+                        ],
+                        result_types=[IntegerType.from_width(32)]))
+            else:
+                return failure("CommuteAdd")
 
     ctx = MLContext()
     builtin = Builtin(ctx)

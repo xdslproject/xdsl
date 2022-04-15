@@ -126,13 +126,14 @@ class one(Strategy):
                 if rr.isSuccess():
                     assert isinstance(rr.result, List)
                     # build the operands including the new operand
-                    newOperands = op.operands[:idx] + [
+                    newOperands = list(op.operands[:idx]) + [
                         rr.result[-1].results[operand.result_index]
-                    ] + op.operands[idx + 1:]
+                    ] + list(op.operands[idx + 1:])
 
                     # Not handled yet:
                     #   - when the operand has regions
                     #   - when the op has successors
+
                     newOps = ImmutableOperation.create_new(
                         op_type=op._op.__class__,
                         immutable_operands=newOperands,
@@ -141,35 +142,29 @@ class one(Strategy):
                         successors=op._op.successors)
 
                     return success(rr.result + newOps)
-        for region in op.regions:
+        for idx, region in enumerate(op.regions):
             # Try to apply to last operation in the last block in the regions of this op
             if len(region.blocks) == 0:
                 continue
 
-            rr = self.s.apply(region.blocks[-1].ops[-1])
+            rr = self.s.apply((matched_block := region.blocks[-1]).ops[-1])
             if rr.isSuccess():
                 assert isinstance(rr.result, List)
-                # TODO: use create_new here as well
-                # should look like this:
+                # build new operation with the new region
+                new_regions = list(op.regions[:idx]) + [
+                    ImmutableRegion.create_new(
+                        [ImmutableBlock.create_new(rr.result, matched_block)])
+                ] + list(op.regions[idx + 1:])
 
-                # newOp = ImmutableOperation.create_new(
-                #     op_type=op._op.__class__,
-                #     immutable_operands=op.operands,
-                #     result_types=op.result_types,
-                #     attributes=op.get_attributes_copy(),
-                #     successors=op.successors,
-                #     regions=[
-                #         ImmutableRegion.from_immutable_operation_list(
-                #             rr.result)
-                #     ])
+                newOp = ImmutableOperation.create_new(
+                    op_type=op._op.__class__,
+                    immutable_operands=list(op.operands),
+                    result_types=op.result_types,
+                    attributes=op.get_attributes_copy(),
+                    successors=list(op.successors),
+                    regions=new_regions)
 
-                newOp = op._op.clone_without_regions()
-                newOp.regions.clear()
-                newRegion: Region = Region.from_operation_list(
-                    [op._op for op in rr.result])
-
-                newOp.add_region(newRegion)
-                return success([ImmutableOperation.from_op(newOp)])
+                return success(newOp)
 
         return failure("one traversal failure")
 
