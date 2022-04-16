@@ -5,7 +5,7 @@ from xdsl.dialects.arith import *
 from xdsl.rewriter import Rewriter
 
 
-@dataclass
+@dataclass  #(frozen=True)
 class ImmutableSSAValue:
     typ: Attribute
 
@@ -19,9 +19,9 @@ class ImmutableSSAValue:
         ...
 
 
-@dataclass
+@dataclass  #(frozen=True)
 class ImmutableOpResult(ImmutableSSAValue):
-    op: ImmutableOperation  # for initialization purposes
+    op: ImmutableOperation
     result_index: int
 
     def get_mutable(self) -> OpResult:
@@ -29,9 +29,9 @@ class ImmutableOpResult(ImmutableSSAValue):
         return self.op._op.results[self.result_index]
 
 
-@dataclass
+@dataclass  #(frozen=True)
 class ImmutableBlockArgument(ImmutableSSAValue):
-    block: ImmutableBlock  # for initialization purposes
+    block: ImmutableBlock
     index: int
 
     def get_mutable(self) -> BlockArgument:
@@ -162,7 +162,6 @@ class ImmutableBlock:
             value_map: Optional[Dict] = None,
             block_map: Optional[Dict] = None) -> Tuple[ImmutableBlock, Block]:
         """Creates a new mutable block and returns an immutable view on it and the mutable block itself."""
-        print("create new Block")
 
         if value_map is None:
             value_map = {}
@@ -191,9 +190,6 @@ class ImmutableBlock:
                 raise Exception(
                     "unsupported argument to create ImmutableBlock from.")
 
-        for idx, old_block_arg in enumerate(args):
-            value_map[old_block_arg] = new_block.args[idx]
-
         immutable_ops = []
         if len(ops) == 0:
             return ImmutableBlock.from_block(new_block), new_block
@@ -214,9 +210,35 @@ class ImmutableBlock:
             immutable_ops.extend(ops)
             new_block.add_ops([imm_op._op for imm_op in ops])
 
+        # here we have to acutally replace the old blockArgs with the new ones
+        # in the mutable Block.
+        # TODO: brute force solution for now
+        for op in new_block.ops:
+            for old_imm_block_arg in args:
+                if (old_block_arg :=
+                    old_imm_block_arg.get_mutable()) in op.operands:
+                    index = op.operands.index(old_block_arg)
+                    op.replace_operand(index,
+                                       new_block.args[old_block_arg.index])
+
         # This rebuilds the ImmutableOperations we already have, but that is required currently:
         # The ImmutableOperations might need updated references to BlockArgs.
-        return ImmutableBlock.from_block(new_block), new_block
+        # return ImmutableBlock.from_block(new_block), new_block
+
+        # Get new immutableBlockArgs:
+        immutable_args: List[ImmutableBlockArgument] = []
+        for idx, old_imm_block_arg in enumerate(args):
+            if old_imm_block_arg.get_mutable() in value_map:
+                immutable_args.append(
+                    value_map[old_imm_block_arg.get_mutable()])
+            else:
+                immutable_args.append(
+                    ImmutableBlockArgument(old_imm_block_arg.typ, None,
+                                           old_imm_block_arg.index))
+            value_map[new_block.args[idx]] = immutable_args[-1]
+
+        return ImmutableBlock(new_block, FrozenList(immutable_args),
+                              FrozenList(immutable_ops)), new_block
 
     @classmethod
     def create_new(
@@ -308,11 +330,10 @@ class ImmutableOperation:
         attributes: Optional[Dict[str, Attribute]] = None,
         successors: Optional[List[ImmutableBlock]] = None,
         regions: Optional[List[ImmutableRegion]] = None,
-        value_map: Optional[Dict[SSAValue, SSAValue]] = None,
-        block_map: Optional[Dict[Block, Block]] = None
+        value_map: Optional[Dict[SSAValue, ImmutableSSAValue]] = None,
+        block_map: Optional[Dict[Block, ImmutableBlock]] = None
     ) -> Tuple[List[ImmutableOperation], List[Operation]]:
         """Creates new mutable operations and returns an immutable view on them."""
-        print("create new Op")
 
         if immutable_operands is None:
             immutable_operands = []
@@ -355,9 +376,17 @@ class ImmutableOperation:
                 dependant_operations.extend(clonedOps[1])
                 operands.append(clonedOps[0][-1].results[
                     imm_operand.result_index].get_mutable())
+            elif isinstance(block_arg := imm_operand, ImmutableBlockArgument):
+                # New Block args are created if not previously done so the parent
+                # block can be build with them
+                if block_arg.get_mutable() in value_map:
+                    operands.append(value_map[block_arg.get_mutable()])
+                else:
+                    new_block_arg = ImmutableBlockArgument(
+                        block_arg.typ, None, block_arg.index)
+                    value_map[block_arg.get_mutable()] = new_block_arg
+                    operands.append(block_arg.get_mutable())
             else:
-                # if imm_operand in value_map:
-                #     operands.append(value_map[imm_operand.get_mutable()])
                 operands.append(imm_operand.get_mutable())
 
         # TODO: get Regions from the ImmutableRegions
@@ -371,12 +400,7 @@ class ImmutableOperation:
             else:
                 mutable_regions.append(region._region)
 
-        # This will not work properly for blocks where the arguments are used by ops inside
-        # mutable_blocks.append(Block.from_arg_types([arg.typ for arg in block.args]))
-
         # successors is ImmutableBlock, not Block here!
-
-        # the value map has to be used to update e.g. blockArguments here for Operation
         newOp: Operation = op_type.create(
             operands=list(operands),
             result_types=result_types,
@@ -384,9 +408,10 @@ class ImmutableOperation:
             successors=[successor._block for successor in successors],
             regions=mutable_regions)
 
-        return (dependant_imm_operations +
-                [ImmutableOperation.from_op(newOp, value_map, block_map)
-                 ]), dependant_operations + [newOp]
+        return (dependant_imm_operations + [
+            ImmutableOperation.from_op(newOp, value_map, block_map,
+                                       immutable_operands)
+        ]), dependant_operations + [newOp]
 
     @classmethod
     def create_new(
@@ -405,7 +430,8 @@ class ImmutableOperation:
     def from_op(
         op: Operation,
         value_map: Optional[Dict[SSAValue, ImmutableSSAValue]] = None,
-        block_map: Optional[Dict[Block, ImmutableBlock]] = None
+        block_map: Optional[Dict[Block, ImmutableBlock]] = None,
+        existing_operands: Optional[List[ImmutableSSAValue]] = None
     ) -> ImmutableOperation:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
@@ -415,24 +441,29 @@ class ImmutableOperation:
             block_map = {}
 
         operands: List[ImmutableSSAValue] = []
-        for operand in op.operands:
-            match operand:
-                case OpResult():
-                    operands.append(
-                        ImmutableOpResult(
-                            operand.typ,
-                            value_map[operand].op  # type: ignore
-                            if operand in value_map else
-                            ImmutableOperation.from_op(operand.op),
-                            operand.result_index))
-                case BlockArgument():
-                    if operand not in value_map:
-                        raise Exception("Block argument expected in mapping")
-                    operands.append(value_map[operand])
-                case _:
-                    raise Exception(
-                        "Operand is expeected to be either OpResult or BlockArgument"
-                    )
+        if existing_operands is None:
+            for operand in op.operands:
+                match operand:
+                    case OpResult():
+                        operands.append(
+                            ImmutableOpResult(
+                                operand.typ,
+                                value_map[operand].op  # type: ignore
+                                if operand in value_map else
+                                ImmutableOperation.from_op(operand.op),
+                                operand.result_index))
+                    case BlockArgument():
+                        if operand not in value_map:
+                            raise Exception(
+                                "Block argument expected in mapping")
+                        operands.append(value_map[operand])
+                    case _:
+                        raise Exception(
+                            "Operand is expeected to be either OpResult or BlockArgument"
+                        )
+        else:
+            operands.extend(existing_operands)
+
         results: List[ImmutableOpResult] = []
         for idx, result in enumerate(op.results):
             results.append(immutable_result := ImmutableOpResult(

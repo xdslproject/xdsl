@@ -5,6 +5,7 @@ from pprint import pprint
 
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.builtin import *
+from xdsl.dialects.scf import If, Scf
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern
 from xdsl.printer import Printer
@@ -27,7 +28,7 @@ import difflib
 
 def rewriting_with_immutability_experiments():
     # constant folding
-        before = \
+    before_ = \
 """module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -38,17 +39,34 @@ std.return(%4 : !i32)
 }
 """
 
+    # In current xdsl I have no way to get to the function from the call
+    not_possible = \
+"""module() {
+  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0: !i32, %1: !i32):
+    %3 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+    std.return(%3 : !i32)
+  }
+  %4 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %5 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %6 : !i32 = std.call(%4 : !i32, %5 : !i32) ["callee" = @test] 
+}
+"""
+
     before = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"]{
-  ^0(%arg: !i32):
-    %0 : !i32 = arith.constant() ["value" = 0 : !i32]
-    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
-    %res : !i32 = arith.addi(%0 : !i32, %1 : !i32) 
-    std.return(%res : !i32)
+  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0():
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = scf.if(%0 : !i1) {
+      %2 : !i32 = arith.constant() ["value" = 0 : !i32]
+      scf.yield(%2 : !i32)
+    }
+    std.return(%1 : !i32)
   }
 }
 """
+
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 7 : !i32]
@@ -87,7 +105,6 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(addOp := op, Addi)):
-                print("match!")
                 return success(
                     ImmutableOperation.create_new(
                         Addi,
@@ -98,16 +115,58 @@ std.return(%4 : !i32)
             else:
                 return failure("CommuteAdd")
 
+    @dataclass
+    class ChangeConstant(Strategy):
+
+        def impl(self, op: ImmutableOperation) -> RewriteResult:
+            if (isa(op, Constant)):
+                return success(
+                    ImmutableOperation.create_new(
+                        Constant,
+                        result_types=[IntegerType.from_width(32)],
+                        attributes={
+                            "value":
+                            IntegerAttr.from_params(42,
+                                                    IntegerType.from_width(32))
+                        }))
+            else:
+                return failure("ChangeConstant")
+
+    @dataclass
+    class InlineIf(Strategy):
+
+        def impl(self, op: ImmutableOperation) -> RewriteResult:
+            if isa(if_op := op, If) and isinstance(
+                if_op.operands[0], ImmutableOpResult) and isa(
+                    condition := if_op.operands[0].get_op(),
+                    Constant) and (condition.get_attribute("value").value.data
+                                   == 1):
+                print("match!!!")
+
+                raise Exception("not implemented")
+                return success(
+                    ImmutableOperation.create_new(
+                        Constant,
+                        result_types=[IntegerType.from_width(32)],
+                        attributes={
+                            "value":
+                            IntegerAttr.from_params(42,
+                                                    IntegerType.from_width(32))
+                        }))
+            else:
+                return failure("ChangeConstant")
+
     ctx = MLContext()
     builtin = Builtin(ctx)
     std = Std(ctx)
     arith = Arith(ctx)
+    scf = Scf(ctx)
     rise = Rise(ctx)
     rise_dsl = RiseBuilder(ctx)
     affine = Affine(ctx)
 
     parser = Parser(ctx, before)
-    beforeM: ModuleOp = parser.parse_op()
+    beforeM: Operation = parser.parse_op()
     immBeforeM: ImmutableOperation = get_immutable_copy(beforeM)
 
     # test = topdown(seq(debug(), fail())).apply(immBeforeM)
@@ -115,20 +174,20 @@ std.return(%4 : !i32)
     # printer = Printer()
     # printer.print_op(beforeM)
 
-    rrImmM1 = topdown(FoldConstantAdd()).apply(immBeforeM)
+    rrImmM1 = topdown(InlineIf()).apply(immBeforeM)
     assert (rrImmM1.isSuccess()
             and isinstance(rrImmM1.result[-1], ImmutableOperation))
 
-    # printer = Printer()
-    # printer.print_op(rrImmM1.result[-1]._op)
+    printer = Printer()
+    printer.print_op(rrImmM1.result[-1]._op)
 
-    rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
-    assert (rrImmM2.isSuccess()
-            and isinstance(rrImmM2.result[-1], ImmutableOperation))
+    # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
+    # assert (rrImmM2.isSuccess()
+    #         and isinstance(rrImmM2.result[-1], ImmutableOperation))
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(rrImmM2.result[-1]._op)
+    # file = StringIO("")
+    # printer = Printer(stream=file)
+    # printer.print_op(rrImmM2.result[-1]._op)
 
     # For debugging: printing the actual output
     # print("after:")
