@@ -655,7 +655,7 @@ class Block:
         Erase the block, and remove all its references to other operations.
         If safe_erase is specified, check that no operation results are used outside the block.
         """
-        assert self.parent is not None, "Blocks with parents should first be detached before erasure."
+        assert self.parent is None, "Blocks with parents should first be detached before erasure."
         self.drop_all_references()
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
@@ -794,7 +794,7 @@ class Region:
             block_idx = self.get_block_index(block)
         else:
             block_idx = block
-            op = self.blocks[block_idx]
+            block = self.blocks[block_idx]
         if block.parent is not self:
             raise Exception("Cannot detach block from a different region.")
         block.parent = None
