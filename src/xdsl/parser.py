@@ -147,7 +147,7 @@ class Parser:
 
     def parse_list(self,
                    parse_optional_one: Callable[[], Optional[T]],
-                   delimiter=",") -> List[T]:
+                   delimiter: str = ",") -> List[T]:
         assert (len(delimiter) <= 1)
         res = []
         one = parse_optional_one()
