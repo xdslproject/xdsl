@@ -26,20 +26,20 @@ class MemRef:
 class MemRefType(ParametrizedAttribute):
     name = "memref"
 
-    shape: ParameterDef[Annotated[ArrayAttr, ArrayOfConstraint(IntegerAttr)]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr]]
     element_type: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> List[int]:
-        return [i.parameters[0].data for i in self.shape.data]
+        return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
             referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> MemRefType:
+            shape: Optional[List[int | IntegerAttr]] = None) -> MemRefType:
         if shape is None:
             shape = [1]
         return MemRefType([
@@ -51,7 +51,7 @@ class MemRefType(ParametrizedAttribute):
     @builder
     def from_params(
         referenced_type: Attribute,
-        shape: ArrayAttr = ArrayAttr.from_list(
+        shape: ArrayAttr[IntegerAttr] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
     ) -> MemRefType:
         return MemRefType([shape, referenced_type])
@@ -76,8 +76,8 @@ class Load(Operation):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
-    def get(ref: Union[SSAValue, Operation],
-            indices: List[Union[SSAValue, Operation]]) -> Load:
+    def get(ref: SSAValue | Operation,
+            indices: List[SSAValue | Operation]) -> Load:
         return Load.build(operands=[ref, indices],
                           result_types=[SSAValue.get(ref).typ.element_type])
 
@@ -98,8 +98,8 @@ class Store(Operation):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
-    def get(value: Union[Operation, SSAValue], ref: Union[Operation, SSAValue],
-            indices: List[Union[Operation, SSAValue]]) -> Store:
+    def get(value: Operation | SSAValue, ref: Operation | SSAValue,
+            indices: List[Operation | SSAValue]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
@@ -120,7 +120,7 @@ class Alloc(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: List[Union[int, IntegerAttr]] = None) -> Alloc:
+            shape: Optional[List[int | IntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
@@ -148,7 +148,7 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: List[Union[int, IntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[int | IntegerAttr]] = None) -> Alloca:
         if shape is None:
             shape = [1]
         return Alloca.build(
@@ -165,7 +165,7 @@ class Dealloc(Operation):
     memref = OperandDef(MemRefType)
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue]) -> Dealloc:
+    def get(operand: Operation | SSAValue) -> Dealloc:
         return Dealloc.build(operands=[operand])
 
 
@@ -185,7 +185,7 @@ class GetGlobal(Operation):
                 "expected 'name' attribute to be a FlatSymbolRefAttr")
 
     @staticmethod
-    def get(name, return_type: Attribute) -> GetGlobal:
+    def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
             result_types=[return_type],
             attributes={"name": FlatSymbolRefAttr.build(name)})
@@ -217,10 +217,10 @@ class Global(Operation):
             )
 
     @staticmethod
-    def get(sym_name: Union[str, StringAttr],
+    def get(sym_name: str | StringAttr,
             typ: Attribute,
             initial_value: Optional[Attribute],
-            sym_visibility="private") -> Global:
+            sym_visibility: str = "private") -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,

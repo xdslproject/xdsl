@@ -1,18 +1,19 @@
 from __future__ import annotations
-from enum import Enum
 
 import inspect
-from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
-from typing import Annotated, List, Tuple, Optional, TypeAlias, Union, TypeVar, Any
-from inspect import isclass
-import typing
 import types
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from inspect import isclass
+from typing import (Annotated, Any, Callable, Dict, List, Optional, Sequence,
+                    Tuple, Type, TypeAlias, TypeVar, TypeGuard, Union, cast,
+                    get_args, get_origin, get_type_hints, ForwardRef)
 
-from xdsl.ir import Operation, Attribute, ParametrizedAttribute, SSAValue, Data, Region, Block
 from xdsl import util
-
 from xdsl.diagnostic import Diagnostic, DiagnosticException
+from xdsl.ir import (Attribute, Block, Data, Operation, ParametrizedAttribute,
+                     Region, SSAValue)
 
 
 def error(op: Operation, msg: str):
@@ -59,7 +60,7 @@ class EqAttrConstraint(AttrConstraint):
 class BaseAttr(AttrConstraint):
     """Constrain an attribute to be of a given base type."""
 
-    attr: typing.Type[Attribute]
+    attr: Type[Attribute]
     """The expected attribute base type."""
 
     def verify(self, attr: Attribute) -> None:
@@ -69,8 +70,8 @@ class BaseAttr(AttrConstraint):
 
 
 def attr_constr_coercion(
-    attr: Union[Attribute, typing.Type[Attribute], AttrConstraint]
-) -> AttrConstraint:
+        attr: Union[Attribute, Type[Attribute],
+                    AttrConstraint]) -> AttrConstraint:
     """
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
@@ -79,6 +80,7 @@ def attr_constr_coercion(
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
         return BaseAttr(attr)
+    assert (isinstance(attr, AttrConstraint))
     return attr
 
 
@@ -98,9 +100,8 @@ class AnyOf(AttrConstraint):
     attr_constrs: List[AttrConstraint]
     """The list of constraints that are checked."""
 
-    def __init__(self,
-                 attr_constrs: List[Union[Attribute, typing.Type[Attribute],
-                                          AttrConstraint]]):
+    def __init__(self, attr_constrs: Sequence[Attribute | Type[Attribute]
+                                              | AttrConstraint]):
         self.attr_constrs = [
             attr_constr_coercion(constr) for constr in attr_constrs
         ]
@@ -118,7 +119,7 @@ class AnyOf(AttrConstraint):
 
 
 @dataclass()
-class AndConstraint(AttrConstraint):
+class AllOf(AttrConstraint):
     """Ensure that an attribute satisfies all the given constraints."""
 
     attr_constrs: List[AttrConstraint]
@@ -129,6 +130,35 @@ class AndConstraint(AttrConstraint):
             attr_constr.verify(attr)
 
 
+@dataclass
+class DataListAttr(AttrConstraint):
+    """
+    A constraint that enforces that the elements of an attribute with a list attributes all satisfy the elem_constr.
+     
+    """
+    elem_constr: AttrConstraint
+
+    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+        self.elem_constr = attr_constr_coercion(constr)
+
+    def verify(self, attr: Attribute) -> None:
+
+        def is_list_data(val: Attribute) -> TypeGuard[Data[List[Attribute]]]:
+            if not isinstance(val, Data):
+                return False
+            list: Any = val.data  # type: ignore
+            if not isinstance(list, List):
+                return False
+            return all(isinstance(a, Attribute) for a in list)  # type: ignore
+
+        if not is_list_data(attr):
+            raise Exception(
+                f"expected data Data[List[Attribute]] but got {attr}")
+
+        for e in attr.data:
+            self.elem_constr.verify(e)
+
+
 @dataclass(init=False)
 class ParamAttrConstraint(AttrConstraint):
     """
@@ -136,14 +166,14 @@ class ParamAttrConstraint(AttrConstraint):
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: typing.Type[Attribute]
+    base_attr: Type[Attribute]
     """The base attribute type."""
 
     param_constrs: List[AttrConstraint]
     """The attribute parameter constraints"""
 
-    def __init__(self, base_attr: typing.Type[Attribute],
-                 param_constrs: List[Union[Attribute, typing.Type[Attribute],
+    def __init__(self, base_attr: Type[Attribute],
+                 param_constrs: List[Union[Attribute, Type[Attribute],
                                            AttrConstraint]]):
         self.base_attr = base_attr
         self.param_constrs = [
@@ -153,8 +183,10 @@ class ParamAttrConstraint(AttrConstraint):
     def verify(self, attr: Attribute) -> None:
         assert isinstance(attr, ParametrizedAttribute)
         if not isinstance(attr, self.base_attr):
+            # the type checker concludes that attr has type 'Never', therefore the cast
+            name = cast(Attribute, attr).name
             raise VerifyException(
-                f"Base attribute {self.base_attr.name} expected, but got {attr.name}"
+                f"Base attribute {self.base_attr.name} expected, but got {name}"
             )
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
@@ -170,16 +202,16 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
 
     # Annotated case
     # Each argument of the Annotated type correspond to a constraint to satisfy.
-    if typing.get_origin(irdl) == Annotated:
-        constraints = []
-        for arg in typing.get_args(irdl):
+    if get_origin(irdl) == Annotated:
+        constraints: List[AttrConstraint] = []
+        for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
             # correspond to constraints
             if isinstance(arg, IRDLAnnotations):
                 continue
             constraints.append(irdl_to_attr_constraint(arg))
         if len(constraints) > 1:
-            return AndConstraint(constraints)
+            return AllOf(constraints)
         return constraints[0]
 
     # Attribute class case
@@ -187,11 +219,26 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
     if isclass(irdl) and issubclass(irdl, Attribute):
         return BaseAttr(irdl)
 
+    # yapf: disable
+    if (origin := get_origin(irdl))             and ( # we deal with a generic class
+            issubclass(origin, Data))           and ( # that is a subclass of Data
+            len(origin.__orig_bases__) == 1)    and ( # with one superclass
+            data := origin.__orig_bases__[0])   and ( # called `data'
+            arg := get_args(data)[0])           and ( # whose argument is `arg'
+            get_origin(arg) == list)            and ( # which is a list
+            get_args(arg)[0].__bound__ ==
+                ForwardRef("Attribute")         ):    # and the element are attributes
+        args = get_args(irdl)
+        assert (len(args) == 1)
+        elem_constr = irdl_to_attr_constraint(args[0])
+        return DataListAttr(elem_constr)
+    # yapf: enable
+
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if typing.get_origin(irdl) == types.UnionType:
-        constraints = []
-        for arg in typing.get_args(irdl):
+    if get_origin(irdl) == types.UnionType:
+        constraints: List[AttrConstraint] = []
+        for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
             # correspond to constraints
             if isinstance(arg, IRDLAnnotations):
@@ -251,8 +298,7 @@ class OperandDef(OperandOrResultDef):
     constr: AttrConstraint
     """The operand constraint."""
 
-    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
-                                  AttrConstraint]):
+    def __init__(self, typ: Attribute | Type[Attribute] | AttrConstraint):
         self.constr = attr_constr_coercion(typ)
 
 
@@ -273,8 +319,7 @@ class ResultDef(OperandOrResultDef):
     constr: AttrConstraint
     """The result constraint."""
 
-    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
-                                  AttrConstraint]):
+    def __init__(self, typ: Attribute | Type[Attribute] | AttrConstraint):
         self.constr = attr_constr_coercion(typ)
 
 
@@ -311,10 +356,9 @@ class AttributeDef:
     constr: AttrConstraint
     """The attribute constraint."""
 
-    data: typing.Any
+    data: Any
 
-    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
-                                  AttrConstraint]):
+    def __init__(self, typ: Union[Attribute, Type[Attribute], AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
 
 
@@ -322,8 +366,7 @@ class AttributeDef:
 class OptAttributeDef(AttributeDef):
     """An IRDL attribute definition for an optional attribute."""
 
-    def __init__(self, typ: Union[Attribute, typing.Type[Attribute],
-                                  AttrConstraint]):
+    def __init__(self, typ: Union[Attribute, Type[Attribute], AttrConstraint]):
         super().__init__(typ)
 
 
@@ -510,21 +553,23 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result) -> Attribute:
     raise Exception(f"builder expected an attribute, got {result}")
 
 
-OpT = TypeVar('OpT', bound='Operation')
+OpT = TypeVar('OpT', bound=Operation)
 
 
-def irdl_op_builder(cls: typing.Type[OpT], operands: List,
+def irdl_op_builder(cls: Type[OpT], operands: List[Any],
                     operand_defs: List[Tuple[str, OperandDef]],
-                    res_types: List, res_defs: List[Tuple[str, ResultDef]],
-                    attributes: typing.Dict[str, typing.Any],
-                    attr_defs: typing.Dict[str, AttributeDef], successors,
-                    regions, options) -> OpT:
+                    res_types: List[Any], res_defs: List[Tuple[str,
+                                                               ResultDef]],
+                    attributes: Dict[str, Any], attr_defs: Dict[str,
+                                                                AttributeDef],
+                    successors, regions, options) -> OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
     # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType, i32
+    from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                       IntegerType, VectorType, i32)
 
     # Build operands by forwarding the values to SSAValue.get
     if len(operand_defs) != len(operands):
@@ -600,11 +645,7 @@ def irdl_op_builder(cls: typing.Type[OpT], operands: List,
                       regions=regions)
 
 
-OperationType = TypeVar("OperationType", bound=Operation)
-
-
-def irdl_op_definition(
-        cls: typing.Type[OperationType]) -> typing.Type[OperationType]:
+def irdl_op_definition(cls: Type[OpT]) -> Type[OpT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -703,10 +744,9 @@ def irdl_op_definition(
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
-_ParameterDefT = TypeVar("_ParameterDefT", bound=Attribute)
+_A = TypeVar("_A", bound=Attribute)
 
-ParameterDef: TypeAlias = Annotated[_ParameterDefT,
-                                    IRDLAnnotations.ParamDefAnnot]
+ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 
 def irdl_attr_verify(attr: ParametrizedAttribute,
@@ -720,7 +760,7 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
     for idx, param_def in enumerate(parameters):
         param = attr.parameters[idx]
         assert isinstance(param, Attribute)
-        for arg in typing.get_args(parameters):
+        for arg in get_args(parameters):
             if isinstance(param, IRDLAnnotations):
                 continue
             if not isinstance(arg, AttrConstraint):
@@ -730,7 +770,7 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
             arg.verify(param)
 
 
-C = TypeVar('C', bound='Callable')
+C = TypeVar('C', bound=Callable[..., Any])
 
 
 def builder(f: C) -> C:
@@ -742,7 +782,7 @@ def builder(f: C) -> C:
     return f
 
 
-def irdl_get_builders(cls) -> List[typing.Callable]:
+def irdl_get_builders(cls) -> List[Callable[..., Any]]:
     builders = []
     for field_name in cls.__dict__:
         field_ = cls.__dict__[field_name]
@@ -754,7 +794,7 @@ def irdl_get_builders(cls) -> List[typing.Callable]:
 
 
 def irdl_attr_try_builder(builder, *args):
-    params_dict = typing.get_type_hints(builder)
+    params_dict = get_type_hints(builder)
     builder_params = inspect.signature(builder).parameters
     params = [params_dict[param.name] for param in builder_params.values()]
     defaults = [param.default for param in builder_params.values()]
@@ -782,7 +822,7 @@ def irdl_attr_builder(cls, builders, *args):
 T = TypeVar('T')
 
 
-def irdl_data_definition(cls: typing.Type[T]) -> typing.Type[T]:
+def irdl_data_definition(cls: Type[T]) -> Type[T]:
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:
         raise Exception(
@@ -796,11 +836,10 @@ def irdl_data_definition(cls: typing.Type[T]) -> typing.Type[T]:
     }))
 
 
-AttributeType = TypeVar("AttributeType", bound=ParametrizedAttribute)
+PA = TypeVar("PA", bound=ParametrizedAttribute)
 
 
-def irdl_param_attr_definition(
-        cls: typing.Type[AttributeType]) -> typing.Type[AttributeType]:
+def irdl_param_attr_definition(cls: Type[PA]) -> Type[PA]:
     """Decorator used on classes to define a new attribute definition."""
 
     # Get the fields from the class and its parents
@@ -814,15 +853,15 @@ def irdl_param_attr_definition(
     new_fields = dict()
 
     # TODO(math-fehr): Check that "name" and "parameters" are not redefined
-    for field_name, field_type in typing.get_type_hints(
-            cls, include_extras=True).items():
+    for field_name, field_type in get_type_hints(cls,
+                                                 include_extras=True).items():
         # name and parameters are reserved fields in IRDL
         if field_name == "name" or field_name == "parameters":
             continue
 
         # Throw an error if a parameter is not definied using `ParameterDef`
-        origin = typing.get_origin(field_type)
-        args = typing.get_args(field_type)
+        origin = get_origin(field_type)
+        args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
             raise ValueError(
                 f"In attribute {cls.__name__} definition: Parameter " +
@@ -860,7 +899,7 @@ def irdl_param_attr_definition(
     }))
 
 
-def irdl_attr_definition(cls: typing.Type[T]) -> typing.Type[T]:
+def irdl_attr_definition(cls: Type[T]) -> Type[T]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
