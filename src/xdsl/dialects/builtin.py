@@ -177,25 +177,6 @@ class ArrayAttr(Data[List[A]]):
         return ArrayAttr(data)
 
 
-# @dataclass
-# class ArrayOfConstraint(AttrConstraint):
-#     """
-#     A constraint that enforces an ArrayData whose elements all satisfy
-#     the elem_constr.
-#     """
-#     elem_constr: AttrConstraint
-
-#     def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
-#         self.elem_constr = attr_constr_coercion(constr)
-
-#     def verify(self, attr: Attribute) -> None:
-#         if not isinstance(attr, Data):
-#             raise Exception(f"expected data ArrayData but got {attr}")
-
-#         for e in cast(ArrayAttr[Attribute], attr).data:
-#             self.elem_constr.verify(e)
-
-
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
     name = "tuple"
