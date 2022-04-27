@@ -151,8 +151,26 @@ class IntegerAttr(ParametrizedAttribute):
         return IntegerAttr([value, typ])
 
 
+@dataclass
+class ArrayOfConstraint(AttrConstraint):
+    """
+    A constraint that enforces an ArrayData whose elements all satisfy
+    the elem_constr.
+    """
+    elem_constr: AttrConstraint
+
+    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+        self.elem_constr = attr_constr_coercion(constr)
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, Data):
+            raise Exception(f"expected data ArrayData but got {attr}")
+        for e in cast(ArrayAttr[Attribute], attr).data:
+            self.elem_constr.verify(e)
+
+
 @irdl_attr_definition
-class ArrayAttr(Data[List[A]]):
+class ArrayAttr(Data[List[A]], IRDLGenericCoercion):
     name = "array"
 
     @staticmethod
@@ -169,6 +187,15 @@ class ArrayAttr(Data[List[A]]):
         printer.print_string("[")
         printer.print_list(data, printer.print_attribute)
         printer.print_string("]")
+
+    @staticmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        if len(args) == 0:
+            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        if len(args) == 1:
+            return ArrayOfConstraint(AnyAttr())
+        raise TypeError(f"Attribute ArrayAttr expects at most type"
+                        f" parameter, but {len(args)} were given")
 
     @staticmethod
     @builder
