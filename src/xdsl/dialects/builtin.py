@@ -171,7 +171,7 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(Data[List[A]], IRDLGenericCoercion):
+class ArrayAttr(GenericData[List[A]]):
     name = "array"
 
     @staticmethod

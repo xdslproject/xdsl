@@ -167,9 +167,13 @@ class ParamAttrConstraint(AttrConstraint):
             param_constr.verify(attr.parameters[idx])
 
 
-class IRDLGenericCoercion(ABC):
+_DataElement = TypeVar("_DataElement")
+
+
+@dataclass(frozen=True)
+class GenericData(Data[_DataElement], ABC):
     """
-    Defines a coercion between a generic Attribute type and an attribute constraint.
+    A Data with type parameters.
     """
 
     @staticmethod
@@ -205,7 +209,7 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
         return BaseAttr(irdl)
 
     origin = get_origin(irdl)
-    if issubclass(origin, IRDLGenericCoercion):
+    if issubclass(origin, GenericData):
         return origin.generic_constraint_coercion(get_args(irdl))
 
     # Union case
