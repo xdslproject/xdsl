@@ -190,9 +190,9 @@ class ArrayAttr(Data[List[A]], IRDLGenericCoercion):
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 0:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
         if len(args) == 1:
+            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        if len(args) == 0:
             return ArrayOfConstraint(AnyAttr())
         raise TypeError(f"Attribute ArrayAttr expects at most type"
                         f" parameter, but {len(args)} were given")
