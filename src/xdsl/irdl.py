@@ -130,35 +130,6 @@ class AllOf(AttrConstraint):
             attr_constr.verify(attr)
 
 
-@dataclass
-class DataListAttr(AttrConstraint):
-    """
-    A constraint that enforces that the elements of an attribute with a list attributes all satisfy the elem_constr.
-     
-    """
-    elem_constr: AttrConstraint
-
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
-
-    def verify(self, attr: Attribute) -> None:
-
-        def is_list_data(val: Attribute) -> TypeGuard[Data[List[Attribute]]]:
-            if not isinstance(val, Data):
-                return False
-            list: Any = val.data  # type: ignore
-            if not isinstance(list, List):
-                return False
-            return all(isinstance(a, Attribute) for a in list)  # type: ignore
-
-        if not is_list_data(attr):
-            raise Exception(
-                f"expected data Data[List[Attribute]] but got {attr}")
-
-        for e in attr.data:
-            self.elem_constr.verify(e)
-
-
 @dataclass(init=False)
 class ParamAttrConstraint(AttrConstraint):
     """
@@ -196,6 +167,20 @@ class ParamAttrConstraint(AttrConstraint):
             param_constr.verify(attr.parameters[idx])
 
 
+class IRDLGenericCoercion(ABC):
+    """
+    Defines a coercion between a generic Attribute type and an attribute constraint.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        """
+        Given the generic parameters passed to the generic attribute type,
+        return the corresponding attribute constraint.
+        """
+
+
 def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
     if isinstance(irdl, AttrConstraint):
         return irdl
@@ -219,20 +204,9 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
     if isclass(irdl) and issubclass(irdl, Attribute):
         return BaseAttr(irdl)
 
-    # yapf: disable
-    if (origin := get_origin(irdl))             and ( # we deal with a generic class
-            issubclass(origin, Data))           and ( # that is a subclass of Data
-            len(origin.__orig_bases__) == 1)    and ( # with one superclass
-            data := origin.__orig_bases__[0])   and ( # called `data'
-            arg := get_args(data)[0])           and ( # whose argument is `arg'
-            get_origin(arg) == list)            and ( # which is a list
-            get_args(arg)[0].__bound__ ==
-                ForwardRef("Attribute")         ):    # and the element are attributes
-        args = get_args(irdl)
-        assert (len(args) == 1)
-        elem_constr = irdl_to_attr_constraint(args[0])
-        return DataListAttr(elem_constr)
-    # yapf: enable
+    origin = get_origin(irdl)
+    if issubclass(origin, IRDLGenericCoercion):
+        return origin.generic_constraint_coercion(get_args(irdl))
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
