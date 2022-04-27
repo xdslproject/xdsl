@@ -196,7 +196,7 @@ DataElement = TypeVar("DataElement")
 
 
 @dataclass(frozen=True)
-class Data(Generic[DataElement], Attribute):
+class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
 
     data: DataElement
