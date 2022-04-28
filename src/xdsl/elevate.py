@@ -135,11 +135,11 @@ class one(Strategy):
                     #   - when the op has successors
 
                     newOps = ImmutableOperation.create_new(
-                        op_type=op._op.__class__,
+                        op_type=op.op_type,
                         immutable_operands=newOperands,
                         result_types=op.result_types,
                         attributes=op.get_attributes_copy(),
-                        successors=op._op.successors)
+                        successors=op.successors)
 
                     return success(rr.result + newOps)
         for idx, region in enumerate(op.regions):
