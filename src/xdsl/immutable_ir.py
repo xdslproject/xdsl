@@ -15,13 +15,6 @@ class ImmutableSSAValue:
             return self.op
         return None  # type: ignore
 
-    # def __hash__(self):
-    #     # return hash(self.typ)
-    #     return hash(id(self))
-    
-    # def __eq__(self, __o: ImmutableSSAValue) -> bool:
-    #     return self is __o
-
 @dataclass(frozen=True)
 class ImmutableOpResult(ImmutableSSAValue):
     op: ImmutableOperation
@@ -54,7 +47,6 @@ class ImmutableBlockArgument(ImmutableSSAValue):
 class ImmutableRegion:
     blocks: FrozenList[ImmutableBlock]
     # parent_op: Optional[ImmutableOperation] = None
-
     def __hash__(self):
         return hash(id(self))
         # return hash((self.blocks))
@@ -227,6 +219,10 @@ class ImmutableOperation:
     #     return self.name == __o.name and self.op_type == __o.op_type and self.attributes == __o.attributes 
     def __eq__(self, __o: ImmutableOperation) -> bool:
         return self is __o
+
+    @property 
+    def result(self):
+        return self.results[0]
 
     @property
     def region(self):
@@ -411,3 +407,43 @@ def isa(op: Optional[ImmutableOperation], SomeOpClass: type[Operation]):
         return True
     else:
         return False
+
+class ImmutableIRBuiler:
+
+    # environment: Dict[ImmutableSSAValue, ImmutableSSAValue]
+
+    def op(self, op_type: type[Operation], operands: Optional[List[Union[ImmutableSSAValue, ImmutableOperation]]] = None,
+        result_types: Optional[List[Attribute]] = None,
+        attributes: Optional[Dict[str, Attribute]] = None,
+        successors: Optional[List[ImmutableBlock]] = None,
+        regions: Optional[List[ImmutableRegion]] = None,
+        environment: Optional[Dict[ImmutableSSAValue, ImmutableSSAValue]] = None
+    ) -> Tuple[List[ImmutableOperation], Dict[ImmutableSSAValue, ImmutableSSAValue]]:
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+        if environment is None:
+            environment = {}
+
+        remapped_operands = []
+        for operand in operands:
+            if isinstance(operand, ImmutableOperation):
+                assert(len(operand.results) > 0)
+                operand = operand.results[0]
+            if isinstance(operand, ImmutableBlockArgument):
+                if operand not in environment:
+                    new_block_arg = ImmutableBlockArgument(operand.typ, None, operand.index)  # type: ignore
+                    environment[operand] = new_block_arg
+                remapped_operands.append(environment[operand])
+            else:
+                remapped_operands.append(operand)
+
+        new_op = ImmutableOperation(op_type.name, op_type, FrozenList(remapped_operands), FrozenList([ImmutableOpResult(type, None, idx) for idx, type in enumerate(result_types)]), attributes, FrozenList(successors), FrozenList(regions))  # type: ignore
+        return ([new_op], environment)

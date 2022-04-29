@@ -51,7 +51,7 @@ def success(ops: List[ImmutableOperation], environment: Optional[Dict[ImmutableS
                 if operand.op not in ops:
                     ops.insert(0, operand.op)
                     add_operands(operand.op, ops)
-            
+    
     for op in ops:
         add_operands(op, ops)
 
