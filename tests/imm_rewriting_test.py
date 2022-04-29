@@ -32,11 +32,11 @@ def apply_strategy_and_compare(program: str, expected_program: str,
 
     # for debugging
     printer = Printer()
-    printer.print_op(resultOp._op)
+    printer.print_op(resultOp.get_mutable_copy())
 
     file = StringIO("")
     printer = Printer(stream=file)
-    printer.print_op(resultOp._op)
+    printer.print_op(resultOp.get_mutable_copy())
     assert file.getvalue().strip() == expected_program.strip()
 
     return resultOp
@@ -48,9 +48,9 @@ class CommuteAdd(Strategy):
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         if (isa(addOp := op, Addi)):
             return success(
-                ImmutableOperation.create_new(
+                *ImmutableOperation.create_new(
                     Addi,
-                    immutable_operands=[addOp.operands[1], addOp.operands[0]],
+                    operands=[addOp.operands[1], addOp.operands[0]],
                     result_types=[IntegerType.from_width(32)]))
         else:
             return failure("CommuteAdd")
@@ -70,7 +70,7 @@ class FoldConstantAdd(Strategy):
                                IntegerType))
 
             return success(
-                ImmutableOperation.create_new(
+                *ImmutableOperation.create_new(
                     Constant,
                     result_types=[c1Attr.typ],
                     attributes={
@@ -88,7 +88,7 @@ class ChangeConstantTo42(Strategy):
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         if (isa(op, Constant)):
             return success(
-                ImmutableOperation.create_new(
+                *ImmutableOperation.create_new(
                     Constant,
                     result_types=[IntegerType.from_width(32)],
                     attributes={
@@ -104,21 +104,21 @@ def test_double_commute():
 
     before = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %0 : !i32 = arith.constant() ["value" = 4 : !i32]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-  %3 : !i32 = arith.constant() ["value" = 4 : !i32]
-  %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+  %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %3 : !i32 = arith.addi(%2 : !i32, %1 : !i32)
+  %4 : !i32 = arith.addi(%3 : !i32, %0 : !i32)
   std.return(%4 : !i32)
 }
 """
     once_commuted = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 4 : !i32]
+  %0 : !i32 = arith.constant() ["value" = 2 : !i32]
   %1 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %2 : !i32 = arith.constant() ["value" = 2 : !i32]
-  %3 : !i32 = arith.addi(%1 : !i32, %2 : !i32)
-  %4 : !i32 = arith.addi(%0 : !i32, %3 : !i32)
+  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
+  %3 : !i32 = arith.constant() ["value" = 4 : !i32]
+  %4 : !i32 = arith.addi(%3 : !i32, %2 : !i32)
   std.return(%4 : !i32)
 }
 """

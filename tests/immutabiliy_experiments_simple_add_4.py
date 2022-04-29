@@ -39,6 +39,16 @@ std.return(%4 : !i32)
 }
 """
 
+    block_args_before = \
+"""module() {
+  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0: !i32, %1: !i32):
+    %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+    std.return(%2 : !i32)
+  }
+}
+"""
+
     # In current xdsl I have no way to get to the function from the call
     not_possible = \
 """module() {
@@ -88,7 +98,7 @@ std.return(%4 : !i32)
                                    IntegerType))
 
                 return success(
-                    ImmutableOperation.create_new(
+                    *ImmutableOperation.create_new(
                         Constant,
                         result_types=[c1Attr.typ],
                         attributes={
@@ -106,9 +116,9 @@ std.return(%4 : !i32)
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(addOp := op, Addi)):
                 return success(
-                    ImmutableOperation.create_new(
+                    *ImmutableOperation.create_new(
                         Addi,
-                        immutable_operands=[
+                        operands=[
                             addOp.operands[1], addOp.operands[0]
                         ],
                         result_types=[IntegerType.from_width(32)]))
@@ -121,7 +131,7 @@ std.return(%4 : !i32)
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(op, Constant)):
                 return success(
-                    ImmutableOperation.create_new(
+                    *ImmutableOperation.create_new(
                         Constant,
                         result_types=[IntegerType.from_width(32)],
                         attributes={
@@ -148,7 +158,7 @@ std.return(%4 : !i32)
                 # maybe build a helper to really just rebuild the op. Here I have to still give all operands
                 
 
-                return success(ImmutableOperation.create_new(op_to_inline._op.__class__, op_to_inline.operands, [result.typ for result in op_to_inline.results], op_to_inline.get_attributes_copy, op_to_inline.successors, op_to_inline.regions))
+                return success(*ImmutableOperation.create_new(op_to_inline._op.__class__, op_to_inline.operands, [result.typ for result in op_to_inline.results], op_to_inline.get_attributes_copy, op_to_inline.successors, op_to_inline.regions))
             else:
                 return failure("InlineIf")
 
@@ -170,30 +180,32 @@ std.return(%4 : !i32)
     printer.print_op(beforeM)
     # test = topdown(seq(debug(), fail())).apply(immBeforeM)
 
-    print("mutable_copyt:")
+    print("mutable_copy:")
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    # rrImmM1 = topdown(FoldConstantAdd()).apply(immBeforeM)
-    # assert (rrImmM1.isSuccess()
-    #         and isinstance(rrImmM1.result[-1], ImmutableOperation))
 
-    # printer = Printer()
-    # printer.print_op(rrImmM1.result[-1]._op)
 
-    # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
-    # assert (rrImmM2.isSuccess()
-    #         and isinstance(rrImmM2.result[-1], ImmutableOperation))
+    rrImmM1 = topdown(FoldConstantAdd()).apply(immBeforeM)
+    assert (rrImmM1.isSuccess()
+            and isinstance(rrImmM1.result[-1], ImmutableOperation))
+    printer = Printer()
+    printer.print_op(rrImmM1.result[-1].get_mutable_copy())
 
-    # file = StringIO("")
-    # printer = Printer(stream=file)
-    # printer.print_op(rrImmM2.result[-1]._op)
+
+    rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
+    assert (rrImmM2.isSuccess()
+            and isinstance(rrImmM2.result[-1], ImmutableOperation))
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(rrImmM2.result[-1].get_mutable_copy())
 
     # For debugging: printing the actual output
     # print("after:")
     # print(file.getvalue().strip())
 
-    checkDiff = False
+    checkDiff = True
     if checkDiff:
         diff = difflib.Differ().compare(file.getvalue().splitlines(True),
                                         expected.splitlines(True))

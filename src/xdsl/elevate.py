@@ -14,6 +14,7 @@ from xdsl.printer import Printer
 @dataclass
 class RewriteResult:
     result: Union[str, List[ImmutableOperation]]
+    environment: Dict[ImmutableSSAValue, ImmutableSSAValue]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
         if (not isinstance(self.result, List)):
@@ -37,15 +38,29 @@ class RewriteResult:
         return isinstance(self.result, List)
 
 
-def success(ops: List[ImmutableOperation]) -> RewriteResult:
+def success(ops: List[ImmutableOperation], environment: Optional[Dict[ImmutableSSAValue, ImmutableSSAValue]] = None) -> RewriteResult:
     assert isinstance(ops, List)
     assert all([isinstance(op, ImmutableOperation) for op in ops])
-    return RewriteResult(ops)
+    if environment is None:
+        environment = {}
+
+    # Add all dependant operations
+    def add_operands(op: ImmutableOperation, ops: List[ImmutableOperation]):
+        for operand in op.operands:
+            if isinstance(operand, ImmutableOpResult):
+                if operand.op not in ops:
+                    ops.insert(0, operand.op)
+                    add_operands(operand.op, ops)
+            
+    for op in ops:
+        add_operands(op, ops)
+
+    return RewriteResult(ops, environment)
 
 
 def failure(errorMsg: str) -> RewriteResult:
     assert isinstance(errorMsg, str)
-    return RewriteResult(errorMsg)
+    return RewriteResult(errorMsg, {})
 
 
 @dataclass
@@ -78,8 +93,9 @@ class fail(Strategy):
 class debug(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
-        printer = Printer()
-        printer.print_op(op._op)
+        # printer = Printer()
+        # printer.print_op(op._op)
+        print("debug:" + op.name)
         return success([op])
 
 
@@ -126,7 +142,7 @@ class one(Strategy):
                 if rr.isSuccess():
                     assert isinstance(rr.result, List)
                     # build the operands including the new operand
-                    newOperands = list(op.operands[:idx]) + [
+                    new_operands = list(op.operands[:idx]) + [
                         rr.result[-1].results[operand.result_index]
                     ] + list(op.operands[idx + 1:])
 
@@ -134,14 +150,15 @@ class one(Strategy):
                     #   - when the operand has regions
                     #   - when the op has successors
 
-                    newOps = ImmutableOperation.create_new(
+                    new_op = ImmutableOperation.create_new(
                         op_type=op.op_type,
-                        immutable_operands=newOperands,
+                        operands=new_operands,
                         result_types=op.result_types,
                         attributes=op.get_attributes_copy(),
-                        successors=op.successors)
+                        successors=list(op.successors),
+                        environment=rr.environment)
 
-                    return success(rr.result + newOps)
+                    return success(*new_op)
         for idx, region in enumerate(op.regions):
             # Try to apply to last operation in the last block in the regions of this op
             if len(region.blocks) == 0:
@@ -153,18 +170,19 @@ class one(Strategy):
                 # build new operation with the new region
                 new_regions = list(op.regions[:idx]) + [
                     ImmutableRegion.create_new(
-                        [ImmutableBlock.create_new(rr.result, matched_block)])
+                        [ImmutableBlock.create_new(list(matched_block.arg_types), rr.result, rr.environment, matched_block)])
                 ] + list(op.regions[idx + 1:])
 
-                newOp = ImmutableOperation.create_new(
-                    op_type=op._op.__class__,
-                    immutable_operands=list(op.operands),
+                new_op = ImmutableOperation.create_new(
+                    op_type=op.op_type,
+                    operands=list(op.operands),
                     result_types=op.result_types,
-                    attributes=op.get_attributes_copy(),
+                    attributes=op.attributes,
                     successors=list(op.successors),
-                    regions=new_regions)
+                    regions=new_regions,
+                    environment=rr.environment)
 
-                return success(newOp)
+                return success(*new_op)
 
         return failure("one traversal failure")
 
