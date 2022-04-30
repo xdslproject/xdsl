@@ -191,6 +191,16 @@ class Attribute(ABC):
         """Create a new attribute using one of the builder defined in IRDL."""
         assert False
 
+    def __post_init__(self):
+        self.verify()
+
+    def verify(self) -> None:
+        """
+        Check that the attribute parameters satisfy the expected invariants.
+        Raise an exception otherwise.
+        """
+        pass
+
 
 DataElement = TypeVar("DataElement")
 
@@ -217,12 +227,6 @@ class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
     parameters: List[Attribute] = field(default_factory=list)
-
-    def __post_init__(self):
-        self.verify()
-
-    def verify(self) -> None:
-        ...
 
 
 @dataclass
