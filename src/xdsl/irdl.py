@@ -803,17 +803,47 @@ def irdl_attr_builder(cls, builders, *args):
         f"No available {cls.__name__} builders for arguments {args}")
 
 
+def irdl_data_verify(data: Data, typ: Type) -> None:
+    """Check that the Data has the expected type."""
+    if isinstance(data.data, typ):
+        return
+    raise VerifyException(
+        f"{data.name} data attribute expected type {typ}, but {type(data.data)} given."
+    )
+
+
 T = TypeVar('T')
 
 
 def irdl_data_definition(cls: Type[T]) -> Type[T]:
-    builders = irdl_get_builders(cls)
+    new_attrs = dict()
+
+    # Build method is added for all definitions.
     if "build" in cls.__dict__:
         raise Exception(
             f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
         )
-    new_attrs = dict()
+    builders = irdl_get_builders(cls)
     new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+
+    # Verify method is added if not redefined by the user.
+    if "verify" not in cls.__dict__:
+        for parent in cls.__orig_bases__:
+            if get_origin(parent) != Data:
+                continue
+            if len(get_args(parent)) != 1:
+                raise Exception(f"In {cls.__name__} definition: Data expects "
+                                "a single type parameter")
+            expected_type = get_args(parent)[0]
+            new_attrs[
+                "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
+                    self, expected_type)
+            break
+        else:
+            raise Exception(f'Missing method "verify" in {cls.__name__} data '
+                            'attribute definition: the "verify" method cannot '
+                            'be automatically derived for this definition.')
+
     return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
         **new_attrs
