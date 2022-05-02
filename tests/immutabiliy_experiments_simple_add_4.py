@@ -63,7 +63,7 @@ std.return(%4 : !i32)
 }
 """
 
-    before_ = \
+    before_scf_if = \
 """module() {
   builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0():
@@ -89,22 +89,24 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(addOp := op, Addi)) and (isa(
-                    c1 := addOp.operands[0].get_op(), Constant)) and (isa(
-                        c2 := addOp.operands[1].get_op(), Constant)):
+                c1 := addOp.operands[0].get_op(), Constant)) and (isa(
+                    c2 := addOp.operands[1].get_op(), Constant)):
 
                 assert (isinstance((c1Attr := c1.get_attribute("value")).typ,
                                    IntegerType))
                 assert (isinstance((c2Attr := c2.get_attribute("value")).typ,
                                    IntegerType))
 
-                return success(*ImmutableOperation.create_new(
-                    Constant,
-                    result_types=[c1Attr.typ],
-                    attributes={
-                        "value":
-                        IntegerAttr.from_params(
-                            c1Attr.value.data + c2Attr.value.data, c1Attr.typ)
-                    }))
+                return success(
+                    ImmutableOperation.create_new(
+                        Constant,
+                        result_types=[c1Attr.typ],
+                        attributes={
+                            "value":
+                            IntegerAttr.from_params(
+                                c1Attr.value.data + c2Attr.value.data,
+                                c1Attr.typ)
+                        }))
             else:
                 return failure("FoldConstantAdd")
 
@@ -113,10 +115,11 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(addOp := op, Addi)):
-                return success(*ImmutableOperation.create_new(
-                    Addi,
-                    operands=[addOp.operands[1], addOp.operands[0]],
-                    result_types=[IntegerType.from_width(32)]))
+                return success(
+                    ImmutableOperation.create_new(
+                        Addi,
+                        operands=[addOp.operands[1], addOp.operands[0]],
+                        result_types=[IntegerType.from_width(32)]))
             else:
                 return failure("CommuteAdd")
 
@@ -125,13 +128,15 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if (isa(op, Constant)):
-                return success(*ImmutableOperation.create_new(
-                    Constant,
-                    result_types=[IntegerType.from_width(32)],
-                    attributes={
-                        "value":
-                        IntegerAttr.from_params(42, IntegerType.from_width(32))
-                    }))
+                return success(
+                    ImmutableOperation.create_new(
+                        Constant,
+                        result_types=[IntegerType.from_width(32)],
+                        attributes={
+                            "value":
+                            IntegerAttr.from_params(42,
+                                                    IntegerType.from_width(32))
+                        }))
             else:
                 return failure("ChangeConstant")
 
@@ -140,25 +145,26 @@ std.return(%4 : !i32)
 
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if isa(if_op := op, If) and isinstance(
-                    if_op.operands[0], ImmutableOpResult) and isa(
-                        condition := if_op.operands[0].get_op(),
-                        Constant) and (
-                            condition.get_attribute("value").value.data
-                            == 1) and isa(
-                                yield_op := if_op.region.block.ops[-1],
-                                Yield) and isinstance(yield_op.operands[0],
-                                                      ImmutableOpResult):
+                if_op.operands[0], ImmutableOpResult) and isa(
+                    condition := if_op.operands[0].get_op(),
+                    Constant) and (condition.get_attribute("value").value.data
+                                   == 1) and isa(
+                                       yield_op := if_op.region.block.ops[-1],
+                                       Yield) and isinstance(
+                                           yield_op.operands[0],
+                                           ImmutableOpResult):
                 op_to_inline = yield_op.operands[0].get_op
                 print("match!!!")
 
                 # TODO: rebuild the operation that is returned via yield
                 # maybe build a helper to really just rebuild the op. Here I have to still give all operands
 
-                return success(*ImmutableOperation.create_new(
-                    op_to_inline._op.__class__, op_to_inline.operands,
-                    [result.typ for result in op_to_inline.results],
-                    op_to_inline.get_attributes_copy, op_to_inline.successors,
-                    op_to_inline.regions))
+                return success(
+                    ImmutableOperation.create_new(
+                        op_to_inline._op.__class__, op_to_inline.operands,
+                        [result.typ for result in op_to_inline.results],
+                        op_to_inline.get_attributes_copy,
+                        op_to_inline.successors, op_to_inline.regions))
             else:
                 return failure("InlineIf")
 
@@ -168,25 +174,17 @@ std.return(%4 : !i32)
         def impl(self, op: ImmutableOperation) -> RewriteResult:
             if len(op.results) > 0 and isinstance(op.result.typ, IntegerType):
                 b = ImmutableIRBuiler()
-                # new_ir = b.op(op_type=Addi,
-                #               operands=[
-                #                   op,
-                #                   b.op(op_type=Constant,
-                #                        attributes={
-                #                            "value":
-                #                            IntegerAttr.from_int_and_width(
-                #                                0, 32)
-                #                        },
-                #                        result_types=[op.result.typ])[0][0]
-                #               ],
-                #               result_types=[op.result.typ])
-                
-                #yapf: disable
-                new_ir = b.op(Addi, [op, b.op(Constant, attributes={"value":IntegerAttr.from_int_and_width(0, 32)},
-                                                        result_types=[op.result.typ])[0][0]],
-                                    result_types=[op.result.typ])
-                #yapf: enble
-                return success(*new_ir)
+                new_ir = b.op(Addi, [
+                    op,
+                    b.op(Constant,
+                         attributes={
+                             "value": IntegerAttr.from_int_and_width(0, 32)
+                         },
+                         result_types=[op.result.typ])
+                ],
+                              result_types=[op.result.typ])
+
+                return success(b)
             return failure("AddZero failure")
 
     ctx = MLContext()

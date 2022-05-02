@@ -38,11 +38,29 @@ class RewriteResult:
         return isinstance(self.result, List)
 
 
-def success(ops: List[ImmutableOperation], environment: Optional[Dict[ImmutableSSAValue, ImmutableSSAValue]] = None) -> RewriteResult:
-    assert isinstance(ops, List)
-    assert all([isinstance(op, ImmutableOperation) for op in ops])
-    if environment is None:
-        environment = {}
+def success(
+    arg: Union[ImmutableOperation, Tuple[ImmutableOperation,
+                                         Dict[ImmutableSSAValue,
+                                              ImmutableSSAValue]],
+               ImmutableIRBuiler]
+) -> RewriteResult:
+    match arg:
+        case ImmutableOperation():
+            op = arg
+            environment = {}
+        case (ImmutableOperation(), dict()):
+            assert isinstance(arg[1], Dict)
+            op = arg[0]
+            environment = arg[1]
+        case ImmutableIRBuiler():
+            assert arg.last_op_created is not None
+            op = arg.last_op_created
+            environment = arg.environment
+        case _:
+            raise Exception("success ")
+
+    assert isinstance(op, ImmutableOperation)
+    ops: List[ImmutableOperation] = [op]
 
     # Add all dependant operations
     def add_operands(op: ImmutableOperation, ops: List[ImmutableOperation]):
@@ -51,10 +69,8 @@ def success(ops: List[ImmutableOperation], environment: Optional[Dict[ImmutableS
                 if operand.op not in ops:
                     ops.insert(0, operand.op)
                     add_operands(operand.op, ops)
-    
-    for op in ops:
-        add_operands(op, ops)
 
+    add_operands(op, ops)
     return RewriteResult(ops, environment)
 
 
@@ -79,7 +95,7 @@ class Strategy:
 class id(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
-        return success([op])
+        return success(op)
 
 
 @dataclass
@@ -96,7 +112,7 @@ class debug(Strategy):
         # printer = Printer()
         # printer.print_op(op._op)
         print("debug:" + op.name)
-        return success([op])
+        return success(op)
 
 
 @dataclass
@@ -158,7 +174,7 @@ class one(Strategy):
                         successors=list(op.successors),
                         environment=rr.environment)
 
-                    return success(*new_op)
+                    return success(new_op)
         for idx, region in enumerate(op.regions):
             # Try to apply to last operation in the last block in the regions of this op
             if len(region.blocks) == 0:
@@ -168,9 +184,19 @@ class one(Strategy):
             if rr.isSuccess():
                 assert isinstance(rr.result, List)
                 # build new operation with the new region
+                # new_regions = list(op.regions[:idx]) + [
+                #     ImmutableRegion.create_new([
+                #         ImmutableBlock.create_new(list(
+                #             matched_block.arg_types), rr.result,
+                #                        rr.environment, matched_block)
+                #     ])
+                # ] + list(op.regions[idx + 1:])
                 new_regions = list(op.regions[:idx]) + [
-                    ImmutableRegion.create_new(
-                        [ImmutableBlock.create_new(list(matched_block.arg_types), rr.result, rr.environment, matched_block)])
+                    ImmutableRegion.create_new([
+                        ImmutableBlock(list(
+                            matched_block.arg_types), rr.result,
+                                       rr.environment, matched_block)
+                    ])
                 ] + list(op.regions[idx + 1:])
 
                 new_op = ImmutableOperation.create_new(
@@ -182,7 +208,7 @@ class one(Strategy):
                     regions=new_regions,
                     environment=rr.environment)
 
-                return success(*new_op)
+                return success(new_op)
 
         return failure("one traversal failure")
 
@@ -196,66 +222,3 @@ class topdown(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         return leftChoice(self.s, one(topdown(self.s))).apply(op)
-
-
-# old Strategy for mutable rewriting
-# class Strategy(RewritePattern):
-
-#     @abstractmethod
-#     def impl(self, op: Operation) -> RewriteResult:
-#         ...
-
-#     def __call__(self, op: Operation,
-#                  rewriter: PatternRewriter) -> RewriteResult:
-#         return self.impl(op)
-
-#     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-#         """Keeping the original interface"""
-#         result = self.impl(op)
-#         operands = list()
-
-#         if result is not None:
-#             if not isinstance(result.result, str):
-#                 rewriter.replace_matched_op(result.result)
-#         else:
-#             return
-
-#         def addOperandsRecursively(op: Operation):
-#             operands.extend(op.operands)
-#             for operand in op.operands:
-#                 if isinstance(operand, OpResult):
-#                     addOperandsRecursively(operand.op)
-
-#         #TODO: check trait
-#         addOperandsRecursively(op)
-
-#         # cleanup
-#         eraseList = []
-#         changed = True
-#         while (changed):
-#             changed = False
-#             for value in operands:
-#                 if len(value.uses) == 0:
-#                     eraseList.append(value)
-
-#             for value in eraseList:
-#                 if value.op.parent is not None:
-#                     print("erasing op:" + value.op.name)
-#                     rewriter.erase_op(value.op)
-#                     operands.remove(value)
-#                     changed = True
-
-# @dataclass
-# class one(Strategy):
-#     s: Strategy
-
-#     def impl(self, op: Operation, rewriter: PatternRewriter) -> RewriteResult:
-#         if isinstance(op, ModuleOp):
-#             module: ModuleOp = op
-#             return self.s(module.ops[0], rewriter)
-#         for operand in reversed(op.operands):
-#             if (isinstance(operand, OpResult)):
-#                 rr = self.s(operand.op, rewriter)
-#                 if isinstance(rr.result, Operation):
-#                     return rr
-#         return failure("one traversal failure")

@@ -47,10 +47,11 @@ class CommuteAdd(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         if (isa(addOp := op, Addi)):
-            return success(*ImmutableOperation.create_new(
-                Addi,
-                operands=[addOp.operands[1], addOp.operands[0]],
-                result_types=[IntegerType.from_width(32)]))
+            return success(
+                ImmutableOperation.create_new(
+                    Addi,
+                    operands=[addOp.operands[1], addOp.operands[0]],
+                    result_types=[IntegerType.from_width(32)]))
         else:
             return failure("CommuteAdd")
 
@@ -60,22 +61,23 @@ class FoldConstantAdd(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         if (isa(addOp := op, Addi)) and (isa(
-                c1 := addOp.operands[0].get_op(), Constant)) and (isa(
-                    c2 := addOp.operands[1].get_op(), Constant)):
+            c1 := addOp.operands[0].get_op(), Constant)) and (isa(
+                c2 := addOp.operands[1].get_op(), Constant)):
 
             assert (isinstance((c1Attr := c1.get_attribute("value")).typ,
                                IntegerType))
             assert (isinstance((c2Attr := c2.get_attribute("value")).typ,
                                IntegerType))
 
-            return success(*ImmutableOperation.create_new(
-                Constant,
-                result_types=[c1Attr.typ],
-                attributes={
-                    "value":
-                    IntegerAttr.from_params(
-                        c1Attr.value.data + c2Attr.value.data, c1Attr.typ)
-                }))
+            return success(
+                ImmutableOperation.create_new(
+                    Constant,
+                    result_types=[c1Attr.typ],
+                    attributes={
+                        "value":
+                        IntegerAttr.from_params(
+                            c1Attr.value.data + c2Attr.value.data, c1Attr.typ)
+                    }))
         else:
             return failure("FoldConstantAdd")
 
@@ -85,13 +87,14 @@ class ChangeConstantTo42(Strategy):
 
     def impl(self, op: ImmutableOperation) -> RewriteResult:
         if (isa(op, Constant)):
-            return success(*ImmutableOperation.create_new(
-                Constant,
-                result_types=[IntegerType.from_width(32)],
-                attributes={
-                    "value":
-                    IntegerAttr.from_params(42, IntegerType.from_width(32))
-                }))
+            return success(
+                ImmutableOperation.create_new(
+                    Constant,
+                    result_types=[IntegerType.from_width(32)],
+                    attributes={
+                        "value":
+                        IntegerAttr.from_params(42, IntegerType.from_width(32))
+                    }))
         else:
             return failure("ChangeConstant")
 
@@ -154,7 +157,9 @@ def test_commute_block_args():
                                            strategy=topdown(CommuteAdd()))
     newModule = apply_strategy_and_compare(program=before,
                                            expected_program=before,
-                                           strategy=seq(topdown(CommuteAdd()), topdown(CommuteAdd())))
+                                           strategy=seq(
+                                               topdown(CommuteAdd()),
+                                               topdown(CommuteAdd())))
 
 
 def test_rewriting_with_blocks():
