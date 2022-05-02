@@ -7,8 +7,8 @@ from xdsl.dialects.builtin import *
 from xdsl.dialects.scf import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.std import *
 from xdsl.dialects.arith import *
+from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
 
@@ -17,7 +17,7 @@ def apply_strategy_and_compare(program: str, expected_program: str,
                                strategy: Strategy) -> ImmutableOperation:
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
 
@@ -109,7 +109,7 @@ def test_double_commute():
   %2 : !i32 = arith.constant() ["value" = 1 : !i32]
   %3 : !i32 = arith.addi(%2 : !i32, %1 : !i32)
   %4 : !i32 = arith.addi(%3 : !i32, %0 : !i32)
-  std.return(%4 : !i32)
+  func.return(%4 : !i32)
 }
 """
     once_commuted = \
@@ -119,7 +119,7 @@ def test_double_commute():
   %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
   %3 : !i32 = arith.constant() ["value" = 4 : !i32]
   %4 : !i32 = arith.addi(%3 : !i32, %2 : !i32)
-  std.return(%4 : !i32)
+  func.return(%4 : !i32)
 }
 """
     newModule = apply_strategy_and_compare(program=before,
@@ -136,19 +136,19 @@ def test_commute_block_args():
 
     before = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-    std.return(%2 : !i32)
+    func.return(%2 : !i32)
   }
 }
 """
     commuted = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
-    std.return(%2 : !i32)
+    func.return(%2 : !i32)
   }
 }
 """
@@ -167,14 +167,14 @@ def test_rewriting_with_blocks():
     # TODO: using this program does acutally lose the if region somehow!
     error = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %7 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 0 : !i32]
       scf.yield(%2 : !i32)
     }
-    std.return(%1 : !i32)
+    func.return(%1 : !i32)
   }
 }
 """
@@ -182,25 +182,25 @@ def test_rewriting_with_blocks():
 
     before = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 0 : !i32]
       scf.yield(%2 : !i32)
     }
-    std.return(%1 : !i32)
+    func.return(%1 : !i32)
   }
 }
 """
     constant_changed = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 42 : !i32]
       scf.yield(%2 : !i32)
     }
-    std.return(%1 : !i32)
+    func.return(%1 : !i32)
   }
 }
 """
@@ -218,13 +218,13 @@ def test_constant_folding():
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
 %3 : !i32 = arith.constant() ["value" = 4 : !i32]
 %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
-std.return(%4 : !i32)
+func.return(%4 : !i32)
 }
 """
     twiceFolded = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 7 : !i32]
-  std.return(%0 : !i32)
+  func.return(%0 : !i32)
 }
 """
 

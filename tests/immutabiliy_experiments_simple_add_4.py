@@ -9,11 +9,9 @@ from xdsl.dialects.scf import *
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern
 from xdsl.printer import Printer
-from xdsl.dialects.std import *
-from xdsl.dialects.std import Return as stdReturn
+from xdsl.dialects.func import *
+from xdsl.dialects.func import Return as stdReturn
 from xdsl.dialects.arith import *
-from xdsl.dialects.rise.rise import *
-from xdsl.dialects.rise.riseBuilder import RiseBuilder
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
 
@@ -21,7 +19,7 @@ import difflib
 
 ###
 #
-#   In this experiment we use the factored out elevate version of elevate.py
+#   This is a file for prototyping and experimentation. To be removed in a non draft PR
 #
 ###
 
@@ -35,16 +33,16 @@ def rewriting_with_immutability_experiments():
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
 %3 : !i32 = arith.constant() ["value" = 4 : !i32]
 %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
-std.return(%4 : !i32)
+func.return(%4 : !i32)
 }
 """
 
     block_args_before = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0: !i32, %1: !i32):
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-    std.return(%2 : !i32)
+    func.return(%2 : !i32)
   }
 }
 """
@@ -52,27 +50,27 @@ std.return(%4 : !i32)
     # In current xdsl I have no way to get to the function from the call
     not_possible = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0: !i32, %1: !i32):
     %3 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-    std.return(%3 : !i32)
+    func.return(%3 : !i32)
   }
   %4 : !i32 = arith.constant() ["value" = 0 : !i32]
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %6 : !i32 = std.call(%4 : !i32, %5 : !i32) ["callee" = @test] 
+  %6 : !i32 = func.call(%4 : !i32, %5 : !i32) ["callee" = @test] 
 }
 """
 
     before_scf_if = \
 """module() {
-  builtin.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0():
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 0 : !i32]
       scf.yield(%2 : !i32)
     }
-    std.return(%1 : !i32)
+    func.return(%1 : !i32)
   }
 }
 """
@@ -80,7 +78,7 @@ std.return(%4 : !i32)
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 7 : !i32]
-  std.return(%0 : !i32)
+  func.return(%0 : !i32)
 }
 """
 
@@ -189,11 +187,9 @@ std.return(%4 : !i32)
 
     ctx = MLContext()
     builtin = Builtin(ctx)
-    std = Std(ctx)
+    func = Func(ctx)
     arith = Arith(ctx)
     scf = Scf(ctx)
-    rise = Rise(ctx)
-    rise_dsl = RiseBuilder(ctx)
     affine = Affine(ctx)
 
     parser = Parser(ctx, before)
