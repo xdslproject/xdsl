@@ -14,7 +14,7 @@ from xdsl.immutable_ir import *
 
 
 def apply_strategy_and_compare(program: str, expected_program: str,
-                               strategy: Strategy) -> ImmutableOperation:
+                               strategy: Strategy) -> IOP:
     ctx = MLContext()
     builtin = Builtin(ctx)
     func = Func(ctx)
@@ -23,12 +23,11 @@ def apply_strategy_and_compare(program: str, expected_program: str,
 
     parser = Parser(ctx, program)
     module: Operation = parser.parse_op()
-    imm_module: ImmutableOperation = get_immutable_copy(module)
+    imm_module: IOP = get_immutable_copy(module)
 
     rr = strategy.apply(imm_module)
 
-    assert (rr.isSuccess() and isinstance(
-        (resultOp := rr.result[-1]), ImmutableOperation))
+    assert (rr.isSuccess() and isinstance((resultOp := rr.result[-1]), IOP))
 
     # for debugging
     printer = Printer()
@@ -45,13 +44,12 @@ def apply_strategy_and_compare(program: str, expected_program: str,
 @dataclass
 class CommuteAdd(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         if (isa(addOp := op, Addi)):
             return success(
-                ImmutableOperation.create_new(
-                    Addi,
-                    operands=[addOp.operands[1], addOp.operands[0]],
-                    result_types=[IntegerType.from_width(32)]))
+                IOP.create_new(Addi,
+                               operands=[addOp.operands[1], addOp.operands[0]],
+                               result_types=[IntegerType.from_width(32)]))
         else:
             return failure("CommuteAdd")
 
@@ -59,7 +57,7 @@ class CommuteAdd(Strategy):
 @dataclass
 class FoldConstantAdd(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         if (isa(addOp := op, Addi)) and (isa(
             c1 := addOp.operands[0].get_op(), Constant)) and (isa(
                 c2 := addOp.operands[1].get_op(), Constant)):
@@ -70,14 +68,14 @@ class FoldConstantAdd(Strategy):
                                IntegerType))
 
             return success(
-                ImmutableOperation.create_new(
-                    Constant,
-                    result_types=[c1Attr.typ],
-                    attributes={
-                        "value":
-                        IntegerAttr.from_params(
-                            c1Attr.value.data + c2Attr.value.data, c1Attr.typ)
-                    }))
+                IOP.create_new(Constant,
+                               result_types=[c1Attr.typ],
+                               attributes={
+                                   "value":
+                                   IntegerAttr.from_params(
+                                       c1Attr.value.data + c2Attr.value.data,
+                                       c1Attr.typ)
+                               }))
         else:
             return failure("FoldConstantAdd")
 
@@ -85,16 +83,16 @@ class FoldConstantAdd(Strategy):
 @dataclass
 class ChangeConstantTo42(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         if (isa(op, Constant)):
             return success(
-                ImmutableOperation.create_new(
-                    Constant,
-                    result_types=[IntegerType.from_width(32)],
-                    attributes={
-                        "value":
-                        IntegerAttr.from_params(42, IntegerType.from_width(32))
-                    }))
+                IOP.create_new(Constant,
+                               result_types=[IntegerType.from_width(32)],
+                               attributes={
+                                   "value":
+                                   IntegerAttr.from_params(
+                                       42, IntegerType.from_width(32))
+                               }))
         else:
             return failure("ChangeConstant")
 

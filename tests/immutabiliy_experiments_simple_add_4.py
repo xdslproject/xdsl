@@ -85,7 +85,7 @@ func.return(%4 : !i32)
     @dataclass
     class FoldConstantAdd(Strategy):
 
-        def impl(self, op: ImmutableOperation) -> RewriteResult:
+        def impl(self, op: IOP) -> RewriteResult:
             if (isa(addOp := op, Addi)) and (isa(
                 c1 := addOp.operands[0].get_op(), Constant)) and (isa(
                     c2 := addOp.operands[1].get_op(), Constant)):
@@ -96,25 +96,24 @@ func.return(%4 : !i32)
                                    IntegerType))
 
                 return success(
-                    ImmutableOperation.create_new(
-                        Constant,
-                        result_types=[c1Attr.typ],
-                        attributes={
-                            "value":
-                            IntegerAttr.from_params(
-                                c1Attr.value.data + c2Attr.value.data,
-                                c1Attr.typ)
-                        }))
+                    IOP.create_new(Constant,
+                                   result_types=[c1Attr.typ],
+                                   attributes={
+                                       "value":
+                                       IntegerAttr.from_params(
+                                           c1Attr.value.data +
+                                           c2Attr.value.data, c1Attr.typ)
+                                   }))
             else:
                 return failure("FoldConstantAdd")
 
     @dataclass
     class CommuteAdd(Strategy):
 
-        def impl(self, op: ImmutableOperation) -> RewriteResult:
+        def impl(self, op: IOP) -> RewriteResult:
             if (isa(addOp := op, Addi)):
                 return success(
-                    ImmutableOperation.create_new(
+                    IOP.create_new(
                         Addi,
                         operands=[addOp.operands[1], addOp.operands[0]],
                         result_types=[IntegerType.from_width(32)]))
@@ -122,35 +121,54 @@ func.return(%4 : !i32)
                 return failure("CommuteAdd")
 
     @dataclass
+    class CommuteAdd_Case(Strategy):
+
+        def impl(self, op: IOP) -> RewriteResult:
+            match op:
+                case IOP(op_type=Addi,
+                         operands=IList(
+                             [IVal() as operand0,
+                              IVal() as operand1]),
+                         results=IList([IRes(typ=typ)])) as add_op:
+                    return success(
+                        IOP.create_new(Addi,
+                                       operands=[operand1, operand0],
+                                       result_types=[typ]))
+                    # b = IRBuilder()
+                    # add_op.updated(b, operands=[operand1, operand0])
+
+                    # b.from_op(add_op, operands=[operand1, operand0])
+                case _:
+                    return failure("CommuteAdd")
+
+    @dataclass
     class ChangeConstant(Strategy):
 
-        def impl(self, op: ImmutableOperation) -> RewriteResult:
+        def impl(self, op: IOP) -> RewriteResult:
             if (isa(op, Constant)):
                 return success(
-                    ImmutableOperation.create_new(
-                        Constant,
-                        result_types=[IntegerType.from_width(32)],
-                        attributes={
-                            "value":
-                            IntegerAttr.from_params(42,
-                                                    IntegerType.from_width(32))
-                        }))
+                    IOP.create_new(Constant,
+                                   result_types=[IntegerType.from_width(32)],
+                                   attributes={
+                                       "value":
+                                       IntegerAttr.from_params(
+                                           42, IntegerType.from_width(32))
+                                   }))
             else:
                 return failure("ChangeConstant")
 
     @dataclass
     class InlineIf(Strategy):
 
-        def impl(self, op: ImmutableOperation) -> RewriteResult:
+        def impl(self, op: IOP) -> RewriteResult:
             if isa(if_op := op, If) and isinstance(
-                if_op.operands[0], ImmutableOpResult) and isa(
+                if_op.operands[0], IRes) and isa(
                     condition := if_op.operands[0].get_op(),
                     Constant) and (condition.get_attribute("value").value.data
                                    == 1) and isa(
                                        yield_op := if_op.region.block.ops[-1],
                                        Yield) and isinstance(
-                                           yield_op.operands[0],
-                                           ImmutableOpResult):
+                                           yield_op.operands[0], IRes):
                 op_to_inline = yield_op.operands[0].get_op
                 print("match!!!")
 
@@ -158,7 +176,7 @@ func.return(%4 : !i32)
                 # maybe build a helper to really just rebuild the op. Here I have to still give all operands
 
                 return success(
-                    ImmutableOperation.create_new(
+                    IOP.create_new(
                         op_to_inline._op.__class__, op_to_inline.operands,
                         [result.typ for result in op_to_inline.results],
                         op_to_inline.get_attributes_copy,
@@ -169,7 +187,7 @@ func.return(%4 : !i32)
     @dataclass
     class AddZero(Strategy):
 
-        def impl(self, op: ImmutableOperation) -> RewriteResult:
+        def impl(self, op: IOP) -> RewriteResult:
             if len(op.results) > 0 and isinstance(op.result.typ, IntegerType):
                 b = ImmutableIRBuiler()
                 new_ir = b.op(Addi, [
@@ -194,7 +212,7 @@ func.return(%4 : !i32)
 
     parser = Parser(ctx, before)
     beforeM: Operation = parser.parse_op()
-    immBeforeM: ImmutableOperation = get_immutable_copy(beforeM)
+    immBeforeM: IOP = get_immutable_copy(beforeM)
 
     print("before:")
     printer = Printer()
@@ -205,9 +223,8 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    rrImmM1 = topdown(AddZero()).apply(immBeforeM)
-    assert (rrImmM1.isSuccess()
-            and isinstance(rrImmM1.result[-1], ImmutableOperation))
+    rrImmM1 = topdown(CommuteAdd_Case()).apply(immBeforeM)
+    assert (rrImmM1.isSuccess() and isinstance(rrImmM1.result[-1], IOP))
 
     printer = Printer()
     printer.print_op(rrImmM1.result[-1].get_mutable_copy())

@@ -13,8 +13,8 @@ from xdsl.printer import Printer
 
 @dataclass
 class RewriteResult:
-    result: Union[str, List[ImmutableOperation]]
-    environment: Dict[ImmutableSSAValue, ImmutableSSAValue]
+    result: Union[str, List[IOP]]
+    environment: Dict[IVal, IVal]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
         if (not isinstance(self.result, List)):
@@ -39,16 +39,13 @@ class RewriteResult:
 
 
 def success(
-    arg: Union[ImmutableOperation, Tuple[ImmutableOperation,
-                                         Dict[ImmutableSSAValue,
-                                              ImmutableSSAValue]],
-               ImmutableIRBuiler]
+    arg: Union[IOP, Tuple[IOP, Dict[IVal, IVal]], ImmutableIRBuiler]
 ) -> RewriteResult:
     match arg:
-        case ImmutableOperation():
+        case IOP():
             op = arg
             environment = {}
-        case (ImmutableOperation(), dict()):
+        case (IOP(), dict()):
             assert isinstance(arg[1], Dict)
             op = arg[0]
             environment = arg[1]
@@ -59,13 +56,13 @@ def success(
         case _:
             raise Exception("success ")
 
-    assert isinstance(op, ImmutableOperation)
-    ops: List[ImmutableOperation] = [op]
+    assert isinstance(op, IOP)
+    ops: List[IOP] = [op]
 
     # Add all dependant operations
-    def add_operands(op: ImmutableOperation, ops: List[ImmutableOperation]):
+    def add_operands(op: IOP, ops: List[IOP]):
         for operand in op.operands:
-            if isinstance(operand, ImmutableOpResult):
+            if isinstance(operand, IRes):
                 if operand.op not in ops:
                     ops.insert(0, operand.op)
                     add_operands(operand.op, ops)
@@ -82,33 +79,33 @@ def failure(errorMsg: str) -> RewriteResult:
 @dataclass
 class Strategy:
 
-    def apply(self, op: ImmutableOperation) -> RewriteResult:
-        assert isinstance(op, ImmutableOperation)
+    def apply(self, op: IOP) -> RewriteResult:
+        assert isinstance(op, IOP)
         return self.impl(op)
 
     @abstractmethod
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         ...
 
 
 @dataclass
 class id(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         return success(op)
 
 
 @dataclass
 class fail(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         return failure("fail Strategy")
 
 
 @dataclass
 class debug(Strategy):
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         # printer = Printer()
         # printer.print_op(op._op)
         print("debug:" + op.name)
@@ -120,7 +117,7 @@ class seq(Strategy):
     s1: Strategy
     s2: Strategy
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         rr = self.s1.apply(op)
         return rr.flatMapSuccess(self.s2)
 
@@ -130,7 +127,7 @@ class leftChoice(Strategy):
     s1: Strategy
     s2: Strategy
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         return self.s1.apply(op).flatMapFailure(lambda: self.s2.apply(op))
 
 
@@ -138,7 +135,7 @@ class leftChoice(Strategy):
 class try_(Strategy):
     s: Strategy
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         return leftChoice(self.s, id()).apply(op)
 
 
@@ -150,10 +147,10 @@ class one(Strategy):
     """
     s: Strategy
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         for idx, operand in enumerate(op.operands):
             # Try to apply to the operands of this op
-            if (isinstance(operand, ImmutableOpResult)):
+            if (isinstance(operand, IRes)):
                 rr = self.s.apply(operand.op)
                 if rr.isSuccess():
                     assert isinstance(rr.result, List)
@@ -166,7 +163,7 @@ class one(Strategy):
                     #   - when the operand has regions
                     #   - when the op has successors
 
-                    new_op = ImmutableOperation.create_new(
+                    new_op = IOP.create_new(
                         op_type=op.op_type,
                         operands=new_operands,
                         result_types=op.result_types,
@@ -192,21 +189,19 @@ class one(Strategy):
                 #     ])
                 # ] + list(op.regions[idx + 1:])
                 new_regions = list(op.regions[:idx]) + [
-                    ImmutableRegion([
-                        ImmutableBlock(list(
-                            matched_block.arg_types), rr.result,
-                                       rr.environment, matched_block)
+                    IRegion([
+                        IBlock(list(matched_block.arg_types), rr.result,
+                               rr.environment, matched_block)
                     ])
                 ] + list(op.regions[idx + 1:])
 
-                new_op = ImmutableOperation.create_new(
-                    op_type=op.op_type,
-                    operands=list(op.operands),
-                    result_types=op.result_types,
-                    attributes=op.attributes,
-                    successors=list(op.successors),
-                    regions=new_regions,
-                    environment=rr.environment)
+                new_op = IOP.create_new(op_type=op.op_type,
+                                        operands=list(op.operands),
+                                        result_types=op.result_types,
+                                        attributes=op.attributes,
+                                        successors=list(op.successors),
+                                        regions=new_regions,
+                                        environment=rr.environment)
 
                 return success(new_op)
 
@@ -220,5 +215,5 @@ class topdown(Strategy):
     """
     s: Strategy
 
-    def impl(self, op: ImmutableOperation) -> RewriteResult:
+    def impl(self, op: IOP) -> RewriteResult:
         return leftChoice(self.s, one(topdown(self.s))).apply(op)
