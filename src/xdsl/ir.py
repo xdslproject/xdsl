@@ -12,8 +12,6 @@ if TYPE_CHECKING:
 
 OperationType = TypeVar('OperationType', bound='Operation', covariant=True)
 
-copyCounter: int = 0
-
 
 @dataclass
 class MLContext:
