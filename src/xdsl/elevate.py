@@ -192,7 +192,7 @@ class one(Strategy):
                 #     ])
                 # ] + list(op.regions[idx + 1:])
                 new_regions = list(op.regions[:idx]) + [
-                    ImmutableRegion.create_new([
+                    ImmutableRegion([
                         ImmutableBlock(list(
                             matched_block.arg_types), rr.result,
                                        rr.environment, matched_block)

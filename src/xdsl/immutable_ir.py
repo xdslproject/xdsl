@@ -53,21 +53,28 @@ class ImmutableBlockArgument(ImmutableSSAValue):
 class ImmutableRegion:
     blocks: FrozenList[ImmutableBlock]
 
-    # parent_op: Optional[ImmutableOperation] = None
     def __hash__(self):
         return hash(id(self))
-        # return hash((self.blocks))
+
     def __eq__(self, __o: ImmutableRegion) -> bool:
         return self is __o
-
-    def __post_init__(self):
-        # for block in self.blocks:
-        #     block.parent_region = self
-        self.blocks.freeze()
 
     @property
     def block(self):
         return self.blocks[0]
+
+    def __init__(self, blocks: List[ImmutableBlock]):
+        """Creates a new mutable region and returns an immutable view on it."""
+        object.__setattr__(self, "blocks", FrozenList(blocks))
+        self.blocks.freeze()
+
+    @classmethod
+    def from_mutable(cls, blocks: List[Block]) -> ImmutableRegion:
+        immutable_blocks = [
+            ImmutableBlock.from_mutable(block) for block in blocks
+        ]
+        assert (blocks[0].parent is not None)
+        return ImmutableRegion(immutable_blocks)
 
     def get_mutable_copy(
             self,
@@ -84,20 +91,6 @@ class ImmutableRegion:
                 block.get_mutable_copy(value_mapping=value_mapping,
                                        block_mapping=block_mapping))
         return Region.from_block_list(mutable_blocks)
-
-    @classmethod
-    def create_new(cls, blocks: List[ImmutableBlock]) -> ImmutableRegion:
-        """Creates a new mutable region and returns an immutable view on it."""
-        new_region = ImmutableRegion(FrozenList(blocks))
-        return new_region
-
-    @staticmethod
-    def from_mutable(blocks: List[Block]) -> ImmutableRegion:
-        immutable_blocks = [
-            ImmutableBlock.from_mutable(block) for block in blocks
-        ]
-        assert (blocks[0].parent is not None)
-        return ImmutableRegion(FrozenList(immutable_blocks))
 
     def walk(self, fun: Callable[[ImmutableOperation], None]) -> None:
         for block in self.blocks:
@@ -134,27 +127,6 @@ class ImmutableBlock:
             object.__setattr__(arg, "block", self)
         self.args.freeze()
         self.ops.freeze()
-
-    def get_mutable_copy(
-            self,
-            value_mapping: Optional[Dict[ImmutableSSAValue, SSAValue]] = None,
-            block_mapping: Optional[Dict[ImmutableBlock,
-                                         Block]] = None) -> Block:
-        if value_mapping is None:
-            value_mapping = {}
-        if block_mapping is None:
-            block_mapping = {}
-
-        new_block = Block.from_arg_types([arg.typ for arg in self.args])
-        for idx, arg in enumerate(self.args):
-            value_mapping[arg] = new_block.args[idx]
-        block_mapping[self] = new_block
-
-        for immutable_op in self.ops:
-            new_block.add_op(
-                immutable_op.get_mutable_copy(value_mapping=value_mapping,
-                                              block_mapping=block_mapping))
-        return new_block
 
     def __init__(self,
                  args: Union[List[Attribute], List[ImmutableBlockArgument]],
@@ -214,6 +186,27 @@ class ImmutableBlock:
         ]
 
         return ImmutableBlock(args, immutable_ops)
+
+    def get_mutable_copy(
+            self,
+            value_mapping: Optional[Dict[ImmutableSSAValue, SSAValue]] = None,
+            block_mapping: Optional[Dict[ImmutableBlock,
+                                         Block]] = None) -> Block:
+        if value_mapping is None:
+            value_mapping = {}
+        if block_mapping is None:
+            block_mapping = {}
+
+        new_block = Block.from_arg_types([arg.typ for arg in self.args])
+        for idx, arg in enumerate(self.args):
+            value_mapping[arg] = new_block.args[idx]
+        block_mapping[self] = new_block
+
+        for immutable_op in self.ops:
+            new_block.add_op(
+                immutable_op.get_mutable_copy(value_mapping=value_mapping,
+                                              block_mapping=block_mapping))
+        return new_block
 
     def walk(self, fun: Callable[[ImmutableOperation], None]) -> None:
         for op in self.ops:
@@ -384,8 +377,9 @@ class ImmutableOperation:
                                     regions)
         return (new_op, environment)
 
-    @staticmethod
+    @classmethod
     def from_mutable(
+        cls,
         op: Operation,
         value_map: Optional[Dict[SSAValue, ImmutableSSAValue]] = None,
         block_map: Optional[Dict[Block, ImmutableBlock]] = None,
