@@ -29,20 +29,15 @@ class IList(FrozenList[T]):
 class IVal:
     typ: Attribute
 
-    def get_op(self) -> IOP:
-        if isinstance(self, IRes):
-            return self.op
-        return None  # type: ignore
-
 
 @dataclass(frozen=True)
 class IRes(IVal):
-    op: IOP
+    op: IOp
     result_index: int
 
     def __hash__(self):
         return hash(id(self.op)) + hash(self.result_index)
-        # return hash((self.op, self.result_index))
+
     def __eq__(self, __o: IRes) -> bool:
         return self.op == __o.op and self.result_index == __o.result_index
 
@@ -54,9 +49,8 @@ class IBlockArg(IVal):
 
     def __hash__(self):
         return hash(id(self))
-        # return hash((self.block, self.index))
+
     def __eq__(self, __o: IBlockArg) -> bool:
-        # return self.block == __o.block and self.index == __o.index
         return self is __o
 
     def __str__(self) -> str:
@@ -108,7 +102,7 @@ class IRegion:
                                        block_mapping=block_mapping))
         return Region.from_block_list(mutable_blocks)
 
-    def walk(self, fun: Callable[[IOP], None]) -> None:
+    def walk(self, fun: Callable[[IOp], None]) -> None:
         for block in self.blocks:
             block.walk(fun)
 
@@ -116,7 +110,7 @@ class IRegion:
 @dataclass(frozen=True)
 class IBlock:
     args: IList[IBlockArg]
-    ops: IList[IOP]
+    ops: IList[IOp]
 
     @property
     def arg_types(self) -> IList[Attribute]:
@@ -146,7 +140,7 @@ class IBlock:
 
     def __init__(self,
                  args: Union[List[Attribute], List[IBlockArg]],
-                 ops: List[IOP],
+                 ops: List[IOp],
                  environment: Optional[Dict[IVal, IVal]] = None,
                  old_block: Optional[IBlock] = None):
         """Creates a new immutable block."""
@@ -191,7 +185,7 @@ class IBlock:
             value_map[arg] = immutable_arg
 
         immutable_ops = [
-            IOP.from_mutable(op, value_map=value_map, block_map=block_map)
+            IOp.from_mutable(op, value_map=value_map, block_map=block_map)
             for op in block.ops
         ]
 
@@ -217,13 +211,13 @@ class IBlock:
                                               block_mapping=block_mapping))
         return new_block
 
-    def walk(self, fun: Callable[[IOP], None]) -> None:
+    def walk(self, fun: Callable[[IOp], None]) -> None:
         for op in self.ops:
             op.walk(fun)
 
 
-def get_immutable_copy(op: Operation) -> IOP:
-    return IOP.from_mutable(op, {})
+def get_immutable_copy(op: Operation) -> IOp:
+    return IOp.from_mutable(op, {})
 
 
 @dataclass(frozen=True)
@@ -234,13 +228,15 @@ class OpData:
 
 
 @dataclass(frozen=True)
-class IOP:
+class IOp:
+    # __match_args__ = ("op_type", "operands", "results", "successors",
+    #                   "regions")
     _op_data: OpData
     operands: IList[IVal]
     results: IList[IRes]
     successors: IList[IBlock]
     regions: IList[IRegion]
-    parent_block: IList[IBlock] = None
+    parent_block: Optional[IList[IBlock]] = None
 
     def __init__(self, name: str, op_type: type[Operation],
                  operands: List[IVal], result_types: List[Attribute],
@@ -267,12 +263,9 @@ class IOP:
             object.__setattr__(result, "op", self)
 
     def __hash__(self) -> int:
-        # return hash((self.name, self.attributes.values))
         return hash(id(self))
 
-    # def __eq__(self, __o: ImmutableOperation) -> bool:
-    #     return self.name == __o.name and self.op_type == __o.op_type and self.attributes == __o.attributes
-    def __eq__(self, __o: IOP) -> bool:
+    def __eq__(self, __o: IOp) -> bool:
         return self is __o
 
     @property
@@ -342,51 +335,11 @@ class IOP:
         return new_op
 
     @classmethod
-    def create_new(
-        cls,
-        op_type: type[Operation],
-        operands: Optional[List[IVal]] = None,
-        result_types: Optional[List[Attribute]] = None,
-        attributes: Optional[Dict[str, Attribute]] = None,
-        successors: Optional[List[IBlock]] = None,
-        regions: Optional[List[IRegion]] = None,
-        environment: Optional[Dict[IVal, IVal]] = None
-    ) -> Tuple[IOP, Dict[IVal, IVal]]:
-
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
-        if environment is None:
-            environment = {}
-
-        remapped_operands = []
-        for operand in operands:
-            if isinstance(operand, IBlockArg):
-                if operand not in environment:
-                    new_block_arg = IBlockArg(operand.typ, None,
-                                              operand.index)  # type: ignore
-                    environment[operand] = new_block_arg
-                remapped_operands.append(environment[operand])
-            else:
-                remapped_operands.append(operand)
-
-        new_op = IOP(op_type.name, op_type, remapped_operands, result_types,
-                     attributes, successors, regions)
-        return (new_op, environment)
-
-    @classmethod
     def from_mutable(cls,
                      op: Operation,
                      value_map: Optional[Dict[SSAValue, IVal]] = None,
                      block_map: Optional[Dict[Block, IBlock]] = None,
-                     existing_operands: Optional[List[IVal]] = None) -> IOP:
+                     existing_operands: Optional[List[IVal]] = None) -> IOp:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
         op_type = op.__class__
@@ -405,7 +358,7 @@ class IOP:
                             IRes(
                                 operand.typ,
                                 value_map[operand].op  # type: ignore
-                                if operand in value_map else IOP.from_mutable(
+                                if operand in value_map else IOp.from_mutable(
                                     operand.op),
                                 operand.result_index))
                     case BlockArgument():
@@ -435,7 +388,7 @@ class IOP:
         for region in op.regions:
             regions.append(IRegion.from_mutable(region.blocks))
 
-        immutable_op = IOP("immutable." + op.name, op_type, operands,
+        immutable_op = IOp("immutable." + op.name, op_type, operands,
                            [result.typ for result in op.results], attributes,
                            successors, regions)
 
@@ -450,31 +403,24 @@ class IOP:
     def get_attributes_copy(self) -> Dict[str, Attribute]:
         return self.attributes.copy()
 
-    def walk(self, fun: Callable[[IOP], None]) -> None:
+    def walk(self, fun: Callable[[IOp], None]) -> None:
         fun(self)
         for region in self.regions:
             region.walk(fun)
 
 
-def isa(op: Optional[IOP], SomeOpClass: type[Operation]):
-    if op is not None and op.op_type == SomeOpClass:
-        return True
-    else:
-        return False
-
-
-class ImmutableIRBuiler:
+class IBuilder:
 
     environment: Dict[IVal, IVal] = {}
-    last_op_created: Optional[IOP] = None
+    last_op_created: Optional[IOp] = None
 
     def op(self,
            op_type: type[Operation],
-           operands: Optional[List[Union[IVal, IOP]]] = None,
+           operands: Optional[List[Union[IVal, IOp]]] = None,
            result_types: Optional[List[Attribute]] = None,
            attributes: Optional[Dict[str, Attribute]] = None,
            successors: Optional[List[IBlock]] = None,
-           regions: Optional[List[IRegion]] = None) -> IOP:
+           regions: Optional[List[IRegion]] = None) -> IOp:
         if operands is None:
             operands = []
         if result_types is None:
@@ -488,19 +434,43 @@ class ImmutableIRBuiler:
 
         remapped_operands = []
         for operand in operands:
-            if isinstance(operand, IOP):
+            if isinstance(operand, IOp):
                 assert (len(operand.results) > 0)
                 operand = operand.results[0]
             if isinstance(operand, IBlockArg):
                 if operand not in self.environment:
-                    new_block_arg = IBlockArg(operand.typ, None,
-                                              operand.index)  # type: ignore
+                    new_block_arg = IBlockArg(
+                        operand.typ,
+                        None,  # type: ignore
+                        operand.index)
                     self.environment[operand] = new_block_arg
                 remapped_operands.append(self.environment[operand])
             else:
                 remapped_operands.append(operand)
 
-        new_op = IOP(op_type.name, op_type, remapped_operands, result_types,
+        new_op = IOp(op_type.name, op_type, remapped_operands, result_types,
                      attributes, successors, regions)
         self.last_op_created = new_op
         return new_op
+
+    def from_op(self,
+                old_op: IOp,
+                operands: Optional[List[Union[IVal, IOp]]] = None,
+                result_types: Optional[List[Attribute]] = None,
+                attributes: Optional[Dict[str, Attribute]] = None,
+                successors: Optional[List[IBlock]] = None,
+                regions: Optional[List[IRegion]] = None):
+
+        if operands is None:
+            operands = list(old_op.operands)
+        if result_types is None:
+            result_types = list(old_op.result_types)
+        if attributes is None:
+            attributes = old_op.attributes
+        if successors is None:
+            successors = list(old_op.successors)
+        if regions is None:
+            regions = list(old_op.regions)
+
+        return self.op(old_op.op_type, operands, result_types, attributes,
+                       successors, regions)
