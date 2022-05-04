@@ -198,6 +198,18 @@ class ArrayAttr(GenericData[List[A]]):
         raise TypeError(f"Attribute ArrayAttr expects at most type"
                         f" parameter, but {len(args)} were given")
 
+    def verify(self) -> None:
+        if not isinstance(self.data, list):
+            raise VerifyException(
+                f"Wrong type given to attribute {self.name}: got"
+                f" {type(self.data)}, but expected list of"
+                " attributes")
+        for idx, val in enumerate(self.data):
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} data expects attribute list, but {idx} "
+                    f"element is of type {type(val)}")
+
     @staticmethod
     @builder
     def from_list(data: List[A]) -> ArrayAttr[A]:
