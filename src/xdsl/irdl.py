@@ -843,7 +843,7 @@ def irdl_param_attr_definition(cls: Type[PA]) -> Type[PA]:
         if field_name == "name" or field_name == "parameters":
             continue
 
-        # Throw an error if a parameter is not definied using `ParameterDef`
+        # Throw an error if a parameter is not defined using `ParameterDef`
         origin = get_origin(field_type)
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
