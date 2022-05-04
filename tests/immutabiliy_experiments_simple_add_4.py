@@ -2,11 +2,10 @@ from __future__ import annotations
 from io import StringIO
 from optparse import Option
 from pprint import pprint
-import xdsl.dialects as dialects
-
+import xdsl.dialects.arith as arith
+import xdsl.dialects.builtin as builtin
+import xdsl.dialects.scf as scf
 from xdsl.dialects.affine import Affine
-from xdsl.dialects.builtin import *
-from xdsl.dialects.scf import *
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern
 from xdsl.printer import Printer
@@ -89,14 +88,14 @@ func.return(%4 : !i32)
         def impl(self, op: IOp) -> RewriteResult:
             match op:
                 case IOp(
-                    op_type=dialects.arith.Addi,
-                    operands=IList([IVal(op=IOp(op_type=dialects.arith.Constant, 
+                    op_type=arith.Addi,
+                    operands=IList([IVal(op=IOp(op_type=arith.Constant, 
                                                 attributes={"value": attr1}) as c1), 
-                                    IVal(op=IOp(op_type=dialects.arith.Constant, 
+                                    IVal(op=IOp(op_type=arith.Constant, 
                                                 attributes={"value": attr2}))])):
                     # TODO: this should not be asserted but matched above
-                    assert isinstance(attr1, IntegerAttr)
-                    assert isinstance(attr2, IntegerAttr)
+                    assert isinstance(attr1, builtin.IntegerAttr)
+                    assert isinstance(attr2, builtin.IntegerAttr)
                     b = IBuilder()
                     b.from_op(c1,
                             attributes={
@@ -114,7 +113,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=dialects.arith.Addi,
+                case IOp(op_type=arith.Addi,
                         operands=IList([operand0, operand1])):
                     b = IBuilder()
                     b.from_op(op, operands=[operand1, operand0])
@@ -127,7 +126,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=dialects.arith.Constant, attributes={"value": attr}):
+                case IOp(op_type=arith.Constant, attributes={"value": attr}):
                     # TODO: this should not be asserted but matched above
                     assert isinstance(attr, IntegerAttr)
                     b = IBuilder()
@@ -191,11 +190,11 @@ func.return(%4 : !i32)
             return failure("AddZero failure")
 
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    func = Func(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
-    affine = Affine(ctx)
+    Builtin(ctx)
+    Func(ctx)
+    Arith(ctx)
+    scf.Scf(ctx)
+    Affine(ctx)
 
     parser = Parser(ctx, before)
     beforeM: Operation = parser.parse_op()

@@ -3,11 +3,11 @@ from io import StringIO
 from optparse import Option
 from pprint import pprint
 import xdsl.dialects as dialects
-from xdsl.dialects.builtin import *
-from xdsl.dialects.scf import *
+import xdsl.dialects.arith as arith
+import xdsl.dialects.builtin as builtin
+import xdsl.dialects.scf as scf
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.arith import *
 from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
@@ -16,10 +16,10 @@ from xdsl.immutable_ir import *
 def apply_strategy_and_compare(program: str, expected_program: str,
                                strategy: Strategy) -> IOp:
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    func = Func(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
+    Builtin(ctx)
+    Func(ctx)
+    Arith(ctx)
+    scf.Scf(ctx)
 
     parser = Parser(ctx, program)
     module: Operation = parser.parse_op()
@@ -45,7 +45,7 @@ class CommuteAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-            case IOp(op_type=dialects.arith.Addi,
+            case IOp(op_type=arith.Addi,
                      operands=IList([operand0, operand1])):
                 b = IBuilder()
                 b.from_op(op, operands=[operand1, operand0])
@@ -59,19 +59,19 @@ class FoldConstantAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(op_type=dialects.arith.Addi,
-                  operands=IList([IVal(op=IOp(op_type=dialects.arith.Constant, 
+          case IOp(op_type=arith.Addi,
+                  operands=IList([IVal(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": attr1}) as c1), 
-                                  IVal(op=IOp(op_type=dialects.arith.Constant, 
+                                  IVal(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": attr2}))])):
             # TODO: this should not be asserted but matched above
-            assert isinstance(attr1, IntegerAttr)
-            assert isinstance(attr2, IntegerAttr)
+            assert isinstance(attr1, builtin.IntegerAttr)
+            assert isinstance(attr2, builtin.IntegerAttr)
             b = IBuilder()
             b.from_op(c1,
                       attributes={
                           "value":
-                          IntegerAttr.from_params(
+                          builtin.IntegerAttr.from_params(
                               attr1.value.data + attr2.value.data,
                               attr1.typ)
                       })
@@ -85,14 +85,14 @@ class ChangeConstantTo42(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(op_type=dialects.arith.Constant, attributes={"value": attr}):
+          case IOp(op_type=arith.Constant, attributes={"value": attr}):
               # TODO: this should not be asserted but matched above
-              assert isinstance(attr, IntegerAttr)
+              assert isinstance(attr, builtin.IntegerAttr)
               b = IBuilder()
               b.from_op(op,
                         attributes={
                             "value":
-                            IntegerAttr.from_params(42,
+                            builtin.IntegerAttr.from_params(42,
                                                     attr.typ)
                         })
               return success(b)
