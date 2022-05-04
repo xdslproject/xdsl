@@ -25,6 +25,7 @@ class Builtin:
         self.ctx.register_attr(TensorType)
         self.ctx.register_attr(DenseIntOrFPElementsAttr)
         self.ctx.register_attr(UnitAttr)
+        self.ctx.register_attr(TupleType)
 
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
@@ -194,6 +195,18 @@ class ArrayOfConstraint(AttrConstraint):
 
         for e in data.data:
             self.elem_constr.verify(e)
+
+
+@irdl_attr_definition
+class TupleType(ParametrizedAttribute):
+    name = "tuple"
+
+    types = ParameterDef(ArrayOfConstraint(Attribute))
+
+    @staticmethod
+    @builder
+    def from_type_list(types: List[Attribute]) -> TupleType:
+        return TupleType([ArrayAttr.from_list(types)])  #type: ignore
 
 
 @irdl_attr_definition
