@@ -61,17 +61,14 @@ class FoldConstantAdd(Strategy):
         match op:
           case IOp(op_type=arith.Addi,
                   operands=IList([IVal(op=IOp(op_type=arith.Constant, 
-                                             attributes={"value": attr1}) as c1), 
+                                             attributes={"value": IntegerAttr() as attr1}) as c1), 
                                   IVal(op=IOp(op_type=arith.Constant, 
-                                             attributes={"value": attr2}))])):
-            # TODO: this should not be asserted but matched above
-            assert isinstance(attr1, builtin.IntegerAttr)
-            assert isinstance(attr2, builtin.IntegerAttr)
+                                             attributes={"value": IntegerAttr() as attr2}))])):
             b = IBuilder()
             b.from_op(c1,
                       attributes={
                           "value":
-                          builtin.IntegerAttr.from_params(
+                          IntegerAttr.from_params(
                               attr1.value.data + attr2.value.data,
                               attr1.typ)
                       })
@@ -85,14 +82,12 @@ class ChangeConstantTo42(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(op_type=arith.Constant, attributes={"value": attr}):
-              # TODO: this should not be asserted but matched above
-              assert isinstance(attr, builtin.IntegerAttr)
+          case IOp(op_type=arith.Constant, attributes={"value": IntegerAttr() as attr}):
               b = IBuilder()
               b.from_op(op,
                         attributes={
                             "value":
-                            builtin.IntegerAttr.from_params(42,
+                            IntegerAttr.from_params(42,
                                                     attr.typ)
                         })
               return success(b)

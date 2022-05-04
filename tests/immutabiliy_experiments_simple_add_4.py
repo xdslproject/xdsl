@@ -90,12 +90,9 @@ func.return(%4 : !i32)
                 case IOp(
                     op_type=arith.Addi,
                     operands=IList([IVal(op=IOp(op_type=arith.Constant, 
-                                                attributes={"value": attr1}) as c1), 
+                                                attributes={"value": IntegerAttr() as attr1}) as c1), 
                                     IVal(op=IOp(op_type=arith.Constant, 
-                                                attributes={"value": attr2}))])):
-                    # TODO: this should not be asserted but matched above
-                    assert isinstance(attr1, builtin.IntegerAttr)
-                    assert isinstance(attr2, builtin.IntegerAttr)
+                                                attributes={"value": IntegerAttr() as attr2}))])):
                     b = IBuilder()
                     b.from_op(c1,
                             attributes={
@@ -126,7 +123,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=arith.Constant, attributes={"value": attr}):
+                case IOp(op_type=arith.Constant, attributes={"value": IntegerAttr() as attr}):
                     # TODO: this should not be asserted but matched above
                     assert isinstance(attr, IntegerAttr)
                     b = IBuilder()
