@@ -216,7 +216,7 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
         raise ValueError(
             f"Generic `Data` type '{origin.name}' cannot be converted to "
             "an attribute constraint. Consider making it inherit from "
-            "`GenericData` instead of `Data`")
+            "`GenericData` instead of `Data`.")
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
