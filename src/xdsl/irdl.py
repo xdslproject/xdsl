@@ -835,6 +835,10 @@ def irdl_data_definition(cls: Type[T]) -> Type[T]:
                 raise Exception(f"In {cls.__name__} definition: Data expects "
                                 "a single type parameter")
             expected_type = get_args(parent)[0]
+            if not isclass(expected_type):
+                raise Exception(f'In {cls.__name__} definition: Cannot infer '
+                                f'"verify" method. Type parameter of Data is '
+                                f'not a class.')
             new_attrs[
                 "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
                     self, expected_type)
