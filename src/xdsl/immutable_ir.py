@@ -388,7 +388,7 @@ class IOp:
         for region in op.regions:
             regions.append(IRegion.from_mutable(region.blocks))
 
-        immutable_op = IOp("immutable." + op.name, op_type, operands,
+        immutable_op = IOp(op.name, op_type, operands,
                            [result.typ for result in op.results], attributes,
                            successors, regions)
 

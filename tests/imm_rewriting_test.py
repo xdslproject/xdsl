@@ -2,7 +2,7 @@ from __future__ import annotations
 from io import StringIO
 from optparse import Option
 from pprint import pprint
-
+import xdsl.dialects as dialects
 from xdsl.dialects.builtin import *
 from xdsl.dialects.scf import *
 from xdsl.parser import Parser
@@ -45,8 +45,7 @@ class CommuteAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-            case IOp(name="immutable.arith.addi",
-                     op_type=Addi,
+            case IOp(op_type=dialects.arith.Addi,
                      operands=IList([operand0, operand1])):
                 b = IBuilder()
                 b.from_op(op, operands=[operand1, operand0])
@@ -60,11 +59,10 @@ class FoldConstantAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(name="immutable.arith.addi",
-                  op_type=Addi,
-                  operands=IList([IVal(op=IOp(name="immutable.arith.constant", 
+          case IOp(op_type=dialects.arith.Addi,
+                  operands=IList([IVal(op=IOp(op_type=dialects.arith.Constant, 
                                              attributes={"value": attr1}) as c1), 
-                                  IVal(op=IOp(name="immutable.arith.constant", 
+                                  IVal(op=IOp(op_type=dialects.arith.Constant, 
                                              attributes={"value": attr2}))])):
             # TODO: this should not be asserted but matched above
             assert isinstance(attr1, IntegerAttr)
@@ -87,8 +85,7 @@ class ChangeConstantTo42(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(name="immutable.arith.constant",
-                  op_type=Constant, attributes={"value": attr}):
+          case IOp(op_type=dialects.arith.Constant, attributes={"value": attr}):
               # TODO: this should not be asserted but matched above
               assert isinstance(attr, IntegerAttr)
               b = IBuilder()
@@ -133,10 +130,10 @@ def test_double_commute():
                                expected_program=before,
                                strategy=topdown(CommuteAdd()))
                                
-    # apply_strategy_and_compare(program=before,
-    #                            expected_program=before,
-    #                            strategy=seq(topdown(CommuteAdd()),
-    #                                         topdown(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(topdown(CommuteAdd()),
+                                            topdown(CommuteAdd())))
 
 
 def test_commute_block_args():
@@ -167,11 +164,11 @@ def test_commute_block_args():
     apply_strategy_and_compare(program=commuted,
                                expected_program=before,
                                strategy=topdown(CommuteAdd()))
-    # newModule = apply_strategy_and_compare(program=before,
-    #                                        expected_program=before,
-    #                                        strategy=seq(
-    #                                            topdown(CommuteAdd()),
-    #                                            topdown(CommuteAdd())))
+    newModule = apply_strategy_and_compare(program=before,
+                                           expected_program=before,
+                                           strategy=seq(
+                                               topdown(CommuteAdd()),
+                                               topdown(CommuteAdd())))
 
 
 def test_rewriting_with_blocks():
@@ -256,10 +253,10 @@ func.return(%4 : !i32)
                                expected_program=twice_folded,
                                strategy=topdown(FoldConstantAdd()))
                                             
-    # apply_strategy_and_compare(program=before,
-    #                            expected_program=twice_folded,
-    #                            strategy=seq(topdown(FoldConstantAdd()),
-    #                                         topdown(FoldConstantAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=twice_folded,
+                               strategy=seq(topdown(FoldConstantAdd()),
+                                            topdown(FoldConstantAdd())))
 
 
 if __name__ == "__main__":

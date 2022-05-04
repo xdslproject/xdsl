@@ -2,6 +2,7 @@ from __future__ import annotations
 from io import StringIO
 from optparse import Option
 from pprint import pprint
+import xdsl.dialects as dialects
 
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.builtin import *
@@ -11,7 +12,6 @@ from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, Rewrite
 from xdsl.printer import Printer
 from xdsl.dialects.func import *
 from xdsl.dialects.func import Return as stdReturn
-import xdsl.dialects.arith as arith
 
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
@@ -88,11 +88,11 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(name="immutable.arith.addi",
-                    op_type=Addi,
-                    operands=IList([IVal(op=IOp(name="immutable.arith.constant", 
+                case IOp(
+                    op_type=dialects.arith.Addi,
+                    operands=IList([IVal(op=IOp(op_type=dialects.arith.Constant, 
                                                 attributes={"value": attr1}) as c1), 
-                                    IVal(op=IOp(name="immutable.arith.constant", 
+                                    IVal(op=IOp(op_type=dialects.arith.Constant, 
                                                 attributes={"value": attr2}))])):
                     # TODO: this should not be asserted but matched above
                     assert isinstance(attr1, IntegerAttr)
@@ -114,8 +114,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(name="immutable.arith.addi",
-                        op_type=Addi,
+                case IOp(op_type=dialects.arith.Addi,
                         operands=IList([operand0, operand1])):
                     b = IBuilder()
                     b.from_op(op, operands=[operand1, operand0])
@@ -128,8 +127,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(name="immutable.arith.constant",
-                        op_type=Constant, attributes={"value": attr}):
+                case IOp(op_type=dialects.arith.Constant, attributes={"value": attr}):
                     # TODO: this should not be asserted but matched above
                     assert isinstance(attr, IntegerAttr)
                     b = IBuilder()
@@ -212,25 +210,26 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    rrImmM1 = topdown(CommuteAdd()).apply(immBeforeM)
+    rrImmM1 = topdown(FoldConstantAdd()).apply(immBeforeM)
     assert (rrImmM1.isSuccess() and isinstance(rrImmM1.result[-1], IOp))
 
     printer = Printer()
     printer.print_op(rrImmM1.result[-1].get_mutable_copy())
 
-    # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
-    # assert (rrImmM2.isSuccess()
-    #         and isinstance(rrImmM2.result[-1], ImmutableOperation))
+    rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
+    print(rrImmM2)
+    assert (rrImmM2.isSuccess()
+            and isinstance(rrImmM2.result[-1], IOp))
 
-    # file = StringIO("")
-    # printer = Printer(stream=file)
-    # printer.print_op(rrImmM2.result[-1].get_mutable_copy())
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(rrImmM2.result[-1].get_mutable_copy())
 
     # For debugging: printing the actual output
     # print("after:")
     # print(file.getvalue().strip())
 
-    checkDiff = False
+    checkDiff = True
     if checkDiff:
         diff = difflib.Differ().compare(file.getvalue().splitlines(True),
                                         expected.splitlines(True))
