@@ -220,12 +220,12 @@ class ArrayAttr(GenericData[List[A]]):
 class TupleType(ParametrizedAttribute):
     name = "tuple"
 
-    types = ParameterDef(ArrayOfConstraint(Attribute))
+    types: ParameterDef[ArrayAttr]
 
     @staticmethod
     @builder
     def from_type_list(types: List[Attribute]) -> TupleType:
-        return TupleType([ArrayAttr.from_list(types)])  #type: ignore
+        return TupleType([ArrayAttr.from_list(types)])
 
 
 @irdl_attr_definition
