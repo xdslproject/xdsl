@@ -42,9 +42,8 @@ class CommuteAdd(Strategy):
         match op:
             case IOp(op_type=arith.Addi,
                      operands=[operand0, operand1]):
-                b = IBuilder()
-                b.from_op(op, operands=[operand1, operand0])
-                return success(b)
+                result = from_op(op, operands=[operand1, operand0])
+                return success(result)
             case _:
                 return failure(self)
 
@@ -59,15 +58,14 @@ class FoldConstantAdd(Strategy):
                                              attributes={"value": IntegerAttr() as attr1}) as c1), 
                                   IVal(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": IntegerAttr() as attr2}))]):
-            b = IBuilder()
-            b.from_op(c1,
+            result = from_op(c1,
                       attributes={
                           "value":
                           IntegerAttr.from_params(
                               attr1.value.data + attr2.value.data,
                               attr1.typ)
                       })
-            return success(b)
+            return success(result)
           case _:
             return failure(self)
 
@@ -78,14 +76,12 @@ class ChangeConstantTo42(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
           case IOp(op_type=arith.Constant, attributes={"value": IntegerAttr() as attr}):
-              b = IBuilder()
-              b.from_op(op,
+              result = from_op(op,
                         attributes={
                             "value":
-                            IntegerAttr.from_params(42,
-                                                    attr.typ)
+                            IntegerAttr.from_params(42, attr.typ)
                         })
-              return success(b)
+              return success(result)
           case _:
               return failure(self)
 
@@ -108,16 +104,14 @@ class AddZero(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
             case IOp(results=[IRes(typ=IntegerType() as type)]):
-                b = IBuilder()
-                b.op(Addi, [
+                result = new_op(Addi, [
                     op,
-                    b.op(Constant,
+                    new_op(Constant,
                         attributes={
                             "value": IntegerAttr.from_int_and_width(0, 32)
                         }, result_types=[type])
                 ], result_types=[type])
-
-                return success(b)
+                return success(result)
             case _:
                 return failure(self)
 

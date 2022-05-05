@@ -224,8 +224,8 @@ class IBlock:
                         else:
                             new_operands.append(operand)
                     if substition_required:
-                        b = IBuilder()
-                        return b.from_op(op, operands=new_operands)
+                        # incomplete
+                        return from_op(op, operands=new_operands).op
                         # TODO: this also has to update all ops which use this op!
                     return op
 
@@ -484,75 +484,83 @@ class IOp:
             region.walk(fun)
 
 
-class IBuilder:
+# TODO: are we happy with the name or can we find a better one
+@dataclass(frozen=True)
+class RewrittenIOp:
+    op: IOp
+    env: Dict[IVal, IVal]
 
-    environment: Dict[IVal, IVal] = {}
-    last_op_created: Optional[IOp] = None
 
-    def op(self,
-           op_type: type[Operation],
-           operands: Optional[List[Union[IVal, IOp]]] = None,
+def new_op(op_type: type[Operation],
+           operands: Optional[List[IVal | IOp | RewrittenIOp]] = None,
            result_types: Optional[List[Attribute]] = None,
            attributes: Optional[Dict[str, Attribute]] = None,
            successors: Optional[List[IBlock]] = None,
-           regions: Optional[List[IRegion]] = None) -> IOp:
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
+           regions: Optional[List[IRegion]] = None,
+           env: Optional[Dict[IVal, IVal]] = None) -> RewrittenIOp:
+    if operands is None:
+        operands = []
+    if result_types is None:
+        result_types = []
+    if attributes is None:
+        attributes = {}
+    if successors is None:
+        successors = []
+    if regions is None:
+        regions = []
+    if env is None:
+        env = {}
+    op = IOp.get(op_type.name, op_type, _remap_operands(operands, env),
+                 result_types, attributes, successors, regions)
+    return RewrittenIOp(op, env)
 
-        new_op = IOp.get(op_type.name, op_type, self._remap_operands(operands),
-                         result_types, attributes, successors, regions)
-        self.last_op_created = new_op
-        return new_op
 
-    def from_op(self,
-                old_op: IOp,
-                operands: Optional[List[Union[IVal, IOp]]] = None,
-                result_types: Optional[List[Attribute]] = None,
-                attributes: Optional[Dict[str, Attribute]] = None,
-                successors: Optional[List[IBlock]] = None,
-                regions: Optional[List[IRegion]] = None):
+def from_op(old_op: IOp,
+            operands: Optional[List[IVal | IOp | RewrittenIOp]] = None,
+            result_types: Optional[List[Attribute]] = None,
+            attributes: Optional[Dict[str, Attribute]] = None,
+            successors: Optional[List[IBlock]] = None,
+            regions: Optional[List[IRegion]] = None,
+            env: Optional[Dict[IVal, IVal]] = None):
+    if env is None:
+        env = {}
+    if operands is None:
+        operands = list(old_op.operands)
+    if result_types is None:
+        result_types = list(old_op.result_types)
+    if successors is None:
+        successors = list(old_op.successors)
+    if regions is None:
+        regions = list(old_op.regions)
+    if attributes is None:
+        op = IOp(old_op._op_data, _remap_operands(operands, env), result_types,
+                 successors, regions)
+    else:
+        op = IOp.get(old_op.name, old_op.op_type,
+                     _remap_operands(operands, env), result_types, attributes,
+                     successors, regions)
+    return RewrittenIOp(op, env)
 
-        if operands is None:
-            operands = list(old_op.operands)
-        if result_types is None:
-            result_types = list(old_op.result_types)
-        if successors is None:
-            successors = list(old_op.successors)
-        if regions is None:
-            regions = list(old_op.regions)
-        if attributes is None:
-            new_op = IOp(old_op._op_data, self._remap_operands(operands),
-                         result_types, successors, regions)
+
+def _remap_operands(operands: List[IVal | IOp | RewrittenIOp],
+                    env: Dict[IVal, IVal]) -> List[IVal]:
+    remapped_operands: List[IVal] = []
+    for operand in operands:
+        if isinstance(operand, IOp):
+            assert (len(operand.results) > 0)
+            operand = operand.result
+        if isinstance(operand, RewrittenIOp):
+            env |= operand.env
+            operand = operand.op.result
+        if isinstance(operand, IBlockArg):
+            if operand not in env:
+                new_block_arg = IBlockArg(
+                    operand.typ,
+                    None,  # type: ignore
+                    operand.index)
+                env[operand] = new_block_arg
+            remapped_operands.append(env[operand])
         else:
-            new_op = IOp.get(old_op.name, old_op.op_type,
-                             self._remap_operands(operands), result_types,
-                             attributes, successors, regions)
-
-        self.last_op_created = new_op
-        return new_op
-
-    def _remap_operands(self, operands: List[Union[IVal, IOp]]) -> List[IVal]:
-        remapped_operands: List[IVal] = []
-        for operand in operands:
-            if isinstance(operand, IOp):
-                assert (len(operand.results) > 0)
-                operand = operand.results[0]
-            if isinstance(operand, IBlockArg):
-                if operand not in self.environment:
-                    new_block_arg = IBlockArg(
-                        operand.typ,
-                        None,  # type: ignore
-                        operand.index)
-                    self.environment[operand] = new_block_arg
-                remapped_operands.append(self.environment[operand])
-            else:
-                remapped_operands.append(operand)
-        return remapped_operands
+            assert isinstance(operand, IVal)
+            remapped_operands.append(operand)
+    return remapped_operands

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable, Union, Tuple
+from typing import List, Callable
 from xdsl.immutable_ir import *
 from xdsl.pattern_rewriter import *
 
@@ -9,7 +9,7 @@ from xdsl.pattern_rewriter import *
 @dataclass
 class RewriteResult:
     result: Union[Strategy, List[IOp]]
-    environment: Dict[IVal, IVal]
+    env: Dict[IVal, IVal]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
         # I think we lose the environment here
@@ -37,21 +37,14 @@ class RewriteResult:
         return self.result[-1]
 
 
-def success(
-        arg: Union[IOp, Tuple[IOp, Dict[IVal, IVal]],
-                   IBuilder]) -> RewriteResult:
+def success(arg: IOp | RewrittenIOp) -> RewriteResult:
     match arg:
         case IOp():
             op = arg
-            environment = {}
-        case (IOp(), dict()):
-            assert isinstance(arg[1], Dict)
-            op = arg[0]
-            environment = arg[1]
-        case IBuilder():
-            assert arg.last_op_created is not None
-            op = arg.last_op_created
-            environment = arg.environment
+            env = {}
+        case RewrittenIOp():
+            op = arg.op
+            env = arg.env
         case _:
             raise Exception("success called with incompatible arguments")
 
@@ -67,7 +60,7 @@ def success(
                     add_operands(operand.op, ops)
 
     add_operands(op, ops)
-    return RewriteResult(ops, environment)
+    return RewriteResult(ops, env)
 
 
 def failure(failed_strategy: Strategy) -> RewriteResult:
@@ -164,17 +157,15 @@ class one(Strategy):
                         rr.result[-1].results[operand.result_index]
                     ] + list(op.operands[idx + 1:])
 
-                    b = IBuilder()
-                    b.environment |= rr.environment
+                    result = new_op(op_type=op.op_type,
+                                    operands=list(new_operands),
+                                    result_types=op.result_types,
+                                    attributes=op.get_attributes_copy(),
+                                    successors=list(op.successors),
+                                    regions=op.regions,
+                                    env=rr.env)
 
-                    b.op(op_type=op.op_type,
-                         operands=list(new_operands),
-                         result_types=op.result_types,
-                         attributes=op.get_attributes_copy(),
-                         successors=list(op.successors),
-                         regions=op.regions)
-
-                    return success(b)
+                    return success(result)
         for idx, region in enumerate(op.regions):
             # Try to apply to last operation in the last block in the regions of this op
             if len(region.blocks) == 0:
@@ -187,20 +178,19 @@ class one(Strategy):
                 new_regions = list(op.regions[:idx]) + [
                     IRegion([
                         IBlock(list(matched_block.arg_types), rr.result,
-                               rr.environment, matched_block)
+                               rr.env, matched_block)
                     ])
                 ] + list(op.regions[idx + 1:])
 
-                b = IBuilder()
-                b.environment |= rr.environment
-                b.op(op_type=op.op_type,
-                     operands=list(op.operands),
-                     result_types=op.result_types,
-                     attributes=op.attributes,
-                     successors=list(op.successors),
-                     regions=new_regions)
+                result = new_op(op_type=op.op_type,
+                                operands=list(op.operands),
+                                result_types=op.result_types,
+                                attributes=op.attributes,
+                                successors=list(op.successors),
+                                regions=new_regions,
+                                env=rr.env)
 
-                return success(b)
+                return success(result)
         return failure(self)
 
 
