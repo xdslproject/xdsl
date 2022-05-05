@@ -288,8 +288,8 @@ class OpData:
 
 @dataclass(frozen=True)
 class IOp:
-    # __match_args__ = ("op_type", "operands", "results", "successors",
-    #                   "regions")
+    __match_args__ = ("op_type", "operands", "results", "successors",
+                      "regions")
     _op_data: OpData
     operands: IList[IVal]
     results: IList[IRes]
@@ -297,18 +297,15 @@ class IOp:
     regions: IList[IRegion]
     parent_block: Optional[IList[IBlock]] = None
 
-    def __init__(self, name: str, op_type: type[Operation],
-                 operands: List[IVal], result_types: List[Attribute],
-                 attributes: Dict[str, Attribute], successors: List[IBlock],
+    def __init__(self, op_data: OpData, operands: List[IVal],
+                 result_types: List[Attribute], successors: List[IBlock],
                  regions: List[IRegion]) -> None:
-        object.__setattr__(self, "_op_data", OpData(name, op_type, attributes))
+        object.__setattr__(self, "_op_data", op_data)
         object.__setattr__(self, "operands", IList(operands))
         object.__setattr__(
-            self,
-            "results",
+            self, "results",
             IList([
-                IRes(type, self, idx)  # type: ignore
-                for idx, type in enumerate(result_types)
+                IRes(type, self, idx) for idx, type in enumerate(result_types)
             ]))
         object.__setattr__(self, "successors", IList(successors))
         object.__setattr__(self, "regions", IList(regions))
@@ -318,8 +315,12 @@ class IOp:
         self.successors.freeze()
         self.regions.freeze()
 
-        for result in self.results:
-            object.__setattr__(result, "op", self)
+    @classmethod
+    def get(cls, name: str, op_type: type[Operation], operands: List[IVal],
+            result_types: List[Attribute], attributes: Dict[str, Attribute],
+            successors: List[IBlock], regions: List[IRegion]) -> IOp:
+        return cls(OpData(name, op_type, attributes), operands, result_types,
+                   successors, regions)
 
     def __hash__(self) -> int:
         return hash(id(self))
@@ -453,9 +454,9 @@ class IOp:
         for region in op.regions:
             regions.append(IRegion.from_mutable(region.blocks))
 
-        immutable_op = IOp(op.name, op_type, operands,
-                           [result.typ for result in op.results], attributes,
-                           successors, regions)
+        immutable_op = IOp.get(op.name, op_type, operands,
+                               [result.typ for result in op.results],
+                               attributes, successors, regions)
 
         for idx, result in enumerate(op.results):
             value_map[result] = immutable_op.results[idx]
@@ -497,24 +498,8 @@ class IBuilder:
         if regions is None:
             regions = []
 
-        remapped_operands = []
-        for operand in operands:
-            if isinstance(operand, IOp):
-                assert (len(operand.results) > 0)
-                operand = operand.results[0]
-            if isinstance(operand, IBlockArg):
-                if operand not in self.environment:
-                    new_block_arg = IBlockArg(
-                        operand.typ,
-                        None,  # type: ignore
-                        operand.index)
-                    self.environment[operand] = new_block_arg
-                remapped_operands.append(self.environment[operand])
-            else:
-                remapped_operands.append(operand)
-
-        new_op = IOp(op_type.name, op_type, remapped_operands, result_types,
-                     attributes, successors, regions)
+        new_op = IOp.get(op_type.name, op_type, self._remap_operands(operands),
+                         result_types, attributes, successors, regions)
         self.last_op_created = new_op
         return new_op
 
@@ -530,12 +515,35 @@ class IBuilder:
             operands = list(old_op.operands)
         if result_types is None:
             result_types = list(old_op.result_types)
-        if attributes is None:
-            attributes = old_op.attributes
         if successors is None:
             successors = list(old_op.successors)
         if regions is None:
             regions = list(old_op.regions)
+        if attributes is None:
+            new_op = IOp(old_op._op_data, self._remap_operands(operands),
+                         result_types, successors, regions)
+        else:
+            new_op = IOp.get(old_op.name, old_op.op_type,
+                             self._remap_operands(operands), result_types,
+                             attributes, successors, regions)
 
-        return self.op(old_op.op_type, operands, result_types, attributes,
-                       successors, regions)
+        self.last_op_created = new_op
+        return new_op
+
+    def _remap_operands(self, operands: List[Union[IVal, IOp]]) -> List[IVal]:
+        remapped_operands = []
+        for operand in operands:
+            if isinstance(operand, IOp):
+                assert (len(operand.results) > 0)
+                operand = operand.results[0]
+            if isinstance(operand, IBlockArg):
+                if operand not in self.environment:
+                    new_block_arg = IBlockArg(
+                        operand.typ,
+                        None,  # type: ignore
+                        operand.index)
+                    self.environment[operand] = new_block_arg
+                remapped_operands.append(self.environment[operand])
+            else:
+                remapped_operands.append(operand)
+        return remapped_operands
