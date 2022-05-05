@@ -141,50 +141,34 @@ func.return(%4 : !i32)
     class InlineIf(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
-
-            # TODO: not finished, still experimental
-
-            if isa(if_op := op, If) and isinstance(
-                if_op.operands[0], IRes) and isa(
-                    condition := if_op.operands[0].get_op(),
-                    Constant) and (condition.get_attribute("value").value.data
-                                   == 1) and isa(
-                                       yield_op := if_op.region.block.ops[-1],
-                                       Yield) and isinstance(
-                                           yield_op.operands[0], IRes):
-                op_to_inline = yield_op.operands[0].get_op
-                print("match!!!")
-
-                # TODO: rebuild the operation that is returned via yield
-
-                assert (False)
-                # return success(
-                #     IOp.create_new(
-                #         op_to_inline._op.__class__, op_to_inline.operands,
-                #         [result.typ for result in op_to_inline.results],
-                #         op_to_inline.get_attributes_copy,
-                #         op_to_inline.successors, op_to_inline.regions))
-            else:
-                return failure("InlineIf")
+            match op:
+                case IOp(op_type=scf.If,
+                            operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
+                            region=IRegion(block=
+                                IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])]))):                         
+                            print(isinstance(op.regions, collections.abc.Sequence))
+                            return success(returned_op)
+                case _:
+                    return failure("InlineIf")
 
     @dataclass
     class AddZero(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
-            if len(op.results) > 0 and isinstance(op.result.typ, IntegerType):
-                b = IBuilder()
-                new_ir = b.op(Addi, [
-                    op,
-                    b.op(Constant,
-                         attributes={
-                             "value": IntegerAttr.from_int_and_width(0, 32)
-                         },
-                         result_types=[op.result.typ])
-                ],
-                              result_types=[op.result.typ])
+            match op:
+                case IOp(results=[IRes(typ=IntegerType() as type)]):                    
+                    b = IBuilder()
+                    new_ir = b.op(Addi, [
+                        op,
+                        b.op(Constant,
+                            attributes={
+                                "value": IntegerAttr.from_int_and_width(0, 32)
+                            }, result_types=[type])
+                    ], result_types=[type])
 
-                return success(b)
-            return failure("AddZero failure")
+                    return success(b)
+                case _:
+                    return failure("AddZero failure")
 
     ctx = MLContext()
     Builtin(ctx)
@@ -193,7 +177,7 @@ func.return(%4 : !i32)
     scf.Scf(ctx)
     Affine(ctx)
 
-    parser = Parser(ctx, before)
+    parser = Parser(ctx, before_scf_if)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -206,26 +190,27 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    rrImmM1 = topdown(FoldConstantAdd()).apply(immBeforeM)
+    rrImmM1 = topdown(AddZero()).apply(immBeforeM)
+    print(rrImmM1)
     assert (rrImmM1.isSuccess() and isinstance(rrImmM1.result[-1], IOp))
 
     printer = Printer()
     printer.print_op(rrImmM1.result[-1].get_mutable_copy())
 
-    rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
-    print(rrImmM2)
-    assert (rrImmM2.isSuccess()
-            and isinstance(rrImmM2.result[-1], IOp))
+    # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
+    # print(rrImmM2)
+    # assert (rrImmM2.isSuccess()
+    #         and isinstance(rrImmM2.result[-1], IOp))
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(rrImmM2.result[-1].get_mutable_copy())
+    # file = StringIO("")
+    # printer = Printer(stream=file)
+    # printer.print_op(rrImmM2.result[-1].get_mutable_copy())
 
     # For debugging: printing the actual output
     # print("after:")
     # print(file.getvalue().strip())
 
-    checkDiff = True
+    checkDiff = False
     if checkDiff:
         diff = difflib.Differ().compare(file.getvalue().splitlines(True),
                                         expected.splitlines(True))

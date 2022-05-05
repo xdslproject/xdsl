@@ -1,28 +1,52 @@
 from __future__ import annotations
+from collections import UserList
 from optparse import Option
-from typing import Generic
+from typing import Generic, Iterable, SupportsIndex
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
 from xdsl.rewriter import Rewriter
 from xdsl.printer import Printer
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
 
-# TODO: Does it make more sense to inherit from MutableSequence
-# and implement the frozen aspect ourselves?
-# potentially we have the items in memory twice here?
-class IList(FrozenList[T]):
-    __match_args__ = ('_items', )
-    _items: List
+# We have to inherit from the actual List class to get easier Pattern Matching
+# That is not possible when inheriting from UserList or FrozenList
+class IList(List[_T]):
+    _frozen: bool = False
 
-    def __init__(self, items=None):
-        if items is not None:
-            items = list(items)
-        else:
-            items = []
-        self._items = items
-        super(IList, self).__init__(items)
+    def freeze(self):
+        self._frozen = True
+
+    def append(self, __object: _T) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().append(__object)
+
+    def extend(self, __iterable: Iterable[_T]) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().extend(__iterable)
+
+    def insert(self, __index: SupportsIndex, __object: _T) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().insert(__index, __object)
+
+    def remove(self, __value: _T) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().remove(__value)
+
+    def pop(self, __index: SupportsIndex = ...) -> _T:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().pop(__index)
+
+    def clear(self) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().clear()
 
 
 @dataclass(frozen=True)
@@ -74,7 +98,10 @@ class IRegion:
 
     @property
     def block(self):
-        return self.blocks[0]
+        if len(self.blocks) > 0:
+            return self.blocks[0]
+        else:
+            return None
 
     def __init__(self, blocks: List[IBlock]):
         """Creates a new mutable region and returns an immutable view on it."""
@@ -147,9 +174,12 @@ class IBlock:
         if environment is None:
             environment = {}
 
-        # use typeguard
+        # TODO: use typeguard
         if all([isinstance(arg, IBlockArg) for arg in args]):
+            # Block is only initialized with existing BlockArgs in Block.from_mutable
             block_args: List[IBlockArg] = args
+            for block_arg in block_args:
+                object.__setattr__(block_arg, "block", self)
         else:
             block_args: List[IBlockArg] = []
             if old_block is not None:
@@ -160,8 +190,37 @@ class IBlock:
                             old_block_arg := environment[old_arg], IBlockArg)
                         block_args.append(old_block_arg)
                     else:
-                        block_args.append(IBlockArg(args[idx], self, idx))
+                        block_args.append(
+                            new_block_arg := IBlockArg(args[idx], self, idx))
+                        environment[old_arg] = new_block_arg
                         print("Warning: assuming blockArg not used in block")
+
+                # Substitution after the loop so we have a mapping for all BlockArgs
+                # and don't have to substitute an operation more than once
+                # (e.g an op using multiple different BlockArgs)
+
+                # TODO: what if an op deep in nested regions uses a blockArg?
+                # currently this only checks
+                def substitute_if_required(op: IOp) -> IOp:
+                    substition_required = False
+                    new_operands = []
+                    for operand in op.operands:
+                        if operand in old_block.args:
+                            new_operands.append(environment[operand])
+                            substition_required = True
+                            raise Exception(
+                                "substitution required but currently not implemented"
+                            )
+                        else:
+                            new_operands.append(operand)
+                    if substition_required:
+                        b = IBuilder()
+                        return b.from_op(op, operands=new_operands)
+                        # TODO: this also has to update all ops which use this op!
+                    return op
+
+                ops = [substitute_if_required(op) for op in ops]
+
             else:
                 block_args = [
                     IBlockArg(type, self, idx) for idx, type in enumerate(args)
@@ -282,11 +341,17 @@ class IOp:
 
     @property
     def result(self):
-        return self.results[0]
+        if len(self.results) > 0:
+            return self.results[0]
+        else:
+            return None
 
     @property
     def region(self):
-        return self.regions[0]
+        if len(self.regions) > 0:
+            return self.regions[0]
+        else:
+            return None
 
     @property
     def result_types(self) -> List[Attribute]:

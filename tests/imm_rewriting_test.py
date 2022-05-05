@@ -46,7 +46,7 @@ class CommuteAdd(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
             case IOp(op_type=arith.Addi,
-                     operands=IList([operand0, operand1])):
+                     operands=[operand0, operand1]):
                 b = IBuilder()
                 b.from_op(op, operands=[operand1, operand0])
                 return success(b)
@@ -60,10 +60,10 @@ class FoldConstantAdd(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
           case IOp(op_type=arith.Addi,
-                  operands=IList([IVal(op=IOp(op_type=arith.Constant, 
+                  operands=[IVal(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": IntegerAttr() as attr1}) as c1), 
                                   IVal(op=IOp(op_type=arith.Constant, 
-                                             attributes={"value": IntegerAttr() as attr2}))])):
+                                             attributes={"value": IntegerAttr() as attr2}))]):
             b = IBuilder()
             b.from_op(c1,
                       attributes={
@@ -95,6 +95,20 @@ class ChangeConstantTo42(Strategy):
               return failure("ChangeConstant")
 
 
+@dataclass
+class InlineIf(Strategy):
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match op:
+            case IOp(op_type=scf.If,
+                        operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
+                        region=IRegion(block=
+                            IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])]))):                         
+                        return success(returned_op)
+            case _:
+                return failure("InlineIf")
+
+
 def test_double_commute():
     """Tests a strategy which swaps the two operands of an arith.addi."""
 
@@ -123,8 +137,7 @@ def test_double_commute():
                                strategy=topdown(CommuteAdd()))
     apply_strategy_and_compare(program=once_commuted,
                                expected_program=before,
-                               strategy=topdown(CommuteAdd()))
-                               
+                               strategy=topdown(CommuteAdd()))             
     apply_strategy_and_compare(program=before,
                                expected_program=before,
                                strategy=seq(topdown(CommuteAdd()),
@@ -159,11 +172,11 @@ def test_commute_block_args():
     apply_strategy_and_compare(program=commuted,
                                expected_program=before,
                                strategy=topdown(CommuteAdd()))
-    newModule = apply_strategy_and_compare(program=before,
-                                           expected_program=before,
-                                           strategy=seq(
-                                               topdown(CommuteAdd()),
-                                               topdown(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(
+                                        topdown(CommuteAdd()),
+                                        topdown(CommuteAdd())))
 
 
 def test_rewriting_with_blocks():
@@ -253,6 +266,74 @@ func.return(%4 : !i32)
                                strategy=seq(topdown(FoldConstantAdd()),
                                             topdown(FoldConstantAdd())))
 
+def test_inline_if():
+    before = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0():
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = scf.if(%0 : !i1) {
+      %2 : !i32 = arith.constant() ["value" = 42 : !i32]
+      scf.yield(%2 : !i32)
+    }
+    func.return(%1 : !i32)
+  }
+}
+"""
+    inlined = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    func.return(%0 : !i32)
+  }
+}
+"""
+
+    apply_strategy_and_compare(program=before,
+                               expected_program=inlined,
+                               strategy=topdown(InlineIf()))
+
+def test_inline_and_fold():
+    before = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0():
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = scf.if(%0 : !i1) {
+      %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+      %3 : !i32 = arith.constant() ["value" = 2 : !i32]
+      %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+      %5 : !i32 = arith.constant() ["value" = 4 : !i32]
+      %6 : !i32 = arith.addi(%4 : !i32, %5 : !i32)
+      scf.yield(%6 : !i32)
+    }
+    func.return(%1 : !i32)
+  }
+}
+"""
+    folded_and_inlined = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i32 = arith.constant() ["value" = 7 : !i32]
+    func.return(%0 : !i32)
+  }
+}
+"""
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topdown(FoldConstantAdd()), 
+                                            seq(topdown(FoldConstantAdd()), 
+                                                topdown(InlineIf()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topdown(InlineIf()), 
+                                            seq(topdown(FoldConstantAdd()), 
+                                                topdown(FoldConstantAdd()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topdown(FoldConstantAdd()), 
+                                            seq(topdown(InlineIf()), 
+                                                topdown(FoldConstantAdd()))))
 
 if __name__ == "__main__":
     test_double_commute()
@@ -260,3 +341,5 @@ if __name__ == "__main__":
     test_rewriting_with_blocks()
     # TODO: rewriting with successors
     test_constant_folding()
+    test_inline_if()
+    test_inline_and_fold()
