@@ -1,10 +1,6 @@
 from __future__ import annotations
 from io import StringIO
-from optparse import Option
-from pprint import pprint
-import xdsl.dialects as dialects
 import xdsl.dialects.arith as arith
-import xdsl.dialects.builtin as builtin
 import xdsl.dialects.scf as scf
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -14,7 +10,7 @@ from xdsl.immutable_ir import *
 
 
 def apply_strategy_and_compare(program: str, expected_program: str,
-                               strategy: Strategy) -> IOp:
+                               strategy: Strategy):
     ctx = MLContext()
     Builtin(ctx)
     Func(ctx)
@@ -26,18 +22,17 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     imm_module: IOp = get_immutable_copy(module)
 
     rr = strategy.apply(imm_module)
-    assert (rr.isSuccess() and isinstance((resultOp := rr.result[-1]), IOp))
+    assert rr.isSuccess()
 
     # for debugging
-    printer = Printer()
-    printer.print_op(resultOp.get_mutable_copy())
+    # printer = Printer()
+    # printer.print_op(rr.result_op.get_mutable_copy())
 
     file = StringIO("")
     printer = Printer(stream=file)
-    printer.print_op(resultOp.get_mutable_copy())
+    printer.print_op(rr.result_op.get_mutable_copy())
     assert file.getvalue().strip() == expected_program.strip()
 
-    return resultOp
 
 
 @dataclass
@@ -51,7 +46,7 @@ class CommuteAdd(Strategy):
                 b.from_op(op, operands=[operand1, operand0])
                 return success(b)
             case _:
-                return failure("CommuteAdd")
+                return failure(self)
 
 
 @dataclass
@@ -74,7 +69,7 @@ class FoldConstantAdd(Strategy):
                       })
             return success(b)
           case _:
-            return failure("FoldConstantAdd")
+            return failure(self)
 
 
 @dataclass
@@ -92,7 +87,7 @@ class ChangeConstantTo42(Strategy):
                         })
               return success(b)
           case _:
-              return failure("ChangeConstant")
+              return failure(self)
 
 
 @dataclass
@@ -102,11 +97,10 @@ class InlineIf(Strategy):
         match op:
             case IOp(op_type=scf.If,
                         operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
-                        region=IRegion(block=
-                            IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])]))):                         
+                        region=IRegion(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])])):                         
                         return success(returned_op)
             case _:
-                return failure("InlineIf")
+                return failure(self)
 
 
 def test_double_commute():

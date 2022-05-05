@@ -1,19 +1,14 @@
 from __future__ import annotations
-import inspect
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Union, Tuple
-from xdsl.dialects.builtin import ModuleOp
+from abc import abstractmethod
+from dataclasses import dataclass
+from typing import List, Callable, Union, Tuple
 from xdsl.immutable_ir import *
-from xdsl.ir import Operation, OpResult, Region, Block, BlockArgument, Attribute
-from xdsl.rewriter import Rewriter
 from xdsl.pattern_rewriter import *
-from xdsl.printer import Printer
 
 
 @dataclass
 class RewriteResult:
-    result: Union[str, List[IOp]]
+    result: Union[Strategy, List[IOp]]
     environment: Dict[IVal, IVal]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
@@ -22,21 +17,24 @@ class RewriteResult:
             return self
         return s.apply(self.result[0])
 
-    def flatMapFailure(self, f: Callable) -> RewriteResult:
+    def flatMapFailure(self, f: Callable[[], RewriteResult]) -> RewriteResult:
         if (not isinstance(self.result, List)):
             return f()
         return self
 
     def __str__(self) -> str:
-        if isinstance(self.result, str):
-            return "Failure(" + self.result + ")"
-        elif isinstance(self.result, List):
-            return "Success, " + str(len(self.result)) + " new ops"
-        else:
-            assert False
+        if isinstance(self.result, Strategy):
+            return "Failure(" + str(self.result) + ")"
+        return "Success, " + str(len(self.result)) + " new ops"
 
     def isSuccess(self):
         return isinstance(self.result, List)
+
+    @property
+    def result_op(self) -> IOp:
+        assert self.isSuccess()
+        assert not isinstance(self.result, Strategy)
+        return self.result[-1]
 
 
 def success(
@@ -72,9 +70,9 @@ def success(
     return RewriteResult(ops, environment)
 
 
-def failure(errorMsg: str) -> RewriteResult:
-    assert isinstance(errorMsg, str)
-    return RewriteResult(errorMsg, {})
+def failure(failed_strategy: Strategy) -> RewriteResult:
+    assert isinstance(failed_strategy, Strategy)
+    return RewriteResult(failed_strategy, {})
 
 
 @dataclass
@@ -88,6 +86,12 @@ class Strategy:
     def impl(self, op: IOp) -> RewriteResult:
         ...
 
+    def __str__(self) -> str:
+        name: str = self.__class__.__name__ + "("
+        for strategy in vars(self).values():
+            name += str(strategy)
+        return name + ")"
+
 
 @dataclass
 class id(Strategy):
@@ -100,7 +104,7 @@ class id(Strategy):
 class fail(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
-        return failure("fail Strategy")
+        return failure(self)
 
 
 @dataclass
@@ -160,17 +164,15 @@ class one(Strategy):
                         rr.result[-1].results[operand.result_index]
                     ] + list(op.operands[idx + 1:])
 
-                    # Not handled yet:
-                    #   - when the operand has regions
-                    #   - when the op has successors
                     b = IBuilder()
                     b.environment |= rr.environment
 
-                    new_op = b.op(op_type=op.op_type,
-                                  operands=list(new_operands),
-                                  result_types=op.result_types,
-                                  attributes=op.get_attributes_copy(),
-                                  successors=list(op.successors))
+                    b.op(op_type=op.op_type,
+                         operands=list(new_operands),
+                         result_types=op.result_types,
+                         attributes=op.get_attributes_copy(),
+                         successors=list(op.successors),
+                         regions=op.regions)
 
                     return success(b)
         for idx, region in enumerate(op.regions):
@@ -191,16 +193,15 @@ class one(Strategy):
 
                 b = IBuilder()
                 b.environment |= rr.environment
-                new_op = b.op(op_type=op.op_type,
-                              operands=list(op.operands),
-                              result_types=op.result_types,
-                              attributes=op.attributes,
-                              successors=list(op.successors),
-                              regions=new_regions)
+                b.op(op_type=op.op_type,
+                     operands=list(op.operands),
+                     result_types=op.result_types,
+                     attributes=op.attributes,
+                     successors=list(op.successors),
+                     regions=new_regions)
 
                 return success(b)
-
-        return failure("one traversal failure")
+        return failure(self)
 
 
 @dataclass

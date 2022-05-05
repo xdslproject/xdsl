@@ -89,10 +89,10 @@ func.return(%4 : !i32)
             match op:
                 case IOp(
                     op_type=arith.Addi,
-                    operands=IList([IVal(op=IOp(op_type=arith.Constant, 
-                                                attributes={"value": IntegerAttr() as attr1}) as c1), 
-                                    IVal(op=IOp(op_type=arith.Constant, 
-                                                attributes={"value": IntegerAttr() as attr2}))])):
+                    operands=[IVal(op=IOp(op_type=arith.Constant, 
+                                            attributes={"value": IntegerAttr() as attr1}) as c1), 
+                              IVal(op=IOp(op_type=arith.Constant, 
+                                            attributes={"value": IntegerAttr() as attr2}))]):
                     b = IBuilder()
                     b.from_op(c1,
                             attributes={
@@ -103,7 +103,7 @@ func.return(%4 : !i32)
                             })
                     return success(b)
                 case _:
-                    return failure("FoldConstantAdd")
+                    return failure(self)
 
     @dataclass
     class CommuteAdd(Strategy):
@@ -111,12 +111,12 @@ func.return(%4 : !i32)
         def impl(self, op: IOp) -> RewriteResult:
             match op:
                 case IOp(op_type=arith.Addi,
-                        operands=IList([operand0, operand1])):
+                        operands=[operand0, operand1]):
                     b = IBuilder()
                     b.from_op(op, operands=[operand1, operand0])
                     return success(b)
                 case _:
-                    return failure("CommuteAdd")
+                    return failure(self)
 
     @dataclass
     class ChangeConstantTo42(Strategy):
@@ -135,7 +135,7 @@ func.return(%4 : !i32)
                                 })
                     return success(b)
                 case _:
-                    return failure("ChangeConstant")
+                    return failure(self)
 
     @dataclass
     class InlineIf(Strategy):
@@ -146,10 +146,9 @@ func.return(%4 : !i32)
                             operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
                             region=IRegion(block=
                                 IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])]))):                         
-                            print(isinstance(op.regions, collections.abc.Sequence))
                             return success(returned_op)
                 case _:
-                    return failure("InlineIf")
+                    return failure(self)
 
     @dataclass
     class AddZero(Strategy):
@@ -158,7 +157,7 @@ func.return(%4 : !i32)
             match op:
                 case IOp(results=[IRes(typ=IntegerType() as type)]):                    
                     b = IBuilder()
-                    new_ir = b.op(Addi, [
+                    b.op(Addi, [
                         op,
                         b.op(Constant,
                             attributes={
@@ -168,7 +167,7 @@ func.return(%4 : !i32)
 
                     return success(b)
                 case _:
-                    return failure("AddZero failure")
+                    return failure(self)
 
     ctx = MLContext()
     Builtin(ctx)
@@ -192,10 +191,10 @@ func.return(%4 : !i32)
 
     rrImmM1 = topdown(AddZero()).apply(immBeforeM)
     print(rrImmM1)
-    assert (rrImmM1.isSuccess() and isinstance(rrImmM1.result[-1], IOp))
+    assert rrImmM1.isSuccess()
 
     printer = Printer()
-    printer.print_op(rrImmM1.result[-1].get_mutable_copy())
+    printer.print_op(rrImmM1.result_op.get_mutable_copy())
 
     # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
     # print(rrImmM2)

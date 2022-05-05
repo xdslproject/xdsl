@@ -1,11 +1,7 @@
 from __future__ import annotations
-from collections import UserList
-from optparse import Option
-from typing import Generic, Iterable, SupportsIndex
+from typing import Iterable, SupportsIndex, TypeGuard
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
-from xdsl.rewriter import Rewriter
-from xdsl.printer import Printer
 
 _T = TypeVar('_T')
 
@@ -100,8 +96,12 @@ class IRegion:
     def block(self):
         if len(self.blocks) > 0:
             return self.blocks[0]
-        else:
-            return None
+        return None
+
+    @property
+    def ops(self):
+        if self.block is not None:
+            return self.block.ops
 
     def __init__(self, blocks: List[IBlock]):
         """Creates a new mutable region and returns an immutable view on it."""
@@ -174,13 +174,23 @@ class IBlock:
         if environment is None:
             environment = {}
 
-        # TODO: use typeguard
-        if all([isinstance(arg, IBlockArg) for arg in args]):
+        # Type Guards:
+        def is_iblock_arg_list(
+            list: Union[List[Attribute], List[IBlockArg]]
+        ) -> TypeGuard[List[IBlockArg]]:
+            return all([isinstance(elem, IBlockArg) for elem in list])
+
+        def is_type_list(
+            list: Union[List[Attribute], List[IBlockArg]]
+        ) -> TypeGuard[List[Attribute]]:
+            return all([isinstance(elem, Attribute) for elem in list])
+
+        if is_iblock_arg_list(args):
             # Block is only initialized with existing BlockArgs in Block.from_mutable
             block_args: List[IBlockArg] = args
             for block_arg in block_args:
                 object.__setattr__(block_arg, "block", self)
-        else:
+        elif is_type_list(args):
             block_args: List[IBlockArg] = []
             if old_block is not None:
                 assert (len(old_block.args) == len(args))
@@ -203,7 +213,7 @@ class IBlock:
                 # currently this only checks
                 def substitute_if_required(op: IOp) -> IOp:
                     substition_required = False
-                    new_operands = []
+                    new_operands: List[Union[IVal, IOp]] = []
                     for operand in op.operands:
                         if operand in old_block.args:
                             new_operands.append(environment[operand])
@@ -225,7 +235,8 @@ class IBlock:
                 block_args = [
                     IBlockArg(type, self, idx) for idx, type in enumerate(args)
                 ]
-
+        else:
+            raise Exception("args for IBlock ill structured")
         object.__setattr__(self, "args", IList(block_args))
         object.__setattr__(self, "ops", IList(ops))
 
@@ -344,15 +355,13 @@ class IOp:
     def result(self):
         if len(self.results) > 0:
             return self.results[0]
-        else:
-            return None
+        return None
 
     @property
     def region(self):
         if len(self.regions) > 0:
             return self.regions[0]
-        else:
-            return None
+        return None
 
     @property
     def result_types(self) -> List[Attribute]:
@@ -531,7 +540,7 @@ class IBuilder:
         return new_op
 
     def _remap_operands(self, operands: List[Union[IVal, IOp]]) -> List[IVal]:
-        remapped_operands = []
+        remapped_operands: List[IVal] = []
         for operand in operands:
             if isinstance(operand, IOp):
                 assert (len(operand.results) > 0)
