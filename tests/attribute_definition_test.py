@@ -249,3 +249,20 @@ def test_generic_data_wrapper_verifier_failure():
                        ListData([BoolData(False)])])])
     assert e.value.args[
         0] == "ListData(data=[BoolData(data=False)]) should be of base attribute bool"
+
+
+@irdl_attr_definition
+class ListDataNoGenericsWrapper(ParametrizedAttribute):
+    name = "list_no_generics_wrapper"
+
+    val: ParameterDef[ListData]
+
+
+def test_generic_data_no_generics_wrapper_verifier():
+    attr = ListDataNoGenericsWrapper(
+        [ListData([BoolData(True), ListData([BoolData(False)])])])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue(
+    ) == "!list_no_generics_wrapper<!list<[!bool<True>, !list<[!bool<False>]>]>>"
