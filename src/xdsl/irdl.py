@@ -209,13 +209,13 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
         return BaseAttr(irdl)
 
     origin = get_origin(irdl)
-    if issubclass(origin, GenericData):
+    if isclass(origin) and issubclass(origin, GenericData):
         return AllOf([
             BaseAttr(origin),
             origin.generic_constraint_coercion(get_args(irdl))
         ])
 
-    if issubclass(origin, Data):
+    if isclass(origin) and issubclass(origin, Data):
         raise ValueError(
             f"Generic `Data` type '{origin.name}' cannot be converted to "
             "an attribute constraint. Consider making it inherit from "
@@ -223,7 +223,7 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if get_origin(irdl) == types.UnionType:
+    if origin == types.UnionType:
         constraints: List[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
