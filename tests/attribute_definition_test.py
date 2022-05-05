@@ -43,6 +43,7 @@ class BoolData(Data[bool]):
 
 
 def test_simple_data():
+    """Test that the definition of a data with a class parameter."""
     b = BoolData(True)
     stream = StringIO()
     p = Printer(stream=stream)
@@ -51,6 +52,10 @@ def test_simple_data():
 
 
 def test_simple_data_verifier_failure():
+    """
+    Test that the verifier of a data with a class parameter fails when given
+    a parameter of the wrong type.
+    """
     with pytest.raises(VerifyException) as e:
         BoolData(2)  # type: ignore
     assert e.value.args[0] == ("bool data attribute expected type "
@@ -75,6 +80,9 @@ class IntListMissingVerifierData(Data[List[int]]):
 
 
 def test_data_with_non_class_param_missing_verifier_failure():
+    """
+    Test that a non-class Data parameter requires the definition of a verifier.
+    """
     with pytest.raises(Exception) as e:
         irdl_attr_definition(IntListMissingVerifierData)
     assert e.value.args[0] == (
@@ -109,6 +117,7 @@ class IntListData(Data[List[int]]):
 
 
 def test_non_class_data():
+    """Test the definition of a Data with a non-class parameter."""
     attr = IntListData([0, 1, 42])
     stream = StringIO()
     p = Printer(stream=stream)
@@ -117,6 +126,10 @@ def test_non_class_data():
 
 
 def test_simple_data_constructor_failure():
+    """
+    Test that the verifier of a Data with a non-class parameter fails when
+    given wrong arguments.
+    """
     with pytest.raises(VerifyException) as e:
         IntListData([0, 1, 42, ""])  # type: ignore
     assert e.value.args[0] == "int_list list elements should be integers."
@@ -132,8 +145,9 @@ def test_simple_data_constructor_failure():
 _MissingGenericDataData = TypeVar("_MissingGenericDataData")
 
 
+@irdl_attr_definition
 class MissingGenericDataData(Data[_MissingGenericDataData]):
-    name = "array"
+    name = "missing_genericdata"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> _MissingGenericDataData:
@@ -148,13 +162,23 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
         return
 
 
+class MissingGenericDataDataWrapper(ParametrizedAttribute):
+    name = "missing_genericdata_wrapper"
+
+    param: ParameterDef[MissingGenericDataData[int]]
+
+
 def test_data_with_generic_missing_generic_data_failure():
+    """
+    Test error message when a generic data is used in constraints
+    without implementing GenericData.
+    """
     with pytest.raises(Exception) as e:
-        irdl_to_attr_constraint(MissingGenericDataData[int])
+        irdl_attr_definition(MissingGenericDataDataWrapper)
     assert e.value.args[0] == (
-        "Generic `Data` type 'array' cannot be converted to an attribute "
-        "constraint. Consider making it inherit from `GenericData` "
-        "instead of `Data`.")
+        "Generic `Data` type 'missing_genericdata' cannot be converted to "
+        "an attribute constraint. Consider making it inherit from "
+        "`GenericData` instead of `Data`.")
 
 
 A = TypeVar("A", bound=Attribute)
@@ -212,6 +236,9 @@ class ListData(GenericData[List[A]]):
 
 
 def test_generic_data_verifier():
+    """
+    Test that a GenericData can be created.
+    """
     attr = ListData([BoolData(True), ListData([BoolData(False)])])
     stream = StringIO()
     p = Printer(stream=stream)
@@ -220,6 +247,9 @@ def test_generic_data_verifier():
 
 
 def test_generic_data_verifier_fail():
+    """
+    Test that a GenericData verifier fails when given wrong parameters.
+    """
     with pytest.raises(VerifyException) as e:
         ListData([0])  # type: ignore
     assert e.value.args[0] == ("list data expects attribute list, but"
@@ -234,6 +264,9 @@ class ListDataWrapper(ParametrizedAttribute):
 
 
 def test_generic_data_wrapper_verifier():
+    """
+    Test that a GenericData used in constraints pass the verifier when correct.
+    """
     attr = ListDataWrapper([ListData([BoolData(True), BoolData(False)])])
     stream = StringIO()
     p = Printer(stream=stream)
@@ -243,6 +276,10 @@ def test_generic_data_wrapper_verifier():
 
 
 def test_generic_data_wrapper_verifier_failure():
+    """
+    Test that a GenericData used in constraints fails
+    the verifier when constraints are not satisfied.
+    """
     with pytest.raises(VerifyException) as e:
         ListDataWrapper(
             [ListData([BoolData(True),
@@ -259,6 +296,9 @@ class ListDataNoGenericsWrapper(ParametrizedAttribute):
 
 
 def test_generic_data_no_generics_wrapper_verifier():
+    """
+    Test that GenericType can be used in constraints without a parameter.
+    """
     attr = ListDataNoGenericsWrapper(
         [ListData([BoolData(True), ListData([BoolData(False)])])])
     stream = StringIO()
