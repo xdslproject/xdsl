@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
 from typing import (Annotated, Any, Callable, Dict, List, Optional, Sequence,
-                    Tuple, Type, TypeAlias, TypeVar, TypeGuard, Union, cast,
-                    get_args, get_origin, get_type_hints, ForwardRef)
+                    Tuple, Type, TypeAlias, TypeVar, Union, cast, get_args,
+                    get_origin, get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
@@ -210,7 +210,10 @@ def irdl_to_attr_constraint(irdl: Any) -> AttrConstraint:
 
     origin = get_origin(irdl)
     if issubclass(origin, GenericData):
-        return origin.generic_constraint_coercion(get_args(irdl))
+        return AllOf([
+            BaseAttr(origin),
+            origin.generic_constraint_coercion(get_args(irdl))
+        ])
 
     if issubclass(origin, Data):
         raise ValueError(
@@ -743,15 +746,7 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
         )
     for idx, param_def in enumerate(parameters):
         param = attr.parameters[idx]
-        assert isinstance(param, Attribute)
-        for arg in get_args(parameters):
-            if isinstance(param, IRDLAnnotations):
-                continue
-            if not isinstance(arg, AttrConstraint):
-                raise Exception(
-                    "Unexpected attribute constraint given to IRDL definition: {arg}"
-                )
-            arg.verify(param)
+        param_def.verify(param)
 
 
 C = TypeVar('C', bound=Callable[..., Any])
