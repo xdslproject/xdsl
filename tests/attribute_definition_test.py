@@ -52,7 +52,7 @@ def test_simple_data():
 
 def test_simple_data_verifier_failure():
     with pytest.raises(VerifyException) as e:
-        BoolData(2)
+        BoolData(2)  # type: ignore
     assert e.value.args[0] == ("bool data attribute expected type "
                                "<class 'bool'>, but <class 'int'> given.")
 
@@ -118,7 +118,7 @@ def test_non_class_data():
 
 def test_simple_data_constructor_failure():
     with pytest.raises(VerifyException) as e:
-        IntListData([0, 1, 42, ""])
+        IntListData([0, 1, 42, ""])  # type: ignore
     assert e.value.args[0] == "int_list list elements should be integers."
 
 
@@ -221,7 +221,7 @@ def test_generic_data_verifier():
 
 def test_generic_data_verifier_fail():
     with pytest.raises(VerifyException) as e:
-        ListData([0])
+        ListData([0])  # type: ignore
     assert e.value.args[0] == ("list data expects attribute list, but"
                                " element 0 is of type <class 'int'>.")
 
