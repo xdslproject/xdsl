@@ -25,8 +25,8 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     assert rr.isSuccess()
 
     # for debugging
-    # printer = Printer()
-    # printer.print_op(rr.result_op.get_mutable_copy())
+    printer = Printer()
+    printer.print_op(rr.result_op.get_mutable_copy())
 
     file = StringIO("")
     printer = Printer(stream=file)
@@ -102,6 +102,24 @@ class InlineIf(Strategy):
             case _:
                 return failure(self)
 
+@dataclass
+class AddZero(Strategy):
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match op:
+            case IOp(results=[IRes(typ=IntegerType() as type)]):
+                b = IBuilder()
+                b.op(Addi, [
+                    op,
+                    b.op(Constant,
+                        attributes={
+                            "value": IntegerAttr.from_int_and_width(0, 32)
+                        }, result_types=[type])
+                ], result_types=[type])
+
+                return success(b)
+            case _:
+                return failure(self)
 
 def test_double_commute():
     """Tests a strategy which swaps the two operands of an arith.addi."""
@@ -329,6 +347,25 @@ def test_inline_and_fold():
                                             seq(topdown(InlineIf()), 
                                                 topdown(FoldConstantAdd()))))
 
+def test_add_zero():
+    before = \
+"""module() {
+%0 : !i32 = arith.constant() ["value" = 1 : !i32]
+func.return(%0 : !i32)
+}
+"""
+    added_zero = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
+  func.return(%2 : !i32)
+}
+"""
+    apply_strategy_and_compare(program=before,
+                               expected_program=added_zero,
+                               strategy=topdown(AddZero()))
+
 if __name__ == "__main__":
     test_double_commute()
     test_commute_block_args()
@@ -337,3 +374,4 @@ if __name__ == "__main__":
     test_constant_folding()
     test_inline_if()
     test_inline_and_fold()
+    test_add_zero()
