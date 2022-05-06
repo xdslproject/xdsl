@@ -6,11 +6,11 @@ from xdsl.dialects.memref import MemRefType
 
 class MLIRConverter:
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, mlir_module=None):
         self.ctx = ctx
         self.op_to_mlir_ops: Dict[Operation, ir.Operation] = dict()
         self.block_to_mlir_blocks: Dict[Block, ir.Block] = dict()
-        self.mlir = ir
+        self.mlir = mlir_module if mlir_module else ir
 
     def register_external_dialects(self):
         pass
