@@ -9,13 +9,14 @@ from xdsl.pattern_rewriter import *
 @dataclass
 class RewriteResult:
     result: Union[Strategy, List[IOp]]
-    env: Dict[IVal, IVal]
+    env: Dict[ISSAValue, ISSAValue]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
-        # I think we lose the environment here
         if (not isinstance(self.result, List)):
             return self
-        return s.apply(self.result[0])
+        rr = s.apply(self.result[0])
+        rr.env |= self.env
+        return rr
 
     def flatMapFailure(self, f: Callable[[], RewriteResult]) -> RewriteResult:
         if (not isinstance(self.result, List)):
@@ -27,7 +28,7 @@ class RewriteResult:
             return "Failure(" + str(self.result) + ")"
         return "Success, " + str(len(self.result)) + " new ops"
 
-    def isSuccess(self):
+    def isSuccess(self) -> bool:
         return isinstance(self.result, List)
 
     @property
@@ -37,29 +38,27 @@ class RewriteResult:
         return self.result[-1]
 
 
-def success(arg: IOp | RewrittenIOp) -> RewriteResult:
+def success(arg: IOp | PartialIOp) -> RewriteResult:
     match arg:
         case IOp():
             op = arg
             env = {}
-        case RewrittenIOp():
+        case PartialIOp():
             op = arg.op
             env = arg.env
         case _:
             raise Exception("success called with incompatible arguments")
 
-    assert isinstance(op, IOp)
-    ops: List[IOp] = [op]
-
-    # Add all dependant operations
-    def add_operands(op: IOp, ops: List[IOp]):
-        for operand in op.operands:
-            if isinstance(operand, IRes):
+    # Add all dependant operations to `ops`
+    def add_operands(operands: IList[ISSAValue], ops: List[IOp]):
+        for operand in operands:
+            if isinstance(operand, IResult):
                 if operand.op not in ops:
                     ops.insert(0, operand.op)
-                    add_operands(operand.op, ops)
+                    add_operands(operand.op.operands, ops)
 
-    add_operands(op, ops)
+    ops = [op]
+    add_operands(op.operands, ops)
     return RewriteResult(ops, env)
 
 
@@ -80,10 +79,8 @@ class Strategy:
         ...
 
     def __str__(self) -> str:
-        name: str = self.__class__.__name__ + "("
-        for strategy in vars(self).values():
-            name += str(strategy)
-        return name + ")"
+        values = [str(value) for value in vars(self).values()]
+        return f'{self.__class__.__name__}({",".join(values)})'
 
 
 @dataclass
@@ -148,14 +145,14 @@ class one(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         for idx, operand in enumerate(op.operands):
             # Try to apply to the operands of this op
-            if (isinstance(operand, IRes)):
+            if (isinstance(operand, IResult)):
                 rr = self.s.apply(operand.op)
                 if rr.isSuccess():
                     assert isinstance(rr.result, List)
                     # build the operands including the new operand
-                    new_operands = list(op.operands[:idx]) + [
+                    new_operands: List[ISSAValue] = op.operands[:idx] + [
                         rr.result[-1].results[operand.result_index]
-                    ] + list(op.operands[idx + 1:])
+                    ] + op.operands[idx + 1:]
 
                     result = new_op(op_type=op.op_type,
                                     operands=list(new_operands),
@@ -175,12 +172,12 @@ class one(Strategy):
             if rr.isSuccess():
                 assert isinstance(rr.result, List)
 
-                new_regions = list(op.regions[:idx]) + [
+                new_regions = op.regions[:idx] + [
                     IRegion([
                         IBlock(list(matched_block.arg_types), rr.result,
                                rr.env, matched_block)
                     ])
-                ] + list(op.regions[idx + 1:])
+                ] + op.regions[idx + 1:]
 
                 result = new_op(op_type=op.op_type,
                                 operands=list(op.operands),

@@ -89,9 +89,9 @@ func.return(%4 : !i32)
             match op:
                 case IOp(
                     op_type=arith.Addi,
-                    operands=[IVal(op=IOp(op_type=arith.Constant, 
+                    operands=[ISSAValue(op=IOp(op_type=arith.Constant, 
                                             attributes={"value": IntegerAttr() as attr1}) as c1), 
-                              IVal(op=IOp(op_type=arith.Constant, 
+                              ISSAValue(op=IOp(op_type=arith.Constant, 
                                             attributes={"value": IntegerAttr() as attr2}))]):
                     result = from_op(c1,
                             attributes={
@@ -140,9 +140,9 @@ func.return(%4 : !i32)
         def impl(self, op: IOp) -> RewriteResult:
             match op:
                 case IOp(op_type=scf.If,
-                            operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
+                            operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
                             region=IRegion(block=
-                                IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])]))):                         
+                                IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])]))):                         
                             return success(returned_op)
                 case _:
                     return failure(self)
@@ -152,7 +152,7 @@ func.return(%4 : !i32)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(results=[IRes(typ=IntegerType() as type)]):                    
+                case IOp(results=[IResult(typ=IntegerType() as type)]):                    
                     result = new_op(Addi, [
                         op,
                         new_op(Constant,

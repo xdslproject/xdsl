@@ -26,7 +26,9 @@ def apply_strategy_and_compare(program: str, expected_program: str,
 
     # for debugging
     printer = Printer()
+    print(f'Result after applying "{strategy}":')
     printer.print_op(rr.result_op.get_mutable_copy())
+    print()
 
     file = StringIO("")
     printer = Printer(stream=file)
@@ -54,9 +56,9 @@ class FoldConstantAdd(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
           case IOp(op_type=arith.Addi,
-                  operands=[IVal(op=IOp(op_type=arith.Constant, 
+                  operands=[ISSAValue(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": IntegerAttr() as attr1}) as c1), 
-                                  IVal(op=IOp(op_type=arith.Constant, 
+                                  ISSAValue(op=IOp(op_type=arith.Constant, 
                                              attributes={"value": IntegerAttr() as attr2}))]):
             result = from_op(c1,
                       attributes={
@@ -93,8 +95,8 @@ class InlineIf(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         match op:
             case IOp(op_type=scf.If,
-                        operands=[IRes(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
-                        region=IRegion(ops=[*_, IOp(op_type=scf.Yield, operands=[IRes(op=returned_op)])])):                         
+                        operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
+                        region=IRegion(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])])):                         
                         return success(returned_op)
             case _:
                 return failure(self)
@@ -104,7 +106,7 @@ class AddZero(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-            case IOp(results=[IRes(typ=IntegerType() as type)]):
+            case IOp(results=[IResult(typ=IntegerType() as type)]):
                 result = new_op(Addi, [
                     op,
                     new_op(Constant,

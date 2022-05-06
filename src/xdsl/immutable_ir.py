@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, SupportsIndex, TypeGuard
+from typing import Iterable, SupportsIndex, TypeGuard, Any
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
 
@@ -46,24 +46,24 @@ class IList(List[_T]):
 
 
 @dataclass(frozen=True)
-class IVal:
+class ISSAValue:
     typ: Attribute
 
 
 @dataclass(frozen=True)
-class IRes(IVal):
+class IResult(ISSAValue):
     op: IOp
     result_index: int
 
     def __hash__(self):
         return hash(id(self.op)) + hash(self.result_index)
 
-    def __eq__(self, __o: IRes) -> bool:
+    def __eq__(self, __o: IResult) -> bool:
         return self.op == __o.op and self.result_index == __o.result_index
 
 
 @dataclass(frozen=True)
-class IBlockArg(IVal):
+class IBlockArg(ISSAValue):
     block: IBlock
     index: int
 
@@ -112,7 +112,7 @@ class IRegion:
     def from_mutable(
         cls,
         blocks: List[Block],
-        value_map: Optional[Dict[SSAValue, IVal]] = None,
+        value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
         block_map: Optional[Dict[Block, IBlock]] = None,
     ) -> IRegion:
         if value_map is None:
@@ -128,7 +128,7 @@ class IRegion:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[IVal, SSAValue]] = None,
+            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
             block_mapping: Optional[Dict[IBlock, Block]] = None) -> Region:
         if value_mapping is None:
             value_mapping = {}
@@ -177,29 +177,24 @@ class IBlock:
         self.ops.freeze()
 
     def __init__(self,
-                 args: Union[List[Attribute], List[IBlockArg]],
+                 args: List[Attribute] | List[IBlockArg],
                  ops: List[IOp],
-                 env: Optional[Dict[IVal, IVal]] = None,
+                 env: Optional[Dict[ISSAValue, ISSAValue]] = None,
                  old_block: Optional[IBlock] = None):
         """Creates a new immutable block."""
         if env is None:
             env = {}
 
         # Type Guards:
-        def is_iblock_arg_list(
-            list: Union[List[Attribute], List[IBlockArg]]
-        ) -> TypeGuard[List[IBlockArg]]:
+        def is_iblock_arg_list(list: List[Any]) -> TypeGuard[List[IBlockArg]]:
             if len(list) == 0:
                 return False
             return all([isinstance(elem, IBlockArg) for elem in list])
 
-        def is_type_list(list: Union[List[Attribute], List[IBlockArg]],
-                         allow_empty: bool) -> TypeGuard[List[Attribute]]:
-            if not allow_empty and len(list) == 0:
-                return False
+        def is_type_list(list: List[Any]) -> TypeGuard[List[Attribute]]:
             return all([isinstance(elem, Attribute) for elem in list])
 
-        if is_type_list(args, allow_empty=True):
+        if is_type_list(args):
             block_args: List[IBlockArg] = []
             if old_block is not None:
                 assert (len(old_block.args) == len(args))
@@ -211,7 +206,7 @@ class IBlock:
                 # Rebuild ops in this block which use the blockArgs
                 def substitute_if_required(op: IOp) -> IOp:
                     substition_required = False
-                    new_operands: List[IVal | IOp | RewrittenIOp] = []
+                    new_operands: List[ISSAValue | IOp | PartialIOp] = []
                     new_regions: List[IRegion] = []
                     for region in op.regions:
                         region_substitution_required = False
@@ -281,7 +276,7 @@ class IBlock:
     def from_mutable(
         cls,
         block: Block,
-        value_map: Optional[Dict[SSAValue, IVal]] = None,
+        value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
         block_map: Optional[Dict[Block, IBlock]] = None,
     ) -> IBlock:
         if value_map is None:
@@ -304,7 +299,7 @@ class IBlock:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[IVal, SSAValue]] = None,
+            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
             block_mapping: Optional[Dict[IBlock, Block]] = None) -> Block:
         if value_mapping is None:
             value_mapping = {}
@@ -343,13 +338,13 @@ class IOp:
     __match_args__ = ("op_type", "operands", "results", "successors",
                       "regions")
     _op_data: OpData
-    operands: IList[IVal]
-    results: IList[IRes]
+    operands: IList[ISSAValue]
+    results: IList[IResult]
     successors: IList[IBlock]
     regions: IList[IRegion]
     parent_block: Optional[IList[IBlock]] = None
 
-    def __init__(self, op_data: OpData, operands: List[IVal],
+    def __init__(self, op_data: OpData, operands: List[ISSAValue],
                  result_types: List[Attribute], successors: List[IBlock],
                  regions: List[IRegion]) -> None:
         object.__setattr__(self, "_op_data", op_data)
@@ -357,7 +352,7 @@ class IOp:
         object.__setattr__(
             self, "results",
             IList([
-                IRes(type, self, idx) for idx, type in enumerate(result_types)
+                IResult(type, self, idx) for idx, type in enumerate(result_types)
             ]))
         object.__setattr__(self, "successors", IList(successors))
         object.__setattr__(self, "regions", IList(regions))
@@ -368,7 +363,7 @@ class IOp:
         self.regions.freeze()
 
     @classmethod
-    def get(cls, name: str, op_type: type[Operation], operands: List[IVal],
+    def get(cls, name: str, op_type: type[Operation], operands: List[ISSAValue],
             result_types: List[Attribute], attributes: Dict[str, Attribute],
             successors: List[IBlock], regions: List[IRegion]) -> IOp:
         return cls(OpData(name, op_type, attributes), operands, result_types,
@@ -410,7 +405,7 @@ class IOp:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[IVal, SSAValue]] = None,
+            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
             block_mapping: Optional[Dict[IBlock, Block]] = None) -> Operation:
         if value_mapping is None:
             value_mapping = {}
@@ -454,9 +449,9 @@ class IOp:
     @classmethod
     def from_mutable(cls,
                      op: Operation,
-                     value_map: Optional[Dict[SSAValue, IVal]] = None,
+                     value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
                      block_map: Optional[Dict[Block, IBlock]] = None,
-                     existing_operands: Optional[List[IVal]] = None) -> IOp:
+                     existing_operands: Optional[List[ISSAValue]] = None) -> IOp:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
         op_type = op.__class__
@@ -466,13 +461,13 @@ class IOp:
         if block_map is None:
             block_map = {}
 
-        operands: List[IVal] = []
+        operands: List[ISSAValue] = []
         if existing_operands is None:
             for operand in op.operands:
                 match operand:
                     case OpResult():
                         operands.append(
-                            IRes(
+                            IResult(
                                 operand.typ,
                                 value_map[operand].op  # type: ignore
                                 if operand in value_map else IOp.from_mutable(
@@ -531,18 +526,18 @@ class IOp:
 
 # TODO: are we happy with the name or can we find a better one
 @dataclass(frozen=True)
-class RewrittenIOp:
+class PartialIOp:
     op: IOp
-    env: Dict[IVal, IVal]
+    env: Dict[ISSAValue, ISSAValue]
 
 
 def new_op(op_type: type[Operation],
-           operands: Optional[List[IVal | IOp | RewrittenIOp]] = None,
+           operands: Optional[List[ISSAValue | IOp | PartialIOp]] = None,
            result_types: Optional[List[Attribute]] = None,
            attributes: Optional[Dict[str, Attribute]] = None,
            successors: Optional[List[IBlock]] = None,
            regions: Optional[List[IRegion]] = None,
-           env: Optional[Dict[IVal, IVal]] = None) -> RewrittenIOp:
+           env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> PartialIOp:
     if operands is None:
         operands = []
     if result_types is None:
@@ -557,16 +552,16 @@ def new_op(op_type: type[Operation],
         env = {}
     op = IOp.get(op_type.name, op_type, _unpack_operands(operands, env),
                  result_types, attributes, successors, regions)
-    return RewrittenIOp(op, env)
+    return PartialIOp(op, env)
 
 
 def from_op(old_op: IOp,
-            operands: Optional[List[IVal | IOp | RewrittenIOp]] = None,
+            operands: Optional[List[ISSAValue | IOp | PartialIOp]] = None,
             result_types: Optional[List[Attribute]] = None,
             attributes: Optional[Dict[str, Attribute]] = None,
             successors: Optional[List[IBlock]] = None,
             regions: Optional[List[IRegion]] = None,
-            env: Optional[Dict[IVal, IVal]] = None):
+            env: Optional[Dict[ISSAValue, ISSAValue]] = None):
     if env is None:
         env = {}
     if operands is None:
@@ -578,7 +573,7 @@ def from_op(old_op: IOp,
     if regions is None:
         regions = list(old_op.regions)
     if attributes is None:
-        op = IOp(old_op._op_data, _unpack_operands(operands, env),
+        op = IOp(old_op._op_data, _unpack_operands(operands, env), # type: ignore
                  result_types, successors, regions)
     else:
         op = IOp.get(old_op.name, old_op.op_type,
@@ -586,17 +581,17 @@ def from_op(old_op: IOp,
                      successors, regions)
     for idx, result in enumerate(op.results):
         env[old_op.results[idx]] = result
-    return RewrittenIOp(op, env)
+    return PartialIOp(op, env)
 
 
-def _unpack_operands(operands: List[IVal | IOp | RewrittenIOp],
-                     env: Dict[IVal, IVal]) -> List[IVal]:
-    remapped_operands: List[IVal] = []
+def _unpack_operands(operands: List[ISSAValue | IOp | PartialIOp],
+                     env: Dict[ISSAValue, ISSAValue]) -> List[ISSAValue]:
+    remapped_operands: List[ISSAValue] = []
     for operand in operands:
         if isinstance(operand, IOp):
             assert operand.result is not None
             operand = operand.result
-        if isinstance(operand, RewrittenIOp):
+        if isinstance(operand, PartialIOp):
             env |= operand.env
             assert operand.op.result is not None
             operand = operand.op.result
