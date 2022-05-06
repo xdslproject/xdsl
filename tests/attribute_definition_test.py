@@ -5,12 +5,14 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated
+from typing import Any, List, TypeVar, cast, Annotated, Generic
 
 import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
-from xdsl.irdl import AttrConstraint, GenericData, ParameterDef, VerifyException, irdl_attr_definition, builder, irdl_to_attr_constraint
+from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
+                       VerifyException, irdl_attr_definition, builder,
+                       irdl_to_attr_constraint)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -273,6 +275,141 @@ def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
     with pytest.raises(Exception) as e:
         PositiveIntAttr([IntData(-42)])
+    assert e.value.args[0] == "Expected positive integer, got -42."
+
+
+#  _____               __     __          ____                _
+# |_   _|   _ _ __   __\ \   / /_ _ _ __ / ___|___  _ __  ___| |_ _ __
+#   | || | | | '_ \ / _ \ \ / / _` | '__| |   / _ \| '_ \/ __| __| '__|
+#   | || |_| | |_) |  __/\ V / (_| | |  | |__| (_) | | | \__ \ |_| |
+#   |_| \__, | .__/ \___| \_/ \__,_|_|   \____\___/|_| |_|___/\__|_|
+#       |___/|_|
+#
+
+_T = TypeVar("_T", bound=BoolData | IntData)
+
+
+@irdl_attr_definition
+class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
+    name = "int_or_bool_generic"
+
+    param: ParameterDef[_T]
+
+
+def test_typevar_attribute_int():
+    """Test the verifier of a generic attribute."""
+    attr = ParamWrapperAttr([IntData(42)])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue() == "!int_or_bool_generic<!int<42>>"
+
+
+def test_typevar_attribute_bool():
+    """Test the verifier of a generic attribute."""
+    attr = ParamWrapperAttr([BoolData(True)])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue() == "!int_or_bool_generic<!bool<True>>"
+
+
+def test_typevar_attribute_fail():
+    """Test that the verifier of an generic attribute can fail."""
+    with pytest.raises(Exception) as e:
+        ParamWrapperAttr([StringData("foo")])
+    assert e.value.args[0] == "Unexpected attribute StringData(data='foo')"
+
+
+@irdl_attr_definition
+class ParamConstrAttr(ParametrizedAttribute):
+    name = "param_constr"
+
+    param: ParameterDef[ParamWrapperAttr[IntData]]
+
+
+def test_param_attr_constraint():
+    """Test the verifier of an attribute with a parametric constraint."""
+    attr = ParamConstrAttr([ParamWrapperAttr([IntData(42)])])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue() == "!param_constr<!int_or_bool_generic<!int<42>>>"
+
+
+def test_param_attr_constraint_fail():
+    """
+    Test that the verifier of an attribute with
+    a parametric constraint can fail.
+    """
+    with pytest.raises(Exception) as e:
+        ParamConstrAttr([ParamWrapperAttr([BoolData(True)])])
+    assert e.value.args[
+        0] == "BoolData(data=True) should be of base attribute int"
+
+
+_U = TypeVar("_U", bound=IntData)
+
+
+@irdl_attr_definition
+class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
+    name = "nested_param_wrapper"
+
+    param: ParameterDef[ParamWrapperAttr[_U]]
+
+
+def test_nested_generic_constraint():
+    """
+    Test the verifier of an attribute with a generic
+    constraint used in a parametric constraint.
+    """
+    attr = NestedParamWrapperAttr([ParamWrapperAttr([IntData(42)])])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue(
+    ) == "!nested_param_wrapper<!int_or_bool_generic<!int<42>>>"
+
+
+def test_nested_generic_constraint_fail():
+    """
+    Test that the verifier of an attribute with
+    a parametric constraint can fail.
+    """
+    with pytest.raises(Exception) as e:
+        NestedParamWrapperAttr([ParamWrapperAttr([BoolData(True)])])
+    assert e.value.args[
+        0] == "BoolData(data=True) should be of base attribute int"
+
+
+@irdl_attr_definition
+class NestedParamConstrAttr(ParametrizedAttribute):
+    name = "nested_param_constr"
+
+    param: ParameterDef[NestedParamWrapperAttr[Annotated[IntData,
+                                                         PositiveIntConstr()]]]
+
+
+def test_nested_param_attr_constraint():
+    """
+    Test the verifier of a nested parametric constraint.
+    """
+    attr = NestedParamConstrAttr(
+        [NestedParamWrapperAttr([ParamWrapperAttr([IntData(42)])])])
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue(
+    ) == "!nested_param_constr<!nested_param_wrapper<!int_or_bool_generic<!int<42>>>>"
+
+
+def test_nested_param_attr_constraint_fail():
+    """
+    Test that the verifier of a nested parametric constraint can fail.
+    """
+    with pytest.raises(Exception) as e:
+        NestedParamConstrAttr(
+            [NestedParamWrapperAttr([ParamWrapperAttr([IntData(-42)])])])
     assert e.value.args[0] == "Expected positive integer, got -42."
 
 
