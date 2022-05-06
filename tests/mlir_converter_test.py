@@ -1,6 +1,6 @@
 import pytest
 
-docutils = pytest.importorskip("mlir")
+docutils = pytest.importorskip("xdsl.mlir")
 from xdsl.mlir_converter import *
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.func import Func

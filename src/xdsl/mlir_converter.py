@@ -1,4 +1,5 @@
-import mlir.ir
+import xdsl.mlir as mlir
+
 import array
 from xdsl.dialects.builtin import *
 from xdsl.dialects.memref import MemRefType
