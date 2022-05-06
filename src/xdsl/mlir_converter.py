@@ -36,6 +36,9 @@ class MLIRConverter:
         if isinstance(typ, MemRefType):
             return mlir.ir.MemRefType.get(typ.get_shape(),
                                           self.convert_type(typ.element_type))
+        if isinstance(typ, TupleType):
+            return mlir.ir.TupleType.get_tuple(
+                [self.convert_type(t) for t in typ.types.data])
         raise Exception(f"Unsupported type for mlir conversion: {typ}")
 
     def convert_value(self, value: SSAValue) -> mlir.ir.Value:
