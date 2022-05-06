@@ -109,8 +109,20 @@ class IRegion:
         self.blocks.freeze()
 
     @classmethod
-    def from_mutable(cls, blocks: List[Block]) -> IRegion:
-        immutable_blocks = [IBlock.from_mutable(block) for block in blocks]
+    def from_mutable(
+        cls,
+        blocks: List[Block],
+        value_map: Optional[Dict[SSAValue, IVal]] = None,
+        block_map: Optional[Dict[Block, IBlock]] = None,
+    ) -> IRegion:
+        if value_map is None:
+            value_map = {}
+        if block_map is None:
+            block_map = {}
+        immutable_blocks = [
+            IBlock.from_mutable(block, value_map, block_map)
+            for block in blocks
+        ]
         assert (blocks[0].parent is not None)
         return IRegion(immutable_blocks)
 
@@ -140,9 +152,8 @@ class IBlock:
     ops: IList[IOp]
 
     @property
-    def arg_types(self) -> IList[Attribute]:
-        frozen_arg_types = IList([arg.typ for arg in self.args])
-        frozen_arg_types.freeze()
+    def arg_types(self) -> List[Attribute]:
+        frozen_arg_types = [arg.typ for arg in self.args]
         return frozen_arg_types
 
     def __hash__(self):
@@ -168,75 +179,98 @@ class IBlock:
     def __init__(self,
                  args: Union[List[Attribute], List[IBlockArg]],
                  ops: List[IOp],
-                 environment: Optional[Dict[IVal, IVal]] = None,
+                 env: Optional[Dict[IVal, IVal]] = None,
                  old_block: Optional[IBlock] = None):
         """Creates a new immutable block."""
-        if environment is None:
-            environment = {}
+        if env is None:
+            env = {}
 
         # Type Guards:
         def is_iblock_arg_list(
             list: Union[List[Attribute], List[IBlockArg]]
         ) -> TypeGuard[List[IBlockArg]]:
+            if len(list) == 0:
+                return False
             return all([isinstance(elem, IBlockArg) for elem in list])
 
-        def is_type_list(
-            list: Union[List[Attribute], List[IBlockArg]]
-        ) -> TypeGuard[List[Attribute]]:
+        def is_type_list(list: Union[List[Attribute], List[IBlockArg]],
+                         allow_empty: bool) -> TypeGuard[List[Attribute]]:
+            if not allow_empty and len(list) == 0:
+                return False
             return all([isinstance(elem, Attribute) for elem in list])
 
-        if is_iblock_arg_list(args):
-            # Block is only initialized with existing BlockArgs in Block.from_mutable
-            block_args: List[IBlockArg] = args
-            for block_arg in block_args:
-                object.__setattr__(block_arg, "block", self)
-        elif is_type_list(args):
+        if is_type_list(args, allow_empty=True):
             block_args: List[IBlockArg] = []
             if old_block is not None:
                 assert (len(old_block.args) == len(args))
                 for idx, old_arg in enumerate(old_block.args):
-                    if old_arg in environment:
-                        assert isinstance(
-                            old_block_arg := environment[old_arg], IBlockArg)
-                        block_args.append(old_block_arg)
-                    else:
-                        block_args.append(
-                            new_block_arg := IBlockArg(args[idx], self, idx))
-                        environment[old_arg] = new_block_arg
-                        print("Warning: assuming blockArg not used in block")
+                    block_args.append(
+                        new_block_arg := IBlockArg(args[idx], self, idx))
+                    env[old_arg] = new_block_arg
 
-                # Substitution after the loop so we have a mapping for all BlockArgs
-                # and don't have to substitute an operation more than once
-                # (e.g an op using multiple different BlockArgs)
-
-                # TODO: what if an op deep in nested regions uses a blockArg?
-                # currently this only checks
+                # Rebuild ops in this block which use the blockArgs
                 def substitute_if_required(op: IOp) -> IOp:
                     substition_required = False
-                    new_operands: List[Union[IVal, IOp]] = []
+                    new_operands: List[IVal | IOp | RewrittenIOp] = []
+                    new_regions: List[IRegion] = []
+                    for region in op.regions:
+                        region_substitution_required = False
+                        new_blocks: List[IBlock] = []
+                        for block in region.blocks:
+                            # check whether rebuilding is necessary on the level of
+                            # individual blocks so the region can reuse unchanged blocks
+                            block_substitution_required = False
+
+                            def subst_neccessary(op: IOp):
+                                for operand in op.operands:
+                                    if operand in env:
+                                        nonlocal block_substitution_required
+                                        block_substitution_required = True
+
+                            block.walk(subst_neccessary)
+
+                            if block_substitution_required:
+                                substition_required = True
+                                region_substitution_required = True
+                                # This rebuilds the block and does substitution for all nested ops
+                                new_block = IBlock(args=block.arg_types,
+                                                   ops=block.ops,
+                                                   env=env,
+                                                   old_block=block)
+                                new_blocks.append(new_block)
+                            else:
+                                new_blocks.append(block)
+                        if region_substitution_required:
+                            new_regions.append(IRegion(new_blocks))
+                        else:
+                            new_regions.append(region)
+
                     for operand in op.operands:
-                        if operand in old_block.args:
-                            new_operands.append(environment[operand])
+                        if operand in env:
+                            new_operands.append(env[operand])
                             substition_required = True
-                            raise Exception(
-                                "substitution required but currently not implemented"
-                            )
                         else:
                             new_operands.append(operand)
                     if substition_required:
-                        # incomplete
-                        return from_op(op, operands=new_operands).op
-                        # TODO: this also has to update all ops which use this op!
+                        return from_op(op,
+                                       operands=new_operands,
+                                       regions=new_regions,
+                                       env=env).op
                     return op
 
                 ops = [substitute_if_required(op) for op in ops]
-
             else:
                 block_args = [
                     IBlockArg(type, self, idx) for idx, type in enumerate(args)
                 ]
+        elif is_iblock_arg_list(args):
+            # Block is only initialized with existing BlockArgs in Block.from_mutable
+            block_args: List[IBlockArg] = args
+            for block_arg in block_args:
+                object.__setattr__(block_arg, "block", self)
         else:
             raise Exception("args for IBlock ill structured")
+
         object.__setattr__(self, "args", IList(block_args))
         object.__setattr__(self, "ops", IList(ops))
 
@@ -244,9 +278,16 @@ class IBlock:
         self.ops.freeze()
 
     @classmethod
-    def from_mutable(cls, block: Block) -> IBlock:
-        value_map: dict[SSAValue, IVal] = {}
-        block_map: dict[Block, IBlock] = {}
+    def from_mutable(
+        cls,
+        block: Block,
+        value_map: Optional[Dict[SSAValue, IVal]] = None,
+        block_map: Optional[Dict[Block, IBlock]] = None,
+    ) -> IBlock:
+        if value_map is None:
+            value_map = {}
+        if block_map is None:
+            block_map = {}
 
         args: List[IBlockArg] = []
         for arg in block.args:
@@ -270,7 +311,7 @@ class IBlock:
         if block_mapping is None:
             block_mapping = {}
 
-        new_block = Block.from_arg_types([arg.typ for arg in self.args])
+        new_block = Block.from_arg_types(self.arg_types)
         for idx, arg in enumerate(self.args):
             value_mapping[arg] = new_block.args[idx]
         block_mapping[self] = new_block
@@ -381,7 +422,8 @@ class IOp:
             if operand in value_mapping:
                 mutable_operands.append(value_mapping[operand])
             else:
-                raise Exception("SSAValue used before definition")
+                raise Exception("op: " + self.name +
+                                " uses SSAValue before definition")
 
         mutable_successors: List[Block] = []
         for successor in self.successors:
@@ -439,7 +481,8 @@ class IOp:
                     case BlockArgument():
                         if operand not in value_map:
                             raise Exception(
-                                "Block argument expected in mapping")
+                                "Block argument expected in mapping for op: " +
+                                op.name)
                         operands.append(value_map[operand])
                     case _:
                         raise Exception(
@@ -455,13 +498,15 @@ class IOp:
             if successor in block_map:
                 successors.append(block_map[successor])
             else:
+                # TODO: I think this is not right, build tests with successors
                 newImmutableSuccessor = IBlock.from_mutable(successor)
                 block_map[successor] = newImmutableSuccessor
                 successors.append(newImmutableSuccessor)
 
         regions: List[IRegion] = []
         for region in op.regions:
-            regions.append(IRegion.from_mutable(region.blocks))
+            regions.append(
+                IRegion.from_mutable(region.blocks, value_map, block_map))
 
         immutable_op = IOp.get(op.name, op_type, operands,
                                [result.typ for result in op.results],
@@ -510,7 +555,7 @@ def new_op(op_type: type[Operation],
         regions = []
     if env is None:
         env = {}
-    op = IOp.get(op_type.name, op_type, _remap_operands(operands, env),
+    op = IOp.get(op_type.name, op_type, _unpack_operands(operands, env),
                  result_types, attributes, successors, regions)
     return RewrittenIOp(op, env)
 
@@ -533,34 +578,27 @@ def from_op(old_op: IOp,
     if regions is None:
         regions = list(old_op.regions)
     if attributes is None:
-        op = IOp(old_op._op_data, _remap_operands(operands, env), result_types,
-                 successors, regions)
+        op = IOp(old_op._op_data, _unpack_operands(operands, env),
+                 result_types, successors, regions)
     else:
         op = IOp.get(old_op.name, old_op.op_type,
-                     _remap_operands(operands, env), result_types, attributes,
+                     _unpack_operands(operands, env), result_types, attributes,
                      successors, regions)
+    for idx, result in enumerate(op.results):
+        env[old_op.results[idx]] = result
     return RewrittenIOp(op, env)
 
 
-def _remap_operands(operands: List[IVal | IOp | RewrittenIOp],
-                    env: Dict[IVal, IVal]) -> List[IVal]:
+def _unpack_operands(operands: List[IVal | IOp | RewrittenIOp],
+                     env: Dict[IVal, IVal]) -> List[IVal]:
     remapped_operands: List[IVal] = []
     for operand in operands:
         if isinstance(operand, IOp):
-            assert (len(operand.results) > 0)
+            assert operand.result is not None
             operand = operand.result
         if isinstance(operand, RewrittenIOp):
             env |= operand.env
+            assert operand.op.result is not None
             operand = operand.op.result
-        if isinstance(operand, IBlockArg):
-            if operand not in env:
-                new_block_arg = IBlockArg(
-                    operand.typ,
-                    None,  # type: ignore
-                    operand.index)
-                env[operand] = new_block_arg
-            remapped_operands.append(env[operand])
-        else:
-            assert isinstance(operand, IVal)
-            remapped_operands.append(operand)
+        remapped_operands.append(operand)
     return remapped_operands

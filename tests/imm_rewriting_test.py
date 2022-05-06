@@ -75,7 +75,8 @@ class ChangeConstantTo42(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         match op:
-          case IOp(op_type=arith.Constant, attributes={"value": IntegerAttr() as attr}):
+          case IOp(op_type=arith.Constant, 
+                    attributes={"value": IntegerAttr(typ=IntegerType(width=IntAttr(data=32))) as attr}):
               result = from_op(op,
                         attributes={
                             "value":
@@ -186,26 +187,9 @@ def test_commute_block_args():
 
 
 def test_rewriting_with_blocks():
-
-    # TODO: using this program does acutally lose the if region somehow!
-    error = \
-"""module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
-  ^0(%0 : !i1):
-    %7 : !i1 = arith.constant() ["value" = 1 : !i1]
-    %1 : !i32 = scf.if(%0 : !i1) {
-      %2 : !i32 = arith.constant() ["value" = 0 : !i32]
-      scf.yield(%2 : !i32)
-    }
-    func.return(%1 : !i32)
-  }
-}
-"""
-
-
     before = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32,!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 0 : !i32]
@@ -217,7 +201,7 @@ def test_rewriting_with_blocks():
 """
     constant_changed = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -275,7 +259,7 @@ func.return(%4 : !i32)
 def test_inline_if():
     before = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
   ^0():
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = scf.if(%0 : !i1) {
@@ -288,7 +272,7 @@ def test_inline_if():
 """
     inlined = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     func.return(%0 : !i32)
   }
@@ -302,7 +286,7 @@ def test_inline_if():
 def test_inline_and_fold():
     before = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
   ^0():
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = scf.if(%0 : !i1) {
@@ -319,7 +303,7 @@ def test_inline_and_fold():
 """
     folded_and_inlined = \
 """module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 7 : !i32]
     func.return(%0 : !i32)
   }
@@ -357,8 +341,44 @@ func.return(%0 : !i32)
 }
 """
     apply_strategy_and_compare(program=before,
-                               expected_program=added_zero,
-                               strategy=topdown(AddZero()))
+                              expected_program=added_zero,
+                              strategy=topdown(AddZero()))
+
+def test_deeper_nested_block_args_commute():
+    """This test demonstrates that substitution of block arguments also works when the 
+    concerned op is at a deeper nesting level than the block supplying the block args.
+    """
+  
+    before = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32, %1 : !i32):
+    %2 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %3 : !i32 = scf.if(%2 : !i1) {
+      %4 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+      scf.yield(%4 : !i32)
+    }
+    func.return(%3 : !i32)
+  }
+}
+"""
+    nested_commute = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32, %1 : !i32):
+    %2 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %3 : !i32 = scf.if(%2 : !i1) {
+      %4 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
+      scf.yield(%4 : !i32)
+    }
+    func.return(%3 : !i32)
+  }
+}
+"""
+    apply_strategy_and_compare(program=before,
+                              expected_program=nested_commute,
+                              strategy=topdown(CommuteAdd()))
+
 
 if __name__ == "__main__":
     test_double_commute()
@@ -369,3 +389,4 @@ if __name__ == "__main__":
     test_inline_if()
     test_inline_and_fold()
     test_add_zero()
+    test_deeper_nested_block_args_commute()
