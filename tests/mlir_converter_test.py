@@ -1,5 +1,8 @@
 import pytest
 
+import xdsl
+xdsl.mlir_module_name = 'mlir'
+
 docutils = pytest.importorskip("mlir")
 from xdsl.mlir_converter import *
 from xdsl.dialects.scf import Scf
@@ -9,8 +12,10 @@ from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.parser import Parser
 
-
 def convert_and_verify(test_prog: str):
+    print("Imported mlir.\n  Path: ", mlir.__path__)
+    print("Imported mlir.ir.\n  File: ", mlir.ir.__file__)
+
     ctx = MLContext()
     builtin = Builtin(ctx)
     func = Func(ctx)
