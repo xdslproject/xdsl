@@ -46,7 +46,7 @@ class IList(List[_T]):
 
 
 @dataclass(frozen=True)
-class ISSAValue:
+class ISSAValue(ABC):
     typ: Attribute
 
 
@@ -179,8 +179,7 @@ class IBlock:
     def __init__(self,
                  args: List[Attribute] | List[IBlockArg],
                  ops: List[IOp],
-                 env: Optional[Dict[ISSAValue, ISSAValue]] = None,
-                 old_block: Optional[IBlock] = None):
+                 env: Optional[Dict[ISSAValue, ISSAValue]] = None):
         """Creates a new immutable block."""
         if env is None:
             env = {}
@@ -195,71 +194,10 @@ class IBlock:
             return all([isinstance(elem, Attribute) for elem in list])
 
         if is_type_list(args):
-            block_args: List[IBlockArg] = []
-            if old_block is not None:
-                assert (len(old_block.args) == len(args))
-                for idx, old_arg in enumerate(old_block.args):
-                    block_args.append(
-                        new_block_arg := IBlockArg(args[idx], self, idx))
-                    env[old_arg] = new_block_arg
-
-                # Rebuild ops in this block which use the blockArgs
-                def substitute_if_required(op: IOp) -> IOp:
-                    substition_required = False
-                    new_operands: List[ISSAValue | IOp | PartialIOp] = []
-                    new_regions: List[IRegion] = []
-                    for region in op.regions:
-                        region_substitution_required = False
-                        new_blocks: List[IBlock] = []
-                        for block in region.blocks:
-                            # check whether rebuilding is necessary on the level of
-                            # individual blocks so the region can reuse unchanged blocks
-                            block_substitution_required = False
-
-                            def subst_neccessary(op: IOp):
-                                for operand in op.operands:
-                                    if operand in env:
-                                        nonlocal block_substitution_required
-                                        block_substitution_required = True
-
-                            block.walk(subst_neccessary)
-
-                            if block_substitution_required:
-                                substition_required = True
-                                region_substitution_required = True
-                                # This rebuilds the block and does substitution for all nested ops
-                                new_block = IBlock(args=block.arg_types,
-                                                   ops=block.ops,
-                                                   env=env,
-                                                   old_block=block)
-                                new_blocks.append(new_block)
-                            else:
-                                new_blocks.append(block)
-                        if region_substitution_required:
-                            new_regions.append(IRegion(new_blocks))
-                        else:
-                            new_regions.append(region)
-
-                    for operand in op.operands:
-                        if operand in env:
-                            new_operands.append(env[operand])
-                            substition_required = True
-                        else:
-                            new_operands.append(operand)
-                    if substition_required:
-                        return from_op(op,
-                                       operands=new_operands,
-                                       regions=new_regions,
-                                       env=env).op
-                    return op
-
-                ops = [substitute_if_required(op) for op in ops]
-            else:
-                block_args = [
-                    IBlockArg(type, self, idx) for idx, type in enumerate(args)
-                ]
+            block_args: List[IBlockArg] = [
+                IBlockArg(type, self, idx) for idx, type in enumerate(args)
+            ]
         elif is_iblock_arg_list(args):
-            # Block is only initialized with existing BlockArgs in Block.from_mutable
             block_args: List[IBlockArg] = args
             for block_arg in block_args:
                 object.__setattr__(block_arg, "block", self)
@@ -271,6 +209,86 @@ class IBlock:
 
         self.args.freeze()
         self.ops.freeze()
+
+    @classmethod
+    def from_iblock(cls,
+                    ops: List[IOp],
+                    old_block: IBlock,
+                    env: Optional[Dict[ISSAValue, ISSAValue]] = None):
+        """Creates a new immutable block to replace an existing immutable block, e.g.
+        in the context of rewriting. The number and types of block args are retained 
+        and all references to block args of the old block will be updated to the new block"""
+        if env is None:
+            env = {}
+
+        block_args: List[IBlockArg] = []
+        for idx, old_arg in enumerate(old_block.args):
+            block_args.append(new_block_arg := IBlockArg(
+                old_arg.typ,
+                None,  # type: ignore
+                idx))
+            env[old_arg] = new_block_arg
+
+        # Some of the operations in ops might refer to the block args of old_block
+        # In that case it is necessary to substitute these references with the new
+        # block args of this block. This is achieved that by rebuilding the ops if necessary
+        def substitute_if_required(op: IOp) -> IOp:
+            substition_required = False
+            # rebuild specific regions of this op if necessary
+            new_regions: List[IRegion] = []
+            for region in op.regions:
+                region_substitution_required = False
+                new_blocks: List[IBlock] = []
+                for block in region.blocks:
+                    # check whether rebuilding is necessary on the level of
+                    # individual blocks so the region can reuse unchanged blocks
+                    block_substitution_required = False
+
+                    def subst_neccessary(op: IOp):
+                        for operand in op.operands:
+                            if operand in env:
+                                nonlocal block_substitution_required
+                                block_substitution_required = True
+
+                    # walk all operations nested in this block (and deeper)
+                    block.walk(subst_neccessary)
+
+                    if block_substitution_required:
+                        substition_required = True
+                        region_substitution_required = True
+                        # This rebuilds the block and does substitution for all nested ops
+                        new_block = IBlock.from_iblock(ops=block.ops,
+                                                       old_block=block,
+                                                       env=env)
+                        new_blocks.append(new_block)
+                    else:
+                        new_blocks.append(block)
+                if region_substitution_required:
+                    new_regions.append(IRegion(new_blocks))
+                else:
+                    new_regions.append(region)
+
+            # update operands of this op if the corresponing op has been rebuilt
+            # or in case it is a block_arg, if we have an updated block_arg
+            new_operands: List[ISSAValue | IOp | PartialIOp] = []
+            for operand in op.operands:
+                if operand in env:
+                    new_operands.append(env[operand])
+                    substition_required = True
+                else:
+                    new_operands.append(operand)
+
+            # If any updates to this op are required we rebuild it
+            if substition_required:
+                return from_op(op,
+                               operands=new_operands,
+                               regions=new_regions,
+                               env=env).op
+            return op
+
+        ops = [substitute_if_required(op) for op in ops]
+
+        return cls(args=block_args, ops=ops, env=env)
 
     @classmethod
     def from_mutable(
@@ -352,7 +370,8 @@ class IOp:
         object.__setattr__(
             self, "results",
             IList([
-                IResult(type, self, idx) for idx, type in enumerate(result_types)
+                IResult(type, self, idx)
+                for idx, type in enumerate(result_types)
             ]))
         object.__setattr__(self, "successors", IList(successors))
         object.__setattr__(self, "regions", IList(regions))
@@ -363,9 +382,10 @@ class IOp:
         self.regions.freeze()
 
     @classmethod
-    def get(cls, name: str, op_type: type[Operation], operands: List[ISSAValue],
-            result_types: List[Attribute], attributes: Dict[str, Attribute],
-            successors: List[IBlock], regions: List[IRegion]) -> IOp:
+    def get(cls, name: str, op_type: type[Operation],
+            operands: List[ISSAValue], result_types: List[Attribute],
+            attributes: Dict[str, Attribute], successors: List[IBlock],
+            regions: List[IRegion]) -> IOp:
         return cls(OpData(name, op_type, attributes), operands, result_types,
                    successors, regions)
 
@@ -447,11 +467,12 @@ class IOp:
         return new_op
 
     @classmethod
-    def from_mutable(cls,
-                     op: Operation,
-                     value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
-                     block_map: Optional[Dict[Block, IBlock]] = None,
-                     existing_operands: Optional[List[ISSAValue]] = None) -> IOp:
+    def from_mutable(
+            cls,
+            op: Operation,
+            value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
+            block_map: Optional[Dict[Block, IBlock]] = None,
+            existing_operands: Optional[List[ISSAValue]] = None) -> IOp:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
         op_type = op.__class__
@@ -527,7 +548,7 @@ class IOp:
 # TODO: are we happy with the name or can we find a better one
 @dataclass(frozen=True)
 class PartialIOp:
-    op: IOp
+    op: IOp  # TOBE: List
     env: Dict[ISSAValue, ISSAValue]
 
 
@@ -550,6 +571,7 @@ def new_op(op_type: type[Operation],
         regions = []
     if env is None:
         env = {}
+    # only add new op to self.ops
     op = IOp.get(op_type.name, op_type, _unpack_operands(operands, env),
                  result_types, attributes, successors, regions)
     return PartialIOp(op, env)
@@ -573,8 +595,12 @@ def from_op(old_op: IOp,
     if regions is None:
         regions = list(old_op.regions)
     if attributes is None:
-        op = IOp(old_op._op_data, _unpack_operands(operands, env), # type: ignore
-                 result_types, successors, regions)
+        op = IOp(
+            old_op._op_data,
+            _unpack_operands(operands, env),  # type: ignore
+            result_types,
+            successors,
+            regions)
     else:
         op = IOp.get(old_op.name, old_op.op_type,
                      _unpack_operands(operands, env), result_types, attributes,

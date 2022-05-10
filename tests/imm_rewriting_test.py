@@ -7,6 +7,7 @@ from xdsl.printer import Printer
 from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
+import difflib
 
 
 def apply_strategy_and_compare(program: str, expected_program: str,
@@ -33,8 +34,13 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     file = StringIO("")
     printer = Printer(stream=file)
     printer.print_op(rr.result_op.get_mutable_copy())
-    assert file.getvalue().strip() == expected_program.strip()
 
+    diff = difflib.Differ().compare(file.getvalue().splitlines(True),
+                                    expected_program.splitlines(True))
+    if file.getvalue().strip() != expected_program.strip():
+        print("Did not get expected output! Diff:")
+        print(''.join(diff))
+        assert False
 
 
 @dataclass
