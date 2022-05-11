@@ -1,7 +1,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING, TypeVar, Set, Union
+from typing import (Dict, List, Callable, Optional, Any, TYPE_CHECKING,
+                    TypeVar, Set, Union, Tuple)
 import typing
 from frozenlist import FrozenList
 
@@ -367,6 +368,14 @@ class Operation:
 
     def verify_(self) -> None:
         pass
+
+    @classmethod
+    def parse(cls: typing.Type[OperationType], result_types: List[Attribute],
+              parser: Parser) -> OperationType:
+        return parser.parse_op_with_default_format(cls, result_types)
+
+    def print(self, printer: Printer):
+        return printer.print_op_with_default_format(self)
 
     def clone_without_regions(
             self: OperationType,
