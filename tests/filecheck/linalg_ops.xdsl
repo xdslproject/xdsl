@@ -1,0 +1,29 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+// does not parse for some reason. This is emitted from xdsl after parsing. see tests/linalg_test.py
+module() {
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[32 : !i64, 32 : !i64], !f32>, %1 : !memref<[32 : !i64, 32 : !i64], !f32>, %2 : !memref<[32 : !i64, 32 : !i64], !f32>):
+    linalg.generic(%0 : !memref<[32 : !i64, 32 : !i64], !f32>, %1 : !memref<[32 : !i64, 32 : !i64], !f32>, %2 : !memref<[32 : !i64, 32 : !i64], !f32>) ["doc" = "C(d0, d1) += A(d0, d2) * B(d2, d1)", "indexing_maps" = [!affine_map<(d0,d1,d2)[] -> (d0,d2)>, !affine_map<(d0,d1,d2)[] -> (d2,d1)>, !affine_map<(d0,d1,d2)[] -> (d0,d1)>], "library_call" = "linalg_matmul", "iterator_types" = ["parallel", "parallel", "reduction"], "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [2 : !i32, 1 : !i32]>] {
+    ^1(%3 : !f32, %4 : !f32, %5 : !f32):
+      %d : !f32 = arith.mulf(%3 : !f32, %4 : !f32)
+      %e : !f32 = arith.addf(%5 : !f32, %d : !f32)
+      linalg.yield(%e : !f32)
+    }
+  }
+  func.call() ["callee" = @test]
+}
+
+
+// CHECK: module() {
+// CHECK-NEXT:   func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+// CHECK-NEXT:   ^0(%0 : !memref<[32 : !i64, 32 : !i64], !f32>, %1 : !memref<[32 : !i64, 32 : !i64], !f32>, %2 : !memref<[32 : !i64, 32 : !i64], !f32>):
+// CHECK-NEXT:     linalg.generic(%0 : !memref<[32 : !i64, 32 : !i64], !f32>, %1 : !memref<[32 : !i64, 32 : !i64], !f32>, %2 : !memref<[32 : !i64, 32 : !i64], !f32>) ["doc" = "C(d0, d1) += A(d0, d2) * B(d2, d1)", "indexing_maps" = [!affine_map<(d0,d1,d2)[] -> (d0,d2)>, !affine_map<(d0,d1,d2)[] -> (d2,d1)>, !affine_map<(d0,d1,d2)[] -> (d0,d1)>], "library_call" = "linalg_matmul", "iterator_types" = ["parallel", "parallel", "reduction"], "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [2 : !i32, 1 : !i32]>] {
+// CHECK-NEXT:     ^1(%3 : !f32, %4 : !f32, %5 : !f32):
+// CHECK-NEXT:       %d : !f32 = arith.mulf(%3 : !f32, %4 : !f32)
+// CHECK-NEXT:       %e : !f32 = arith.addf(%5 : !f32, %d : !f32)
+// CHECK-NEXT:       linalg.yield(%e : !f32)
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT:   func.call() ["callee" = @test]
+// CHECK-NEXT: }

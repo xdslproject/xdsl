@@ -580,6 +580,7 @@ def irdl_op_definition(
             get_operand_or_result(self, idx, previous_vars, True))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
+
     if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
         raise Exception(
             "Operation defines more than two variadic operands, "

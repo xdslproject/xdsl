@@ -105,6 +105,21 @@ class Parser:
             raise Exception("int literal expected")
         return res
 
+    def parse_optional_float_literal(self) -> Optional[float]:
+        is_negative = self.parse_optional_char('-')
+        res = self.parse_while(lambda char: (char.isnumeric() | (char == '.')))
+        self.parse_optional_char('f')
+        try:
+            return float(res) if is_negative is None else -float(res)
+        except:
+            return None
+
+    def parse_float_literal(self) -> float:
+        res = self.parse_optional_float_literal()
+        if res is None:
+            raise Exception("float literal expected")
+        return res
+
     def peek_char(self, char: str) -> Optional[bool]:
         self.skip_white_space()
         if self._idx == len(self._str):
@@ -273,15 +288,27 @@ class Parser:
         if string_lit is not None:
             return StringAttr.from_str(string_lit)
 
-        # Shorthand for IntegerAttr
-        integer_lit = self.parse_optional_int_literal()
-        if integer_lit is not None:
+        # Shorthand for IntegerAttr | FloatAttr
+        num_lit = self.parse_optional_int_literal()
+        if num_lit is not None:
+            if self.parse_optional_char('.'):
+                decimals = self.parse_optional_int_literal()
+                if decimals is None:
+                    raise Exception("float literal expected")
+                self.parse_optional_char('f')
+                typ = f32
+            else:
+                decimals = None
+                typ = IntegerType.from_width(64)
+
             if self.peek_char(":"):
                 self.parse_char(":")
                 typ = self.parse_attribute()
-            else:
-                typ = IntegerType.from_width(64)
-            return IntegerAttr.from_params(integer_lit, typ)
+
+            if decimals is not None:
+                return FloatingAttr.from_params(
+                    float(str(num_lit) + '.' + str(decimals)), typ)
+            return IntegerAttr.from_params(num_lit, typ)
 
         # Shorthand for ArrayAttr
         parse_bracket = self.parse_optional_char("[")
@@ -309,7 +336,19 @@ class Parser:
                 return IntegerType.from_width(num)
             attr_def_name = "i" + self.parse_alpha_num(skip_white_space=True)
         else:
-            attr_def_name = self.parse_alpha_num(skip_white_space=True)
+            attr_def_name = ""
+
+        # shorthand for float types
+        if not len(attr_def_name):
+            parsed = self.parse_optional_char('f')
+            if parsed:
+                num = self.parse_optional_int_literal()
+                if num:
+                    return FloatType.from_width(num)
+                attr_def_name = "f" + self.parse_alpha_num(
+                    skip_white_space=True)
+            else:
+                attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
         attr_def = self._ctx.get_attr(attr_def_name)
         if self.parse_optional_char("<") is None:
@@ -380,14 +419,20 @@ class Parser:
         else:
             op_name = self.parse_alpha_num()
 
-        operands = self.parse_operands()
-        successors = self.parse_successors()
-        attributes = self.parse_op_attributes()
-        result_types = [typ for (name, typ) in results]
-        op = self._ctx.get_op(op_name).create(operands,
-                                              result_types,
-                                              attributes=attributes,
-                                              successors=successors)
+        # divert to custom parsing an op
+        op_def = self._ctx.get_op(op_name)
+        custom_parser = getattr(op_def, "parse", None)
+        if callable(custom_parser):
+            op = custom_parser(self)
+        else:
+            operands = self.parse_operands()
+            successors = self.parse_successors()
+            attributes = self.parse_op_attributes()
+            result_types = [typ for (name, typ) in results]
+            op = self._ctx.get_op(op_name).create(operands,
+                                                  result_types,
+                                                  attributes=attributes,
+                                                  successors=successors)
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
             if res[0] in self._ssaValues:
