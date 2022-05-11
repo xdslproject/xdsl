@@ -53,10 +53,16 @@ class Parser:
             raise Exception("ident expected")
         return res
 
-    def parse_alpha_num(self, skip_white_space=True) -> str:
+    def parse_optional_alpha_num(self, skip_white_space=True) -> Optional[str]:
         res = self.parse_while(lambda x: x.isalnum() or x == "_" or x == ".",
                                skip_white_space=skip_white_space)
         if len(res) == 0:
+            return None
+        return res
+
+    def parse_alpha_num(self, skip_white_space=True) -> str:
+        res = self.parse_optional_alpha_num(skip_white_space=skip_white_space)
+        if res is None:
             raise Exception("alphanum expected")
         return res
 
@@ -225,6 +231,12 @@ class Parser:
             raise Exception("name '%s' does not refer to a SSA value" % name)
         return self._ssaValues[name]
 
+    def parse_ssa_value(self) -> SSAValue:
+        res = self.parse_optional_ssa_value()
+        if res is None:
+            raise Exception("Expected SSA value")
+        return res
+
     def parse_optional_result(self) -> Optional[Tuple[str, Attribute]]:
         name = self.parse_optional_ssa_name()
         if name is None:
@@ -370,24 +382,60 @@ class Parser:
     def is_valid_name(self, name: str) -> bool:
         return not name[-1].isnumeric()
 
-    def parse_optional_op(self) -> Optional[Operation]:
-        results = self.parse_optional_results()
-        if results is None:
-            op_name = self.parse_optional_ident()
-            if op_name is None:
-                return None
-            results = []
-        else:
-            op_name = self.parse_alpha_num()
+    _OperationType = TypeVar('_OperationType', bound='Operation')
 
+    def parse_op_with_default_format(
+            self, op_type: typing.Type[_OperationType],
+            result_types: List[Attribute]) -> _OperationType:
         operands = self.parse_operands()
         successors = self.parse_successors()
         attributes = self.parse_op_attributes()
-        result_types = [typ for (name, typ) in results]
-        op = self._ctx.get_op(op_name).create(operands,
-                                              result_types,
-                                              attributes=attributes,
-                                              successors=successors)
+        regions = []
+        region = self.parse_optional_region()
+        while region is not None:
+            regions.append(region)
+            region = self.parse_optional_region()
+
+        return op_type.create(operands=operands,
+                              result_types=result_types,
+                              attributes=attributes,
+                              successors=successors,
+                              regions=regions)
+
+    def _parse_optional_op_name(self) -> Optional[Tuple[str, bool]]:
+        op_name = self.parse_optional_alpha_num()
+        if op_name is not None:
+            return op_name, False
+        op_name = self.parse_optional_str_literal()
+        if op_name is not None:
+            return op_name, True
+        return None
+
+    def _parse_op_name(self) -> Tuple[str, bool]:
+        op_name = self._parse_optional_op_name()
+        if op_name is None:
+            raise Exception("Expected operation name")
+        return op_name
+
+    def parse_optional_op(self) -> Optional[Operation]:
+        results = self.parse_optional_results()
+        if results is None:
+            op_name_and_generic = self._parse_optional_op_name()
+            if op_name_and_generic is None:
+                return None
+            op_name, is_generic_format = op_name_and_generic
+            results = []
+        else:
+            op_name, is_generic_format = self._parse_op_name()
+
+        result_types = [typ for (_, typ) in results]
+
+        op_type = self._ctx.get_op(op_name)
+        if not is_generic_format:
+            op = op_type.parse(result_types, self)
+        else:
+            op = self.parse_op_with_default_format(op_type, result_types)
+
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
             if res[0] in self._ssaValues:
@@ -396,10 +444,6 @@ class Parser:
             if self.is_valid_name(res[0]):
                 self._ssaValues[res[0]].name = res[0]
 
-        region = self.parse_optional_region()
-        while region is not None:
-            op.add_region(region)
-            region = self.parse_optional_region()
         return op
 
     def parse_op(self) -> Operation:
