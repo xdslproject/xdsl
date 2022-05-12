@@ -298,7 +298,7 @@ class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
 
 def test_typevar_attribute_int():
     """Test the verifier of a generic attribute."""
-    attr = ParamWrapperAttr([IntData(42)])
+    attr = ParamWrapperAttr[IntData]([IntData(42)])
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -307,7 +307,7 @@ def test_typevar_attribute_int():
 
 def test_typevar_attribute_bool():
     """Test the verifier of a generic attribute."""
-    attr = ParamWrapperAttr([BoolData(True)])
+    attr = ParamWrapperAttr[BoolData]([BoolData(True)])
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -363,7 +363,7 @@ def test_nested_generic_constraint():
     Test the verifier of an attribute with a generic
     constraint used in a parametric constraint.
     """
-    attr = NestedParamWrapperAttr([ParamWrapperAttr([IntData(42)])])
+    attr = NestedParamWrapperAttr[IntData]([ParamWrapperAttr([IntData(42)])])
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -471,7 +471,7 @@ class DataListAttr(AttrConstraint):
     elem_constr: AttrConstraint
 
     def verify(self, attr: Attribute) -> None:
-        attr = cast(ListData, attr)
+        attr = cast(ListData[Any], attr)
         for e in attr.data:
             self.elem_constr.verify(e)
 
@@ -570,7 +570,7 @@ def test_generic_data_wrapper_verifier_failure():
 class ListDataNoGenericsWrapper(ParametrizedAttribute):
     name = "list_no_generics_wrapper"
 
-    val: ParameterDef[ListData]
+    val: ParameterDef[ListData[Any]]
 
 
 def test_generic_data_no_generics_wrapper_verifier():

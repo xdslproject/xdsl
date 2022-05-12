@@ -29,7 +29,7 @@ _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute):
     name = "memref"
 
-    shape: ParameterDef[ArrayAttr[IntegerAttr]]
+    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
 
     def get_num_dims(self) -> int:
@@ -42,20 +42,20 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute):
     @builder
     def from_type_and_list(
         referenced_type: _MemRefTypeElement,
-        shape: Optional[List[int | IntegerAttr]] = None
+        shape: Optional[List[int | AnyIntegerAttr]] = None
     ) -> MemRefType[_MemRefTypeElement]:
         if shape is None:
             shape = [1]
         return MemRefType([
-            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
-            referenced_type
+            ArrayAttr[AnyIntegerAttr].from_list(
+                [IntegerAttr.build(d) for d in shape]), referenced_type
         ])
 
     @staticmethod
     @builder
     def from_params(
         referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[IntegerAttr] = ArrayAttr.from_list(
+        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type])
@@ -124,7 +124,7 @@ class Alloc(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | IntegerAttr]] = None) -> Alloc:
+            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
@@ -152,7 +152,7 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | IntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
         if shape is None:
             shape = [1]
         return Alloca.build(
