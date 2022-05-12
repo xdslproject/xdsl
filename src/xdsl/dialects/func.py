@@ -26,10 +26,9 @@ class FuncOp(Operation):
     sym_visibility = AttributeDef(StringAttr)
 
     @staticmethod
-    def from_callable(
-            name: str, input_types: List[Attribute],
-            return_types: List[Attribute],
-            func: Callable[[BlockArgument, ...], List[Operation]]) -> FuncOp:
+    def from_callable(name: str, input_types: List[Attribute],
+                      return_types: List[Attribute],
+                      func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         op = FuncOp.build(attributes={
             "sym_name": name,
