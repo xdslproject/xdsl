@@ -311,10 +311,7 @@ class PlusCustomFormatOp(Operation):
                                          result_types=result_types)
 
     def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_ssa_value(self.lhs)
-        printer.print(" + ")
-        printer.print_ssa_value(self.rhs)
+        printer.print(" ", self.lhs, " + ", self.rhs)
 
 
 def test_generic_format():

@@ -26,8 +26,27 @@ class Printer:
     _next_line_callback: List[Callable[[], None]] = field(default_factory=list,
                                                           init=False)
 
-    def print(self, text: Any):
-        text = str(text)
+    def print(self, *argv) -> None:
+        for arg in argv:
+            if isinstance(arg, str):
+                self.print_string(arg)
+                continue
+            if isinstance(arg, SSAValue):
+                self.print_ssa_value(arg)
+                continue
+            if isinstance(arg, Attribute):
+                self.print_attribute(arg)
+                continue
+            if isinstance(arg, Region):
+                self.print_region(arg)
+                continue
+            if isinstance(arg, Block):
+                self.print_block_name(arg)
+                continue
+            text = str(arg)
+            self.print_string(text)
+
+    def print_string(self, text) -> None:
         lines = text.split('\n')
         if len(lines) != 1:
             self._current_line += len(lines) - 1
@@ -35,9 +54,6 @@ class Printer:
         else:
             self._current_column += len(lines[-1])
         print(text, end='', file=self.stream)
-
-    def print_string(self, string) -> None:
-        self.print(string)
 
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
@@ -186,7 +202,7 @@ class Printer:
         self.print("%s : " % name)
         self.print_attribute(arg.typ)
 
-    def _print_region(self, region: Region) -> None:
+    def print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
             self.print(" {}")
             return
@@ -203,9 +219,9 @@ class Printer:
             self._print_named_block(block)
         self.print("}")
 
-    def _print_regions(self, regions: List[Region]) -> None:
+    def print_regions(self, regions: List[Region]) -> None:
         for region in regions:
-            self._print_region(region)
+            self.print_region(region)
 
     def _print_operands(self, operands: FrozenList[SSAValue]) -> None:
         if len(operands) == 0:
@@ -289,7 +305,7 @@ class Printer:
         self._print_operands(op.operands)
         self.print_successors(op.successors)
         self._print_op_attributes(op.attributes)
-        self._print_regions(op.regions)
+        self.print_regions(op.regions)
 
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column
