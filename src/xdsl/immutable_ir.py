@@ -176,13 +176,9 @@ class IBlock:
         self.args.freeze()
         self.ops.freeze()
 
-    def __init__(self,
-                 args: List[Attribute] | List[IBlockArg],
-                 ops: List[IOp],
-                 env: Optional[Dict[ISSAValue, ISSAValue]] = None):
+    def __init__(self, args: List[Attribute] | List[IBlockArg],
+                 ops: List[IOp]):
         """Creates a new immutable block."""
-        if env is None:
-            env = {}
 
         # Type Guards:
         def is_iblock_arg_list(list: List[Any]) -> TypeGuard[List[IBlockArg]]:
@@ -217,7 +213,12 @@ class IBlock:
                     env: Optional[Dict[ISSAValue, ISSAValue]] = None):
         """Creates a new immutable block to replace an existing immutable block, e.g.
         in the context of rewriting. The number and types of block args are retained 
-        and all references to block args of the old block will be updated to the new block"""
+        and all references to block args of the old block will be updated to the new block
+
+        env --  records updated results and block args of newly created ops/blocks in this 
+                process to be used by dependant ops.
+        """
+
         if env is None:
             env = {}
 
@@ -270,7 +271,7 @@ class IBlock:
 
             # update operands of this op if the corresponing op has been rebuilt
             # or in case it is a block_arg, if we have an updated block_arg
-            new_operands: List[ISSAValue | IOp | PartialIOp] = []
+            new_operands: List[ISSAValue | IOp | List[IOp]] = []
             for operand in op.operands:
                 if operand in env:
                     new_operands.append(env[operand])
@@ -284,13 +285,13 @@ class IBlock:
                                          operands=new_operands,
                                          regions=new_regions,
                                          env=env)
-                assert len(substituted_op.ops) == 1
-                return substituted_op.ops[-1]
+                assert len(substituted_op) == 1
+                return substituted_op[-1]
             return op
 
         ops = [substitute_if_required(op) for op in ops]
 
-        return cls(args=block_args, ops=ops, env=env)
+        return cls(args=block_args, ops=ops)
 
     @classmethod
     def from_mutable(
@@ -552,19 +553,12 @@ class IOp:
             region.walk(fun)
 
 
-@dataclass(frozen=True)
-class PartialIOp:
-    ops: List[IOp]
-    env: Dict[ISSAValue, ISSAValue]
-
-
 def new_op(op_type: type[Operation],
-           operands: Optional[List[ISSAValue | IOp | PartialIOp]] = None,
+           operands: Optional[List[ISSAValue | IOp | List[IOp]]] = None,
            result_types: Optional[List[Attribute]] = None,
            attributes: Optional[Dict[str, Attribute]] = None,
            successors: Optional[List[IBlock]] = None,
-           regions: Optional[List[IRegion]] = None,
-           env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> PartialIOp:
+           regions: Optional[List[IRegion]] = None) -> List[IOp]:
     if operands is None:
         operands = []
     if result_types is None:
@@ -575,26 +569,22 @@ def new_op(op_type: type[Operation],
         successors = []
     if regions is None:
         regions = []
-    if env is None:
-        env = {}
 
-    (new_operands, rewritten_ops) = _unpack_operands(operands, env)
+    (new_operands, rewritten_ops) = _unpack_operands(operands)
 
     op = IOp.get(op_type.name, op_type, new_operands, result_types, attributes,
                  successors, regions)
     rewritten_ops.append(op)
-    return PartialIOp(rewritten_ops, env)
+    return rewritten_ops
 
 
 def from_op(old_op: IOp,
-            operands: Optional[List[ISSAValue | IOp | PartialIOp]] = None,
+            operands: Optional[List[ISSAValue | IOp | List[IOp]]] = None,
             result_types: Optional[List[Attribute]] = None,
             attributes: Optional[Dict[str, Attribute]] = None,
             successors: Optional[List[IBlock]] = None,
             regions: Optional[List[IRegion]] = None,
-            env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> PartialIOp:
-    if env is None:
-        env = {}
+            env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> List[IOp]:
     if operands is None:
         operands = list(old_op.operands)
     if result_types is None:
@@ -604,7 +594,7 @@ def from_op(old_op: IOp,
     if regions is None:
         regions = list(old_op.regions)
 
-    (new_operands, rewritten_ops) = _unpack_operands(operands, env)
+    (new_operands, rewritten_ops) = _unpack_operands(operands)
     if attributes is None:
         op = IOp(
             old_op._op_data,  # type: ignore
@@ -616,24 +606,28 @@ def from_op(old_op: IOp,
         op = IOp.get(old_op.name, old_op.op_type, new_operands, result_types,
                      attributes, successors, regions)
     rewritten_ops.append(op)
-    for idx, result in enumerate(op.results):
-        env[old_op.results[idx]] = result
-    return PartialIOp(rewritten_ops, env)
+    if env is not None:
+        # env not None means this is used in the context of a Block rebuilding.
+        # As other operations depending on this op might have to be updated as
+        # well, we have to add a mapping to the new results of this op to env.
+        for idx, result in enumerate(op.results):
+            env[old_op.results[idx]] = result
+    return rewritten_ops
 
 
 def _unpack_operands(
-        operands: List[ISSAValue | IOp | PartialIOp],
-        env: Dict[ISSAValue, ISSAValue]) -> Tuple[List[ISSAValue], List[IOp]]:
+    operands: List[ISSAValue | IOp | List[IOp]]
+) -> Tuple[List[ISSAValue], List[IOp]]:
     unpacked_operands: List[ISSAValue] = []
     rewritten_ops: List[IOp] = []
     for operand in operands:
         if isinstance(operand, IOp):
             assert operand.result is not None
             operand = operand.result
-        if isinstance(operand, PartialIOp):
-            env |= operand.env
-            assert operand.ops[-1].result is not None
-            rewritten_ops = operand.ops + rewritten_ops
-            operand = operand.ops[-1].result
+        if isinstance(ops := operand, List):
+            assert ops[-1].result is not None
+            rewritten_ops = ops + rewritten_ops
+            operand = ops[-1].result
+        assert not isinstance(operand, List)
         unpacked_operands.append(operand)
     return (unpacked_operands, rewritten_ops)

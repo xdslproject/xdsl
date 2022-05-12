@@ -14,7 +14,6 @@ class IOpReplacement(NamedTuple):
 @dataclass
 class RewriteResult:
     result: Union[Strategy, List[IOpReplacement]]
-    env: Dict[ISSAValue, ISSAValue]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
         if (not isinstance(self.result, List)):
@@ -40,7 +39,6 @@ class RewriteResult:
         if self.isSuccess() and other.isSuccess():
             assert isinstance(self.result, List) and isinstance(
                 other.result, List)
-            self.env |= other.env
             self.result += other.result
             return self
         raise Exception("invalid concatenation of RewriteResults")
@@ -52,15 +50,13 @@ class RewriteResult:
         return self.result[-1].replacement[-1]
 
 
-def success(arg: IOp | PartialIOp | RewriteResult,
+def success(arg: IOp | List[IOp] | RewriteResult,
             matched_op: IOp) -> RewriteResult:
     match arg:
         case IOp():
             ops = [arg]
-            env = {}
-        case PartialIOp():
-            ops = arg.ops
-            env = arg.env
+        case [*_]:
+            ops = arg
         case _:
             raise Exception("success called with incompatible arguments")
 
@@ -76,12 +72,12 @@ def success(arg: IOp | PartialIOp | RewriteResult,
 
     # trace_operands_recursive(ops[-1].operands, ops)
 
-    return RewriteResult([IOpReplacement(matched_op, ops)], env)
+    return RewriteResult([IOpReplacement(matched_op, ops)])
 
 
 def failure(failed_strategy: Strategy) -> RewriteResult:
     assert isinstance(failed_strategy, Strategy)
-    return RewriteResult(failed_strategy, {})
+    return RewriteResult(failed_strategy)
 
 
 @dataclass
@@ -194,8 +190,7 @@ class one(Strategy):
                                     result_types=op.result_types,
                                     attributes=op.get_attributes_copy(),
                                     successors=list(op.successors),
-                                    regions=op.regions,
-                                    env=rr.env)
+                                    regions=op.regions)
 
                     rr += success(result, op)
                     return rr
@@ -216,9 +211,7 @@ class one(Strategy):
                                    1] = replacement_ops
 
                 new_regions = op.regions[:idx] + [
-                    IRegion([
-                        IBlock.from_iblock(nested_ops, matched_block, rr.env)
-                    ])
+                    IRegion([IBlock.from_iblock(nested_ops, matched_block)])
                 ] + op.regions[idx + 1:]
 
                 result = new_op(op_type=op.op_type,
@@ -226,8 +219,7 @@ class one(Strategy):
                                 result_types=op.result_types,
                                 attributes=op.attributes,
                                 successors=list(op.successors),
-                                regions=new_regions,
-                                env=rr.env)
+                                regions=new_regions)
                 rr += success(result, op)
                 return rr
         return failure(self)
