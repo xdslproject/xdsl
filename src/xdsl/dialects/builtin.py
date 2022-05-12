@@ -125,11 +125,14 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+_IntegerAttrTyp = TypeVar("_IntegerAttrTyp", bound=IntegerType | IndexType)
+
+
 @irdl_attr_definition
-class IntegerAttr(ParametrizedAttribute):
+class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    typ: ParameterDef[IntegerType | IndexType]
+    typ: ParameterDef[_IntegerAttrTyp]
 
     @staticmethod
     @builder
@@ -228,12 +231,15 @@ class TupleType(ParametrizedAttribute):
         return TupleType([ArrayAttr.from_list(types)])
 
 
+_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
+
+
 @irdl_attr_definition
-class VectorType(ParametrizedAttribute):
+class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[IntegerAttr]]
-    element_type: ParameterDef[Attribute]
+    element_type: ParameterDef[_VectorTypeElems]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -244,8 +250,9 @@ class VectorType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_type_and_list(
-            referenced_type: Attribute,
-            shape: Optional[List[int | IntegerAttr]] = None) -> VectorType:
+        referenced_type: _VectorTypeElems,
+        shape: Optional[List[int | IntegerAttr]] = None
+    ) -> VectorType[_VectorTypeElems]:
         if shape is None:
             shape = [1]
         return VectorType([
@@ -256,19 +263,22 @@ class VectorType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_params(
-        referenced_type: Attribute,
+        referenced_type: _VectorTypeElems,
         shape: ArrayAttr[IntegerAttr] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> VectorType:
+    ) -> VectorType[_VectorTypeElems]:
         return VectorType([shape, referenced_type])
 
 
+_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
+
+
 @irdl_attr_definition
-class TensorType(ParametrizedAttribute):
+class TensorType(Generic[_VectorTypeElems], ParametrizedAttribute):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[IntegerAttr]]
-    element_type: ParameterDef[Attribute]
+    element_type: ParameterDef[_VectorTypeElems]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -279,8 +289,9 @@ class TensorType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_type_and_list(
-            referenced_type: Attribute,
-            shape: Optional[Sequence[int | IntegerAttr]] = None) -> TensorType:
+        referenced_type: _VectorTypeElems,
+        shape: Optional[Sequence[int | IntegerAttr]] = None
+    ) -> TensorType[_VectorTypeElems]:
         if shape is None:
             shape = [1]
         return TensorType([
@@ -291,10 +302,10 @@ class TensorType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_params(
-        referenced_type: Attribute,
+        referenced_type: _VectorTypeElems,
         shape: ArrayAttr[IntegerAttr] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> TensorType:
+    ) -> TensorType[_VectorTypeElems]:
         return TensorType([shape, referenced_type])
 
 
