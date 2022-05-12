@@ -59,7 +59,9 @@ class IResult(ISSAValue):
         return hash(id(self.op)) + hash(self.result_index)
 
     def __eq__(self, __o: IResult) -> bool:
-        return self.op == __o.op and self.result_index == __o.result_index
+        if isinstance(__o, IResult):
+            return self.op == __o.op and self.result_index == __o.result_index
+        return False
 
 
 @dataclass(frozen=True)

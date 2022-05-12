@@ -1,16 +1,13 @@
 from __future__ import annotations
 from io import StringIO
-from optparse import Option
-from pprint import pprint
+from xdsl.dialects import memref
 import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.scf as scf
-from xdsl.dialects.affine import Affine
+import xdsl.dialects.affine as affine
 from xdsl.parser import Parser
-from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern
 from xdsl.printer import Printer
 from xdsl.dialects.func import *
-from xdsl.dialects.func import Return as stdReturn
 
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
@@ -28,12 +25,54 @@ def rewriting_with_immutability_experiments():
     # constant folding
     before = \
 """module() {
+%unused : !i32 = arith.constant() ["value" = 42 : !i32]
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
 %3 : !i32 = arith.constant() ["value" = 4 : !i32]
 %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
 func.return(%4 : !i32)
+}
+"""
+
+    before_affine_loops_3_deep_nest = \
+"""module() {
+  func.func() ["sym_name" = "affine_mm", "function_type" = !fun<[!memref<[256 : !index, 256 : !index], !i32>, !memref<[256 : !index, 256 : !index], !i32>, !memref<[256 : !index, 256 : !index], !i32>], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[256 : !index, 256 : !index], !i32>, %1 : !memref<[256 : !index, 256 : !index], !i32>, %2 : !memref<[256 : !index, 256 : !index], !i32>):
+    %res_outer : !memref<[256 : !index, 256 : !index], !i32> = scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+    ^1(%3 : !index):
+      %res_middle : !memref<[256 : !index, 256 : !index], !i32> = scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+      ^2(%4 : !index):
+        scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+        ^3(%7 : !index):
+          %9 : !i32 = memref.load(%0 : !memref<[256 : !index, 256 : !index], !i32>, %3 : !index, %7 : !index)
+          %10 : !i32 = memref.load(%1 : !memref<[256 : !index, 256 : !index], !i32>, %7 : !index, %4 : !index)
+          %11 : !i32 = memref.load(%2 : !memref<[256 : !index, 256 : !index], !i32>, %3 : !index, %4 : !index)
+          %12 : !i32 = arith.mulf(%9 : !i32, %10 : !i32)
+          %13 : !i32 = arith.addf(%11 : !i32, %12 : !i32)
+          memref.store(%13 : !i32, %2 : !memref<[256 : !index, 256 : !index], !i32>, %3 : !index, %4 : !index)
+        }
+      }
+    }
+    func.return(%res_outer : !memref<[256 : !index, 256 : !index], !i32>)
+  }
+}
+"""
+
+
+    before_affine_loops = \
+"""module() {
+  func.func() ["sym_name" = "sum_vec", "function_type" = !fun<[!memref<[128 : !index], !i32>], [!i32]>, "sym_visibility" = "private"] {
+  ^10(%ref : !memref<[128 : !index], !i32>):
+    %const0 : !i32 = arith.constant() ["value" = 0 : !i32]
+    %r : !i32 = affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+    ^11(%i : !index):
+      %val : !i32 = memref.load(%ref : !memref<[128 : !index], !i32>, %i : !index)
+      %res : !i32 = arith.addi(%const0 : !i32, %val : !i32)
+      affine.yield(%res : !i32)
+    }
+    func.return(%r : !i32)
+  }
 }
 """
 
@@ -100,7 +139,7 @@ func.return(%4 : !i32)
                                     attr1.value.data + attr2.value.data,
                                     attr1.typ)
                             })
-                    return success(result)
+                    return success(result, op)
                 case _:
                     return failure(self)
 
@@ -112,7 +151,7 @@ func.return(%4 : !i32)
                 case IOp(op_type=arith.Addi,
                         operands=[operand0, operand1]):
                     result = from_op(op, operands=[operand1, operand0])
-                    return success(result)
+                    return success(result, op)
                 case _:
                     return failure(self)
 
@@ -130,7 +169,7 @@ func.return(%4 : !i32)
                                     IntegerAttr.from_params(42,
                                                             attr.typ)
                                 })
-                    return success(result)
+                    return success(result, op)
                 case _:
                     return failure(self)
 
@@ -143,7 +182,7 @@ func.return(%4 : !i32)
                             operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
                             region=IRegion(block=
                                 IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])]))):                         
-                            return success(returned_op)
+                            return success(returned_op, op)
                 case _:
                     return failure(self)
 
@@ -161,18 +200,94 @@ func.return(%4 : !i32)
                             }, result_types=[type])
                     ], result_types=[type])
 
-                    return success(result)
+                    return success(result, op)
                 case _:
                     return failure(self)
+
+
+    @dataclass
+    class LoopUnroll(Strategy):
+
+        def impl(self, op: IOp) -> RewriteResult:
+            match op:
+                case IOp(op_type=affine.For, results=[IResult(typ=IntegerType() as type)], 
+                            attributes={"lower_bound": IntegerAttr(value=IntAttr(data=lb)), 
+                                        "upper_bound": IntegerAttr(value=IntAttr(data=ub)), 
+                                        "step": IntegerAttr(value=IntAttr(data=step))},
+                            region=IRegion(block=IBlock(args=[IBlockArg() as iv], ops=[*_, IOp(op_type=affine.Yield, operands=[IResult(op=returned_op)])] as ops)) as loop_region):   
+                    print(f"matched loop with lb:{lb} ub:{ub}, step:{step}")
+
+                    new_ops: List[IOp] = []
+                    for constant_iv in range(lb, ub, step):
+                        iv_replacement = new_op(Constant,
+                                attributes={
+                                    "value": IntegerAttr.from_index_int_value(constant_iv)
+                                }, result_types=[IndexType()])[-1]
+                        assert iv_replacement.result is not None
+                        new_ops.append(iv_replacement)
+                        env: Dict[ISSAValue, ISSAValue] = {iv:iv_replacement.result}
+                        for op_idx in range(0, len(ops)-1):
+                            # check if blockArg is in operands
+                            # TODO: Type annotation should actually be List[ISSAValue], but Pylance complains
+                            new_operands: List[ISSAValue | IOp | List[IOp]] = []
+                            operands_changed = False
+                            for operand in ops[op_idx].operands:
+                                if operand in env.keys():
+                                    operands_changed = True
+                                    
+                                    new_operands.append(env[operand])
+                                else:
+                                    new_operands.append(operand)
+                            if operands_changed:
+                                updated_op = from_op(ops[op_idx], operands=new_operands)
+                                for res_idx, result in enumerate(updated_op[-1].results):
+                                    env[ops[op_idx].results[res_idx]] = result
+                                new_ops.extend(updated_op)
+                            else:
+                                new_ops.extend(from_op(ops[op_idx]))
+
+                    result = new_ops
+
+                    return success(result, op)
+                case _:
+                    return failure(self)
+
+
+    @dataclass
+    class LoopSplit(Strategy):
+        length_snd_loop: int
+
+        def impl(self, op: IOp) -> RewriteResult:
+            match op:
+                case IOp(op_type=affine.For, results=[IResult(typ=IntegerType() as type)], 
+                            attributes={"lower_bound": IntegerAttr(value=IntAttr(data=lb)), 
+                                        "upper_bound": IntegerAttr(value=IntAttr(data=ub)), 
+                                        "step": IntegerAttr(value=IntAttr(data=step))},
+                            region=IRegion(block=IBlock(ops=[*_, IOp(op_type=affine.Yield, operands=[IResult(op=returned_op)])])) as loop_region) if ub > self.length_snd_loop:
+                    print(f"matched loop with lb:{lb} ub:{ub}, step:{step}")
+                    assert step == 1 and "Splitting currently only supported for loops with step 1"
+
+                    first_loop = from_op(op, attributes={"lower_bound": IntegerAttr.from_index_int_value(lb), 
+                                                                "upper_bound": IntegerAttr.from_index_int_value(ub-self.length_snd_loop), 
+                                                                "step": IntegerAttr.from_index_int_value(step)}, regions=[loop_region])
+                    snd_loop = from_op(op, attributes={"lower_bound": IntegerAttr.from_index_int_value(ub-self.length_snd_loop), 
+                                                                "upper_bound": IntegerAttr.from_index_int_value(ub), 
+                                                                "step": IntegerAttr.from_index_int_value(step)}, regions=[loop_region])
+
+                    return success(first_loop + snd_loop, op)
+                case _:
+                    return failure(self)
+
 
     ctx = MLContext()
     Builtin(ctx)
     Func(ctx)
     Arith(ctx)
     scf.Scf(ctx)
-    Affine(ctx)
+    affine.Affine(ctx)
+    memref.MemRef(ctx)
 
-    parser = Parser(ctx, before_scf_if)
+    parser = Parser(ctx, before_affine_loops)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -185,25 +300,27 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    rrImmM1 = topdown(AddZero()).apply(immBeforeM)
+
+    # rrImmM1 = topdown(seq(debug(), fail())).apply(immBeforeM)
+    rrImmM1 = topdown(LoopSplit(3)).apply(immBeforeM)
     print(rrImmM1)
     assert rrImmM1.isSuccess()
 
     printer = Printer()
     printer.print_op(rrImmM1.result_op.get_mutable_copy())
 
-    # rrImmM2 = topdown(FoldConstantAdd()).apply(rrImmM1.result[-1])
-    # print(rrImmM2)
-    # assert (rrImmM2.isSuccess()
-    #         and isinstance(rrImmM2.result[-1], IOp))
+    rrImmM2 = topdown(LoopUnroll()).apply(rrImmM1.result_op)
+    print(rrImmM2)
+    assert (rrImmM2.isSuccess()
+            and isinstance(rrImmM2.result_op, IOp))
 
-    # file = StringIO("")
-    # printer = Printer(stream=file)
-    # printer.print_op(rrImmM2.result[-1].get_mutable_copy())
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(rrImmM2.result_op.get_mutable_copy())
 
     # For debugging: printing the actual output
-    # print("after:")
-    # print(file.getvalue().strip())
+    print("after:")
+    print(file.getvalue().strip())
 
     checkDiff = False
     if checkDiff:

@@ -180,6 +180,7 @@ class one(Strategy):
                 rr = self.s.apply(operand.op)
                 if rr.isSuccess():
                     assert isinstance(rr.result, List)
+                    assert len(rr.result_op.results) > operand.result_index
                     # build the operands including the new operand
                     new_operands: List[ISSAValue] = op.operands[:idx] + [
                         rr.result_op.results[operand.result_index]
