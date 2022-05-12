@@ -22,12 +22,15 @@ class MemRef:
         self.ctx.register_op(Global)
 
 
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+
+
 @irdl_attr_definition
-class MemRefType(ParametrizedAttribute):
+class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute):
     name = "memref"
 
     shape: ParameterDef[ArrayAttr[IntegerAttr]]
-    element_type: ParameterDef[Attribute]
+    element_type: ParameterDef[_MemRefTypeElement]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -38,8 +41,9 @@ class MemRefType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_type_and_list(
-            referenced_type: Attribute,
-            shape: Optional[List[int | IntegerAttr]] = None) -> MemRefType:
+        referenced_type: _MemRefTypeElement,
+        shape: Optional[List[int | IntegerAttr]] = None
+    ) -> MemRefType[_MemRefTypeElement]:
         if shape is None:
             shape = [1]
         return MemRefType([
@@ -50,10 +54,10 @@ class MemRefType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_params(
-        referenced_type: Attribute,
+        referenced_type: _MemRefTypeElement,
         shape: ArrayAttr[IntegerAttr] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> MemRefType:
+    ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type])
 
 
