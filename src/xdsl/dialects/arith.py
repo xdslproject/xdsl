@@ -2,7 +2,7 @@ from __future__ import annotations
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr, FlatSymbolRefAttr
+from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr
 
 
 @dataclass
@@ -125,9 +125,9 @@ class FloorDiviSI(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> FloordiviSigned:
-        return FloordiviSigned.build(operands=[operand1, operand2],
-                                     result_types=[IntegerType.from_width(32)])
+            operand2: Union[Operation, SSAValue]) -> FloorDiviSI:
+        return FloorDiviSI.build(operands=[operand1, operand2],
+                                 result_types=[IntegerType.from_width(32)])
 
 
 @irdl_op_definition
@@ -145,9 +145,9 @@ class RemSI(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> RemiSigned:
-        return RemiSigned.build(operands=[operand1, operand2],
-                                result_types=[IntegerType.from_width(32)])
+            operand2: Union[Operation, SSAValue]) -> RemSI:
+        return RemSI.build(operands=[operand1, operand2],
+                           result_types=[IntegerType.from_width(32)])
 
 
 @irdl_op_definition
@@ -185,10 +185,10 @@ class OrI(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Or:
+            operand2: Union[Operation, SSAValue]) -> OrI:
 
-        return Or.build(operands=[operand1, operand2],
-                        result_types=[SSAValue.get(operand1).typ])
+        return OrI.build(operands=[operand1, operand2],
+                         result_types=[SSAValue.get(operand1).typ])
 
 
 @irdl_op_definition
@@ -206,9 +206,9 @@ class XOrI(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Xor:
-        return Xor.build(operands=[operand1, operand2],
-                         result_types=[SSAValue.get(operand1).typ])
+            operand2: Union[Operation, SSAValue]) -> XOrI:
+        return XOrI.build(operands=[operand1, operand2],
+                          result_types=[SSAValue.get(operand1).typ])
 
 
 @irdl_op_definition
