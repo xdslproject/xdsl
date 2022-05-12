@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, SupportsIndex, TypeGuard, Any
+from typing import Iterable, SupportsIndex, Type, TypeGuard, Any
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
 
@@ -280,10 +280,12 @@ class IBlock:
 
             # If any updates to this op are required we rebuild it
             if substition_required:
-                return from_op(op,
-                               operands=new_operands,
-                               regions=new_regions,
-                               env=env).op
+                substituted_op = from_op(op,
+                                         operands=new_operands,
+                                         regions=new_regions,
+                                         env=env)
+                assert len(substituted_op.ops) == 1
+                return substituted_op.ops[-1]
             return op
 
         ops = [substitute_if_required(op) for op in ops]
@@ -360,7 +362,6 @@ class IOp:
     results: IList[IResult]
     successors: IList[IBlock]
     regions: IList[IRegion]
-    parent_block: Optional[IList[IBlock]] = None
 
     def __init__(self, op_data: OpData, operands: List[ISSAValue],
                  result_types: List[Attribute], successors: List[IBlock],
@@ -396,25 +397,25 @@ class IOp:
         return self is __o
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._op_data.name
 
     @property
-    def op_type(self):
+    def op_type(self) -> Type[Operation]:
         return self._op_data.op_type
 
     @property
-    def attributes(self):
+    def attributes(self) -> Dict[str, Attribute]:
         return self._op_data.attributes
 
     @property
-    def result(self):
+    def result(self) -> IResult | None:
         if len(self.results) > 0:
             return self.results[0]
         return None
 
     @property
-    def region(self):
+    def region(self) -> IRegion | None:
         if len(self.regions) > 0:
             return self.regions[0]
         return None
@@ -437,8 +438,14 @@ class IOp:
             if operand in value_mapping:
                 mutable_operands.append(value_mapping[operand])
             else:
-                raise Exception("op: " + self.name +
-                                " uses SSAValue before definition")
+                print(f"ERROR: op {self.name} uses SSAValue before definition")
+                # Continuing to enable printing the IR including missing
+                # operands for investigation
+                mutable_operands.append(
+                    OpResult(
+                        operand.typ,
+                        None,  # type: ignore
+                        0))
 
         mutable_successors: List[Block] = []
         for successor in self.successors:
@@ -545,10 +552,9 @@ class IOp:
             region.walk(fun)
 
 
-# TODO: are we happy with the name or can we find a better one
 @dataclass(frozen=True)
 class PartialIOp:
-    op: IOp  # TOBE: List
+    ops: List[IOp]
     env: Dict[ISSAValue, ISSAValue]
 
 
@@ -571,10 +577,13 @@ def new_op(op_type: type[Operation],
         regions = []
     if env is None:
         env = {}
-    # only add new op to self.ops
-    op = IOp.get(op_type.name, op_type, _unpack_operands(operands, env),
-                 result_types, attributes, successors, regions)
-    return PartialIOp(op, env)
+
+    (new_operands, rewritten_ops) = _unpack_operands(operands, env)
+
+    op = IOp.get(op_type.name, op_type, new_operands, result_types, attributes,
+                 successors, regions)
+    rewritten_ops.append(op)
+    return PartialIOp(rewritten_ops, env)
 
 
 def from_op(old_op: IOp,
@@ -583,7 +592,7 @@ def from_op(old_op: IOp,
             attributes: Optional[Dict[str, Attribute]] = None,
             successors: Optional[List[IBlock]] = None,
             regions: Optional[List[IRegion]] = None,
-            env: Optional[Dict[ISSAValue, ISSAValue]] = None):
+            env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> PartialIOp:
     if env is None:
         env = {}
     if operands is None:
@@ -594,32 +603,37 @@ def from_op(old_op: IOp,
         successors = list(old_op.successors)
     if regions is None:
         regions = list(old_op.regions)
+
+    (new_operands, rewritten_ops) = _unpack_operands(operands, env)
     if attributes is None:
         op = IOp(
-            old_op._op_data,
-            _unpack_operands(operands, env),  # type: ignore
+            old_op._op_data,  # type: ignore
+            new_operands,
             result_types,
             successors,
             regions)
     else:
-        op = IOp.get(old_op.name, old_op.op_type,
-                     _unpack_operands(operands, env), result_types, attributes,
-                     successors, regions)
+        op = IOp.get(old_op.name, old_op.op_type, new_operands, result_types,
+                     attributes, successors, regions)
+    rewritten_ops.append(op)
     for idx, result in enumerate(op.results):
         env[old_op.results[idx]] = result
-    return PartialIOp(op, env)
+    return PartialIOp(rewritten_ops, env)
 
 
-def _unpack_operands(operands: List[ISSAValue | IOp | PartialIOp],
-                     env: Dict[ISSAValue, ISSAValue]) -> List[ISSAValue]:
-    remapped_operands: List[ISSAValue] = []
+def _unpack_operands(
+        operands: List[ISSAValue | IOp | PartialIOp],
+        env: Dict[ISSAValue, ISSAValue]) -> Tuple[List[ISSAValue], List[IOp]]:
+    unpacked_operands: List[ISSAValue] = []
+    rewritten_ops: List[IOp] = []
     for operand in operands:
         if isinstance(operand, IOp):
             assert operand.result is not None
             operand = operand.result
         if isinstance(operand, PartialIOp):
             env |= operand.env
-            assert operand.op.result is not None
-            operand = operand.op.result
-        remapped_operands.append(operand)
-    return remapped_operands
+            assert operand.ops[-1].result is not None
+            rewritten_ops = operand.ops + rewritten_ops
+            operand = operand.ops[-1].result
+        unpacked_operands.append(operand)
+    return (unpacked_operands, rewritten_ops)

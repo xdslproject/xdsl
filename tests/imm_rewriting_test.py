@@ -51,7 +51,7 @@ class CommuteAdd(Strategy):
             case IOp(op_type=arith.Addi,
                      operands=[operand0, operand1]):
                 result = from_op(op, operands=[operand1, operand0])
-                return success(result)
+                return success(result, op)
             case _:
                 return failure(self)
 
@@ -73,7 +73,7 @@ class FoldConstantAdd(Strategy):
                               attr1.value.data + attr2.value.data,
                               attr1.typ)
                       })
-            return success(result)
+            return success(result, op)
           case _:
             return failure(self)
 
@@ -90,7 +90,7 @@ class ChangeConstantTo42(Strategy):
                             "value":
                             IntegerAttr.from_params(42, attr.typ)
                         })
-              return success(result)
+              return success(result, op)
           case _:
               return failure(self)
 
@@ -103,7 +103,7 @@ class InlineIf(Strategy):
             case IOp(op_type=scf.If,
                         operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
                         region=IRegion(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])])):                         
-                        return success(returned_op)
+                        return success(returned_op, op)
             case _:
                 return failure(self)
 
@@ -120,7 +120,7 @@ class AddZero(Strategy):
                             "value": IntegerAttr.from_int_and_width(0, 32)
                         }, result_types=[type])
                 ], result_types=[type])
-                return success(result)
+                return success(result, op)
             case _:
                 return failure(self)
 
@@ -139,11 +139,11 @@ def test_double_commute():
 """
     once_commuted = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 2 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
-  %3 : !i32 = arith.constant() ["value" = 4 : !i32]
-  %4 : !i32 = arith.addi(%3 : !i32, %2 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 4 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %3 : !i32 = arith.addi(%2 : !i32, %1 : !i32)
+  %4 : !i32 = arith.addi(%0 : !i32, %3 : !i32)
   func.return(%4 : !i32)
 }
 """
@@ -238,16 +238,22 @@ func.return(%4 : !i32)
 """
     once_folded = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 4 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 3 : !i32]
-  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
-  func.return(%2 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  %2 : !i32 = arith.constant() ["value" = 3 : !i32]
+  %3 : !i32 = arith.constant() ["value" = 4 : !i32]
+  %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+  func.return(%4 : !i32)
 }
 """
     twice_folded = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 7 : !i32]
-  func.return(%0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+  %2 : !i32 = arith.constant() ["value" = 3 : !i32]
+  %3 : !i32 = arith.constant() ["value" = 4 : !i32]
+  %4 : !i32 = arith.constant() ["value" = 7 : !i32]
+  func.return(%4 : !i32)
 }
 """
 
@@ -281,8 +287,9 @@ def test_inline_if():
     inlined = \
 """module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    func.return(%0 : !i32)
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+    func.return(%1 : !i32)
   }
 }
 """
@@ -312,8 +319,9 @@ def test_inline_and_fold():
     folded_and_inlined = \
 """module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
-    %0 : !i32 = arith.constant() ["value" = 7 : !i32]
-    func.return(%0 : !i32)
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = arith.constant() ["value" = 7 : !i32]
+    func.return(%1 : !i32)
   }
 }
 """
@@ -342,9 +350,9 @@ func.return(%0 : !i32)
 """
     added_zero = \
 """module() {
-  %0 : !i32 = arith.constant() ["value" = 0 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
   func.return(%2 : !i32)
 }
 """
