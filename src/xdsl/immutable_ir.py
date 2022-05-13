@@ -561,6 +561,10 @@ def new_op(op_type: type[Operation],
            attributes: Optional[Dict[str, Attribute]] = None,
            successors: Optional[List[IBlock]] = None,
            regions: Optional[List[IRegion]] = None) -> List[IOp]:
+    """Creates a new operation with the specified arguments. 
+    Returns a list of all created IOps in the current nesting of calls 
+    to `new_op` and `from_op` with this new IOp last.
+    """
     if operands is None:
         operands = []
     if result_types is None:
@@ -587,6 +591,13 @@ def from_op(old_op: IOp,
             successors: Optional[List[IBlock]] = None,
             regions: Optional[List[IRegion]] = None,
             env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> List[IOp]:
+    """Creates a new operation by assuming all fields of `old_op`, apart from 
+    those specified via the arguments. Returns a list of all created IOps in
+    the current nesting of calls to `new_op` and `from_op` with this new IOp
+    last.
+    If `env` is specified all operands will be updated if they are included in
+    the mapping and a mapping of all results of `old_op` to this op will be added  
+    """
     if operands is None:
         operands = list(old_op.operands)
     if result_types is None:
@@ -596,7 +607,7 @@ def from_op(old_op: IOp,
     if regions is None:
         regions = list(old_op.regions)
 
-    (new_operands, rewritten_ops) = _unpack_operands(operands)
+    (new_operands, rewritten_ops) = _unpack_operands(operands, env)
     if attributes is None:
         op = IOp(
             old_op._op_data,  # type: ignore
@@ -609,7 +620,8 @@ def from_op(old_op: IOp,
                      attributes, successors, regions)
     rewritten_ops.append(op)
     if env is not None:
-        # env not None means this is used in the context of a Block rebuilding.
+        # env not None means this is used in the context a remapping of values,
+        # e.g. of a Block rebuilding.
         # As other operations depending on this op might have to be updated as
         # well, we have to add a mapping to the new results of this op to env.
         for idx, result in enumerate(op.results):
@@ -618,8 +630,17 @@ def from_op(old_op: IOp,
 
 
 def _unpack_operands(
-    operands: List[ISSAValue | IOp | List[IOp]]
+    operands: List[ISSAValue | IOp | List[IOp]],
+    env: Optional[Dict[ISSAValue, ISSAValue]] = None
 ) -> Tuple[List[ISSAValue], List[IOp]]:
+    """Maps all structures supplied in `operands` to a corresponding
+    ISSAValue to be used as operand for constructing an IOp. 
+    This facilitates nesting of calls to `new_op` and `from_op`
+    If the ISSAValue has a mapping in `env` it is updated.
+    Returns the formerly newly created IOps as well (`rewritten_ops`).
+    """
+    if env is None:
+        env = {}
     unpacked_operands: List[ISSAValue] = []
     rewritten_ops: List[IOp] = []
     for operand in operands:
@@ -630,6 +651,9 @@ def _unpack_operands(
             assert ops[-1].result is not None
             rewritten_ops = ops + rewritten_ops
             operand = ops[-1].result
+        assert isinstance(operand, ISSAValue)
+        if operand in env:
+            operand = env[operand]
         assert not isinstance(operand, List)
         unpacked_operands.append(operand)
     return (unpacked_operands, rewritten_ops)

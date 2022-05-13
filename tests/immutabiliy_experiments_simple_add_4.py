@@ -218,6 +218,9 @@ func.return(%4 : !i32)
                     print(f"matched loop with lb:{lb} ub:{ub}, step:{step}")
 
                     new_ops: List[IOp] = []
+                    # create an environment as values have to be remapped 
+                    # i.e. use of IV has to be updated
+                    env: Dict[ISSAValue, ISSAValue] = {}
                     for constant_iv in range(lb, ub, step):
                         iv_replacement = new_op(Constant,
                                 attributes={
@@ -225,26 +228,12 @@ func.return(%4 : !i32)
                                 }, result_types=[IndexType()])[-1]
                         assert iv_replacement.result is not None
                         new_ops.append(iv_replacement)
-                        env: Dict[ISSAValue, ISSAValue] = {iv:iv_replacement.result}
+                        env |= {iv:iv_replacement.result}
                         for op_idx in range(0, len(ops)-1):
-                            # check if blockArg is in operands
-                            # TODO: Type annotation should actually be List[ISSAValue], but Pylance complains
-                            new_operands: List[ISSAValue | IOp | List[IOp]] = []
-                            operands_changed = False
-                            for operand in ops[op_idx].operands:
-                                if operand in env.keys():
-                                    operands_changed = True
-                                    
-                                    new_operands.append(env[operand])
-                                else:
-                                    new_operands.append(operand)
-                            if operands_changed:
-                                updated_op = from_op(ops[op_idx], operands=new_operands)
-                                for res_idx, result in enumerate(updated_op[-1].results):
-                                    env[ops[op_idx].results[res_idx]] = result
-                                new_ops.extend(updated_op)
-                            else:
-                                new_ops.extend(from_op(ops[op_idx]))
+                            # As we supply an env, the operands will be updated accordingly. 
+                            # The results of `ops[op_idx]` will be mapped to the results of this new op
+                            # This is required to persist all uses between ops inside the former loop region
+                            new_ops.extend(from_op(ops[op_idx], env=env))
 
                     result = new_ops
 
