@@ -15,6 +15,9 @@ class MLIRConverter:
         self.op_to_mlir_ops: Dict[Operation, mlir.ir.Operation] = dict()
         self.block_to_mlir_blocks: Dict[Block, mlir.ir.Block] = dict()
 
+    def register_external_dialects(self):
+        pass
+
     def convert_function_type(self, typ: FunctionType) -> mlir.ir.FunctionType:
         input_array = typ.parameters[0]
         output_array = typ.parameters[1]
@@ -133,6 +136,7 @@ class MLIRConverter:
     def convert_module(self, op: Operation) -> mlir.ir.Module:
         with mlir.ir.Context() as mlir_ctx:
             mlir_ctx.allow_unregistered_dialects = True
+            self.register_external_dialects()
             with mlir.ir.Location.unknown(mlir_ctx):
                 if not isinstance(op, ModuleOp):
                     raise Exception("top-level operation should be a ModuleOp")
