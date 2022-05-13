@@ -26,7 +26,7 @@ def load_mlir_module(mlir_module: _xdsl_init_types.ModuleType) -> None:
     _mlir_module = mlir_module
 
 
-def ensure_loaded_mlir_module() -> None:
+def ensure_mlir_module_loaded() -> None:
     """
     Loads the default `mlir` module if no module has been loaded previously by
     `load_mlir_module`.

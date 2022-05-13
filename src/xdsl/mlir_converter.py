@@ -1,5 +1,7 @@
-from xdsl import ensure_loaded_mlir_module
-ensure_loaded_mlir_module()
+from xdsl import ensure_mlir_module_loaded
+
+ensure_mlir_module_loaded()
+
 from xdsl import _mlir_module as mlir
 import array
 from xdsl.dialects.builtin import *
