@@ -1,57 +1,72 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable, NamedTuple
+from typing import List, Callable
 from xdsl.immutable_ir import *
 from xdsl.pattern_rewriter import *
 
 
-class IOpReplacement(NamedTuple):
+@dataclass
+class IOpReplacement:
     matched_op: IOp
-    replacement: List[IOp]
+    replacement_ops: List[IOp]
 
 
 @dataclass
 class RewriteResult:
-    result: Union[Strategy, List[IOpReplacement]]
+    _result: Union[Strategy, List[IOpReplacement]]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
-        if (not isinstance(self.result, List)):
+        if (not self.isSuccess()):
             return self
         rr = s.apply(self.result_op)
+        if (not rr.isSuccess()):
+            return rr
         self += rr
         return self
 
     def flatMapFailure(self, f: Callable[[], RewriteResult]) -> RewriteResult:
-        if (not isinstance(self.result, List)):
+        if (not self.isSuccess()):
             return f()
         return self
 
     def __str__(self) -> str:
-        if isinstance(self.result, Strategy):
-            return "Failure(" + str(self.result) + ")"
-        return "Success, " + str(len(self.result)) + " new ops"
+        if not self.isSuccess():
+            return "Failure(" + str(self.failed_strategy) + ")"
+        return "Success, " + str(len(self.replacements)) + " replacements"
 
     def isSuccess(self) -> bool:
-        return isinstance(self.result, List)
+        return isinstance(self._result, List)
 
     def __iadd__(self, other: RewriteResult):
         if self.isSuccess() and other.isSuccess():
-            assert isinstance(self.result, List) and isinstance(
-                other.result, List)
-            self.result += other.result
+            assert self.isSuccess() and other.isSuccess()
+            assert isinstance(self._result, List) and isinstance(
+                other._result, List)
+            self._result += other._result
             return self
         raise Exception("invalid concatenation of RewriteResults")
 
     @property
+    def failed_strategy(self) -> Strategy:
+        assert not self.isSuccess()
+        assert isinstance(self._result, Strategy)
+        return self._result
+
+    @property
+    def replacements(self) -> List[IOpReplacement]:
+        assert self.isSuccess()
+        assert isinstance(self._result, List)
+        return self._result
+
+    @property
     def result_op(self) -> IOp:
         assert self.isSuccess()
-        assert not isinstance(self.result, Strategy)
-        return self.result[-1].replacement[-1]
+        assert not isinstance(self._result, Strategy)
+        return self.replacements[-1].replacement_ops[-1]
 
 
-def success(arg: IOp | List[IOp] | RewriteResult,
-            matched_op: IOp) -> RewriteResult:
+def success(arg: IOp | List[IOp] | RewriteResult) -> RewriteResult:
     match arg:
         case IOp():
             ops = [arg]
@@ -72,7 +87,8 @@ def success(arg: IOp | List[IOp] | RewriteResult,
 
     # trace_operands_recursive(ops[-1].operands, ops)
 
-    return RewriteResult([IOpReplacement(matched_op, ops)])
+    # matched op will be set by the Strategy itself in `apply`
+    return RewriteResult([IOpReplacement(None, ops)])  # type: ignore
 
 
 def failure(failed_strategy: Strategy) -> RewriteResult:
@@ -87,12 +103,14 @@ class Strategy:
         assert isinstance(op, IOp)
 
         rr = self.impl(op)
+
         if rr.isSuccess():
-            assert isinstance(rr.result, List)
+            rr.replacements[-1].matched_op = op
 
             # If matched op is referred to in replacement IR add it to the replacement
             matched_op_used = False
-            for result_op in (replacement := rr.result[-1].replacement):
+            for result_op in (replacement :=
+                              rr.replacements[-1].replacement_ops):
 
                 def uses_matched_op(result_op: IOp):
                     for result in op.results:
@@ -120,7 +138,7 @@ class Strategy:
 class id(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
-        return success(op, op)
+        return success(op)
 
 
 @dataclass
@@ -135,7 +153,7 @@ class debug(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         print("debug:" + op.name)
-        return success(op, op)
+        return success(op)
 
 
 @dataclass
@@ -166,7 +184,7 @@ class try_(Strategy):
 
 
 @dataclass
-class one(Strategy):
+class one(Strategy):  # TODO: think about name
     """
     Try to apply s to one the operands of op or to the first op in its region
     or to the next operation in the same block.
@@ -179,7 +197,6 @@ class one(Strategy):
             if (isinstance(operand, IResult)):
                 rr = self.s.apply(operand.op)
                 if rr.isSuccess():
-                    assert isinstance(rr.result, List)
                     assert len(rr.result_op.results) > operand.result_index
                     # build the operands including the new operand
                     new_operands: List[ISSAValue] = op.operands[:idx] + [
@@ -193,7 +210,7 @@ class one(Strategy):
                                     successors=list(op.successors),
                                     regions=op.regions)
 
-                    rr += success(result, op)
+                    rr += success(result)
                     return rr
         for idx, region in enumerate(op.regions):
             # Try to apply to last operation in the last block in the regions of this op
@@ -202,14 +219,30 @@ class one(Strategy):
 
             rr = self.s.apply((matched_block := region.blocks[-1]).ops[-1])
             if rr.isSuccess():
-                assert isinstance(rr.result, List)
+                assert isinstance(rr.replacements, List)
                 # applying the replacements in rr to the original ops of the matched block
-                nested_ops: List[IOp] = matched_block.ops
-                for (matched_op, replacement_ops) in rr.result:
-                    if matched_op in nested_ops:
-                        matched_op_index = nested_ops.index(matched_op)
-                        nested_ops[matched_op_index:matched_op_index +
-                                   1] = replacement_ops
+                nested_ops: List[IOp] = list(matched_block.ops)
+
+                completed_replacements: List[IOpReplacement] = []
+                for replacement in rr.replacements:
+                    if replacement.matched_op in nested_ops:
+                        i = nested_ops.index(replacement.matched_op)
+                        nested_ops[i:i + 1] = replacement.replacement_ops
+                        completed_replacements.append(replacement)
+                    else:
+                        # print("op not in nested ops")
+                        # print(replacement.matched_op.name)
+                        # print("nested:(")
+                        # for nested_op in nested_ops:
+                        #     print(nested_op.name)
+                        # print(") of block of op:")
+                        # print(op.name)
+                        # pass
+                        raise Exception(
+                            "replacement out of scope, could not be applied")
+
+                for replacement in completed_replacements:
+                    rr.replacements.remove(replacement)
 
                 new_regions = op.regions[:idx] + [
                     IRegion([IBlock.from_iblock(nested_ops, matched_block)])
@@ -221,13 +254,13 @@ class one(Strategy):
                                 attributes=op.attributes,
                                 successors=list(op.successors),
                                 regions=new_regions)
-                rr += success(result, op)
+                rr += success(result)
                 return rr
         return failure(self)
 
 
 @dataclass
-class topdown(Strategy):
+class topdown(Strategy):  # TODO: think about name
     """
     Topdown traversal
     """

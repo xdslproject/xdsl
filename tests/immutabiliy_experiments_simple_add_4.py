@@ -5,9 +5,9 @@ import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.scf as scf
 import xdsl.dialects.affine as affine
+import xdsl.dialects.func as func
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.func import *
 
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
@@ -139,7 +139,7 @@ func.return(%4 : !i32)
                                     attr1.value.data + attr2.value.data,
                                     attr1.typ)
                             })
-                    return success(result, op)
+                    return success(result)
                 case _:
                     return failure(self)
 
@@ -151,7 +151,7 @@ func.return(%4 : !i32)
                 case IOp(op_type=arith.Addi,
                         operands=[operand0, operand1]):
                     result = from_op(op, operands=[operand1, operand0])
-                    return success(result, op)
+                    return success(result)
                 case _:
                     return failure(self)
 
@@ -169,7 +169,7 @@ func.return(%4 : !i32)
                                     IntegerAttr.from_params(42,
                                                             attr.typ)
                                 })
-                    return success(result, op)
+                    return success(result)
                 case _:
                     return failure(self)
 
@@ -182,7 +182,7 @@ func.return(%4 : !i32)
                             operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
                             region=IRegion(block=
                                 IBlock(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])]))):                         
-                            return success(returned_op, op)
+                            return success(returned_op)
                 case _:
                     return failure(self)
 
@@ -200,7 +200,7 @@ func.return(%4 : !i32)
                             }, result_types=[type])
                     ], result_types=[type])
 
-                    return success(result, op)
+                    return success(result)
                 case _:
                     return failure(self)
 
@@ -237,7 +237,7 @@ func.return(%4 : !i32)
 
                     result = new_ops
 
-                    return success(result, op)
+                    return success(result)
                 case _:
                     return failure(self)
 
@@ -263,15 +263,15 @@ func.return(%4 : !i32)
                                                                 "upper_bound": IntegerAttr.from_index_int_value(ub), 
                                                                 "step": IntegerAttr.from_index_int_value(step)}, regions=[loop_region])
 
-                    return success(first_loop + snd_loop, op)
+                    return success(first_loop + snd_loop)
                 case _:
                     return failure(self)
 
 
     ctx = MLContext()
-    Builtin(ctx)
-    Func(ctx)
-    Arith(ctx)
+    builtin.Builtin(ctx)
+    func.Func(ctx)
+    arith.Arith(ctx)
     scf.Scf(ctx)
     affine.Affine(ctx)
     memref.MemRef(ctx)

@@ -51,7 +51,7 @@ class CommuteAdd(Strategy):
             case IOp(op_type=arith.Addi,
                      operands=[operand0, operand1]):
                 result = from_op(op, operands=[operand1, operand0])
-                return success(result, op)
+                return success(result)
             case _:
                 return failure(self)
 
@@ -73,7 +73,7 @@ class FoldConstantAdd(Strategy):
                               attr1.value.data + attr2.value.data,
                               attr1.typ)
                       })
-            return success(result, op)
+            return success(result)
           case _:
             return failure(self)
 
@@ -90,7 +90,7 @@ class ChangeConstantTo42(Strategy):
                             "value":
                             IntegerAttr.from_params(42, attr.typ)
                         })
-              return success(result, op)
+              return success(result)
           case _:
               return failure(self)
 
@@ -102,8 +102,8 @@ class InlineIf(Strategy):
         match op:
             case IOp(op_type=scf.If,
                         operands=[IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=1))}))],
-                        region=IRegion(ops=[*_, IOp(op_type=scf.Yield, operands=[IResult(op=returned_op)])])):                         
-                        return success(returned_op, op)
+                        region=IRegion(ops=ops)):
+                        return success(ops[:-1] if len(ops) > 0 and (ops[-1].op_type==scf.Yield) else ops)
             case _:
                 return failure(self)
 
@@ -120,7 +120,7 @@ class AddZero(Strategy):
                             "value": IntegerAttr.from_int_and_width(0, 32)
                         }, result_types=[type])
                 ], result_types=[type])
-                return success(result, op)
+                return success(result)
             case _:
                 return failure(self)
 
@@ -316,25 +316,46 @@ def test_inline_and_fold():
   }
 }
 """
+
+    inlined = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %2 : !i32 = arith.constant() ["value" = 2 : !i32]
+    %3 : !i32 = arith.addi(%1 : !i32, %2 : !i32)
+    %4 : !i32 = arith.constant() ["value" = 4 : !i32]
+    %5 : !i32 = arith.addi(%3 : !i32, %4 : !i32)
+    func.return(%5 : !i32)
+  }
+}
+"""
     folded_and_inlined = \
 """module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-    %1 : !i32 = arith.constant() ["value" = 7 : !i32]
-    func.return(%1 : !i32)
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %2 : !i32 = arith.constant() ["value" = 2 : !i32]
+    %3 : !i32 = arith.constant() ["value" = 3 : !i32]
+    %4 : !i32 = arith.constant() ["value" = 4 : !i32]
+    %5 : !i32 = arith.constant() ["value" = 7 : !i32]
+    func.return(%5 : !i32)
   }
 }
 """
     apply_strategy_and_compare(program=before,
-                               expected_program=folded_and_inlined,
-                               strategy=seq(topdown(FoldConstantAdd()), 
-                                            seq(topdown(FoldConstantAdd()), 
-                                                topdown(InlineIf()))))
+                               expected_program=inlined,
+                               strategy=topdown(InlineIf()))
     apply_strategy_and_compare(program=before,
                                expected_program=folded_and_inlined,
                                strategy=seq(topdown(InlineIf()), 
                                             seq(topdown(FoldConstantAdd()), 
                                                 topdown(FoldConstantAdd()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topdown(FoldConstantAdd()), 
+                                            seq(topdown(FoldConstantAdd()), 
+                                                topdown(InlineIf()))))
     apply_strategy_and_compare(program=before,
                                expected_program=folded_and_inlined,
                                strategy=seq(topdown(FoldConstantAdd()), 

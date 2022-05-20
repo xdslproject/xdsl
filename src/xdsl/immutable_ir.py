@@ -101,9 +101,11 @@ class IRegion:
         return None
 
     @property
-    def ops(self):
+    def ops(self) -> IList[IOp]:
         if self.block is not None:
             return self.block.ops
+        else:
+            return IList()
 
     def __init__(self, blocks: List[IBlock]):
         """Creates a new mutable region and returns an immutable view on it."""
@@ -236,7 +238,7 @@ class IBlock:
         # In that case it is necessary to substitute these references with the new
         # block args of this block. This is achieved that by rebuilding the ops if necessary
         def substitute_if_required(op: IOp) -> IOp:
-            substition_required = False
+            substitution_required = False
             # rebuild specific regions of this op if necessary
             new_regions: List[IRegion] = []
             for region in op.regions:
@@ -247,17 +249,17 @@ class IBlock:
                     # individual blocks so the region can reuse unchanged blocks
                     block_substitution_required = False
 
-                    def subst_neccessary(op: IOp):
+                    def subst_necessary(op: IOp):
                         for operand in op.operands:
                             if operand in env:
                                 nonlocal block_substitution_required
                                 block_substitution_required = True
 
                     # walk all operations nested in this block (and deeper)
-                    block.walk(subst_neccessary)
+                    block.walk(subst_necessary)
 
                     if block_substitution_required:
-                        substition_required = True
+                        substitution_required = True
                         region_substitution_required = True
                         # This rebuilds the block and does substitution for all nested ops
                         new_block = IBlock.from_iblock(ops=block.ops,
@@ -271,18 +273,18 @@ class IBlock:
                 else:
                     new_regions.append(region)
 
-            # update operands of this op if the corresponing op has been rebuilt
+            # update operands of this op if the corresponding op has been rebuilt
             # or in case it is a block_arg, if we have an updated block_arg
             new_operands: List[ISSAValue | IOp | List[IOp]] = []
             for operand in op.operands:
                 if operand in env:
                     new_operands.append(env[operand])
-                    substition_required = True
+                    substitution_required = True
                 else:
                     new_operands.append(operand)
 
             # If any updates to this op are required we rebuild it
-            if substition_required:
+            if substitution_required:
                 substituted_op = from_op(op,
                                          operands=new_operands,
                                          regions=new_regions,
@@ -512,7 +514,7 @@ class IOp:
                         operands.append(value_map[operand])
                     case _:
                         raise Exception(
-                            "Operand is expeected to be either OpResult or BlockArgument"
+                            "Operand is expected to be either OpResult or BlockArgument"
                         )
         else:
             operands.extend(existing_operands)
