@@ -177,8 +177,6 @@ class IBlock:
     def __post_init__(self):
         for arg in self.args:
             object.__setattr__(arg, "block", self)
-        self.args.freeze()
-        self.ops.freeze()
 
     def __init__(self, args: List[Attribute] | List[IBlockArg],
                  ops: List[IOp]):

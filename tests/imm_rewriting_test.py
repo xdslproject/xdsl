@@ -43,7 +43,7 @@ def apply_strategy_and_compare(program: str, expected_program: str,
         assert False
 
 
-@dataclass
+@dataclass(frozen=True)
 class CommuteAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -56,7 +56,7 @@ class CommuteAdd(Strategy):
                 return failure(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class FoldConstantAdd(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -78,7 +78,7 @@ class FoldConstantAdd(Strategy):
             return failure(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ChangeConstantTo42(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -95,7 +95,7 @@ class ChangeConstantTo42(Strategy):
               return failure(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class InlineIf(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -107,7 +107,7 @@ class InlineIf(Strategy):
             case _:
                 return failure(self)
 
-@dataclass
+@dataclass(frozen=True)
 class AddZero(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -123,6 +123,20 @@ class AddZero(Strategy):
                 return success(result)
             case _:
                 return failure(self)
+
+@dataclass(frozen=True)
+class RemoveAddZero(Strategy):
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match op:
+            case IOp(op_type=arith.Addi,
+                    operands=[ISSAValue(op=IOp(op_type=arith.Constant, 
+                                                  attributes={"value": IntegerAttr(value=IntAttr(data=0))})), 
+                                    IResult() as operand2]):
+                return success(operand2.op)
+            case _:
+                return failure(self)
+
 
 def test_double_commute():
     """Tests a strategy which swaps the two operands of an arith.addi."""
@@ -147,17 +161,39 @@ def test_double_commute():
   func.return(%4 : !i32)
 }
 """
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=once_commuted,
-                               strategy=topdown(CommuteAdd()))
+                               strategy=backwards(CommuteAdd()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=once_commuted,
+                               strategy=topToBottom(CommuteAdd(), skips=1))
+    apply_strategy_and_compare(program=before,
+                               expected_program=once_commuted,
+                               strategy=bottomToTop(CommuteAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=once_commuted,
                                expected_program=before,
-                               strategy=topdown(CommuteAdd()))             
+                               strategy=backwards(CommuteAdd()))    
+    apply_strategy_and_compare(program=once_commuted,
+                               expected_program=before,
+                               strategy=topToBottom(CommuteAdd(), skips=1))
+    apply_strategy_and_compare(program=once_commuted,
+                               expected_program=before,
+                               strategy=bottomToTop(CommuteAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=before,
-                               strategy=seq(topdown(CommuteAdd()),
-                                            topdown(CommuteAdd())))
-
+                               strategy=seq(backwards(CommuteAdd()),
+                                            backwards(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(topToBottom(CommuteAdd()),
+                                            topToBottom(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(bottomToTop(CommuteAdd()),
+                                            bottomToTop(CommuteAdd())))
 
 def test_commute_block_args():
     """Tests a strategy which swaps the two operands of 
@@ -181,17 +217,42 @@ def test_commute_block_args():
   }
 }
 """
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=commuted,
-                               strategy=topdown(CommuteAdd()))
+                               strategy=backwards(CommuteAdd()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=commuted,
+                               strategy=topToBottom(CommuteAdd()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=commuted,
+                               strategy=bottomToTop(CommuteAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=commuted,
                                expected_program=before,
-                               strategy=topdown(CommuteAdd()))
+                               strategy=backwards(CommuteAdd()))
+    apply_strategy_and_compare(program=commuted,
+                               expected_program=before,
+                               strategy=topToBottom(CommuteAdd()))
+    apply_strategy_and_compare(program=commuted,
+                               expected_program=before,
+                               strategy=bottomToTop(CommuteAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=before,
                                strategy=seq(
-                                        topdown(CommuteAdd()),
-                                        topdown(CommuteAdd())))
+                                        backwards(CommuteAdd()),
+                                        backwards(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(
+                                        topToBottom(CommuteAdd()),
+                                        topToBottom(CommuteAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=before,
+                               strategy=seq(
+                                        bottomToTop(CommuteAdd()),
+                                        bottomToTop(CommuteAdd())))
 
 
 def test_rewriting_with_blocks():
@@ -219,11 +280,16 @@ def test_rewriting_with_blocks():
   }
 }
 """
-
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=constant_changed,
-                               strategy=topdown(ChangeConstantTo42()))
-
+                               strategy=backwards(ChangeConstantTo42()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=constant_changed,
+                               strategy=topToBottom(ChangeConstantTo42()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=constant_changed,
+                               strategy=bottomToTop(ChangeConstantTo42()))
 
 def test_constant_folding():
     before = \
@@ -256,19 +322,39 @@ func.return(%4 : !i32)
   func.return(%4 : !i32)
 }
 """
-
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=once_folded,
-                               strategy=topdown(FoldConstantAdd()))
-
+                               strategy=backwards(FoldConstantAdd()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=once_folded,
+                               strategy=topToBottom(FoldConstantAdd()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=once_folded,
+                               strategy=bottomToTop(FoldConstantAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=once_folded,
                                expected_program=twice_folded,
-                               strategy=topdown(FoldConstantAdd()))
-                                            
+                               strategy=backwards(FoldConstantAdd()))
+    apply_strategy_and_compare(program=once_folded,
+                               expected_program=twice_folded,
+                               strategy=topToBottom(FoldConstantAdd()))
+    apply_strategy_and_compare(program=once_folded,
+                               expected_program=twice_folded,
+                               strategy=bottomToTop(FoldConstantAdd()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=twice_folded,
-                               strategy=seq(topdown(FoldConstantAdd()),
-                                            topdown(FoldConstantAdd())))
+                               strategy=seq(backwards(FoldConstantAdd()),
+                                            backwards(FoldConstantAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=twice_folded,
+                               strategy=seq(topToBottom(FoldConstantAdd()),
+                                            topToBottom(FoldConstantAdd())))
+    apply_strategy_and_compare(program=before,
+                               expected_program=twice_folded,
+                               strategy=seq(bottomToTop(FoldConstantAdd()),
+                                            bottomToTop(FoldConstantAdd())))
 
 def test_inline_if():
     before = \
@@ -293,10 +379,16 @@ def test_inline_if():
   }
 }
 """
-
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=inlined,
-                               strategy=topdown(InlineIf()))
+                               strategy=backwards(InlineIf()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=inlined,
+                               strategy=topToBottom(InlineIf()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=inlined,
+                               strategy=bottomToTop(InlineIf()))
 
 def test_inline_and_fold():
     before = \
@@ -343,24 +435,64 @@ def test_inline_and_fold():
   }
 }
 """
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=inlined,
-                               strategy=topdown(InlineIf()))
+                               strategy=backwards(InlineIf()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=inlined,
+                               strategy=topToBottom(InlineIf()))
+    apply_strategy_and_compare(program=before,
+                               expected_program=inlined,
+                               strategy=bottomToTop(InlineIf()))
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=folded_and_inlined,
-                               strategy=seq(topdown(InlineIf()), 
-                                            seq(topdown(FoldConstantAdd()), 
-                                                topdown(FoldConstantAdd()))))
+                               strategy=seq(backwards(InlineIf()), 
+                                            seq(backwards(FoldConstantAdd()), 
+                                                backwards(FoldConstantAdd()))))
     apply_strategy_and_compare(program=before,
                                expected_program=folded_and_inlined,
-                               strategy=seq(topdown(FoldConstantAdd()), 
-                                            seq(topdown(FoldConstantAdd()), 
-                                                topdown(InlineIf()))))
+                               strategy=seq(topToBottom(InlineIf()), 
+                                            seq(topToBottom(FoldConstantAdd()), 
+                                                topToBottom(FoldConstantAdd()))))
     apply_strategy_and_compare(program=before,
                                expected_program=folded_and_inlined,
-                               strategy=seq(topdown(FoldConstantAdd()), 
-                                            seq(topdown(InlineIf()), 
-                                                topdown(FoldConstantAdd()))))
+                               strategy=seq(bottomToTop(InlineIf()), 
+                                            seq(bottomToTop(FoldConstantAdd()), 
+                                                bottomToTop(FoldConstantAdd()))))
+    # similar rewrite, different traversals:
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(backwards(FoldConstantAdd()), 
+                                            seq(backwards(FoldConstantAdd()), 
+                                                backwards(InlineIf()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topToBottom(FoldConstantAdd()), 
+                                            seq(topToBottom(FoldConstantAdd()), 
+                                                topToBottom(InlineIf()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(bottomToTop(FoldConstantAdd()), 
+                                            seq(bottomToTop(FoldConstantAdd()), 
+                                                bottomToTop(InlineIf()))))
+    # similar rewrite, different traversals:
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(backwards(FoldConstantAdd()), 
+                                            seq(backwards(InlineIf()), 
+                                                backwards(FoldConstantAdd()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(topToBottom(FoldConstantAdd()), 
+                                            seq(topToBottom(InlineIf()), 
+                                                topToBottom(FoldConstantAdd()))))
+    apply_strategy_and_compare(program=before,
+                               expected_program=folded_and_inlined,
+                               strategy=seq(bottomToTop(FoldConstantAdd()), 
+                                            seq(bottomToTop(InlineIf()), 
+                                                bottomToTop(FoldConstantAdd()))))
 
 def test_add_zero():
     before = \
@@ -377,9 +509,43 @@ func.return(%0 : !i32)
   func.return(%2 : !i32)
 }
 """
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                               expected_program=added_zero,
-                              strategy=topdown(AddZero()))
+                              strategy=backwards(AddZero()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=added_zero,
+                              strategy=topToBottom(AddZero()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=added_zero,
+                              strategy=bottomToTop(AddZero()))
+
+def test_remove_add_zero():
+    before = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
+  func.return(%2 : !i32)
+}
+"""
+    removed_add_zero = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 0 : !i32]
+  func.return(%0 : !i32)
+}
+"""
+    # similar rewrite, different traversals:
+    apply_strategy_and_compare(program=before,
+                              expected_program=removed_add_zero,
+                              strategy=backwards(RemoveAddZero()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=removed_add_zero,
+                              strategy=topToBottom(RemoveAddZero()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=removed_add_zero,
+                              strategy=bottomToTop(RemoveAddZero()))
 
 def test_deeper_nested_block_args_commute():
     """This test demonstrates that substitution of block arguments also works when the 
@@ -412,10 +578,16 @@ def test_deeper_nested_block_args_commute():
   }
 }
 """
+    # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                               expected_program=nested_commute,
-                              strategy=topdown(CommuteAdd()))
-
+                              strategy=backwards(CommuteAdd()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=nested_commute,
+                              strategy=topToBottom(CommuteAdd()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=nested_commute,
+                              strategy=bottomToTop(CommuteAdd()))
 
 if __name__ == "__main__":
     test_double_commute()
@@ -426,4 +598,5 @@ if __name__ == "__main__":
     test_inline_if()
     test_inline_and_fold()
     test_add_zero()
+    test_remove_add_zero()
     test_deeper_nested_block_args_commute()

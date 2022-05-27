@@ -10,6 +10,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 from xdsl.elevate import *
+import xdsl.elevate as elevate
 from xdsl.immutable_ir import *
 
 import difflib
@@ -63,7 +64,7 @@ func.return(%4 : !i32)
     before_affine_loops = \
 """module() {
   func.func() ["sym_name" = "sum_vec", "function_type" = !fun<[!memref<[128 : !index], !i32>], [!i32]>, "sym_visibility" = "private"] {
-  ^10(%ref : !memref<[128 : !index], !i32>):
+  ^0(%ref : !memref<[128 : !index], !i32>):
     %const0 : !i32 = arith.constant() ["value" = 0 : !i32]
     %r : !i32 = affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
     ^11(%i : !index):
@@ -121,7 +122,7 @@ func.return(%4 : !i32)
 }
 """
 
-    @dataclass
+    @dataclass(frozen=True)
     class FoldConstantAdd(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -143,7 +144,7 @@ func.return(%4 : !i32)
                 case _:
                     return failure(self)
 
-    @dataclass
+    @dataclass(frozen=True)
     class CommuteAdd(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -155,7 +156,7 @@ func.return(%4 : !i32)
                 case _:
                     return failure(self)
 
-    @dataclass
+    @dataclass(frozen=True)
     class ChangeConstantTo42(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -173,7 +174,7 @@ func.return(%4 : !i32)
                 case _:
                     return failure(self)
 
-    @dataclass
+    @dataclass(frozen=True)
     class InlineIf(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -186,7 +187,7 @@ func.return(%4 : !i32)
                 case _:
                     return failure(self)
 
-    @dataclass
+    @dataclass(frozen=True)
     class AddZero(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -205,7 +206,7 @@ func.return(%4 : !i32)
                     return failure(self)
 
 
-    @dataclass
+    @dataclass(frozen=True)
     class LoopUnroll(Strategy):
 
         def impl(self, op: IOp) -> RewriteResult:
@@ -214,9 +215,7 @@ func.return(%4 : !i32)
                             attributes={"lower_bound": IntegerAttr(value=IntAttr(data=lb)), 
                                         "upper_bound": IntegerAttr(value=IntAttr(data=ub)), 
                                         "step": IntegerAttr(value=IntAttr(data=step))},
-                            region=IRegion(block=IBlock(args=[IBlockArg() as iv], ops=[*_, IOp(op_type=affine.Yield, operands=[IResult(op=returned_op)])] as ops)) as loop_region):   
-                    print(f"matched loop with lb:{lb} ub:{ub}, step:{step}")
-
+                            region=IRegion(block=IBlock(args=[IBlockArg() as iv], ops=ops))):   
                     new_ops: List[IOp] = []
                     # create an environment as values have to be remapped 
                     # i.e. use of IV has to be updated
@@ -242,7 +241,7 @@ func.return(%4 : !i32)
                     return failure(self)
 
 
-    @dataclass
+    @dataclass(frozen=True)
     class LoopSplit(Strategy):
         length_snd_loop: int
 
@@ -252,8 +251,7 @@ func.return(%4 : !i32)
                             attributes={"lower_bound": IntegerAttr(value=IntAttr(data=lb)), 
                                         "upper_bound": IntegerAttr(value=IntAttr(data=ub)), 
                                         "step": IntegerAttr(value=IntAttr(data=step))},
-                            region=IRegion(block=IBlock(ops=[*_, IOp(op_type=affine.Yield, operands=[IResult(op=returned_op)])])) as loop_region) if ub > self.length_snd_loop:
-                    print(f"matched loop with lb:{lb} ub:{ub}, step:{step}")
+                            region=IRegion(block=IBlock()) as loop_region) if ub > self.length_snd_loop:
                     assert step == 1 and "Splitting currently only supported for loops with step 1"
 
                     first_loop = from_op(op, attributes={"lower_bound": IntegerAttr.from_index_int_value(lb), 
@@ -276,7 +274,7 @@ func.return(%4 : !i32)
     affine.Affine(ctx)
     memref.MemRef(ctx)
 
-    parser = Parser(ctx, before_affine_loops)
+    parser = Parser(ctx, block_args_before)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -289,34 +287,75 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
+    @dataclass(frozen=True)
+    class First_nested_op(Strategy):
+        s: Strategy
 
-    # rrImmM1 = topdown(seq(debug(), fail())).apply(immBeforeM)
-    rrImmM1 = topdown(LoopSplit(3)).apply(immBeforeM)
+        def impl(self, op: IOp) -> RewriteResult:
+            return region(block(elevate.op(self.s))).apply(op)
+        
+    @dataclass(frozen=True)
+    class idAdd(Strategy):
+
+        def impl(self, op: IOp) -> RewriteResult:
+          if op.op_type == arith.Addi:
+            return success(op)
+          return failure(self)
+
+    # rrImmM1 = First_nested_op(debug() ^ region(block(opsTopToBottom(debug() ^ LoopSplit(3))))).apply(immBeforeM)
+    
+    # rrImmM1 = backwards(idAdd()).apply(immBeforeM)
+
+    # rrImmM1 = backwards(debug() ^ LoopSplit(3)).apply(immBeforeM)
+
+    # rrImmM1 = backwards(debug() ^ LoopUnroll()).apply(rrImmM1.result_op)
+
+    # rrImmM1 = region(block(opsTopToBottom(region(block(opsTopToBottom(CommuteAdd())))))).apply(immBeforeM)
+
+    rrImmM1 = bottomToTop(debug() ^ CommuteAdd()).apply(immBeforeM)
+
+    # rrImmM1 = region(block(opsTopToBottom(region(block(opsTopToBottom((id() ^ LoopSplit(3)))))))).apply(immBeforeM)
+    
     print(rrImmM1)
-    assert rrImmM1.isSuccess()
-
+    
     printer = Printer()
     printer.print_op(rrImmM1.result_op.get_mutable_copy())
 
-    rrImmM2 = topdown(LoopUnroll()).apply(rrImmM1.result_op)
-    print(rrImmM2)
-    assert (rrImmM2.isSuccess()
-            and isinstance(rrImmM2.result_op, IOp))
+    # rrImmM2 = region(block(opsTopToBottom(region(block(opsTopToBottom(debug() ^ LoopUnroll(), skips=1)))))).apply(rrImmM1.result_op)
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(rrImmM2.result_op.get_mutable_copy())
+
+
+    # rrImmM2 = skip(backwards() ,isa(affine.For)) ^ LoopUnroll().apply(rrImmM1.result_op)
+    # printer = Printer()
+    # printer.print_op(rrImmM2.result_op.get_mutable_copy())
+
+    # rrImmM1 = topdown(debug() ^ fail()).apply(immBeforeM)
+    # rrImmM1 = operand_rec(LoopSplit(3)).apply(immBeforeM)
+    # print(rrImmM1)
+    # assert rrImmM1.isSuccess()
+
+    # printer = Printer()
+    # printer.print_op(rrImmM1.result_op.get_mutable_copy())
+
+    # rrImmM2 = operand_rec(debug() ^ skip(isa(affine.For)) ^ LoopUnroll()).apply(rrImmM1.result_op)
+    # print(rrImmM2)
+    # assert (rrImmM2.isSuccess()
+    #         and isinstance(rrImmM2.result_op, IOp))
+
+    # file = StringIO("")
+    # printer = Printer(stream=file)
+    # printer.print_op(rrImmM2.result_op.get_mutable_copy())
 
     # For debugging: printing the actual output
-    print("after:")
-    print(file.getvalue().strip())
+    # print("after:")
+    # print(file.getvalue().strip())
 
-    checkDiff = False
-    if checkDiff:
-        diff = difflib.Differ().compare(file.getvalue().splitlines(True),
-                                        expected.splitlines(True))
-        print(''.join(diff))
-        assert file.getvalue().strip() == expected.strip()
+    # checkDiff = False
+    # if checkDiff:
+    #     diff = difflib.Differ().compare(file.getvalue().splitlines(True),
+    #                                     expected.splitlines(True))
+    #     print(''.join(diff))
+    #     assert file.getvalue().strip() == expected.strip()
 
 
 if __name__ == "__main__":

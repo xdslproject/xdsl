@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass
+from functools import partial
 from typing import List, Callable
 from xdsl.immutable_ir import *
 from xdsl.pattern_rewriter import *
@@ -96,7 +97,7 @@ def failure(failed_strategy: Strategy) -> RewriteResult:
     return RewriteResult(failed_strategy)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Strategy:
 
     def apply(self, op: IOp) -> RewriteResult:
@@ -105,7 +106,9 @@ class Strategy:
         rr = self.impl(op)
 
         if rr.isSuccess():
-            rr.replacements[-1].matched_op = op
+            for replacement in rr.replacements:
+                if replacement.matched_op is None:
+                    replacement.matched_op = op
 
             # If matched op is referred to in replacement IR add it to the replacement
             matched_op_used = False
@@ -133,22 +136,26 @@ class Strategy:
         values = [str(value) for value in vars(self).values()]
         return f'{self.__class__.__name__}({",".join(values)})'
 
+    # Overloading ^ operator for sequential composition of Strategies
+    def __xor__(self: Strategy, other: Strategy):
+        return seq(self, other)
 
-@dataclass
+
+@dataclass(frozen=True)
 class id(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         return success(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class fail(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         return failure(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class debug(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
@@ -156,7 +163,7 @@ class debug(Strategy):
         return success(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class seq(Strategy):
     s1: Strategy
     s2: Strategy
@@ -166,7 +173,7 @@ class seq(Strategy):
         return rr.flatMapSuccess(self.s2)
 
 
-@dataclass
+@dataclass(frozen=True)
 class leftChoice(Strategy):
     s1: Strategy
     s2: Strategy
@@ -175,7 +182,7 @@ class leftChoice(Strategy):
         return self.s1.apply(op).flatMapFailure(lambda: self.s2.apply(op))
 
 
-@dataclass
+@dataclass(frozen=True)
 class try_(Strategy):
     s: Strategy
 
@@ -183,11 +190,15 @@ class try_(Strategy):
         return leftChoice(self.s, id()).apply(op)
 
 
-@dataclass
-class one(Strategy):  # TODO: think about name
+########################################################################
+######################    Traversal Strategies    ######################
+########################################################################
+
+
+@dataclass(frozen=True)
+class backwards_step(Strategy):  # TODO: think about name
     """
-    Try to apply s to one the operands of op or to the first op in its region
-    or to the next operation in the same block.
+    Try to apply s to one the operands of op or to the last op in its region
     """
     s: Strategy
 
@@ -226,18 +237,16 @@ class one(Strategy):  # TODO: think about name
                 completed_replacements: List[IOpReplacement] = []
                 for replacement in rr.replacements:
                     if replacement.matched_op in nested_ops:
+                        # special case that the replacement is a single op out of
+                        # the already existing IR. Then we
+                        if len(replacement.replacement_ops
+                               ) == 1 and replacement.replacement_ops[
+                                   0] in nested_ops:
+                            replacement.replacement_ops.clear()
                         i = nested_ops.index(replacement.matched_op)
                         nested_ops[i:i + 1] = replacement.replacement_ops
                         completed_replacements.append(replacement)
                     else:
-                        # print("op not in nested ops")
-                        # print(replacement.matched_op.name)
-                        # print("nested:(")
-                        # for nested_op in nested_ops:
-                        #     print(nested_op.name)
-                        # print(") of block of op:")
-                        # print(op.name)
-                        # pass
                         raise Exception(
                             "replacement out of scope, could not be applied")
 
@@ -259,12 +268,351 @@ class one(Strategy):  # TODO: think about name
         return failure(self)
 
 
-@dataclass
-class topdown(Strategy):  # TODO: think about name
+@dataclass(frozen=True)
+class backwards(Strategy):
     """
-    Topdown traversal
+    backwards traversal - Try to apply the Strategy `s` to the `op` we are matching on. 
+    If unsuccessful try to apply to the operands of `op`. Proceeds recursively to the 
+    operands of operands.
     """
     s: Strategy
 
     def impl(self, op: IOp) -> RewriteResult:
-        return leftChoice(self.s, one(topdown(self.s))).apply(op)
+        return leftChoice(self.s, backwards_step(backwards(self.s))).apply(op)
+
+
+@dataclass(frozen=True)
+class RegionTraversal(Strategy, ABC):
+    """
+    Traversal which handles application of a BlockTraversal to a specific IRegion
+    and builds a replacement for the matched op with a new IRegion afterwards.  
+    """
+    block_trav: BlockTraversal
+
+
+@dataclass(frozen=True)
+class BlockTraversal(ABC):
+    """
+    Special kind of Strategy which is applied to an IRegion and returns a new IRegion
+    on success. Only composes with RegionTraversal and OpTraversal
+    """
+    op_trav: OpTraversal
+
+    def apply(self, region: IRegion) -> Optional[IRegion]:
+        return self.impl(region)
+
+    @abstractmethod
+    def impl(self, region: IRegion) -> Optional[IRegion]:
+        ...
+
+
+@dataclass(frozen=True)
+class OpTraversal(ABC):
+    """
+    Special kind of Strategy which is applied to an IBlock and returns a new IBlock
+    on success. Only composes with BlockTraversal
+    """
+    s: Strategy
+
+    def apply(self, block: IBlock) -> Optional[IBlock]:
+        return self.impl(block)
+
+    @abstractmethod
+    def impl(self, block: IBlock) -> Optional[IBlock]:
+        ...
+
+
+@dataclass(frozen=True)
+class region(RegionTraversal):
+    """
+    Descend into the region with index `n` to apply a Strategy inside. 
+    The Strategy and where exactly it is to be applied is determined by
+    `block_trav`. Afterwards a replacement for the matched op is built with
+    an updated region.
+    """
+    block_trav: BlockTraversal
+    n: int = 0
+
+    def impl(self, op: IOp) -> RewriteResult:
+        if len(op.regions) <= self.n:
+            return failure(self)
+        new_region = self.block_trav.apply(op.regions[self.n])
+        if new_region is None:
+            return failure(self)
+        regions: List[IRegion] = op.regions[:self.n] + [
+            new_region
+        ] + op.regions[self.n + 1:]
+
+        result = new_op(op_type=op.op_type,
+                        operands=list(op.operands),
+                        result_types=op.result_types,
+                        attributes=op.attributes,
+                        successors=list(op.successors),
+                        regions=regions)
+        return success(result)
+
+
+@dataclass(frozen=True)
+class block(BlockTraversal):
+    """
+    Descend into the block with index `n` to apply a Strategy inside. 
+    The Strategy and where exactly it is to be applied is determined by
+    `op_trav`. Afterwards a replacement for the matched region is built with
+    an updated block.
+    """
+    op_trav: OpTraversal
+    n: int = 0
+
+    def impl(self, region: IRegion) -> Optional[IRegion]:
+        if len(region.blocks) <= self.n:
+            return None  # TODO
+        new_block = self.op_trav.apply(region.blocks[self.n])
+        if new_block is None:
+            return None
+        blocks = region.blocks[:self.n] + [new_block
+                                           ] + region.blocks[self.n + 1:]
+        return IRegion(blocks)
+
+
+def add_replacements_for_uses_of_matched_op(replacements: List[IOpReplacement],
+                                            repl_idx: int, user_op: IOp):
+
+    replacement = replacements[repl_idx]
+    for idx, matched_op_value in enumerate(replacement.matched_op.results):
+        if matched_op_value in user_op.operands:
+            replacements.insert(
+                repl_idx + 1,
+                IOpReplacement(
+                    user_op,
+                    from_op(user_op,
+                            env={
+                                matched_op_value:
+                                replacement.replacement_ops[-1].results[idx]
+                            })))
+            # TODO: think about whether we have to do this in the replacement ops as well
+            if user_op in (matched_op_list := [
+                repl.matched_op for repl in replacements[repl_idx + 2:]
+            ]):
+                index = matched_op_list.index(user_op)
+                # Is this even valid? As one of the operands changed, the match might be stale
+                replacements[
+                    repl_idx + 1 +
+                    index].matched_op = replacement.replacement_ops[-1]
+
+
+@dataclass(frozen=True)
+class op(OpTraversal):
+    """
+    Apply a strategy `s` to the op with index `n` in an IBlock. Afterwards builds
+    an new IBlock from the result. 
+    """
+    s: Strategy
+    n: int = 0
+
+    def impl(self, block: IBlock) -> Optional[IBlock]:
+        if len(block.ops) <= self.n:
+            return None
+        rr = self.s.apply(block.ops[self.n])
+        if rr.isSuccess():
+            nested_ops: List[IOp] = list(block.ops)
+
+            completed_replacements: List[IOpReplacement] = []
+            for repl_idx, replacement in enumerate(rr.replacements):
+                if replacement.matched_op in nested_ops:
+                    # walk all operations of the new block and
+                    # add replacements for the uses of the op we are replacing
+                    add_replacements: Callable[[IOp], None] = partial(
+                        add_replacements_for_uses_of_matched_op,
+                        rr.replacements, repl_idx)
+                    for op in nested_ops:
+                        op.walk(add_replacements)
+
+                    # special case that the replacement is a single op out of
+                    # the already existing IR. Then we
+                    if len(
+                        replacement.replacement_ops
+                    ) == 1 and replacement.replacement_ops[0] in nested_ops:
+                        replacement.replacement_ops.clear()
+
+                    # Actually replacing the matched op with replacement ops
+                    i = nested_ops.index(replacement.matched_op)
+                    nested_ops[i:i + 1] = replacement.replacement_ops
+
+                    completed_replacements.append(replacement)
+                else:
+                    raise Exception(
+                        "replacement out of scope, could not be applied")
+
+            for replacement in completed_replacements:
+                rr.replacements.remove(replacement)
+
+            return IBlock.from_iblock(nested_ops, block)
+        return None
+
+
+@dataclass(frozen=True)
+class opsTopToBottom(OpTraversal):
+    """
+    Try to apply a strategy `s` to all ops in an IBlock starting at the top. 
+    After successful application builds an new IBlock from the result. 
+    """
+    s: Strategy
+    start_index: int = 0
+    skips: int = 0
+
+    def impl(self, block: IBlock) -> Optional[IBlock]:
+        for op_idx in range(0, len(block.ops)):
+            if op_idx < self.start_index:
+                continue
+            new_block: Optional[IBlock] = op(self.s, op_idx).apply(block)
+            if new_block is not None:
+                if self.skips > 0 and op_idx < len(block.ops):
+                    return opsTopToBottom(self.s, op_idx + 1,
+                                          self.skips - 1).apply(block)
+                return new_block
+        return None
+
+
+@dataclass(frozen=True)
+class opsBottomToTop(OpTraversal):
+    """
+    Try to apply a strategy `s` to all ops in an IBlock starting at the bottom. 
+    After successful application builds an new IBlock from the result. 
+    """
+    s: Strategy
+    start_index: int = -1
+    skips: int = 0
+
+    def impl(self, block: IBlock) -> Optional[IBlock]:
+
+        for op_idx in reversed(range(0, len(block.ops))):
+            if self.start_index != -1 and op_idx > self.start_index:
+                continue
+            new_block: Optional[IBlock] = op(self.s, op_idx).apply(block)
+            if new_block is not None:
+                if self.skips > 0 and op_idx > 0:
+                    return opsBottomToTop(self.s, op_idx - 1,
+                                          self.skips - 1).apply(block)
+                return new_block
+        return None
+
+
+@dataclass(frozen=True)
+class topToBottom(Strategy):
+    """
+    topToBottom traversal - Try to apply a strategy `s` to `op` itself and all
+    ops in nested regions from top to bottom. Terminates after successful application.
+    """
+    s: Strategy
+    skips: int = 0
+
+    def impl(self, _op: IOp) -> RewriteResult:
+        if (rr := self.s.apply(_op)).isSuccess():
+            return rr
+        for region_idx in range(0, len(_op.regions)):
+            for block_idx in range(0, len(_op.regions[region_idx].blocks)):
+                rr = region(
+                    block(
+                        opsTopToBottom(topToBottom(self.s, skips=self.skips),
+                                       skips=self.skips), block_idx),
+                    region_idx).apply(_op)
+                if rr.isSuccess():
+                    return rr
+
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class bottomToTop(Strategy):
+    """
+    bottomToTop traversal - Try to apply a strategy `s` to all
+    ops in nested regions from bottom to top and the op itself.
+    Terminates after successful application.
+    """
+    s: Strategy
+    skips: int = 0
+
+    def impl(self, _op: IOp) -> RewriteResult:
+        for region_idx in reversed(range(0, len(_op.regions))):
+            for block_idx in reversed(
+                range(0, len(_op.regions[region_idx].blocks))):
+                rr = region(
+                    block(
+                        opsBottomToTop(bottomToTop(self.s, skips=self.skips),
+                                       skips=self.skips), block_idx),
+                    region_idx).apply(_op)
+                if rr.isSuccess():
+                    return rr
+        if (rr := self.s.apply(_op)).isSuccess():
+            return rr
+
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class outermost(Strategy):
+    """
+    Outermost traversal
+    """
+    predicate: Strategy
+    s: Strategy
+
+    def impl(self, op: IOp) -> RewriteResult:
+        return backwards(seq(self.predicate, self.s)).apply(op)
+
+
+@dataclass(frozen=True)
+class skip(Strategy):
+    """
+    Skip traversal - only applies the strategy `s` after finding `n` 
+    possible other matches for it. `traversal` specifies how the IR
+    will be traversed after skipping a match. 
+    """
+
+    traversal: Callable[[Strategy], Strategy]
+    s: Strategy
+    n: int = 1
+
+    def impl(self, op: IOp) -> RewriteResult:
+        print(f"skip n:{self.n}")
+        rr = self.s.apply(op)
+        if not rr.isSuccess():
+            return self.traversal(skip(self.traversal, self.s,
+                                       self.n)).apply(op)
+        if self.n > 0:
+            return self.traversal(skip(self.traversal, self.s,
+                                       self.n - 1)).apply(op)
+        else:
+            return rr
+
+
+########################################################################
+######################    Predicate Strategies    ######################
+########################################################################
+
+
+@dataclass(frozen=True)
+class isa(Strategy):
+    """
+    Predicate Strategy checking whether on op is of a specific op_type
+    """
+    op_type: Type[Operation]
+
+    def impl(self, op: IOp) -> RewriteResult:
+        if op.op_type == self.op_type:
+            return success(op)
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class attributes(Strategy):
+    """
+    Predicate Strategy checking whether on op has a set of attributes
+    """
+    attributes: List[Attribute]
+
+    def impl(self, op: IOp) -> RewriteResult:
+        for attr in self.attributes:
+            if attr not in op.attributes:
+                return failure(self)
+        return success(op)
