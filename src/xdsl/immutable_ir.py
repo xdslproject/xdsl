@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Iterable, SupportsIndex, Type, TypeGuard, Any
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
+from xdsl.dialects.rewrite import *
 
 _T = TypeVar('_T')
 
@@ -655,5 +656,7 @@ def _unpack_operands(
         if operand in env:
             operand = env[operand]
         assert not isinstance(operand, List)
+        if isinstance(operand, IResult) and operand.op.op_type == RewriteId:
+            operand = operand.op.operands[-1]
         unpacked_operands.append(operand)
     return (unpacked_operands, rewritten_ops)

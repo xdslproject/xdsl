@@ -196,7 +196,7 @@ class try_(Strategy):
 
 
 @dataclass(frozen=True)
-class backwards_step(Strategy):  # TODO: think about name
+class backwards_step(Strategy):
     """
     Try to apply s to one the operands of op or to the last op in its region
     """
@@ -237,13 +237,12 @@ class backwards_step(Strategy):  # TODO: think about name
                 completed_replacements: List[IOpReplacement] = []
                 for replacement in rr.replacements:
                     if replacement.matched_op in nested_ops:
-                        # special case that the replacement is a single op out of
-                        # the already existing IR. Then we
-                        if len(
-                            replacement.replacement_ops
-                        ) == 1 and replacement.matched_op is not replacement.replacement_ops[
-                            0] and replacement.replacement_ops[0] in nested_ops:
-                            replacement.replacement_ops.clear()
+                        # We never want to materialize rewrite.id operations
+                        replacement.replacement_ops = [
+                            op for op in replacement.replacement_ops
+                            if op.op_type != RewriteId
+                        ]
+
                         i = nested_ops.index(replacement.matched_op)
                         nested_ops[i:i + 1] = replacement.replacement_ops
                         completed_replacements.append(replacement)
@@ -283,21 +282,21 @@ class backwards(Strategy):
 
 
 @dataclass(frozen=True)
-class RegionTraversal(Strategy, ABC):
+class RegionsTraversal(Strategy, ABC):
     """
     Traversal which handles application of a BlockTraversal to a specific IRegion
     and builds a replacement for the matched op with a new IRegion afterwards.  
     """
-    block_trav: BlockTraversal
+    block_trav: BlocksTraversal
 
 
 @dataclass(frozen=True)
-class BlockTraversal(ABC):
+class BlocksTraversal(ABC):
     """
     Special kind of Strategy which is applied to an IRegion and returns a new IRegion
     on success. Only composes with RegionTraversal and OpTraversal
     """
-    op_trav: OpTraversal
+    op_trav: OpsTraversal
 
     def apply(self, region: IRegion) -> Optional[IRegion]:
         return self.impl(region)
@@ -308,7 +307,7 @@ class BlockTraversal(ABC):
 
 
 @dataclass(frozen=True)
-class OpTraversal(ABC):
+class OpsTraversal(ABC):
     """
     Special kind of Strategy which is applied to an IBlock and returns a new IBlock
     on success. Only composes with BlockTraversal
@@ -324,15 +323,15 @@ class OpTraversal(ABC):
 
 
 @dataclass(frozen=True)
-class region(RegionTraversal):
+class regionN(RegionsTraversal):
     """
     Descend into the region with index `n` to apply a Strategy inside. 
     The Strategy and where exactly it is to be applied is determined by
     `block_trav`. Afterwards a replacement for the matched op is built with
     an updated region.
     """
-    block_trav: BlockTraversal
-    n: int = 0
+    block_trav: BlocksTraversal
+    n: int
 
     def impl(self, op: IOp) -> RewriteResult:
         if len(op.regions) <= self.n:
@@ -354,19 +353,64 @@ class region(RegionTraversal):
 
 
 @dataclass(frozen=True)
-class block(BlockTraversal):
+class firstRegion(regionN):
+    """
+    regionN with n = 0
+    """
+    block_trav: BlocksTraversal
+    n: int = 0
+
+
+@dataclass(frozen=True)
+class regionstopToBottom(RegionsTraversal):
+    """
+    Descend successively into all regions, in top to bottom order to apply a Strategy inside. 
+    The Strategy and where exactly it is to be applied is determined by
+    `block_trav`. Afterwards a replacement for the matched op is built with
+    an updated region.
+    """
+    block_trav: BlocksTraversal
+
+    def impl(self, op: IOp) -> RewriteResult:
+        for region_idx in range(0, len(op.regions)):
+            rr = regionN(self.block_trav, region_idx).apply(op)
+            if rr.isSuccess():
+                return rr
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class regionsBottomToTop(RegionsTraversal):
+    """
+    Descend successively into all regions, in bottom to top order to apply a Strategy inside. 
+    The Strategy and where exactly it is to be applied is determined by
+    `block_trav`. Afterwards a replacement for the matched op is built with
+    an updated region.
+    """
+    block_trav: BlocksTraversal
+
+    def impl(self, op: IOp) -> RewriteResult:
+        for region_idx in reversed(range(0, len(op.regions))):
+            rr = regionN(self.block_trav, region_idx).apply(op)
+            if rr.isSuccess():
+                return rr
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class blockN(BlocksTraversal):
     """
     Descend into the block with index `n` to apply a Strategy inside. 
     The Strategy and where exactly it is to be applied is determined by
     `op_trav`. Afterwards a replacement for the matched region is built with
     an updated block.
     """
-    op_trav: OpTraversal
-    n: int = 0
+    op_trav: OpsTraversal
+    n: int
 
     def impl(self, region: IRegion) -> Optional[IRegion]:
         if len(region.blocks) <= self.n:
-            return None  # TODO
+            return None
         new_block = self.op_trav.apply(region.blocks[self.n])
         if new_block is None:
             return None
@@ -375,9 +419,91 @@ class block(BlockTraversal):
         return IRegion(blocks)
 
 
+@dataclass(frozen=True)
+class firstBlock(blockN):
+    """
+    blockN with n = 0
+    """
+    op_trav: OpsTraversal
+    n: int = 0
+
+
+@dataclass(frozen=True)
+class blocksTopToBottom(BlocksTraversal):
+    """
+    Descend successively into all blocks, in top to bottom order 
+    to apply a Strategy inside. 
+    The Strategy and to which ops exactly it is to be applied is determined by
+    `op_trav`. Afterwards a replacement for the matched region is built with
+    an updated block.
+    """
+    op_trav: OpsTraversal
+
+    def impl(self, region: IRegion) -> Optional[IRegion]:
+        for block_idx in range(0, len(region.blocks)):
+            new_block = blockN(self.op_trav, block_idx).apply(region)
+            if new_block is None:
+                continue
+            return new_block
+        return None
+
+
+@dataclass(frozen=True)
+class blocksBottomToTop(BlocksTraversal):
+    """
+    Descend successively into all blocks, in bottom to top order 
+    to apply a Strategy inside. 
+    The Strategy and to which ops exactly it is to be applied is determined by
+    `op_trav`. Afterwards a replacement for the matched region is built with
+    an updated block.
+    """
+    op_trav: OpsTraversal
+
+    def impl(self, region: IRegion) -> Optional[IRegion]:
+        for block_idx in range(0, len(region.blocks)):
+            new_block = blockN(self.op_trav, block_idx).apply(region)
+            if new_block is None:
+                continue
+            return new_block
+        return None
+
+
+@dataclass(frozen=True)
+class blocksCFG(BlocksTraversal):
+    """
+    Walk the blocks in a region in the order specified by their 
+    control flow graph (depth first) to apply a Strategy inside. 
+    The Strategy and to which ops exactly it is to be applied is determined by
+    `op_trav`. Afterwards a replacement for the matched region is built with
+    an updated block. 
+    """
+    op_trav: OpsTraversal
+    # Entry block is always block#0
+    cur_idx: int = 0
+
+    def impl(self, region: IRegion) -> Optional[IRegion]:
+        # try to apply to this block
+        new_block = blockN(self.op_trav, self.cur_idx).apply(region)
+        if new_block is not None:
+            return new_block
+        # try to apply to successors:
+        if len(region.blocks[self.cur_idx].ops) > 0 and len(
+            successors := region.blocks[self.cur_idx].ops[-1].successors) > 0:
+            for successor in successors:
+                if successor in region.blocks:
+                    new_block = blocksCFG(
+                        self.op_trav,
+                        region.blocks.index(successor)).apply(region)
+                    if new_block is not None:
+                        return new_block
+                else:
+                    raise Exception("invalid successor")
+
+        return None
+
+
 def add_replacements_for_uses_of_matched_op(replacements: List[IOpReplacement],
                                             repl_idx: int, user_op: IOp):
-
     replacement = replacements[repl_idx]
     for idx, matched_op_value in enumerate(replacement.matched_op.results):
         if matched_op_value in user_op.operands:
@@ -388,27 +514,36 @@ def add_replacements_for_uses_of_matched_op(replacements: List[IOpReplacement],
                     from_op(user_op,
                             env={
                                 matched_op_value:
-                                replacement.replacement_ops[-1].results[idx]
+                                (replacement.replacement_ops[-1].results[idx]
+                                 if not replacement.replacement_ops[-1].op_type
+                                 == RewriteId else
+                                 replacement.replacement_ops[-1].operands[0])
                             })))
             # TODO: think about whether we have to do this in the replacement ops as well
             if user_op in (matched_op_list := [
                 repl.matched_op for repl in replacements[repl_idx + 2:]
             ]):
                 index = matched_op_list.index(user_op)
-                # Is this even valid? As one of the operands changed, the match might be stale
-                replacements[
-                    repl_idx + 1 +
-                    index].matched_op = replacement.replacement_ops[-1]
+                if not replacement.replacement_ops[-1].op_type == RewriteId:
+                    replacements[
+                        repl_idx + 1 +
+                        index].matched_op = replacement.replacement_ops[-1]
+                else:
+                    print(
+                        "ERROR in the rewriting! Removing a replacement because its match went stale."
+                    )
+                    replacements[repl_idx + 1 + index:repl_idx + 1 + index +
+                                 1] = []
 
 
 @dataclass(frozen=True)
-class op(OpTraversal):
+class opN(OpsTraversal):
     """
     Apply a strategy `s` to the op with index `n` in an IBlock. Afterwards builds
     an new IBlock from the result. 
     """
     s: Strategy
-    n: int = 0
+    n: int
 
     def impl(self, block: IBlock) -> Optional[IBlock]:
         if len(block.ops) <= self.n:
@@ -428,13 +563,11 @@ class op(OpTraversal):
                     for op in nested_ops:
                         op.walk(add_replacements)
 
-                    # special case that the replacement is a single op out of
-                    # the already existing IR. Then we
-                    if len(
-                        replacement.replacement_ops
-                    ) == 1 and replacement.matched_op is not replacement.replacement_ops[
-                        0] and replacement.replacement_ops[0] in nested_ops:
-                        replacement.replacement_ops.clear()
+                    # We never want to materialize rewrite.id operations
+                    replacement.replacement_ops = [
+                        op for op in replacement.replacement_ops
+                        if op.op_type != RewriteId
+                    ]
 
                     # Actually replacing the matched op with replacement ops
                     i = nested_ops.index(replacement.matched_op)
@@ -453,7 +586,16 @@ class op(OpTraversal):
 
 
 @dataclass(frozen=True)
-class opsTopToBottom(OpTraversal):
+class firstOp(opN):
+    """
+    opN with n = 0
+    """
+    s: Strategy
+    n: int = 0
+
+
+@dataclass(frozen=True)
+class opsTopToBottom(OpsTraversal):
     """
     Try to apply a strategy `s` to all ops in an IBlock starting at the top. 
     After successful application builds an new IBlock from the result. 
@@ -466,7 +608,7 @@ class opsTopToBottom(OpTraversal):
         for op_idx in range(0, len(block.ops)):
             if op_idx < self.start_index:
                 continue
-            new_block: Optional[IBlock] = op(self.s, op_idx).apply(block)
+            new_block: Optional[IBlock] = opN(self.s, op_idx).apply(block)
             if new_block is not None:
                 if self.skips > 0 and op_idx < len(block.ops):
                     return opsTopToBottom(self.s, op_idx + 1,
@@ -476,7 +618,7 @@ class opsTopToBottom(OpTraversal):
 
 
 @dataclass(frozen=True)
-class opsBottomToTop(OpTraversal):
+class opsBottomToTop(OpsTraversal):
     """
     Try to apply a strategy `s` to all ops in an IBlock starting at the bottom. 
     After successful application builds an new IBlock from the result. 
@@ -490,7 +632,7 @@ class opsBottomToTop(OpTraversal):
         for op_idx in reversed(range(0, len(block.ops))):
             if self.start_index != -1 and op_idx > self.start_index:
                 continue
-            new_block: Optional[IBlock] = op(self.s, op_idx).apply(block)
+            new_block: Optional[IBlock] = opN(self.s, op_idx).apply(block)
             if new_block is not None:
                 if self.skips > 0 and op_idx > 0:
                     return opsBottomToTop(self.s, op_idx - 1,
@@ -511,15 +653,12 @@ class topToBottom(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         if (rr := self.s.apply(op)).isSuccess():
             return rr
-        for region_idx in range(0, len(op.regions)):
-            for block_idx in range(0, len(op.regions[region_idx].blocks)):
-                rr = region(
-                    block(
-                        opsTopToBottom(topToBottom(self.s, skips=self.skips),
-                                       skips=self.skips), block_idx),
-                    region_idx).apply(op)
-                if rr.isSuccess():
-                    return rr
+        rr = regionstopToBottom(
+            blocksTopToBottom(
+                opsTopToBottom(topToBottom(self.s, skips=self.skips),
+                               skips=self.skips))).apply(op)
+        if rr.isSuccess():
+            return rr
 
         return failure(self)
 
@@ -535,16 +674,12 @@ class bottomToTop(Strategy):
     skips: int = 0
 
     def impl(self, op: IOp) -> RewriteResult:
-        for region_idx in reversed(range(0, len(op.regions))):
-            for block_idx in reversed(
-                range(0, len(op.regions[region_idx].blocks))):
-                rr = region(
-                    block(
-                        opsBottomToTop(bottomToTop(self.s, skips=self.skips),
-                                       skips=self.skips), block_idx),
-                    region_idx).apply(op)
-                if rr.isSuccess():
-                    return rr
+        rr = regionsBottomToTop(
+            blocksBottomToTop(
+                opsBottomToTop(bottomToTop(self.s, skips=self.skips),
+                               skips=self.skips))).apply(op)
+        if rr.isSuccess():
+            return rr
         if (rr := self.s.apply(op)).isSuccess():
             return rr
 
@@ -561,31 +696,6 @@ class outermost(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         return backwards(seq(self.predicate, self.s)).apply(op)
-
-
-@dataclass(frozen=True)
-class skip(Strategy):
-    """
-    Skip traversal - only applies the strategy `s` after finding `n` 
-    possible other matches for it. `traversal` specifies how the IR
-    will be traversed after skipping a match. 
-    """
-
-    traversal: Callable[[Strategy], Strategy]
-    s: Strategy
-    n: int = 1
-
-    def impl(self, op: IOp) -> RewriteResult:
-        print(f"skip n:{self.n}")
-        rr = self.s.apply(op)
-        if not rr.isSuccess():
-            return self.traversal(skip(self.traversal, self.s,
-                                       self.n)).apply(op)
-        if self.n > 0:
-            return self.traversal(skip(self.traversal, self.s,
-                                       self.n - 1)).apply(op)
-        else:
-            return rr
 
 
 ########################################################################

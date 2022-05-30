@@ -133,7 +133,8 @@ class RemoveAddZero(Strategy):
                     operands=[ISSAValue(op=IOp(op_type=arith.Constant, 
                                                   attributes={"value": IntegerAttr(value=IntAttr(data=0))})), 
                                     IResult() as operand2]):
-                return success(operand2.op)
+                id = new_op(RewriteId, operands=[operand2], result_types=[operand2.typ])
+                return success(id)
             case _:
                 return failure(self)
 

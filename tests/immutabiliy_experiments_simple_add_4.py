@@ -40,11 +40,11 @@ func.return(%4 : !i32)
 """module() {
   func.func() ["sym_name" = "affine_mm", "function_type" = !fun<[!memref<[256 : !index, 256 : !index], !i32>, !memref<[256 : !index, 256 : !index], !i32>, !memref<[256 : !index, 256 : !index], !i32>], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !memref<[256 : !index, 256 : !index], !i32>, %1 : !memref<[256 : !index, 256 : !index], !i32>, %2 : !memref<[256 : !index, 256 : !index], !i32>):
-    %res_outer : !memref<[256 : !index, 256 : !index], !i32> = scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+    %res_outer : !memref<[256 : !index, 256 : !index], !i32> = affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
     ^1(%3 : !index):
-      %res_middle : !memref<[256 : !index, 256 : !index], !i32> = scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+      %res_middle : !memref<[256 : !index, 256 : !index], !i32> = affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
       ^2(%4 : !index):
-        scf.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
+        affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
         ^3(%7 : !index):
           %9 : !i32 = memref.load(%0 : !memref<[256 : !index, 256 : !index], !i32>, %3 : !index, %7 : !index)
           %10 : !i32 = memref.load(%1 : !memref<[256 : !index, 256 : !index], !i32>, %7 : !index, %4 : !index)
@@ -274,7 +274,7 @@ func.return(%4 : !i32)
     affine.Affine(ctx)
     memref.MemRef(ctx)
 
-    parser = Parser(ctx, block_args_before)
+    parser = Parser(ctx, before_affine_loops_3_deep_nest)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -292,7 +292,7 @@ func.return(%4 : !i32)
         s: Strategy
 
         def impl(self, op: IOp) -> RewriteResult:
-            return region(block(elevate.op(self.s))).apply(op)
+            return firstRegion(firstBlock(firstOp(self.s))).apply(op)
         
     @dataclass(frozen=True)
     class idAdd(Strategy):
@@ -302,7 +302,8 @@ func.return(%4 : !i32)
             return success(op)
           return failure(self)
 
-    # rrImmM1 = First_nested_op(debug() ^ region(block(opsTopToBottom(debug() ^ LoopSplit(3))))).apply(immBeforeM)
+    # rrImmM1 = First_nested_op(debug() ^ firstRegion(firstBlock(opsTopToBottom(debug() ^ LoopSplit(3))))).apply(immBeforeM)
+    rrImmM1 = topToBottom_alternative(debug() ^ LoopSplit(3)).apply(immBeforeM)
     
     # rrImmM1 = backwards(idAdd()).apply(immBeforeM)
 
@@ -312,7 +313,7 @@ func.return(%4 : !i32)
 
     # rrImmM1 = region(block(opsTopToBottom(region(block(opsTopToBottom(CommuteAdd())))))).apply(immBeforeM)
 
-    rrImmM1 = bottomToTop(debug() ^ CommuteAdd()).apply(immBeforeM)
+    # rrImmM1 = bottomToTop(debug() ^ CommuteAdd()).apply(immBeforeM)
 
     # rrImmM1 = region(block(opsTopToBottom(region(block(opsTopToBottom((id() ^ LoopSplit(3)))))))).apply(immBeforeM)
     
