@@ -239,9 +239,10 @@ class backwards_step(Strategy):  # TODO: think about name
                     if replacement.matched_op in nested_ops:
                         # special case that the replacement is a single op out of
                         # the already existing IR. Then we
-                        if len(replacement.replacement_ops
-                               ) == 1 and replacement.replacement_ops[
-                                   0] in nested_ops:
+                        if len(
+                            replacement.replacement_ops
+                        ) == 1 and replacement.matched_op is not replacement.replacement_ops[
+                            0] and replacement.replacement_ops[0] in nested_ops:
                             replacement.replacement_ops.clear()
                         i = nested_ops.index(replacement.matched_op)
                         nested_ops[i:i + 1] = replacement.replacement_ops
@@ -431,7 +432,8 @@ class op(OpTraversal):
                     # the already existing IR. Then we
                     if len(
                         replacement.replacement_ops
-                    ) == 1 and replacement.replacement_ops[0] in nested_ops:
+                    ) == 1 and replacement.matched_op is not replacement.replacement_ops[
+                        0] and replacement.replacement_ops[0] in nested_ops:
                         replacement.replacement_ops.clear()
 
                     # Actually replacing the matched op with replacement ops
@@ -506,16 +508,16 @@ class topToBottom(Strategy):
     s: Strategy
     skips: int = 0
 
-    def impl(self, _op: IOp) -> RewriteResult:
-        if (rr := self.s.apply(_op)).isSuccess():
+    def impl(self, op: IOp) -> RewriteResult:
+        if (rr := self.s.apply(op)).isSuccess():
             return rr
-        for region_idx in range(0, len(_op.regions)):
-            for block_idx in range(0, len(_op.regions[region_idx].blocks)):
+        for region_idx in range(0, len(op.regions)):
+            for block_idx in range(0, len(op.regions[region_idx].blocks)):
                 rr = region(
                     block(
                         opsTopToBottom(topToBottom(self.s, skips=self.skips),
                                        skips=self.skips), block_idx),
-                    region_idx).apply(_op)
+                    region_idx).apply(op)
                 if rr.isSuccess():
                     return rr
 
@@ -532,18 +534,18 @@ class bottomToTop(Strategy):
     s: Strategy
     skips: int = 0
 
-    def impl(self, _op: IOp) -> RewriteResult:
-        for region_idx in reversed(range(0, len(_op.regions))):
+    def impl(self, op: IOp) -> RewriteResult:
+        for region_idx in reversed(range(0, len(op.regions))):
             for block_idx in reversed(
-                range(0, len(_op.regions[region_idx].blocks))):
+                range(0, len(op.regions[region_idx].blocks))):
                 rr = region(
                     block(
                         opsBottomToTop(bottomToTop(self.s, skips=self.skips),
                                        skips=self.skips), block_idx),
-                    region_idx).apply(_op)
+                    region_idx).apply(op)
                 if rr.isSuccess():
                     return rr
-        if (rr := self.s.apply(_op)).isSuccess():
+        if (rr := self.s.apply(op)).isSuccess():
             return rr
 
         return failure(self)
