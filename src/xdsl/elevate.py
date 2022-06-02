@@ -3,7 +3,7 @@ from abc import abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
-from typing import List, Callable
+from typing import List, Callable, MutableSequence
 from xdsl.immutable_ir import *
 from xdsl.pattern_rewriter import *
 
@@ -16,7 +16,7 @@ class IOpReplacement:
 
 @dataclass
 class RewriteResult:
-    _result: Union[Strategy, List[IOpReplacement]]
+    _result: Union[Strategy, Sequence[IOpReplacement]]
 
     def flatMapSuccess(self, s: Strategy) -> RewriteResult:
         if (not self.isSuccess()):
@@ -68,7 +68,7 @@ class RewriteResult:
         return self.replacements[-1].replacement_ops[-1]
 
 
-def success(arg: IOp | List[IOp] | RewriteResult) -> RewriteResult:
+def success(arg: IOp | Sequence[IOp]) -> RewriteResult:
     match arg:
         case IOp():
             ops = [arg]
@@ -78,18 +78,6 @@ def success(arg: IOp | List[IOp] | RewriteResult) -> RewriteResult:
             ops = list(OrderedDict.fromkeys(arg))
         case _:
             raise Exception("success called with incompatible arguments")
-
-    # TRACING DISABLED
-    # tracing def use relations:
-    # Add all dependant operations to `ops`
-    def trace_operands_recursive(operands: IList[ISSAValue], ops: List[IOp]):
-        for operand in operands:
-            if isinstance(operand, IResult):
-                if operand.op not in ops:
-                    ops.insert(0, operand.op)
-                    trace_operands_recursive(operand.op.operands, ops)
-
-    # trace_operands_recursive(ops[-1].operands, ops)
 
     # matched op will be set by the Strategy itself in `apply`
     return RewriteResult([IOpReplacement(None, ops)])  # type: ignore
@@ -377,7 +365,7 @@ class firstRegion(regionN):
 
 
 @dataclass(frozen=True)
-class regionstopToBottom(RegionsTraversal):
+class regionsTopToBottom(RegionsTraversal):
     """
     Descend successively into all regions, in top to bottom order to apply a Strategy inside. 
     The Strategy and where exactly it is to be applied is determined by
@@ -517,40 +505,6 @@ class blocksCFG(BlocksTraversal):
         return None
 
 
-def add_replacements_for_uses_of_matched_op(replacements: List[IOpReplacement],
-                                            repl_idx: int, user_op: IOp):
-    replacement = replacements[repl_idx]
-    for idx, matched_op_value in enumerate(replacement.matched_op.results):
-        if matched_op_value in user_op.operands:
-            replacements.insert(
-                repl_idx + 1,
-                IOpReplacement(
-                    user_op,
-                    from_op(user_op,
-                            env={
-                                matched_op_value:
-                                (replacement.replacement_ops[-1].results[idx]
-                                 if not replacement.replacement_ops[-1].op_type
-                                 == RewriteId else
-                                 replacement.replacement_ops[-1].operands[0])
-                            })))
-            # TODO: think about whether we have to do this in the replacement ops as well
-            if user_op in (matched_op_list := [
-                repl.matched_op for repl in replacements[repl_idx + 2:]
-            ]):
-                index = matched_op_list.index(user_op)
-                if not replacement.replacement_ops[-1].op_type == RewriteId:
-                    replacements[
-                        repl_idx + 1 +
-                        index].matched_op = replacement.replacement_ops[-1]
-                else:
-                    print(
-                        "ERROR in the rewriting! Removing a replacement because its match went stale."
-                    )
-                    replacements[repl_idx + 1 + index:repl_idx + 1 + index +
-                                 1] = []
-
-
 @dataclass(frozen=True)
 class opN(OpsTraversal):
     """
@@ -573,7 +527,7 @@ class opN(OpsTraversal):
                     # walk all operations of the new block and
                     # add replacements for the uses of the op we are replacing
                     add_replacements: Callable[[IOp], None] = partial(
-                        add_replacements_for_uses_of_matched_op,
+                        self._add_replacements_for_uses_of_matched_op,
                         rr.replacements, repl_idx)
                     for op in nested_ops:
                         op.walk(add_replacements)
@@ -598,6 +552,42 @@ class opN(OpsTraversal):
 
             return IBlock.from_iblock(nested_ops, block)
         return None
+
+    @staticmethod
+    def _add_replacements_for_uses_of_matched_op(
+            replacements: MutableSequence[IOpReplacement], repl_idx: int,
+            user_op: IOp):
+        replacement = replacements[repl_idx]
+        for idx, matched_op_value in enumerate(replacement.matched_op.results):
+            if matched_op_value in user_op.operands:
+                replacements.insert(
+                    repl_idx + 1,
+                    IOpReplacement(
+                        user_op,
+                        from_op(
+                            user_op,
+                            env={
+                                matched_op_value:
+                                (replacement.replacement_ops[-1].results[idx]
+                                 if not replacement.replacement_ops[-1].op_type
+                                 == RewriteId else
+                                 replacement.replacement_ops[-1].operands[0])
+                            })))
+                # TODO: think about whether we have to do this in the replacement ops as well
+                if user_op in (matched_op_list := [
+                    repl.matched_op for repl in replacements[repl_idx + 2:]
+                ]):
+                    index = matched_op_list.index(user_op)
+                    if not replacement.replacement_ops[-1].op_type == RewriteId:
+                        replacements[
+                            repl_idx + 1 +
+                            index].matched_op = replacement.replacement_ops[-1]
+                    else:
+                        print(
+                            "ERROR in the rewriting! Removing a replacement because its match went stale."
+                        )
+                        replacements[repl_idx + 1 + index:repl_idx + 1 +
+                                     index + 1] = []
 
 
 @dataclass(frozen=True)
@@ -668,7 +658,7 @@ class topToBottom(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         if (rr := self.s.apply(op)).isSuccess():
             return rr
-        rr = regionstopToBottom(
+        rr = regionsTopToBottom(
             blocksTopToBottom(
                 opsTopToBottom(topToBottom(self.s, skips=self.skips),
                                skips=self.skips))).apply(op)
@@ -720,7 +710,7 @@ class isa(Strategy):
 
 
 @dataclass(frozen=True)
-class attributes(Strategy):
+class has_attributes(Strategy):
     """
     Predicate Strategy checking whether on op has a set of attributes
     """

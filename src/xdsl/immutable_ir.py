@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable, SupportsIndex, Type, TypeGuard, Any
+from typing import Iterable, Sequence, SupportsIndex, Type, TypeGuard, Any
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
 from xdsl.dialects.rewrite import *
@@ -56,7 +56,7 @@ class IResult(ISSAValue):
     op: IOp
     result_index: int
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(id(self.op)) + hash(self.result_index)
 
     def __eq__(self, __o: IResult) -> bool:
@@ -70,7 +70,7 @@ class IBlockArg(ISSAValue):
     block: IBlock
     index: int
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(id(self))
 
     def __eq__(self, __o: IBlockArg) -> bool:
@@ -89,14 +89,14 @@ class IBlockArg(ISSAValue):
 class IRegion:
     blocks: IList[IBlock]
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(id(self))
 
     def __eq__(self, __o: IRegion) -> bool:
         return self is __o
 
     @property
-    def block(self):
+    def block(self) -> Optional[IBlock]:
         if len(self.blocks) > 0:
             return self.blocks[0]
         return None
@@ -108,7 +108,7 @@ class IRegion:
         else:
             return IList()
 
-    def __init__(self, blocks: List[IBlock]):
+    def __init__(self, blocks: Sequence[IBlock]):
         """Creates a new mutable region and returns an immutable view on it."""
         object.__setattr__(self, "blocks", IList(blocks))
         self.blocks.freeze()
@@ -116,7 +116,7 @@ class IRegion:
     @classmethod
     def from_mutable(
         cls,
-        blocks: List[Block],
+        blocks: Sequence[Block],
         value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
         block_map: Optional[Dict[Block, IBlock]] = None,
     ) -> IRegion:
@@ -161,7 +161,7 @@ class IBlock:
         frozen_arg_types = [arg.typ for arg in self.args]
         return frozen_arg_types
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return (id(self))
 
     def __eq__(self, __o: IBlock) -> bool:
@@ -179,24 +179,25 @@ class IBlock:
         for arg in self.args:
             object.__setattr__(arg, "block", self)
 
-    def __init__(self, args: List[Attribute] | List[IBlockArg],
-                 ops: List[IOp]):
+    def __init__(self, args: Sequence[Attribute] | Sequence[IBlockArg],
+                 ops: Sequence[IOp]):
         """Creates a new immutable block."""
 
         # Type Guards:
-        def is_iblock_arg_list(list: List[Any]) -> TypeGuard[List[IBlockArg]]:
+        def is_iblock_arg_seq(
+                list: Sequence[Any]) -> TypeGuard[Sequence[IBlockArg]]:
             if len(list) == 0:
                 return False
             return all([isinstance(elem, IBlockArg) for elem in list])
 
-        def is_type_list(list: List[Any]) -> TypeGuard[List[Attribute]]:
+        def is_type_seq(list: Sequence[Any]) -> TypeGuard[Sequence[Attribute]]:
             return all([isinstance(elem, Attribute) for elem in list])
 
-        if is_type_list(args):
+        if is_type_seq(args):
             block_args: List[IBlockArg] = [
                 IBlockArg(type, self, idx) for idx, type in enumerate(args)
             ]
-        elif is_iblock_arg_list(args):
+        elif is_iblock_arg_seq(args):
             block_args: List[IBlockArg] = args
             for block_arg in block_args:
                 object.__setattr__(block_arg, "block", self)
@@ -211,7 +212,7 @@ class IBlock:
 
     @classmethod
     def from_iblock(cls,
-                    ops: List[IOp],
+                    ops: Sequence[IOp],
                     old_block: IBlock,
                     env: Optional[Dict[ISSAValue, ISSAValue]] = None):
         """Creates a new immutable block to replace an existing immutable block, e.g.
@@ -227,6 +228,8 @@ class IBlock:
 
         block_args: List[IBlockArg] = []
         for idx, old_arg in enumerate(old_block.args):
+            # The IBlock that will house this IBlockArg is not constructed yet.
+            # After construction the block field will be set by the IBlock.
             block_args.append(new_block_arg := IBlockArg(
                 old_arg.typ,
                 None,  # type: ignore
@@ -235,7 +238,7 @@ class IBlock:
 
         # Some of the operations in ops might refer to the block args of old_block
         # In that case it is necessary to substitute these references with the new
-        # block args of this block. This is achieved that by rebuilding the ops if necessary
+        # block args of this block. This is achieved by rebuilding the ops if necessary
         def substitute_if_required(op: IOp) -> IOp:
             substitution_required = False
             # rebuild specific regions of this op if necessary
@@ -310,6 +313,8 @@ class IBlock:
 
         args: List[IBlockArg] = []
         for arg in block.args:
+            # The IBlock that will house this IBlockArg is not constructed yet.
+            # After construction the block field will be set by the IBlock.
             immutable_arg = IBlockArg(arg.typ, None, arg.index)  # type: ignore
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
@@ -352,6 +357,12 @@ def get_immutable_copy(op: Operation) -> IOp:
 
 @dataclass(frozen=True)
 class OpData:
+    """
+    These fields are split off from IOp to its own class because they are
+    often preserved during rewriting. A new operation of the same type, e.g.
+    with changed operands can still use the same OpData instance. This design
+    increases sharing in the IR.
+    """
     name: str
     op_type: type[Operation]
     attributes: Dict[str, Attribute]
@@ -367,9 +378,10 @@ class IOp:
     successors: IList[IBlock]
     regions: IList[IRegion]
 
-    def __init__(self, op_data: OpData, operands: List[ISSAValue],
-                 result_types: List[Attribute], successors: List[IBlock],
-                 regions: List[IRegion]) -> None:
+    def __init__(self, op_data: OpData, operands: Sequence[ISSAValue],
+                 result_types: Sequence[Attribute],
+                 successors: Sequence[IBlock],
+                 regions: Sequence[IRegion]) -> None:
         object.__setattr__(self, "_op_data", op_data)
         object.__setattr__(self, "operands", IList(operands))
         object.__setattr__(
@@ -388,9 +400,9 @@ class IOp:
 
     @classmethod
     def get(cls, name: str, op_type: type[Operation],
-            operands: List[ISSAValue], result_types: List[Attribute],
-            attributes: Dict[str, Attribute], successors: List[IBlock],
-            regions: List[IRegion]) -> IOp:
+            operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
+            attributes: Dict[str, Attribute], successors: Sequence[IBlock],
+            regions: Sequence[IRegion]) -> IOp:
         return cls(OpData(name, op_type, attributes), operands, result_types,
                    successors, regions)
 
@@ -483,7 +495,7 @@ class IOp:
             op: Operation,
             value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
             block_map: Optional[Dict[Block, IBlock]] = None,
-            existing_operands: Optional[List[ISSAValue]] = None) -> IOp:
+            existing_operands: Optional[Sequence[ISSAValue]] = None) -> IOp:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
         op_type = op.__class__
@@ -557,11 +569,12 @@ class IOp:
 
 
 def new_op(op_type: type[Operation],
-           operands: Optional[List[ISSAValue | IOp | List[IOp]]] = None,
-           result_types: Optional[List[Attribute]] = None,
+           operands: Optional[Sequence[ISSAValue | IOp
+                                       | Sequence[IOp]]] = None,
+           result_types: Optional[Sequence[Attribute]] = None,
            attributes: Optional[Dict[str, Attribute]] = None,
-           successors: Optional[List[IBlock]] = None,
-           regions: Optional[List[IRegion]] = None) -> List[IOp]:
+           successors: Optional[Sequence[IBlock]] = None,
+           regions: Optional[Sequence[IRegion]] = None) -> List[IOp]:
     """Creates a new operation with the specified arguments. 
     Returns a list of all created IOps in the current nesting of calls 
     to `new_op` and `from_op` with this new IOp last.
@@ -586,11 +599,12 @@ def new_op(op_type: type[Operation],
 
 
 def from_op(old_op: IOp,
-            operands: Optional[List[ISSAValue | IOp | List[IOp]]] = None,
-            result_types: Optional[List[Attribute]] = None,
+            operands: Optional[Sequence[ISSAValue | IOp
+                                        | Sequence[IOp]]] = None,
+            result_types: Optional[Sequence[Attribute]] = None,
             attributes: Optional[Dict[str, Attribute]] = None,
-            successors: Optional[List[IBlock]] = None,
-            regions: Optional[List[IRegion]] = None,
+            successors: Optional[Sequence[IBlock]] = None,
+            regions: Optional[Sequence[IRegion]] = None,
             env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> List[IOp]:
     """Creates a new operation by assuming all fields of `old_op`, apart from 
     those specified via the arguments. Returns a list of all created IOps in
@@ -631,7 +645,7 @@ def from_op(old_op: IOp,
 
 
 def _unpack_operands(
-    operands: List[ISSAValue | IOp | List[IOp]],
+    operands: Sequence[ISSAValue | IOp | Sequence[IOp]],
     env: Optional[Dict[ISSAValue, ISSAValue]] = None
 ) -> Tuple[List[ISSAValue], List[IOp]]:
     """Maps all structures supplied in `operands` to a corresponding
