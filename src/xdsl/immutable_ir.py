@@ -650,7 +650,14 @@ def _unpack_operands(
             operand = operand.result
         if isinstance(ops := operand, List):
             assert ops[-1].result is not None
-            rewritten_ops = ops + rewritten_ops
+            # avoid adding duplicates to rewritten ops
+            for op in reversed(ops):
+                if op in rewritten_ops:
+                    # We don't want duplicates, but we have to remove the
+                    # posterior instance and insert at the beginning
+                    # or we get dead references
+                    rewritten_ops.remove(op)
+                rewritten_ops = [op] + rewritten_ops
             operand = ops[-1].result
         assert isinstance(operand, ISSAValue)
         if operand in env:

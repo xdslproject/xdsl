@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import abstractmethod
+from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
 from typing import List, Callable
@@ -72,7 +73,9 @@ def success(arg: IOp | List[IOp] | RewriteResult) -> RewriteResult:
         case IOp():
             ops = [arg]
         case [*_]:
-            ops = arg
+            # remove duplicates - this way we can choose to enforce a specific
+            # order of the ops by explicitly ordering them in the call to success
+            ops = list(OrderedDict.fromkeys(arg))
         case _:
             raise Exception("success called with incompatible arguments")
 
@@ -279,6 +282,18 @@ class backwards(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
         return leftChoice(self.s, backwards_step(backwards(self.s))).apply(op)
+
+
+@dataclass(frozen=True)
+class outermost(Strategy):
+    """
+    Outermost traversal
+    """
+    predicate: Strategy
+    s: Strategy
+
+    def impl(self, op: IOp) -> RewriteResult:
+        return backwards(seq(self.predicate, self.s)).apply(op)
 
 
 @dataclass(frozen=True)
@@ -684,18 +699,6 @@ class bottomToTop(Strategy):
             return rr
 
         return failure(self)
-
-
-@dataclass(frozen=True)
-class outermost(Strategy):
-    """
-    Outermost traversal
-    """
-    predicate: Strategy
-    s: Strategy
-
-    def impl(self, op: IOp) -> RewriteResult:
-        return backwards(seq(self.predicate, self.s)).apply(op)
 
 
 ########################################################################
