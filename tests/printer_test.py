@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from io import StringIO
 
 from xdsl.printer import Printer
@@ -25,6 +27,15 @@ def test_forgotten_op():
     assert False, "Exception expected"
 
 
+#  ____  _                             _   _
+# |  _ \(_) __ _  __ _ _ __   ___  ___| |_(_) ___
+# | | | | |/ _` |/ _` | '_ \ / _ \/ __| __| |/ __|
+# | |_| | | (_| | (_| | | | | (_) \__ \ |_| | (__
+# |____/|_|\__,_|\__, |_| |_|\___/|___/\__|_|\___|
+#                |___/
+#
+
+
 def test_op_message():
     """Test that an operation message can be printed."""
     prog = \
@@ -36,9 +47,9 @@ def test_op_message():
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message
-  --------------------------------------------------
+  --------------------------
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
@@ -68,13 +79,13 @@ def test_two_different_op_messages():
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
-  --------------------------------------------------
+  --------------------------
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ^^^^^^^^^^^^^^^^^^^^^^
   | Test message 2
-  --------------------------------------------
+  ----------------------
 }"""
 
     ctx = MLContext()
@@ -104,12 +115,12 @@ def test_two_same_op_messages():
     expected = \
 """module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
-  --------------------------------------------------
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  --------------------------
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 2
-  --------------------------------------------------
+  --------------------------
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
@@ -140,9 +151,9 @@ def test_op_message_with_region():
     expected = \
 """\
 module() {
-^^^^^^^^
+^^^^^^-
 | Test
---------
+-------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -176,7 +187,7 @@ def test_op_message_with_region_and_overflow():
     expected = \
 """\
 module() {
-^^^^^^^^-------
+^^^^^^---------
 | Test message
 ---------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -236,6 +247,14 @@ module() {
         assert str(e)
 
 
+#  ____ ____    _    _   _
+# / ___/ ___|  / \  | \ | | __ _ _ __ ___   ___
+# \___ \___ \ / _ \ |  \| |/ _` | '_ ` _ \ / _ \
+#  ___) |__) / ___ \| |\  | (_| | | | | | |  __/
+# |____/____/_/   \_\_| \_|\__,_|_| |_| |_|\___|
+#
+
+
 def test_print_costum_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
@@ -262,5 +281,127 @@ module() {
 
     file = StringIO("")
     printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+#   ____          _                  _____                          _
+#  / ___|   _ ___| |_ ___  _ __ ___ |  ___|__  _ __ _ __ ___   __ _| |_
+# | |  | | | / __| __/ _ \| '_ ` _ \| |_ / _ \| '__| '_ ` _ \ / _` | __|
+# | |__| |_| \__ \ || (_) | | | | | |  _| (_) | |  | | | | | | (_| | |_
+#  \____\__,_|___/\__\___/|_| |_| |_|_|  \___/|_|  |_| |_| |_|\__,_|\__|
+#
+
+
+@irdl_op_definition
+class PlusCustomFormatOp(Operation):
+    name = "test.add"
+    lhs = OperandDef(IntegerType)
+    rhs = OperandDef(IntegerType)
+    res = ResultDef(IntegerType)
+
+    @classmethod
+    def parse(cls, result_types: List[Attribute],
+              parser: Parser) -> PlusCustomFormatOp:
+        lhs = parser.parse_ssa_value()
+        parser.skip_white_space()
+        parser.parse_char("+")
+        rhs = parser.parse_ssa_value()
+        return PlusCustomFormatOp.create(operands=[lhs, rhs],
+                                         result_types=result_types)
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.lhs, " + ", self.rhs)
+
+
+def test_generic_format():
+    """
+    Test that we can use generic formats in operations.
+    """
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = "test.add"(%0: !i32, %0: !i32)
+    }"""
+
+    expected = \
+"""\
+module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = test.add %0 + %0
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_custom_format():
+    """
+    Test that we can use custom formats in operations.
+    """
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = test.add %0 + %0
+    }"""
+
+    expected = \
+"""\
+module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = test.add %0 + %0
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_custom_format():
+    """
+    Test that we can print using generic formats.
+    """
+    prog = \
+        """module() {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    %1 : !i32 = test.add %0 + %0
+    }"""
+
+    expected = \
+"""\
+"module"() {
+  %0 : !i32 = "arith.constant"() ["value" = 42 : !i32]
+  %1 : !i32 = "test.add"(%0 : !i32, %0 : !i32)
+}"""
+
+    ctx = MLContext()
+    arith = Arith(ctx)
+    builtin = Builtin(ctx)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file, print_generic_format=True)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
