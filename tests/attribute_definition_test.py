@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic
+from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
 
@@ -513,6 +513,9 @@ class ListData(GenericData[List[A]]):
                     f"{idx} is of type {type(val)}.")
 
 
+AnyListData: TypeAlias = ListData[Attribute]
+
+
 def test_generic_data_verifier():
     """
     Test that a GenericData can be created.
@@ -570,7 +573,7 @@ def test_generic_data_wrapper_verifier_failure():
 class ListDataNoGenericsWrapper(ParametrizedAttribute):
     name = "list_no_generics_wrapper"
 
-    val: ParameterDef[ListData[Any]]
+    val: ParameterDef[AnyListData]
 
 
 def test_generic_data_no_generics_wrapper_verifier():

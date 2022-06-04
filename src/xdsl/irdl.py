@@ -279,12 +279,11 @@ def irdl_to_attr_constraint(
                                          type_var_mapping=type_var_mapping)
                                      for _, param in origin_parameters
                                  ]
-        print(origin_constraints)
         return ParamAttrConstraint(origin, origin_constraints)
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if origin == types.UnionType:
+    if origin == types.UnionType or origin == Union:
         constraints: List[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
