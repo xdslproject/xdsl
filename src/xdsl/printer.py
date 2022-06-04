@@ -55,9 +55,6 @@ class Printer:
             self._current_column += len(lines[-1])
         print(text, end='', file=self.stream)
 
-    def print_string(self, string: str) -> None:
-        self.print(string)
-
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
