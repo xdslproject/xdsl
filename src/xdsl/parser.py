@@ -111,6 +111,20 @@ class Parser:
             raise Exception("int literal expected")
         return res
 
+    def parse_bool_literal(self) -> bool:
+        res = self.parse_optional_bool_literal()
+        if res is None:
+            raise Exception("bool literal expected")
+        return res
+
+    def parse_optional_bool_literal(self) -> Optional[bool]:
+        res = self.parse_while(lambda char: char.isalpha())
+        if len(res) == 0:
+            raise Exception("bool literal expected")
+        if res == "True": return True
+        if res == "False": return False
+        return None
+
     def peek_char(self, char: str) -> Optional[bool]:
         self.skip_white_space()
         if self._idx == len(self._str):

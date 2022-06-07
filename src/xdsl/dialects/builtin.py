@@ -106,6 +106,25 @@ class IntAttr(Data):
 
 
 @irdl_attr_definition
+class BoolAttr(Data):
+    name = "bool"
+    data: bool
+
+    @staticmethod
+    def parse(parser: Parser) -> BoolAttr:
+        data = parser.parse_bool_literal()
+        return BoolAttr(data)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
+
+    @staticmethod
+    @builder
+    def from_bool(data: bool) -> BoolAttr:
+        return BoolAttr(data)
+
+
+@irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
     name = "integer_type"
     width = ParameterDef(IntAttr)
