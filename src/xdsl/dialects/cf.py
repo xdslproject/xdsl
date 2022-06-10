@@ -2,7 +2,7 @@ from __future__ import annotations
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr, FlatSymbolRefAttr
+from xdsl.dialects.builtin import IntegerType
 
 
 @dataclass

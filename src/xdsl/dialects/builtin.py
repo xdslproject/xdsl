@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from xdsl.irdl import *
 from xdsl.ir import *
-from typing import overload
+from typing import TypeAlias
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -36,17 +36,17 @@ class Builtin:
 
 
 @irdl_attr_definition
-class StringAttr(Data):
+class StringAttr(Data[str]):
     name = "string"
-    data: str
 
     @staticmethod
-    def parse(parser: Parser) -> StringAttr:
+    def parse_parameter(parser: Parser) -> str:
         data = parser.parse_str_literal()
-        return StringAttr(data)
+        return data
 
-    def print(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
+        printer.print_string(f'"{data}"')
 
     @staticmethod
     @builder
@@ -57,7 +57,7 @@ class StringAttr(Data):
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
     name = "symbol_name"
-    data = ParameterDef(StringAttr)
+    data: ParameterDef[StringAttr]
 
     @staticmethod
     @builder
@@ -73,7 +73,7 @@ class SymbolNameAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class FlatSymbolRefAttr(ParametrizedAttribute):
     name = "flat_symbol_ref"
-    data = ParameterDef(StringAttr)
+    data: ParameterDef[StringAttr]
 
     @staticmethod
     @builder
@@ -87,17 +87,17 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IntAttr(Data):
+class IntAttr(Data[int]):
     name = "int"
-    data: int
 
     @staticmethod
-    def parse(parser: Parser) -> IntAttr:
+    def parse_parameter(parser: Parser) -> int:
         data = parser.parse_int_literal()
-        return IntAttr(data)
+        return data
 
-    def print(self, printer: Printer) -> None:
-        printer.print_string(f'{self.data}')
+    @staticmethod
+    def print_parameter(data: int, printer: Printer) -> None:
+        printer.print_string(f'{data}')
 
     @staticmethod
     @builder
@@ -108,7 +108,7 @@ class IntAttr(Data):
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
     name = "integer_type"
-    width = ParameterDef(IntAttr)
+    width: ParameterDef[IntAttr]
 
     @staticmethod
     @builder
@@ -126,55 +126,41 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
+_IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
+                          bound=IntegerType | IndexType,
+                          covariant=True)
+
+
 @irdl_attr_definition
-class IntegerAttr(ParametrizedAttribute):
+class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     name = "integer"
-    value = ParameterDef(IntAttr)
-    typ = ParameterDef(AnyOf([IntegerType, IndexType]))
+    value: ParameterDef[IntAttr]
+    typ: ParameterDef[_IntegerAttrTyp]
 
     @staticmethod
     @builder
-    def from_int_and_width(value: int, width: int) -> IntegerAttr:
+    def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
         return IntegerAttr(
             [IntAttr.from_int(value),
              IntegerType.from_width(width)])
 
     @staticmethod
     @builder
-    def from_index_int_value(value: int) -> IntegerAttr:
+    def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr([IntAttr.from_int(value), IndexType()])
 
     @staticmethod
     @builder
-    def from_params(value: Union[int, IntAttr],
-                    typ: Union[int, Attribute]) -> IntegerAttr:
+    def from_params(
+            value: int | IntAttr,
+            typ: int | Attribute) -> IntegerAttr[IntegerType | IndexType]:
         value = IntAttr.build(value)
         if not isinstance(typ, IndexType):
             typ = IntegerType.build(typ)
         return IntegerAttr([value, typ])
 
 
-@irdl_attr_definition
-class ArrayAttr(Data):
-    name = "array"
-    data: List[Attribute]
-
-    @staticmethod
-    def parse(parser) -> ArrayAttr:
-        parser.parse_char("[")
-        data = parser.parse_list(parser.parse_optional_attribute)
-        parser.parse_char("]")
-        return ArrayAttr.get(data)
-
-    def print(self, printer) -> None:
-        printer.print_string("[")
-        printer.print_list(self.data, printer.print_attribute)
-        printer.print_string("]")
-
-    @staticmethod
-    @builder
-    def from_list(data: List[Attribute]) -> ArrayAttr:
-        return ArrayAttr(data)
+AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @dataclass
@@ -185,120 +171,186 @@ class ArrayOfConstraint(AttrConstraint):
     """
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Union[Attribute, typing.Type[Attribute],
-                                     AttrConstraint]):
+    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
-    def verify(self, data: Data) -> None:
-        if not isinstance(data, ArrayAttr):
-            raise Exception(f"expected data ArrayData but got {data}")
-
-        for e in data.data:
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, Data):
+            raise Exception(f"expected data ArrayData but got {attr}")
+        for e in cast(ArrayAttr[Attribute], attr).data:
             self.elem_constr.verify(e)
+
+
+_ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
+
+
+@irdl_attr_definition
+class ArrayAttr(GenericData[List[_ArrayAttrT]]):
+    name = "array"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> List[_ArrayAttrT]:
+        parser.parse_char("[")
+        data = parser.parse_list(parser.parse_optional_attribute)
+        parser.parse_char("]")
+        # the type system can't ensure that the elements are of type A
+        # and not just of type Attribute, therefore, the following cast
+        return cast(List[_ArrayAttrT], data)
+
+    @staticmethod
+    def print_parameter(data: List[_ArrayAttrT], printer: Printer) -> None:
+        printer.print_string("[")
+        printer.print_list(data, printer.print_attribute)
+        printer.print_string("]")
+
+    @staticmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        if len(args) == 1:
+            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        if len(args) == 0:
+            return ArrayOfConstraint(AnyAttr())
+        raise TypeError(f"Attribute ArrayAttr expects at most type"
+                        f" parameter, but {len(args)} were given")
+
+    def verify(self) -> None:
+        if not isinstance(self.data, list):
+            raise VerifyException(
+                f"Wrong type given to attribute {self.name}: got"
+                f" {type(self.data)}, but expected list of"
+                " attributes")
+        for idx, val in enumerate(self.data):
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} data expects attribute list, but {idx} "
+                    f"element is of type {type(val)}")
+
+    @staticmethod
+    @builder
+    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+        return ArrayAttr(data)
+
+
+AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
     name = "tuple"
 
-    types = ParameterDef(ArrayOfConstraint(Attribute))
+    types: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
     @builder
     def from_type_list(types: List[Attribute]) -> TupleType:
-        return TupleType([ArrayAttr.from_list(types)])  #type: ignore
+        return TupleType([ArrayAttr.from_list(types)])
+
+
+_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
 
 
 @irdl_attr_definition
-class VectorType(ParametrizedAttribute):
+class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute):
     name = "vector"
 
-    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
-    element_type = ParameterDef(AnyAttr())
+    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    element_type: ParameterDef[_VectorTypeElems]
 
     def get_num_dims(self) -> int:
-        return len(self.parameters[0].data)
+        return len(self.shape.data)
 
     def get_shape(self) -> List[int]:
-        return [i.parameters[0].data for i in self.shape.data]
+        return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
-            referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> VectorType:
+        referenced_type: _VectorTypeElems,
+        shape: Optional[List[int | IntegerAttr[IndexType]]] = None
+    ) -> VectorType[_VectorTypeElems]:
         if shape is None:
             shape = [1]
         return VectorType([
-            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
+            ArrayAttr.from_list(
+                [IntegerAttr[IntegerType].build(d) for d in shape]),
             referenced_type
         ])
 
     @staticmethod
     @builder
     def from_params(
-        referenced_type: Attribute,
-        shape: ArrayAttr = ArrayAttr.from_list(
+        referenced_type: _VectorTypeElems,
+        shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> VectorType:
+    ) -> VectorType[_VectorTypeElems]:
         return VectorType([shape, referenced_type])
 
 
+AnyVectorType: TypeAlias = VectorType[Attribute]
+
+_TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
+
+
 @irdl_attr_definition
-class TensorType(ParametrizedAttribute):
+class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute):
     name = "tensor"
 
-    shape = ParameterDef(ArrayOfConstraint(IntegerAttr))
-    element_type = ParameterDef(AnyAttr())
+    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    element_type: ParameterDef[_TensorTypeElems]
 
     def get_num_dims(self) -> int:
-        return len(self.parameters[0].data)
+        return len(self.shape.data)
 
     def get_shape(self) -> List[int]:
-        return [i.parameters[0].data for i in self.shape.data]
+        return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
-            referenced_type: Attribute,
-            shape: List[Union[int, IntegerAttr]] = None) -> TensorType:
+        referenced_type: _TensorTypeElems,
+        shape: Optional[Sequence[int | IntegerAttr[IndexType]]] = None
+    ) -> TensorType[_TensorTypeElems]:
         if shape is None:
             shape = [1]
         return TensorType([
-            ArrayAttr.from_list([IntegerAttr.build(d) for d in shape]),
+            ArrayAttr.from_list(
+                [IntegerAttr[IndexType].build(d) for d in shape]),
             referenced_type
         ])
 
     @staticmethod
     @builder
     def from_params(
-        referenced_type: Attribute,
-        shape: ArrayAttr = ArrayAttr.from_list(
+        referenced_type: _VectorTypeElems,
+        shape: AnyArrayAttr = AnyArrayAttr.from_list(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> TensorType:
+    ) -> TensorType[_VectorTypeElems]:
         return TensorType([shape, referenced_type])
+
+
+AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
     # TODO add support for FPElements
-    type = ParameterDef(AnyOf([VectorType, TensorType]))
+    type: ParameterDef[AnyVectorType | AnyTensorType]
     # TODO add support for multi-dimensional data
-    data = ParameterDef(ArrayOfConstraint(IntegerAttr))
+    data: ParameterDef[AnyArrayAttr]
 
     @staticmethod
     @builder
-    def from_int_list(type: Union[VectorType, TensorType], data: List[int],
-                      bitwidth) -> DenseIntOrFPElementsAttr:
+    def from_int_list(type: AnyVectorType | AnyTensorType, data: List[int],
+                      bitwidth: int) -> DenseIntOrFPElementsAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
     def from_list(
-            type: Union[VectorType, TensorType],
-            data: List[Union[int, IntegerAttr]]) -> DenseIntOrFPElementsAttr:
+            type: AnyVectorType | AnyTensorType,
+            data: List[int] | List[AnyIntegerAttr]
+    ) -> DenseIntOrFPElementsAttr:
         element_type = type.element_type
         # Only use the element_type if the passed data is an int, o/w use the IntegerAttr
         data_attr = [(IntegerAttr.from_params(d, element_type) if isinstance(
@@ -309,16 +361,16 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def vector_from_list(
             data: List[int],
-            typ: Union[IntegerType, IndexType]) -> DenseIntOrFPElementsAttr:
-        t = VectorType.from_type_and_list(typ, [len(data)])
+            typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
+        t = AnyVectorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
     @builder
     def tensor_from_list(
             data: List[int],
-            typ: Union[IntegerType, IndexType]) -> DenseIntOrFPElementsAttr:
-        t = TensorType.from_type_and_list(typ, [len(data)])
+            typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
+        t = AnyTensorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -339,8 +391,8 @@ class UnitAttr(ParametrizedAttribute):
 class FunctionType(ParametrizedAttribute):
     name = "fun"
 
-    inputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
-    outputs = ParameterDef(ArrayOfConstraint(AnyAttr()))
+    inputs: ParameterDef[ArrayAttr[Attribute]]
+    outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
     @builder
@@ -352,7 +404,8 @@ class FunctionType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_attrs(inputs: ArrayAttr, outputs: ArrayAttr) -> Attribute:
+    def from_attrs(inputs: ArrayAttr[Attribute],
+                   outputs: ArrayAttr[Attribute]) -> Attribute:
         return FunctionType([inputs, outputs])
 
 
@@ -367,7 +420,7 @@ class ModuleOp(Operation):
         return self.regions[0].blocks[0].ops
 
     @staticmethod
-    def from_region_or_ops(ops: Union[List[Operation], Region]) -> ModuleOp:
+    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
         if isinstance(ops, list):
             region = Region.from_operation_list(ops)
         elif isinstance(ops, Region):

@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Union
 
-from xdsl.ir import Operation, SSAValue
+from typing import Union, List
 from dataclasses import dataclass
-from xdsl.dialects.builtin import IntegerAttr, IndexType
-from xdsl.irdl import irdl_op_definition, AttributeDef, OperandDef, RegionDef, VarResultDef, VarOperandDef, AnyAttr
+
+from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
+from xdsl.dialects.builtin import IntegerAttr, IndexType, IndexType
+from xdsl.irdl import irdl_op_definition, AttributeDef, RegionDef, VarResultDef, VarOperandDef, AnyAttr
 
 
 @dataclass
@@ -68,7 +69,7 @@ class For(Operation):
     def from_callable(operands: List[Union[Operation, SSAValue]],
                       lower_bound: Union[int, IntegerAttr],
                       upper_bound: Union[int, IntegerAttr],
-                      body: Callable[[BlockArgument, ...], List[Operation]],
+                      body: Block.BlockCallback,
                       step: Union[int, IntegerAttr] = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
         return For.from_region(
@@ -83,5 +84,6 @@ class Yield(Operation):
     arguments = VarOperandDef(AnyAttr())
 
     @staticmethod
-    def get(*operands: Union[Operation, SSAValue]) -> Yield:
-        return Yield.create(operands=[operand for operand in operands])
+    def get(*operands: SSAValue | Operation) -> Yield:
+        return Yield.create(
+            operands=[SSAValue.get(operand) for operand in operands])
