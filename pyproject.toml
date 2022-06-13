@@ -6,5 +6,6 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.pyright]
+include = ["src"]
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
