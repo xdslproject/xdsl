@@ -379,8 +379,8 @@ class Operation:
         pass
 
     @classmethod
-    def parse(cls: typing.Type[OperationType], result_types: List[Attribute],
-              parser: Parser) -> OperationType:
+    def parse(cls: typing.Type[Parser._OperationType], result_types: List[Attribute],
+              parser: Parser) -> Parser._OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):
