@@ -69,9 +69,8 @@ class BaseAttr(AttrConstraint):
                 f"{attr} should be of base attribute {self.attr.name}")
 
 
-def attr_constr_coercion(
-        attr: (Attribute | type[Attribute] |
-                    AttrConstraint)) -> AttrConstraint:
+def attr_constr_coercion(attr: (Attribute | type[Attribute]
+                                | AttrConstraint)) -> AttrConstraint:
     """
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
@@ -144,8 +143,8 @@ class ParamAttrConstraint(AttrConstraint):
     """The attribute parameter constraints"""
 
     def __init__(self, base_attr: type[Attribute],
-                 param_constrs: list[(Attribute | type[Attribute] |
-                                           AttrConstraint)]):
+                 param_constrs: list[(Attribute | type[Attribute]
+                                      | AttrConstraint)]):
         self.base_attr = base_attr
         self.param_constrs = [
             attr_constr_coercion(constr) for constr in param_constrs
@@ -490,8 +489,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
 
 def get_operand_or_result(
         op: Operation, arg_def_idx: int, previous_var_args: int,
-        is_operand: bool
-) -> SSAValue | SSAValue | None | list[SSAValue]:
+        is_operand: bool) -> SSAValue | None | list[SSAValue]:
     """
     Get an operand or a result.
     In the case of a variadic operand or result definition, return a list of operand or results.
