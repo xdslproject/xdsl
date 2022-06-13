@@ -74,7 +74,7 @@ class Printer:
         indent = self._indent if indent is None else indent
         self.print(" " * indent * indentNumSpaces)
         indent_size = indent * indentNumSpaces
-        message_end_pos = max([len(line) for line in message.split("\n")]) + 2
+        message_end_pos = max(len(line) for line in message.split("\n")) + 2
         first_line = (begin_pos - indent_size) * "-" + (
             end_pos - begin_pos + 1) * "^" + (max(message_end_pos, end_pos) -
                                               end_pos) * "-"

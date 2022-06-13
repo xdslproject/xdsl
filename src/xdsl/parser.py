@@ -385,7 +385,7 @@ class Parser:
     _OperationType = TypeVar('_OperationType', bound='Operation')
 
     def parse_op_with_default_format(
-            self, op_type: typing.Type[_OperationType],
+            self, op_type: type[_OperationType],
             result_types: List[Attribute]) -> _OperationType:
         operands = self.parse_operands()
         successors = self.parse_successors()

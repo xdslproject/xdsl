@@ -22,11 +22,11 @@ class PatternRewriter:
     has_erased_matched_operation: bool = field(default=False, init=False)
     """Was the matched operation erased."""
 
-    added_operations_before: List[Operation] = field(default_factory=list,
+    added_operations_before: list[Operation] = field(default_factory=list,
                                                      init=False)
     """The operations added directly before the matched operation."""
 
-    added_operations_after: List[Operation] = field(default_factory=list,
+    added_operations_after: list[Operation] = field(default_factory=list,
                                                     init=False)
     """The operations added directly after the matched operation."""
 
@@ -53,8 +53,8 @@ class PatternRewriter:
             return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_op(region.parent)
 
-    def insert_op_before_matched_op(self, op: Union[Operation,
-                                                    List[Operation]]):
+    def insert_op_before_matched_op(self, op: (Operation |
+                                                    list[Operation])):
         """Insert operations before the matched operation."""
         if self.current_operation.parent is None:
             raise Exception(
@@ -68,8 +68,8 @@ class PatternRewriter:
         block.insert_op(op, op_idx)
         self.added_operations_before += op
 
-    def insert_op_after_matched_op(self, op: Union[Operation,
-                                                   List[Operation]]):
+    def insert_op_after_matched_op(self, op: (Operation |
+                                                   list[Operation])):
         """Insert operations after the matched operation."""
         if self.current_operation.parent is None:
             raise Exception(
@@ -83,7 +83,7 @@ class PatternRewriter:
         block.insert_op(op, op_idx + 1)
         self.added_operations_after += op
 
-    def insert_op_at_pos(self, op: Union[Operation, List[Operation]],
+    def insert_op_at_pos(self, op: Operation | list[Operation],
                          block: Block, pos: int):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
@@ -94,7 +94,7 @@ class PatternRewriter:
             return
         block.insert_op(op, pos)
 
-    def insert_op_before(self, op: Union[Operation, List[Operation]],
+    def insert_op_before(self, op: Operation | list[Operation],
                          target_op: Operation):
         """Insert operations before an operation contained in the matched operation."""
         if target_op.parent is None:
@@ -110,7 +110,7 @@ class PatternRewriter:
         target_op.parent.insert_op(op,
                                    target_block.get_operation_index(target_op))
 
-    def insert_op_after(self, op: Union[Operation, List[Operation]],
+    def insert_op_after(self, op: Operation | list[Operation],
                         target_op: Operation):
         """Insert operations after an operation contained in the matched operation."""
         if target_op.parent is None:
@@ -154,8 +154,8 @@ class PatternRewriter:
 
     def replace_matched_op(
             self,
-            new_ops: Union[Operation, List[Operation]],
-            new_results: Optional[List[Optional[OpResult]]] = None,
+            new_ops: Operation | list[Operation],
+            new_results: list[OpResult | None] | None = None,
             safe_erase: bool = True):
         """
         Replace the matched operation with new operations.
@@ -175,8 +175,8 @@ class PatternRewriter:
 
     def replace_op(self,
                    op: Operation,
-                   new_ops: Union[Operation, List[Operation]],
-                   new_results: Optional[List[Optional[OpResult]]] = None,
+                   new_ops: Operation | list[Operation],
+                   new_results: list[OpResult | None] | None = None,
                    safe_erase: bool = True):
         """
         Replace an operation with new operations.
@@ -387,7 +387,7 @@ def op_type_rewrite_pattern(func):
 class GreedyRewritePatternApplier(RewritePattern):
     """Apply a list of patterns in order until one pattern matches, and then use this rewrite."""
 
-    rewrite_patterns: List[RewritePattern]
+    rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
 
     def match_and_rewrite(self, op: Operation,
