@@ -53,8 +53,7 @@ class PatternRewriter:
             return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_op(region.parent)
 
-    def insert_op_before_matched_op(self, op: (Operation |
-                                                    list[Operation])):
+    def insert_op_before_matched_op(self, op: (Operation | list[Operation])):
         """Insert operations before the matched operation."""
         if self.current_operation.parent is None:
             raise Exception(
@@ -68,8 +67,7 @@ class PatternRewriter:
         block.insert_op(op, op_idx)
         self.added_operations_before += op
 
-    def insert_op_after_matched_op(self, op: (Operation |
-                                                   list[Operation])):
+    def insert_op_after_matched_op(self, op: (Operation | list[Operation])):
         """Insert operations after the matched operation."""
         if self.current_operation.parent is None:
             raise Exception(
@@ -83,8 +81,8 @@ class PatternRewriter:
         block.insert_op(op, op_idx + 1)
         self.added_operations_after += op
 
-    def insert_op_at_pos(self, op: Operation | list[Operation],
-                         block: Block, pos: int):
+    def insert_op_at_pos(self, op: Operation | list[Operation], block: Block,
+                         pos: int):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
             raise Exception("Cannot insert operations in block.")
@@ -152,11 +150,10 @@ class PatternRewriter:
                 ", or that are contained in the matched operation.")
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def replace_matched_op(
-            self,
-            new_ops: Operation | list[Operation],
-            new_results: list[OpResult | None] | None = None,
-            safe_erase: bool = True):
+    def replace_matched_op(self,
+                           new_ops: Operation | list[Operation],
+                           new_results: list[OpResult | None] | None = None,
+                           safe_erase: bool = True):
         """
         Replace the matched operation with new operations.
         Also, optionally specify SSA values to replace the operation results.

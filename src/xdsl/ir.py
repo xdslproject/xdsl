@@ -644,9 +644,7 @@ class Block:
         self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
         return op
 
-    def erase_op(self,
-                 op: int | Operation,
-                 safe_erase: bool = True) -> None:
+    def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
@@ -786,8 +784,7 @@ class Region:
         self._attach_block(block)
         self.blocks.append(block)
 
-    def insert_block(self, blocks: Block | list[Block],
-                     index: int) -> None:
+    def insert_block(self, blocks: Block | list[Block], index: int) -> None:
         """
         Insert one or multiple blocks at a given index in the region.
         The blocks should not be attached to another region.
@@ -827,9 +824,7 @@ class Region:
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block
 
-    def erase_block(self,
-                    block: int | Block,
-                    safe_erase: bool = True) -> None:
+    def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
         """
         Erase a block from the region.
         If safe_erase is True, check that the block has no uses.

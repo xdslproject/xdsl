@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
 
 
-def new_op(op_name, num_results, num_operands,
-           num_regions) -> type[Operation]:
+def new_op(op_name, num_results, num_operands, num_regions) -> type[Operation]:
 
     @dataclass(eq=False)
     class OpBase(Operation):
