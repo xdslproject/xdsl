@@ -225,7 +225,7 @@ class xDSLOptMain:
             f = sys.stdin
             file_extension = 'xdsl'
         else:
-            f = open(self.args.input_file, mode='r')
+            f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 

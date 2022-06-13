@@ -136,7 +136,7 @@ class BuilderUnionArgAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: typing.Union[str, int]) -> BuilderUnionArgAttr:
+    def from_int(i: str | int) -> BuilderUnionArgAttr:
         return BuilderUnionArgAttr(str(i))
 
     @staticmethod
