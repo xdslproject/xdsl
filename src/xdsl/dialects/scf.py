@@ -70,13 +70,13 @@ class While(Operation):
         for (idx, arg) in enumerate(self.arguments):
             if self.before_region.blocks[0].args[idx].typ != arg.typ:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {arg.typ}, got {self.before_region.block[0].args[idx].typ}"
+                    f"Block arguments with wrong type, expected {arg.typ}, got {self.before_region.blocks[0].args[idx].typ}"
                 )
 
         for (idx, res) in enumerate(self.res):
             if self.after_region.blocks[0].args[idx].typ != res.typ:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {res.typ}, got {self.after_region.block[0].args[idx].typ}"
+                    f"Block arguments with wrong type, expected {res.typ}, got {self.after_region.blocks[0].args[idx].typ}"
                 )
 
     @staticmethod
