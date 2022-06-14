@@ -7,6 +7,7 @@ from xdsl.printer import Printer
 from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
+from xdsl.immutable_utils import *
 import difflib
 
 
@@ -138,6 +139,23 @@ class RemoveAddZero(Strategy):
             case _:
                 return failure(self)
 
+@dataclass(frozen=True)
+class Mul2ToShift(Strategy):
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match op:
+            case IOp(op_type=arith.Muli, results=[IResult(typ=IntegerType() as type)], 
+                      operands=[ISSAValue() as input, IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=2))}))]):
+                return success(new_op(arith.ShLI, 
+                                        result_types=[type], 
+                                        operands=[input, 
+                                                  new_op(Constant,
+                                                      attributes={
+                                                          "value": IntegerAttr.from_params(1, type)
+                                                      }, result_types=[type])]
+                            ))
+            case _:
+                return failure(self)
 
 def test_double_commute():
     """Tests a strategy which swaps the two operands of an arith.addi."""
@@ -323,6 +341,12 @@ func.return(%4 : !i32)
   func.return(%4 : !i32)
 }
 """
+    twice_folded_garbage_collected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 7 : !i32]
+  func.return(%0 : !i32)
+}
+"""
     # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=once_folded,
@@ -332,7 +356,7 @@ func.return(%4 : !i32)
                                strategy=topToBottom(FoldConstantAdd()))
     apply_strategy_and_compare(program=before,
                                expected_program=once_folded,
-                               strategy=bottomToTop(FoldConstantAdd()))
+                               strategy=(bottomToTop(FoldConstantAdd())))
     # similar rewrite, different traversals:
     apply_strategy_and_compare(program=once_folded,
                                expected_program=twice_folded,
@@ -356,7 +380,10 @@ func.return(%4 : !i32)
                                expected_program=twice_folded,
                                strategy=seq(bottomToTop(FoldConstantAdd()),
                                             bottomToTop(FoldConstantAdd())))
-
+    # Garbage Collection
+    apply_strategy_and_compare(program=twice_folded,
+                               expected_program=twice_folded_garbage_collected,
+                               strategy=GarbageCollect())
 def test_inline_if():
     before = \
 """module() {
@@ -380,6 +407,14 @@ def test_inline_if():
   }
 }
 """
+    inlined_garbage_collected = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    func.return(%0 : !i32)
+  }
+}
+"""
     # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                                expected_program=inlined,
@@ -390,6 +425,10 @@ def test_inline_if():
     apply_strategy_and_compare(program=before,
                                expected_program=inlined,
                                strategy=bottomToTop(InlineIf()))
+    # Garbage Collection
+    apply_strategy_and_compare(program=inlined,
+                               expected_program=inlined_garbage_collected,
+                               strategy=GarbageCollect())
 
 def test_inline_and_fold():
     before = \
@@ -433,6 +472,14 @@ def test_inline_and_fold():
     %4 : !i32 = arith.constant() ["value" = 4 : !i32]
     %5 : !i32 = arith.constant() ["value" = 7 : !i32]
     func.return(%5 : !i32)
+  }
+}
+"""
+    folded_and_inlined_garbage_collected = \
+"""module() {
+  func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i32 = arith.constant() ["value" = 7 : !i32]
+    func.return(%0 : !i32)
   }
 }
 """
@@ -494,7 +541,10 @@ def test_inline_and_fold():
                                strategy=seq(bottomToTop(FoldConstantAdd()), 
                                             seq(bottomToTop(InlineIf()), 
                                                 bottomToTop(FoldConstantAdd()))))
-
+    # Garbage Collection             
+    apply_strategy_and_compare(program=folded_and_inlined,
+                               expected_program=folded_and_inlined_garbage_collected,
+                               strategy=GarbageCollect())
 def test_add_zero():
     before = \
 """module() {
@@ -537,6 +587,12 @@ def test_remove_add_zero():
   func.return(%0 : !i32)
 }
 """
+    removed_add_zero_garbage_collected = \
+"""module() {
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+  func.return(%0 : !i32)
+}
+"""
     # similar rewrite, different traversals:
     apply_strategy_and_compare(program=before,
                               expected_program=removed_add_zero,
@@ -547,6 +603,10 @@ def test_remove_add_zero():
     apply_strategy_and_compare(program=before,
                               expected_program=removed_add_zero,
                               strategy=bottomToTop(RemoveAddZero()))
+    # Garbage Collection
+    apply_strategy_and_compare(program=removed_add_zero,
+                              expected_program=removed_add_zero_garbage_collected,
+                              strategy=bottomToTop(GarbageCollect()))
 
 def test_deeper_nested_block_args_commute():
     """This test demonstrates that substitution of block arguments also works when the 
@@ -590,6 +650,54 @@ def test_deeper_nested_block_args_commute():
                               expected_program=nested_commute,
                               strategy=bottomToTop(CommuteAdd()))
 
+def test_mul2_to_lshift():
+    """
+    """
+  
+    before = \
+"""module() {
+  func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32):
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    %2 : !i32 = arith.muli(%0 : !i32, %1 : !i32)
+    func.return(%2 : !i32)
+  }
+}
+"""
+    left_shifted = \
+"""module() {
+  func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32):
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %3 : !i32 = arith.shli(%0 : !i32, %2 : !i32)
+    func.return(%3 : !i32)
+  }
+}
+"""
+    left_shifted_garbage_collected = \
+"""module() {
+  func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32):
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %2 : !i32 = arith.shli(%0 : !i32, %1 : !i32)
+    func.return(%2 : !i32)
+  }
+}
+"""
+    # similar rewrite, different traversals:
+    apply_strategy_and_compare(program=before,
+                              expected_program=left_shifted,
+                              strategy=backwards(Mul2ToShift()))
+    apply_strategy_and_compare(program=before,
+                              expected_program=left_shifted,
+                              strategy=topToBottom(Mul2ToShift()))
+    # Garbage Collection
+    apply_strategy_and_compare(program=left_shifted,
+                              expected_program=left_shifted_garbage_collected,
+                              strategy=GarbageCollect())
+
+                          
 if __name__ == "__main__":
     test_double_commute()
     test_commute_block_args()
@@ -601,3 +709,4 @@ if __name__ == "__main__":
     test_add_zero()
     test_remove_add_zero()
     test_deeper_nested_block_args_commute()
+    test_mul2_to_lshift()

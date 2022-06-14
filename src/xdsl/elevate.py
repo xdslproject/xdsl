@@ -526,17 +526,18 @@ class opN(OpsTraversal):
                 if replacement.matched_op in nested_ops:
                     # walk all operations of the new block and
                     # add replacements for the uses of the op we are replacing
-                    add_replacements: Callable[[IOp], None] = partial(
-                        self._add_replacements_for_uses_of_matched_op,
-                        rr.replacements, repl_idx)
-                    for op in nested_ops:
-                        op.walk(add_replacements)
+                    if len(replacement.replacement_ops) > 0:
+                        add_replacements: Callable[[IOp], None] = partial(
+                            self._add_replacements_for_uses_of_matched_op,
+                            rr.replacements, repl_idx)
+                        for op in nested_ops:
+                            op.walk(add_replacements)
 
-                    # We never want to materialize rewrite.id operations
-                    replacement.replacement_ops = [
-                        op for op in replacement.replacement_ops
-                        if op.op_type != RewriteId
-                    ]
+                        # We never want to materialize rewrite.id operations
+                        replacement.replacement_ops = [
+                            op for op in replacement.replacement_ops
+                            if op.op_type != RewriteId
+                        ]
 
                     # Actually replacing the matched op with replacement ops
                     i = nested_ops.index(replacement.matched_op)
@@ -621,6 +622,26 @@ class opsTopToBottom(OpsTraversal):
                 return new_block
         return None
 
+@dataclass(frozen=True)
+class allOpsTopToBottom(OpsTraversal):
+    """
+    """
+    s: Strategy
+    start_index: int = 0
+    skips: int = 0
+
+    # This could be implemented way more efficiently, but this is much more concise
+    def impl(self, block: IBlock) -> Optional[IBlock]:
+        if self.start_index == len(block.ops):
+            # We visited all ops successfully previously
+            return block
+        new_block = opN(self.s, self.start_index).apply(block)
+        if new_block is None:
+            return None
+        # To not miss any ops when the block is modified, we advance by ops_added +1.
+        # i.e. we skip newly created ops and avoid skipping an op if the matched op was deleted
+        ops_added = len(new_block.ops) - len(block.ops)
+        return allOpsTopToBottom(self.s, start_index=self.start_index+1+ops_added).apply(new_block)
 
 @dataclass(frozen=True)
 class opsBottomToTop(OpsTraversal):

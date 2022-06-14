@@ -12,6 +12,7 @@ from xdsl.printer import Printer
 from xdsl.elevate import *
 import xdsl.elevate as elevate
 from xdsl.immutable_ir import *
+from xdsl.immutable_utils import *
 
 import difflib
 
@@ -33,6 +34,17 @@ def rewriting_with_immutability_experiments():
 %3 : !i32 = arith.constant() ["value" = 4 : !i32]
 %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
 func.return(%4 : !i32)
+}
+"""
+
+    before_times2_to_shift = \
+"""module() {
+  func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+  ^0(%0 : !i32):
+    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    %2 : !i32 = arith.muli(%0 : !i32, %1 : !i32)
+    func.return(%2 : !i32)
+  }
 }
 """
 
@@ -266,6 +278,24 @@ func.return(%4 : !i32)
                     return failure(self)
 
 
+    @dataclass(frozen=True)
+    class Mul2ToShift(Strategy):
+
+        def impl(self, op: IOp) -> RewriteResult:
+            match op:
+                case IOp(op_type=arith.Muli, results=[IResult(typ=IntegerType() as type)], 
+                        operands=[ISSAValue() as input, IResult(op=IOp(op_type=arith.Constant, attributes={"value": IntegerAttr(value=IntAttr(data=2))}))]):
+                    return success(new_bin_op(arith.ShLI, 
+                                            input,
+                                            new_op(Constant,
+                                                attributes={
+                                                    "value": IntegerAttr.from_params(1, type)
+                                                }, result_types=[type])
+                                ))
+                case _:
+                    return failure(self)
+
+
     ctx = MLContext()
     builtin.Builtin(ctx)
     func.Func(ctx)
@@ -274,7 +304,7 @@ func.return(%4 : !i32)
     affine.Affine(ctx)
     memref.MemRef(ctx)
 
-    parser = Parser(ctx, before_affine_loops_3_deep_nest)
+    parser = Parser(ctx, before_times2_to_shift)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -287,25 +317,9 @@ func.return(%4 : !i32)
     printer = Printer()
     printer.print_op(immBeforeM.get_mutable_copy())
 
-    @dataclass(frozen=True)
-    class First_nested_op(Strategy):
-        s: Strategy
-
-        def impl(self, op: IOp) -> RewriteResult:
-            return firstRegion(firstBlock(firstOp(self.s))).apply(op)
-        
-    @dataclass(frozen=True)
-    class idAdd(Strategy):
-
-        def impl(self, op: IOp) -> RewriteResult:
-          if op.op_type == arith.Addi:
-            return success(op)
-          return failure(self)
-
-    # rrImmM1 = First_nested_op(debug() ^ firstRegion(firstBlock(opsTopToBottom(debug() ^ LoopSplit(3))))).apply(immBeforeM)
-    rrImmM1 = topToBottom_alternative(debug() ^ LoopSplit(3)).apply(immBeforeM)
+    rrImmM1 = topToBottom(Mul2ToShift()).apply(immBeforeM)
     
-    # rrImmM1 = backwards(idAdd()).apply(immBeforeM)
+
 
     # rrImmM1 = backwards(debug() ^ LoopSplit(3)).apply(immBeforeM)
 
@@ -325,10 +339,11 @@ func.return(%4 : !i32)
     # rrImmM2 = region(block(opsTopToBottom(region(block(opsTopToBottom(debug() ^ LoopUnroll(), skips=1)))))).apply(rrImmM1.result_op)
 
 
+    rrImmM2 = topToBottom(GarbageCollect()).apply(rrImmM1.result_op)
 
     # rrImmM2 = skip(backwards() ,isa(affine.For)) ^ LoopUnroll().apply(rrImmM1.result_op)
-    # printer = Printer()
-    # printer.print_op(rrImmM2.result_op.get_mutable_copy())
+    printer = Printer()
+    printer.print_op(rrImmM2.result_op.get_mutable_copy())
 
     # rrImmM1 = topdown(debug() ^ fail()).apply(immBeforeM)
     # rrImmM1 = operand_rec(LoopSplit(3)).apply(immBeforeM)
