@@ -1,12 +1,12 @@
-from xdsl.dialects.scf import Scf, If
-
-from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64
-from xdsl.parser import Parser
-from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.ir import MLContext
-from xdsl.pattern_rewriter import *
 from io import StringIO
+
+from xdsl.dialects.arith import Addi, Arith, Constant, Muli
+from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64
+from xdsl.dialects.scf import If, Scf
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
+from xdsl.pattern_rewriter import *
+from xdsl.printer import Printer
 
 
 def rewrite_and_compare(prog: str, expected_prog: str,

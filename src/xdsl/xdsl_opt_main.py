@@ -1,17 +1,18 @@
 import argparse
-import sys
 import os
+import sys
 from io import IOBase
+
+from xdsl.dialects.affine import *
+from xdsl.dialects.arith import *
+from xdsl.dialects.builtin import *
+from xdsl.dialects.cf import *
+from xdsl.dialects.func import *
+from xdsl.dialects.memref import *
+from xdsl.dialects.scf import *
 from xdsl.ir import *
 from xdsl.parser import *
 from xdsl.printer import *
-from xdsl.dialects.func import *
-from xdsl.dialects.scf import *
-from xdsl.dialects.arith import *
-from xdsl.dialects.affine import *
-from xdsl.dialects.memref import *
-from xdsl.dialects.builtin import *
-from xdsl.dialects.cf import *
 
 
 class xDSLOptMain:
@@ -22,24 +23,24 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
+    available_frontends: dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
     A mapping from file extension to a frontend that can handle this 
     file type.
     """
 
-    available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]] = {}
+    available_passes: dict[str, Callable[[MLContext, ModuleOp], None]] = {}
     """
     A mapping from pass names to functions that apply the pass to a  ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
+    available_targets: dict[str, Callable[[ModuleOp, IOBase], None]] = {}
     """
     A mapping from target names to functions that serialize a ModuleOp into a 
     stream.
     """
 
-    pipeline: List[Tuple[str, Callable[[ModuleOp], None]]]
+    pipeline: list[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
     def __init__(self, description='xDSL modular optimizer driver'):

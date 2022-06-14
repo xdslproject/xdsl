@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Dict, List, Union, Type
+
 from dataclasses import dataclass, field
+from io import StringIO
 
 from xdsl.ir import Block, Operation, Region
-from io import StringIO
 
 
 class DiagnosticException(Exception):

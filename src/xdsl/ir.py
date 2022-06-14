@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import (TYPE_CHECKING, Any, Callable, Dict, Generic, List,
-                    Protocol, Optional, Sequence, Set, Type, TypeVar, Union,
-                    cast)
-import typing
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
+                    TypeVar, cast)
+
 from frozenlist import FrozenList
 
 # Used for cyclic dependencies in type hints

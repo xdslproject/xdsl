@@ -1,9 +1,11 @@
 import inspect
-from inspect import signature
-from typing import Annotated, Any, TypeGuard, Union, NoReturn, Callable, List
 import typing
 from dataclasses import dataclass
-from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
+from inspect import signature
+from typing import Annotated, Any, Callable, NoReturn, TypeGuard
+
+from xdsl.ir import (Attribute, Block, BlockArgument, Operation, Region,
+                     SSAValue)
 
 
 def new_op(op_name, num_results, num_operands, num_regions) -> type[Operation]:

@@ -3,15 +3,16 @@ Test the definition of attributes and their constraints.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
-                       VerifyException, irdl_attr_definition, builder,
+                       VerifyException, builder, irdl_attr_definition,
                        irdl_to_attr_constraint)
 from xdsl.parser import Parser
 from xdsl.printer import Printer

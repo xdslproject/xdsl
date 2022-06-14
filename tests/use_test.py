@@ -1,7 +1,7 @@
+from xdsl.dialects.arith import *
 from xdsl.dialects.builtin import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.arith import *
 
 test_prog = """
 module() {

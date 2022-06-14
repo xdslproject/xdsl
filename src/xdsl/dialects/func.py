@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
-from xdsl.irdl import *
-from xdsl.ir import *
 from xdsl.dialects.builtin import *
+from xdsl.ir import *
+from xdsl.irdl import *
 
 
 @dataclass
@@ -26,8 +27,8 @@ class FuncOp(Operation):
     sym_visibility = AttributeDef(StringAttr)
 
     @staticmethod
-    def from_callable(name: str, input_types: List[Attribute],
-                      return_types: List[Attribute],
+    def from_callable(name: str, input_types: list[Attribute],
+                      return_types: list[Attribute],
                       func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         op = FuncOp.build(attributes={
@@ -42,8 +43,8 @@ class FuncOp(Operation):
         return op
 
     @staticmethod
-    def from_region(name: str, input_types: List[Attribute],
-                    return_types: List[Attribute], region: Region) -> FuncOp:
+    def from_region(name: str, input_types: list[Attribute],
+                    return_types: list[Attribute], region: Region) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         op = FuncOp.build(attributes={
             "sym_name": name,
@@ -65,9 +66,9 @@ class Call(Operation):
     # TODO how do we verify that the types are correct?
 
     @staticmethod
-    def get(callee: Union[str, FlatSymbolRefAttr],
-            operands: List[Union[SSAValue, Operation]],
-            return_types: List[Attribute]) -> Call:
+    def get(callee: str | FlatSymbolRefAttr,
+            operands: list[SSAValue | Operation],
+            return_types: list[Attribute]) -> Call:
         return Call.build(operands=operands,
                           result_types=return_types,
                           attributes={"callee": callee})
@@ -79,5 +80,5 @@ class Return(Operation):
     arguments = VarOperandDef(AnyAttr())
 
     @staticmethod
-    def get(*ops: Union[Operation, SSAValue]) -> Return:
+    def get(*ops: Operation | SSAValue) -> Return:
         return Return.build(operands=[[op for op in ops]])

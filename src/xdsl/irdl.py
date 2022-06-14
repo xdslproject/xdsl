@@ -6,9 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Dict, Generic, List, Optional,
-                    Sequence, Tuple, Type, TypeAlias, TypeVar, Union, cast,
-                    get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
@@ -282,7 +281,7 @@ def irdl_to_attr_constraint(
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if origin == types.UnionType or origin == Union:
+    if origin is types.UnionType or origin is Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not

@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from xdsl.ir import *
+
 from xdsl.dialects.builtin import *
+from xdsl.ir import *
 from xdsl.irdl import *
 
 
@@ -35,14 +37,14 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute):
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
+    def get_shape(self) -> list[int]:
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
         referenced_type: _MemRefTypeElement,
-        shape: Optional[List[int | AnyIntegerAttr]] = None
+        shape: list[int | AnyIntegerAttr] | None = None
     ) -> MemRefType[_MemRefTypeElement]:
         if shape is None:
             shape = [1]
@@ -81,7 +83,7 @@ class Load(Operation):
 
     @staticmethod
     def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+            indices: list[SSAValue | Operation]) -> Load:
         return Load.build(operands=[ref, indices],
                           result_types=[SSAValue.get(ref).typ.element_type])
 
@@ -103,7 +105,7 @@ class Store(Operation):
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+            indices: list[Operation | SSAValue]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
@@ -124,7 +126,7 @@ class Alloc(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
+            shape: list[int | AnyIntegerAttr] | None = None) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
@@ -152,7 +154,7 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
+            shape: list[int | AnyIntegerAttr] | None = None) -> Alloca:
         if shape is None:
             shape = [1]
         return Alloca.build(
@@ -223,7 +225,7 @@ class Global(Operation):
     @staticmethod
     def get(sym_name: str | StringAttr,
             typ: Attribute,
-            initial_value: Optional[Attribute],
+            initial_value: Attribute | None,
             sym_visibility: str = "private") -> Global:
         return Global.build(
             attributes={

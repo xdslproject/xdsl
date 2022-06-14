@@ -1,8 +1,10 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import *
-from xdsl.diagnostic import *
-from typing import TypeVar
+
 from dataclasses import dataclass
+from typing import TypeVar
+
+from xdsl.diagnostic import *
+from xdsl.dialects.builtin import *
 
 indentNumSpaces = 2
 
@@ -10,20 +12,20 @@ indentNumSpaces = 2
 @dataclass(eq=False, repr=False)
 class Printer:
 
-    stream: Optional[Any] = field(default=None)
+    stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
     print_operand_types: bool = field(default=True)
     print_result_types: bool = field(default=True)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
     _indent: int = field(default=0, init=False)
-    _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
-    _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
-    _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
+    _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
+    _block_names: dict[Block, int] = field(default_factory=dict, init=False)
     _next_valid_name_id: int = field(default=0, init=False)
     _next_valid_block_id: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
-    _next_line_callback: List[Callable[[], None]] = field(default_factory=list,
+    _next_line_callback: list[Callable[[], None]] = field(default_factory=list,
                                                           init=False)
 
     def print(self, *argv) -> None:
@@ -90,7 +92,7 @@ class Printer:
 
     T = TypeVar('T')
 
-    def print_list(self, elems: List[T], print_fn: Callable[[T],
+    def print_list(self, elems: list[T], print_fn: Callable[[T],
                                                             None]) -> None:
         if len(elems) == 0:
             return
@@ -168,7 +170,7 @@ class Printer:
             self.print(" : ")
             self.print_attribute(operand.typ)
 
-    def _print_ops(self, ops: List[Operation]) -> None:
+    def _print_ops(self, ops: list[Operation]) -> None:
         self._indent += 1
         for op in ops:
             self._print_new_line()
@@ -219,7 +221,7 @@ class Printer:
             self._print_named_block(block)
         self.print("}")
 
-    def print_regions(self, regions: List[Region]) -> None:
+    def print_regions(self, regions: list[Region]) -> None:
         for region in regions:
             self.print_region(region)
 
@@ -279,14 +281,14 @@ class Printer:
             self.print_list(attribute.parameters, self.print_attribute)
             self.print(">")
 
-    def print_successors(self, successors: List[Block]):
+    def print_successors(self, successors: list[Block]):
         if len(successors) == 0:
             return
         self.print(" (")
         self.print_list(successors, self.print_block_name)
         self.print(")")
 
-    def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
+    def _print_op_attributes(self, attributes: dict[str, Attribute]) -> None:
         if len(attributes) == 0:
             return
 

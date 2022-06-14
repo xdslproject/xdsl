@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from xdsl.dialects.builtin import *
 
 
@@ -24,9 +25,9 @@ class If(Operation):
     false_region = RegionDef()
 
     @staticmethod
-    def get(cond: SSAValue | Operation, return_types: List[Attribute],
-            true_region: Region | List[Block] | List[Operation],
-            false_region: Region | List[Block] | List[Operation]):
+    def get(cond: SSAValue | Operation, return_types: list[Attribute],
+            true_region: Region | list[Block] | list[Operation],
+            false_region: Region | list[Block] | list[Operation]):
         return If.build(operands=[cond],
                         result_types=[return_types],
                         regions=[true_region, false_region])
@@ -80,10 +81,10 @@ class While(Operation):
                 )
 
     @staticmethod
-    def get(operands: List[SSAValue | Operation],
-            result_types: List[Attribute],
-            before: Region | List[Operation] | List[Block],
-            after: Region | List[Operation] | List[Block]) -> While:
+    def get(operands: list[SSAValue | Operation],
+            result_types: list[Attribute],
+            before: Region | list[Operation] | list[Block],
+            after: Region | list[Operation] | list[Block]) -> While:
         op = While.build(operands=operands,
                          result_types=result_types,
                          regions=[before, after])

@@ -1,5 +1,3 @@
-from typing import Tuple, Union
-
 from xdsl.ir import *
 
 
@@ -20,8 +18,8 @@ class Rewriter:
 
     @staticmethod
     def replace_op(op: Operation,
-                   new_ops: Operation | List[Operation],
-                   new_results: Optional[List[Optional[SSAValue]]] = None,
+                   new_ops: Operation | list[Operation],
+                   new_results: list[SSAValue | None] | None = None,
                    safe_erase: bool = True):
         """
         Replace an operation with multiple new ones.
@@ -107,7 +105,7 @@ class Rewriter:
         Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
 
     @staticmethod
-    def insert_block_after(block: Block | List[Block], target: Block):
+    def insert_block_after(block: Block | list[Block], target: Block):
         """
         Insert one or multiple blocks after another block.
         The blocks to insert should be detached from any region.
@@ -123,7 +121,7 @@ class Rewriter:
         region.insert_block(block_list, pos + 1)
 
     @staticmethod
-    def insert_block_before(block: Block | List[Block], target: Block):
+    def insert_block_before(block: Block | list[Block], target: Block):
         """
         Insert one or multiple block before another block.
         The blocks to insert should be detached from any region.

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from io import StringIO
 
-from xdsl.printer import Printer
-from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin
-from xdsl.dialects.arith import *
 from xdsl.diagnostic import Diagnostic
+from xdsl.dialects.arith import *
+from xdsl.dialects.builtin import Builtin
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 def test_forgotten_op():

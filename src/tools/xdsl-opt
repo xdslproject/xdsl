@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 

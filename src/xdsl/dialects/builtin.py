@@ -1,9 +1,10 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
-from xdsl.irdl import *
-from xdsl.ir import *
+from dataclasses import dataclass
 from typing import TypeAlias
+
+from xdsl.ir import *
+from xdsl.irdl import *
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -171,7 +172,7 @@ class ArrayOfConstraint(AttrConstraint):
     """
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+    def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute) -> None:
@@ -185,20 +186,20 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[List[_ArrayAttrT]]):
+class ArrayAttr(GenericData[list[_ArrayAttrT]]):
     name = "array"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[_ArrayAttrT]:
+    def parse_parameter(parser: Parser) -> list[_ArrayAttrT]:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
         # the type system can't ensure that the elements are of type A
         # and not just of type Attribute, therefore, the following cast
-        return cast(List[_ArrayAttrT], data)
+        return cast(list[_ArrayAttrT], data)
 
     @staticmethod
-    def print_parameter(data: List[_ArrayAttrT], printer: Printer) -> None:
+    def print_parameter(data: list[_ArrayAttrT], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(data, printer.print_attribute)
         printer.print_string("]")
@@ -226,7 +227,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
 
     @staticmethod
     @builder
-    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+    def from_list(data: list[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
         return ArrayAttr(data)
 
 
@@ -241,7 +242,7 @@ class TupleType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_type_list(types: List[Attribute]) -> TupleType:
+    def from_type_list(types: list[Attribute]) -> TupleType:
         return TupleType([ArrayAttr.from_list(types)])
 
 
@@ -258,14 +259,14 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute):
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
+    def get_shape(self) -> list[int]:
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
         referenced_type: _VectorTypeElems,
-        shape: Optional[List[int | IntegerAttr[IndexType]]] = None
+        shape: list[int | IntegerAttr[IndexType]] | None = None
     ) -> VectorType[_VectorTypeElems]:
         if shape is None:
             shape = [1]
@@ -300,14 +301,14 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute):
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
+    def get_shape(self) -> list[int]:
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
     @builder
     def from_type_and_list(
         referenced_type: _TensorTypeElems,
-        shape: Optional[Sequence[int | IntegerAttr[IndexType]]] = None
+        shape: Sequence[int | IntegerAttr[IndexType]] | None = None
     ) -> TensorType[_TensorTypeElems]:
         if shape is None:
             shape = [1]
@@ -340,7 +341,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_int_list(type: AnyVectorType | AnyTensorType, data: List[int],
+    def from_int_list(type: AnyVectorType | AnyTensorType, data: list[int],
                       bitwidth: int) -> DenseIntOrFPElementsAttr:
         data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
@@ -349,7 +350,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def from_list(
             type: AnyVectorType | AnyTensorType,
-            data: List[int] | List[AnyIntegerAttr]
+            data: list[int] | list[AnyIntegerAttr]
     ) -> DenseIntOrFPElementsAttr:
         element_type = type.element_type
         # Only use the element_type if the passed data is an int, o/w use the IntegerAttr
@@ -360,7 +361,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def vector_from_list(
-            data: List[int],
+            data: list[int],
             typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
         t = AnyVectorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
@@ -368,7 +369,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def tensor_from_list(
-            data: List[int],
+            data: list[int],
             typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
@@ -396,8 +397,8 @@ class FunctionType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> Attribute:
+    def from_lists(inputs: list[Attribute],
+                   outputs: list[Attribute]) -> Attribute:
         return FunctionType(
             [ArrayAttr.from_list(inputs),
              ArrayAttr.from_list(outputs)])
@@ -416,11 +417,11 @@ class ModuleOp(Operation):
     body = SingleBlockRegionDef()
 
     @property
-    def ops(self) -> List[Operation]:
+    def ops(self) -> list[Operation]:
         return self.regions[0].blocks[0].ops
 
     @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
+    def from_region_or_ops(ops: list[Operation] | Region) -> ModuleOp:
         if isinstance(ops, list):
             region = Region.from_operation_list(ops)
         elif isinstance(ops, Region):

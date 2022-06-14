@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import typing
 
-from xdsl.ir import ParametrizedAttribute, Data
-from xdsl.irdl import irdl_attr_definition, builder
 import pytest
+
+from xdsl.ir import Data, ParametrizedAttribute
+from xdsl.irdl import builder, irdl_attr_definition
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 

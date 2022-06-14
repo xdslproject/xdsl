@@ -2,8 +2,9 @@ from xdsl import ensure_mlir_module_loaded
 
 ensure_mlir_module_loaded()
 
-from xdsl import _mlir_module as mlir
 import array
+
+from xdsl import _mlir_module as mlir
 from xdsl.dialects.builtin import *
 from xdsl.dialects.memref import MemRefType
 
@@ -12,8 +13,8 @@ class MLIRConverter:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.op_to_mlir_ops: Dict[Operation, mlir.ir.Operation] = dict()
-        self.block_to_mlir_blocks: Dict[Block, mlir.ir.Block] = dict()
+        self.op_to_mlir_ops: dict[Operation, mlir.ir.Operation] = dict()
+        self.block_to_mlir_blocks: dict[Block, mlir.ir.Block] = dict()
 
     def register_external_dialects(self):
         pass

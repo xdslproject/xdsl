@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import typing
 
-from xdsl.ir import ParametrizedAttribute, Data, Block
-from xdsl.irdl import *
 import pytest
+
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                   IntegerType, VectorType)
+from xdsl.ir import Block, Data, ParametrizedAttribute
+from xdsl.irdl import *
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
 
 
 @irdl_attr_definition

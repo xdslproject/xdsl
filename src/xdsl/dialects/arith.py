@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+from xdsl.dialects.builtin import Float32Type, IntegerAttr, IntegerType
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr
 
 
 @dataclass
@@ -41,8 +42,8 @@ class Constant(Operation):
         return Constant.create(result_types=[typ], attributes={"value": attr})
 
     @staticmethod
-    def from_int_constant(val: Union[int, Attribute],
-                          typ: Union[int, Attribute]) -> Constant:
+    def from_int_constant(val: int | Attribute,
+                          typ: int | Attribute) -> Constant:
         if isinstance(typ, int):
             typ = IntegerType.from_width(typ)
         return Constant.create(
@@ -64,8 +65,8 @@ class Addi(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Addi:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> Addi:
         return Addi.build(operands=[operand1, operand2],
                           result_types=[IntegerType.from_width(32)])
 
@@ -84,8 +85,8 @@ class Muli(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Muli:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> Muli:
         return Muli.build(operands=[operand1, operand2],
                           result_types=[IntegerType.from_width(32)])
 
@@ -104,8 +105,8 @@ class Subi(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Subi:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> Subi:
         return Subi.build(operands=[operand1, operand2],
                           result_types=[IntegerType.from_width(32)])
 
@@ -124,8 +125,8 @@ class FloorDiviSI(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> FloorDiviSI:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> FloorDiviSI:
         return FloorDiviSI.build(operands=[operand1, operand2],
                                  result_types=[IntegerType.from_width(32)])
 
@@ -144,8 +145,8 @@ class RemSI(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> RemSI:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> RemSI:
         return RemSI.build(operands=[operand1, operand2],
                            result_types=[IntegerType.from_width(32)])
 
@@ -164,8 +165,8 @@ class AndI(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> AndI:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> AndI:
         return AndI.build(operands=[operand1, operand2],
                           result_types=[SSAValue.get(operand1).typ])
 
@@ -184,8 +185,8 @@ class OrI(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> OrI:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> OrI:
 
         return OrI.build(operands=[operand1, operand2],
                          result_types=[SSAValue.get(operand1).typ])
@@ -205,8 +206,8 @@ class XOrI(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> XOrI:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> XOrI:
         return XOrI.build(operands=[operand1, operand2],
                           result_types=[SSAValue.get(operand1).typ])
 
@@ -220,8 +221,8 @@ class Cmpi(Operation):
     output = ResultDef(IntegerType.from_width(1))
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue], arg: int) -> Cmpi:
+    def get(operand1: Operation | SSAValue, operand2: Operation | SSAValue,
+            arg: int) -> Cmpi:
         return Cmpi.build(
             operands=[operand1, operand2],
             result_types=[IntegerType.from_width(1)],
@@ -242,8 +243,8 @@ class Addf(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Addf:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> Addf:
         return Addf.build(operands=[operand1, operand2],
                           result_types=[Float32Type()])
 
@@ -262,7 +263,7 @@ class Mulf(Operation):
                 "expect all input and output types to be equal")
 
     @staticmethod
-    def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue]) -> Mulf:
+    def get(operand1: Operation | SSAValue,
+            operand2: Operation | SSAValue) -> Mulf:
         return Mulf.build(operands=[operand1, operand2],
                           result_types=[Float32Type()])

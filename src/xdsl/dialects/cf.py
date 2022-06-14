@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.builtin import IntegerType
 
 
 @dataclass
@@ -21,7 +22,7 @@ class Branch(Operation):
     arguments = VarOperandDef(AnyAttr())
 
     @staticmethod
-    def get(block: Block, *ops: Union[Operation, SSAValue]) -> Branch:
+    def get(block: Block, *ops: Operation | SSAValue) -> Branch:
         return Branch.build(operands=[[op for op in ops]], successors=[block])
 
 
@@ -36,8 +37,8 @@ class ConditionalBranch(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
-    def get(cond: Union[Operation, SSAValue], then_block: Block,
-            then_ops: List[Union[Operation, SSAValue]], else_block: Block,
-            else_ops: List[Union[Operation, SSAValue]]) -> ConditionalBranch:
+    def get(cond: Operation | SSAValue, then_block: Block,
+            then_ops: list[Operation | SSAValue], else_block: Block,
+            else_ops: list[Operation | SSAValue]) -> ConditionalBranch:
         return ConditionalBranch.build(operands=[cond, then_ops, else_ops],
                                        successors=[then_block, else_block])
