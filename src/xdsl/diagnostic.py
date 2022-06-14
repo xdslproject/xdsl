@@ -4,11 +4,14 @@ from dataclasses import dataclass, field
 
 from xdsl.ir import Block, Operation, Region
 from io import StringIO
+import traceback
+
+import sys
+
 
 
 class DiagnosticException(Exception):
     ...
-
 
 @dataclass
 class Diagnostic:
@@ -25,7 +28,7 @@ class Diagnostic:
             exception_type: Type[Exception] = DiagnosticException) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
-        f = StringIO()
+        f = StringIO.StringIO()
         p = Printer(stream=f, diagnostic=self)
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
@@ -36,5 +39,4 @@ class Diagnostic:
             p._print_region(toplevel)  # type: ignore
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
-
         raise exception_type(message + "\n\n" + f.getvalue())

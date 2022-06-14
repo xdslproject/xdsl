@@ -405,3 +405,4 @@ def test_custom_format():
     printer = Printer(stream=file, print_generic_format=True)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+
