@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from enum import Enum
 from io import StringIO, TextIOWrapper
+import re
 import sys
 from typing import List, Optional, Sequence, Type
 
@@ -10,6 +12,11 @@ from tablegen_dialect_def_to_irdl import *
 from xdsl.ir import Operation
 
 
+class AdvanceMode(Enum):
+    SkipUntilMatch = True
+    NoSkip = False
+
+
 @dataclass
 class Value():
     name: str
@@ -17,12 +24,26 @@ class Value():
     def get_matching_code(self, dialect_name: str) -> str:
         return self.name
 
+    def get_replacement_code(self, dialect_name: str) -> str:
+        return self.name
+
+@dataclass
+class NativeCodeCall():
+    name: str
+
+    def get_matching_code(self, dialect_name: str) -> str:
+        return self.name + "()"
+
+    def get_replacement_code(self, dialect_name: str) -> str:
+        return self.name + "()"
 
 @dataclass
 class Op():
     name: str
     type: Type[Operation]
     operands: List[Value | Op]
+    attributes: List[Value | NativeCodeCall]
+    result_types: List[Attribute]
     result_binder: Optional[str]
 
     def get_matching_code(self, dialect_name: str) -> str:
@@ -37,19 +58,45 @@ class Op():
             else:
                 matching_code += operand_code
             if not operand == self.operands[-1]:
-                matching_code += ","
+                matching_code += ", "
         matching_code += "]"
+        if len(self.attributes) > 0:
+            matching_code += ", attributes={"
+            for attribute in self.attributes:
+                matching_code += attribute.get_matching_code(dialect_name)
+                if not attribute == self.attributes[-1]:
+                                matching_code += ", "
+            matching_code += "}"
 
         matching_code += ")"
 
         return matching_code
 
+    def get_replacement_code(self, dialect_name: str) -> str:
+        replacement_code = "new_op("
+        replacement_code += f"{dialect_name}.{self.name},"
+        replacement_code += "operands=["
+        for operand in self.operands:
+            replacement_code += operand.get_replacement_code(dialect_name)
+            if not operand == self.operands[-1]:
+                replacement_code += ", "
+        replacement_code += "],"
+        replacement_code += "result_types=[],"
+        replacement_code += "attributes={"
+        for attribute in self.attributes:
+            replacement_code += attribute.get_replacement_code(dialect_name)
+            if not attribute == self.attributes[-1]:
+                replacement_code += ", "
+        replacement_code += "}"
+        replacement_code += ")"
+
+        return replacement_code
 
 @dataclass
 class Pattern():
     name: str
     matched_op: Op
-    replacement: List[Op]
+    replacements: List[Op]
 
     def get_code(self, dialect_name: str) -> str:
         code = """"""
@@ -59,8 +106,14 @@ class Pattern():
         code += "    def impl(self, op: IOp) -> RewriteResult:\n"
         code += "        match op:\n"
         code += "            case " + self.matched_op.get_matching_code(
-            dialect_name) + ":"
+            dialect_name) + ":\n"
         code += "                # replacement here\n"
+        code += "                results: List[IOp] = []\n"
+        if len(self.replacements) > 0:
+            for replacement in self.replacements:
+                code += "                results.append(" + replacement.get_replacement_code(
+                    dialect_name) + ")\n"
+            code += "                " + "return success(results)\n"
         code += "            case _:\n"
         code += "                return failure(self)\n"
 
@@ -142,17 +195,39 @@ class Parser():
             ord("z")) or cur_char in [str(num) for num in range(0, 9)]:
             parsed_str += cur_char
             self.cur_line_idx += 1
+            if self.cur_line_idx >= len(self.cur_line):
+                # If we have a linebreak immediately after this string
+                self.next_line()
+                break
 
         return parsed_str
 
-    def parse_op(self) -> Optional[Op]:
+    def _parse_op_name(self) -> Tuple[str, Optional[Type[Operation]]]:
+        """
+        Parse the name of an op and try to get the corresponding xdsl Operation class
+        """
         assert self.cur_line is not None
         self.advance_if_useless_stuff()
+        if self.line_number == 262:
+            pass
         op_name = self.cur_line[self.cur_line_idx:].split()[0].split(":")[0]
+
+        op_name = re.split(' |:|\)', self.cur_line[self.cur_line_idx:])[0]
+        # op_name = op_name.removeprefix("\(")
         self.cur_line_idx += len(op_name)
         op_type = getattr(sys.modules[__name__], op_name, None)  #eval(op_name)
         if op_type is None:
-            print(f"can't find class for op {op_name}")
+            print(
+                f"{self.line_number}:{self.cur_line_idx} can't find class for op {op_name}"
+            )
+        return (op_name, op_type)
+
+    def parse_matched_op(self) -> Optional[Op]:
+        """
+        Parse an op on the LHS of a pattern.
+        """
+        (op_name, op_type) = self._parse_op_name()
+        if op_type is None:
             return None
         # Notation used to indicate that the result of the op is used
         # This is usually done to make restrictions based on it. So we save it.
@@ -162,28 +237,99 @@ class Parser():
         else:
             result_binder = None
         operands: List[Op | Value] = []
+        attributes : List[Value | NativeCodeCall] = []
         self.parse_string("(")
         for operand in op_type.irdl_operand_defs:
-            print(operand)
-            operands.append(self.parse_op_or_val())
-            self.parse_string(",")
-        self.parse_string(")")
-        return Op(op_name, op_type, operands, result_binder)
+            if (new_operand := self.parse_matched_operand()) is None:
+                return None
 
-    def parse_op_or_val(self) -> Op | Value | None:
+            operands.append(new_operand)
+
+            self.parse_string(",")
+        for attribute in op_type.irdl_attribute_defs:
+            if (new_attribute := self.parse_matched_operand()) is None:
+                return None
+            attributes.append(new_attribute)
+            self.parse_string(",")
+        # TODO: what about attributes?
+        self.parse_string(")")
+        result_types = [Attribute() for _ in op_type.irdl_result_defs]
+        return Op(op_name, op_type, operands, attributes, result_types, result_binder)
+
+    def parse_matched_operand(self) -> Op | Value | None:
+        """
+        Parse a value or op that is used as an operand for another op.
+        """
         if self.parse_string("$"):
             val_name = self.parse_into_string()
             return Value(val_name)
         else:
-            return self.parse_op()
+            return self.parse_matched_op()
+
+    def parse_replacement_op(self) -> Optional[Op]:
+        """
+        Parse an op on the RHS of a pattern.
+        """
+        (op_name, op_type) = self._parse_op_name()
+        if op_type is None:
+            return None
+        operands: List[Op | Value] = []
+        attributes: List[Attribute | Value | NativeCodeCall] = []
+        self.parse_string("(")
+        # Parse operands
+        for operand in op_type.irdl_operand_defs:
+            if (new_operand := self.parse_replacement_argument()) is None:
+                return None
+            operands.append(new_operand)
+            self.parse_string(",")
+        # Parse attributes
+        for attribute in op_type.irdl_attribute_defs:
+            if (new_attribute := self.parse_replacement_argument()) is None:
+                return None
+            attributes.append(new_attribute)
+            self.parse_string(",")
+        self.parse_string(")")
+        result_types = [Attribute() for _ in op_type.irdl_result_defs]
+        return Op(op_name, op_type, operands, attributes, result_types, None)
+
+    def parse_replacement_argument(
+            self) -> Optional[Value | Op | NativeCodeCall]:
+        """
+        Parse an operand or attribute of some op on the RHS of a pattern. May be another new op, 
+        an existing binder or some function that returns a value/attribute
+        """
+        bracketed = self.parse_string("(")
+        if self.parse_string("$"):
+            val_name = self.parse_into_string()
+            return Value(val_name)
+
+        (name, op_type) = self._parse_op_name()
+        if op_type is not None:
+            if bracketed:
+                self.parse_string(")")
+            return self.parse_replacement_op()
+        else:
+            # If this name is not registered as an op, we assume it is a NativeCodeCall
+
+            # TODO: NativeCodeCalls may have arguments!
+
+            if bracketed:
+                self.parse_string(")")
+            return NativeCodeCall(name)
 
     def parse_pattern(self) -> Optional[Pattern]:
         self.parse_string("Pat<", True)
         assert self.cur_line is not None
         name = self.cur_line.split()[1]
-        if self.parse_string("(") and (op := self.parse_op()):
+        replacements: List[Op] = []
+        if self.parse_string("(") and (op := self.parse_matched_op()):
+            self.parse_string(",")
+            self.parse_string("(")
+            if (replacement := self.parse_replacement_op()):
+                replacements.append(replacement)
+
             self.next_line()
-            return Pattern(name, op, [])
+            return Pattern(name, op, replacements)
         return None
 
 
@@ -192,9 +338,15 @@ def main():
         "/home/martin/development/phd/projects/xDSL/onnx-mlir/src/Dialect/ONNX/Rewrite.td"
     )
     parser = Parser(file)
-    pattern = parser.parse_pattern()
+    patterns: List[Pattern] = []
+    tries = 0
+    while tries < 100:
+        tries += 1
+        if (pattern := parser.parse_pattern()) is not None:
+            patterns.append(pattern)
+            print(pattern.get_code("onnx"))
 
-    print(pattern.get_code("onnx"))
+
     # ops: List[Op] = []
     # while (op := parse_op_def()):
     #     ops.append(op)
