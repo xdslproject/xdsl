@@ -18,13 +18,14 @@ def test_forgotten_op():
     add = Addi.get(lit, lit)
 
     add.verify()
-    try:
-        printer = Printer()
-        printer.print_op(add)
-    except KeyError:
-        return
 
-    assert False, "Exception expected"
+    expected = "%0 : !i32 = arith.addi(%MISSING_SSA_VALUE : !i32, %MISSING_SSA_VALUE : !i32)"
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(add)
+
+    assert file.getvalue().strip() == expected.strip()
 
 
 #  ____  _                             _   _
