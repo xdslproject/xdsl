@@ -161,11 +161,9 @@ class Printer:
             self.print(f"%{self._ssa_values[value]}")
         else:
             self.print("%MISSING_SSA_VALUE")
-            self._print_new_line()
-            self.print(
-                "ERROR: SSAVAlue is not part of the IR, are you sure all operations are added before their uses?"
-            )
-            self._print_new_line()
+            self._add_message_on_next_line(
+                "ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?",
+                0, 0)
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
