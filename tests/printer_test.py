@@ -20,11 +20,13 @@ def test_forgotten_op():
     add.verify()
 
     expected = """
-%0 : !i32 = arith.addi(%MISSING_SSA_VALUE
-ERROR: SSAVAlue is not part of the IR, are you sure all operations are added before their uses?
- : !i32, %MISSING_SSA_VALUE
-ERROR: SSAVAlue is not part of the IR, are you sure all operations are added before their uses?
- : !i32)
+%0 : !i32 = arith.addi(%MISSING_SSA_VALUE : !i32, %MISSING_SSA_VALUE : !i32)
+^-------------------------------------------------------------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+--------------------------------------------------------------------------------------------------
+^-------------------------------------------------------------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+--------------------------------------------------------------------------------------------------
 """
 
     file = StringIO("")
