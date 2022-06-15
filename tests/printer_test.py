@@ -18,13 +18,22 @@ def test_forgotten_op():
     add = Addi.get(lit, lit)
 
     add.verify()
-    try:
-        printer = Printer()
-        printer.print_op(add)
-    except KeyError:
-        return
 
-    assert False, "Exception expected"
+    expected = """
+%0 : !i32 = arith.addi(%MISSING_SSA_VALUE : !i32, %MISSING_SSA_VALUE : !i32)
+^-------------------------------------------------------------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+--------------------------------------------------------------------------------------------------
+^-------------------------------------------------------------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+--------------------------------------------------------------------------------------------------
+"""
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(add)
+
+    assert file.getvalue().strip() == expected.strip()
 
 
 #  ____  _                             _   _
