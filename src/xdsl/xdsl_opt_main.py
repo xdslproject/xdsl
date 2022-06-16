@@ -12,7 +12,7 @@ from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cf import *
-
+from xdsl.console import diagnostic
 
 class xDSLOptMain:
     ctx: MLContext
@@ -55,48 +55,11 @@ class xDSLOptMain:
         self.args = arg_parser.parse_args()
 
         self.setup_pipeline()
-    def diagnostic(self, num, e: DiagnosticException) -> None:
 
-        trace = traceback.format_exc().splitlines()
-        length = num if num < len(trace) else len(trace)
-        traceback.extract_stack()
-        for i in range(0-length,0):
-            print(trace[i])
 
-        
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print("*** print_tb:")
-        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
-        print("*** print_exception:")
-        # exc_type below is ignored on 3.5 and later
-        traceback.print_exception(exc_type, exc_value, exc_traceback,
-                                  limit=2, file=sys.stdout)
-        print("*** print_exc:")
-        traceback.print_exc(limit=2, file=sys.stdout)
-        #print("*** format_exc, first and last line:")
-        formatted_lines = traceback.format_exc().splitlines()
-      #  print(formatted_lines[0])
-        #print(formatted_lines[-1])
-#        print("*** format_exception:")
-        # exc_type below is ignored on 3.5 and later
-#        print(repr(traceback.format_exception(exc_type, exc_value,
-#                                              exc_traceback)))
-        print("*** extract_tb:")
-        print(repr(traceback.extract_tb(exc_traceback)))
-        print("*** format_tb:")
-        print(repr(traceback.format_tb(exc_traceback)))
-        print("*** tb_lineno:", exc_traceback.tb_lineno)
-        exc_info = sys.exc_info()
-        exc = traceback.TracebackException(*exc_info)
-        expected_stack = traceback.StackSummary.extract(traceback.walk_tb(exc_info[2]))
-
-        exc_cause = traceback.TracebackException(Exception, e, None)
-        print(dir(exc_cause))
-        print("causes: ", exc_cause)
-        # or
-#        print("------2-------")
-#        print(sys.exc_info()[2]
-#                raise e
+    def logging(self):
+        #TODO
+        pass
 
     def run(self):
         """
@@ -109,7 +72,7 @@ class xDSLOptMain:
             try:
                 self.apply_passes(module)
             except DiagnosticException as e:
-                self.diagnostic(3,e)
+                diagnostic(1,e)
                 exit(0)
 
         contents = self.output_resulting_program(module)
