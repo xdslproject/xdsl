@@ -16,7 +16,7 @@ This project includes pytest unit test and llvm-style filecheck tests. They can 
 
 ```
 # Executes pytests which are located in tests/
-pytest
+python -m pytest
 
 # Executes filecheck tests
 lit tests/filecheck
