@@ -62,7 +62,7 @@ be executed from the root directory:
 
 ```bash
 # Executes pytests which are located in tests/
-pytest
+python -m pytest
 
 # Executes filecheck tests
 lit tests/filecheck
