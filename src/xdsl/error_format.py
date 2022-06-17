@@ -21,9 +21,12 @@ class Colors:
 
 
 class Frame:
-
+    """
+    This class is a traceback wrapper of a given raised error 
+    """ 
     e: Exception
     extra_lines: int
+
     def __init__(self,e: Exception, extra_lines: int):
         self.e = e
         self.extra_lines = extra_lines
