@@ -70,13 +70,13 @@ class xDSLOptMain:
             except DiagnosticException as e:
                 if len(self.args.verbose_trace) == 0:
                     f = Frame(e, 3)
-                    f.diagnostic(1)
+                    f.verbose(1)
                 elif len(self.args.verbose_trace) == 1:
                     f = Frame(e, self.args.verbose_trace[1])
-                    f.diagnostic(1)
+                    f.verbose(1)
                 else:
                     f = Frame(e, self.args.verbose_trace[1])
-                    f.diagnostic(self.args.verbose_trace[0])
+                    f.verbose(self.args.verbose_trace[0])
                 exit(0)
 
         contents = self.output_resulting_program(module)
@@ -142,12 +142,15 @@ class xDSLOptMain:
                                 action='store_true',
                                 help="Prints the content of a triggered "
                                 "exception and exits with code 0")
-        arg_parser.add_argument("--verbose-trace",
-                                #default=False,
-                                type=int,
-                                nargs='*',
-                                required=False,
-                                help="Prints the verbose traceback")
+        arg_parser.add_argument(
+            "--verbose-trace",
+            #default=False,
+            type=int,
+            nargs='*',
+            required=False,
+            help="Prints the verbose traceback"
+            "First argument: number of output frames"
+            "Second argument: number of lines of code for the snippet")
 
     def register_all_dialects(self):
         """

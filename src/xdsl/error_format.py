@@ -23,13 +23,14 @@ class Colors:
 class Frame:
     """
     This class is a traceback wrapper of a given raised error 
-    """ 
+    """
     e: Exception
     extra_lines: int
 
-    def __init__(self,e: Exception, extra_lines: int):
+    def __init__(self, e: Exception, extra_lines: int):
         self.e = e
         self.extra_lines = extra_lines
+
     def get_frame(self, num: int):
         """
         Extracting the frame from the traceback.
@@ -59,9 +60,9 @@ class Frame:
                 exc_type.mro()[0]).rstrip('>').lstrip('<').split(' ')[-1]
 
             yield filename, line_num, exc_name, local_var, self.extract_code(
-                filename,  int(line_num)),
+                filename, int(line_num)),
 
-    def extract_code(self, filename: str,  line_num: int):
+    def extract_code(self, filename: str, line_num: int):
         """
         Extract the code from given frame. 
         returns a string of the code
@@ -74,14 +75,19 @@ class Frame:
                     if i == line_num - 1:
                         code += Colors.format.reset + Colors.fg.red + str(
                             i + 1) + line
-                        code += ' '*len(str(i+1))+'^'*(len(line)-1)+'\n'
+                        code += ' ' * len(
+                            str(i + 1)) + '^' * (len(line) - 1) + '\n'
                     else:
                         code += Colors.fg.orange + str(i + 1) + line
 
         return code + "\n"
 
-    def diagnostic(self,num: int) -> None:
-        for filename, line_num, exc_name, local_var, code in self.get_frame(num):
+    def verbose(self, num: int) -> None:
+        """
+        Output the verbose diagnostic message
+        """
+        for filename, line_num, exc_name, local_var, code in self.get_frame(
+                num):
 
             print(Colors.fg.red, exc_name, ": ", self.e, "\n")
 
