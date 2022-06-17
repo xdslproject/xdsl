@@ -68,7 +68,7 @@ class RewriteResult:
         return self.replacements[-1].replacement_ops[-1]
 
 
-def success(arg: IOp | Sequence[IOp]) -> RewriteResult:
+def success(arg: IOp | Sequence[IOp], matched_op: Optional[IOp] = None) -> RewriteResult:
     match arg:
         case IOp():
             ops = [arg]
@@ -80,7 +80,7 @@ def success(arg: IOp | Sequence[IOp]) -> RewriteResult:
             raise Exception("success called with incompatible arguments")
 
     # matched op will be set by the Strategy itself in `apply`
-    return RewriteResult([IOpReplacement(None, ops)])  # type: ignore
+    return RewriteResult([IOpReplacement(matched_op, ops)])  # type: ignore
 
 
 def failure(failed_strategy: Strategy) -> RewriteResult:
@@ -95,6 +95,9 @@ class Strategy:
         assert isinstance(op, IOp)
 
         rr = self.impl(op)
+
+        if isinstance(rr, Strategy):
+            return rr
 
         if rr.isSuccess():
             for replacement in rr.replacements:
@@ -340,6 +343,8 @@ class regionN(RegionsTraversal):
         if len(op.regions) <= self.n:
             return failure(self)
         new_region = self.block_trav.apply(op.regions[self.n])
+        if isinstance(new_s := new_region, Strategy):
+            return new_s
         if new_region is None:
             return failure(self)
         regions: List[IRegion] = op.regions[:self.n] + [
@@ -377,6 +382,8 @@ class regionsTopToBottom(RegionsTraversal):
     def impl(self, op: IOp) -> RewriteResult:
         for region_idx in range(0, len(op.regions)):
             rr = regionN(self.block_trav, region_idx).apply(op)
+            if isinstance(new_s := rr, Strategy):
+                return new_s
             if rr.isSuccess():
                 return rr
         return failure(self)
@@ -415,6 +422,8 @@ class blockN(BlocksTraversal):
         if len(region.blocks) <= self.n:
             return None
         new_block = self.op_trav.apply(region.blocks[self.n])
+        if isinstance(new_s := new_block, Strategy):
+            return new_s
         if new_block is None:
             return None
         blocks = region.blocks[:self.n] + [new_block
@@ -518,6 +527,9 @@ class opN(OpsTraversal):
         if len(block.ops) <= self.n:
             return None
         rr = self.s.apply(block.ops[self.n])
+        if isinstance(new_s := rr, Strategy):
+            return new_s
+
         if rr.isSuccess():
             nested_ops: List[IOp] = list(block.ops)
 
@@ -677,12 +689,19 @@ class topToBottom(Strategy):
     skips: int = 0
 
     def impl(self, op: IOp) -> RewriteResult:
-        if (rr := self.s.apply(op)).isSuccess():
+
+        rr = self.s.apply(op)
+        if isinstance(new_s := rr, Strategy):
+
+            return new_s
+        if rr.isSuccess():
             return rr
         rr = regionsTopToBottom(
             blocksTopToBottom(
                 opsTopToBottom(topToBottom(self.s, skips=self.skips),
                                skips=self.skips))).apply(op)
+        if isinstance(new_s := rr, Strategy):
+            return topToBottom(new_s).apply(op)
         if rr.isSuccess():
             return rr
 
