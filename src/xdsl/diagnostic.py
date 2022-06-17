@@ -8,9 +8,9 @@ from io import StringIO
 import sys
 
 
-
 class DiagnosticException(Exception):
     ...
+
 
 @dataclass
 class Diagnostic:
