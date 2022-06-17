@@ -68,15 +68,18 @@ class xDSLOptMain:
             try:
                 self.apply_passes(module)
             except DiagnosticException as e:
-                if len(self.args.verbose_trace) == 0:
-                    f = Frame(e, 3)
-                    f.verbose(1)
-                elif len(self.args.verbose_trace) == 1:
-                    f = Frame(e, self.args.verbose_trace[1])
-                    f.verbose(1)
+                if self.args.verbose_trace:
+                    if len(self.args.verbose_trace) == 0:
+                        f = Frame(e, 3)
+                        f.verbose(1)
+                    elif len(self.args.verbose_trace) == 1:
+                        f = Frame(e, self.args.verbose_trace[1])
+                        f.verbose(1)
+                    else:
+                        f = Frame(e, self.args.verbose_trace[1])
+                        f.verbose(self.args.verbose_trace[0])
                 else:
-                    f = Frame(e, self.args.verbose_trace[1])
-                    f.verbose(self.args.verbose_trace[0])
+                    print(e)
                 exit(0)
 
         contents = self.output_resulting_program(module)
