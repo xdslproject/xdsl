@@ -29,6 +29,7 @@ class Builtin:
 
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
+        self.ctx.register_attr(Float64Type)
         self.ctx.register_attr(IntegerType)
         self.ctx.register_attr(IndexType)
 
@@ -378,9 +379,12 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 class Float32Type(ParametrizedAttribute):
     name = "f32"
 
-
 f32 = Float32Type()
 
+class Float64Type(ParametrizedAttribute):
+    name = "f64"
+
+f64 = Float64Type()
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
