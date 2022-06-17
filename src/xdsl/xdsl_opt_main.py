@@ -12,7 +12,7 @@ from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cf import *
-from xdsl.console import diagnostic
+from xdsl.error_format import diagnostic
 
 class xDSLOptMain:
     ctx: MLContext
@@ -56,11 +56,6 @@ class xDSLOptMain:
 
         self.setup_pipeline()
 
-
-    def logging(self):
-        #TODO
-        pass
-
     def run(self):
         """
         Executes the different steps.
@@ -72,7 +67,7 @@ class xDSLOptMain:
             try:
                 self.apply_passes(module)
             except DiagnosticException as e:
-                diagnostic(1,e)
+                diagnostic(10,e)
                 exit(0)
 
         contents = self.output_resulting_program(module)
@@ -138,6 +133,7 @@ class xDSLOptMain:
                                 action='store_true',
                                 help="Prints the content of a triggered "
                                 "exception and exits with code 0")
+
 
     def register_all_dialects(self):
         """

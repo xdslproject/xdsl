@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 
 from xdsl.ir import Block, Operation, Region
 from io import StringIO
-import traceback
 
 import sys
 
