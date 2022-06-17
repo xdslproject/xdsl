@@ -902,6 +902,10 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data is '
                                 f'not a class.')
+            if isinstance(expected_type, types.GenericAlias):
+                raise Exception(f'In {cls.__name__} definition: Cannot infer '
+                                f'"verify" method. Type parameter of Data has '
+                                f'type GenericAlias.')
             new_attrs[
                 "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
                     self, expected_type)

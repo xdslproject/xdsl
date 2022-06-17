@@ -117,7 +117,8 @@ def test_data_with_non_class_param_missing_verifier_failure():
         irdl_attr_definition(IntListMissingVerifierData)
     assert e.value.args[0] == (
         'In IntListMissingVerifierData definition: '
-        'Cannot infer "verify" method. Type parameter of Data is not a class.')
+        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.'
+    )
 
 
 @irdl_attr_definition
