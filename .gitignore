@@ -139,3 +139,4 @@ cython_debug/
 
 # PyCharm IDE
 *.idea/
+.vscode/settings.json

@@ -11,9 +11,8 @@ from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorT
 
 
 @irdl_attr_definition
-class StringAttr(Data):
+class StringAttr(Data[str]):
     name = "test.string_attr"
-    param: str
 
     @staticmethod
     @builder
@@ -21,10 +20,11 @@ class StringAttr(Data):
         return StringAttr(str(i))
 
     @staticmethod
-    def parse(parser: Parser) -> Data:
+    def parse_parameter(parser: Parser) -> str:
         pass
 
-    def print(self, printer: Printer) -> None:
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
         pass
 
 
