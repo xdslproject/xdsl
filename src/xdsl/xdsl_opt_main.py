@@ -12,19 +12,19 @@ from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cf import *
-from xdsl.error_format import diagnostic
+from xdsl.error_format import Frame
 
 class xDSLOptMain:
     ctx: MLContext
     args: argparse.Namespace
     """
-    The argument parsers namespace which holds the parsed commandline 
+    The argument parsers namespace which holds the parsed commandline
     attributes.
     """
 
     available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
-    A mapping from file extension to a frontend that can handle this 
+    A mapping from file extension to a frontend that can handle this
     file type.
     """
 
@@ -35,7 +35,7 @@ class xDSLOptMain:
 
     available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
     """
-    A mapping from target names to functions that serialize a ModuleOp into a 
+    A mapping from target names to functions that serialize a ModuleOp into a
     stream.
     """
 
@@ -67,7 +67,8 @@ class xDSLOptMain:
             try:
                 self.apply_passes(module)
             except DiagnosticException as e:
-                diagnostic(10,e)
+                f = Frame(e, 3)
+                f.diagnostic(10)
                 exit(0)
 
         contents = self.output_resulting_program(module)
@@ -80,59 +81,59 @@ class xDSLOptMain:
         Add other/additional arguments by overloading this function.
         """
         arg_parser.add_argument("input_file",
-                                type=str,
-                                nargs="?",
-                                help="path to input file")
+                type=str,
+                nargs="?",
+                help="path to input file")
 
         targets = [name for name in self.available_targets]
         arg_parser.add_argument("-t",
-                                "--target",
-                                type=str,
-                                required=False,
-                                choices=targets,
-                                help="target",
-                                default="xdsl")
+                "--target",
+                type=str,
+                required=False,
+                choices=targets,
+                help="target",
+                default="xdsl")
 
         frontends = [name for name in self.available_frontends]
         arg_parser.add_argument(
-            "-f",
-            "--frontend",
-            type=str,
-            required=False,
-            choices=frontends,
-            help=
-            f"Frontend to be used for the input. If not set, the xdsl frontend "
-            "or the one for the file extension is used.")
+                "-f",
+                "--frontend",
+                type=str,
+                required=False,
+                choices=frontends,
+                help=
+                f"Frontend to be used for the input. If not set, the xdsl frontend "
+                "or the one for the file extension is used.")
 
         arg_parser.add_argument("--disable-verify",
-                                default=False,
-                                action='store_true')
+                default=False,
+                action='store_true')
         arg_parser.add_argument("-o",
-                                "--output-file",
-                                type=str,
-                                required=False,
-                                help="path to output file")
+                "--output-file",
+                type=str,
+                required=False,
+                help="path to output file")
 
         pass_names = ",".join([name for name in self.available_passes])
         arg_parser.add_argument(
-            "-p",
-            "--passes",
-            required=False,
-            help=
-            f"Delimited list of passes. Available passes are: {pass_names}",
-            type=str,
-            default="")
+                "-p",
+                "--passes",
+                required=False,
+                help=
+                f"Delimited list of passes. Available passes are: {pass_names}",
+                type=str,
+                default="")
 
         arg_parser.add_argument("--print-between-passes",
-                                default=False,
-                                action='store_true',
-                                help="Print the IR between each pass")
+                default=False,
+                action='store_true',
+                help="Print the IR between each pass")
 
         arg_parser.add_argument("--verify-diagnostics",
-                                default=False,
-                                action='store_true',
-                                help="Prints the content of a triggered "
-                                "exception and exits with code 0")
+                default=False,
+                action='store_true',
+                help="Prints the content of a triggered "
+                "exception and exits with code 0")
 
 
     def register_all_dialects(self):
@@ -162,7 +163,7 @@ class xDSLOptMain:
             module = parser.parse_op()
             if not (isinstance(module, ModuleOp)):
                 raise Exception(
-                    "Expected module or program as toplevel operation")
+                        "Expected module or program as toplevel operation")
             return module
 
         self.available_frontends['xdsl'] = parse_xdsl
@@ -206,19 +207,19 @@ class xDSLOptMain:
         Failes, if not all passes are registered.
         """
         pipeline = [
-            str(item) for item in self.args.passes.split(',') if len(item) > 0
-        ]
+                str(item) for item in self.args.passes.split(',') if len(item) > 0
+                ]
         for p in pipeline:
             if p not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
 
         self.pipeline = [(p, lambda op, p=p: self.available_passes[p]
-                          (self.ctx, op)) for p in pipeline]
+            (self.ctx, op)) for p in pipeline]
 
     def parse_input(self) -> ModuleOp:
         """
-        Parse the input file by invoking the parser specified by the `parser` 
-        argument. If not set, the parser registered for this file extension 
+        Parse the input file by invoking the parser specified by the `parser`
+        argument. If not set, the parser registered for this file extension
         is used.
         """
         if self.args.input_file is None:
