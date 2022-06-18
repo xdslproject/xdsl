@@ -156,7 +156,7 @@ class Printer:
         self.print(") = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
-        if ssa_val:= self._ssa_values.get(value):
+        if ssa_val := self._ssa_values.get(value):
             self.print(f"%{ssa_val}")
         else:
             self.print("%MISSING_SSA_VALUE")
