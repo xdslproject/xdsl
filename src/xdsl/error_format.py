@@ -1,12 +1,6 @@
-import ast
-import inspect
-import linecache
 import os
-import re
 import sys
-import traceback
-import typing
-from types import FrameType, TracebackType
+from types import TracebackType
 
 
 class Colors:
