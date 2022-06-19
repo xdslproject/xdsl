@@ -1,8 +1,12 @@
+import ast
+import inspect
+import linecache
+import os
 import re
 import sys
-import os
 import traceback
-import inspect
+import typing
+from types import FrameType, TracebackType
 
 
 class Colors:
@@ -36,31 +40,26 @@ class Frame:
         Extracting the frame from the traceback.
         With given exception
         """
+        _, _, exc_traceback = sys.exc_info()
 
-        trace = traceback.format_exc().splitlines()
-        exc_type, _, exc_traceback = sys.exc_info()
-        locals = sys.exc_info()[2].tb_next.tb_frame.f_locals
+        stack: list[TracebackType] = []
+        tb = exc_traceback
+        while tb:
+            stack.append(tb)
+            tb = tb.tb_next
+        stack = stack[-num:] if num else []
 
-        full_tb = traceback.format_tb(exc_traceback)
+        for tb in stack:
+            frame = tb.tb_frame
+            code = frame.f_code
 
-        # calculate the depth of the traceback needed
-        start = 0 if num >= len(full_tb) else len(full_tb) - num
-
-        # frames in the given range will be extracted
-        for i in range(start, len(full_tb)):
-
-            extract_frame = traceback.format_tb(exc_traceback)[i]
-            f = [j.split(', ') for j in extract_frame.split('\n')][0]
-
-            # "file | line | location"
-            filename = re.search(r'\"(.*?)\"', f[0]).group(1)
-            local_var = inspect.trace()[i][0].f_locals
-            line_num = f[1].split(' ')[-1]
-            exc_name = repr(
-                exc_type.mro()[0]).rstrip('>').lstrip('<').split(' ')[-1]
+            filename = code.co_filename
+            line_num = frame.f_lineno
+            exc_name = code.co_name
+            local_var = frame.f_locals
 
             yield filename, line_num, exc_name, local_var, self.extract_code(
-                filename, int(line_num)),
+                filename, line_num)
 
     def extract_code(self, filename: str, line_num: int):
         """
@@ -71,7 +70,7 @@ class Frame:
 
         with open(filename) as fp:
             for i, line in enumerate(fp):
-                if i >= line_num - self.extra_lines and i <= line_num + self.extra_lines:
+                if line_num - self.extra_lines <= i <= line_num + self.extra_lines:
                     if i == line_num - 1:
                         code += Colors.format.reset + Colors.fg.red + str(
                             i + 1) + line
@@ -102,7 +101,7 @@ class Frame:
 
             print(Colors.fg.green, "local variable(s): \n")
 
-            for k, v in list(local_var.items()):
+            for k, v in local_var.items():
                 print(Colors.fg.cyan, k, ": \n", end="")
                 print(Colors.format.reset, v, "\n")
 
