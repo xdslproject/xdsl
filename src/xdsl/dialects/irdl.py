@@ -56,9 +56,9 @@ class IRDL:
 class EqTypeConstraintAttr(ParametrizedAttribute):
     name = "equality_type_constraint"
     # data: AnyAttr()
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
 
-    # if this is aproved then I can use it to enforce parameters in other classes 
+    # if this is aproved then I can use it to enforce parameters in other ßclasses 
     def enforce_one_param(data: AnyAttr()) -> EqTypeConstraintAttr:
         if len(data) == 1:
             return data
@@ -69,39 +69,39 @@ class EqTypeConstraintAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
     name = "any_type_constraint"
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
 
 
 @irdl_attr_definition
 class AnyOfTypeConstraintAttr(ParametrizedAttribute):
     name = "any_of_type"
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
 
 @irdl_attr_definition
 class VarTypeConstraintAttr(ParametrizedAttribute):
     name = "var_type_constraint"
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
     
 
 @irdl_attr_definition
 class DynTypeBaseConstraintAttr(ParametrizedAttribute):
     name = "dyn_type_constraint"
-    element_type = ParameterDef(StringAttr())
+    element_type = ParameterDef[StringAttr]
 
 @irdl_attr_definition
 class DynTypeParamsConstraintAttr(ParametrizedAttribute):
     name = "dyn_type_params_constraint"
-    element_type = ParameterDef(StringAttr())
+    element_type = ParameterDef[StringAttr]
 
 @irdl_attr_definition
 class TypeParamsConstraintAttr(ParametrizedAttribute):
     name = "type_params_constraint"
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
 
 @irdl_attr_definition
 class NamedTypeConstraintAttr(ParametrizedAttribute):
     "named_type_constraint"
-    element_type = ParameterDef(AnyAttr())
+    element_type = ParameterDef[AnyAttr()]
     # ^^ seems wrong so this is what I think ... 
 # in TableGen "let parameters = (ins StringRefParameter<>:$name, TypeConstraintParameter:$constraint);"
 # so would it be: element_type = ParameterDef(TypeParamsConstraintAttr(),StringAttr())
