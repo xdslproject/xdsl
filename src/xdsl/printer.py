@@ -159,7 +159,7 @@ class Printer:
             self.print(f"%{ssa_val}")
         else:
             begin_pos = self._current_column
-            self.print("%MISSING_SSA_VALUE")
+            self.print("%<UNKNOWN>")
             end_pos = self._current_column
             self._add_message_on_next_line(
                 "ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?",
