@@ -1,5 +1,4 @@
 """
-
 irdl:
 
 EqTypeConstraintAttr and its parameters: type
@@ -11,14 +10,13 @@ DynTypeParamsConstraintAttr and its parameters: typeName, paramConstraints
 TypeParamsConstraintAttr and its parameters: typeDef, paramConstraints
 NamedTypeConstraintAttr and its parameters: name, constraint
 
-
 """
 
 from __future__ import annotations
 from ast import arguments
 from dataclasses import dataclass
 from lib2to3.pgen2.token import OP
-from tests.operation_builder_test import VarResultOp
+# from tests.operation_builder_test import VarResultOp
 from xml.dom.minicompat import StringTypes
 from xdsl.dialects.builtin import StringAttr
 
@@ -32,7 +30,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 @dataclass
-class Builtin:
+class IRDL:
     ctx: MLContext
 
     def __post_init__(self):
@@ -44,6 +42,14 @@ class Builtin:
         self.ctx.register_attr(DynTypeParamsConstraintAttr)
         self.ctx.register_attr(TypeParamsConstraintAttr)
         self.ctx.register_attr(NamedTypeConstraintAttr)
+
+        self.ctx.register_op(DialectOp)
+        self.ctx.register_op(ParametersOp)
+        self.ctx.register_op(TypeOp)
+        self.ctx.register_op(ConstraintVarsOp)
+        self.ctx.register_op(OperandsOp)
+        self.ctx.register_op(ResultsOp)
+        self.ctx.register_op(OperationOp)
         
 
 @irdl_attr_definition
