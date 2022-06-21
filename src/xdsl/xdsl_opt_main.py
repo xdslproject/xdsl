@@ -147,13 +147,13 @@ class xDSLOptMain:
                                 "exception and exits with code 0")
         arg_parser.add_argument(
             "--verbose-trace",
-            #default=False,
+            default=False,
             type=int,
             nargs='*',
             required=False,
             help="Prints the verbose traceback"
-            "First argument: number of output frames"
-            "Second argument: number of lines of code for the snippet")
+            "First argument: number of lines of code for the snippet. "
+            "Second argument: number of output frames ")
 
     def register_all_dialects(self):
         """
