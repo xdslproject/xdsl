@@ -149,6 +149,7 @@ class xDSLOptMain:
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
         cmath = CMath(self.ctx)
+        irdl = IRDL(self.ctx)
 
     def register_all_frontends(self):
         """
