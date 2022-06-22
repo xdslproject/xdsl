@@ -76,7 +76,9 @@ class xDSLOptMain:
                 def verbose_frame_output(f: Frame, m: int) -> None:
                     f.verbose(m) if m > 1 else f.verbose(1)
 
-                if self.args.verbose_trace == []:
+                if self.args.verbose_trace == False:
+                    print(e)
+                elif self.args.verbose_trace == []:
                     f = gen_frame(e, 0)
                     verbose_frame_output(f, 1)
 
@@ -90,7 +92,6 @@ class xDSLOptMain:
                     frame_count = self.args.verbose_trace[1]
                     f = gen_frame(e, code_length)
                     verbose_frame_output(f, frame_count)
-
                 else:
                     print(e)
 

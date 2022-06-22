@@ -35,6 +35,15 @@ def new_type(type_name):
     return TypeBase
 
 
+def fetch_metadata(f):
+
+    def inner(*args, **kwargs):
+        print(*args)
+        return f(*args, **kwargs)
+
+    return inner
+
+
 def is_satisfying_hint(arg, hint) -> bool:
     """
     Check if `arg` is of the type described by `hint`.

@@ -1,10 +1,9 @@
 from __future__ import annotations
-
+from typing import Dict, List, Union, Type
 from dataclasses import dataclass, field
-from io import StringIO
-from typing import Dict, List, Type, Union
 
 from xdsl.ir import Block, Operation, Region
+from io import StringIO
 
 
 class DiagnosticException(Exception):
@@ -34,7 +33,8 @@ class Diagnostic:
         elif isinstance(toplevel, Block):
             p._print_named_block(toplevel)  # type: ignore
         elif isinstance(toplevel, Region):
-            p.print_region(toplevel)
+            p._print_region(toplevel)  # type: ignore
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
+
         raise exception_type(message + "\n\n" + f.getvalue())
