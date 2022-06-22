@@ -150,6 +150,11 @@ class IRegion:
         for block in self.blocks:
             block.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        for block in self.blocks:
+            if not block.walk_abortable(fun):
+                return False
+        return True
 
 @dataclass(frozen=True)
 class IBlock:
@@ -350,6 +355,11 @@ class IBlock:
         for op in self.ops:
             op.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        for op in self.ops:
+            if not op.walk_abortable(fun):
+                return False
+        return True
 
 def get_immutable_copy(op: Operation) -> IOp:
     return IOp.from_mutable(op, {})
@@ -567,6 +577,13 @@ class IOp:
         for region in self.regions:
             region.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        if not fun(self):
+            return False
+        for region in self.regions:
+            if not region.walk_abortable(fun):
+                return False
+        return True
 
 def new_op(op_type: type[Operation],
            operands: Optional[Sequence[ISSAValue | IOp

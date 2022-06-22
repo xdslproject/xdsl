@@ -689,6 +689,89 @@ class topToBottom(Strategy):
     skips: int = 0
 
     def impl(self, op: IOp) -> RewriteResult:
+        if (rr := self.s.apply(op)).isSuccess():
+            return rr
+        rr = regionsTopToBottom(
+            blocksTopToBottom(
+                opsTopToBottom(topToBottom(self.s, skips=self.skips),
+                               skips=self.skips))).apply(op)
+        if rr.isSuccess():
+            return rr
+
+        return failure(self)
+
+@dataclass(frozen=True)
+class topToBottom_hacked(Strategy):
+    """
+    topToBottom traversal - Try to apply a strategy `s` to `op` itself and all
+    ops in nested regions from top to bottom. Terminates after successful application.
+    """
+    s: Strategy
+    skips: int = 0
+
+
+    def impl(self, op: IOp) -> RewriteResult:
+
+        rr = self.s.apply(op)
+        if isinstance(new_s := rr, Strategy):
+            return new_s
+        if rr.isSuccess():
+            return rr
+        rr = regionsTopToBottom(
+            blocksTopToBottom(
+                opsTopToBottom(topToBottom_hacked(self.s, skips=self.skips),
+                               skips=self.skips))).apply(op)
+        if isinstance(new_s := rr, Strategy):
+            return topToBottom_hacked(new_s).apply(op)
+        if rr.isSuccess():
+            return rr
+
+        return failure(self)
+
+
+@dataclass(frozen=True)
+class topToBottom_non_rebuilding(Strategy):
+    """
+    Traverses the IR top to bottom but does not support modification.
+    Only returns the RewriteResult of s without handling replacements.
+    This is useful for partial Strategies, which just have to find an op
+    to forward it to another Strategy
+    """
+    s: Strategy
+
+    def impl(self, op: IOp) -> RewriteResult:
+
+        result: Optional[RewriteResult] = None 
+
+        def apply(op: IOp) -> bool:
+            nonlocal result
+            if (rr := self.s.apply(op)).isSuccess():
+                result = rr
+                return False
+            # advance
+            return True
+
+        op.walk_abortable(apply)
+        if result is not None:
+            return result
+
+        return failure(self)
+
+
+
+@dataclass(frozen=True)
+class topToBottomMulti(Strategy):
+    """
+    topToBottom traversal - Try to apply a strategy `s` to `op` itself and all
+    ops in nested regions from top to bottom. Terminates after successful application.
+    """
+    s: callable([IOp], [Optional[Strategy]])
+    
+    skips: int = 0
+
+    def impl(self, op: IOp) -> RewriteResult:
+
+        # Traversal expects a multi pattern
 
         rr = self.s.apply(op)
         if isinstance(new_s := rr, Strategy):
@@ -707,6 +790,47 @@ class topToBottom(Strategy):
 
         return failure(self)
 
+@dataclass(frozen=True)
+class PartialStrategy:
+    @abstractmethod
+    def apply(self, op: IOp) -> Optional[List[IOp | ISSAValue]]:
+        ...
+
+@dataclass(frozen=True)
+class multi_seq(Strategy):
+    """
+    Applies a PartialStrategy `s0` and initializes `s1` with the result
+    of that application. Afterwards applies the initialized `s1` (s1_complete) 
+    """
+    s0: PartialStrategy
+    s1: Type[Strategy]
+    
+    # Question: not obvious how to do traversals with this approach. 
+    def impl(self, op: IOp) -> RewriteResult:
+        args: Optional[List[IOp | ISSAValue]] = self.s0.apply(op)
+        if args is None:
+            return failure(self)
+
+        s1_complete = self.s1(*args)
+        return s1_complete.apply(op)
+
+
+@dataclass(frozen=True)
+class multi_seq2(Strategy):
+    """
+    Applies s0 to op and uses the replacement_ops in the RewriteResult to initialize
+    s1. Then applies the initialized s1 to op.
+    """
+    s0: Strategy
+    s1: Callable[[List[IOp]], Strategy]
+    
+    def impl(self, op: IOp) -> RewriteResult:
+        rr = self.s0.apply(op)
+        if not rr.isSuccess():
+            return failure(self)
+        
+        s1_complete = self.s1(rr.replacements[-1].replacement_ops)
+        return s1_complete.apply(op)
 
 @dataclass(frozen=True)
 class bottomToTop(Strategy):
