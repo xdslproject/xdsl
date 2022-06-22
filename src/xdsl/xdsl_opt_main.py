@@ -73,7 +73,6 @@ class xDSLOptMain:
                     return Frame(e, n) if n >= 1 else Frame(e, 3)
 
                 def verbose_frame_output(f: Frame, m: int) -> None:
-                    print("m: ",m)
                     f.verbose(m) if m > 1 else f.verbose(1)
 
                 match self.args.verbose_trace:
@@ -81,10 +80,9 @@ class xDSLOptMain:
                         verbose_frame_output(get_code_length(e, 0), 1)
                     case [code_length]:
                         verbose_frame_output(get_code_length(e, code_length), 1)
-                    case [code_length, frame_count, *_]: #if len(self.args.verbose_trace) >= 2:
+                    case [code_length, frame_count, *_]:
                         verbose_frame_output(get_code_length(e, code_length), frame_count)
                     case _:
-                        print(len(self.args.verbose_trace))
                         print(e)
                 exit(0)
 
