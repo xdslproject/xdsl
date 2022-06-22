@@ -76,7 +76,7 @@ class xDSLOptMain:
                 def verbose_frame_output(f: Frame, m: int) -> None:
                     f.verbose(m) if m > 1 else f.verbose(1)
 
-                if self.args.verbose_trace == False:
+                if self.args.verbose_trace == None:
                     print(e)
                 elif self.args.verbose_trace == []:
                     f = gen_frame(e, 0)
@@ -162,9 +162,8 @@ class xDSLOptMain:
                                 "exception and exits with code 0")
         arg_parser.add_argument(
             "--verbose-trace",
-            default=False,
             type=int,
-            nargs='*',
+            nargs=2,
             required=False,
             help="Prints the verbose traceback"
             "First argument: number of lines of code for the snippet. "
