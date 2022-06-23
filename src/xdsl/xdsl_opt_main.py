@@ -79,18 +79,18 @@ class xDSLOptMain:
                 if self.args.verbose_trace is not None:
                     if self.args.verbose_trace == []:
                         f = gen_frame(e, 0)
-                        verbose_frame_output(f, 1)
+                        f.verbose(0)
 
                     elif len(self.args.verbose_trace) == 1:
                         code_length = self.args.verbose_trace[0]
                         f = gen_frame(e, code_length)
-                        verbose_frame_output(f, 1)
+                        f.verbose(0)
 
                     elif len(self.args.verbose_trace) >= 2:
                         code_length = self.args.verbose_trace[0]
                         frame_count = self.args.verbose_trace[1]
                         f = gen_frame(e, code_length)
-                        verbose_frame_output(f, frame_count)
+                        f.verbose(frame_count)
                 else:
                     print(e)
 

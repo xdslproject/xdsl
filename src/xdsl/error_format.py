@@ -41,7 +41,7 @@ class Frame:
         while tb:
             stack.append(tb)
             tb = tb.tb_next
-        stack = stack[-num:] if num else []
+        stack = stack[-num:]
 
         for tb in stack:
             frame = tb.tb_frame
@@ -78,6 +78,11 @@ class Frame:
     def verbose(self, num: int) -> None:
         """
         Output the verbose diagnostic message
+        
+        num:
+            if num > 0: last num frames
+            if num == 0: all frames
+            if num < 0: drop first num frames, get all the remaining frames
         """
         for filename, line_num, exc_name, local_var, code in self.get_frame(
                 num):
