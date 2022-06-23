@@ -51,7 +51,9 @@ class xDSLOptMain:
         self.register_all_targets()
 
         # arg handling
-        arg_parser = argparse.ArgumentParser(description=description)
+        arg_parser = argparse.ArgumentParser(
+            description=description,
+            formatter_class=argparse.RawTextHelpFormatter)
         self.register_all_arguments(arg_parser)
         self.args = arg_parser.parse_args()
 
@@ -71,12 +73,15 @@ class xDSLOptMain:
             except DiagnosticException as e:
 
                 def gen_frame(e: DiagnosticException, n: int) -> Frame:
+                    """Generate the frame object for diagnostic"""
                     return Frame(e, n) if n >= 1 else Frame(e, 3)
 
                 def verbose_frame_output(f: Frame, m: int) -> None:
+                    """Output the verbose diagnostic message"""
                     f.verbose(m) if m > 1 else f.verbose(1)
 
                 if self.args.verbose_trace is not None:
+<<<<<<< Updated upstream
                     if self.args.verbose_trace == []:
                         f = gen_frame(e, 0)
                         f.verbose(0)
@@ -91,6 +96,12 @@ class xDSLOptMain:
                         frame_count = self.args.verbose_trace[1]
                         f = gen_frame(e, code_length)
                         f.verbose(frame_count)
+=======
+                    code_length = self.args.verbose_trace[0]
+                    frame_count = self.args.verbose_trace[1]
+                    f = gen_frame(e, code_length)
+                    verbose_frame_output(f, frame_count)
+>>>>>>> Stashed changes
                 else:
                     print(e)
 
@@ -164,8 +175,9 @@ class xDSLOptMain:
             type=int,
             nargs=2,
             required=False,
-            help="Prints the verbose traceback"
-            "First argument: number of lines of code for the snippet. "
+            help=
+            "Prints the verbose traceback, need to be used with --verify-diagnostic.\n"
+            "First argument: number of lines of code for the snippet. \n"
             "Second argument: number of output frames ")
 
     def register_all_dialects(self):

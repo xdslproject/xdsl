@@ -20,7 +20,8 @@ class Colors:
 
 class Frame:
     """
-    This class is a traceback wrapper of a given raised error 
+    Traceback wrapper of a given raised error,
+    from the diagnostics.
     """
     e: Exception
     extra_lines: int
@@ -32,18 +33,20 @@ class Frame:
     def get_frame(self, num: int):
         """
         Extracting the frame from the traceback.
-        With given exception
+        With given number of frames from the traceback
         """
         _, _, exc_traceback = sys.exc_info()
 
         stack: list[TracebackType] = []
         tb = exc_traceback
+        # extract stack from the traceback
         while tb:
             stack.append(tb)
             tb = tb.tb_next
         stack = stack[-num:]
 
         for tb in stack:
+            # for each trace yield infos needed
             frame = tb.tb_frame
             code = frame.f_code
 
@@ -64,8 +67,12 @@ class Frame:
 
         with open(filename) as fp:
             for i, line in enumerate(fp):
+                # if within the given range of lines
+                # read and concat them into one strin
                 if line_num - self.extra_lines <= i <= line_num + self.extra_lines:
                     if i == line_num - 1:
+                        # if it's the line where errors occured
+                        # add carret
                         code += Colors.format.reset + Colors.fg.red + str(
                             i + 1) + line
                         code += ' ' * len(
@@ -86,7 +93,7 @@ class Frame:
         """
         for filename, line_num, exc_name, local_var, code in self.get_frame(
                 num):
-
+            # prints out the info by frames
             print(Colors.fg.red, exc_name, ": ", self.e, "\n")
 
             print(Colors.fg.green, "filename: ", end='')
