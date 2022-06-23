@@ -76,32 +76,11 @@ class xDSLOptMain:
                     """Generate the frame object for diagnostic"""
                     return Frame(e, n) if n >= 1 else Frame(e, 3)
 
-                def verbose_frame_output(f: Frame, m: int) -> None:
-                    """Output the verbose diagnostic message"""
-                    f.verbose(m) if m > 1 else f.verbose(1)
-
                 if self.args.verbose_trace is not None:
-<<<<<<< Updated upstream
-                    if self.args.verbose_trace == []:
-                        f = gen_frame(e, 0)
-                        f.verbose(0)
-
-                    elif len(self.args.verbose_trace) == 1:
-                        code_length = self.args.verbose_trace[0]
-                        f = gen_frame(e, code_length)
-                        f.verbose(0)
-
-                    elif len(self.args.verbose_trace) >= 2:
-                        code_length = self.args.verbose_trace[0]
-                        frame_count = self.args.verbose_trace[1]
-                        f = gen_frame(e, code_length)
-                        f.verbose(frame_count)
-=======
                     code_length = self.args.verbose_trace[0]
                     frame_count = self.args.verbose_trace[1]
                     f = gen_frame(e, code_length)
-                    verbose_frame_output(f, frame_count)
->>>>>>> Stashed changes
+                    f.verbose(frame_count)
                 else:
                     print(e)
 
@@ -178,7 +157,11 @@ class xDSLOptMain:
             help=
             "Prints the verbose traceback, need to be used with --verify-diagnostic.\n"
             "First argument: number of lines of code for the snippet. \n"
-            "Second argument: number of output frames ")
+            "Second argument: number of output frames: "
+            "\n\t- if num >  0: last [num] frames"
+            "\n\t- if num == 0: all frames"
+            "\n\t- if num <  0: drop first [num] of frames, get all the remaining frames"
+        )
 
     def register_all_dialects(self):
         """

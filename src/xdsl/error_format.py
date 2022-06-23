@@ -20,8 +20,8 @@ class Colors:
 
 class Frame:
     """
-    Traceback wrapper of a given raised error,
-    from the diagnostics.
+    Traceback wrapper of a given raised error.
+    Wraps the informations in a better format
     """
     e: Exception
     extra_lines: int
@@ -61,7 +61,7 @@ class Frame:
     def extract_code(self, filename: str, line_num: int):
         """
         Extract the code from given frame. 
-        returns a string of the code
+        returns a string of the code snippet with carret indicator
         """
         code: str = "\n"
 
@@ -85,11 +85,10 @@ class Frame:
     def verbose(self, num: int) -> None:
         """
         Output the verbose diagnostic message
-        
-        num:
+        Number of output frame is dependent on `num`:
             if num > 0: last num frames
             if num == 0: all frames
-            if num < 0: drop first num frames, get all the remaining frames
+            if num < 0: drop first num of frames, get all the remaining frames
         """
         for filename, line_num, exc_name, local_var, code in self.get_frame(
                 num):
