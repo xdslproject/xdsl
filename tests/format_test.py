@@ -56,7 +56,9 @@ def test_simple_data_constructor_failure():
         dir_path = os.path.dirname(os.path.realpath(__file__))
         x = Frame(e, 1)
         gen = list(x.get_frame(1))
-        code = gen[0][-1]
+        code = """\n\x1b[0m\x1b[31m42                raise VerifyException(\n  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\x1b[33m43                    "int_list list elements should be integers.")\n\x1b[33m44\n\n"""
         assert code == x.extract_code(gen[0][0], gen[0][1])
         assert "raise VerifyException" in code
         assert x.extract_code(dir_path + "/format_test.py", 42) == code
+
+
