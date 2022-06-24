@@ -60,5 +60,3 @@ def test_simple_data_constructor_failure():
         assert code == x.extract_code(gen[0][0], gen[0][1])
         assert "raise VerifyException" in code
         assert x.extract_code(dir_path + "/format_test.py", 42) == code
-
-
