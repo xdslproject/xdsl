@@ -53,13 +53,10 @@ def test_simple_data_constructor_failure():
 
     except VerifyException as e:
 
-        cwd = os.getcwd()
+        dir_path = os.path.dirname(os.path.realpath(__file__))
         x = Frame(e, 1)
-
-        # gen = [(filename, line_num, ...)]
         gen = list(x.get_frame(1))
         code = gen[0][-1]
-
         assert code == x.extract_code(gen[0][0], gen[0][1])
         assert "raise VerifyException" in code
-        assert x.extract_code(cwd + "/format_test.py", 41) == code
+        assert x.extract_code(dir_path + "/format_test.py", 42) == code
