@@ -1,16 +1,3 @@
-"""
-irdl:
-
-EqTypeConstraintAttr and its parameters: type
-AnyTypeConstraintAttr and its parameters: -
-AnyOfTypeConstraintAttr and its parameters: constrs
-VarTypeConstraintAttr and its parameters: name
-DynTypeBaseConstraintAttr and its parameters: typeName
-DynTypeParamsConstraintAttr and its parameters: typeName, paramConstraints
-TypeParamsConstraintAttr and its parameters: typeDef, paramConstraints
-NamedTypeConstraintAttr and its parameters: name, constraint
-
-"""
 
 from __future__ import annotations
 from ast import arguments
@@ -18,7 +5,7 @@ from dataclasses import dataclass
 from lib2to3.pgen2.token import OP
 # from tests.operation_builder_test import VarResultOp
 from xml.dom.minicompat import StringTypes
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import ArrayAttr, StringAttr
 
 from xdsl.irdl import *
 from xdsl.ir import *
@@ -55,32 +42,30 @@ class IRDL:
 @irdl_attr_definition
 class EqTypeConstraintAttr(ParametrizedAttribute):
     name = "equality_type_constraint"
-    # data: AnyAttr()
-    data: ParameterDef[AnyAttr()]
+    data: ParameterDef[Attribute]
 
-    # if this is aproved then I can use it to enforce parameters in other ßclasses 
-    def enforce_one_param(data: AnyAttr()) -> EqTypeConstraintAttr:
+    def enforce_one_param(data: Attribute) -> EqTypeConstraintAttr:
         if len(data) == 1:
             return data
         else:
             raise Exception(f"Expected 1 parameter but got {len(data)}")
-            # ^^ eventually make use of Exception class Shaolun is building
 
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
     name = "any_type_constraint"
-    data: ParameterDef[AnyAttr()]
+    data: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
 class AnyOfTypeConstraintAttr(ParametrizedAttribute):
     name = "any_of_type"
-    data: ParameterDef[AnyAttr()]
+    first: ParameterDef[Attribute]
+    second: ParameterDef[Attribute]
 
 @irdl_attr_definition
 class VarTypeConstraintAttr(ParametrizedAttribute):
     name = "var_type_constraint"
-    data: ParameterDef[AnyAttr()]
+    data: ParameterDef[Attribute]
     
 
 @irdl_attr_definition
@@ -92,58 +77,57 @@ class DynTypeBaseConstraintAttr(ParametrizedAttribute):
 class DynTypeParamsConstraintAttr(ParametrizedAttribute):
     name = "dyn_type_params_constraint"
     data: ParameterDef[StringAttr]
+    params: ParameterDef[ArrayAttr]
 
 @irdl_attr_definition
 class TypeParamsConstraintAttr(ParametrizedAttribute):
     name = "type_params_constraint"
-    data: ParameterDef[AnyAttr()]
+    data: ParameterDef[Attribute]
 
 @irdl_attr_definition
 class NamedTypeConstraintAttr(ParametrizedAttribute):
-    "named_type_constraint"
-    data: ParameterDef[AnyAttr()]
-    # ^^ seems wrong so this is what I think ... 
-# in TableGen "let parameters = (ins StringRefParameter<>:$name, TypeConstraintParameter:$constraint);"
-# so would it be: element_type = ParameterDef(TypeParamsConstraintAttr(),StringAttr())
+    name = "named_type_constraint"
 
+    type_name: ParameterDef[StringAttr]
+    params_constraints: ParameterDef[Attribute]
+    
 
 @irdl_op_definition
 class DialectOp(Operation):
     name: str = "irdl.dialect"
-    arguments = OperandDef(StringAttr)
+    dialect_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
 
 @irdl_op_definition
 class ParametersOp(Operation):
     name: str = "irdl.parameters"
-    arguments = VarOperandDef(AnyAttr())
+    constraints = AttributeDef(ArrayAttr)
 
 
 @irdl_op_definition
 class TypeOp(Operation):
     name: str = "irdl.type"
-    arguments = OperandDef(StringAttr)
+    type_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
 
 @irdl_op_definition
 class ConstraintVarsOp(Operation):
     name: str = "irdl.constraint_vars"
-    arguments = VarOperandDef(AnyAttr())
-
+    constraints = AttributeDef(AnyAttr())
 
 @irdl_op_definition
 class OperandsOp(Operation):
     name: str = "irdl.operands"
-    arguments = VarOperandDef(AnyAttr())
-
+    op = VarOperandDef(AnyAttr())
 
 @irdl_op_definition
 class ResultsOp(Operation):
     name: str = "irdl.results"
-    arguments = VarResultDef(AnyAttr())
+    res = VarResultDef(AnyAttr())
 
 @irdl_op_definition
 class OperationOp(Operation):
     name: str = "irdl.operation"
-    arguments = OperandDef(StringAttr)
+    body = SingleBlockRegionDef()
+
 

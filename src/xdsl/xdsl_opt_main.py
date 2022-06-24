@@ -5,6 +5,7 @@ from io import IOBase
 from xdsl.ir import *
 from xdsl.parser import *
 from xdsl.printer import *
+from xdsl.dialects.irdl import * 
 from xdsl.dialects.func import *
 from xdsl.dialects.scf import *
 from xdsl.dialects.arith import *
