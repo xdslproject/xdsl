@@ -76,7 +76,7 @@ class xDSLOptMain:
                     """Generate the frame object for diagnostic"""
                     return Frame(e, n) if n >= 1 else Frame(e, 3)
 
-                if self.args.verbose_trace is not None:
+                if self.args.verbose_trace:
                     code_length = self.args.verbose_trace[0]
                     frame_count = self.args.verbose_trace[1]
                     f = gen_frame(e, code_length)
