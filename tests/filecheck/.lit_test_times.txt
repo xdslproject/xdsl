@@ -1,0 +1,11 @@
+1.440260e-01 affine_ops.xdsl
+7.216287e-02 arith_invalid.xdsl
+2.446129e-01 arith_ops.xdsl
+1.118841e-01 builtin_types.xdsl
+2.239571e-01 cf_ops.xdsl
+2.121851e-01 escaped_characters.xdsl
+1.508312e-01 func_ops.xdsl
+2.111490e-01 memref_ops.xdsl
+5.006790e-06 mlir-conversion/ops.xdsl
+2.215171e-01 scf_ops.xdsl
+9.212685e-02 cmath.xdsl
