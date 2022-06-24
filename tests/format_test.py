@@ -16,6 +16,7 @@ import os
 
 # using classes from other modules
 
+
 @irdl_attr_definition
 class IntListData(Data[List[int]]):
     """
@@ -41,6 +42,7 @@ class IntListData(Data[List[int]]):
                 raise VerifyException(
                     "int_list list elements should be integers.")
 
+
 def test_simple_data_constructor_failure():
     """
     Test that the verifier of a Data with a non-class parameter fails when
@@ -60,5 +62,4 @@ def test_simple_data_constructor_failure():
 
         assert code == x.extract_code(gen[0][0], gen[0][1])
         assert "raise VerifyException" in code
-        assert x.extract_code(cwd+"/format_test.py", 41) == code
-
+        assert x.extract_code(cwd + "/format_test.py", 41) == code
