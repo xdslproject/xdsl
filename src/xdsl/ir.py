@@ -37,15 +37,15 @@ class MLContext:
 
     def get_op(self, name: str) -> type[Operation]:
         """Get an operation class from its name."""
-        if name not in self._registeredOps:
-            raise Exception(f"Operation {name} is not registered")
-        return self._registeredOps[name]
+        if op := self._registeredOps.get(name):
+            return op
+        raise Exception(f"Operation {name} is not registered")
 
     def get_attr(self, name: str) -> type[Attribute]:
         """Get an attribute class from its name."""
-        if name not in self._registeredAttrs:
-            raise Exception(f"Attribute {name} is not registered")
-        return self._registeredAttrs[name]
+        if attr := self._registeredAttrs.get(name):
+            return attr
+        raise Exception(f"Attribute {name} is not registered")
 
 
 @dataclass(frozen=True)
