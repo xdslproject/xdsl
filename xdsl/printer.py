@@ -465,7 +465,7 @@ class Printer:
             self.print(">")
             return
 
-        assert isinstance(attribute, ParametrizedAttribute)
+        assert isinstance(attribute, ParametrizedAttribute), f'{attribute}: {type(attribute)}'
 
         # Print parametrized attribute with default formatting
         if self.target == self.Target.XDSL and self.print_generic_format:

@@ -546,9 +546,10 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def tensor_from_list(
             data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat
+            typ: IntegerType | IndexType | AnyFloat,
+            shape: List[int] = []
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, [len(data)])
+        t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
