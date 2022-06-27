@@ -61,8 +61,11 @@ class Frame:
 
     def extract_code(self, filename, first_line, line_num, code) -> str:
         """
-        Extract the code from given frame. 
-        returns a string of the code snippet with carret indicator
+        Extract the code from given frame.
+        By matching the line of the exception 
+        it adds the carret to that line.
+
+        returns a string of the code snippet of the function with carret indicator
         """
         carret: str = "\n"
         code.append("\n")
@@ -90,6 +93,7 @@ class Frame:
                         colored_error = Colors.format.reset + Colors.fg.red + error_line
                         carret = ' ' * (len(str(i)) + 1) + \
                                  '^' * (line_length - 1) + '\n'
+                        # replacing the line with the formatted one
                         code[i - first_line] = colored_error \
                                                 + carret \
                                                 + Colors.fg.orange

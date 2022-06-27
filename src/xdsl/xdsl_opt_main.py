@@ -151,7 +151,7 @@ class xDSLOptMain:
             required=False,
             help=
             "Prints the verbose traceback, need to be used with --verify-diagnostic.\n"
-            "Second argument: number of output frames: "
+            "argument: number of output frames: "
             "\n\t- if num >  0: last [num] frames"
             "\n\t- if num == 0: all frames"
             "\n\t- if num <  0: drop first [num] of frames, get all the remaining frames"
