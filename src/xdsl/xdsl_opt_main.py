@@ -72,11 +72,12 @@ class xDSLOptMain:
 
             except DiagnosticException as e:
 
-                if self.args.verbose_trace:
+                # in case there is an error in the formatter
+                try:
                     f = Frame(e)
                     frame_count = self.args.verbose_trace[0]
                     f.verbose(frame_count)
-                else:
+                except Exception:
                     print(e)
 
                 exit(0)
