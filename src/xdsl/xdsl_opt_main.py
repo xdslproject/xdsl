@@ -72,14 +72,9 @@ class xDSLOptMain:
 
             except DiagnosticException as e:
 
-                def gen_frame(e: DiagnosticException, n: int) -> Frame:
-                    """Generate the frame object for diagnostic"""
-                    return Frame(e, n) if n >= 1 else Frame(e, 3)
-
                 if self.args.verbose_trace:
-                    code_length = self.args.verbose_trace[0]
-                    frame_count = self.args.verbose_trace[1]
-                    f = gen_frame(e, code_length)
+                    f = Frame(e)
+                    frame_count = self.args.verbose_trace[0]
                     f.verbose(frame_count)
                 else:
                     print(e)
@@ -152,11 +147,10 @@ class xDSLOptMain:
         arg_parser.add_argument(
             "--verbose-trace",
             type=int,
-            nargs=2,
+            nargs=1,
             required=False,
             help=
             "Prints the verbose traceback, need to be used with --verify-diagnostic.\n"
-            "First argument: number of lines of code for the snippet. \n"
             "Second argument: number of output frames: "
             "\n\t- if num >  0: last [num] frames"
             "\n\t- if num == 0: all frames"

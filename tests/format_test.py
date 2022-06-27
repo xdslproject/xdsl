@@ -52,11 +52,19 @@ def test_simple_data_constructor_failure():
         IntListData([0, 1, 42, ""])  # type: ignore
 
     except VerifyException as e:
+        simple_test(e)
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        x = Frame(e, 1)
-        gen = list(x.get_frame(1))
-        code = """\n\x1b[0m\x1b[31m42                raise VerifyException(\n  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\x1b[33m43                    "int_list list elements should be integers.")\n\x1b[33m44\n\n"""
-        assert code == x.extract_code(gen[0][0], gen[0][1])
-        assert "raise VerifyException" in code
-        assert x.extract_code(dir_path + "/format_test.py", 42) == code
+
+def simple_test(e):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    x = Frame(e)
+    gen = list(x.get_frame(1))
+    code_original = '    def verify(self) -> None:\n        if not isinstance(self.data, list):\n            raise VerifyException("int_list data should hold a list.")\n        for elem in self.data:\n            if not isinstance(elem, int):\n                raise VerifyException(\n                    "int_list list elements should be integers.")\n'
+    code_original = code_original.splitlines(True)
+    code_formatted = '37    def verify(self) -> None:\n 38        if not isinstance(self.data, list):\n 39            raise VerifyException("int_list data should hold a list.")\n 40        for elem in self.data:\n 41            if not isinstance(elem, int):\n 42                raise VerifyException(\n\x1b[0m\x1b[31m 43                    "int_list list elements should be integers.")\n   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\x1b[33m 44\n\n'
+    stream = StringIO()
+    sys.stdout = stream
+    print(x.extract_code(gen[0][0], 37, 43, code_original))
+    y = stream.getvalue()
+    sys.stdout = sys.__stdout__
+    assert code_formatted in y

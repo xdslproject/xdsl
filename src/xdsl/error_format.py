@@ -1,6 +1,8 @@
 import os
 import sys
 from types import TracebackType
+import traceback
+import inspect
 
 
 class Colors:
@@ -24,11 +26,9 @@ class Frame:
     Wraps the informations in a better format
     """
     e: Exception
-    extra_lines: int
 
-    def __init__(self, e: Exception, extra_lines: int):
+    def __init__(self, e):
         self.e = e
-        self.extra_lines = extra_lines
 
     def get_frame(self, num: int):
         """
@@ -36,7 +36,6 @@ class Frame:
         With given number of frames from the traceback
         """
         _, _, exc_traceback = sys.exc_info()
-
         stack: list[TracebackType] = []
         tb = exc_traceback
         # extract stack from the traceback
@@ -49,38 +48,53 @@ class Frame:
             # for each trace yield infos needed
             frame = tb.tb_frame
             code = frame.f_code
-
             filename = code.co_filename
             line_num = frame.f_lineno
             exc_name = code.co_name
             local_var = frame.f_locals
 
-            yield filename, line_num, exc_name, local_var, self.extract_code(
-                filename, line_num)
+            code_source = inspect.getsource(code).splitlines(True)
+            first_line = code.co_firstlineno
 
-    def extract_code(self, filename: str, line_num: int):
+            yield filename, line_num, exc_name, local_var, self.extract_code(
+                filename, first_line, line_num, code_source)
+
+    def extract_code(self, filename, first_line, line_num, code) -> str:
         """
         Extract the code from given frame. 
         returns a string of the code snippet with carret indicator
         """
-        code: str = "\n"
+        carret: str = "\n"
+        code.append("\n")
 
         with open(filename) as fp:
             for i, line in enumerate(fp):
-                # if within the given range of lines
-                # read and concat them into one strin
-                if line_num - self.extra_lines <= i <= line_num + self.extra_lines:
-                    if i == line_num - 1:
-                        # if it's the line where errors occured
-                        # add carret
-                        code += Colors.format.reset + Colors.fg.red + str(
-                            i + 1) + line
-                        code += ' ' * len(
-                            str(i + 1)) + '^' * (len(line) - 1) + '\n'
-                    else:
-                        code += Colors.fg.orange + str(i + 1) + line
 
-        return code + "\n"
+                # different cases because the first line of the code
+                # has a space in the front
+                # this goes for all the frame attr
+
+                if i == first_line:
+                    code[i - first_line] = str(i) + code[i - first_line]
+                elif first_line < i <= len(code) + first_line - 1:
+                    # get the length before adding anything to the line
+                    line_length = len(code[i - first_line])
+
+                    # adding numbers to the line
+                    code[i - first_line] = ' ' + str(i) + code[i - first_line]
+
+                    error_line = code[i - first_line]
+
+                    if i == line_num:
+                        # adding carret and red to the exception line
+                        colored_error = Colors.format.reset + Colors.fg.red + error_line
+                        carret = ' ' * (len(str(i)) + 1) + \
+                                 '^' * (line_length - 1) + '\n'
+                        code[i - first_line] = colored_error \
+                                                + carret \
+                                                + Colors.fg.orange
+
+        return "".join(code)
 
     def verbose(self, num: int) -> None:
         """
