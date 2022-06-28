@@ -32,7 +32,6 @@ class PatternRewriter:
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
-
     def _can_modify_op(self, op: Operation) -> bool:
         """Check if the operation and its children can be modified by this rewriter."""
         if op == self.current_operation:
@@ -312,7 +311,6 @@ class RewritePattern(ABC):
     """
     A side-effect free rewrite pattern matching on a DAG.
     """
-
     @abstractmethod
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         """
@@ -386,7 +384,6 @@ class GreedyRewritePatternApplier(RewritePattern):
 
     rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
-
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
         for pattern in self.rewrite_patterns:
@@ -416,7 +413,6 @@ class PatternRewriteWalker:
 
     walk_reverse: bool = field(default=False)
     """Walk the regions and blocks in reverse order. That way, all uses are replaced before the definitions."""
-
     def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
         self._rewrite_op(op)

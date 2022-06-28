@@ -246,7 +246,6 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(

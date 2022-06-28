@@ -6,7 +6,6 @@ indentNumSpaces = 2
 
 
 class Parser:
-
     def __init__(self, ctx: MLContext, _str: str):
         self._ctx: MLContext = ctx
         self._str: str = _str

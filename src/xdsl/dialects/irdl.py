@@ -1,20 +1,10 @@
-
 from __future__ import annotations
-from ast import arguments
 from dataclasses import dataclass
-from lib2to3.pgen2.token import OP
-# from tests.operation_builder_test import VarResultOp
-from xml.dom.minicompat import StringTypes
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 
 from xdsl.irdl import *
 from xdsl.ir import *
-from typing import overload
 
-# Used for cyclic dependencies in type hints
-if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
 
 @dataclass
 class IRDL:
@@ -37,10 +27,11 @@ class IRDL:
         self.ctx.register_op(OperandsOp)
         self.ctx.register_op(ResultsOp)
         self.ctx.register_op(OperationOp)
-        
+
 
 @irdl_attr_definition
 class EqTypeConstraintAttr(ParametrizedAttribute):
+
     name = "equality_type_constraint"
     data: ParameterDef[Attribute]
 
@@ -50,8 +41,10 @@ class EqTypeConstraintAttr(ParametrizedAttribute):
         else:
             raise Exception(f"Expected 1 parameter but got {len(data)}")
 
+
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
+
     name = "any_type_constraint"
     data: ParameterDef[Attribute]
 
@@ -62,16 +55,18 @@ class AnyOfTypeConstraintAttr(ParametrizedAttribute):
     first: ParameterDef[Attribute]
     second: ParameterDef[Attribute]
 
+
 @irdl_attr_definition
 class VarTypeConstraintAttr(ParametrizedAttribute):
     name = "var_type_constraint"
     data: ParameterDef[Attribute]
-    
+
 
 @irdl_attr_definition
 class DynTypeBaseConstraintAttr(ParametrizedAttribute):
     name = "dyn_type_constraint"
     data: ParameterDef[StringAttr]
+
 
 @irdl_attr_definition
 class DynTypeParamsConstraintAttr(ParametrizedAttribute):
@@ -79,10 +74,12 @@ class DynTypeParamsConstraintAttr(ParametrizedAttribute):
     data: ParameterDef[StringAttr]
     params: ParameterDef[ArrayAttr]
 
+
 @irdl_attr_definition
 class TypeParamsConstraintAttr(ParametrizedAttribute):
     name = "type_params_constraint"
     data: ParameterDef[Attribute]
+
 
 @irdl_attr_definition
 class NamedTypeConstraintAttr(ParametrizedAttribute):
@@ -90,44 +87,69 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
 
     type_name: ParameterDef[StringAttr]
     params_constraints: ParameterDef[Attribute]
-    
+
 
 @irdl_op_definition
 class DialectOp(Operation):
+    """
+    Define a new dialect
+    """
     name: str = "irdl.dialect"
     dialect_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
 
+
 @irdl_op_definition
 class ParametersOp(Operation):
+    """
+    Define the parameters of a type/attribute definition
+    """
     name: str = "irdl.parameters"
     constraints = AttributeDef(ArrayAttr)
 
 
 @irdl_op_definition
 class TypeOp(Operation):
+    """
+    Defines new types beloning to previously defined dialect
+    """
     name: str = "irdl.type"
     type_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
 
+
 @irdl_op_definition
 class ConstraintVarsOp(Operation):
+    """
+    Define constraint variables that can be used in the
+    current region
+    """
     name: str = "irdl.constraint_vars"
     constraints = AttributeDef(AnyAttr())
 
+
 @irdl_op_definition
 class OperandsOp(Operation):
+    """
+    Define the operands of a parent operation
+    """
     name: str = "irdl.operands"
     op = VarOperandDef(AnyAttr())
 
+
 @irdl_op_definition
 class ResultsOp(Operation):
+    """
+    Define results of parent operation
+    """
     name: str = "irdl.results"
     res = VarResultDef(AnyAttr())
 
+
 @irdl_op_definition
 class OperationOp(Operation):
+    """
+    Define a new operation belonging to previously defined dialect
+    """
     name: str = "irdl.operation"
     body = SingleBlockRegionDef()
-
-
