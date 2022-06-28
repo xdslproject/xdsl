@@ -1,0 +1,34 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+module() {
+
+    func.func() ["sym_name" = "conorm", "function_type" = !fun<[!cmath.complex<!f32>, !cmath.complex<!f32>], [!f32]>, "sym_visibility" = "private"] {
+      ^0(%p: !cmath.complex<!f32>, %q: !cmath.complex<!f32>):
+        %norm_p : !f32 = cmath.norm(%p : !cmath.complex<!f32>)
+        %norm_q : !f32 = cmath.norm(%q : !cmath.complex<!f32>)
+        %pq : !f32 = arith.mulf(%norm_p : !f32, %norm_q : !f32)
+        func.return(%pq : !f32)
+    }
+
+    // CHECK: func.func() ["sym_name" = "conorm", 
+    // CHECK-NEXT: ^{{.*}}({{.*}}: !cmath.complex<!f32>, {{.*}}: !cmath.complex<!f32>):
+    // CHECK-NEXT: %{{.*}} : !f32 = cmath.norm(%{{.*}} : !cmath.complex<!f32>)
+    // CHECK-NEXT: %{{.*}} : !f32 = cmath.norm(%{{.*}} : !cmath.complex<!f32>)
+    // CHECK-NEXT: %{{.*}} : !f32 = arith.mulf(%{{.*}} : !f32, %{{.*}} : !f32)
+    // CHECK-NEXT: func.return(%{{.*}} : !f32)
+    // CHECK-NEXT: }
+
+    func.func() ["sym_name" = "conorm2", "function_type" = !fun<[!cmath.complex<!f32>], [!f32]>, "sym_visibility" = "private"] {
+      ^1(%a: !cmath.complex<!f32>, %b: !cmath.complex<!f32>):
+        %ab : !cmath.complex<!f32> = cmath.mul(%a : !cmath.complex<!f32>, %b : !cmath.complex<!f32>)
+        %conorm : !f32 = cmath.norm(%ab : !cmath.complex<!f32>)
+        func.return(%conorm : !f32)
+    }
+    // CHECK: func.func() ["sym_name" = "conorm2", 
+    // CHECK-NEXT: ^{{.*}}(%{{.*}}: !cmath.complex<!f32>, %{{.*}}: !cmath.complex<!f32>):
+    // CHECK-NEXT: %{{.*}} : !cmath.complex<!f32> = cmath.mul(%{{.*}} : !cmath.complex<!f32>, %{{.*}} : !cmath.complex<!f32>)
+    // CHECK-NEXT: %{{.*}} : !f32 = cmath.norm(%{{.*}} : !cmath.complex<!f32>)
+    // CHECK-NEXT: func.return(%{{.*}} : !f32)
+    // CHECK-NEXT: }
+
+}
