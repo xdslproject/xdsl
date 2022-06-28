@@ -379,12 +379,16 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 class Float32Type(ParametrizedAttribute):
     name = "f32"
 
+
 f32 = Float32Type()
+
 
 class Float64Type(ParametrizedAttribute):
     name = "f64"
 
+
 f64 = Float64Type()
+
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
