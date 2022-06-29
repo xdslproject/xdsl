@@ -4,6 +4,7 @@ from xdsl.ir import *
 
 
 class Rewriter:
+
     @staticmethod
     def erase_op(op: Operation, safe_erase: bool = True):
         """

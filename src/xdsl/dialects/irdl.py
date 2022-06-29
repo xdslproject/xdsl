@@ -35,6 +35,7 @@ class EqTypeConstraintAttr(ParametrizedAttribute):
     name = "equality_type_constraint"
     data: ParameterDef[Attribute]
 
+
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
 

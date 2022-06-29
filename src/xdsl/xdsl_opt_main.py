@@ -42,6 +42,7 @@ class xDSLOptMain:
 
     pipeline: List[Tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
+
     def __init__(self, description='xDSL modular optimizer driver'):
         self.ctx = MLContext()
         self.register_all_dialects()
@@ -152,6 +153,7 @@ class xDSLOptMain:
         Register all frontends that can be used.
         Add other/additional frontends by overloading this function.
         """
+
         def parse_xdsl(f: IOBase):
             input_str = f.read()
             parser = Parser(self.ctx, input_str)
@@ -175,6 +177,7 @@ class xDSLOptMain:
         Register all targets that can be used.
         Add other/additional targets by overloading this function.
         """
+
         def _output_xdsl(prog: ModuleOp, output: IOBase):
             printer = Printer(stream=output)
             printer.print_op(prog)

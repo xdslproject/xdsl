@@ -42,6 +42,7 @@ def test_non_recursive_rewrite():
 }"""
 
     class RewriteConst(RewritePattern):
+
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
                 new_constant = Constant.from_int_constant(43, i32)
@@ -68,6 +69,7 @@ def test_non_recursive_rewrite_reversed():
 }"""
 
     class RewriteConst(RewritePattern):
+
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
                 new_constant = Constant.from_int_constant(43, i32)
@@ -96,6 +98,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 }"""
 
     class RewriteConst(RewritePattern):
+
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
             rewriter.replace_matched_op(Constant.from_int_constant(43, i32))

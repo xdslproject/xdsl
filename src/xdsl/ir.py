@@ -122,6 +122,7 @@ class OpResult(SSAValue):
 
     result_index: int
     """The index of the result in the defining operation."""
+
     def __repr__(self) -> str:
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
             f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}, name={repr(self.name)})"
@@ -143,6 +144,7 @@ class BlockArgument(SSAValue):
 
     index: int
     """The index of the variable in the block arguments."""
+
     def __repr__(self) -> str:
         if isinstance(self.block, Block):
             block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
@@ -184,6 +186,7 @@ class Attribute(ABC):
 
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
+
     @classmethod
     def build(cls: type[A], *args: Any) -> A:
         """Create a new attribute using one of the builder defined in IRDL."""
@@ -254,6 +257,7 @@ class Operation:
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
     def parent_block(self) -> Block | None:
         return self.parent
 
@@ -477,6 +481,7 @@ class Block:
 
     parent: Region | None = field(default=None, init=False, repr=False)
     """Parent region containing the block."""
+
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
 
@@ -517,6 +522,7 @@ class Block:
         return b
 
     class BlockCallback(Protocol):
+
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
 
@@ -701,6 +707,7 @@ class Region:
 
     parent: Operation | None = field(default=None, init=False, repr=False)
     """Operation containing the region."""
+
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
 

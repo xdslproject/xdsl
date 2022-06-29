@@ -33,6 +33,7 @@ class IRDLAnnotations(Enum):
 @dataclass
 class AttrConstraint(ABC):
     """Constrain an attribute to a certain value."""
+
     @abstractmethod
     def verify(self, attr: Attribute) -> None:
         """
@@ -48,6 +49,7 @@ class EqAttrConstraint(AttrConstraint):
 
     attr: Attribute
     """The attribute we want to check equality with."""
+
     def verify(self, attr: Attribute) -> None:
         if attr != self.attr:
             raise VerifyException(
@@ -60,6 +62,7 @@ class BaseAttr(AttrConstraint):
 
     attr: type[Attribute]
     """The expected attribute base type."""
+
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, self.attr):
             raise VerifyException(
@@ -83,6 +86,7 @@ def attr_constr_coercion(attr: (Attribute | type[Attribute]
 @dataclass
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
+
     def verify(self, attr: Attribute) -> None:
         if not isinstance(attr, Attribute):
             raise VerifyException(f"Expected attribute, but got {attr}")
@@ -94,6 +98,7 @@ class AnyOf(AttrConstraint):
 
     attr_constrs: list[AttrConstraint]
     """The list of constraints that are checked."""
+
     def __init__(self, attr_constrs: Sequence[Attribute | type[Attribute]
                                               | AttrConstraint]):
         self.attr_constrs = [
@@ -118,6 +123,7 @@ class AllOf(AttrConstraint):
 
     attr_constrs: list[AttrConstraint]
     """The list of constraints that are checked."""
+
     def verify(self, attr: Attribute) -> None:
         for attr_constr in self.attr_constrs:
             attr_constr.verify(attr)
@@ -135,6 +141,7 @@ class ParamAttrConstraint(AttrConstraint):
 
     param_constrs: list[AttrConstraint]
     """The attribute parameter constraints"""
+
     def __init__(self, base_attr: type[Attribute],
                  param_constrs: list[(Attribute | type[Attribute]
                                       | AttrConstraint)]):
@@ -167,6 +174,7 @@ class GenericData(Data[_DataElement], ABC):
     """
     A Data with type parameters.
     """
+
     @staticmethod
     @abstractmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
@@ -350,6 +358,7 @@ class OperandDef(OperandOrResultDef):
 
     constr: AttrConstraint
     """The operand constraint."""
+
     def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
         self.constr = attr_constr_coercion(typ)
 
@@ -370,6 +379,7 @@ class ResultDef(OperandOrResultDef):
 
     constr: AttrConstraint
     """The result constraint."""
+
     def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
         self.constr = attr_constr_coercion(typ)
 
@@ -416,6 +426,7 @@ class AttributeDef:
 @dataclass(init=False)
 class OptAttributeDef(AttributeDef):
     """An IRDL attribute definition for an optional attribute."""
+
     def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
         super().__init__(typ)
 
