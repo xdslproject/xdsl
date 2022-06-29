@@ -389,12 +389,6 @@ class Float64Type(ParametrizedAttribute):
 
 f64 = Float64Type()
 
-class Float64Type(ParametrizedAttribute):
-    name = "f64"
-
-
-f64 = Float64Type()
-
 
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):

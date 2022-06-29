@@ -35,13 +35,6 @@ class EqTypeConstraintAttr(ParametrizedAttribute):
     name = "equality_type_constraint"
     data: ParameterDef[Attribute]
 
-    def enforce_one_param(data: Attribute) -> EqTypeConstraintAttr:
-        if len(data) == 1:
-            return data
-        else:
-            raise Exception(f"Expected 1 parameter but got {len(data)}")
-
-
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
 
