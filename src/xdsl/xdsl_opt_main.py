@@ -11,6 +11,7 @@ from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
+from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
 
 
@@ -147,6 +148,7 @@ class xDSLOptMain:
         affine = Affine(self.ctx)
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
+        cmath = CMath(self.ctx)
 
     def register_all_frontends(self):
         """
