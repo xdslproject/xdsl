@@ -700,137 +700,6 @@ class topToBottom(Strategy):
 
         return failure(self)
 
-@dataclass(frozen=True)
-class topToBottom_hacked(Strategy):
-    """
-    topToBottom traversal - Try to apply a strategy `s` to `op` itself and all
-    ops in nested regions from top to bottom. Terminates after successful application.
-    """
-    s: Strategy
-    skips: int = 0
-
-
-    def impl(self, op: IOp) -> RewriteResult:
-
-        rr = self.s.apply(op)
-        if isinstance(new_s := rr, Strategy):
-            return new_s
-        if rr.isSuccess():
-            return rr
-        rr = regionsTopToBottom(
-            blocksTopToBottom(
-                opsTopToBottom(topToBottom_hacked(self.s, skips=self.skips),
-                               skips=self.skips))).apply(op)
-        if isinstance(new_s := rr, Strategy):
-            return topToBottom_hacked(new_s).apply(op)
-        if rr.isSuccess():
-            return rr
-
-        return failure(self)
-
-
-@dataclass(frozen=True)
-class topToBottom_non_rebuilding(Strategy):
-    """
-    Traverses the IR top to bottom but does not support modification.
-    Only returns the RewriteResult of s without handling replacements.
-    This is useful for partial Strategies, which just have to find an op
-    to forward it to another Strategy
-    """
-    s: Strategy
-
-    def impl(self, op: IOp) -> RewriteResult:
-
-        result: Optional[RewriteResult] = None 
-
-        def apply(op: IOp) -> bool:
-            nonlocal result
-            if (rr := self.s.apply(op)).isSuccess():
-                result = rr
-                return False
-            # advance
-            return True
-
-        op.walk_abortable(apply)
-        if result is not None:
-            return result
-
-        return failure(self)
-
-
-
-@dataclass(frozen=True)
-class topToBottomMulti(Strategy):
-    """
-    topToBottom traversal - Try to apply a strategy `s` to `op` itself and all
-    ops in nested regions from top to bottom. Terminates after successful application.
-    """
-    s: callable([IOp], [Optional[Strategy]])
-    
-    skips: int = 0
-
-    def impl(self, op: IOp) -> RewriteResult:
-
-        # Traversal expects a multi pattern
-
-        rr = self.s.apply(op)
-        if isinstance(new_s := rr, Strategy):
-
-            return new_s
-        if rr.isSuccess():
-            return rr
-        rr = regionsTopToBottom(
-            blocksTopToBottom(
-                opsTopToBottom(topToBottom(self.s, skips=self.skips),
-                               skips=self.skips))).apply(op)
-        if isinstance(new_s := rr, Strategy):
-            return topToBottom(new_s).apply(op)
-        if rr.isSuccess():
-            return rr
-
-        return failure(self)
-
-@dataclass(frozen=True)
-class PartialStrategy:
-    @abstractmethod
-    def apply(self, op: IOp) -> Optional[List[IOp | ISSAValue]]:
-        ...
-
-@dataclass(frozen=True)
-class multi_seq(Strategy):
-    """
-    Applies a PartialStrategy `s0` and initializes `s1` with the result
-    of that application. Afterwards applies the initialized `s1` (s1_complete) 
-    """
-    s0: PartialStrategy
-    s1: Type[Strategy]
-    
-    # Question: not obvious how to do traversals with this approach. 
-    def impl(self, op: IOp) -> RewriteResult:
-        args: Optional[List[IOp | ISSAValue]] = self.s0.apply(op)
-        if args is None:
-            return failure(self)
-
-        s1_complete = self.s1(*args)
-        return s1_complete.apply(op)
-
-
-@dataclass(frozen=True)
-class multi_seq2(Strategy):
-    """
-    Applies s0 to op and uses the replacement_ops in the RewriteResult to initialize
-    s1. Then applies the initialized s1 to op.
-    """
-    s0: Strategy
-    s1: Callable[[List[IOp]], Strategy]
-    
-    def impl(self, op: IOp) -> RewriteResult:
-        rr = self.s0.apply(op)
-        if not rr.isSuccess():
-            return failure(self)
-        
-        s1_complete = self.s1(rr.replacements[-1].replacement_ops)
-        return s1_complete.apply(op)
 
 @dataclass(frozen=True)
 class bottomToTop(Strategy):
@@ -853,6 +722,128 @@ class bottomToTop(Strategy):
             return rr
 
         return failure(self)
+
+
+########################################################################
+####################    Multi Pattern Rewriting    #####################
+########################################################################
+
+
+@dataclass(frozen=True)
+class MatchResult:
+    _result: Union[MatchStrategy, List[IOp]]
+
+    def __str__(self) -> str:
+        if not self.isSuccess():
+            return "Failure(" + str(self.failed_strategy) + ")"
+        return "Success, match:" + str(self.matched_ops)
+
+    def isSuccess(self) -> bool:
+        return isinstance(self._result, List)
+
+    def __add__(self, other: MatchResult):
+        if self.isSuccess() and other.isSuccess():
+            assert isinstance(self._result, List) and isinstance(
+                other._result, List)
+            return MatchResult(self._result + other._result)
+        raise Exception("invalid concatenation of MatchResults")
+
+    @property
+    def failed_strategy(self) -> Strategy:
+        assert isinstance(self._result, Strategy)
+        return self._result
+
+    @property
+    def matched_ops(self) -> List[IOp]:
+        assert isinstance(self._result, List)
+        return self._result
+
+
+def match_success(ops: List[IOp]) -> MatchResult:
+    return MatchResult(ops)
+
+
+def match_failure(failed_match_strategy: MatchStrategy) -> MatchResult:
+    return MatchResult(failed_match_strategy)
+
+
+@dataclass(frozen=True)
+class MatchStrategy:
+    @abstractmethod
+    def impl(self, op: IOp) -> MatchResult:
+        ...
+
+    def apply(self, op: IOp) -> MatchResult:
+        return self.impl(op)
+
+    def __str__(self) -> str:
+        values = [str(value) for value in vars(self).values()]
+        return f'{self.__class__.__name__}({",".join(values)})'
+
+
+@dataclass(frozen=True)
+class match_seq(MatchStrategy):
+    """
+    Sequential composition of two MatchStrategies `s1` and `s2`. 
+    `s2` is initialized with the resulting match of `s1`.
+    """
+    ms1: MatchStrategy
+    ms2: Callable[[List[IOp]], MatchStrategy]
+    
+    def impl(self, op: IOp) -> MatchResult:
+        match: MatchResult = self.ms1.apply(op)
+        if not match.isSuccess():
+            return match_failure(self)
+
+        ms2_complete = self.ms2(match.matched_ops)
+        return ms2_complete.apply(op)
+
+
+@dataclass(frozen=True)
+class matchTopToBottom(MatchStrategy):
+    """
+    Traverses the IR top to bottom to match a single op.
+    """
+    s: MatchStrategy
+
+    def impl(self, op: IOp) -> MatchResult:
+
+        result: Optional[MatchResult] = None 
+
+        def apply(op: IOp) -> bool:
+            nonlocal result
+            if (mr := self.s.apply(op)).isSuccess():
+                result = mr
+                # stop walking
+                return False
+            # advance walk
+            return True
+
+        op.walk_abortable(apply)
+        if result is not None:
+            return result
+
+        return match_failure(self)
+
+
+@dataclass(frozen=True)
+class multi_root(Strategy):
+    """
+    Enables composition of a MatchStrategy with a Strategies:
+    Applies a MatchStrategy `ms` and initializes the Strategy `s` with the 
+    resulting match of that application. Afterwards applies the initialized 
+    `s` (s_complete).
+    """
+    ms: MatchStrategy
+    s: Callable[[List[IOp]], Strategy]
+    
+    def impl(self, op: IOp) -> RewriteResult:
+        match: MatchResult = self.ms.apply(op)
+        if not match.isSuccess():
+            return failure(self)
+
+        s_complete = self.s(match.matched_ops)
+        return s_complete.apply(op)
 
 
 ########################################################################

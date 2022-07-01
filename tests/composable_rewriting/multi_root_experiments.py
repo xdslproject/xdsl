@@ -27,7 +27,7 @@ import difflib
 def rewriting_with_immutability_experiments():
 # rewrite is a commutation of 2 unrelated additions. Both of them are root operations in the rewrite
 # (at least unrelated in the sense that we do not match them using the op that uses both of them)
-    before = \
+    before_commute_additions = \
 """module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -39,7 +39,7 @@ def rewriting_with_immutability_experiments():
 func.return(%6 : !i32)
 }
 """
-    expected = \
+    expected_commute_additions = \
 """module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -87,85 +87,85 @@ func.return(%5 : !i32)
 
     @dataclass(frozen=True)
     class DoubleCommute(Strategy):
+        fstAdd: IOp
 
         @dataclass(frozen=True)
-        class PartialCommute(Strategy):
-            fstAdd: IOp
-            # normal commute rewrite
-            def impl(self, op: IOp) -> RewriteResult:
+        class Match(MatchStrategy):
+
+            def impl(self, op: IOp) -> MatchResult:
                 match op:
                     case IOp(op_type=arith.Addi,
-                            operands=[operand0, operand1]) if op != self.fstAdd:
-                        # Commuting both additions
-                        result = success(from_op(self.fstAdd, operands=[self.fstAdd.operands[1], self.fstAdd.operands[0]]), matched_op=self.fstAdd)
-                        result += success(from_op(op, operands=[operand1, operand0]))
-                        return result
+                            operands=[ISSAValue(), ISSAValue()]):
+                        return match_success([op])
                     case _:
-                        return failure(self)
+                        return match_failure(self)
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
                 case IOp(op_type=arith.Addi,
-                        operands=[ISSAValue(), ISSAValue()]):
-                    return self.PartialCommute(op)
+                        operands=[operand0, operand1]) if op != self.fstAdd:
+                    # Commuting both additions
+                    result = success(from_op(self.fstAdd, operands=[self.fstAdd.operands[1], self.fstAdd.operands[0]]), matched_op=self.fstAdd)
+                    result += success(from_op(op, operands=[operand1, operand0]))
+                    return result
                 case _:
                     return failure(self)
-
 
     @dataclass(frozen=True)
-    class DoubleMatMulSameFstInput_(Strategy):
+    class TripleCommute(Strategy):
+        fstAdd: IOp
+        sndAdd: IOp
 
         @dataclass(frozen=True)
-        class Partial(Strategy):
-            fstMM: IOp
-            fstMMInput0: ISSAValue
-            fstMMInput1: ISSAValue
+        class Match0(MatchStrategy):
 
-            # normal commute rewrite
-            def impl(self, op: IOp) -> RewriteResult:
+            def impl(self, op: IOp) -> MatchResult:
                 match op:
-                    case IOp(op_type=tensat.MatMul,
-                            operands=[input0, input1]) if op != self.fstMM and input0 == self.fstMMInput0:
-                        #Shared stuff:
-                        axis = new_cst(1)
-                        axis2 = new_cst(2)
-                        concat = new_op(tensat.Concat, operands=[input1, self.fstMMInput1], result_types=[i32]) # i.e. input_2, input_3 in figure
-                        matmul = new_op(tensat.MatMul, operands=[input0, concat], result_types=[i32])
-                        split1 = new_op(tensat.Split, operands=[axis, matmul], result_types=[i32])
-                        split2 = new_op(tensat.Split, operands=[axis2, matmul], result_types=[i32])[-2:] 
-                        # split2 will only contain the splitOp and the constant. 
-                        # Only possible if the IR of the first replacement is in scope 
-
-                        result = success(split1, matched_op=self.fstMM)
-                        result += success(split2)
-                        return result
+                    case IOp(op_type=arith.Addi,
+                            operands=[ISSAValue(), ISSAValue()]):
+                        return match_success([op])
                     case _:
-                        return failure(self)
+                        return match_failure(self)
 
-        def impl(self, op: IOp) -> Strategy:
+        @dataclass(frozen=True)
+        class Match1(MatchStrategy):
+            fstAdd: IOp
+
+            def impl(self, op: IOp) -> MatchResult:
+                match op:
+                    case IOp(op_type=arith.Addi,
+                            operands=[ISSAValue(), ISSAValue()]) if op != self.fstAdd:
+                        return match_success([self.fstAdd, op])
+                    case _:
+                        return match_failure(self)
+
+        def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=tensat.MatMul,
-                        operands=[input0, input1]):
-                    return self.Partial(op, input0, input1)
+                case IOp(op_type=arith.Addi,
+                        operands=[operand0, operand1]) if op != self.fstAdd and  op != self.sndAdd:
+                    
+                    # This success has to be at the top or the rewrite fails. Why is that?
+                    result = success(from_op(op, operands=[operand1, operand0]))
+                    result += success(from_op(self.fstAdd, operands=[self.fstAdd.operands[1], self.fstAdd.operands[0]]), matched_op=self.fstAdd)
+                    result += success(from_op(self.sndAdd, operands=[self.sndAdd.operands[1], self.sndAdd.operands[0]]), matched_op=self.sndAdd)
+                    return result
                 case _:
                     return failure(self)
-
-
 
     @dataclass(frozen=True)
     class DoubleMatMulSameFstInput(Strategy):
         fstMM: IOp
 
         @dataclass(frozen=True)
-        class Partial(Strategy):
-            def apply(self, op: IOp) -> RewriteResult:
+        class Match(MatchStrategy):
+            def apply(self, op: IOp) -> MatchResult:
                 match op:
                     case IOp(op_type=tensat.MatMul,
                             operands=[ISSAValue(), ISSAValue()]):
-                        return id().apply(op)
-                        # DoubleMatMulSameFstInput(op, input0, input1)
+                        # can we somehow enforce that only existing operations can be used in a match?
+                        return match_success([op])
                     case _:
-                        return failure(self)
+                        return match_failure(self)
 
         def impl(self, op: IOp) -> RewriteResult:
             assert len(self.fstMM.operands) == 2
@@ -199,7 +199,7 @@ func.return(%5 : !i32)
     memref.MemRef(ctx)
     tensat.Tensat(ctx)
 
-    parser = Parser(ctx, before_tensat_double_matmul)
+    parser = Parser(ctx, before_commute_additions)
     beforeM: Operation = parser.parse_op()
     immBeforeM: IOp = get_immutable_copy(beforeM)
 
@@ -207,16 +207,19 @@ func.return(%5 : !i32)
     printer = Printer()
     printer.print_op(beforeM)
 
-    # DoubleCommute of two unrelated additions
-    # rrImmM1 = topToBottom_hacked(DoubleCommute()).apply(immBeforeM)
+    # DoubleCommute of two additions. To use parse the string "before_additions"
+    # rrImmM1 = multi_seq(matchTopToBottom(DoubleCommute.Match()), 
+    #     lambda matched_ops: topToBottom(DoubleCommute(*matched_ops))).apply(immBeforeM)
+    
+    # TripleCommute of three additions. To use parse the string "before_additions"
+    rrImmM1 = multi_root(match_seq(matchTopToBottom(TripleCommute.Match0()), 
+                                    lambda matched_ops: matchTopToBottom(TripleCommute.Match1(*matched_ops))),
+                                    lambda matched_ops: topToBottom(TripleCommute(*matched_ops))).apply(immBeforeM)
 
-    # Rewrite two matmuls which share the same first input
-    # rrImmM1 = topToBottom_hacked(DoubleMatMulSameFstInput_()).apply(immBeforeM)
 
-    # Rewrite two matmuls which share the same first input with better control
-    rrImmM1 = multi_seq2(
-        topToBottom_non_rebuilding(DoubleMatMulSameFstInput.Partial()), 
-        lambda ops: topToBottom(DoubleMatMulSameFstInput(ops[0]))).apply(immBeforeM)
+    # rrImmM1 = multi_seq(
+    #     matchTopToBottom(DoubleMatMulSameFstInput.Match()), 
+    #     lambda matched_ops: topToBottom(DoubleMatMulSameFstInput(*matched_ops))).apply(immBeforeM)
 
 
     print(rrImmM1)
