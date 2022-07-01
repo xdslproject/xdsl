@@ -32,53 +32,53 @@ class IRDL:
 @irdl_attr_definition
 class EqTypeConstraintAttr(ParametrizedAttribute):
 
-    name = "equality_type_constraint"
+    name = "irdl.equality_type_constraint"
     data: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
 class AnyTypeConstraintAttr(ParametrizedAttribute):
 
-    name = "any_type_constraint"
+    name = "irdl.any_type_constraint"
     data: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
 class AnyOfTypeConstraintAttr(ParametrizedAttribute):
-    name = "any_of_type"
+    name = "irdl.any_of_type"
     first: ParameterDef[Attribute]
     second: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
 class VarTypeConstraintAttr(ParametrizedAttribute):
-    name = "var_type_constraint"
+    name = "irdl.var_type_constraint"
     data: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
 class DynTypeBaseConstraintAttr(ParametrizedAttribute):
-    name = "dyn_type_constraint"
+    name = "irdl.dyn_type_constraint"
     data: ParameterDef[StringAttr]
 
 
 @irdl_attr_definition
 class DynTypeParamsConstraintAttr(ParametrizedAttribute):
-    name = "dyn_type_params_constraint"
+    name = "irdl.dyn_type_params_constraint"
     data: ParameterDef[StringAttr]
     params: ParameterDef[ArrayAttr]
 
 
 @irdl_attr_definition
 class TypeParamsConstraintAttr(ParametrizedAttribute):
-    name = "type_params_constraint"
+    name = "irdl.type_params_constraint"
     data: ParameterDef[Attribute]
     params: ParameterDef[ArrayAttr]
 
 
 @irdl_attr_definition
 class NamedTypeConstraintAttr(ParametrizedAttribute):
-    name = "named_type_constraint"
+    name = "irdl.named_type_constraint"
 
     type_name: ParameterDef[StringAttr]
     params_constraints: ParameterDef[Attribute]
