@@ -77,6 +77,7 @@ class xDSLOptMain:
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
         Registers all the command line arguments that are used by this tool.
+
         Add other/additional arguments by overloading this function.
         """
         arg_parser.add_argument("input_file",
@@ -151,6 +152,7 @@ class xDSLOptMain:
     def register_all_frontends(self):
         """
         Register all frontends that can be used.
+
         Add other/additional frontends by overloading this function.
         """
 
@@ -168,6 +170,7 @@ class xDSLOptMain:
     def register_all_passes(self):
         """
         Register all passes that can be used.
+
         Add other/additional passes by overloading this function.
         """
         pass
@@ -175,6 +178,7 @@ class xDSLOptMain:
     def register_all_targets(self):
         """
         Register all targets that can be used.
+
         Add other/additional targets by overloading this function.
         """
 
@@ -198,6 +202,7 @@ class xDSLOptMain:
     def setup_pipeline(self):
         """
         Creates a pipeline that consists of all the passes specified.
+        
         Failes, if not all passes are registered.
         """
         pipeline = [

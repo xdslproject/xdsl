@@ -73,6 +73,7 @@ class DynTypeParamsConstraintAttr(ParametrizedAttribute):
 class TypeParamsConstraintAttr(ParametrizedAttribute):
     name = "type_params_constraint"
     data: ParameterDef[Attribute]
+    params: ParameterDef[ArrayAttr]
 
 
 @irdl_attr_definition
