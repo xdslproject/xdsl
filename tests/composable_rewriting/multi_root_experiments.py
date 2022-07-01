@@ -212,7 +212,7 @@ func.return(%5 : !i32)
     #     lambda matched_ops: topToBottom(DoubleCommute(*matched_ops))).apply(immBeforeM)
     
     # TripleCommute of three additions. To use parse the string "before_additions"
-    rrImmM1 = multi_root(match_seq(matchTopToBottom(TripleCommute.Match0()), 
+    rrImmM1 = multiRoot(matchSeq(matchTopToBottom(TripleCommute.Match0()), 
                                     lambda matched_ops: matchTopToBottom(TripleCommute.Match1(*matched_ops))),
                                     lambda matched_ops: topToBottom(TripleCommute(*matched_ops))).apply(immBeforeM)
 

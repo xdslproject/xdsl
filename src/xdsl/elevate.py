@@ -782,7 +782,7 @@ class MatchStrategy:
 
 
 @dataclass(frozen=True)
-class match_seq(MatchStrategy):
+class matchSeq(MatchStrategy):
     """
     Sequential composition of two MatchStrategies `s1` and `s2`. 
     `s2` is initialized with the resulting match of `s1`.
@@ -827,7 +827,7 @@ class matchTopToBottom(MatchStrategy):
 
 
 @dataclass(frozen=True)
-class multi_root(Strategy):
+class multiRoot(Strategy):
     """
     Enables composition of a MatchStrategy with a Strategies:
     Applies a MatchStrategy `ms` and initializes the Strategy `s` with the 
