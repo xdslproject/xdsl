@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic,
+                    Sequence, TypeAlias, TypeVar, Union, cast,
+                    get_args, get_origin, get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException

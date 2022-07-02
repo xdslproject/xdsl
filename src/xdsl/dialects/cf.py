@@ -1,8 +1,13 @@
 from __future__ import annotations
-from xdsl.ir import *
-from xdsl.irdl import *
-from xdsl.util import *
+from xdsl.ir import MLContext, SSAValue
+
+from xdsl.irdl import (irdl_op_definition,
+                       VarOperandDef, AnyAttr, Block, Operation,
+                       OperandDef, AttrSizedOperandSegments)
 from xdsl.dialects.builtin import IntegerType
+
+from typing import List, Union
+from dataclasses import dataclass
 
 
 @dataclass

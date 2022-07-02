@@ -1,9 +1,15 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from xdsl.irdl import *
-from xdsl.ir import *
-from typing import TypeAlias
+from xdsl.irdl import (irdl_attr_definition, attr_constr_coercion,
+                       irdl_to_attr_constraint, irdl_op_definition,
+                       builder,
+                       ParameterDef, SingleBlockRegionDef,
+                       TypeVar, Generic, GenericData, AttrConstraint,
+                       Attribute, Region)
+from xdsl.ir import (MLContext, TYPE_CHECKING, Data,
+                     ParametrizedAttribute, Operation)
+from typing import TypeAlias, List, cast
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser

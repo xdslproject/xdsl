@@ -1,6 +1,11 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import *
-from typing import TypeVar
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation,
+                     Region, Operation, BlockArgument, MLContext)
+from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
+                                   IntegerAttr, ArrayAttr)
+from xdsl.irdl import Data
+
+from typing import TypeVar, Dict, Optional, Tuple, List
 
 indentNumSpaces = 2
 
