@@ -28,4 +28,8 @@ categories:
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 template: |
   ## Changes
+<<<<<<< HEAD
   $CHANGES
+=======
+  $CHANGES
+>>>>>>> f091792 (misc: minor updates in tests, readme, adds dependabot and release-drafter)
