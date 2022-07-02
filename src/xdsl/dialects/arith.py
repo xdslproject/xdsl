@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from xdsl.ir import MLContext, Operation, SSAValue
 
 from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr
-from xdsl.irdl import (irdl_op_definition, AttributeDef, AnyAttr,
-                       ResultDef, OperandDef, VerifyException, Attribute)
-
+from xdsl.irdl import (irdl_op_definition, AttributeDef, AnyAttr, ResultDef,
+                       OperandDef, VerifyException, Attribute)
 from typing import Union
+
 
 @dataclass
 class Arith:

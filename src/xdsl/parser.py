@@ -1,6 +1,6 @@
 from __future__ import annotations
-from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation,
-                     Region, Operation, BlockArgument, MLContext)
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
+                     BlockArgument, MLContext)
 from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
                                    IntegerAttr, ArrayAttr)
 from xdsl.irdl import Data
