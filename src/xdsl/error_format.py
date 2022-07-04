@@ -100,7 +100,7 @@ class Frame:
 
         return "".join(code)
 
-    def verbose(self, num: int) -> None:
+    def verbose(self, num: int) -> str:
         """
         Output the verbose diagnostic message
         Number of output frame is dependent on `num`:
@@ -108,25 +108,28 @@ class Frame:
             if num == 0: all frames
             if num < 0: drop first num of frames, get all the remaining frames
         """
+        debug_str: str = ""
         for filename, line_num, exc_name, local_var, code in self.get_frame(
                 num):
             # prints out the info by frames
-            print(Colors.fg.red, exc_name, ": ", self.e, "\n")
+            debug_str += Colors.fg.red + exc_name + ": " + str(self.e) + "\n"
 
-            print(Colors.fg.green, "filename: ", end='')
-            print(Colors.fg.orange, filename)
+            debug_str += Colors.fg.green + "filename: "
+            debug_str += Colors.fg.orange + filename + "\n "
 
-            print(Colors.fg.green, "line: ", end='')
-            print(Colors.fg.orange, line_num)
+            debug_str += Colors.fg.green + "line: "
+            debug_str += Colors.fg.orange + str(line_num) + "\n "
 
-            print(Colors.fg.green, "code: \n", end='')
-            print(Colors.fg.orange, "```\n", code, "```\n")
+            debug_str += Colors.fg.green + "code: \n"
+            debug_str += Colors.fg.orange + "```\n" + code + "```\n"
 
-            print(Colors.fg.green, "local variable(s): \n")
+            debug_str += Colors.fg.green + "local variable(s): \n"
 
             for k, v in local_var.items():
-                print(Colors.fg.cyan, k, ": \n", end="")
-                print(Colors.format.reset, v, "\n")
+                debug_str += Colors.fg.cyan + str(k) + ": \n"
+                debug_str += Colors.format.reset + str(v) + "\n"
 
-            print(Colors.format.reset, "")
-            print('─' * os.get_terminal_size().columns)
+            debug_str += Colors.format.reset + "\n"
+            debug_str += '─' * os.get_terminal_size().columns + "\n"
+
+            return debug_str

@@ -76,7 +76,9 @@ class xDSLOptMain:
                 try:
                     f = Frame(e)
                     frame_count = self.args.verbose_trace[0]
-                    f.verbose(frame_count)
+                    debug_str = f.verbose(frame_count)
+                    print(debug_str)
+                    print(debug_str, file=sys.stderr)
                 except Exception:
                     print(e)
 
