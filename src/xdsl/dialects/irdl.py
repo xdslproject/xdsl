@@ -44,7 +44,7 @@ class AnyTypeConstraintAttr(ParametrizedAttribute):
 @irdl_attr_definition
 class AnyOfTypeConstraintAttr(ParametrizedAttribute):
     name = "irdl.any_of_type"
-    data: ParameterDef[ArrayAttr[Attribute]]
+    params: ParameterDef[ArrayAttr[Attribute]]
 
 
 @irdl_attr_definition
