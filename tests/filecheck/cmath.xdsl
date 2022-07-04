@@ -7,30 +7,30 @@ module() {
     irdl.dialect() ["dialect_name" = "cmath"] {
 
         // CHECK: irdl.type() ["type_name" = "complex"] {
-        // CHECK: irdl.parameters() ["constraints" = [!irdl.named_type_constraint<"elementType", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+        // CHECK: irdl.parameters() ["constraints" = [!irdl.named_type_constraint<"elementType", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         // CHECK: }
         irdl.type() ["type_name" = "complex"] {
-            irdl.parameters() ["constraints" = [!irdl.named_type_constraint<"elementType", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+            irdl.parameters() ["constraints" = [!irdl.named_type_constraint<"elementType", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         }
 
         // CHECK: irdl.operation() ["name" = "norm"] {
-        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"c", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]]
-        // CHECK: irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"c", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]]
+        // CHECK: irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         // CHECK: }
         irdl.operation() ["name" = "norm"] {
-            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"c", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]]
-            irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"c", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]]
+            irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         }
 
         // CHECK: irdl.operation() ["name" = "mul"] {
-        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"lhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]] 
-        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"rhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]]
-        // CHECK: irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"lhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]] 
+        // CHECK: irdl.operands() ["constraints" = [!irdl.named_type_constraint<"rhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]]
+        // CHECK: irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         // CHECK: }
         irdl.operation() ["name" = "mul"] {
-            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"lhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]]
-            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"rhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>]>>]]
-            irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>>>]]
+            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"lhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]]
+            irdl.operands() ["constraints" = [!irdl.named_type_constraint<"rhs", !irdl.dyn_type_params_constraint<"complex", [!irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>]>>]]
+            irdl.results() ["constraints" = [!irdl.named_type_constraint<"results", !irdl.any_of_type<[!irdl.equality_type_constraint<!i32>, !irdl.equality_type_constraint<!i64>]>>]]
         }
     }
 }

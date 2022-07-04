@@ -138,6 +138,7 @@ class xDSLOptMain:
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
+        
         Add other/additional dialects by overloading this function.
         """
         builtin = Builtin(self.ctx)
@@ -202,7 +203,7 @@ class xDSLOptMain:
     def setup_pipeline(self):
         """
         Creates a pipeline that consists of all the passes specified.
-        
+
         Failes, if not all passes are registered.
         """
         pipeline = [
