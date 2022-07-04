@@ -78,8 +78,8 @@ class Frame:
                 # this goes for all the frame attr
 
                 if i == first_line:
-                    code[i - first_line] = str(i) + code[i - first_line]
-                elif first_line < i <= len(code) + first_line - 1:
+                    code[i - first_line] = ' ' + str(i) + code[i - first_line]
+                elif first_line < i < len(code) + first_line:
                     # get the length before adding anything to the line
                     line_length = len(code[i - first_line])
 

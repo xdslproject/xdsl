@@ -1,18 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
 
-import pytest
 import sys
-from xdsl.ir import Attribute, Data, ParametrizedAttribute
-from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
-                       VerifyException, irdl_attr_definition, builder,
-                       irdl_to_attr_constraint)
+from io import StringIO
+from typing import List
+
+from xdsl.error_format import Frame
+from xdsl.ir import Data
+from xdsl.irdl import VerifyException, irdl_attr_definition
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.error_format import Frame
-import os
 
 # using classes from other modules
 
@@ -56,12 +52,32 @@ def test_simple_data_constructor_failure():
 
 
 def simple_test(e):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
     x = Frame(e)
     gen = list(x.get_frame(1))
-    code_original = '    def verify(self) -> None:\n        if not isinstance(self.data, list):\n            raise VerifyException("int_list data should hold a list.")\n        for elem in self.data:\n            if not isinstance(elem, int):\n                raise VerifyException(\n                    "int_list list elements should be integers.")\n'
+    code_original = \
+"""\
+    def verify(self) -> None:
+        if not isinstance(self.data, list):
+            raise VerifyException("int_list data should hold a list.")
+        for elem in self.data:
+            if not isinstance(elem, int):
+                raise VerifyException(
+                    "int_list list elements should be integers.")
+"""
     code_original = code_original.splitlines(True)
-    code_formatted = '37    def verify(self) -> None:\n 38        if not isinstance(self.data, list):\n 39            raise VerifyException("int_list data should hold a list.")\n 40        for elem in self.data:\n 41            if not isinstance(elem, int):\n 42                raise VerifyException(\n\x1b[0m\x1b[31m 43                    "int_list list elements should be integers.")\n   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\x1b[33m 44\n\n'
+    code_formatted =\
+"""\
+ 37    def verify(self) -> None:
+ 38        if not isinstance(self.data, list):
+ 39            raise VerifyException("int_list data should hold a list.")
+ 40        for elem in self.data:
+ 41            if not isinstance(elem, int):
+ 42                raise VerifyException(
+\x1b[0m\x1b[31m 43                    "int_list list elements should be integers.")
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+\x1b[33m 44
+
+"""
     stream = StringIO()
     sys.stdout = stream
     print(x.extract_code(gen[0][0], 37, 43, code_original))
