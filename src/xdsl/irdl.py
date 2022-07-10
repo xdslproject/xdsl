@@ -6,9 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Dict, Generic, List, Optional,
-                    Sequence, Tuple, Type, TypeAlias, TypeVar, Union, cast,
-                    get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
@@ -28,6 +27,14 @@ class VerifyException(DiagnosticException):
 
 class IRDLAnnotations(Enum):
     ParamDefAnnot = 1
+
+
+#   ____                _             _       _
+#  / ___|___  _ __  ___| |_ _ __ __ _(_)_ __ | |_ ___
+# | |   / _ \| '_ \/ __| __| '__/ _` | | '_ \| __/ __|
+# | |__| (_) | | | \__ \ |_| | | (_| | | | | | |_\__ \
+#  \____\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__|___/
+#
 
 
 @dataclass
@@ -166,24 +173,6 @@ class ParamAttrConstraint(AttrConstraint):
             param_constr.verify(attr.parameters[idx])
 
 
-_DataElement = TypeVar("_DataElement")
-
-
-@dataclass(frozen=True)
-class GenericData(Data[_DataElement], ABC):
-    """
-    A Data with type parameters.
-    """
-
-    @staticmethod
-    @abstractmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        """
-        Given the generic parameters passed to the generic attribute type,
-        return the corresponding attribute constraint.
-        """
-
-
 def irdl_to_attr_constraint(
     irdl: Any,
     *,
@@ -310,6 +299,14 @@ def irdl_to_attr_constraint(
             "`GenericData` instead of `Data`.")
 
     raise ValueError(f"Unexpected irdl constraint: {irdl}")
+
+
+#   ___                       _   _
+#  / _ \ _ __   ___ _ __ __ _| |_(_) ___  _ __
+# | | | | '_ \ / _ \ '__/ _` | __| |/ _ \| '_ \
+# | |_| | |_) |  __/ | | (_| | |_| | (_) | | | |
+#  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
+#       |_|
 
 
 @dataclass
@@ -556,9 +553,9 @@ def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
     result_sizes = get_variadic_sizes(op, is_operand=False)
     current_result = 0
     current_var_result = 0
-    for result_name, result_def in results:
+    for _, result_def in results:
         if isinstance(result_def, VarResultDef):
-            for i in range(result_sizes[current_var_result]):
+            for _ in range(result_sizes[current_var_result]):
                 result_def.constr.verify(op.results[current_result].typ)
                 current_result += 1
         else:
@@ -603,7 +600,7 @@ def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
         attr_def.constr.verify(op.attributes[attr_name])
 
 
-def irdl_build_attribute(irdl_def: AttrConstraint, result) -> Attribute:
+def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     if isinstance(irdl_def, BaseAttr):
         if isinstance(result, tuple):
             return irdl_def.attr.build(*result)
@@ -804,6 +801,93 @@ def irdl_op_definition(cls: type[OpT]) -> type[OpT]:
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
+#  ____        _
+# |  _ \  __ _| |_ __ _
+# | | | |/ _` | __/ _` |
+# | |_| | (_| | || (_| |
+# |____/ \__,_|\__\__,_|
+#
+
+_DataElement = TypeVar("_DataElement")
+
+
+@dataclass(frozen=True)
+class GenericData(Data[_DataElement], ABC):
+    """
+    A Data with type parameters.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        """
+        Given the generic parameters passed to the generic attribute type,
+        return the corresponding attribute constraint.
+        """
+
+
+def irdl_data_verify(data: Data, typ: type) -> None:
+    """Check that the Data has the expected type."""
+    if isinstance(data.data, typ):
+        return
+    raise VerifyException(
+        f"{data.name} data attribute expected type {typ}, but {type(data.data)} given."
+    )
+
+
+T = TypeVar('T')
+
+
+def irdl_data_definition(cls: type[T]) -> type[T]:
+    new_attrs = dict()
+
+    # Build method is added for all definitions.
+    if "build" in cls.__dict__:
+        raise Exception(
+            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
+        )
+    builders = irdl_get_builders(cls)
+    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+
+    # Verify method is added if not redefined by the user.
+    if "verify" not in cls.__dict__:
+        for parent in cls.__orig_bases__:
+            if get_origin(parent) != Data:
+                continue
+            if len(get_args(parent)) != 1:
+                raise Exception(f"In {cls.__name__} definition: Data expects "
+                                "a single type parameter")
+            expected_type = get_args(parent)[0]
+            if not isclass(expected_type):
+                raise Exception(f'In {cls.__name__} definition: Cannot infer '
+                                f'"verify" method. Type parameter of Data is '
+                                f'not a class.')
+            if isinstance(expected_type, types.GenericAlias):
+                raise Exception(f'In {cls.__name__} definition: Cannot infer '
+                                f'"verify" method. Type parameter of Data has '
+                                f'type GenericAlias.')
+            new_attrs[
+                "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
+                    self, expected_type)
+            break
+        else:
+            raise Exception(f'Missing method "verify" in {cls.__name__} data '
+                            'attribute definition: the "verify" method cannot '
+                            'be automatically derived for this definition.')
+
+    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
+        **cls.__dict__,
+        **new_attrs
+    }))
+
+
+#  ____                              _   _   _
+# |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __
+# | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__|
+# |  __/ (_| | | | (_| | | | | | |/ ___ \ |_| |_| |
+# |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|
+#
+
 _A = TypeVar("_A", bound=Attribute)
 
 ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
@@ -869,61 +953,6 @@ def irdl_attr_builder(cls, builders, *args):
             return res
     raise TypeError(
         f"No available {cls.__name__} builders for arguments {args}")
-
-
-def irdl_data_verify(data: Data, typ: type) -> None:
-    """Check that the Data has the expected type."""
-    if isinstance(data.data, typ):
-        return
-    raise VerifyException(
-        f"{data.name} data attribute expected type {typ}, but {type(data.data)} given."
-    )
-
-
-T = TypeVar('T')
-
-
-def irdl_data_definition(cls: type[T]) -> type[T]:
-    new_attrs = dict()
-
-    # Build method is added for all definitions.
-    if "build" in cls.__dict__:
-        raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
-        )
-    builders = irdl_get_builders(cls)
-    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
-
-    # Verify method is added if not redefined by the user.
-    if "verify" not in cls.__dict__:
-        for parent in cls.__orig_bases__:
-            if get_origin(parent) != Data:
-                continue
-            if len(get_args(parent)) != 1:
-                raise Exception(f"In {cls.__name__} definition: Data expects "
-                                "a single type parameter")
-            expected_type = get_args(parent)[0]
-            if not isclass(expected_type):
-                raise Exception(f'In {cls.__name__} definition: Cannot infer '
-                                f'"verify" method. Type parameter of Data is '
-                                f'not a class.')
-            if isinstance(expected_type, types.GenericAlias):
-                raise Exception(f'In {cls.__name__} definition: Cannot infer '
-                                f'"verify" method. Type parameter of Data has '
-                                f'type GenericAlias.')
-            new_attrs[
-                "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
-                    self, expected_type)
-            break
-        else:
-            raise Exception(f'Missing method "verify" in {cls.__name__} data '
-                            'attribute definition: the "verify" method cannot '
-                            'be automatically derived for this definition.')
-
-    return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
-        **cls.__dict__,
-        **new_attrs
-    }))
 
 
 def irdl_param_attr_get_param_type_hints(
