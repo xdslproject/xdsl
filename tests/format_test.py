@@ -79,8 +79,6 @@ def simple_test(e):
 
 """
     stream = StringIO()
-    sys.stdout = stream
-    print(x.extract_code(gen[0][0], 37, 43, code_original))
+    print(x.extract_code(gen[0][0], 37, 43, code_original), file=stream)
     y = stream.getvalue()
-    sys.stdout = sys.__stdout__
     assert code_formatted in y

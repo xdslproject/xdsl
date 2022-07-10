@@ -128,8 +128,7 @@ class Frame:
             for k, v in local_var.items():
                 debug_str += Colors.fg.cyan + str(k) + ": \n"
                 debug_str += Colors.format.reset + str(v) + "\n"
-
             debug_str += Colors.format.reset + "\n"
             debug_str += '─' * os.get_terminal_size().columns + "\n"
 
-            return debug_str
+        return debug_str

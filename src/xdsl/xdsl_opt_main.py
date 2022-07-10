@@ -19,13 +19,13 @@ class xDSLOptMain:
     ctx: MLContext
     args: argparse.Namespace
     """
-    The argument parsers namespace which holds the parsed commandline
+    The argument parsers namespace which holds the parsed commandline 
     attributes.
     """
 
     available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
-    A mapping from file extension to a frontend that can handle this
+    A mapping from file extension to a frontend that can handle this 
     file type.
     """
 
@@ -36,7 +36,7 @@ class xDSLOptMain:
 
     available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
     """
-    A mapping from target names to functions that serialize a ModuleOp into a
+    A mapping from target names to functions that serialize a ModuleOp into a 
     stream.
     """
 
@@ -241,8 +241,8 @@ class xDSLOptMain:
 
     def parse_input(self) -> ModuleOp:
         """
-        Parse the input file by invoking the parser specified by the `parser`
-        argument. If not set, the parser registered for this file extension
+        Parse the input file by invoking the parser specified by the `parser` 
+        argument. If not set, the parser registered for this file extension 
         is used.
         """
         if self.args.input_file is None:
