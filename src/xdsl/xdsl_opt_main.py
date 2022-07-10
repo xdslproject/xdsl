@@ -12,7 +12,7 @@ from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cf import *
-from xdsl.error_format import Frame
+from xdsl.error_format import *
 
 
 class xDSLOptMain:
@@ -74,11 +74,10 @@ class xDSLOptMain:
 
                 # in case there is an error in the formatter
                 try:
-                    f = Frame()
                     frame_count = self.args.verbose_trace[0]
-                    debug_str = f.verbose(e, frame_count)
+                    debug_str = verbose(e, frame_count)
                     print(debug_str, file=sys.stderr)
-                except Exception as f:
+                except Exception:
                     print(e)
 
                 exit(0)

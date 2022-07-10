@@ -3,8 +3,7 @@ from __future__ import annotations
 import sys
 from io import StringIO
 from typing import List
-
-from xdsl.error_format import Frame
+from xdsl.error_format import *
 from xdsl.ir import Data
 from xdsl.irdl import VerifyException, irdl_attr_definition
 from xdsl.parser import Parser
@@ -52,8 +51,7 @@ def test_simple_data_constructor_failure():
 
 
 def simple_test(e):
-    x = Frame()
-    gen = list(x.get_frame(e, 1))
+    gen = list(get_frame(1))
     code_original = \
 """\
     def verify(self) -> None:
@@ -79,6 +77,6 @@ def simple_test(e):
 
 """
     stream = StringIO()
-    print(x.extract_code(e, gen[0][0], 37, 43, code_original), file=stream)
+    print(extract_code(gen[0][0], 37, 43, code_original), file=stream)
     y = stream.getvalue()
     assert code_formatted in y
