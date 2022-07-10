@@ -101,7 +101,7 @@ def verbose(e: Exception, num: int) -> str:
         if num < 0: drop first num of frames, get all the remaining frames
     """
     debug_str: str = ""
-    for filename, line_num, exc_name, local_var, code in get_frame(e, num):
+    for filename, line_num, exc_name, local_var, code in get_frame(num):
         # prints out the info by frames
         debug_str += Colors.fg.red + exc_name + ": " + str(e) + "\n"
 
