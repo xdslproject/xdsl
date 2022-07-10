@@ -1,8 +1,7 @@
-import os
-import sys
+from sys import exc_info
+from os import get_terminal_size
 from types import TracebackType
-import traceback
-import inspect
+from inspect import getsource
 
 
 class Colors:
@@ -25,17 +24,14 @@ class Frame:
     Traceback wrapper of a given raised error.
     Wraps the informations in a better format
     """
-    e: Exception
 
-    def __init__(self, e):
-        self.e = e
-
-    def get_frame(self, num: int):
+    @staticmethod
+    def get_frame(e: Exception, num: int):
         """
         Extracting the frame from the traceback.
         With given number of frames from the traceback
         """
-        _, _, exc_traceback = sys.exc_info()
+        _, _, exc_traceback = exc_info()
         stack: list[TracebackType] = []
         tb = exc_traceback
         # extract stack from the traceback
@@ -53,13 +49,15 @@ class Frame:
             exc_name = code.co_name
             local_var = frame.f_locals
 
-            code_source = inspect.getsource(code).splitlines(True)
+            code_source = getsource(code).splitlines(True)
             first_line = code.co_firstlineno
 
-            yield filename, line_num, exc_name, local_var, self.extract_code(
-                filename, first_line, line_num, code_source)
+            yield filename, line_num, exc_name, local_var, Frame.extract_code(
+                e, filename, first_line, line_num, code_source)
 
-    def extract_code(self, filename, first_line, line_num, code) -> str:
+    @staticmethod
+    def extract_code(e: Exception, filename, first_line, line_num,
+                     code) -> str:
         """
         Extract the code from given frame.
         By matching the line of the exception 
@@ -100,7 +98,8 @@ class Frame:
 
         return "".join(code)
 
-    def verbose(self, num: int) -> str:
+    @staticmethod
+    def verbose(e: Exception, num: int) -> str:
         """
         Output the verbose diagnostic message
         Number of output frame is dependent on `num`:
@@ -109,10 +108,10 @@ class Frame:
             if num < 0: drop first num of frames, get all the remaining frames
         """
         debug_str: str = ""
-        for filename, line_num, exc_name, local_var, code in self.get_frame(
-                num):
+        for filename, line_num, exc_name, local_var, code in Frame.get_frame(
+                e, num):
             # prints out the info by frames
-            debug_str += Colors.fg.red + exc_name + ": " + str(self.e) + "\n"
+            debug_str += Colors.fg.red + exc_name + ": " + str(e) + "\n"
 
             debug_str += Colors.fg.green + "filename: "
             debug_str += Colors.fg.orange + filename + "\n "
@@ -129,6 +128,6 @@ class Frame:
                 debug_str += Colors.fg.cyan + str(k) + ": \n"
                 debug_str += Colors.format.reset + str(v) + "\n"
             debug_str += Colors.format.reset + "\n"
-            debug_str += '─' * os.get_terminal_size().columns + "\n"
+            debug_str += '─' * get_terminal_size().columns + "\n"
 
         return debug_str

@@ -52,8 +52,8 @@ def test_simple_data_constructor_failure():
 
 
 def simple_test(e):
-    x = Frame(e)
-    gen = list(x.get_frame(1))
+    x = Frame()
+    gen = list(x.get_frame(e, 1))
     code_original = \
 """\
     def verify(self) -> None:
@@ -79,6 +79,6 @@ def simple_test(e):
 
 """
     stream = StringIO()
-    print(x.extract_code(gen[0][0], 37, 43, code_original), file=stream)
+    print(x.extract_code(e, gen[0][0], 37, 43, code_original), file=stream)
     y = stream.getvalue()
     assert code_formatted in y

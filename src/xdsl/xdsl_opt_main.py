@@ -74,11 +74,11 @@ class xDSLOptMain:
 
                 # in case there is an error in the formatter
                 try:
-                    f = Frame(e)
+                    f = Frame()
                     frame_count = self.args.verbose_trace[0]
-                    debug_str = f.verbose(frame_count)
+                    debug_str = f.verbose(e, frame_count)
                     print(debug_str, file=sys.stderr)
-                except Exception:
+                except Exception as f:
                     print(e)
 
                 exit(0)
