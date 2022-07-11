@@ -417,8 +417,6 @@ class AttributeDef:
     constr: AttrConstraint
     """The attribute constraint."""
 
-    data: Any
-
     def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
         self.constr = attr_constr_coercion(typ)
 
