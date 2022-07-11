@@ -856,7 +856,10 @@ class GenericData(Data[_DataElement], ABC):
         """
 
 
-def irdl_data_verify(data: Data, typ: type) -> None:
+_DT = TypeVar("_DT")
+
+
+def irdl_data_verify(data: Data[_DT], typ: Type[_DT]) -> None:
     """Check that the Data has the expected type."""
     if isinstance(data.data, typ):
         return
@@ -869,7 +872,7 @@ T = TypeVar('T')
 
 
 def irdl_data_definition(cls: type[T]) -> type[T]:
-    new_attrs = dict()
+    new_attrs = dict[str, Any]()
 
     # Build method is added for all definitions.
     if "build" in cls.__dict__:
