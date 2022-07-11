@@ -435,7 +435,7 @@ class OpDef:
     name: str = field(kw_only=False)
     operands: list[Tuple[str, OperandDef]] = field(default_factory=list)
     results: list[Tuple[str, ResultDef]] = field(default_factory=list)
-    attributes: list[Tuple[str, AttributeDef]] = field(default_factory=list)
+    attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[Tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
 
@@ -464,7 +464,7 @@ class OpDef:
             elif isinstance(field, RegionDef):
                 op_def.regions.append((field_name, field))
             elif isinstance(field, AttributeDef):
-                op_def.attributes.append((field_name, field))
+                op_def.attributes[field_name] = field
 
         op_def.options = clsdict.get("irdl_options", [])
 
@@ -632,7 +632,7 @@ def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
                         f"argument at position {arg_idx} in region {region_name} at position {idx} should be of type {arg_type}, but {typ}"
                     )
 
-    for attr_name, attr_def in op_def.attributes:
+    for attr_name, attr_def in op_def.attributes.items():
         if attr_name not in op.attributes:
             if isinstance(attr_def, OptAttributeDef):
                 continue
@@ -715,7 +715,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                 irdl_build_attribute(res_def.constr, res_type))
 
     # Build attributes by forwarding the values to the attribute builders
-    attr_defs = {name: def_ for (name, def_) in op_def.attributes}
+    attr_defs = {name: def_ for (name, def_) in op_def.attributes.items()}
 
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
@@ -795,7 +795,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         new_attrs[region_name] = property(
             lambda self, idx=region_idx: self.regions[idx])
 
-    for attribute_name, attr_def in op_def.attributes:
+    for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes.get(
