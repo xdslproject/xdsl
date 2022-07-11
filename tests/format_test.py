@@ -1,4 +1,5 @@
 from __future__ import annotations
+import code
 
 import sys
 from io import StringIO
@@ -50,10 +51,8 @@ def test_simple_data_constructor_failure():
         simple_test(e)
 
 
-def simple_test(e):
-    gen = list(get_frame(1))
-    code_original = \
-"""\
+def simple_test(e) -> None:
+    code_source: list[str] = """\
     def verify(self) -> None:
         if not isinstance(self.data, list):
             raise VerifyException("int_list data should hold a list.")
@@ -61,20 +60,16 @@ def simple_test(e):
             if not isinstance(elem, int):
                 raise VerifyException(
                     "int_list list elements should be integers.")
+""".splitlines()
+    expect: str = """\
+37    def verify(self) -> None:
+38        if not isinstance(self.data, list):
+39            raise VerifyException("int_list data should hold a list.")
+40        for elem in self.data:
+41            if not isinstance(elem, int):
+42                raise VerifyException(
+\x1b[0m\x1b[31m43                    "int_list list elements should be integers.")
+  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\x1b[33m
 """
-    code_original = code_original.splitlines(True)
-    code_formatted =\
-"""\
- 37    def verify(self) -> None:
- 38        if not isinstance(self.data, list):
- 39            raise VerifyException("int_list data should hold a list.")
- 40        for elem in self.data:
- 41            if not isinstance(elem, int):
- 42                raise VerifyException(
-\x1b[0m\x1b[31m 43                    "int_list list elements should be integers.")
-   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-\x1b[33m 44
-"""
-
-    y = extract_code(37, 43, code_original)
-    assert code_formatted in y
+    actual: str = extract_code(37, 43, code_source)
+    assert actual == expect
