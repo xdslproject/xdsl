@@ -78,4 +78,3 @@ def simple_test(e):
 
     y = extract_code(37, 43, code_original)
     assert code_formatted in y
-
