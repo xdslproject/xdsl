@@ -468,8 +468,9 @@ class Operation:
     def __hash__(self) -> int:
         return id(self)
 
+    @classmethod
     @property
-    def get_definition(self) -> OpDef:
+    def irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
 

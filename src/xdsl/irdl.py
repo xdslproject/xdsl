@@ -826,7 +826,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                                successors, regions)
 
     new_attrs["build"] = classmethod(builder)
-    new_attrs["get_definition"] = property(lambda self: op_def)
+    new_attrs["irdl_definition"] = classmethod(property(lambda cls: op_def))
 
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
