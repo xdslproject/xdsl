@@ -1,6 +1,5 @@
 from sys import exc_info
 from os import get_terminal_size
-from turtle import width
 from types import TracebackType
 from inspect import getsource
 
