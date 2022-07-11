@@ -961,16 +961,69 @@ _A = TypeVar("_A", bound=Attribute)
 ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 
-def irdl_attr_verify(attr: ParametrizedAttribute,
-                     parameters: list[AttrConstraint]):
+def irdl_param_attr_get_param_type_hints(
+        cls: type[_PAttrT]) -> list[tuple[str, Any]]:
+    """Get the type hints of an IRDL parameter definitions."""
+    res = list[tuple[str, Any]]()
+    for field_name, field_type in get_type_hints(cls,
+                                                 include_extras=True).items():
+        if field_name == "name" or field_name == "parameters":
+            continue
+
+        origin = get_origin(field_type)
+        args = get_args(field_type)
+        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
+            raise ValueError(
+                f"In attribute {cls.__name__} definition: Parameter " +
+                f"definition {field_name} should be defined with " +
+                f"type `ParameterDef`, got type {field_type}.")
+
+        res.append((field_name, field_type))
+    return res
+
+
+@dataclass
+class ParamAttrDef:
+    """The IRDL definition of a parametrized attribute."""
+    name: str
+    parameters: list[tuple[str, AttrConstraint]]
+
+    @staticmethod
+    def from_pyrdl(pyrdl_def: type[ParametrizedAttribute]) -> ParamAttrDef:
+        # Get the fields from the class and its parents
+        clsdict = dict[str, Any]()
+        for parent_cls in pyrdl_def.mro()[::-1]:
+            clsdict = {**clsdict, **parent_cls.__dict__}
+
+        if "name" not in clsdict:
+            raise Exception(
+                f"pyrdl attribute definition '{pyrdl_def.__name__}' does not "
+                "define the attribute name. The attribute name is defined by "
+                "adding a 'name' field.")
+
+        name = clsdict["name"]
+
+        param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+
+        parameters = list[tuple[str, AttrConstraint]]()
+        for param_name, param_type in param_hints:
+            constraint = irdl_to_attr_constraint(param_type,
+                                                 allow_type_var=True)
+            parameters.append((param_name, constraint))
+
+        return ParamAttrDef(name, parameters)
+
+
+def irdl_attr_verify(attr: ParametrizedAttribute, attr_def: ParamAttrDef):
     """Given an IRDL definition, verify that an attribute satisfies its invariants."""
 
-    if len(attr.parameters) != len(parameters):
+    if len(attr.parameters) != len(attr_def.parameters):
         raise VerifyException(
-            f"{len(parameters)} parameters expected, got {len(attr.parameters)}"
-        )
-    for idx, param_def in enumerate(parameters):
-        param = attr.parameters[idx]
+            f"In {attr_def.name} attribute verifier: "
+            f"{len(attr_def.parameters)} parameters expected, got "
+            f"{len(attr.parameters)}")
+
+    for param, (_, param_def) in zip(attr.parameters, attr_def.parameters):
         param_def.verify(param)
 
 
@@ -1007,27 +1060,6 @@ def irdl_attr_builder(cls: type[_PAttrT],
         f"No available {cls.__name__} builders for arguments {args}")
 
 
-def irdl_param_attr_get_param_type_hints(
-        cls: type[_PAttrT]) -> list[tuple[str, Any]]:
-    """Get the type hints of an IRDL parameter definitions."""
-    res = list[tuple[str, Any]]()
-    for field_name, field_type in get_type_hints(cls,
-                                                 include_extras=True).items():
-        if field_name == "name" or field_name == "parameters":
-            continue
-
-        origin = get_origin(field_type)
-        args = get_args(field_type)
-        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise ValueError(
-                f"In attribute {cls.__name__} definition: Parameter " +
-                f"definition {field_name} should be defined with " +
-                f"type `ParameterDef`, got type {field_type}.")
-
-        res.append((field_name, field_type))
-    return res
-
-
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     """Decorator used on classes to define a new attribute definition."""
 
@@ -1036,20 +1068,16 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     for parent_cls in cls.mro()[::-1]:
         clsdict = {**clsdict, **parent_cls.__dict__}
 
-    param_hints = irdl_param_attr_get_param_type_hints(cls)
+    attr_def = ParamAttrDef.from_pyrdl(cls)
 
-    # IRDL parameters definitions
-    parameters = []
     # New fields and methods added to the attribute
     new_fields = dict[str, Any]()
 
-    for param_name, param_type in param_hints:
+    for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = property(
-            (lambda idx: lambda self: self.parameters[idx])(len(parameters)))
-        parameters.append(
-            irdl_to_attr_constraint(param_type, allow_type_var=True))
+            lambda self, idx=idx: self.parameters[idx])
 
-    new_fields["verify"] = lambda typ: irdl_attr_verify(typ, parameters)
+    new_fields["verify"] = lambda typ: irdl_attr_verify(typ, attr_def)
 
     if "verify" in clsdict:
         custom_verifier = clsdict["verify"]
@@ -1068,6 +1096,8 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
             f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
         )
     new_fields["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
+
+    new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
 
     return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
