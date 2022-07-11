@@ -74,9 +74,8 @@ def simple_test(e):
 \x1b[0m\x1b[31m 43                    "int_list list elements should be integers.")
    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 \x1b[33m 44
-
 """
-    stream = StringIO()
-    print(extract_code(gen[0][0], 37, 43, code_original), file=stream)
-    y = stream.getvalue()
+
+    y = extract_code(37, 43, code_original)
     assert code_formatted in y
+

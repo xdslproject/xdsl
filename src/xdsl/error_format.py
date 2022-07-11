@@ -46,11 +46,10 @@ def get_frame(num: int):
         first_line = code.co_firstlineno
 
         yield filename, line_num, exc_name, local_var, extract_code(
-            filename, first_line, line_num, code_source)
+            first_line, line_num, code_source)
 
 
-def extract_code(filename: str, first_line: int, line_num: int,
-                 code: str) -> str:
+def extract_code(first_line: int, line_num: int, code: [str]) -> str:
     """
     Extract the code from given frame.
     By matching the line of the exception 
@@ -58,36 +57,39 @@ def extract_code(filename: str, first_line: int, line_num: int,
 
     returns a string of the code snippet of the function with carret indicator
     """
+    assert first_line < line_num < first_line + len(code)
     carret: str = "\n"
     code.append("\n")
 
-    with open(filename) as fp:
-        for i, line in enumerate(fp):
+    for j in range(0, len(code)):
+        i = j + first_line
+        # different cases because the first line of the code
+        # has a space in the front
+        # this goes for all the frame attr
+        # handling the case where e.g. first_line is 990 and last_line > 1000
+        # by adding a padding after the line number
+        padding_length = len(str(len(code) + first_line)) - len(
+            str(j + first_line))
 
-            # different cases because the first line of the code
-            # has a space in the front
-            # this goes for all the frame attr
+        padding = ' ' * padding_length
 
-            if i == first_line:
-                code[i - first_line] = ' ' + str(i) + code[i - first_line]
-            elif first_line < i < len(code) + first_line:
-                # get the length before adding anything to the line
-                line_length = len(code[i - first_line])
+        # get the length before adding anything to the line
+        line_length = len(code[j])
 
-                # adding numbers to the line
-                code[i - first_line] = ' ' + str(i) + code[i - first_line]
+        # adding numbers to the line
+        code[j] = ' ' + str(i) + padding + code[j]
+        error_line = code[j]
 
-                error_line = code[i - first_line]
-
-                if i == line_num:
-                    # adding carret and red to the exception line
-                    colored_error = Colors.format.reset + Colors.fg.red + error_line
-                    carret = ' ' * (len(str(i)) + 1) + \
-                             '^' * (line_length - 1) + '\n'
-                    # replacing the line with the formatted one
-                    code[i - first_line] = colored_error \
-                                            + carret \
-                                            + Colors.fg.orange
+        if i == line_num:
+            # adding carret and red to the exception line
+            colored_error = Colors.format.reset + Colors.fg.red + error_line
+            # the extra space is at the start of the line
+            carret = padding + ' ' +' ' * len(str(line_num)) + \
+                     '^' * (line_length-1) + '\n'
+            # replacing the line with the formatted one
+            code[i - first_line] = colored_error \
+                                    + carret \
+                                    + Colors.fg.orange
 
     return "".join(code)
 
