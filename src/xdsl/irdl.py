@@ -6,9 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, Tuple, Type,
-                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
-                    get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
@@ -433,14 +432,14 @@ class OptAttributeDef(AttributeDef):
 class OpDef:
     """The internal IRDL definition of an operation."""
     name: str = field(kw_only=False)
-    operands: list[Tuple[str, OperandDef]] = field(default_factory=list)
-    results: list[Tuple[str, ResultDef]] = field(default_factory=list)
+    operands: list[tuple[str, OperandDef]] = field(default_factory=list)
+    results: list[tuple[str, ResultDef]] = field(default_factory=list)
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
-    regions: list[Tuple[str, RegionDef]] = field(default_factory=list)
+    regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
 
     @staticmethod
-    def from_pyrdl(pyrdl_def: Type[_OpT]) -> OpDef:
+    def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
         # Get all fields of the class, including the parent classes
@@ -831,6 +830,41 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
+#     _   _   _        _ _           _
+#    / \ | |_| |_ _ __(_) |__  _   _| |_ ___
+#   / _ \| __| __| '__| | '_ \| | | | __/ _ \
+#  / ___ \ |_| |_| |  | | |_) | |_| | ||  __/
+# /_/   \_\__|\__|_|  |_|_.__/ \__,_|\__\___|
+#
+
+_AttrT = TypeVar('_AttrT', bound=Attribute)
+
+_BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
+
+BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
+
+
+def builder(f: BuilderTy[_AttrT]) -> BuilderTy[_AttrT]:
+    """
+    Annotate a function and mark it as an IRDL builder.
+    This should only be used as decorator in classes decorated by irdl_attr_builder.
+    """
+    f.__irdl_is_builder = True
+    return f
+
+
+def irdl_get_builders(cls: type[_AttrT]) -> list[BuilderTy[_AttrT]]:
+    """Get functions decorated with 'builder' in a class."""
+    builders = list[BuilderTy[_AttrT]]()
+    for field_name in cls.__dict__:
+        field_ = cls.__dict__[field_name]
+        # Builders are staticmethods, so we need to get back the original function with __func__
+        if hasattr(field_, "__func__") and hasattr(field_.__func__,
+                                                   "__irdl_is_builder"):
+            builders.append(field_.__func__)
+    return builders
+
+
 #  ____        _
 # |  _ \  __ _| |_ __ _
 # | | | |/ _` | __/ _` |
@@ -859,7 +893,7 @@ class GenericData(Data[_DataElement], ABC):
 _DT = TypeVar("_DT")
 
 
-def irdl_data_verify(data: Data[_DT], typ: Type[_DT]) -> None:
+def irdl_data_verify(data: Data[_DT], typ: type[_DT]) -> None:
     """Check that the Data has the expected type."""
     if isinstance(data.data, typ):
         return
@@ -868,10 +902,11 @@ def irdl_data_verify(data: Data[_DT], typ: Type[_DT]) -> None:
     )
 
 
-T = TypeVar('T')
+T = TypeVar('T', bound=Data[Any])
 
 
 def irdl_data_definition(cls: type[T]) -> type[T]:
+    """Decorator to transform an IRDL Data definition to a Python class."""
     new_attrs = dict[str, Any]()
 
     # Build method is added for all definitions.
@@ -939,30 +974,12 @@ def irdl_attr_verify(attr: ParametrizedAttribute,
         param_def.verify(param)
 
 
-C = TypeVar('C', bound=Callable[..., Any])
+_PAttrT = TypeVar('_PAttrT', bound=ParametrizedAttribute)
 
 
-def builder(f: C) -> C:
-    """
-    Annotate a function and mark it as an IRDL builder.
-    This should only be used as decorator in classes decorated by irdl_attr_builder.
-    """
-    f.__irdl_is_builder = True
-    return f
-
-
-def irdl_get_builders(cls) -> list[Callable[..., Any]]:
-    builders = []
-    for field_name in cls.__dict__:
-        field_ = cls.__dict__[field_name]
-        # Builders are staticmethods, so we need to get back the original function with __func__
-        if hasattr(field_, "__func__") and hasattr(field_.__func__,
-                                                   "__irdl_is_builder"):
-            builders.append(field_.__func__)
-    return builders
-
-
-def irdl_attr_try_builder(builder, *args):
+def irdl_attr_try_builder(
+        builder: BuilderTy[_PAttrT],
+        *args: tuple[Any, ...]) -> ParametrizedAttribute | None:
     params_dict = get_type_hints(builder)
     builder_params = inspect.signature(builder).parameters
     params = [params_dict[param.name] for param in builder_params.values()]
@@ -976,7 +993,9 @@ def irdl_attr_try_builder(builder, *args):
     return builder(*args, *defaults[len(args):])
 
 
-def irdl_attr_builder(cls, builders, *args):
+def irdl_attr_builder(cls: type[_PAttrT],
+                      builders: Sequence[BuilderTy[_PAttrT]],
+                      *args: tuple[Any, ...]):
     """Try to apply all builders to construct an attribute instance."""
     if len(args) == 1 and isinstance(args[0], cls):
         return args[0]
@@ -989,9 +1008,9 @@ def irdl_attr_builder(cls, builders, *args):
 
 
 def irdl_param_attr_get_param_type_hints(
-        cls: type[ParametrizedAttribute]) -> list[tuple[str, Any]]:
+        cls: type[_PAttrT]) -> list[tuple[str, Any]]:
     """Get the type hints of an IRDL parameter definitions."""
-    res = []
+    res = list[tuple[str, Any]]()
     for field_name, field_type in get_type_hints(cls,
                                                  include_extras=True).items():
         if field_name == "name" or field_name == "parameters":
@@ -1009,14 +1028,11 @@ def irdl_param_attr_get_param_type_hints(
     return res
 
 
-PA = TypeVar("PA", bound=ParametrizedAttribute)
-
-
-def irdl_param_attr_definition(cls: type[PA]) -> type[PA]:
+def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     """Decorator used on classes to define a new attribute definition."""
 
     # Get the fields from the class and its parents
-    clsdict = dict()
+    clsdict = dict[str, Any]()
     for parent_cls in cls.mro()[::-1]:
         clsdict = {**clsdict, **parent_cls.__dict__}
 
@@ -1025,7 +1041,7 @@ def irdl_param_attr_definition(cls: type[PA]) -> type[PA]:
     # IRDL parameters definitions
     parameters = []
     # New fields and methods added to the attribute
-    new_fields = dict()
+    new_fields = dict[str, Any]()
 
     for param_name, param_type in param_hints:
         new_fields[param_name] = property(
@@ -1059,7 +1075,7 @@ def irdl_param_attr_definition(cls: type[PA]) -> type[PA]:
     }))
 
 
-def irdl_attr_definition(cls: type[T]) -> type[T]:
+def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
