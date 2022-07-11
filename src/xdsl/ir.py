@@ -12,6 +12,7 @@ from frozenlist import FrozenList
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
+    from xdsl.irdl import OpDef
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -466,6 +467,11 @@ class Operation:
 
     def __hash__(self) -> int:
         return id(self)
+
+    @property
+    def get_definition(self) -> OpDef:
+        """Get the IRDL operation definition."""
+        ...
 
 
 @dataclass(eq=False)

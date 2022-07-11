@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, Tuple, Type,
+                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
+                    get_type_hints)
 
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
@@ -308,6 +309,8 @@ def irdl_to_attr_constraint(
 #  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
 #       |_|
 
+_OpT = TypeVar('_OpT', bound=Operation)
+
 
 @dataclass
 class IRDLOption(ABC):
@@ -428,7 +431,50 @@ class OptAttributeDef(AttributeDef):
         super().__init__(typ)
 
 
-def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
+@dataclass(kw_only=True)
+class OpDef:
+    """The internal IRDL definition of an operation."""
+    name: str = field(kw_only=False)
+    operands: list[Tuple[str, OperandDef]] = field(default_factory=list)
+    results: list[Tuple[str, ResultDef]] = field(default_factory=list)
+    attributes: list[Tuple[str, AttributeDef]] = field(default_factory=list)
+    regions: list[Tuple[str, RegionDef]] = field(default_factory=list)
+    options: list[IRDLOption] = field(default_factory=list)
+
+    @staticmethod
+    def from_pyrdl(pyrdl_def: Type[_OpT]) -> OpDef:
+        """Decorator used on classes to define a new operation definition."""
+
+        # Get all fields of the class, including the parent classes
+        clsdict: dict[str, Any] = dict()
+        for parent_cls in pyrdl_def.mro()[::-1]:
+            clsdict = {**clsdict, **parent_cls.__dict__}
+
+        if "name" not in clsdict:
+            raise Exception(
+                f"pyrdl operation definition '{pyrdl_def.__name__}' does not "
+                "define the operation name. The operation name is defined by "
+                "adding a 'name' field.")
+
+        op_def = OpDef(clsdict["name"])
+
+        for field_name, field in clsdict.items():
+            if isinstance(field, OperandDef):
+                op_def.operands.append((field_name, field))
+            elif isinstance(field, ResultDef):
+                op_def.results.append((field_name, field))
+            elif isinstance(field, RegionDef):
+                op_def.regions.append((field_name, field))
+            elif isinstance(field, AttributeDef):
+                op_def.attributes.append((field_name, field))
+
+        op_def.options = clsdict.get("irdl_options", [])
+
+        return op_def
+
+
+def get_variadic_sizes(op: Operation, op_def: OpDef,
+                       is_operand: bool) -> list[int]:
     """Get variadic sizes of operands or results."""
 
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
@@ -436,11 +482,10 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
     # So we have a circular dependency that we solve by importing in this function.
     from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
 
-    operand_or_result_defs = op.irdl_operand_defs if is_operand else op.irdl_result_defs
+    operand_or_result_defs = op_def.operands if is_operand else op_def.results
     variadic_defs = [(arg_name, arg_def)
                      for arg_name, arg_def in operand_or_result_defs
                      if isinstance(arg_def, VariadicDef)]
-    options = op.irdl_options
 
     op_defs = op.operands if is_operand else op.results
     def_type_name = "operand" if is_operand else "result"
@@ -448,7 +493,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
     # If the size is in the attributes, fetch it
     attribute_option = AttrSizedOperandSegments(
     ) if is_operand else AttrSizedResultSegments()
-    if attribute_option in options:
+    if attribute_option in op_def.options:
         size_attribute_name = AttrSizedOperandSegments.attribute_name if is_operand else AttrSizedResultSegments.attribute_name
         if size_attribute_name not in op.attributes:
             raise VerifyException(
@@ -459,12 +504,12 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
             raise VerifyException(
                 f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
             )
-        variadic_sizes = [
+        variadic_sizes: list[int] = [
             size_attr.value.data for size_attr in attribute.data.data
         ]
-        if len(variadic_sizes) != len(operand_or_result_defs):
+        if len(variadic_sizes) != len(variadic_defs):
             raise VerifyException(
-                f"expected {len(operand_or_result_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
+                f"expected {len(variadic_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
             )
         return variadic_sizes
 
@@ -490,7 +535,7 @@ def get_variadic_sizes(op: Operation, is_operand: bool) -> list[int]:
 
 
 def get_operand_or_result(
-        op: Operation, arg_def_idx: int, previous_var_args: int,
+        op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
         is_operand: bool) -> SSAValue | None | list[SSAValue]:
     """
     Get an operand or a result.
@@ -501,10 +546,10 @@ def get_operand_or_result(
     :param is_operand: Do we get the operand or the result.
     :return:
     """
-    argument_defs = op.irdl_operand_defs if is_operand else op.irdl_result_defs
+    argument_defs = op_def.operands if is_operand else op_def.results
     op_arguments = op.operands if is_operand else op.results
 
-    variadic_sizes = get_variadic_sizes(op, is_operand)
+    variadic_sizes = get_variadic_sizes(op, op_def, is_operand)
 
     begin_arg = arg_def_idx - previous_var_args + sum(
         variadic_sizes[:previous_var_args])
@@ -521,20 +566,17 @@ def get_operand_or_result(
         return op_arguments[begin_arg]
 
 
-def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
-                   results: list[tuple[str, ResultDef]],
-                   regions: list[tuple[str, RegionDef]],
-                   attributes: list[tuple[str, AttributeDef]]) -> None:
+def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
     """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
     # Verify operands.
     # get_variadic_sizes already verify that the variadic operand sizes match the number of operands.
-    operand_sizes = get_variadic_sizes(op, is_operand=True)
+    operand_sizes = get_variadic_sizes(op, op_def, is_operand=True)
     current_operand = 0
     current_var_operand = 0
-    for operand_name, operand_def in operands:
+    for operand_name, operand_def in op_def.operands:
         if isinstance(operand_def, VarOperandDef):
-            for i in range(operand_sizes[current_var_operand]):
+            for _ in range(operand_sizes[current_var_operand]):
                 operand_def.constr.verify(op.operands[current_operand].typ)
                 current_operand += 1
         else:
@@ -550,10 +592,10 @@ def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
 
     # Verify results
     # get_variadic_sizes already verify that the variadic result sizes match the number of results.
-    result_sizes = get_variadic_sizes(op, is_operand=False)
+    result_sizes = get_variadic_sizes(op, op_def, is_operand=False)
     current_result = 0
     current_var_result = 0
-    for _, result_def in results:
+    for _, result_def in op_def.results:
         if isinstance(result_def, VarResultDef):
             for _ in range(result_sizes[current_var_result]):
                 result_def.constr.verify(op.results[current_result].typ)
@@ -562,12 +604,12 @@ def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
             result_def.constr.verify(op.results[current_result].typ)
             current_result += 1
 
-    if len(regions) != len(op.regions):
+    if len(op_def.regions) != len(op.regions):
         raise VerifyException(
-            f"op has {len(op.regions)} regions, but {len(regions)} were expected"
+            f"op has {len(op.regions)} regions, but {len(op_def.regions)} were expected"
         )
 
-    for idx, (region_name, region_def) in enumerate(regions):
+    for idx, (region_name, region_def) in enumerate(op_def.regions):
         if isinstance(
                 region_def,
                 SingleBlockRegionDef) and len(op.regions[idx].blocks) != 1:
@@ -592,7 +634,7 @@ def irdl_op_verify(op: Operation, operands: list[tuple[str, OperandDef]],
                         f"argument at position {arg_idx} in region {region_name} at position {idx} should be of type {arg_type}, but {typ}"
                     )
 
-    for attr_name, attr_def in attributes:
+    for attr_name, attr_def in op_def.attributes:
         if attr_name not in op.attributes:
             if isinstance(attr_def, OptAttributeDef):
                 continue
@@ -610,85 +652,92 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     raise Exception(f"builder expected an attribute, got {result}")
 
 
-OpT = TypeVar('OpT', bound=Operation)
-
-
-def irdl_op_builder(cls: type[OpT], operands: list[Any],
-                    operand_defs: list[tuple[str, OperandDef]],
-                    res_types: list[Any], res_defs: list[tuple[str,
-                                                               ResultDef]],
-                    attributes: dict[str, Any], attr_defs: dict[str,
-                                                                AttributeDef],
-                    successors, regions, options) -> OpT:
+def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
+                    operands: list[SSAValue | Operation
+                                   | list[SSAValue | Operation]],
+                    res_types: list[Any | list[Any]],
+                    attributes: dict[str, Any], successors: Sequence[Block],
+                    regions: Sequence[Region]) -> _OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
     # DenseIntOrFPElementsAttr.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                       IntegerType, VectorType, i32)
+    from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, i32)
+
+    error_prefix = f"Error in {op_def.name} builder: "
 
     # Build operands by forwarding the values to SSAValue.get
-    if len(operand_defs) != len(operands):
+    if len(op_def.operands) != len(operands):
         raise ValueError(
-            f"Expected {len(operand_defs)} operands, got {len(operands)}")
+            error_prefix +
+            f"expected {len(op_def.operands)} operands, got {len(operands)}")
 
-    built_operands = []
-    for ((_, operand_def), operand) in zip(operand_defs, operands):
+    built_operands = list[SSAValue]()
+    operand_variadic_sizes = list[int]()
+    for ((operand_name, operand_def), operand) in zip(op_def.operands,
+                                                      operands):
         if isinstance(operand_def, VarOperandDef):
             if not isinstance(operand, list):
                 raise ValueError(
-                    f"Expected list for variadic operand builder, got {operand}"
-                )
+                    error_prefix +
+                    f"'{operand_name}' operand: expected list argument for "
+                    f"variadic operand, but got '{operand}' type.")
             built_operands.extend([SSAValue.get(arg) for arg in operand])
+            operand_variadic_sizes.append(len(operand))
         else:
+            if isinstance(operand, list):
+                raise ValueError(
+                    error_prefix +
+                    f"'{operand_name}' operand: unexpected list argument for "
+                    f"non-variadic operand.")
             built_operands.append(SSAValue.get(operand))
 
     # Build results by forwarding the values to the attribute builders
-    if len(res_defs) != len(res_types):
+    if len(op_def.results) != len(res_types):
         raise ValueError(
-            f"Expected {len(res_defs)} results, got {len(res_types)}")
+            error_prefix +
+            f"expected {len(op_def.results)} results, got {len(res_types)}")
 
-    built_res_types = []
-    for ((_, res_def), res_type) in zip(res_defs, res_types):
+    built_res_types = list[Attribute]()
+    result_variadic_sizes = list[int]()
+    for ((res_name, res_def), res_type) in zip(op_def.results, res_types):
         if isinstance(res_def, VarResultDef):
             if not isinstance(res_type, list):
                 raise ValueError(
-                    f"Expected list for variadic result builder, got {res_type}"
-                )
+                    error_prefix +
+                    f"'{res_name}' result: expected list argument for "
+                    f"variadic result, but got '{res_type}' type.")
             built_res_types.extend([
                 irdl_build_attribute(res_def.constr, res) for res in res_type
             ])
+            result_variadic_sizes.append(len(res_type))
         else:
             built_res_types.append(
                 irdl_build_attribute(res_def.constr, res_type))
 
     # Build attributes by forwarding the values to the attribute builders
-    attr_defs = {name: def_ for (name, def_) in attr_defs}
-    built_attributes = dict()
+    attr_defs = {name: def_ for (name, def_) in op_def.attributes}
+
+    built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
         if attr_name not in attr_defs:
             if isinstance(attr, Attribute):
                 built_attributes[attr_name] = attr
                 continue
-            raise ValueError(
-                f"Unexpected attribute name {attr_name} for operation {cls.name}"
-            )
+            raise ValueError(error_prefix +
+                             f"unexpected attribute name {attr_name}.")
         built_attributes[attr_name] = irdl_build_attribute(
             attr_defs[attr_name].constr, attr)
 
     # Take care of variadic operand and result segment sizes.
-    if AttrSizedOperandSegments() in options:
-        sizes = [
-            (len(operand) if isinstance(operand_def, VarOperandDef) else 1)
-            for operand, (_, operand_def) in zip(operands, operand_defs)
-        ]
+    if AttrSizedOperandSegments() in op_def.options:
+        sizes = operand_variadic_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
-    if AttrSizedResultSegments() in options:
-        sizes = [(len(result) if isinstance(result_def, VarResultDef) else 1)
-                 for result, (_, result_def) in zip(res_types, res_defs)]
+    if AttrSizedResultSegments() in op_def.options:
+        sizes = result_variadic_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
@@ -702,7 +751,7 @@ def irdl_op_builder(cls: type[OpT], operands: list[Any],
                       regions=regions)
 
 
-def irdl_op_definition(cls: type[OpT]) -> type[OpT]:
+def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -710,71 +759,54 @@ def irdl_op_definition(cls: type[OpT]) -> type[OpT]:
         Operation), f"class {cls.__name__} should be a subclass of Operation"
 
     # Get all fields of the class, including the parent classes
-    clsdict = dict()
+    clsdict = dict[str, Any]()
     for parent_cls in cls.mro()[::-1]:
         clsdict = {**clsdict, **parent_cls.__dict__}
 
-    operand_defs = [(field_name, field)
-                    for field_name, field in clsdict.items()
-                    if isinstance(field, OperandDef)]
-    result_defs = [(field_name, field)
-                   for field_name, field in clsdict.items()
-                   if isinstance(field, ResultDef)]
-    region_defs = [(field_name, field)
-                   for field_name, field in clsdict.items()
-                   if isinstance(field, RegionDef)]
-    attr_defs = [(field_name, field) for field_name, field in clsdict.items()
-                 if isinstance(field, AttributeDef)]
-    options = clsdict.get("irdl_options", [])
-    new_attrs = dict()
+    op_def = OpDef.from_pyrdl(cls)
+    new_attrs = dict[str, Any]()
 
     # Add operand access fields
     previous_variadics = 0
-    for operand_idx, (operand_name, operand_def) in enumerate(operand_defs):
+    for operand_idx, (operand_name, operand_def) in enumerate(op_def.operands):
         new_attrs[operand_name] = property(
             lambda self, idx=operand_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, idx, previous_vars, True))
+            get_operand_or_result(self, op_def, idx, previous_vars, True))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
-    if previous_variadics > 1 and AttrSizedOperandSegments() not in options:
+    if previous_variadics > 1 and AttrSizedOperandSegments(
+    ) not in op_def.options:
         raise Exception(
             "Operation defines more than two variadic operands, "
             "but do not define the AttrSizedOperandSegments option")
 
     # Add result access fields
     previous_variadics = 0
-    for result_idx, (result_name, result_def) in enumerate(result_defs):
+    for result_idx, (result_name, result_def) in enumerate(op_def.results):
         new_attrs[result_name] = property(
             lambda self, idx=result_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, idx, previous_vars, False))
+            get_operand_or_result(self, op_def, idx, previous_vars, False))
         if isinstance(result_def, VarResultDef):
             previous_variadics += 1
-    if previous_variadics > 1 and AttrSizedResultSegments() not in options:
+    if previous_variadics > 1 and AttrSizedResultSegments(
+    ) not in op_def.options:
         raise Exception("Operation defines more than two variadic results, "
                         "but do not define the AttrSizedResultSegments option")
 
-    for region_idx, (region_name, _) in enumerate(region_defs):
+    for region_idx, (region_name, _) in enumerate(op_def.regions):
         new_attrs[region_name] = property(
-            (lambda idx: lambda self: self.regions[idx])(region_idx))
+            lambda self, idx=region_idx: self.regions[idx])
 
-    for attribute_name, attr_def in attr_defs:
+    for attribute_name, attr_def in op_def.attributes:
         if isinstance(attr_def, OptAttributeDef):
             new_attrs[attribute_name] = property(
-                (lambda name: lambda self: self.attributes.get(name, None)
-                 )(attribute_name))
+                lambda self, name=attribute_name: self.attributes.get(
+                    name, None))
         else:
             new_attrs[attribute_name] = property(
-                (lambda name: lambda self: self.attributes[name]
-                 )(attribute_name))
+                lambda self, name=attribute_name: self.attributes[name])
 
-    new_attrs["irdl_operand_defs"] = operand_defs
-    new_attrs["irdl_result_defs"] = result_defs
-    new_attrs["irdl_region_defs"] = region_defs
-    new_attrs["irdl_attribute_defs"] = attr_defs
-    new_attrs["irdl_options"] = options
-
-    new_attrs["verify_"] = lambda op: irdl_op_verify(
-        op, operand_defs, result_defs, region_defs, attr_defs)
+    new_attrs["verify_"] = lambda op: irdl_op_verify(op, op_def)
     if "verify_" in clsdict:
         custom_verifier = clsdict["verify_"]
 
@@ -792,11 +824,11 @@ def irdl_op_definition(cls: type[OpT]) -> type[OpT]:
                 attributes=dict(),
                 successors=[],
                 regions=[]):
-        return irdl_op_builder(cls, operands, operand_defs, result_types,
-                               result_defs, attributes, attr_defs, successors,
-                               regions, options)
+        return irdl_op_builder(cls, op_def, operands, result_types, attributes,
+                               successors, regions)
 
     new_attrs["build"] = classmethod(builder)
+    new_attrs["get_definition"] = property(lambda self: op_def)
 
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
