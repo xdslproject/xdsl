@@ -209,4 +209,4 @@ def test_dict_hint_nested():
     assert is_satisfying_hint({0: {}}, threeDict)
     assert is_satisfying_hint({0: {0: {}}}, threeDict)
     assert is_satisfying_hint({0: {}, 1: {0: {}}}, threeDict)
-    assert is_satisfying_hint({0: {}, 1: {0: {0: 0, 1: 32}}}, threeDict)
+    assert is_satisfying_hint({0: {}, 1: {0: {0: "0", 1: "32"}}}, threeDict)
