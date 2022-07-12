@@ -66,7 +66,7 @@ def test_class_hint_wrong_instance():
 
 def test_class_hint_subclass():
     """
-    Test that a class hint is not being satisfied by a non-class object.
+    Test that a class hint is satisfied by a subclass.
     """
     assert is_satisfying_hint(SubClass1(), Class1)
     assert is_satisfying_hint(True, int)  # bool is a subclass of int
