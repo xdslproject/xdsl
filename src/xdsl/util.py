@@ -2,8 +2,6 @@ from inspect import isclass
 from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
                     get_origin)
 
-# pyright: strict
-
 _T = TypeVar("_T")
 
 
@@ -26,20 +24,6 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         arg_list: list[Any] = cast(list[Any], arg)
         elem_hint, = get_args(hint)
         return all(is_satisfying_hint(elem, elem_hint) for elem in arg_list)
-
-    if get_origin(hint) is tuple:
-        if not isinstance(arg, tuple):
-            return False
-        arg_tuple: tuple[Any] = cast(tuple[Any], arg)
-        elem_hint, = get_args(hint)
-        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_tuple)
-
-    if get_origin(hint) is set:
-        if not isinstance(arg, set):
-            return False
-        arg_set: set[Any] = cast(set[Any], arg)
-        elem_hint, = get_args(hint)
-        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_set)
 
     if get_origin(hint) is dict:
         if not isinstance(arg, dict):
