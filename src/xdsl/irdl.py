@@ -211,6 +211,11 @@ def irdl_to_attr_constraint(
         return constraints[0]
 
     # Attribute class case
+    # This is an `AnyAttr`, which does not constrain the attribute.
+    if irdl is Attribute:
+        return AnyAttr()
+
+    # Attribute class case
     # This is a coercion for an `BaseAttr`.
     if isclass(irdl) and issubclass(irdl, Attribute):
         return BaseAttr(irdl)
