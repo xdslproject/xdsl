@@ -14,7 +14,6 @@ from xdsl.elevate import *
 import xdsl.elevate as elevate
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
-import pretty_errors
 import difflib
 
 ###
@@ -90,7 +89,7 @@ func.return(%5 : !i32)
         fstAdd: IOp
 
         @dataclass(frozen=True)
-        class Match(MatchStrategy):
+        class Match(Matcher):
 
             def impl(self, op: IOp) -> MatchResult:
                 match op:
@@ -117,7 +116,7 @@ func.return(%5 : !i32)
         sndAdd: IOp
 
         @dataclass(frozen=True)
-        class Match0(MatchStrategy):
+        class Match0(Matcher):
 
             def impl(self, op: IOp) -> MatchResult:
                 match op:
@@ -128,7 +127,7 @@ func.return(%5 : !i32)
                         return match_failure(self)
 
         @dataclass(frozen=True)
-        class Match1(MatchStrategy):
+        class Match1(Matcher):
             fstAdd: IOp
 
             def impl(self, op: IOp) -> MatchResult:
@@ -157,7 +156,7 @@ func.return(%5 : !i32)
         fstMM: IOp
 
         @dataclass(frozen=True)
-        class Match(MatchStrategy):
+        class Match(Matcher):
             def apply(self, op: IOp) -> MatchResult:
                 match op:
                     case IOp(op_type=tensat.MatMul,
@@ -189,6 +188,24 @@ func.return(%5 : !i32)
                 case _:
                     return failure(self)
 
+    @dataclass(frozen=True)
+    class MatchAdd(Matcher):
+        def impl(self, op: IOp) -> MatchResult:
+            match op:
+                case IOp(op_type=arith.Addi,
+                        operands=[ISSAValue(), ISSAValue()]):
+                    return match_success([op])
+                case _:
+                    return match_failure(self)
+
+    @dataclass(frozen=True)
+    class Commute(Replacer):
+        def impl(self, match: Match) -> RewriteResult:
+            # Has to be in this order because there is a bug somewhere in the handling of replacements. Ideally it should not make a difference
+            result: RewriteResult = success(from_op(match[-1], operands=[match[-1].operands[1], match[-1].operands[0]]), matched_op=match[-1])
+            for op in reversed(match[:-1]):
+                result += success(from_op(op, operands=[op.operands[1], op.operands[0]]), matched_op=op)
+            return result
 
     ctx = MLContext()
     builtin.Builtin(ctx)
@@ -212,10 +229,27 @@ func.return(%5 : !i32)
     #     lambda matched_ops: topToBottom(DoubleCommute(*matched_ops))).apply(immBeforeM)
     
     # TripleCommute of three additions. To use parse the string "before_additions"
-    rrImmM1 = multiRoot(matchSeq(matchTopToBottom(TripleCommute.Match0()), 
-                                    lambda matched_ops: matchTopToBottom(TripleCommute.Match1(*matched_ops))),
-                                    lambda matched_ops: topToBottom(TripleCommute(*matched_ops))).apply(immBeforeM)
+    # rrImmM1 = multiRoot(matchSeq(matchTopToBottom(TripleCommute.Match0()), 
+    #                                 lambda matched_ops: matchTopToBottom(TripleCommute.Match1(*matched_ops))),
+    #                                 lambda matched_ops: topToBottom(TripleCommute(*matched_ops))).apply(immBeforeM)
 
+    # New design with Replacer:
+    # SingleCommute
+    # rrImmM1 = multiRoot_new(matchTopToBottom(MatchAdd()), Commute()).apply(immBeforeM)
+
+    # DoubleCommute
+    # rrImmM1 = multiRoot_new(
+    #                 matchSeq(matchTopToBottom(MatchAdd()), 
+    #                          lambda fst_add: matchCombine(fst_add, matchTopToBottom(matchNeq(MatchAdd(), fst_add)))), 
+    #                 Commute()).apply(immBeforeM)
+
+    # TripleCommute
+    rrImmM1 = multiRoot_new(
+                matchSeq(matchTopToBottom(MatchAdd()), 
+                    lambda fst_add: matchCombine(fst_add, 
+                        matchSeq(matchTopToBottom(matchNeq(MatchAdd(), fst_add)), 
+                            lambda snd_add: matchCombine(snd_add, matchTopToBottom(matchNeq(matchNeq(MatchAdd(), fst_add), snd_add)))))), 
+                Commute()).apply(immBeforeM)
 
     # rrImmM1 = multi_seq(
     #     matchTopToBottom(DoubleMatMulSameFstInput.Match()), 

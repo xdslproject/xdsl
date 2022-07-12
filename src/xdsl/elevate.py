@@ -3,89 +3,8 @@ from abc import abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import partial
-from typing import List, Callable, MutableSequence
+from typing import List, Callable, MutableSequence, TypeAlias
 from xdsl.immutable_ir import *
-from xdsl.pattern_rewriter import *
-
-
-@dataclass
-class IOpReplacement:
-    matched_op: IOp
-    replacement_ops: List[IOp]
-
-
-@dataclass
-class RewriteResult:
-    _result: Union[Strategy, Sequence[IOpReplacement]]
-
-    def flatMapSuccess(self, s: Strategy) -> RewriteResult:
-        if (not self.isSuccess()):
-            return self
-        rr = s.apply(self.result_op)
-        if (not rr.isSuccess()):
-            return rr
-        self += rr
-        return self
-
-    def flatMapFailure(self, f: Callable[[], RewriteResult]) -> RewriteResult:
-        if (not self.isSuccess()):
-            return f()
-        return self
-
-    def __str__(self) -> str:
-        if not self.isSuccess():
-            return "Failure(" + str(self.failed_strategy) + ")"
-        return "Success, " + str(len(self.replacements)) + " replacements"
-
-    def isSuccess(self) -> bool:
-        return isinstance(self._result, List)
-
-    def __iadd__(self, other: RewriteResult):
-        if self.isSuccess() and other.isSuccess():
-            assert self.isSuccess() and other.isSuccess()
-            assert isinstance(self._result, List) and isinstance(
-                other._result, List)
-            self._result += other._result
-            return self
-        raise Exception("invalid concatenation of RewriteResults")
-
-    @property
-    def failed_strategy(self) -> Strategy:
-        assert not self.isSuccess()
-        assert isinstance(self._result, Strategy)
-        return self._result
-
-    @property
-    def replacements(self) -> List[IOpReplacement]:
-        assert self.isSuccess()
-        assert isinstance(self._result, List)
-        return self._result
-
-    @property
-    def result_op(self) -> IOp:
-        assert self.isSuccess()
-        assert not isinstance(self._result, Strategy)
-        return self.replacements[-1].replacement_ops[-1]
-
-
-def success(arg: IOp | Sequence[IOp], matched_op: Optional[IOp] = None) -> RewriteResult:
-    match arg:
-        case IOp():
-            ops = [arg]
-        case [*_]:
-            # remove duplicates - this way we can choose to enforce a specific
-            # order of the ops by explicitly ordering them in the call to success
-            ops = list(OrderedDict.fromkeys(arg))
-        case _:
-            raise Exception("success called with incompatible arguments")
-
-    # matched op will be set by the Strategy itself in `apply`
-    return RewriteResult([IOpReplacement(matched_op, ops)])  # type: ignore
-
-
-def failure(failed_strategy: Strategy) -> RewriteResult:
-    assert isinstance(failed_strategy, Strategy)
-    return RewriteResult(failed_strategy)
 
 
 @dataclass(frozen=True)
@@ -133,6 +52,88 @@ class Strategy:
     # Overloading ^ operator for sequential composition of Strategies
     def __xor__(self: Strategy, other: Strategy):
         return seq(self, other)
+
+
+@dataclass
+class IOpReplacement:
+    matched_op: IOp
+    replacement_ops: List[IOp]
+
+Failure: TypeAlias = Strategy
+Success: TypeAlias = Sequence[IOpReplacement]
+
+@dataclass
+class RewriteResult:
+    _result: Failure | Success
+
+    def flatMapSuccess(self, s: Strategy) -> RewriteResult:
+        if (not self.isSuccess()):
+            return self
+        rr = s.apply(self.result_op)
+        if (not rr.isSuccess()):
+            return rr
+        self += rr
+        return self
+
+    def flatMapFailure(self, f: Callable[[], RewriteResult]) -> RewriteResult:
+        if (not self.isSuccess()):
+            return f()
+        return self
+
+    def __str__(self) -> str:
+        if not self.isSuccess():
+            return "Failure(" + str(self.failed_strategy) + ")"
+        return "Success, " + str(len(self.replacements)) + " replacements"
+
+    def isSuccess(self) -> bool:
+        return isinstance(self._result, List)
+
+    def __iadd__(self, other: RewriteResult):
+        if self.isSuccess() and other.isSuccess():
+            assert self.isSuccess() and other.isSuccess()
+            assert isinstance(self._result, List) and isinstance(
+                other._result, List)
+            self._result += other._result
+            return self
+        raise Exception("invalid concatenation of RewriteResults")
+
+    @property
+    def failed_strategy(self) -> Strategy:
+        assert not self.isSuccess()
+        assert isinstance(self._result, Strategy)
+        return self._result
+
+    @property
+    def replacements(self) -> Sequence[IOpReplacement]:
+        assert self.isSuccess()
+        assert isinstance(self._result, List)
+        return self._result
+
+    @property
+    def result_op(self) -> IOp:
+        assert self.isSuccess()
+        assert not isinstance(self._result, Strategy)
+        return self.replacements[-1].replacement_ops[-1]
+
+
+def success(arg: IOp | Sequence[IOp], matched_op: Optional[IOp] = None) -> RewriteResult:
+    match arg:
+        case IOp():
+            ops = [arg]
+        case [*_]:
+            # remove duplicates - this way we can choose to enforce a specific
+            # order of the ops by explicitly ordering them in the call to success
+            ops = list(OrderedDict.fromkeys(arg))
+        case _:
+            raise Exception("success called with incompatible arguments")
+
+    # matched op will be set by the Strategy itself in `apply`
+    return RewriteResult([IOpReplacement(matched_op, ops)])  # type: ignore
+
+
+def failure(failed_strategy: Strategy) -> RewriteResult:
+    assert isinstance(failed_strategy, Strategy)
+    return RewriteResult(failed_strategy)
 
 
 @dataclass(frozen=True)
@@ -343,8 +344,6 @@ class regionN(RegionsTraversal):
         if len(op.regions) <= self.n:
             return failure(self)
         new_region = self.block_trav.apply(op.regions[self.n])
-        if isinstance(new_s := new_region, Strategy):
-            return new_s
         if new_region is None:
             return failure(self)
         regions: List[IRegion] = op.regions[:self.n] + [
@@ -422,8 +421,6 @@ class blockN(BlocksTraversal):
         if len(region.blocks) <= self.n:
             return None
         new_block = self.op_trav.apply(region.blocks[self.n])
-        if isinstance(new_s := new_block, Strategy):
-            return new_s
         if new_block is None:
             return None
         blocks = region.blocks[:self.n] + [new_block
@@ -527,8 +524,6 @@ class opN(OpsTraversal):
         if len(block.ops) <= self.n:
             return None
         rr = self.s.apply(block.ops[self.n])
-        if isinstance(new_s := rr, Strategy):
-            return new_s
 
         if rr.isSuccess():
             nested_ops: List[IOp] = list(block.ops)
@@ -730,45 +725,7 @@ class bottomToTop(Strategy):
 
 
 @dataclass(frozen=True)
-class MatchResult:
-    _result: Union[MatchStrategy, List[IOp]]
-
-    def __str__(self) -> str:
-        if not self.isSuccess():
-            return "Failure(" + str(self.failed_strategy) + ")"
-        return "Success, match:" + str(self.matched_ops)
-
-    def isSuccess(self) -> bool:
-        return isinstance(self._result, List)
-
-    def __add__(self, other: MatchResult):
-        if self.isSuccess() and other.isSuccess():
-            assert isinstance(self._result, List) and isinstance(
-                other._result, List)
-            return MatchResult(self._result + other._result)
-        raise Exception("invalid concatenation of MatchResults")
-
-    @property
-    def failed_strategy(self) -> Strategy:
-        assert isinstance(self._result, Strategy)
-        return self._result
-
-    @property
-    def matched_ops(self) -> List[IOp]:
-        assert isinstance(self._result, List)
-        return self._result
-
-
-def match_success(ops: List[IOp]) -> MatchResult:
-    return MatchResult(ops)
-
-
-def match_failure(failed_match_strategy: MatchStrategy) -> MatchResult:
-    return MatchResult(failed_match_strategy)
-
-
-@dataclass(frozen=True)
-class MatchStrategy:
+class Matcher:
     @abstractmethod
     def impl(self, op: IOp) -> MatchResult:
         ...
@@ -782,29 +739,115 @@ class MatchStrategy:
 
 
 @dataclass(frozen=True)
-class matchSeq(MatchStrategy):
+class Replacer:
+
+    @abstractmethod
+    def impl(self, match: Match) -> RewriteResult:
+        ...
+
+    def apply(self, match: Match) -> RewriteResult:
+        return self.impl(match)
+
+    def __str__(self) -> str:
+        values = [str(value) for value in vars(self).values()]
+        return f'{self.__class__.__name__}({",".join(values)})'
+
+
+MatchFailure: TypeAlias = Matcher
+Match: TypeAlias = List[IOp]
+
+
+@dataclass(frozen=True)
+class MatchResult:
+    _result: MatchFailure | Match
+
+    def __str__(self) -> str:
+        if not self.isSuccess():
+            return "Failure(" + str(self.failed_matcher) + ")"
+        return "Success, match:" + str(self.match)
+
+    def isSuccess(self) -> bool:
+        return isinstance(self._result, List)
+
+    def __add__(self, other: MatchResult):
+        if self.isSuccess() and other.isSuccess():
+            assert isinstance(self._result, List) and isinstance(
+                other._result, List)
+            return MatchResult(self._result + other._result)
+        raise Exception("invalid concatenation of MatchResults")
+
+    @property
+    def failed_matcher(self) -> Matcher:
+        assert isinstance(self._result, Matcher)
+        return self._result
+
+    @property
+    def match(self) -> List[IOp]:
+        assert isinstance(self._result, List)
+        return self._result
+
+
+def match_success(ops: Match) -> MatchResult:
+    return MatchResult(ops)
+
+
+def match_failure(failed_match_strategy: MatchFailure) -> MatchResult:
+    return MatchResult(failed_match_strategy)
+
+
+@dataclass(frozen=True)
+class matchNeq(Matcher):
+    """
+    """
+    matcher: Matcher
+    prev_match: List[IOp]
+    
+    def impl(self, op: IOp) -> MatchResult:
+        mr: MatchResult = self.matcher.apply(op)
+
+        # check that matches do not have any common elements
+        if not mr.isSuccess() or any(elem in self.prev_match for elem in mr.match):
+            return match_failure(self)
+
+        return mr
+
+
+@dataclass(frozen=True)
+class matchSeq(Matcher):
     """
     Sequential composition of two MatchStrategies `s1` and `s2`. 
     `s2` is initialized with the resulting match of `s1`.
     """
-    ms1: MatchStrategy
-    ms2: Callable[[List[IOp]], MatchStrategy]
+    ms1: Matcher
+    ms2: Callable[[List[IOp]], Matcher]
     
     def impl(self, op: IOp) -> MatchResult:
-        match: MatchResult = self.ms1.apply(op)
-        if not match.isSuccess():
+        mr: MatchResult = self.ms1.apply(op)
+        if not mr.isSuccess():
             return match_failure(self)
 
-        ms2_complete = self.ms2(match.matched_ops)
+        ms2_complete = self.ms2(mr.match)
         return ms2_complete.apply(op)
 
+@dataclass(frozen=True)
+class matchCombine(Matcher):
+    """
+    """
+    prev_match: Match
+    matcher: Matcher
+
+    def impl(self, op: IOp) -> MatchResult:
+        mr: MatchResult = self.matcher.apply(op)
+        if mr.isSuccess():
+            return match_success(self.prev_match + mr.match)
+        return match_failure(self)
 
 @dataclass(frozen=True)
-class matchTopToBottom(MatchStrategy):
+class matchTopToBottom(Matcher):
     """
     Traverses the IR top to bottom to match a single op.
     """
-    s: MatchStrategy
+    s: Matcher
 
     def impl(self, op: IOp) -> MatchResult:
 
@@ -834,7 +877,7 @@ class multiRoot(Strategy):
     resulting match of that application. Afterwards applies the initialized 
     `s` (s_complete).
     """
-    ms: MatchStrategy
+    ms: Matcher
     s: Callable[[List[IOp]], Strategy]
     
     def impl(self, op: IOp) -> RewriteResult:
@@ -842,13 +885,56 @@ class multiRoot(Strategy):
         if not match.isSuccess():
             return failure(self)
 
-        s_complete = self.s(match.matched_ops)
+        s_complete = self.s(match.match)
         return s_complete.apply(op)
 
+
+@dataclass(frozen=True)
+class multiRoot_new(Strategy):
+    """
+    Enables composition of a Matcher with a Replacer:
+    Applies a MatchStrategy `ms` and initializes the Replacer `r` with the 
+    resulting match of that application. Afterwards applies the initialized 
+    `s` (s_complete).
+    """
+    ms: Matcher
+    r: Replacer
+    
+    def impl(self, op: IOp) -> RewriteResult:
+        mr: MatchResult = self.ms.apply(op)
+        if not mr.isSuccess():
+            return failure(self)
+
+        # Hacked in so the reconstruction works
+        return topToBottom(equals(mr.match[-1]) ^ applyReplacer(self.r, mr.match)).apply(op)
+
+
+@dataclass(frozen=True)
+class applyReplacer(Strategy):
+    """
+    """
+    r: Replacer
+    match: Match
+    
+    def impl(self, op: IOp) -> RewriteResult:
+        return self.r.apply(self.match)
 
 ########################################################################
 ######################    Predicate Strategies    ######################
 ########################################################################
+
+
+@dataclass(frozen=True)
+class equals(Strategy):
+    """
+    Predicate Strategy checking whether on op is of a specific op_type
+    """
+    prev_op: IOp
+
+    def impl(self, op: IOp) -> RewriteResult:
+        if op == self.prev_op:
+            return success(op)
+        return failure(self)
 
 
 @dataclass(frozen=True)
