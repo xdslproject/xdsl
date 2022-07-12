@@ -1,6 +1,8 @@
-import inspect
+from inspect import isclass
 from typing import (Annotated, get_args, get_origin, Union, Any, cast, TypeVar,
                     TypeGuard)
+
+# pyright: strict
 
 _T = TypeVar("_T")
 
@@ -15,36 +17,29 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         return True
 
     # get_origin checks that hint is not a parametrized generic
-    if inspect.isclass(hint) and (get_origin(hint) is None):
+    if isclass(hint) and (get_origin(hint) is None):
         return isinstance(arg, hint)
 
     if get_origin(hint) == list:
         if not isinstance(arg, list):
             return False
-        arg = cast(list[Any], arg)  # This is to make the type checker happy
-        if len(arg) == 0:
-            return True
-        elem_hint = get_args(hint)[0]
-        return all(is_satisfying_hint(elem, elem_hint) for elem in arg)
+        arg_list: list[Any] = cast(list[Any], arg)
+        elem_hint, = get_args(hint)
+        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_list)
 
     if get_origin(hint) == dict:
         if not isinstance(arg, dict):
             return False
-        arg = cast(list[Any], arg)  # This is to make the type checker happy
-        if len(arg) == 0:
-            return True
-        key_hint = get_args(hint)[0]
-        value_hint = get_args(hint)[1]
+        arg_dict: dict[Any, Any] = cast(dict[Any, Any], arg)
+        key_hint, value_hint = get_args(hint)
         return all(
             is_satisfying_hint(key, key_hint)
             and is_satisfying_hint(value, value_hint)
-            for key, value in arg.items())
+            for key, value in arg_dict.items())
 
     if get_origin(hint) == Union:
-        for union_arg in get_args(hint):
-            if is_satisfying_hint(arg, union_arg):
-                return True
-        return False
+        return any(
+            is_satisfying_hint(arg, union_arg) for union_arg in get_args(hint))
 
     raise ValueError(f"is_satisfying_hint: unsupported type hint '{hint}'")
 
