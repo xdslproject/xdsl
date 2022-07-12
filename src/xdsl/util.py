@@ -1,67 +1,43 @@
-import inspect
-from inspect import signature
-from typing import Annotated, Any, TypeGuard, Union, NoReturn, Callable, List
-import typing
-from dataclasses import dataclass
-from xdsl.ir import Operation, SSAValue, BlockArgument, Block, Region, Attribute
+from inspect import isclass
+from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
+                    get_origin)
+
+_T = TypeVar("_T")
 
 
-def new_op(op_name, num_results, num_operands, num_regions) -> type[Operation]:
-
-    @dataclass(eq=False)
-    class OpBase(Operation):
-        name: str = op_name
-
-        def verify_(self) -> None:
-            if len(self.results) != num_results or len(
-                    self.operands) != num_operands or len(
-                        self.regions) != num_regions:
-                raise Exception("%s verifier" % op_name)
-
-    return OpBase
-
-
-def new_type(type_name):
-
-    @dataclass(frozen=True, eq=False)
-    class TypeBase(Attribute):
-        name: str = type_name
-
-        def verify_(self) -> None:
-            if len(self.parameters) != 0:
-                raise Exception(f"{type_name} should have no parameters")
-
-    return TypeBase
-
-
-def is_satisfying_hint(arg, hint) -> bool:
+def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     """
     Check if `arg` is of the type described by `hint`.
-    For now, only lists, dictionaries, unions, and non-generic
-    classes are supported for type hints.
+    For now, only lists, tuples, sets, dictionaries, unions, 
+    and non-generic classes are supported for type hints.
     """
-    if inspect.isclass(hint):
+    if hint is Any:
+        return True
+
+    # get_origin checks that hint is not a parametrized generic
+    if isclass(hint) and (get_origin(hint) is None):
         return isinstance(arg, hint)
 
-    if typing.get_origin(hint) == list:
+    if get_origin(hint) is list:
         if not isinstance(arg, list):
             return False
-        if len(arg) == 0:
-            return True
-        return is_satisfying_hint(arg[0], typing.get_args(hint)[0])
+        arg_list: list[Any] = cast(list[Any], arg)
+        elem_hint, = get_args(hint)
+        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_list)
 
-    if typing.get_origin(hint) == dict:
+    if get_origin(hint) is dict:
         if not isinstance(arg, dict):
             return False
-        if len(arg) == 0:
-            return True
-        return is_satisfying_hint(next(iter(arg)), typing.get_args(hint)[0])
+        arg_dict: dict[Any, Any] = cast(dict[Any, Any], arg)
+        key_hint, value_hint = get_args(hint)
+        return all(
+            is_satisfying_hint(key, key_hint)
+            and is_satisfying_hint(value, value_hint)
+            for key, value in arg_dict.items())
 
-    if typing.get_origin(hint) == typing.Union:
-        for union_arg in typing.get_args(hint):
-            if is_satisfying_hint(arg, union_arg):
-                return True
-        return False
+    if get_origin(hint) is Union:
+        return any(
+            is_satisfying_hint(arg, union_arg) for union_arg in get_args(hint))
 
     raise ValueError(f"is_satisfying_hint: unsupported type hint '{hint}'")
 
