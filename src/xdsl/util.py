@@ -1,6 +1,6 @@
 from inspect import isclass
-from typing import (Annotated, get_args, get_origin, Union, Any, cast, TypeVar,
-                    TypeGuard)
+from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
+                    get_origin)
 
 # pyright: strict
 
@@ -10,8 +10,8 @@ _T = TypeVar("_T")
 def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     """
     Check if `arg` is of the type described by `hint`.
-    For now, only lists, dictionaries, unions, and non-generic
-    classes are supported for type hints.
+    For now, only lists, tuples, sets, dictionaries, unions, 
+    and non-generic classes are supported for type hints.
     """
     if hint is Any:
         return True
@@ -20,14 +20,28 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if isclass(hint) and (get_origin(hint) is None):
         return isinstance(arg, hint)
 
-    if get_origin(hint) == list:
+    if get_origin(hint) is list:
         if not isinstance(arg, list):
             return False
         arg_list: list[Any] = cast(list[Any], arg)
         elem_hint, = get_args(hint)
         return all(is_satisfying_hint(elem, elem_hint) for elem in arg_list)
 
-    if get_origin(hint) == dict:
+    if get_origin(hint) is tuple:
+        if not isinstance(arg, tuple):
+            return False
+        arg_tuple: tuple[Any] = cast(tuple[Any], arg)
+        elem_hint, = get_args(hint)
+        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_tuple)
+
+    if get_origin(hint) is set:
+        if not isinstance(arg, set):
+            return False
+        arg_set: set[Any] = cast(set[Any], arg)
+        elem_hint, = get_args(hint)
+        return all(is_satisfying_hint(elem, elem_hint) for elem in arg_set)
+
+    if get_origin(hint) is dict:
         if not isinstance(arg, dict):
             return False
         arg_dict: dict[Any, Any] = cast(dict[Any, Any], arg)
@@ -37,7 +51,7 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
             and is_satisfying_hint(value, value_hint)
             for key, value in arg_dict.items())
 
-    if get_origin(hint) == Union:
+    if get_origin(hint) is Union:
         return any(
             is_satisfying_hint(arg, union_arg) for union_arg in get_args(hint))
 
