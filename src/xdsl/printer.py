@@ -3,6 +3,7 @@ from xdsl.dialects.builtin import *
 from xdsl.diagnostic import *
 from typing import TypeVar
 from dataclasses import dataclass
+from enum import Enum
 
 indentNumSpaces = 2
 
@@ -10,10 +11,15 @@ indentNumSpaces = 2
 @dataclass(eq=False, repr=False)
 class Printer:
 
+    class TypeLocation(Enum):
+        NONE = 1
+        INLINE = 2
+        AFTER = 3
+
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
-    print_operand_types: bool = field(default=True)
-    print_result_types: bool = field(default=True)
+    print_operand_types: TypeLocation = field(default=TypeLocation.INLINE)
+    print_result_types: TypeLocation = field(default=TypeLocation.INLINE)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
@@ -130,7 +136,7 @@ class Printer:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
         self.print("%s" % name)
-        if self.print_result_types:
+        if self.print_result_types == Printer.TypeLocation.INLINE:
             self.print(" : ")
             self.print_attribute(val.typ)
 
@@ -168,7 +174,7 @@ class Printer:
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-        if self.print_operand_types:
+        if self.print_operand_types == Printer.TypeLocation.INLINE:
             self.print(" : ")
             self.print_attribute(operand.typ)
 
@@ -310,6 +316,25 @@ class Printer:
         self.print_successors(op.successors)
         self._print_op_attributes(op.attributes)
         self.print_regions(op.regions)
+
+        if self.print_operand_types == Printer.TypeLocation.AFTER and self.print_result_types == Printer.TypeLocation.AFTER:
+            self.print(" : (")
+            first = True
+            for operand in op.operands:
+                if first:
+                    first = False
+                else:
+                    self.print(", ")
+                self.print_attribute(operand.typ)
+            self.print(") -> (")
+            first = True
+            for result in op.results:
+                if first:
+                    first = False
+                else:
+                    self.print(", ")
+                self.print_attribute(result.typ)
+            self.print(")")
 
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column
