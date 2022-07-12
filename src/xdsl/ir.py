@@ -108,7 +108,8 @@ class SSAValue(ABC):
         """
         if safe_erase and len(self.uses) != 0:
             raise Exception(
-                "Attempting to delete SSA value that still has uses.")
+                "Attempting to delete SSA value that still has uses of operation:\n"
+                f"{self.op}")
         self.replace_by(ErasedSSAValue(self.typ, self))
 
 
