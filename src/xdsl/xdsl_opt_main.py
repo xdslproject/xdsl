@@ -139,7 +139,7 @@ class xDSLOptMain:
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
-        
+
         Add other/additional dialects by overloading this function.
         """
         builtin = Builtin(self.ctx)
