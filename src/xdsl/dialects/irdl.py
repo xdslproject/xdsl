@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 
-from xdsl.irdl import ParameterDef, VarOperandDef, AnyAttr, AttributeDef,SingleBlockRegionDef, VarResultDef, irdl_op_definition, irdl_attr_definition
+from xdsl.irdl import ParameterDef, VarOperandDef, AnyAttr, AttributeDef, SingleBlockRegionDef, VarResultDef, irdl_op_definition, irdl_attr_definition
 from xdsl.ir import ParametrizedAttribute, Operation, MLContext, Attribute
 
 
