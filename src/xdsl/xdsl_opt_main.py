@@ -11,6 +11,7 @@ from xdsl.dialects.arith import *
 from xdsl.dialects.affine import *
 from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
+from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
 from xdsl.dialects.irdl import *
 
@@ -138,7 +139,7 @@ class xDSLOptMain:
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
-
+        
         Add other/additional dialects by overloading this function.
         """
         builtin = Builtin(self.ctx)
@@ -148,6 +149,7 @@ class xDSLOptMain:
         affine = Affine(self.ctx)
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
+        cmath = CMath(self.ctx)
         irdl = IRDL(self.ctx)
 
     def register_all_frontends(self):
