@@ -16,6 +16,7 @@ from xdsl.dialects.cf import *
 from xdsl.error_format import *
 from xdsl.dialects.irdl import *
 
+
 class xDSLOptMain:
     ctx: MLContext
     args: argparse.Namespace
