@@ -12,7 +12,7 @@ class DiagnosticException(Exception):
 
 @dataclass
 class Diagnostic:
-    op_messages: Dict[Operation, List[str]] = field(default_factory=dict)
+    op_messages: dict[Operation, list[str]] = field(default_factory=dict)
 
     def add_message(self, op: Operation, message: str) -> None:
         """Add a message to an operation."""
@@ -21,8 +21,8 @@ class Diagnostic:
     def raise_exception(
             self,
             message: str,
-            ir: Union[Operation, Block, Region],
-            exception_type: Type[Exception] = DiagnosticException) -> None:
+            ir: Operation | Block | Region,
+            exception_type: type[Exception] = DiagnosticException) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
         f = StringIO()
