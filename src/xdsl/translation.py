@@ -54,7 +54,6 @@ class Translation:
             print(">", end="")
         elif isinstance(f, TypeParamsConstraintAttr):
             print(f"{f.type_name}")
-            print("------------")
         elif isinstance(f, NamedTypeConstraintAttr):
             print(f.type_name.data, end='')
             print(":", end=" ")
