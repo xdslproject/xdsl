@@ -956,7 +956,12 @@ def irdl_param_attr_definition(cls: type[PA]) -> type[PA]:
     # Get the fields from the class and its parents
     clsdict = dict()
     for parent_cls in cls.mro()[::-1]:
-        clsdict = {**clsdict, **parent_cls.__dict__}
+        # We do not want the parents verifier to be called
+        filtered_dict = {
+            x: parent_cls.__dict__[x]
+            for x in parent_cls.__dict__ if x not in ["verify"]
+        }
+        clsdict = {**clsdict, **filtered_dict}
 
     param_hints = irdl_param_attr_get_param_type_hints(cls)
 

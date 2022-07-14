@@ -3,10 +3,11 @@ from __future__ import annotations
 import typing
 
 from xdsl.ir import ParametrizedAttribute, Data
-from xdsl.irdl import irdl_attr_definition, builder
+from xdsl.irdl import irdl_attr_definition, builder, ParameterDef
 import pytest
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.dialects.builtin import StringAttr
 
 
 @irdl_attr_definition
@@ -161,3 +162,27 @@ def builder_union_arg_second():
 def builder_union_arg_bad_argument():
     with pytest.raises(TypeError) as e:
         BuilderUnionArgAttr.build([])
+
+
+@irdl_attr_definition
+class A(ParametrizedAttribute):
+    name = "A"
+
+    data: ParameterDef[StringAttr]
+
+
+@irdl_attr_definition
+class B(A):
+    name = "B"
+
+    dataB: ParameterDef[StringAttr]
+
+
+def test_inheriting_attr():
+    A([StringAttr.from_str("x")])
+    B([StringAttr.from_str("x"), StringAttr.from_str("y")])
+    try:
+        B([StringAttr.from_str("x")])
+    except Exception as e:
+        return
+    assert False
