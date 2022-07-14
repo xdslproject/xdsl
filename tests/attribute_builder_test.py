@@ -7,7 +7,6 @@ from xdsl.irdl import irdl_attr_definition, builder, ParameterDef
 import pytest
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import StringAttr
 
 
 @irdl_attr_definition
@@ -168,21 +167,21 @@ def builder_union_arg_bad_argument():
 class A(ParametrizedAttribute):
     name = "A"
 
-    data: ParameterDef[StringAttr]
+    data: ParameterDef[NoBuilderAttr]
 
 
 @irdl_attr_definition
 class B(A):
     name = "B"
 
-    dataB: ParameterDef[StringAttr]
+    dataB: ParameterDef[NoBuilderAttr]
 
 
 def test_inheriting_attr():
-    A([StringAttr.from_str("x")])
-    B([StringAttr.from_str("x"), StringAttr.from_str("y")])
+    A([NoBuilderAttr()])
+    B([NoBuilderAttr(), NoBuilderAttr()])
     try:
-        B([StringAttr.from_str("x")])
+        B([NoBuilderAttr()])
     except Exception as e:
         return
     assert False
