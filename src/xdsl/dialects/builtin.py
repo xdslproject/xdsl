@@ -113,7 +113,7 @@ class IntegerType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_width(width: int) -> Attribute:
+    def from_width(width: int) -> IntegerType:
         return IntegerType([IntAttr.from_int(width)])
 
 
