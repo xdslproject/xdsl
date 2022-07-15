@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import *
 from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
 from xdsl.dialects.irdl import *
+from xdsl.dialects.llvm import LLVM
 
 
 class xDSLOptMain:
@@ -151,6 +152,7 @@ class xDSLOptMain:
         cf = Cf(self.ctx)
         cmath = CMath(self.ctx)
         irdl = IRDL(self.ctx)
+        llvm = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """
