@@ -1,9 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from xdsl.irdl import ParameterDef, AnyAttr, irdl_op_builder, irdl_attr_definition, AttributeDef, OperandDef, ResultDef, irdl_op_definition
+from xdsl.irdl import (ParameterDef, AnyAttr, irdl_op_builder,
+                       irdl_attr_definition, AttributeDef, OperandDef,
+                       ResultDef, irdl_op_definition, builder)
 from xdsl.ir import MLContext, ParametrizedAttribute, TYPE_CHECKING, Attribute, Operation
-from typing import overload
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
@@ -26,11 +27,15 @@ class LLVM:
 class LLVMStructType(ParametrizedAttribute):
     name = "llvm.struct"
 
+    # An empty string refers to a struct without a name.
     struct_name: ParameterDef[StringAttr]
     types: ParameterDef[ArrayAttr[AnyAttr()]]
 
-    # bitmask = ParameterDef(StringAttr)
+    # TODO: Add this parameter once xDSL supports the necessary capabilities.
+    #  bitmask = ParameterDef(StringAttr)
 
+    @staticmethod
+    @builder
     def from_type_list(types: list[Attribute]) -> LLVMStructType:
         return LLVMStructType(
             [StringAttr.from_str(""),
