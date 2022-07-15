@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
+from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
 
