@@ -112,7 +112,7 @@ class MixedResultOp(Operation):
     irdl_options = [AttrSizedResultSegments()]
 
 
-def test_two_var_result_builder():
+def test_var_mixed_builder():
     op = MixedResultOp.build(result_types=[[0, 1], 2, [3, 4]])
     op.verify()
     assert [res.typ for res in op.results] == [
