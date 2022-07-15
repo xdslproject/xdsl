@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
 from xdsl.dialects.builtin import IntegerAttr, IndexType
+from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
 from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
                        VarResultDef, VarOperandDef, AnyAttr)
 

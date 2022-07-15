@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from xdsl.diagnostic import Diagnostic
 from typing import TypeVar, Any, Dict, Optional, List
+
 from dataclasses import dataclass, field
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
 from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,

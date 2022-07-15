@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from io import StringIO
 
+from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType
+from xdsl.dialects.arith import Arith, Addi, Constant
+from xdsl.diagnostic import Diagnostic
+from xdsl.ir import MLContext
+from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef
 from xdsl.printer import Printer
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.dialects.arith import *
-from xdsl.diagnostic import Diagnostic
 
 
 def test_simple_forgotten_op():

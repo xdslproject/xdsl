@@ -1,9 +1,8 @@
 import argparse
 import sys
 import os
-from io import IOBase
-
 from io import IOBase, StringIO
+
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -17,8 +16,9 @@ from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.irdl import IRDL
 
-from typing import Dict, Callable, Tuple, List
+from typing import Dict, Callable, List
 
 
 class xDSLOptMain:
@@ -204,7 +204,7 @@ class xDSLOptMain:
         try:
             from xdsl.mlir_converter import MLIRConverter
             self.available_targets['mlir'] = _output_mlir
-        except ImportError as ex:
+        except ImportError:
             # do not add mlir as target if import does not work
             pass
 
