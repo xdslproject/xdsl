@@ -15,7 +15,8 @@ class Translation:
         self.ctx = MLContext()
         self.register_the_dialects()
         cmath_loc = open("tests/filecheck/cmath.xdsl")
-        my_op = self.parse_xdsl_file(cmath_loc)
+        translation_loc = open("tests/filecheck/translation_ops.xdsl")
+        my_op = self.parse_xdsl_file(translation_loc)
         my_op.walk(lambda di: self.print_di_definition(di)
                    if isinstance(di, DialectOp) else None)
         # my_op.walk(lambda type: self.print_type_definition(type) if isinstance(type, TypeOp) else None)
@@ -41,11 +42,9 @@ class Translation:
             # print(converter.convert_type(f.type))
             p.print(f.type)
         elif isinstance(f, AnyTypeConstraintAttr):
-            print(f"Any")
-            print("--------------")
+            print(f"Any", end="")
         elif isinstance(f, DynTypeBaseConstraintAttr):
-            print(f"{f.type_name}")
-            print("------------")
+            print(f.type_name.data, end='')
         elif isinstance(f, DynTypeParamsConstraintAttr):
             print(f.type_name.data, end='')
             print("<", end="")
