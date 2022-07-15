@@ -123,11 +123,11 @@ def test_var_mixed_builder():
         StringAttr.from_int(4)
     ]
 
-    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [2])
 
     assert op.attributes[AttrSizedResultSegments.
                          attribute_name] == DenseIntOrFPElementsAttr.from_list(
-                             dense_type, [2, 1, 2])
+                             dense_type, [2, 2])
 
 
 @irdl_op_definition

@@ -5,14 +5,15 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
+from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
                        VerifyException, irdl_attr_definition, builder,
-                       irdl_to_attr_constraint)
+                       irdl_to_attr_constraint, AnyAttr, BaseAttr,
+                       ParamAttrDef)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -588,3 +589,27 @@ def test_generic_data_no_generics_wrapper_verifier():
     p.print_attribute(attr)
     assert stream.getvalue(
     ) == "!list_no_generics_wrapper<!list<[!bool<True>, !list<[!bool<False>]>]>>"
+
+
+#  ____                              _   _   _        ____        __
+# |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __|  _ \  ___ / _|
+# | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__| | | |/ _ \ |_
+# |  __/ (_| | | | (_| | | | | | |/ ___ \ |_| |_| |  | |_| |  __/  _|
+# |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|  |____/ \___|_|
+#
+
+
+@irdl_attr_definition
+class ParamAttrDefAttr(ParametrizedAttribute):
+    name = "test.param_attr_def_attr"
+
+    arg1: ParameterDef[Attribute]
+    arg2: ParameterDef[BoolData]
+
+
+def test_irdl_definition():
+    """Test that we can get the IRDL definition of a parametrized attribute."""
+
+    assert ParamAttrDefAttr.irdl_definition == ParamAttrDef(
+        "test.param_attr_def_attr", [("arg1", AnyAttr()),
+                                     ("arg2", BaseAttr(BoolData))])
