@@ -233,7 +233,7 @@ class ParametrizedAttribute(Attribute):
     @classmethod
     @property
     def irdl_definition(cls) -> ParamAttrDef:
-        """Get the IRDL operation definition."""
+        """Get the IRDL attribute definition."""
         ...
 
 
