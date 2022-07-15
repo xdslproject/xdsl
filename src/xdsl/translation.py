@@ -9,23 +9,38 @@ from xdsl.printer import Printer
 
 
 class Translation:
+
     ctx: MLContext
 
     def __init__(self):
         self.ctx = MLContext()
         self.register_the_dialects()
-        cmath_loc = open("tests/filecheck/cmath.xdsl")
-        translation_loc = open("tests/filecheck/translation_ops.xdsl")
-        my_op = self.parse_xdsl_file(translation_loc)
+        """
+        To test AnyTypeConstraint and DynTypeBaseConstraintAttr,
+        replace file to be opened with 'tests/filecheck/translation_ops.xdsl'
+        """
+        file = open("tests/filecheck/cmath.xdsl")
+
+        my_op = self.parse_xdsl_file(file)
         my_op.walk(lambda di: self.print_di_definition(di)
                    if isinstance(di, DialectOp) else None)
-        # my_op.walk(lambda type: self.print_type_definition(type) if isinstance(type, TypeOp) else None)
-        # my_op.walk(lambda op: self.print_operation_definition(op) if isinstance(op, OperationOp) else None)
 
-    def print_type_definition(self, op: TypeOp):
-        print(f"  {op.name} {op.attributes['type_name'].data} {{")
-        op.walk(lambda param: self.print_parameters_definition(param)
-                if isinstance(param, ParametersOp) else None)
+    def parse_xdsl_file(self, f: IOBase):
+        input_str = f.read()
+        parser = Parser(self.ctx, input_str)
+        module = parser.parse_op()
+        if not (isinstance(module, ModuleOp)):
+            raise Exception("Expected module or program as toplevel operation")
+        return module
+
+    def register_the_dialects(self):
+        irdl = IRDL(self.ctx)
+        builtin = Builtin(self.ctx)
+
+    def print_type_definition(self, type: TypeOp):
+        print(f"  {type.name} {type.attributes['type_name'].data} {{")
+        type.walk(lambda param: self.print_parameters_definition(param)
+                  if isinstance(param, ParametersOp) else None)
         print(f"  }}")
 
     def print_attr_constraint(self, f):
@@ -74,24 +89,20 @@ class Translation:
         operation.walk(lambda operand_def: op_list.append(operand_def)
                        if isinstance(operand_def, OperandsOp) else None)
 
-        # operation.walk(lambda operand_def: self.print_operand_definition(
-        #     op_list) if isinstance(operand_def, OperandsOp) else None)
-
         self.print_operand_definition(op_list)
 
-        operation.walk(lambda res: self.print_res_definition(res)
+        operation.walk(lambda res: self.print_result_definition(res)
                        if isinstance(res, ResultsOp) else None)
 
         print(f"  }}")
 
-    def print_res_definition(self, res: ResultsOp):
-        print(f"    {res.name}", end="(")
-        for result in res.attributes['constraints'].data:
+    def print_result_definition(self, result_op: ResultsOp):
+        print(f"    {result_op.name}", end="(")
+        for result in result_op.attributes['constraints'].data:
             self.print_attr_constraint(result)
         print(")")
 
     def print_operand_definition(self, op_list=List[OperandsOp]):
-
         for i in range(len(op_list)):
             if i == 0:
                 print(f"    {op_list[i].name}", end="(")
@@ -102,23 +113,13 @@ class Translation:
 
     def print_di_definition(self, di: DialectOp):
         print(f"{di.name} {di.attributes['dialect_name'].data} {{")
+
         di.walk(lambda type: self.print_type_definition(type)
                 if isinstance(type, TypeOp) else None)
+
         di.walk(lambda op: self.print_operation_definition(op)
                 if isinstance(op, OperationOp) else None)
         print(f"}}")
-
-    def register_the_dialects(self):
-        irdl = IRDL(self.ctx)
-        builtin = Builtin(self.ctx)
-
-    def parse_xdsl_file(self, f: IOBase):
-        input_str = f.read()
-        parser = Parser(self.ctx, input_str)
-        module = parser.parse_op()
-        if not (isinstance(module, ModuleOp)):
-            raise Exception("Expected module or program as toplevel operation")
-        return module
 
 
 if __name__ == "__main__":
