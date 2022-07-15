@@ -2,10 +2,16 @@
 
 ## Prerequisites
 
-To install all required dependencies, execute the following command:
+To install the required dependencies, execute the following command:
 
 ```
 pip install -r requirements.txt
+```
+
+Optional dependencies, necessary for formatting the code may be installed via:
+
+```
+pip install -r requirements-optionals.txt
 ```
 
 TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
