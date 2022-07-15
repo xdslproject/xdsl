@@ -29,7 +29,7 @@ class LLVMStructType(ParametrizedAttribute):
 
     # An empty string refers to a struct without a name.
     struct_name: ParameterDef[StringAttr]
-    types: ParameterDef[ArrayAttr[AnyAttr()]]
+    types: ParameterDef[ArrayAttr[Attribute]]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
     #  bitmask = ParameterDef(StringAttr)
