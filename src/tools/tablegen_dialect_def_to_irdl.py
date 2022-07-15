@@ -163,7 +163,7 @@ def parse_op_def(file: TextIOWrapper) -> Optional[Op]:
 
 def main():
     file: TextIOWrapper = open_file(
-        "/home/martin/development/phd/projects/xDSL/onnx-mlir/src/Dialect/ONNX/ONNXOps.td.inc"
+        "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/ONNXOps.td.inc"
     )
     ops: List[Op] = []
     while (op := parse_op_def(file)):

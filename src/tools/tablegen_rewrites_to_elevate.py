@@ -27,6 +27,15 @@ class Value():
     def get_replacement_code(self, dialect_name: str) -> str:
         return self.name
 
+
+@dataclass
+class ParsedAttribute(Value):
+    name_def: str
+
+    def get_matching_code(self, dialect_name: str) -> str:
+        return f"\"{self.name_def}\" : {self.name}"
+
+
 @dataclass
 class NativeCodeCall():
     name: str
@@ -37,12 +46,13 @@ class NativeCodeCall():
     def get_replacement_code(self, dialect_name: str) -> str:
         return self.name + "()"
 
+
 @dataclass
 class Op():
     name: str
     type: Type[Operation]
     operands: List[Value | Op]
-    attributes: List[Value | NativeCodeCall]
+    attributes: List[Value | ParsedAttribute | NativeCodeCall]
     result_types: List[Attribute]
     result_binder: Optional[str]
 
@@ -65,7 +75,7 @@ class Op():
             for attribute in self.attributes:
                 matching_code += attribute.get_matching_code(dialect_name)
                 if not attribute == self.attributes[-1]:
-                                matching_code += ", "
+                    matching_code += ", "
             matching_code += "}"
 
         matching_code += ")"
@@ -91,6 +101,7 @@ class Op():
         replacement_code += ")"
 
         return replacement_code
+
 
 @dataclass
 class Pattern():
@@ -150,7 +161,7 @@ class Parser():
             self.advance_if_useless_stuff()
             return
         if len(self.cur_line) > self.cur_line_idx + 2 and self.cur_line[
-            self.cur_line_idx:self.cur_line_idx + 2] == "//":
+                self.cur_line_idx:self.cur_line_idx + 2] == "//":
             self.next_line()
             self.advance_if_useless_stuff()
             return
@@ -191,8 +202,8 @@ class Parser():
 
         parsed_str = ""
         while ord((cur_char := self.cur_line[self.cur_line_idx])) in range(
-            ord("A"),
-            ord("z")) or cur_char in [str(num) for num in range(0, 9)]:
+                ord("A"),
+                ord("z")) or cur_char in [str(num) for num in range(0, 9)]:
             parsed_str += cur_char
             self.cur_line_idx += 1
             if self.cur_line_idx >= len(self.cur_line):
@@ -226,6 +237,7 @@ class Parser():
         """
         Parse an op on the LHS of a pattern.
         """
+        self.parse_string("(")
         (op_name, op_type) = self._parse_op_name()
         if op_type is None:
             return None
@@ -237,7 +249,7 @@ class Parser():
         else:
             result_binder = None
         operands: List[Op | Value] = []
-        attributes : List[Value | NativeCodeCall] = []
+        attributes: List[Value | NativeCodeCall] = []
         self.parse_string("(")
         for operand in op_type.irdl_operand_defs:
             if (new_operand := self.parse_matched_operand()) is None:
@@ -247,14 +259,16 @@ class Parser():
 
             self.parse_string(",")
         for attribute in op_type.irdl_attribute_defs:
-            if (new_attribute := self.parse_matched_operand()) is None:
-                return None
+            if (new_attribute := self.parse_matched_attr(
+                    attribute[0])) is None:
+                self.parse_string(",")
+                continue
             attributes.append(new_attribute)
             self.parse_string(",")
-        # TODO: what about attributes?
         self.parse_string(")")
         result_types = [Attribute() for _ in op_type.irdl_result_defs]
-        return Op(op_name, op_type, operands, attributes, result_types, result_binder)
+        return Op(op_name, op_type, operands, attributes, result_types,
+                  result_binder)
 
     def parse_matched_operand(self) -> Op | Value | None:
         """
@@ -262,9 +276,23 @@ class Parser():
         """
         if self.parse_string("$"):
             val_name = self.parse_into_string()
+            if val_name == "_":
+                return None
             return Value(val_name)
         else:
             return self.parse_matched_op()
+
+    def parse_matched_attr(self, name_def: str) -> ParsedAttribute | None:
+        """
+        Parse a value or op that is used as an operand for another op.
+        """
+        if self.parse_string("$"):
+            attr_name = self.parse_into_string()
+            if attr_name == "_":
+                return None
+            return ParsedAttribute(name=attr_name, name_def=name_def)
+        else:
+            return None
 
     def parse_replacement_op(self) -> Optional[Op]:
         """
@@ -335,7 +363,7 @@ class Parser():
 
 def main():
     file = open_file(
-        "/home/martin/development/phd/projects/xDSL/onnx-mlir/src/Dialect/ONNX/Rewrite.td"
+        "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/Rewrite.td"
     )
     parser = Parser(file)
     patterns: List[Pattern] = []
@@ -345,7 +373,7 @@ def main():
         if (pattern := parser.parse_pattern()) is not None:
             patterns.append(pattern)
             print(pattern.get_code("onnx"))
-
+            print(f"found {len(patterns)} patterns")
 
     # ops: List[Op] = []
     # while (op := parse_op_def()):
