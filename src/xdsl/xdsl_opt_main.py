@@ -42,7 +42,7 @@ class xDSLOptMain:
     stream.
     """
 
-    pipeline: List[Tuple[str, Callable[[ModuleOp], None]]]
+    pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
     def __init__(self, description='xDSL modular optimizer driver'):
