@@ -58,7 +58,7 @@ def extract_code(first_line: int, line_num: int, code: list[str]) -> str:
     returns a string of the code snippet of the function with carret indicator
     """
     last_line: int = first_line + len(code)
-    assert first_line <= line_num < first_line + len(code)
+    assert first_line <= line_num < last_line
     width: int = len(str(last_line))  # calculate width for line numbers
     for i in range(first_line, last_line):
         j: int = i - first_line
