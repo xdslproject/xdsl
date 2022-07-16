@@ -13,6 +13,7 @@ from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
+from xdsl.error_format import *
 from xdsl.dialects.irdl import *
 from xdsl.dialects.llvm import LLVM
 
@@ -21,13 +22,13 @@ class xDSLOptMain:
     ctx: MLContext
     args: argparse.Namespace
     """
-    The argument parsers namespace which holds the parsed commandline 
+    The argument parsers namespace which holds the parsed commandline
     attributes.
     """
 
     available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
-    A mapping from file extension to a frontend that can handle this 
+    A mapping from file extension to a frontend that can handle this
     file type.
     """
 
@@ -38,7 +39,7 @@ class xDSLOptMain:
 
     available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
     """
-    A mapping from target names to functions that serialize a ModuleOp into a 
+    A mapping from target names to functions that serialize a ModuleOp into a
     stream.
     """
 
@@ -53,7 +54,9 @@ class xDSLOptMain:
         self.register_all_targets()
 
         # arg handling
-        arg_parser = argparse.ArgumentParser(description=description)
+        arg_parser = argparse.ArgumentParser(
+            description=description,
+            formatter_class=argparse.RawTextHelpFormatter)
         self.register_all_arguments(arg_parser)
         self.args = arg_parser.parse_args()
 
@@ -64,13 +67,33 @@ class xDSLOptMain:
         Executes the different steps.
         """
         module = self.parse_input()
-        if not self.args.verify_diagnostics:
+        if self.args.verbose_trace:
+            print("a")
+            try:
+                self.apply_passes(module)
+
+            except Exception as e:
+                # in case there is an error in the formatter
+                try:
+                    frame_count = self.args.verbose_trace[0]
+                    debug_str = verbose(e, frame_count)
+                    print(debug_str, file=sys.stderr)
+
+                except Exception:
+                    print(e)
+
+                exit(0)
+
+        elif not self.args.verify_diagnostics:
             self.apply_passes(module)
         else:
             try:
                 self.apply_passes(module)
+
             except DiagnosticException as e:
+
                 print(e)
+
                 exit(0)
 
         contents = self.output_resulting_program(module)
@@ -136,6 +159,18 @@ class xDSLOptMain:
                                 action='store_true',
                                 help="Prints the content of a triggered "
                                 "exception and exits with code 0")
+        arg_parser.add_argument(
+            "--verbose-trace",
+            type=int,
+            nargs=1,
+            required=False,
+            help=
+            "Prints the verbose traceback, need to be used with --verify-diagnostic.\n"
+            "argument: number of output frames: "
+            "\n\t- if num >  0: last [num] frames"
+            "\n\t- if num == 0: all frames"
+            "\n\t- if num <  0: drop first [num] of frames, get all the remaining frames"
+        )
 
     def register_all_dialects(self):
         """
@@ -213,7 +248,6 @@ class xDSLOptMain:
         pipeline = [
             str(item) for item in self.args.passes.split(',') if len(item) > 0
         ]
-
         for p in pipeline:
             if p not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
@@ -223,8 +257,8 @@ class xDSLOptMain:
 
     def parse_input(self) -> ModuleOp:
         """
-        Parse the input file by invoking the parser specified by the `parser` 
-        argument. If not set, the parser registered for this file extension 
+        Parse the input file by invoking the parser specified by the `parser`
+        argument. If not set, the parser registered for this file extension
         is used.
         """
         if self.args.input_file is None:
