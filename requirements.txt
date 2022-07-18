@@ -1,6 +1,4 @@
-yapf<0.33.*
 pytest<7.2.*
 filecheck<0.0.23
 lit<15.0.*
 frozenlist<1.4.*
-toml

@@ -1,11 +1,17 @@
 # xDSL
 
-## Prerequisits
+## Prerequisites
 
-To install all required dependencies, execute the following command:
+To install the required dependencies, execute the following command:
 
 ```
 pip install -r requirements.txt
+```
+
+Optional dependencies, necessary for formatting the code may be installed via:
+
+```
+pip install -r requirements-optionals.txt
 ```
 
 TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
@@ -40,8 +46,6 @@ The functionality is tested with MLIR git commit hash: 74992f4a5bb79e2084abdef40
 
 ## Formatting
 
-All python code used in xDSL use yapf to format the code in a uniform manner. 
-
-https://github.com/google/yapf
+All python code used in xDSL uses [yapf](https://github.com/google/yapf) to format the code in a uniform manner. 
 
 To automate the formatting within vim, one can use https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on save.
