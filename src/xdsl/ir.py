@@ -38,15 +38,15 @@ class MLContext:
 
     def get_op(self, name: str) -> type[Operation]:
         """Get an operation class from its name."""
-        if name not in self._registeredOps:
-            raise Exception(f"Operation {name} is not registered")
-        return self._registeredOps[name]
+        if op := self._registeredOps.get(name):
+            return op
+        raise Exception(f"Operation {name} is not registered")
 
     def get_attr(self, name: str) -> type[Attribute]:
         """Get an attribute class from its name."""
-        if name not in self._registeredAttrs:
-            raise Exception(f"Attribute {name} is not registered")
-        return self._registeredAttrs[name]
+        if attr := self._registeredAttrs.get(name):
+            return attr
+        raise Exception(f"Attribute {name} is not registered")
 
 
 @dataclass(frozen=True)
@@ -175,9 +175,10 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
-A = TypeVar('A', bound='Attribute')
+TAttribute = TypeVar('TAttribute', bound='Attribute')
 
 
+@dataclass(frozen=True)
 class Attribute(ABC):
     """
     A compile-time value.
@@ -185,15 +186,13 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: str = field(default="", init=False)
-    """The attribute name should be a static field in the attribute classes."""
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The attribute name should be a static field in the attribute classes."""
+        ...
 
-    @classmethod
-    def build(cls: type[A], *args: Any) -> A:
-        """Create a new attribute using one of the builder defined in IRDL."""
-        assert False
-
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.verify()
 
     def verify(self) -> None:
@@ -201,7 +200,13 @@ class Attribute(ABC):
         Check that the attribute parameters satisfy the expected invariants.
         Raise an exception otherwise.
         """
-        pass
+        ...
+
+    @classmethod
+    @abstractmethod
+    def build(cls: type[TAttribute], *args, **kwargs) -> TAttribute:
+        """Create a new attribute using one of the builder defined in IRDL."""
+        ...
 
 
 DataElement = TypeVar("DataElement")
