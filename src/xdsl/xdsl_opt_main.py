@@ -13,6 +13,8 @@ from xdsl.dialects.memref import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
+from xdsl.dialects.irdl import *
+from xdsl.dialects.llvm import LLVM
 
 
 class xDSLOptMain:
@@ -40,7 +42,7 @@ class xDSLOptMain:
     stream.
     """
 
-    pipeline: List[Tuple[str, Callable[[ModuleOp], None]]]
+    pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
     def __init__(self, description='xDSL modular optimizer driver'):
@@ -149,6 +151,8 @@ class xDSLOptMain:
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
         cmath = CMath(self.ctx)
+        irdl = IRDL(self.ctx)
+        llvm = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """

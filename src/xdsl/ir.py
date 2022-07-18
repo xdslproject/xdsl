@@ -12,6 +12,7 @@ from frozenlist import FrozenList
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
+    from xdsl.irdl import OpDef, ParamAttrDef
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -108,7 +109,8 @@ class SSAValue(ABC):
         """
         if safe_erase and len(self.uses) != 0:
             raise Exception(
-                "Attempting to delete SSA value that still has uses.")
+                "Attempting to delete SSA value that still has uses of operation:\n"
+                f"{self.op}")
         self.replace_by(ErasedSSAValue(self.typ, self))
 
 
@@ -227,6 +229,12 @@ class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
     parameters: list[Attribute] = field(default_factory=list)
+
+    @classmethod
+    @property
+    def irdl_definition(cls) -> ParamAttrDef:
+        """Get the IRDL attribute definition."""
+        ...
 
 
 @dataclass
@@ -465,6 +473,12 @@ class Operation:
 
     def __hash__(self) -> int:
         return id(self)
+
+    @classmethod
+    @property
+    def irdl_definition(cls) -> OpDef:
+        """Get the IRDL operation definition."""
+        ...
 
 
 @dataclass(eq=False)
