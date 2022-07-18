@@ -17,6 +17,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.mlir_parser import MLIRParser
 
 from typing import Dict, Callable, List
 
@@ -174,7 +175,17 @@ class xDSLOptMain:
                     "Expected module or program as toplevel operation")
             return module
 
+        def parse_mlir(f: IOBase):
+            input_str = f.read()
+            parser = MLIRParser(self.ctx, input_str)
+            module = parser.parse_op()
+            if not (isinstance(module, ModuleOp)):
+                raise Exception(
+                    "Expected module or program as toplevel operation")
+            return module
+
         self.available_frontends['xdsl'] = parse_xdsl
+        self.available_frontends['mlir'] = parse_mlir
 
     def register_all_passes(self):
         """

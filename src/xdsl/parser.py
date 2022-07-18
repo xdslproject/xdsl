@@ -10,7 +10,14 @@ from typing import TypeVar, Dict, Optional, Tuple, List
 indentNumSpaces = 2
 
 
+@dataclass
 class Parser:
+
+    _ctx: MLContext
+    _str: str
+    _idx: int = field(default=0, init=False)
+    _ssaValues: Dict[str, SSAValue] = field(default_factory=dict, init=False)
+    _blocks: Dict[str, Block] = field(default_factory=dict, init=False)
 
     def __init__(self, ctx: MLContext, _str: str):
         self._ctx: MLContext = ctx
