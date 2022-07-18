@@ -92,7 +92,7 @@ def test_simple_data_verifier_failure():
                                "<class 'bool'>, but <class 'int'> given.")
 
 
-class IntListMissingVerifierData(Data[List[int]]):
+class IntListMissingVerifierData(Data[list[int]]):
     """
     An attribute holding a list of integers.
     The definition should fail, since no verifier is provided, and the Data
@@ -101,11 +101,11 @@ class IntListMissingVerifierData(Data[List[int]]):
     name = "missing_verifier_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[int]:
+    def parse_parameter(parser: Parser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[int], printer: Printer) -> None:
+    def print_parameter(data: list[int], printer: Printer) -> None:
         raise NotImplementedError()
 
 
@@ -117,22 +117,23 @@ def test_data_with_non_class_param_missing_verifier_failure():
         irdl_attr_definition(IntListMissingVerifierData)
     assert e.value.args[0] == (
         'In IntListMissingVerifierData definition: '
-        'Cannot infer "verify" method. Type parameter of Data is not a class.')
+        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.'
+    )
 
 
 @irdl_attr_definition
-class IntListData(Data[List[int]]):
+class IntListData(Data[list[int]]):
     """
     An attribute holding a list of integers.
     """
     name = "int_list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[int]:
+    def parse_parameter(parser: Parser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[int], printer: Printer) -> None:
+    def print_parameter(data: list[int], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
@@ -477,15 +478,15 @@ class DataListAttr(AttrConstraint):
 
 
 @irdl_attr_definition
-class ListData(GenericData[List[A]]):
+class ListData(GenericData[list[A]]):
     name = "list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[A]:
+    def parse_parameter(parser: Parser) -> list[A]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[A], printer: Printer) -> None:
+    def print_parameter(data: list[A], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(data, printer.print_attribute)
         printer.print_string("]")
@@ -497,7 +498,7 @@ class ListData(GenericData[List[A]]):
 
     @staticmethod
     @builder
-    def from_list(data: List[A]) -> ListData[A]:
+    def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
 
     def verify(self) -> None:

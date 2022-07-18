@@ -50,11 +50,11 @@ class For(Operation):
             )
 
     @staticmethod
-    def from_region(operands: List[Union[Operation, SSAValue]],
-                    lower_bound: Union[int, IntegerAttr],
-                    upper_bound: Union[int, IntegerAttr],
+    def from_region(operands: list[Operation | SSAValue],
+                    lower_bound: int | IntegerAttr,
+                    upper_bound: int | IntegerAttr,
                     region: Region,
-                    step: Union[int, IntegerAttr] = 1) -> For:
+                    step: int | IntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
         return For.build(operands=[[operand for operand in operands]],
                          result_types=[result_types],
@@ -66,11 +66,11 @@ class For(Operation):
                          regions=[region])
 
     @staticmethod
-    def from_callable(operands: List[Union[Operation, SSAValue]],
-                      lower_bound: Union[int, IntegerAttr],
-                      upper_bound: Union[int, IntegerAttr],
+    def from_callable(operands: list[Operation | SSAValue],
+                      lower_bound: int | IntegerAttr,
+                      upper_bound: int | IntegerAttr,
                       body: Block.BlockCallback,
-                      step: Union[int, IntegerAttr] = 1) -> For:
+                      step: int | IntegerAttr = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
         return For.from_region(
             operands, lower_bound, upper_bound,

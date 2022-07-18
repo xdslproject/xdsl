@@ -70,22 +70,22 @@ class Printer:
         """
         Print a message.
         This is expected to be called on the beginning of a new line, and expect to create a new line at the end.
+        [begin_pos, end_pos)
         """
         indent = self._indent if indent is None else indent
-        self.print(" " * indent * indentNumSpaces)
         indent_size = indent * indentNumSpaces
-        message_end_pos = max([len(line) for line in message.split("\n")]) + 2
+        self.print(" " * indent_size)
+        message_end_pos = max(map(len, message.split("\n"))) + indent_size + 2
         first_line = (begin_pos - indent_size) * "-" + (
-            end_pos - begin_pos + 1) * "^" + (max(message_end_pos, end_pos) -
-                                              end_pos) * "-"
+            end_pos - begin_pos) * "^" + (max(message_end_pos, end_pos) -
+                                          end_pos) * "-"
         self.print(first_line)
         self._print_new_line(indent=indent, print_message=False)
-        message_lines = message.split("\n")
-        for message_line in message_lines:
+        for message_line in message.split("\n"):
             self.print("| ")
             self.print(message_line)
             self._print_new_line(indent=indent, print_message=False)
-        self.print("-" * (max(message_end_pos, end_pos) - indent_size + 1))
+        self.print("-" * (max(message_end_pos, end_pos) - indent_size))
         self._print_new_line(indent=0, print_message=False)
 
     T = TypeVar('T')
@@ -103,10 +103,9 @@ class Printer:
         indent = self._indent if indent is None else indent
         self.print("\n")
         if print_message:
-            while len(self._next_line_callback) != 0:
-                callback = self._next_line_callback[0]
-                self._next_line_callback = self._next_line_callback[1:]
+            for callback in self._next_line_callback:
                 callback()
+            self._next_line_callback = []
         self.print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> str:
@@ -156,10 +155,15 @@ class Printer:
         self.print(") = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
-        if (self._ssa_values.get(value) == None):
-            raise KeyError("SSAValue is not part of the IR, are you sure"
-                           " all operations are added before their uses?")
-        self.print(f"%{self._ssa_values[value]}")
+        if ssa_val := self._ssa_values.get(value):
+            self.print(f"%{ssa_val}")
+        else:
+            begin_pos = self._current_column
+            self.print("%<UNKNOWN>")
+            end_pos = self._current_column
+            self._add_message_on_next_line(
+                "ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?",
+                begin_pos, end_pos)
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -314,7 +318,7 @@ class Printer:
             self.print(f'"{op.name}"')
         else:
             self.print(op.name)
-        end_op_pos = self._current_column - 1
+        end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
             for message in self.diagnostic.op_messages[op]:
                 self._add_message_on_next_line(message, begin_op_pos,
