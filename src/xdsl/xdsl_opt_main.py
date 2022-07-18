@@ -17,6 +17,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.mlir_parser import MLIRParser
 
 from typing import Dict, Callable, List
 
