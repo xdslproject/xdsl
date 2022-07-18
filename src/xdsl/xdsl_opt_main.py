@@ -4,6 +4,7 @@ import os
 from io import IOBase
 from xdsl.ir import *
 from xdsl.parser import *
+from xdsl.mlir_parser import MLIRParser
 from xdsl.printer import *
 from xdsl.dialects.func import *
 from xdsl.dialects.scf import *
@@ -170,7 +171,17 @@ class xDSLOptMain:
                     "Expected module or program as toplevel operation")
             return module
 
+        def parse_mlir(f: IOBase):
+            input_str = f.read()
+            parser = MLIRParser(self.ctx, input_str)
+            module = parser.parse_op()
+            if not (isinstance(module, ModuleOp)):
+                raise Exception(
+                    "Expected module or program as toplevel operation")
+            return module
+
         self.available_frontends['xdsl'] = parse_xdsl
+        self.available_frontends['mlir'] = parse_mlir
 
     def register_all_passes(self):
         """
