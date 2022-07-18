@@ -1,4 +1,4 @@
-"builtin.module"() ({
+module {
     %arg0 = "funcarg"() : () -> tensor<?x?xi64>
     %arg1 = "funcarg"() : () -> tensor<?x?xi64>
     %arg2 = "funcarg"() : () -> tensor<?x?xi64>
@@ -162,4 +162,4 @@
     %157 = "onnx.Constant"() {value = opaque<"elided_large_const", "0xDEADBEEF"> : tensor<768xf32>} : () -> tensor<768xf32>
     %158 = "onnx.Gemm"(%155, %156, %157) {alpha = 1.000000e+00 : f32, beta = 1.000000e+00 : f32, onnx_node_name = "Gemm_129", transB = 1 : si64} : (tensor<?x768xf32>, tensor<768x768xf32>, tensor<768xf32>) -> tensor<?x768xf32>
     %159 = "onnx.Tanh"(%158) {onnx_node_name = "Tanh_130"} : (tensor<?x768xf32>) -> tensor<?x768xf32>
-}) : () -> ()
+}

@@ -16,6 +16,10 @@ from xdsl.dialects.cmath import *
 from xdsl.dialects.cf import *
 from xdsl.dialects.irdl import *
 from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.irdl import IRDL
+from xdsl.mlir_parser import MLIRParser
+
+from typing import Dict, Callable, List
 
 
 class xDSLOptMain:
