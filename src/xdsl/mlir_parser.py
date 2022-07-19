@@ -1,12 +1,13 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import ModuleOp, StringAttr
-from xdsl.ir import Attribute, Operation, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import (RegionDef, VarOperandDef, AnyAttr, VarResultDef,
+from xdsl.dialects.builtin import FunctionType, IntegerType, ModuleOp, StringAttr
+from xdsl.ir import (Attribute, Operation, ParametrizedAttribute, Region,
+                     SSAValue, Block)
+from xdsl.irdl import (VarOperandDef, AnyAttr, VarResultDef,
                        irdl_attr_definition, irdl_op_definition, ParameterDef,
                        builder)
 from xdsl.parser import Parser
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Callable, TypeVar
 
 
 @irdl_op_definition
@@ -33,24 +34,42 @@ class UnkownMLIRAttr(ParametrizedAttribute):
 @dataclass(eq=False, repr=False)
 class MLIRParser(Parser):
 
-    def parse_optional_attribute(self) -> Attribute | None:
-        self.skip_white_space()
-        # Contains the list of parentheses to close
+    _T = TypeVar("_T")
+
+    def try_parse(
+        self,
+        parse_fn: Callable[[], _T | None],
+    ) -> _T | None:
+        """
+        Try to parse something.
+        If the parsing fails, then cancel any exceptions, and go back to where
+        we were in the parsing.
+        """
+        start_idx = self._idx
+        try:
+            res = parse_fn()
+            if res is not None:
+                return res
+        except:
+            pass
+        self._idx = start_idx
+        return None
+
+    def parse_optional_balanced_string(self) -> str | None:
+        open_parentheses = ["(", "[", "<", "{"]
+        if self._idx == len(
+                self._str) or self._str[self._idx] not in open_parentheses:
+            return None
+
         paren_stack = list[str]()
         start_idx = self._idx
         while self._idx < len(self._str):
             char = self._str[self._idx]
-            if char in ["(", "[", "<", "{"]:
+            if char in open_parentheses:
                 paren_stack.append(char)
-            if char in ['"'] and (len(paren_stack) == 0
-                                  or paren_stack[-1] != '"'):
-                paren_stack.append(char)
-            elif (len(paren_stack) == 0
-                  and (char == ")" or char == "]" or char == ">" or char == "}"
-                       or char == "%" or char == ",")):
-                if start_idx == self._idx:
-                    return None
-                return UnkownMLIRAttr.from_str(self._str[start_idx:self._idx])
+            elif char == '"':
+                self.parse_str_literal()
+                continue  # self._idx is already incremented past the string
             elif char == ")" and paren_stack[-1] == "(":
                 paren_stack.pop()
             elif char == "]" and paren_stack[-1] == "[":
@@ -59,12 +78,45 @@ class MLIRParser(Parser):
                 paren_stack.pop()
             elif char == "}" and paren_stack[-1] == "{":
                 paren_stack.pop()
-            elif char == '"' and paren_stack[-1] == '"':
-                paren_stack.pop()
+
             self._idx += 1
-        if start_idx == self._idx:
+            if len(paren_stack) == 0:
+                return self._str[start_idx:self._idx]
+
+    def parse_optional_attribute(self) -> Attribute | None:
+        self.skip_white_space()
+
+        # str_literal
+        str_literal = self.parse_optional_str_literal()
+        if str_literal is not None:
+            print(str_literal)
+            return StringAttr.from_str(str_literal)
+
+        # function_type
+        def parse_function_type() -> Attribute | None:
+            self.parse_char('(')
+            inputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(')')
+            self.parse_string("->")
+            output = self.parse_attribute()
+            return FunctionType.from_lists(inputs, [output])
+
+        fun = self.try_parse(parse_function_type)
+        if fun is not None:
+            print(fun)
+            return fun
+
+        # unkown type with alphanum + paren
+        alpha_num = self.parse_optional_alpha_num()
+        paren = self.parse_optional_balanced_string()
+        if alpha_num is None:
+            alpha_num = ""
+        if paren is None:
+            paren = ""
+        if alpha_num + paren == "":
             return None
-        return UnkownMLIRAttr.from_str(self._str[start_idx:self._idx])
+        print(alpha_num + paren)
+        return UnkownMLIRAttr.from_str(alpha_num + paren)
 
     def parse_optional_result(self) -> str | None:
         name = self.parse_optional_ssa_name()
@@ -122,11 +174,36 @@ class MLIRParser(Parser):
 
         return inputs, outputs
 
+    def parse_optional_region(self) -> Region | None:
+        if not self.parse_optional_char("("):
+            return None
+        self.parse_char("{")
+        region = Region()
+
+        if self.peek_char("^"):
+            for block in self.parse_list(self.parse_optional_named_block,
+                                         delimiter=""):
+                region.add_block(block)
+        else:
+            region.add_block(Block())
+            for op in self.parse_list(self.parse_optional_op, delimiter=""):
+                region.blocks[0].add_op(op)
+        self.parse_char("}")
+        self.parse_char(")")
+        return region
+
     _OperationType = TypeVar('_OperationType', bound='Operation')
 
     def parse_op_with_default_format(self, op_type: type[_OperationType],
                                      num_results: int) -> _OperationType:
         operands = self.parse_operands()
+
+        regions = list[Region]()
+        region = self.parse_optional_region()
+        while region is not None:
+            regions.append(region)
+            region = self.parse_optional_region()
+
         attributes = self.parse_op_attributes()
         self.parse_char(":")
         operand_types, result_types = self.parse_op_type()
@@ -140,13 +217,9 @@ class MLIRParser(Parser):
         for operand, operand_type in zip(operands, operand_types):
             if operand.typ != operand_type:
                 raise Exception("Operation operand types are not matching "
-                                "the types of its operands")
-
-        regions = list[Region]()
-        region = self.parse_optional_region()
-        while region is not None:
-            regions.append(region)
-            region = self.parse_optional_region()
+                                "the types of its operands. Got operand with "
+                                f"type {operand.typ}, but operation expect "
+                                f"operand to be of type {operand_type}")
 
         return op_type.create(operands=operands,
                               attributes=attributes,
