@@ -18,15 +18,15 @@ class Op():
         irdl_string = """"""
         irdl_string += "@irdl_op_definition\n"
         irdl_string += f"class {self.name}(Operation):\n"
-        if self.name.lower().startswith(dialect_name):
-            adjusted_name = self.name.lower().lstrip(dialect_name)
+        if self.name.startswith(dialect_name):
+            adjusted_name = self.name.removeprefix(dialect_name)
         else:
-            adjusted_name = self.name.lower()
+            adjusted_name = self.name
         irdl_string += f"    name: str = \"{dialect_name.lower()}.{adjusted_name}\"\n"
         irdl_string += f"    summary: str = \\\nr\"\"\"{self.summary}\"\"\"\n"
         irdl_string += f"    description: str =\\\nr\"\"\"{self.description}\"\"\"\n"
         for arg in self.arguments:
-            def_type: str = "AttributeDef" if arg.is_attribute else "OperandDef"
+            def_type: str = "OptAttributeDef" if arg.is_attribute else ("VarOperandDef" if arg.is_variadic else "OperandDef")
             irdl_string += f"    {arg.name} = {def_type}(Attribute) # should actually be {arg.type}\n"
         for result in self.results:
             irdl_string += f"    {result.name} = ResultDef(Attribute) # should actually be {result.type}\n"
@@ -42,6 +42,7 @@ class TypedName():
     name: str
     type: str
     is_attribute: bool = False
+    is_variadic: bool = False
 
 
 def get_dialect_def(dialect_name: str,
@@ -106,7 +107,7 @@ def parse_text_field(field_name: str, file: TextIOWrapper) -> str:
 
     field_contents = line[len("let " + field_name + " = ") + 1:]
     # ; terminates a field
-    while line[-1] != ";":
+    while not line.endswith(";"):
         field_contents += "\n"
         line = get_next_line(file)
         if line is None:
@@ -117,24 +118,25 @@ def parse_text_field(field_name: str, file: TextIOWrapper) -> str:
 
 
 def parse_NamedValue_field(field_name: str,
-                           file: TextIOWrapper) -> List[TypedName]:
+                           file: TextIOWrapper) -> list[TypedName]:
     line = skip_until(field_name, file)
-    args: List[TypedName] = []
+    args: list[TypedName] = []
     if line is None:
         return []
-    line = line.lstrip(f"let {field_name} = (ins ")
+    line = line.removeprefix(f"let {field_name} = (ins ")
 
     def add_ssa_val(cur_line: str):
         type, name = cur_line.split(":")
         is_attr = "Attr" in type
+        is_variadic = "Variadic" in type
         args.append(
             TypedName(name.translate(str.maketrans('', '', '$;),')),
                       type,
-                      is_attribute=is_attr))
+                      is_attribute=is_attr, is_variadic=is_variadic))
 
     add_ssa_val(line)
     # ; terminates a field
-    while line[-1] != ";":
+    while not line.endswith(":"):
         line = get_next_line(file)
         if line is None:
             return args
@@ -152,7 +154,7 @@ def parse_op_def(file: TextIOWrapper) -> Optional[Op]:
         return None
 
     # drop def from front, name is before the ":" character
-    op = Op(def_line[4:].split(":")[0])
+    op = Op(def_line[4:].split("\"")[1])
     op.summary = parse_text_field("summary", file)
     op.description = parse_text_field("description", file)
     op.arguments = parse_NamedValue_field("arguments", file)
@@ -165,8 +167,8 @@ def main():
     file: TextIOWrapper = open_file(
         "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/ONNXOps.td.inc"
     )
-    ops: List[Op] = []
-    while (op := parse_op_def(file)):
+    ops: list[Op] = []
+    while op := parse_op_def(file):
         ops.append(op)
 
     dialect_name = "Onnx"
