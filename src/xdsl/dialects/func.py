@@ -23,7 +23,7 @@ class FuncOp(Operation):
     body = RegionDef()
     sym_name = AttributeDef(StringAttr)
     function_type = AttributeDef(FunctionType)
-    sym_visibility = AttributeDef(StringAttr)
+    sym_visibility = OptAttributeDef(StringAttr)
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],
