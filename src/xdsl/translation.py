@@ -12,26 +12,36 @@ class Translation:
 
     ctx: MLContext
 
-    def __init__(self):
-        self.ctx = MLContext()
-        self.register_the_dialects()
+    # stream
+
+    # def __init__(self, file="tests/filecheck/cmath.xdsl"):
+    #     self.ctx = MLContext()
+    #     self.register_the_dialects()
+    #     # file_name = "tests/filecheck/cmath.xdsl"
+    #     # Translation.run(self, file)
+
+    # prog
+    def print_module(self, module):
         """
         To test AnyTypeConstraint and DynTypeBaseConstraintAttr,
         replace file to be opened with 'tests/filecheck/translation_ops.xdsl'
         """
-        file = open("tests/filecheck/cmath.xdsl")
 
-        my_op = self.parse_xdsl_file(file)
-        my_op.walk(lambda di: self.print_di_definition(di)
+        # file = open("tests/filecheck/cmath.xdsl")
+        # remove
+        # def parse_xdsl_file(self, f: IOBase):
+        #     file = open(f)
+        #     input_str = file.read()
+        #     parser = Parser(self.ctx, input_str)
+        #     module = parser.parse_op()
+        #     if not (isinstance(module, ModuleOp)):
+        #         raise Exception(
+        #             "Expected module or program as toplevel operation")
+        #     return module
+
+        # my_op = parse_xdsl_file(self, file_name)
+        my_op.walk(lambda di: Translation.print_di_definition(self, di)
                    if isinstance(di, DialectOp) else None)
-
-    def parse_xdsl_file(self, f: IOBase):
-        input_str = f.read()
-        parser = Parser(self.ctx, input_str)
-        module = parser.parse_op()
-        if not (isinstance(module, ModuleOp)):
-            raise Exception("Expected module or program as toplevel operation")
-        return module
 
     def register_the_dialects(self):
         irdl = IRDL(self.ctx)
@@ -122,5 +132,5 @@ class Translation:
         print(f"}}")
 
 
-if __name__ == "__main__":
-    t = Translation()
+# if __name__ == "__main__":
+#     t = Translation()
