@@ -1,5 +1,5 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import FunctionType, IntegerType, ModuleOp, StringAttr
+from xdsl.dialects.builtin import FunctionType, ModuleOp, StringAttr
 from xdsl.ir import (Attribute, Operation, ParametrizedAttribute, Region,
                      SSAValue, Block)
 from xdsl.irdl import (VarOperandDef, AnyAttr, VarResultDef,
@@ -89,7 +89,6 @@ class MLIRParser(Parser):
         # str_literal
         str_literal = self.parse_optional_str_literal()
         if str_literal is not None:
-            print(str_literal)
             return StringAttr.from_str(str_literal)
 
         # function_type
@@ -103,20 +102,35 @@ class MLIRParser(Parser):
 
         fun = self.try_parse(parse_function_type)
         if fun is not None:
-            print(fun)
             return fun
 
-        # unkown type with alphanum + paren
-        alpha_num = self.parse_optional_alpha_num()
-        paren = self.parse_optional_balanced_string()
-        if alpha_num is None:
-            alpha_num = ""
-        if paren is None:
-            paren = ""
-        if alpha_num + paren == "":
+        def parse_alnum_paren() -> str | None:
+            alpha_num = self.parse_optional_alpha_num()
+            paren = self.parse_optional_balanced_string()
+            if alpha_num is None:
+                alpha_num = ""
+            if paren is None:
+                paren = ""
+            if alpha_num + paren == "":
+                return None
+            return alpha_num + paren
+
+        if (alnum_parens := parse_alnum_paren()) is None:
             return None
-        print(alpha_num + paren)
-        return UnkownMLIRAttr.from_str(alpha_num + paren)
+
+        # in the case of floats, we need to parse the exponent part
+        if self.parse_optional_char("+") is not None:
+            exponent = self.parse_int_literal()
+            alnum_parens = alnum_parens + "+" + str(exponent)
+
+        if self.parse_optional_char(":") is not None:
+            alnum_parens2 = parse_alnum_paren()
+            if alnum_parens2 is None:
+                raise Exception("Attribute expected after `:`")
+            return UnkownMLIRAttr.from_str(alnum_parens.strip() + " : " +
+                                           alnum_parens2.strip())
+
+        return UnkownMLIRAttr.from_str(alnum_parens)
 
     def parse_optional_result(self) -> str | None:
         name = self.parse_optional_ssa_name()
@@ -150,6 +164,7 @@ class MLIRParser(Parser):
             return None
         self.parse_char("=")
         attr = self.parse_attribute()
+        print(attr_name, attr)
         return attr_name, attr
 
     def parse_op_attributes(self) -> dict[str, Attribute]:
@@ -237,19 +252,15 @@ class MLIRParser(Parser):
         else:
             op_name, is_generic_format = self._parse_op_name()
 
+        # We first fix the name of the module
+        if op_name == "builtin.module":
+            op_name = "module"
+
         # We use UnkownMLIROp to handle unregistered operations
         if op_name not in self._ctx._registeredOps:
             op_type = UnkownMLIROp
         else:
             op_type = self._ctx.get_op(op_name)
-
-        if op_type is ModuleOp:
-            region = self.parse_optional_region()
-            if len(results) != 0:
-                raise Exception("Module operation expects no results")
-            if region is None:
-                raise Exception("Region expected")
-            return ModuleOp.from_region_or_ops(region)
 
         op = self.parse_op_with_default_format(op_type, len(results))
         if op_type is UnkownMLIROp:
