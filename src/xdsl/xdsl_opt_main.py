@@ -202,7 +202,7 @@ class xDSLOptMain:
             print(mlir_module, file=output)
 
         def _output_irdl(prog: ModuleOp, output: IOBase):
-            irdl_to_mlir = IRDLPrinter()
+            irdl_to_mlir = IRDLPrinter(stream=output)
             irdl_to_mlir.print_module(prog)
 
         self.available_targets['xdsl'] = _output_xdsl
