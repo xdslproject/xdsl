@@ -1,70 +1,82 @@
-from xdsl.ir import MLContext
+from io import IOBase
 from xdsl.printer import Printer
-from xdsl.dialects.irdl import *
+from xdsl.dialects.irdl import (
+    DialectOp, ParametersOp, TypeOp, OperandsOp, ResultsOp, OperationOp,
+    EqTypeConstraintAttr, AnyTypeConstraintAttr, AnyOfTypeConstraintAttr,
+    DynTypeBaseConstraintAttr, DynTypeParamsConstraintAttr,
+    TypeParamsConstraintAttr, NamedTypeConstraintAttr)
 from dataclasses import dataclass
 
-# remb to look at and remove all the comments
 
-
-@dataclass
+@dataclass(frozen=True, eq=False)
 class IRDLPrinter:
 
-    ctx: MLContext
+    stream: IOBase
 
-    #stream in all prints to output to a file
+    def _print(self, s: str, **kw_args):
+        print(s, file=self.stream, **kw_args)
 
     def print_module(self, module):
-        print('module{')
+        self._print('module{')
         module.walk(lambda di: IRDLPrinter.print_dialect_definition(self, di)
                     if isinstance(di, DialectOp) else None)
-        print('}')
-        # adjust the indentation accordingly later since module is added
+        self._print('}')
 
     def print_type_definition(self, type: TypeOp):
-        print(f"  {type.name} {type.attributes['type_name'].data} {{")
+        self._print(f"    {type.name} {type.attributes['type_name'].data} {{")
         type.walk(lambda param: self.print_parameters_definition(param)
                   if isinstance(param, ParametersOp) else None)
-        print(f"  }}")
+        self._print(f"    }}")
 
     def print_attr_constraint(self, f):
+
         if isinstance(f, AnyOfTypeConstraintAttr):
-            print(f"AnyOf", end="<")
+            self._print(f"AnyOf", end="<")
             for i in range(len(f.params.data) - 1):
                 self.print_attr_constraint(f.params.data[i])
-                print(", ", end="")
+                self._print(", ", end="")
             self.print_attr_constraint(f.params.data[len(f.params.data) - 1])
-            print(">", end="")
+            self._print(">", end="")
+
         elif isinstance(f, EqTypeConstraintAttr):
-            p = Printer()
+            p = Printer(self.stream)
             p.print(f.type)
+
         elif isinstance(f, AnyTypeConstraintAttr):
-            print(f"Any", end="")
+            self._print(f"Any", end="")
+
         elif isinstance(f, DynTypeBaseConstraintAttr):
-            print(f.type_name.data, end='')
+            self._print(f.type_name.data, end='')
+
         elif isinstance(f, DynTypeParamsConstraintAttr):
-            print(f.type_name.data, end='')
-            print("<", end="")
+            self._print(f.type_name.data, end='')
+            self._print("<", end="")
             for i in range(len(f.params.data)):
                 self.print_attr_constraint(f.params.data[i])
-            print(">", end="")
+            self._print(">", end="")
+
         elif isinstance(f, TypeParamsConstraintAttr):
-            print(f"{f.type_name}")
+            self._print(f"{f.type_name}")
+
         elif isinstance(f, NamedTypeConstraintAttr):
-            print(f.type_name.data, end='')
-            print(":", end=" ")
+            self._print(f.type_name.data, end='')
+            self._print(":", end=" ")
             self.print_attr_constraint(f.params_constraints)
+
         else:
             raise Exception(f"Invalid Constraint: {type(f)} ")
 
     def print_parameters_definition(self, param_op: ParametersOp):
-        print(f"    {ParametersOp.name}", end="(")
+        self._print(f"      {ParametersOp.name}", end="(")
+
         for param in param_op.constraints.data:
-            print(f"{param.type_name.data}: ", end="")
+            self._print(f"{param.type_name.data}: ", end="")
             self.print_attr_constraint(param.params_constraints)
-        print(")")
+        self._print(")")
 
     def print_operation_definition(self, operation: OperationOp):
-        print(f"  {OperationOp.name} {operation.attributes['name'].data} {{")
+        self._print(
+            f"    {OperationOp.name} {operation.attributes['name'].data} {{")
         '''
         Checking for existence of operands
         '''
@@ -82,53 +94,32 @@ class IRDLPrinter:
         if result_list:
             self.print_result_definition(result_list)
 
-        print(f"  }}")
+        self._print(f"    }}")
 
     def print_result_definition(self, res_list=list[ResultsOp]):
+        self._print(f"      {ResultsOp.name}", end="(")
 
-        # OLD VERSION
-        # print(f"    {ResultsOp.name}", end="(")
-        # for result in result_op.attributes['constraints'].data:
-        #     self.print_attr_constraint(result)
-        # print(")")
-
-        print(f"    {ResultsOp.name}", end="(")
         for i in range(len(res_list)):
             for result in res_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(result)
-                print(", ", end='') if i != len(res_list) - 1 else ''
-        print(")")
+                self._print(", ", end='') if i != len(res_list) - 1 else ''
+        self._print(")")
 
     def print_operand_definition(self, op_list=list[OperandsOp]):
-        print(f"    {OperandsOp.name}", end="(")
+        self._print(f"      {OperandsOp.name}", end="(")
+
         for i in range(len(op_list)):
             for ops in op_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(ops)
-                print(", ", end='') if i != len(op_list) - 1 else ''
-        print(")")
-
-        # MORE READABLE VERSION but circumvent i
-        # for operation in op_list:
-        #     for constraint in operation.attributes['constraints'].data:
-        #         self.print_attr_constraint(constraint)
-        #         print(", ", end='') if i != len(op_list) - 1 else ''
-        # print(")")
-
-        # OLD VERSION
-        # for i in range(len(op_list)):
-        #     if i == 0:
-        #         print(f"    {op_list[i].name}", end="(")
-        #     for ops in op_list[i].attributes['constraints'].data:
-        #         self.print_attr_constraint(ops)
-        #         print(", ", end='') if i != len(op_list) - 1 else ''
-        # print(")")
+                self._print(", ", end='') if i != len(op_list) - 1 else ''
+        self._print(")")
 
     def print_dialect_definition(self, di: DialectOp):
-        print(f"{di.name} {di.attributes['dialect_name'].data} {{")
+        self._print(f"  {di.name} {di.attributes['dialect_name'].data} {{")
 
         di.walk(lambda type: self.print_type_definition(type)
                 if isinstance(type, TypeOp) else None)
 
         di.walk(lambda op: self.print_operation_definition(op)
                 if isinstance(op, OperationOp) else None)
-        print(f"}}")
+        self._print(f"  }}")
