@@ -19,6 +19,7 @@ from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 
 from typing import Dict, Callable, List
+import xdsl.irdl_mlir_printer
 
 
 class xDSLOptMain:
@@ -200,7 +201,13 @@ class xDSLOptMain:
             mlir_module = converter.convert_module(prog)
             print(mlir_module, file=output)
 
+        def _output_irdl(prog: ModuleOp, output: IOBase):
+            irdl_to_mlir = xdsl.irdl_mlir_printer.IRDLPrinter()
+            irdl_to_mlir.print_module(prog)
+
         self.available_targets['xdsl'] = _output_xdsl
+        self.available_targets['irdl'] = _output_irdl
+
         try:
             from xdsl.mlir_converter import MLIRConverter
             self.available_targets['mlir'] = _output_mlir
