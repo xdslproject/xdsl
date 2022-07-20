@@ -17,9 +17,9 @@ from xdsl.dialects.cf import Cf
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.irdl_mlir_printer import IRDLPrinter
 
 from typing import Dict, Callable, List
-import xdsl.irdl_mlir_printer
 
 
 class xDSLOptMain:
@@ -202,7 +202,7 @@ class xDSLOptMain:
             print(mlir_module, file=output)
 
         def _output_irdl(prog: ModuleOp, output: IOBase):
-            irdl_to_mlir = xdsl.irdl_mlir_printer.IRDLPrinter()
+            irdl_to_mlir = IRDLPrinter()
             irdl_to_mlir.print_module(prog)
 
         self.available_targets['xdsl'] = _output_xdsl
