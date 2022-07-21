@@ -1,11 +1,13 @@
 from xdsl.dialects.scf import Scf, If
 
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64
+from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64, ModuleOp
 from xdsl.parser import Parser
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.ir import MLContext
-from xdsl.pattern_rewriter import *
+from xdsl.ir import MLContext, Region, Operation
+from xdsl.pattern_rewriter import (PatternRewriteWalker, op_type_rewrite_pattern,
+                                   RewritePattern, PatternRewriter, AnonymousRewritePattern,
+                                   GreedyRewritePatternApplier)
 from io import StringIO
 
 
