@@ -1,14 +1,14 @@
-import array
 from typing import Dict
 
 from xdsl import _mlir_module as mlir
-from xdsl.ir import SSAValue
+from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
+                     BlockArgument, Attribute)
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
                                    ArrayAttr, FlatSymbolRefAttr, StringAttr,
-                                   Operation, FunctionType, Attribute,
-                                   TupleType)
-from xdsl.dialects.memref import MemRefType, Float32Type, OpResult, BlockArgument, SymbolNameAttr, Region, ModuleOp, Block
+                                   FunctionType, TupleType, ModuleOp,
+                                   Float32Type)
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
 
 from xdsl import ensure_mlir_module_loaded
