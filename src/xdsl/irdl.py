@@ -9,10 +9,12 @@ from inspect import isclass
 from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
                     TypeVar, Union, cast, get_args, get_origin, get_type_hints)
 
+from frozenlist import FrozenList
+
 from xdsl import util
 from xdsl.diagnostic import Diagnostic, DiagnosticException
-from xdsl.ir import (Attribute, Block, Data, Operation, ParametrizedAttribute,
-                     Region, SSAValue)
+from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
+                     ParametrizedAttribute, Region, SSAValue)
 
 
 def error(op: Operation, msg: str):
@@ -404,6 +406,16 @@ class RegionDef(Region):
 
 
 @dataclass
+class VarRegionDef(RegionDef, VariadicDef):
+    """An IRDL variadic region definition."""
+
+
+@dataclass
+class OptRegionDef(RegionDef, OptionalDef):
+    """An IRDL optional region definition."""
+
+
+@dataclass
 class SingleBlockRegionDef(RegionDef):
     """An IRDL region definition that expects exactly one block."""
     pass
@@ -470,141 +482,198 @@ class OpDef:
         return op_def
 
 
+def get_variadic_sizes_from_attr(
+        op: Operation, n_expected_variadics: int,
+        option: AttrSizedOperandSegments | AttrSizedResultSegments
+) -> list[int]:
+    # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+    size_attribute_name = option.attribute_name
+
+    if size_attribute_name not in op.attributes:
+        raise VerifyException(
+            f"Expected {size_attribute_name} attribute in {op.name} operation."
+        )
+    attribute = op.attributes[size_attribute_name]
+    if not isinstance(attribute, DenseIntOrFPElementsAttr):
+        raise VerifyException(
+            f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
+        )
+    variadic_sizes: list[int] = [
+        size_attr.value.data for size_attr in attribute.data.data
+    ]
+    if len(variadic_sizes) != n_expected_variadics:
+        raise VerifyException(
+            f"expected {n_expected_variadics} values in "
+            f"{size_attribute_name}, but got {len(variadic_sizes)}")
+    return variadic_sizes
+
+
+class VariadicType(Enum):
+    OPERAND = 1
+    RESULT = 2
+    REGION = 3
+
+    def get_defs(
+        self, op_def: OpDef
+    ) -> list[tuple[str, OperandDef]] | list[tuple[str, ResultDef]] | list[
+            tuple[str, RegionDef]]:
+        if self == self.OPERAND:
+            return op_def.operands
+        if self == self.RESULT:
+            return op_def.results
+        if self == self.REGION:
+            return op_def.regions
+        assert False, "Unknown VariadicType value"
+
+    def get_args(
+            self, op: Operation
+    ) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
+        if self == self.OPERAND:
+            return op.operands
+        if self == self.RESULT:
+            return op.results
+        if self == self.REGION:
+            return op.regions
+        assert False, "Unknown VariadicType value"
+
+    def get_name(self) -> str:
+        if self == self.OPERAND:
+            return "operand"
+        if self == self.RESULT:
+            return "result"
+        if self == self.REGION:
+            return "region"
+        assert False, "Unknown VariadicType value"
+
+    def get_attr_size_option(
+            self) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
+        if self == self.OPERAND:
+            return AttrSizedOperandSegments()
+        if self == self.RESULT:
+            return AttrSizedResultSegments()
+        if self == self.REGION:
+            return None
+        assert False, "Unknown VariadicType value"
+
+
 def get_variadic_sizes(op: Operation, op_def: OpDef,
-                       is_operand: bool) -> list[int]:
+                       typ: VariadicType) -> list[int]:
     """Get variadic sizes of operands or results."""
 
-    # We need irdl to define DenseIntOrFPElementsAttr, but here we need
-    # DenseIntOrFPElementsAttr.
-    # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+    defs = typ.get_defs(op_def)
+    args = typ.get_args(op)
+    def_type_name = typ.get_name()
+    attribute_option = typ.get_attr_size_option()
 
-    operand_or_result_defs = op_def.operands if is_operand else op_def.results
-    variadic_defs = [(arg_name, arg_def)
-                     for arg_name, arg_def in operand_or_result_defs
+    variadic_defs = [(arg_name, arg_def) for arg_name, arg_def in defs
                      if isinstance(arg_def, VariadicDef)]
 
-    op_defs = op.operands if is_operand else op.results
-    def_type_name = "operand" if is_operand else "result"
-
     # If the size is in the attributes, fetch it
-    attribute_option = AttrSizedOperandSegments(
-    ) if is_operand else AttrSizedResultSegments()
-    if attribute_option in op_def.options:
-        size_attribute_name = AttrSizedOperandSegments.attribute_name if is_operand else AttrSizedResultSegments.attribute_name
-        if size_attribute_name not in op.attributes:
-            raise VerifyException(
-                f"Expected {size_attribute_name} attribute in {op.name} operation."
-            )
-        attribute = op.attributes[size_attribute_name]
-        if not isinstance(attribute, DenseIntOrFPElementsAttr):
-            raise VerifyException(
-                f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
-            )
-        variadic_sizes: list[int] = [
-            size_attr.value.data for size_attr in attribute.data.data
-        ]
-        if len(variadic_sizes) != len(variadic_defs):
-            raise VerifyException(
-                f"expected {len(variadic_defs)} values in {size_attribute_name}, but got {len(variadic_sizes)}"
-            )
-        return variadic_sizes
+    if (attribute_option is not None) and (attribute_option in op_def.options):
+        return get_variadic_sizes_from_attr(op, len(variadic_defs),
+                                            attribute_option)
 
-    # If there are no variadics arguments, we just check that we have the right number of arguments
+    # If there are no variadics arguments,
+    # we just check that we have the right number of arguments
     if len(variadic_defs) == 0:
-        if len(op_defs) != len(operand_or_result_defs):
+        if len(args) != len(defs):
             raise VerifyException(
-                f"Expected {len(operand_or_result_defs)} {'operands' if is_operand else 'results'}, but got {len(op_defs)}"
-            )
+                f"Expected {len(defs)} {def_type_name}, but got {len(args)}")
         return []
 
-    # If there is a single variadic argument, we can get its size from the number of arguments.
+    # If there is a single variadic argument,
+    # we can get its size from the number of arguments.
     if len(variadic_defs) == 1:
-        if len(op_defs) - len(operand_or_result_defs) + 1 < 0:
-            raise VerifyException(
-                f"Expected at least {len(operand_or_result_defs) - 1} {def_type_name}s, got {len(operand_or_result_defs)}"
-            )
-        return [len(op_defs) - len(operand_or_result_defs) + 1]
+        if len(args) - len(defs) + 1 < 0:
+            raise VerifyException(f"Expected at least {len(defs) - 1} "
+                                  f"{def_type_name}s, got {len(defs)}")
+        return [len(args) - len(defs) + 1]
 
     # Unreachable, all cases should have been handled.
-    # Additional cases should raise an exception upon definition of the irdl operation.
-    assert False
+    # Additional cases should raise an exception upon
+    # definition of the irdl operation.
+    assert False, "Unexpected xDSL error while fetching variadic sizes"
 
 
-def get_operand_or_result(
-        op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
-        is_operand: bool) -> SSAValue | None | list[SSAValue]:
+def get_operand_result_or_region(
+    op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
+    arg_type: VariadicType
+) -> None | SSAValue | FrozenList[SSAValue] | list[OpResult] | Region | list[
+        Region]:
     """
-    Get an operand or a result.
-    In the case of a variadic operand or result definition, return a list of operand or results.
-    :param op: The operation we want to get the operand or result of.
-    :param arg_def_idx: The operand or result index in the irdl definition.
-    :param previous_var_args: The number of previous variadic operands or results definition before this definition.
-    :param is_operand: Do we get the operand or the result.
+    Get an operand, result, or region.
+    In the case of a variadic definition, return a list of elements.
+    :param op: The operation we want to get argument of.
+    :param arg_def_idx: The index of the argument in the irdl definition.
+    :param previous_var_args: The number of previous variadic definitions
+           before this definition.
+    :param arg_type: The type of the argument we want
+           (i.e. operand, result, or region)
     :return:
     """
-    argument_defs = op_def.operands if is_operand else op_def.results
-    op_arguments = op.operands if is_operand else op.results
+    defs = arg_type.get_defs(op_def)
+    args = arg_type.get_args(op)
 
-    variadic_sizes = get_variadic_sizes(op, op_def, is_operand)
+    variadic_sizes = get_variadic_sizes(op, op_def, arg_type)
 
     begin_arg = arg_def_idx - previous_var_args + sum(
         variadic_sizes[:previous_var_args])
-    if isinstance(argument_defs[arg_def_idx][1], OptionalDef):
+    if isinstance(defs[arg_def_idx][1], OptionalDef):
         arg_size = variadic_sizes[previous_var_args]
         if arg_size == 0:
             return None
         else:
-            return op_arguments[begin_arg]
-    if isinstance(argument_defs[arg_def_idx][1], VariadicDef):
+            return args[begin_arg]
+    if isinstance(defs[arg_def_idx][1], VariadicDef):
         arg_size = variadic_sizes[previous_var_args]
-        return op_arguments[begin_arg:begin_arg + arg_size]
+        return args[begin_arg:begin_arg + arg_size]
     else:
-        return op_arguments[begin_arg]
+        return args[begin_arg]
+
+
+def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
+                            arg_type: VariadicType) -> None:
+    arg_sizes = get_variadic_sizes(op, op_def, arg_type)
+    arg_idx = 0
+    def_idx = 0
+    args = arg_type.get_args(op)
+
+    def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
+        try:
+            if arg_type == VariadicType.OPERAND or arg_type == VariadicType.RESULT:
+                arg_def.constr.verify(arg.typ)
+            elif arg_type == VariadicType.REGION:
+                arg_def.constr.verify(arg)
+            else:
+                assert False, "Unknown VariadicType value"
+        except Exception as e:
+            error(
+                op,
+                f"{arg_type.get_name} at position {arg_idx} does not verify!\n{e}"
+            )
+
+    for def_idx, (_, arg_def) in enumerate(arg_type.get_defs(op_def)):
+        if isinstance(arg_def, VariadicDef):
+            for _ in range(arg_sizes[def_idx]):
+                verify_arg(args[arg_idx], arg_def, def_idx)
+                arg_idx += 1
+        else:
+            verify_arg(args[arg_idx], arg_def, def_idx)
+            arg_idx += 1
 
 
 def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
     """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
     # Verify operands.
-    # get_variadic_sizes already verify that the variadic operand sizes match the number of operands.
-    operand_sizes = get_variadic_sizes(op, op_def, is_operand=True)
-    current_operand = 0
-    current_var_operand = 0
-    for operand_name, operand_def in op_def.operands:
-        if isinstance(operand_def, VarOperandDef):
-            for _ in range(operand_sizes[current_var_operand]):
-                operand_def.constr.verify(op.operands[current_operand].typ)
-                current_operand += 1
-        else:
-            try:
-                operand_def.constr.verify(op.operands[current_operand].typ)
-            except Exception as e:
-                error(
-                    op,
-                    f"Operand {operand_name} at operand position {current_operand} (counted from zero) does not verify!\n{e}"
-                )
+    irdl_op_verify_arg_list(op, op_def, VariadicType.OPERAND)
 
-            current_operand += 1
+    # Verify results.
+    irdl_op_verify_arg_list(op, op_def, VariadicType.RESULT)
 
-    # Verify results
-    # get_variadic_sizes already verify that the variadic result sizes match the number of results.
-    result_sizes = get_variadic_sizes(op, op_def, is_operand=False)
-    current_result = 0
-    current_var_result = 0
-    for _, result_def in op_def.results:
-        if isinstance(result_def, VarResultDef):
-            for _ in range(result_sizes[current_var_result]):
-                result_def.constr.verify(op.results[current_result].typ)
-                current_result += 1
-        else:
-            result_def.constr.verify(op.results[current_result].typ)
-            current_result += 1
-
-    if len(op_def.regions) != len(op.regions):
-        raise VerifyException(
-            f"op has {len(op.regions)} regions, but {len(op_def.regions)} were expected"
-        )
+    # Verify regions.
+    irdl_op_verify_arg_list(op, op_def, VariadicType.REGION)
 
     for idx, (region_name, region_def) in enumerate(op_def.regions):
         if isinstance(
