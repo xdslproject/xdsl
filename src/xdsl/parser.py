@@ -210,6 +210,9 @@ class Parser:
         if not self.parse_optional_char("{"):
             return None
         region = Region()
+        oldSSAVals = self._ssaValues.copy()
+        oldBBNames = self._blocks.copy()
+        self._blocks = dict[str, Block]()
 
         if self.peek_char("^"):
             for block in self.parse_list(self.parse_optional_named_block,
@@ -220,6 +223,9 @@ class Parser:
             for op in self.parse_list(self.parse_optional_op, delimiter=""):
                 region.blocks[0].add_op(op)
         self.parse_char("}")
+
+        self._ssaValues = oldSSAVals
+        self._blocks = oldBBNames
         return region
 
     def parse_optional_ssa_name(self) -> Optional[str]:
