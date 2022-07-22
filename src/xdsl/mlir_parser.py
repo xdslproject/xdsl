@@ -194,6 +194,9 @@ class MLIRParser(Parser):
             return None
         self.parse_char("{")
         region = Region()
+        oldSSAVals = self._ssaValues.copy()
+        oldBBNames = self._blocks.copy()
+        self._blocks = dict[str, Block]()
 
         if self.peek_char("^"):
             for block in self.parse_list(self.parse_optional_named_block,
@@ -205,6 +208,9 @@ class MLIRParser(Parser):
                 region.blocks[0].add_op(op)
         self.parse_char("}")
         self.parse_char(")")
+
+        self._ssaValues = oldSSAVals
+        self._blocks = oldBBNames
         return region
 
     _OperationType = TypeVar('_OperationType', bound='Operation')
