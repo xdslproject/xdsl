@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbo
 from xdsl.ir import MLContext, SSAValue
 from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
                        RegionDef, Region, Operation, AttributeDef,
-                       VarResultDef)
+                       VarResultDef, OptAttributeDef)
 
 
 @dataclass
