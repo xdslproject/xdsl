@@ -1,0 +1,37 @@
+// RUN: xdsl-opt -t mlir %s | filecheck %s
+
+
+module() {
+  // Type tests
+  func.func() ["sym_name" = "struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!i32]>], [!llvm.struct<"", [!i32]>]>, "sym_visibility" = "private"] {
+  // CHECK: func.func private @struct_to_struct(%arg0: !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
+    ^0(%0 : !llvm.struct<"", [!i32]>):
+      func.return(%0 : !llvm.struct<"", [!i32]>)
+  // CHECK-NEXT:   return %arg0 : !llvm.struct<(i32)>
+  }
+  // CHECK-NEXT: }
+
+  func.func() ["sym_name" = "struct_to_struct2", "function_type" = !fun<[!llvm.struct<"", [!i32, !i32]>], [!llvm.struct<"", [!i32, !i32]>]>, "sym_visibility" = "private"] {
+    // CHECK: func.func private @struct_to_struct2(%arg0: !llvm.struct<(i32, i32)>) -> !llvm.struct<(i32, i32)> {
+    ^1(%1 : !llvm.struct<"", [!i32, !i32]>):
+      func.return(%1 : !llvm.struct<"", [!i32, !i32]>)
+    // CHECK-NEXT: return %arg0 : !llvm.struct<(i32, i32)>
+  }
+  // CHECK-NEXT: }
+
+  // Op tests
+  func.func() ["sym_name" = "main", "function_type" = !fun<[], []>, "sym_visibility" = "public"] {
+  // CHECK:  func.func public @main() {
+    %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+  // CHECK-NEXT:  %c1_i32 = arith.constant 1 : i32
+    %3 : !llvm.struct<"", [!i32]> = llvm.mlir.undef()
+  // CHECK-NEXT: %0 = llvm.mlir.undef : !llvm.struct<(i32)>
+    %4 : !llvm.struct<"", [!i32]> = llvm.insertvalue(%3 : !llvm.struct<"", [!i32]>, %2 : !i32) ["position" = [0 : !index]]
+  // CHECK-NEXT: %1 = llvm.insertvalue %c1_i32, %0[0 : index] : !llvm.struct<(i32)>
+    %5 : !i32 = llvm.extractvalue(%4 : !llvm.struct<"", [!i32]>) ["position" = [0 : !index]]
+  // CHECK-NEXT: %2 = llvm.extractvalue %1[0 : index] : !llvm.struct<(i32)>
+    func.return()
+  // CHECK-NEXT:  return
+  }
+  // CHECK-NEXT:}
+}
