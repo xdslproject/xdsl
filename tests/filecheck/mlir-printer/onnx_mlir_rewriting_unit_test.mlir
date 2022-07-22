@@ -380,7 +380,7 @@
     %1 = "onnx.Constant"() {value = dense<true> : tensor<i1>} : () -> tensor<i1>
     %2 = "onnx.Constant"() {value = dense<0> : tensor<i32>} : () -> tensor<i32>
     %3 = "onnx.Constant"() {value = dense<30> : tensor<i32>} : () -> tensor<i32>
-    %4:4 = "onnx.Loop"(%0, %1, %2, %3, %arg0) ({
+    %4_0, %4_1, %4_2, %4_3 = "onnx.Loop"(%0, %1, %2, %3, %arg0) ({
     ^bb0(%arg1: tensor<i64>, %arg2: tensor<i1>, %arg3: tensor<i32>, %arg4: tensor<i32>, %arg5: tensor<?x30xf32>):
       %5 = "onnx.Constant"() {value = dense<4> : tensor<i32>} : () -> tensor<i32>
       %6 = "onnx.Add"(%arg3, %5) : (tensor<i32>, tensor<i32>) -> tensor<i32>
@@ -388,7 +388,7 @@
       %8 = "onnx.Less"(%6, %arg4) : (tensor<i32>, tensor<i32>) -> tensor<i1>
       "onnx.Return"(%8, %6, %arg4, %7) : (tensor<i1>, tensor<i32>, tensor<i32>, tensor<?x30xf32>) -> ()
     }) : (tensor<i64>, tensor<i1>, tensor<i32>, tensor<i32>, tensor<?x30xf32>) -> (tensor<i32>, tensor<i32>, tensor<?x30xf32>, tensor<?x?x30xf32>)
-    "func.return"(%4#3) : (tensor<?x?x30xf32>) -> ()
+    "func.return"(%4_3) : (tensor<?x?x30xf32>) -> ()
   }) {function_type = (tensor<?x30xf32>) -> tensor<?x?x30xf32>, sym_name = "test_loop_derive_max_trip_count"} : () -> ()
 
   "func.func"() ({
@@ -396,7 +396,7 @@
     %0 = "onnx.Constant"() {value = dense<9223372036854775807> : tensor<i64>} : () -> tensor<i64>
     %1 = "onnx.Constant"() {value = dense<true> : tensor<i1>} : () -> tensor<i1>
     %2 = "onnx.Constant"() {value = dense<0> : tensor<i32>} : () -> tensor<i32>
-    %3:4 = "onnx.Loop"(%0, %1, %2, %arg1, %arg0) ({
+    %3_0, %3_1, %3_2, %3_3 = "onnx.Loop"(%0, %1, %2, %arg1, %arg0) ({
     ^bb0(%arg2: tensor<i64>, %arg3: tensor<i1>, %arg4: tensor<i32>, %arg5: tensor<i32>, %arg6: tensor<?x30xf32>):
       %4 = "onnx.Constant"() {value = dense<1> : tensor<i32>} : () -> tensor<i32>
       %5 = "onnx.Add"(%arg4, %4) : (tensor<i32>, tensor<i32>) -> tensor<i32>
@@ -404,6 +404,6 @@
       %7 = "onnx.Less"(%5, %arg5) : (tensor<i32>, tensor<i32>) -> tensor<i1>
       "onnx.Return"(%7, %5, %arg5, %6) : (tensor<i1>, tensor<i32>, tensor<i32>, tensor<?x30xf32>) -> ()
     }) : (tensor<i64>, tensor<i1>, tensor<i32>, tensor<i32>, tensor<?x30xf32>) -> (tensor<i32>, tensor<i32>, tensor<?x30xf32>, tensor<?x?x30xf32>)
-    "func.return"(%3#3) : (tensor<?x?x30xf32>) -> ()
+    "func.return"(%3_3) : (tensor<?x?x30xf32>) -> ()
   }) {function_type = (tensor<?x30xf32>, tensor<i32>) -> tensor<?x?x30xf32>, sym_name = "test_loop_derive_max_trip_count_non_constant_ub"} : () -> ()
 }) : () -> ()
