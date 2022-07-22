@@ -17,16 +17,17 @@ class IRDLPrinter:
         print(s, file=self.stream, **kw_args)
 
     def print_module(self, module):
-        self._print('module{')
+        self._print('module {')
         module.walk(lambda di: IRDLPrinter.print_dialect_definition(self, di)
                     if isinstance(di, DialectOp) else None)
         self._print('}')
 
     def print_type_definition(self, type: TypeOp):
-        self._print(f"    {type.name} {type.attributes['type_name'].data} {{")
+        self._print(
+            f"    {TypeOp.name} {type.attributes['type_name'].data} {{")
         type.walk(lambda param: self.print_parameters_definition(param)
                   if isinstance(param, ParametersOp) else None)
-        self._print(f"    }}")
+        self._print("    }")
 
     def print_attr_constraint(self, f):
 
@@ -77,17 +78,15 @@ class IRDLPrinter:
     def print_operation_definition(self, operation: OperationOp):
         self._print(
             f"    {OperationOp.name} {operation.attributes['name'].data} {{")
-        '''
-        Checking for existence of operands
-        '''
+
+        # Checking for existence of operands
         operand_list = []
         operation.walk(lambda operand_def: operand_list.append(operand_def)
                        if isinstance(operand_def, OperandsOp) else None)
         if operand_list:
             self.print_operand_definition(operand_list)
-        '''
-        Checking for existence of results
-        '''
+
+        # Checking for existence of results
         result_list = []
         operation.walk(lambda res: result_list.append(res)
                        if isinstance(res, ResultsOp) else None)
@@ -102,7 +101,7 @@ class IRDLPrinter:
         for i in range(len(res_list)):
             for result in res_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(result)
-                self._print(", ", end='') if i != len(res_list) - 1 else ''
+                self._print(", ", end='') if i != len(res_list) - 1 else None
         self._print(")")
 
     def print_operand_definition(self, op_list=list[OperandsOp]):
@@ -111,7 +110,7 @@ class IRDLPrinter:
         for i in range(len(op_list)):
             for ops in op_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(ops)
-                self._print(", ", end='') if i != len(op_list) - 1 else ''
+                self._print(", ", end='') if i != len(op_list) - 1 else None
         self._print(")")
 
     def print_dialect_definition(self, di: DialectOp):
