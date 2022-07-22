@@ -17,6 +17,19 @@ class AdvanceMode(Enum):
     NoSkip = False
 
 
+def get_header():
+    return """from __future__ import annotations
+import xdsl.dialects.arith as arith
+import xdsl.dialects.scf as scf
+import xdsl.dialects.onnx as onnx
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.elevate import *
+from xdsl.immutable_ir import *
+from xdsl.immutable_utils import *
+"""
+
+
 @dataclass
 class Value():
     name: str
@@ -108,17 +121,17 @@ class Pattern():
     name: str
     matched_op: Op
     replacements: List[Op]
+    comments: List[str]
 
     def get_code(self, dialect_name: str) -> str:
         code = """"""
         code += "@dataclass(frozen=True)\n"
-        code += f"class {self.name}(Strategy):\n"
+        code += f"class {self.name.removesuffix(':')}(Strategy):\n"
         code += "\n"
         code += "    def impl(self, op: IOp) -> RewriteResult:\n"
         code += "        match op:\n"
         code += "            case " + self.matched_op.get_matching_code(
             dialect_name) + ":\n"
-        code += "                # replacement here\n"
         code += "                results: List[IOp] = []\n"
         if len(self.replacements) > 0:
             for replacement in self.replacements:
@@ -127,6 +140,9 @@ class Pattern():
             code += "                " + "return success(results)\n"
         code += "            case _:\n"
         code += "                return failure(self)\n"
+        code += f"        # comments:\n"
+        for comment in self.comments:
+            code += f"        # {comment}\n"
 
         return code
 
@@ -142,8 +158,6 @@ class Parser():
         self.cur_line = self.file.readline()
         if self.cur_line:
             self.cur_line = self.cur_line.strip()
-            if self.cur_line.startswith("def MulAddToGemmOptPattern"):
-                pass
             self.line_number += 1
             self.cur_line_idx = 0
         else:
@@ -251,14 +265,16 @@ class Parser():
         operands: List[Op | Value] = []
         attributes: List[Value | NativeCodeCall] = []
         self.parse_string("(")
-        for operand in op_type.irdl_operand_defs:
+        op_def = op_type.irdl_definition
+
+        for operand in op_def.operands:
             if (new_operand := self.parse_matched_operand()) is None:
                 return None
 
             operands.append(new_operand)
 
             self.parse_string(",")
-        for attribute in op_type.irdl_attribute_defs:
+        for attribute in op_def.attributes:
             if (new_attribute := self.parse_matched_attr(
                     attribute[0])) is None:
                 self.parse_string(",")
@@ -266,7 +282,7 @@ class Parser():
             attributes.append(new_attribute)
             self.parse_string(",")
         self.parse_string(")")
-        result_types = [Attribute() for _ in op_type.irdl_result_defs]
+        result_types = [Attribute() for _ in op_def.results]
         return Op(op_name, op_type, operands, attributes, result_types,
                   result_binder)
 
@@ -301,23 +317,25 @@ class Parser():
         (op_name, op_type) = self._parse_op_name()
         if op_type is None:
             return None
+        op_def = op_type.irdl_definition
+
         operands: List[Op | Value] = []
         attributes: List[Attribute | Value | NativeCodeCall] = []
         self.parse_string("(")
         # Parse operands
-        for operand in op_type.irdl_operand_defs:
+        for operand in op_def.operands:
             if (new_operand := self.parse_replacement_argument()) is None:
                 return None
             operands.append(new_operand)
             self.parse_string(",")
         # Parse attributes
-        for attribute in op_type.irdl_attribute_defs:
+        for attribute in op_def.attributes:
             if (new_attribute := self.parse_replacement_argument()) is None:
                 return None
             attributes.append(new_attribute)
             self.parse_string(",")
         self.parse_string(")")
-        result_types = [Attribute() for _ in op_type.irdl_result_defs]
+        result_types = [Attribute() for _ in op_def.results]
         return Op(op_name, op_type, operands, attributes, result_types, None)
 
     def parse_replacement_argument(
@@ -346,8 +364,10 @@ class Parser():
             return NativeCodeCall(name)
 
     def parse_pattern(self) -> Optional[Pattern]:
+        # Skipping lines until we find a Pattern
         self.parse_string("Pat<", True)
-        assert self.cur_line is not None
+        if self.cur_line is None:
+            return None
         name = self.cur_line.split()[1]
         replacements: List[Op] = []
         if self.parse_string("(") and (op := self.parse_matched_op()):
@@ -355,9 +375,16 @@ class Parser():
             self.parse_string("(")
             if (replacement := self.parse_replacement_op()):
                 replacements.append(replacement)
-
-            self.next_line()
-            return Pattern(name, op, replacements)
+                if self.cur_line[-1] == ";":
+                    return Pattern(name, op, replacements, [])
+                self.next_line()
+            comments: list[str] = []
+            while True:
+                comments.append(self.cur_line)
+                if len(self.cur_line) == 0 or self.cur_line[-1] == ";":
+                    break
+                self.next_line()
+            return Pattern(name, op, replacements, comments)
         return None
 
 
@@ -368,11 +395,14 @@ def main():
     parser = Parser(file)
     patterns: List[Pattern] = []
     tries = 0
+    file = StringIO()
+    print(get_header(), file=file)
     while tries < 100:
         tries += 1
         if (pattern := parser.parse_pattern()) is not None:
             patterns.append(pattern)
             print(pattern.get_code("onnx"))
+            print(pattern.get_code("onnx"), file=file)
             print(f"found {len(patterns)} patterns")
 
     # ops: List[Op] = []
@@ -380,15 +410,11 @@ def main():
     #     ops.append(op)
 
     # dialect_name = "Onnx"
-    # file = StringIO()
-    # print(get_dialect_def(dialect_name, ops, include_imports=True), file=file)
-    # for op in ops:
-    #     print(op.to_irdl_string(dialect_name=dialect_name), file=file)
 
-    # with open(
-    #     "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx.py",
-    #     mode='w') as f:
-    #     print(file.getvalue(), file=f)
+    with open(
+            "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx_rewrites_generated.py",
+            mode='w') as f:
+        print(file.getvalue(), file=f)
 
 
 if __name__ == "__main__":

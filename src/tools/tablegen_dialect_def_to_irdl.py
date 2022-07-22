@@ -17,7 +17,7 @@ class Op():
     def to_irdl_string(self, dialect_name: str) -> str:
         irdl_string = """"""
         irdl_string += "@irdl_op_definition\n"
-        irdl_string += f"class {self.name}(Operation):\n"
+        irdl_string += f"class ONNX{self.name}Op(Operation):\n"
         if self.name.startswith(dialect_name):
             adjusted_name = self.name.removeprefix(dialect_name)
         else:
@@ -29,7 +29,8 @@ class Op():
             def_type: str = "OptAttributeDef" if arg.is_attribute else ("VarOperandDef" if arg.is_variadic else "OperandDef")
             irdl_string += f"    {arg.name} = {def_type}(Attribute) # should actually be {arg.type}\n"
         for result in self.results:
-            irdl_string += f"    {result.name} = ResultDef(Attribute) # should actually be {result.type}\n"
+            def_type: str = "ResultDef" if not arg.is_variadic else "VarResultDef"
+            irdl_string += f"    {result.name} = {def_type}(Attribute) # should actually be {result.type}\n"
 
         return irdl_string
 
@@ -63,7 +64,7 @@ def get_dialect_def(dialect_name: str,
     dialect_string += "\n"
     dialect_string += "    def __post_init__(self):\n"
     for op in ops:
-        dialect_string += f"        self.ctx.register_op({op.name})\n"
+        dialect_string += f"        self.ctx.register_op(ONNX{op.name}Op)\n"
     return dialect_string
 
 
@@ -107,7 +108,7 @@ def parse_text_field(field_name: str, file: TextIOWrapper) -> str:
 
     field_contents = line[len("let " + field_name + " = ") + 1:]
     # ; terminates a field
-    while not line.endswith(";"):
+    while line[-1] != ";":
         field_contents += "\n"
         line = get_next_line(file)
         if line is None:
@@ -123,7 +124,7 @@ def parse_NamedValue_field(field_name: str,
     args: list[TypedName] = []
     if line is None:
         return []
-    line = line.removeprefix(f"let {field_name} = (ins ")
+    line = line.lstrip(f"let {field_name} = (ins ")
 
     def add_ssa_val(cur_line: str):
         type, name = cur_line.split(":")
@@ -136,7 +137,7 @@ def parse_NamedValue_field(field_name: str,
 
     add_ssa_val(line)
     # ; terminates a field
-    while not line.endswith(":"):
+    while line[-1] != ";":
         line = get_next_line(file)
         if line is None:
             return args
