@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
 from xdsl.irdl import Data
 
 from typing import TypeVar, Dict, Optional, Tuple, List
+from dataclasses import dataclass, field
 
 indentNumSpaces = 2
 
