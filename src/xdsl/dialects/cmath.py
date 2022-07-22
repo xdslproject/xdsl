@@ -1,9 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import *
-from xdsl.irdl import *
-from xdsl.ir import *
+from xdsl.dialects.builtin import Float32Type, Float64Type
+from xdsl.ir import MLContext
+from xdsl.irdl import (irdl_op_definition, Operation, OperandDef,
+                       irdl_attr_definition, ParameterDef, ParamAttrConstraint,
+                       AnyOf, ResultDef, ParametrizedAttribute,
+                       VerifyException)
 
 
 @dataclass

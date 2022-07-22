@@ -1,6 +1,6 @@
-from typing import Tuple, Union
-
-from xdsl.ir import *
+from xdsl.ir import BlockArgument
+from typing import List, Optional
+from xdsl.irdl import SSAValue, Operation, Region, Block
 
 
 class Rewriter:

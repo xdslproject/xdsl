@@ -4,7 +4,7 @@
 
 To install the required dependencies, execute the following command:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -22,7 +22,7 @@ This project includes pytest unit test and llvm-style filecheck tests. They can
 be executed using to following commands from within the root directory of the
 project:
 
-```
+```bash
 # Executes pytests which are located in tests/
 pytest
 
@@ -39,7 +39,7 @@ Bindings](https://mlir.llvm.org/docs/Bindings/Python/). Given an input file
 `src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf),
 run:
 
-```
+```bash
 ### Prints MLIR generic from to tmp.mlir
 ./src/tools/xdsl_opt -t mlir  -o tmp.mlir `input.xdsl`
 

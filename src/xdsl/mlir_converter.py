@@ -1,12 +1,19 @@
+from typing import Dict
+
+from xdsl import _mlir_module as mlir
+from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
+                     BlockArgument, Attribute)
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                   VectorType, IntegerType, IndexType,
+                                   ArrayAttr, FlatSymbolRefAttr, StringAttr,
+                                   FunctionType, TupleType, ModuleOp,
+                                   Float32Type)
+from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.llvm import LLVMStructType
+
 from xdsl import ensure_mlir_module_loaded
 
 ensure_mlir_module_loaded()
-
-from xdsl import _mlir_module as mlir
-import array
-from xdsl.dialects.builtin import *
-from xdsl.dialects.memref import MemRefType
-from xdsl.dialects.llvm import LLVMStructType
 
 
 class MLIRConverter:
