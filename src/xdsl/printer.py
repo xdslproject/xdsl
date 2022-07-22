@@ -1,8 +1,14 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import *
-from xdsl.diagnostic import *
-from typing import TypeVar
-from dataclasses import dataclass
+
+from xdsl.diagnostic import Diagnostic
+from typing import TypeVar, Any, Dict, Optional, List
+
+from dataclasses import dataclass, field
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
+from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
+                                   IntegerAttr, ArrayAttr,
+                                   ParametrizedAttribute, IntAttr)
+from xdsl.irdl import Data
 
 indentNumSpaces = 2
 
@@ -69,7 +75,7 @@ class Printer:
                        indent=None):
         """
         Print a message.
-        This is expected to be called on the beginning of a new line, and expect to create a new line at the end.
+        This is expected to be called at the beginning of a new line and to create a new line at the end.
         [begin_pos, end_pos)
         """
         indent = self._indent if indent is None else indent

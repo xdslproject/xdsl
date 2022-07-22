@@ -1,13 +1,15 @@
 from __future__ import annotations
-
-import typing
-
-from xdsl.ir import ParametrizedAttribute, Data, Block
-from xdsl.irdl import *
 import pytest
+
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
+                                   IntegerType, Operation, builder)
+from xdsl.ir import Data, Block
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ResultDef,
+                       VarResultDef, AttrSizedResultSegments, OperandDef,
+                       VarOperandDef, AttrSizedOperandSegments, AttributeDef,
+                       RegionDef, OptAttributeDef, Region)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
 
 
 @irdl_attr_definition
@@ -152,7 +154,7 @@ def test_operand_builder_value():
 
 
 def test_operand_builder_exception():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         OperandOp.build()
 
 

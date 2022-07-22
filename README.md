@@ -4,7 +4,7 @@
 
 To install all required dependencies, execute the following command:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -14,7 +14,7 @@ TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
 This project includes pytest unit test and llvm-style filecheck tests. They can be executed using to following commands from within the root directory of the project:
 
-```
+```bash
 # Executes pytests which are located in tests/
 pytest
 
@@ -26,7 +26,7 @@ lit tests/filecheck
 
 xDSL can generate executables using MLIR as the backend. To use this functionality, make sure to install the [MLIR Python Bindings](https://mlir.llvm.org/docs/Bindings/Python/). Given an input file `input.xdsl`, that contains IR with only the mirrored dialects found in `src/xdsl/dialects` (arith, memref, func, cf, scf, and builtin), run:
 
-```
+```bash
 ### Prints MLIR generic from to tmp.mlir
 ./src/xdsl/xdsl_opt.py -t mlir  -o tmp.mlir `input.xdsl`
 
