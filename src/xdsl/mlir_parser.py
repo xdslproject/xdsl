@@ -122,6 +122,9 @@ class MLIRParser(Parser):
         if self.parse_optional_char("+") is not None:
             exponent = self.parse_int_literal()
             alnum_parens = alnum_parens + "+" + str(exponent)
+        if self.parse_optional_char("-") is not None:
+            exponent = self.parse_int_literal()
+            alnum_parens = alnum_parens + "-" + str(exponent)
 
         if self.parse_optional_char(":") is not None:
             alnum_parens2 = parse_alnum_paren()
@@ -139,19 +142,10 @@ class MLIRParser(Parser):
         return name
 
     def parse_optional_results(self) -> list[str] | None:
-        # One argument
-        res = self.parse_optional_result()
-        if res is not None:
-            self.parse_char("=")
-            return [res]
-
-        # No arguments
-        if self.parse_optional_char("(") is None:
-            return None
-
         # Multiple arguments
         res = self.parse_list(lambda: self.parse_optional_result())
-        self.parse_char(")")
+        if len(res) == 0:
+            return None
         self.parse_char("=")
         return res
 
@@ -162,7 +156,11 @@ class MLIRParser(Parser):
         attr_name = self.parse_optional_alpha_num()
         if attr_name is None:
             return None
-        self.parse_char("=")
+
+        # Unit attributes
+        if self.parse_optional_char("=") is None:
+            return attr_name, UnkownMLIRAttr.from_str("")
+
         attr = self.parse_attribute()
         print(attr_name, attr)
         return attr_name, attr
