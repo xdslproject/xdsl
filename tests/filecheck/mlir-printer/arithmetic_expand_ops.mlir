@@ -1,4 +1,4 @@
-module ({
+"module"() ({
   "func.func"() ({
   ^bb0(%arg0: i32, %arg1: i32):
     %0 = "arith.ceildivsi"(%arg0, %arg1) : (i32, i32) -> i32
@@ -45,7 +45,7 @@ module ({
     "func.return"(%16) : (f32) -> ()
   }) {function_type = (f32, f32) -> f32, sym_name = "minf"} : () -> ()
   "func.func"() ({
-  ^bb18(%arg1+8: i32, %arg19: i32):
+  ^bb18(%arg18: i32, %arg19: i32):
     %18 = "arith.maxsi"(%arg18, %arg19) : (i32, i32) -> i32
     "func.return"(%18) : (i32) -> ()
   }) {function_type = (i32, i32) -> i32, sym_name = "maxsi"} : () -> ()
