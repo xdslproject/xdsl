@@ -4,17 +4,30 @@
 
 module() {
 
+// CHECK: module() {
+
   // Two functions that share a basic block name and a value name
   func.func() ["sym_name" = "id", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
     ^0(%0 : !i32):
       func.return(%0 : !i32)
   }
 
+// CHECK-NEXT:   func.func() ["sym_name" = "id", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
+// CHECK-NEXT:     ^{{.*}}(%{{.*}} : !i32):
+// CHECK-NEXT:       func.return(%{{.*}} : !i32)
+// CHECK-NEXT:   }
+
+
   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i64], [!i64]>, "sym_visibility" = "private"] {
     ^0(%0 : !i64):
       
       func.return(%0 : !i64)
   }
+
+// CHECK-NEXT:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i64], [!i64]>, "sym_visibility" = "private"] {
+// CHECK-NEXT:     ^{{.*}}(%{{.*}} : !i64):
+// CHECK-NEXT:       func.return(%{{.*}} : !i64)
+// CHECK-NEXT:   }
 
 
   // Check that blocks in nested regions can clash names with the outer region blocks
@@ -30,6 +43,17 @@ module() {
       func.return(%0 : !i1)
   }
 
+// CHECK-NEXT:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i1], [!i1]>, "sym_visibility" = "private"] {
+// CHECK-NEXT:     ^{{.*}}(%{{.*}} : !i1):
+// CHECK-NEXT:       scf.if(%{{.*}} : !i1) {
+// CHECK-NEXT:         scf.yield()
+// CHECK-NEXT:       } {
+// CHECK-NEXT:         scf.yield()
+// CHECK-NEXT:       }
+// CHECK-NEXT:       func.return(%{{.*}} : !i1)
+// CHECK-NEXT:   }
+
+
   // Check that SSA names can be reused as long as they are defined after
   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i1], [!i1]>, "sym_visibility" = "private"] {
     ^0(%0 : !i1):
@@ -43,41 +67,18 @@ module() {
       func.return(%0 : !i1)
   }
 
+// CHECK-NEXT:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i1], [!i1]>, "sym_visibility" = "private"] {
+// CHECK-NEXT:   ^{{.*}}(%{{.*}} : !i1):
+// CHECK-NEXT:     scf.if(%{{.*}} : !i1) {
+// CHECK-NEXT:       %{{.*}} : !i32 = arith.constant() ["value" = 3 : !i32]
+// CHECK-NEXT:       scf.yield()
+// CHECK-NEXT:     } {
+// CHECK-NEXT:       scf.yield()
+// CHECK-NEXT:     }
+// CHECK-NEXT:     %{{.*}} : !i32 = arith.constant() ["value" = 3 : !i32]
+// CHECK-NEXT:     func.return(%{{.*}} : !i1)
+// CHECK-NEXT:   }
+
 }
 
-// CHECK: module() {
-
-// CHECK:   func.func() ["sym_name" = "id", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
-// CHECK:     ^{{.*}}(%{{.*}} : !i32):
-// CHECK:       func.return(%{{.*}} : !i32)
-// CHECK:   }
-
-// CHECK:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i64], [!i64]>, "sym_visibility" = "private"] {
-// CHECK:     ^{{.*}}(%{{.*}} : !i64):
-// CHECK:       func.return(%{{.*}} : !i64)
-// CHECK:   }
-
-// CHECK:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i1], [!i1]>, "sym_visibility" = "private"] {
-// CHECK:     ^{{.*}}(%{{.*}} : !i1):
-// CHECK:       scf.if(%{{.*}} : !i1) {
-// CHECK:         scf.yield()
-// CHECK:       } {
-// CHECK:         scf.yield()
-// CHECK:       }
-// CHECK:       func.return(%{{.*}} : !i1)
-// CHECK:   }
-
-// CHECK:   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i1], [!i1]>, "sym_visibility" = "private"] {
-// CHECK:   ^{{.*}}(%{{.*}} : !i1):
-// CHECK:     scf.if(%{{.*}} : !i1) {
-// CHECK:       %{{.*}} : !i32 = arith.constant() ["value" = 3 : !i32]
-// CHECK:       scf.yield()
-// CHECK:     } {
-// CHECK:       scf.yield()
-// CHECK:     }
-// CHECK:     %{{.*}} : !i32 = arith.constant() ["value" = 3 : !i32]
-// CHECK:     func.return(%{{.*}} : !i1)
-// CHECK:   }
-
-
-// CHECK: }
+// CHECK-NEXT: }
