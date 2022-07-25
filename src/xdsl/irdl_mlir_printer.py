@@ -114,7 +114,8 @@ class IRDLPrinter:
         self._print(")")
 
     def print_dialect_definition(self, di: DialectOp):
-        self._print(f"  {di.name} {di.attributes['dialect_name'].data} {{")
+        self._print(
+            f"  {DialectOp.name} {di.attributes['dialect_name'].data} {{")
 
         di.walk(lambda type: self.print_type_definition(type)
                 if isinstance(type, TypeOp) else None)
