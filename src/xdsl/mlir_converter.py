@@ -39,6 +39,25 @@ class MLIRConverter:
         ]
         return mlir.ir.FunctionType.get(inputs, outputs)
 
+    def convert_struct(self, typ: LLVMStructType) -> str:
+        from xdsl.printer import Printer
+        from io import StringIO
+        types = []
+        for t in typ.types.data:
+            if isinstance(t, LLVMStructType):
+                types.append(self.convert_struct(t))
+            else:
+                file = StringIO("")
+                p = Printer(stream=file)
+                p.print_attribute(t)
+                types.append(file.getvalue()[1:])
+        type_string = "(" + ", ".join(types) + ")"
+
+        if typ.struct_name.data != "":
+            return "!llvm.struct<" + typ.struct_name.data + ", " + type_string + ">"
+        else:
+            return "!llvm.struct<" + type_string + ">"
+
     def convert_type(self, typ: Attribute) -> mlir.ir.Type:
         if isinstance(typ, Float32Type):
             return mlir.ir.F32Type.get()
@@ -55,23 +74,8 @@ class MLIRConverter:
             return mlir.ir.TupleType.get_tuple(
                 [self.convert_type(t) for t in typ.types.data])
         if isinstance(typ, LLVMStructType):
-            from xdsl.printer import Printer
-            from io import StringIO
-            types = []
-            for t in typ.types.data:
-                file = StringIO("")
-                p = Printer(stream=file)
-                p.print_attribute(t)
-                types.append(file.getvalue()[1:])
-            type_string = "(" + ", ".join(types) + ")"
-
-            if typ.struct_name.data != "":
-                mlir_module = mlir.ir.Module.parse(
-                    "%0 = llvm.mlir.undef : !llvm.struct<" +
-                    typ.struct_name.data + ", " + type_string + ">")
-            else:
-                mlir_module = mlir.ir.Module.parse(
-                    "%0 = llvm.mlir.undef : !llvm.struct<" + type_string + ">")
+            mlir_module = mlir.ir.Module.parse("%0 = llvm.mlir.undef : " +
+                                               self.convert_struct(typ))
             return mlir_module.body.operations.__getitem__(
                 0).operation.result.type
         raise Exception(f"Unsupported type for mlir conversion: {typ}")
