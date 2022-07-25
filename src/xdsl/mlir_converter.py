@@ -39,13 +39,13 @@ class MLIRConverter:
         ]
         return mlir.ir.FunctionType.get(inputs, outputs)
 
-    def convert_struct(self, typ: LLVMStructType) -> str:
+    def get_mlir_struct_string(self, typ: LLVMStructType) -> str:
         from xdsl.printer import Printer
         from io import StringIO
         types = []
         for t in typ.types.data:
             if isinstance(t, LLVMStructType):
-                types.append(self.convert_struct(t))
+                types.append(self.get_mlir_struct_string(t))
             else:
                 file = StringIO("")
                 p = Printer(stream=file)
@@ -74,8 +74,8 @@ class MLIRConverter:
             return mlir.ir.TupleType.get_tuple(
                 [self.convert_type(t) for t in typ.types.data])
         if isinstance(typ, LLVMStructType):
-            mlir_module = mlir.ir.Module.parse("%0 = llvm.mlir.undef : " +
-                                               self.convert_struct(typ))
+            mlir_module = mlir.ir.Module.parse(
+                "%0 = llvm.mlir.undef : " + self.get_mlir_struct_string(typ))
             return mlir_module.body.operations.__getitem__(
                 0).operation.result.type
         raise Exception(f"Unsupported type for mlir conversion: {typ}")
