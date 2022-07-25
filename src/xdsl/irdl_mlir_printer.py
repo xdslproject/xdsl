@@ -1,10 +1,12 @@
 from io import IOBase
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.printer import Printer
 from xdsl.dialects.irdl import (
-    DialectOp, ParametersOp, TypeOp, OperandsOp, ResultsOp, OperationOp,
-    EqTypeConstraintAttr, AnyTypeConstraintAttr, AnyOfTypeConstraintAttr,
-    DynTypeBaseConstraintAttr, DynTypeParamsConstraintAttr,
-    TypeParamsConstraintAttr, NamedTypeConstraintAttr)
+    ConstraintVarsOp, DialectOp, ParametersOp, TypeOp, OperandsOp, ResultsOp,
+    OperationOp, EqTypeConstraintAttr, AnyTypeConstraintAttr,
+    AnyOfTypeConstraintAttr, DynTypeBaseConstraintAttr,
+    DynTypeParamsConstraintAttr, TypeParamsConstraintAttr,
+    NamedTypeConstraintAttr)
 from dataclasses import dataclass
 
 
@@ -17,10 +19,17 @@ class IRDLPrinter:
         print(s, file=self.stream, **kw_args)
 
     def print_module(self, module):
+        module.walk(lambda op: self.ensure_op_is_irdl_op(op))
         self._print('module {')
         module.walk(lambda di: IRDLPrinter.print_dialect_definition(self, di)
                     if isinstance(di, DialectOp) else None)
         self._print('}')
+
+    def ensure_op_is_irdl_op(self, op):
+        if not isinstance(
+                op, (OperationOp | ResultsOp | OperandsOp, ConstraintVarsOp
+                     | TypeOp | ParametersOp | DialectOp | ModuleOp)):
+            raise Exception(f"Operation {op.name} is not an operation in IRDL")
 
     def print_type_definition(self, type: TypeOp):
         self._print(
