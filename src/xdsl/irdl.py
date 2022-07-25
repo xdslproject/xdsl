@@ -399,10 +399,7 @@ class OptResultDef(VarResultDef, OptionalDef):
 class RegionDef(Region):
     """
     An IRDL region definition.
-    If the block_args is specified, then the region expect to have the entry block with these arguments.
     """
-    block_args: list[Attribute] | None = None
-    blocks: list[Block] = field(default_factory=list)
 
 
 @dataclass
@@ -418,7 +415,14 @@ class OptRegionDef(RegionDef, OptionalDef):
 @dataclass
 class SingleBlockRegionDef(RegionDef):
     """An IRDL region definition that expects exactly one block."""
-    pass
+
+
+class VarSingleBlockRegionDef(RegionDef, VariadicDef):
+    """An IRDL variadic region definition that expects exactly one block."""
+
+
+class OptSingleBlockRegionDef(RegionDef, OptionalDef):
+    """An IRDL optional region definition that expects exactly one block."""
 
 
 @dataclass(init=False)
@@ -483,7 +487,7 @@ class OpDef:
 
 
 def get_variadic_sizes_from_attr(
-        op: Operation, n_expected_variadics: int,
+        op: Operation, n_expected_sizes: int,
         option: AttrSizedOperandSegments | AttrSizedResultSegments
 ) -> list[int]:
     # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
@@ -502,9 +506,9 @@ def get_variadic_sizes_from_attr(
     variadic_sizes: list[int] = [
         size_attr.value.data for size_attr in attribute.data.data
     ]
-    if len(variadic_sizes) != n_expected_variadics:
+    if len(variadic_sizes) != n_expected_sizes:
         raise VerifyException(
-            f"expected {n_expected_variadics} values in "
+            f"expected {n_expected_sizes} values in "
             f"{size_attribute_name}, but got {len(variadic_sizes)}")
     return variadic_sizes
 
@@ -571,8 +575,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 
     # If the size is in the attributes, fetch it
     if (attribute_option is not None) and (attribute_option in op_def.options):
-        return get_variadic_sizes_from_attr(op, len(variadic_defs),
-                                            attribute_option)
+        return get_variadic_sizes_from_attr(op, len(defs), attribute_option)
 
     # If there are no variadics arguments,
     # we just check that we have the right number of arguments
@@ -644,13 +647,16 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             if arg_type == VariadicType.OPERAND or arg_type == VariadicType.RESULT:
                 arg_def.constr.verify(arg.typ)
             elif arg_type == VariadicType.REGION:
-                arg_def.constr.verify(arg)
+                if isinstance(arg_def,
+                              SingleBlockRegionDef) and len(arg.blocks) != 1:
+                    raise VerifyException("expected a single block, but got "
+                                          f"{len(arg.blocks)} blocks")
             else:
                 assert False, "Unknown VariadicType value"
         except Exception as e:
             error(
                 op,
-                f"{arg_type.get_name} at position {arg_idx} does not verify!\n{e}"
+                f"{arg_type.get_name()} at position {arg_idx} does not verify!\n{e}"
             )
 
     for def_idx, (_, arg_def) in enumerate(arg_type.get_defs(op_def)):
@@ -674,31 +680,6 @@ def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
 
     # Verify regions.
     irdl_op_verify_arg_list(op, op_def, VariadicType.REGION)
-
-    for idx, (region_name, region_def) in enumerate(op_def.regions):
-        if isinstance(
-                region_def,
-                SingleBlockRegionDef) and len(op.regions[idx].blocks) != 1:
-            raise VerifyException(
-                f"region {region_name} at position {idx} should have a single block, but got {len(op.regions[idx].blocks)} blocks"
-            )
-        if region_def.block_args is not None:
-            if len(op.regions[idx].blocks) == 0:
-                raise VerifyException(
-                    f"region {region_name} at position {idx} should have at least one block"
-                )
-            expected_num_args = len(region_def.block_args)
-            num_args = len(op.regions[idx].blocks[0].args)
-            if num_args != expected_num_args:
-                raise VerifyException(
-                    f"region {region_name} at position {idx} should have {expected_num_args} argument, but got {num_args}"
-                )
-            for arg_idx, arg_type in enumerate(op.regions[idx].blocks[0].args):
-                typ = op.regions[idx].blocks[0].args[arg_idx]
-                if arg_type != typ:
-                    raise VerifyException(
-                        f"argument at position {arg_idx} in region {region_name} at position {idx} should be of type {arg_type}, but {typ}"
-                    )
 
     for attr_name, attr_def in op_def.attributes.items():
         if attr_name not in op.attributes:
@@ -740,7 +721,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
             f"expected {len(op_def.operands)} operands, got {len(operands)}")
 
     built_operands = list[SSAValue]()
-    operand_variadic_sizes = list[int]()
+    operand_sizes = list[int]()
     for ((operand_name, operand_def), operand) in zip(op_def.operands,
                                                       operands):
         if isinstance(operand_def, VarOperandDef):
@@ -750,7 +731,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                     f"'{operand_name}' operand: expected list argument for "
                     f"variadic operand, but got '{operand}' type.")
             built_operands.extend([SSAValue.get(arg) for arg in operand])
-            operand_variadic_sizes.append(len(operand))
+            operand_sizes.append(len(operand))
         else:
             if isinstance(operand, list):
                 raise ValueError(
@@ -758,6 +739,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                     f"'{operand_name}' operand: unexpected list argument for "
                     f"non-variadic operand.")
             built_operands.append(SSAValue.get(operand))
+            operand_sizes.append(1)
 
     # Build results by forwarding the values to the attribute builders
     if len(op_def.results) != len(res_types):
@@ -766,7 +748,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
             f"expected {len(op_def.results)} results, got {len(res_types)}")
 
     built_res_types = list[Attribute]()
-    result_variadic_sizes = list[int]()
+    result_sizes = list[int]()
     for ((res_name, res_def), res_type) in zip(op_def.results, res_types):
         if isinstance(res_def, VarResultDef):
             if not isinstance(res_type, list):
@@ -777,10 +759,11 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
             built_res_types.extend([
                 irdl_build_attribute(res_def.constr, res) for res in res_type
             ])
-            result_variadic_sizes.append(len(res_type))
+            result_sizes.append(len(res_type))
         else:
             built_res_types.append(
                 irdl_build_attribute(res_def.constr, res_type))
+            result_sizes.append(1)
 
     # Build attributes by forwarding the values to the attribute builders
     attr_defs = {name: def_ for (name, def_) in op_def.attributes.items()}
@@ -798,12 +781,12 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
 
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in op_def.options:
-        sizes = operand_variadic_sizes
+        sizes = operand_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
     if AttrSizedResultSegments() in op_def.options:
-        sizes = result_variadic_sizes
+        sizes = result_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
             DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
 
@@ -836,8 +819,9 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     previous_variadics = 0
     for operand_idx, (operand_name, operand_def) in enumerate(op_def.operands):
         new_attrs[operand_name] = property(
-            lambda self, idx=operand_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, op_def, idx, previous_vars, True))
+            lambda self, idx=operand_idx, previous_vars=
+            previous_variadics: get_operand_result_or_region(
+                self, op_def, idx, previous_vars, VariadicType.OPERAND))
         if isinstance(operand_def, VarOperandDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedOperandSegments(
@@ -850,8 +834,9 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     previous_variadics = 0
     for result_idx, (result_name, result_def) in enumerate(op_def.results):
         new_attrs[result_name] = property(
-            lambda self, idx=result_idx, previous_vars=previous_variadics:
-            get_operand_or_result(self, op_def, idx, previous_vars, False))
+            lambda self, idx=result_idx, previous_vars=
+            previous_variadics: get_operand_result_or_region(
+                self, op_def, idx, previous_vars, VariadicType.RESULT))
         if isinstance(result_def, VarResultDef):
             previous_variadics += 1
     if previous_variadics > 1 and AttrSizedResultSegments(
@@ -859,9 +844,17 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         raise Exception("Operation defines more than two variadic results, "
                         "but do not define the AttrSizedResultSegments option")
 
-    for region_idx, (region_name, _) in enumerate(op_def.regions):
+    # Add region access fields
+    previous_variadics = 0
+    for region_idx, (region_name, region_def) in enumerate(op_def.regions):
         new_attrs[region_name] = property(
-            lambda self, idx=region_idx: self.regions[idx])
+            lambda self, idx=region_idx, previous_vars=
+            previous_variadics: get_operand_result_or_region(
+                self, op_def, idx, previous_vars, VariadicType.REGION))
+        if isinstance(region_def, VarRegionDef):
+            previous_variadics += 1
+    if previous_variadics > 1:
+        raise Exception("Operation defines more than two variadic regions")
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):

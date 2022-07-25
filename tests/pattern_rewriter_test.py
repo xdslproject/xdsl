@@ -526,7 +526,7 @@ def test_block_argument_type_change():
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
   %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
-}
+} {}
 }"""
 
     expected = \
@@ -535,7 +535,7 @@ scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
   ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -557,13 +557,13 @@ def test_block_argument_erasure():
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
-}
+} {}
 }"""
 
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -582,7 +582,7 @@ def test_block_argument_insertion():
     prog = \
     """module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-scf.if(%0 : !i1) {}
+scf.if(%0 : !i1) {} {}
 }"""
 
     expected = \
@@ -590,7 +590,7 @@ scf.if(%0 : !i1) {}
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
   ^0(%1 : !i32):
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -612,8 +612,8 @@ def test_inline_block_at_pos():
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
-}
+  } {}
+} {}
 }"""
 
     expected = \
@@ -621,8 +621,8 @@ scf.if(%0 : !i1) {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {}
-  }
+    scf.if(%0 : !i1) {} {}
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -647,14 +647,14 @@ def test_inline_block_before_matched_op():
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+} {}
 }"""
 
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -676,8 +676,8 @@ def test_inline_block_before():
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
-}
+  } {}
+} {}
 }"""
 
     expected = \
@@ -685,8 +685,8 @@ scf.if(%0 : !i1) {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {}
-  }
+    scf.if(%0 : !i1) {} {}
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -712,14 +712,14 @@ def test_inline_block_at_before_when_op_is_matched_op():
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+} {}
 }"""
 
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -741,17 +741,17 @@ def test_inline_block_after():
   scf.if(%0 : !i1) {
     scf.if(%0 : !i1) {
       %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    }
-  }
+    } {}
+  } {}
 }"""
 
     expected = \
 """module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {}
+    scf.if(%0 : !i1) {} {}
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
