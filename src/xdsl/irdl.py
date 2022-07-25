@@ -486,33 +486,6 @@ class OpDef:
         return op_def
 
 
-def get_variadic_sizes_from_attr(
-        op: Operation, n_expected_sizes: int,
-        option: AttrSizedOperandSegments | AttrSizedResultSegments
-) -> list[int]:
-    # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
-    size_attribute_name = option.attribute_name
-
-    if size_attribute_name not in op.attributes:
-        raise VerifyException(
-            f"Expected {size_attribute_name} attribute in {op.name} operation."
-        )
-    attribute = op.attributes[size_attribute_name]
-    if not isinstance(attribute, DenseIntOrFPElementsAttr):
-        raise VerifyException(
-            f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
-        )
-    variadic_sizes: list[int] = [
-        size_attr.value.data for size_attr in attribute.data.data
-    ]
-    if len(variadic_sizes) != n_expected_sizes:
-        raise VerifyException(
-            f"expected {n_expected_sizes} values in "
-            f"{size_attribute_name}, but got {len(variadic_sizes)}")
-    return variadic_sizes
-
-
 class VariadicType(Enum):
     OPERAND = 1
     RESULT = 2
@@ -561,6 +534,51 @@ class VariadicType(Enum):
         assert False, "Unknown VariadicType value"
 
 
+def get_variadic_sizes_from_attr(op: Operation,
+                                 defs: list[tuple[str,
+                                                  OperandDef | ResultDef]],
+                                 arg_typ: VariadicType,
+                                 size_attribute_name: str) -> list[int]:
+    # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
+    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+
+    # Check that the attribute is present
+    if size_attribute_name not in op.attributes:
+        raise VerifyException(
+            f"Expected {size_attribute_name} attribute in {op.name} operation."
+        )
+    attribute = op.attributes[size_attribute_name]
+    if not isinstance(attribute, DenseIntOrFPElementsAttr):
+        raise VerifyException(
+            f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
+        )
+    def_sizes: list[int] = [
+        size_attr.value.data for size_attr in attribute.data.data
+    ]
+    if len(def_sizes) != len(defs):
+        raise VerifyException(
+            f"expected {len(defs)} values in "
+            f"{size_attribute_name}, but got {len(def_sizes)}")
+
+    variadic_sizes = list[int]()
+    for ((arg_name, arg_def), arg_size) in zip(defs, def_sizes):
+        if isinstance(arg_def, OptionalDef) and arg_size > 1:
+            raise VerifyException(
+                f"optional {arg_typ.get_name} {arg_name} is expected to be of "
+                f"size 0 or 1 in {size_attribute_name}, but got {arg_size}")
+
+        if not isinstance(arg_def, VariadicDef) and arg_size != 1:
+            raise VerifyException(
+                f"non-variadic {arg_typ.get_name} {arg_name} is expected to "
+                f"be of size 0 or 1 in {size_attribute_name}, but got "
+                f"{arg_size}")
+
+        if isinstance(arg_def, VariadicDef):
+            variadic_sizes.append(arg_size)
+
+    return variadic_sizes
+
+
 def get_variadic_sizes(op: Operation, op_def: OpDef,
                        typ: VariadicType) -> list[int]:
     """Get variadic sizes of operands or results."""
@@ -575,7 +593,8 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 
     # If the size is in the attributes, fetch it
     if (attribute_option is not None) and (attribute_option in op_def.options):
-        return get_variadic_sizes_from_attr(op, len(defs), attribute_option)
+        return get_variadic_sizes_from_attr(op, defs, typ,
+                                            attribute_option.attribute_name)
 
     # If there are no variadics arguments,
     # we just check that we have the right number of arguments
@@ -639,7 +658,7 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
                             arg_type: VariadicType) -> None:
     arg_sizes = get_variadic_sizes(op, op_def, arg_type)
     arg_idx = 0
-    def_idx = 0
+    var_idx = 0
     args = arg_type.get_args(op)
 
     def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
@@ -661,9 +680,10 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
 
     for def_idx, (_, arg_def) in enumerate(arg_type.get_defs(op_def)):
         if isinstance(arg_def, VariadicDef):
-            for _ in range(arg_sizes[def_idx]):
+            for _ in range(arg_sizes[var_idx]):
                 verify_arg(args[arg_idx], arg_def, def_idx)
                 arg_idx += 1
+            var_idx += 1
         else:
             verify_arg(args[arg_idx], arg_def, def_idx)
             arg_idx += 1
