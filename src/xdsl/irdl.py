@@ -834,6 +834,29 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                       regions=built_regions)
 
 
+def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: VariadicType,
+                           op_def: OpDef) -> None:
+
+    previous_variadics = 0
+    defs = arg_type.get_defs(op_def)
+    for arg_idx, (arg_name, arg_def) in enumerate(defs):
+        new_attrs[arg_name] = property(
+            lambda self, idx=arg_idx, previous_vars=
+            previous_variadics: get_operand_result_or_region(
+                self, op_def, idx, previous_vars, arg_type))
+        if isinstance(arg_def, VariadicDef):
+            previous_variadics += 1
+
+    # If we have multiple variadics, check that we have an
+    # attribute that holds the variadic sizes.
+    arg_size_option = arg_type.get_attr_size_option()
+    if previous_variadics > 1 and (arg_size_option is None
+                                   or arg_size_option not in op_def.options):
+        raise Exception(
+            f"Operation defines more than two variadic {arg_type.get_name()}s, "
+            f"but do not define the {arg_size_option.__name__} PyRDL option.")
+
+
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     """Decorator used on classes to define a new operation definition."""
 
@@ -850,45 +873,13 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     new_attrs = dict[str, Any]()
 
     # Add operand access fields
-    previous_variadics = 0
-    for operand_idx, (operand_name, operand_def) in enumerate(op_def.operands):
-        new_attrs[operand_name] = property(
-            lambda self, idx=operand_idx, previous_vars=
-            previous_variadics: get_operand_result_or_region(
-                self, op_def, idx, previous_vars, VariadicType.OPERAND))
-        if isinstance(operand_def, VarOperandDef):
-            previous_variadics += 1
-    if previous_variadics > 1 and AttrSizedOperandSegments(
-    ) not in op_def.options:
-        raise Exception(
-            "Operation defines more than two variadic operands, "
-            "but do not define the AttrSizedOperandSegments option")
+    irdl_op_arg_definition(new_attrs, VariadicType.OPERAND, op_def)
 
     # Add result access fields
-    previous_variadics = 0
-    for result_idx, (result_name, result_def) in enumerate(op_def.results):
-        new_attrs[result_name] = property(
-            lambda self, idx=result_idx, previous_vars=
-            previous_variadics: get_operand_result_or_region(
-                self, op_def, idx, previous_vars, VariadicType.RESULT))
-        if isinstance(result_def, VarResultDef):
-            previous_variadics += 1
-    if previous_variadics > 1 and AttrSizedResultSegments(
-    ) not in op_def.options:
-        raise Exception("Operation defines more than two variadic results, "
-                        "but do not define the AttrSizedResultSegments option")
+    irdl_op_arg_definition(new_attrs, VariadicType.RESULT, op_def)
 
     # Add region access fields
-    previous_variadics = 0
-    for region_idx, (region_name, region_def) in enumerate(op_def.regions):
-        new_attrs[region_name] = property(
-            lambda self, idx=region_idx, previous_vars=
-            previous_variadics: get_operand_result_or_region(
-                self, op_def, idx, previous_vars, VariadicType.REGION))
-        if isinstance(region_def, VarRegionDef):
-            previous_variadics += 1
-    if previous_variadics > 1:
-        raise Exception("Operation defines more than two variadic regions")
+    irdl_op_arg_definition(new_attrs, VariadicType.REGION, op_def)
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
