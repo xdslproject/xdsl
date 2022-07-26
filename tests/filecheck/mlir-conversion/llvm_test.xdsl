@@ -19,6 +19,14 @@ module() {
   }
   // CHECK-NEXT: }
 
+  func.func() ["sym_name" = "nested_struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!llvm.struct<"", [!i32]>]>], [!llvm.struct<"", [!llvm.struct<"", [!i32]>]>]>, "sym_visibility" = "private"] {
+  // CHECK-NEXT:  func.func private @nested_struct_to_struct(%arg0: !llvm.struct<(struct<(i32)>)>) -> !llvm.struct<(struct<(i32)>)> {
+    ^1(%1 : !llvm.struct<"", [!llvm.struct<"", [!i32]>]>):
+      func.return(%1 : !llvm.struct<"", [!llvm.struct<"", [!i32]>]>)
+  // CHECK-NEXT:  return %arg0 : !llvm.struct<(struct<(i32)>)>
+  }
+  // CHECK-NEXT:}
+
   // Op tests
   func.func() ["sym_name" = "main", "function_type" = !fun<[], []>, "sym_visibility" = "public"] {
   // CHECK:  func.func public @main() {
