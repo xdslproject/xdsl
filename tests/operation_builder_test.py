@@ -4,7 +4,9 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, builder)
 from xdsl.ir import Data, Block
-from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef, VarRegionDef,
+from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
+                       OptSingleBlockRegionDef, SingleBlockRegionDef,
+                       VarRegionDef, VarSingleBlockRegionDef,
                        irdl_attr_definition, irdl_op_definition, ResultDef,
                        VarResultDef, AttrSizedResultSegments, OperandDef,
                        VarOperandDef, AttrSizedOperandSegments, AttributeDef,
@@ -322,7 +324,7 @@ def test_optional_attr_op_empty():
 
 @irdl_op_definition
 class RegionOp(Operation):
-    name: str = "test.two_var_result_op"
+    name: str = "test.region_op"
 
     region = RegionDef()
 
@@ -349,6 +351,19 @@ def test_region_op_ops():
 
 
 @irdl_op_definition
+class SBRegionOp(Operation):
+    name: str = "test.sbregion_op"
+
+    region = SingleBlockRegionDef()
+
+
+def test_sbregion_one_block():
+    op = SBRegionOp.build(regions=[[Block()]])
+    op.verify()
+    assert len(op.region.blocks) == 1
+
+
+@irdl_op_definition
 class OptRegionOp(Operation):
     name: str = "test.opt_region_op"
 
@@ -368,6 +383,22 @@ def test_opt_region_builder_two_args():
 
 
 @irdl_op_definition
+class OptSBRegionOp(Operation):
+    name: str = "test.sbregion_op"
+
+    region = OptSingleBlockRegionDef()
+
+
+def test_opt_sbregion_one_block():
+    op1 = OptSBRegionOp.build(regions=[[[Block()]]])
+    op2 = OptSBRegionOp.build(regions=[[]])
+    op1.verify()
+    op2.verify()
+    assert len(op1.region.blocks) == 1
+    assert op2.region is None
+
+
+@irdl_op_definition
 class VarRegionOp(Operation):
     name: str = "test.var_operand_op"
 
@@ -377,8 +408,26 @@ class VarRegionOp(Operation):
 def test_var_region_builder():
     op = VarRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op.verify()
-    assert len(op.regs[0].blocks) == 0
-    assert len(op.regs[1].blocks) == 2
+    assert len(op.regs[0].blocks) == 0  # type: ignore
+    assert len(op.regs[1].blocks) == 2  # type: ignore
+
+
+@irdl_op_definition
+class VarSBRegionOp(Operation):
+    name: str = "test.sbregion_op"
+
+    regs = VarSingleBlockRegionDef()
+
+
+def test_opt_sbregion_one_block():
+    op1 = VarSBRegionOp.build(regions=[[[Block()]]])
+    op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
+    op1.verify()
+    op2.verify()
+    assert len(op1.regs) == 1  # type: ignore
+    assert len(op2.regs) == 2  # type: ignore
+    assert len(op2.regs[0].blocks) == 0  # type: ignore
+    assert len(op2.regs[1].blocks) == 2  # type: ignore
 
 
 #  __  __ _
