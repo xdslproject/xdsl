@@ -40,23 +40,16 @@ class MLIRConverter:
         return mlir.ir.FunctionType.get(inputs, outputs)
 
     def get_mlir_struct_string(self, typ: LLVMStructType) -> str:
-        from xdsl.printer import Printer
-        from io import StringIO
         types = []
         for t in typ.types.data:
-            if isinstance(t, LLVMStructType):
-                types.append(self.get_mlir_struct_string(t))
-            else:
-                file = StringIO("")
-                p = Printer(stream=file)
-                p.print_attribute(t)
-                types.append(file.getvalue()[1:])
+            types.append(
+                self.get_mlir_struct_string(t) if isinstance(
+                    t, LLVMStructType) else str(self.convert_type(t)))
         type_string = "(" + ", ".join(types) + ")"
 
-        if typ.struct_name.data != "":
-            return "!llvm.struct<" + typ.struct_name.data + ", " + type_string + ">"
-        else:
+        if typ.struct_name.data == "":
             return "!llvm.struct<" + type_string + ">"
+        return "!llvm.struct<" + typ.struct_name.data + ", " + type_string + ">"
 
     def convert_type(self, typ: Attribute) -> mlir.ir.Type:
         if isinstance(typ, Float32Type):
