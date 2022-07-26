@@ -421,7 +421,7 @@ class IOp:
         return self._op_data.op_type
 
     @property
-    def attributes(self) -> Dict[str, Attribute]:
+    def attributes(self) -> dict[str, Attribute]:
         return self._op_data.attributes
 
     @property
