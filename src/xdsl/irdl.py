@@ -486,7 +486,7 @@ class OpDef:
         return op_def
 
 
-class VariadicType(Enum):
+class ArgType(Enum):
     """
     An enum representing the part of an IR that may be variadic.
     This contains operands, results, and regions.
@@ -506,14 +506,14 @@ class VariadicType(Enum):
             return op_def.results
         if self == self.REGION:
             return op_def.regions
-        assert False, "Unknown VariadicType value"
+        assert False, "Unknown ArgType value"
 
     def get_args(
             self, op: Operation
     ) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
         """
         Get the list of arguments of the type in an operation.
-        For example, if the variadic type is an operand, get the list of
+        For example, if the argument type is an operand, get the list of
         operands.
         """
         if self == self.OPERAND:
@@ -522,7 +522,7 @@ class VariadicType(Enum):
             return op.results
         if self == self.REGION:
             return op.regions
-        assert False, "Unknown VariadicType value"
+        assert False, "Unknown ArgType value"
 
     def get_name(self) -> str:
         """Get the type name, this is used mostly for error messages."""
@@ -532,7 +532,7 @@ class VariadicType(Enum):
             return "result"
         if self == self.REGION:
             return "region"
-        assert False, "Unknown VariadicType value"
+        assert False, "Unknown ArgType value"
 
     def get_attr_size_option(
             self) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
@@ -543,15 +543,18 @@ class VariadicType(Enum):
             return AttrSizedResultSegments()
         if self == self.REGION:
             return None
-        assert False, "Unknown VariadicType value"
+        assert False, "Unknown ArgType value"
 
 
 def get_variadic_sizes_from_attr(op: Operation,
                                  defs: list[tuple[str,
                                                   OperandDef | ResultDef]],
-                                 arg_typ: VariadicType,
+                                 arg_typ: ArgType,
                                  size_attribute_name: str) -> list[int]:
-    """Get the sizes of the variadic definitions from the corresponding attribute."""
+    """
+    Get the sizes of the variadic definitions
+    from the corresponding attribute.
+    """
     # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
     from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
 
@@ -562,9 +565,8 @@ def get_variadic_sizes_from_attr(op: Operation,
         )
     attribute = op.attributes[size_attribute_name]
     if not isinstance(attribute, DenseIntOrFPElementsAttr):
-        raise VerifyException(
-            f"{size_attribute_name} attribute is expected to be a DenseIntOrFPElementsAttr."
-        )
+        raise VerifyException(f"{size_attribute_name} attribute is expected "
+                              "to be a DenseIntOrFPElementsAttr.")
     def_sizes: list[int] = [
         size_attr.value.data for size_attr in attribute.data.data
     ]
@@ -593,7 +595,7 @@ def get_variadic_sizes_from_attr(op: Operation,
 
 
 def get_variadic_sizes(op: Operation, op_def: OpDef,
-                       typ: VariadicType) -> list[int]:
+                       typ: ArgType) -> list[int]:
     """Get variadic sizes of operands or results."""
 
     defs = typ.get_defs(op_def)
@@ -633,7 +635,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 
 def get_operand_result_or_region(
     op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
-    arg_type: VariadicType
+    arg_type: ArgType
 ) -> None | SSAValue | FrozenList[SSAValue] | list[OpResult] | Region | list[
         Region]:
     """
@@ -668,7 +670,7 @@ def get_operand_result_or_region(
 
 
 def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
-                            arg_type: VariadicType) -> None:
+                            arg_type: ArgType) -> None:
     """Verify the argument list of an operation."""
     arg_sizes = get_variadic_sizes(op, op_def, arg_type)
     arg_idx = 0
@@ -678,15 +680,15 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
     def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
         """Verify a single argument."""
         try:
-            if arg_type == VariadicType.OPERAND or arg_type == VariadicType.RESULT:
+            if arg_type == ArgType.OPERAND or arg_type == ArgType.RESULT:
                 arg_def.constr.verify(arg.typ)
-            elif arg_type == VariadicType.REGION:
+            elif arg_type == ArgType.REGION:
                 if isinstance(arg_def,
                               SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException("expected a single block, but got "
                                           f"{len(arg.blocks)} blocks")
             else:
-                assert False, "Unknown VariadicType value"
+                assert False, "Unknown ArgType value"
         except Exception as e:
             error(
                 op,
@@ -708,13 +710,13 @@ def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
     """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
     # Verify operands.
-    irdl_op_verify_arg_list(op, op_def, VariadicType.OPERAND)
+    irdl_op_verify_arg_list(op, op_def, ArgType.OPERAND)
 
     # Verify results.
-    irdl_op_verify_arg_list(op, op_def, VariadicType.RESULT)
+    irdl_op_verify_arg_list(op, op_def, ArgType.RESULT)
 
     # Verify regions.
-    irdl_op_verify_arg_list(op, op_def, VariadicType.REGION)
+    irdl_op_verify_arg_list(op, op_def, ArgType.REGION)
 
     for attr_name, attr_def in op_def.attributes.items():
         if attr_name not in op.attributes:
@@ -734,7 +736,7 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     raise Exception(f"builder expected an attribute, got {result}")
 
 
-def irdl_build_arg_list(arg_type: VariadicType,
+def irdl_build_arg_list(arg_type: ArgType,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
                         error_prefix: str = "") -> tuple[list[Any], list[int]]:
@@ -742,16 +744,16 @@ def irdl_build_arg_list(arg_type: VariadicType,
 
     def build_arg(arg_def: Any, arg: Any) -> Any:
         """Build a single argument."""
-        if arg_type == VariadicType.OPERAND:
+        if arg_type == ArgType.OPERAND:
             return SSAValue.get(arg)
-        elif arg_type == VariadicType.RESULT:
+        elif arg_type == ArgType.RESULT:
             assert isinstance(arg_def, ResultDef)
             return irdl_build_attribute(arg_def.constr, arg)
-        elif arg_type == VariadicType.REGION:
+        elif arg_type == ArgType.REGION:
             assert isinstance(arg_def, RegionDef)
             return Region.get(arg)
         else:
-            assert False, "Unknown VariadicType value"
+            assert False, "Unknown ArgType value"
 
     if len(args) != len(arg_defs):
         raise ValueError(f"expected {len(arg_defs)} {arg_type.get_name()}, "
@@ -800,14 +802,14 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
 
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
-        VariadicType.OPERAND, operands, op_def.operands, error_prefix)
+        ArgType.OPERAND, operands, op_def.operands, error_prefix)
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
-        VariadicType.RESULT, res_types, op_def.results, error_prefix)
+        ArgType.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(VariadicType.REGION, regions,
+    built_regions, _ = irdl_build_arg_list(ArgType.REGION, regions,
                                            op_def.regions, error_prefix)
 
     # Build attributes by forwarding the values to the attribute builders
@@ -842,7 +844,7 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                       regions=built_regions)
 
 
-def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: VariadicType,
+def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: ArgType,
                            op_def: OpDef) -> None:
 
     previous_variadics = 0
@@ -881,13 +883,13 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     new_attrs = dict[str, Any]()
 
     # Add operand access fields
-    irdl_op_arg_definition(new_attrs, VariadicType.OPERAND, op_def)
+    irdl_op_arg_definition(new_attrs, ArgType.OPERAND, op_def)
 
     # Add result access fields
-    irdl_op_arg_definition(new_attrs, VariadicType.RESULT, op_def)
+    irdl_op_arg_definition(new_attrs, ArgType.RESULT, op_def)
 
     # Add region access fields
-    irdl_op_arg_definition(new_attrs, VariadicType.REGION, op_def)
+    irdl_op_arg_definition(new_attrs, ArgType.REGION, op_def)
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
