@@ -4,7 +4,8 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, builder)
 from xdsl.ir import Data, Block
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ResultDef,
+from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef, VarRegionDef,
+                       irdl_attr_definition, irdl_op_definition, ResultDef,
                        VarResultDef, AttrSizedResultSegments, OperandDef,
                        VarOperandDef, AttrSizedOperandSegments, AttributeDef,
                        RegionDef, OptAttributeDef, Region)
@@ -30,6 +31,14 @@ class StringAttr(Data[str]):
         pass
 
 
+#  ____                 _ _
+# |  _ \ ___  ___ _   _| | |_
+# | |_) / _ \/ __| | | | | __|
+# |  _ <  __/\__ \ |_| | | |_
+# |_| \_\___||___/\__,_|_|\__|
+#
+
+
 @irdl_op_definition
 class ResultOp(Operation):
     name: str = "test.result_op"
@@ -46,6 +55,27 @@ def test_result_builder():
 def test_result_builder_exception():
     with pytest.raises(ValueError) as e:
         ResultOp.build()
+
+
+@irdl_op_definition
+class OptResultOp(Operation):
+    name: str = "test.opt_result_op"
+
+    res = OptResultDef(StringAttr)
+
+
+def test_opt_result_builder():
+    op1 = OptResultOp.build(result_types=[[0]])
+    op2 = OptResultOp.build(result_types=[[]])
+    op1.verify()
+    op2.verify()
+    assert [res.typ for res in op1.results] == [StringAttr.from_int(0)]
+    assert len(op2.results) == 0
+
+
+def test_opt_result_builder_two_args():
+    with pytest.raises(ValueError) as _:
+        OptResultOp.build(result_types=[[0, 0]])
 
 
 @irdl_op_definition
@@ -132,6 +162,15 @@ def test_var_mixed_builder():
                              dense_type, [2, 1, 2])
 
 
+#   ___                                 _
+#  / _ \ _ __   ___ _ __ __ _ _ __   __| |
+# | | | | '_ \ / _ \ '__/ _` | '_ \ / _` |
+# | |_| | |_) |  __/ | | (_| | | | | (_| |
+#  \___/| .__/ \___|_|  \__,_|_| |_|\__,_|
+#       |_|
+#
+
+
 @irdl_op_definition
 class OperandOp(Operation):
     name: str = "test.operand_op"
@@ -156,6 +195,29 @@ def test_operand_builder_value():
 def test_operand_builder_exception():
     with pytest.raises(ValueError):
         OperandOp.build()
+
+
+@irdl_op_definition
+class OptOperandOp(Operation):
+    name: str = "test.opt_operand_op"
+
+    res = OptOperandDef(StringAttr)
+
+
+def test_opt_operand_builder():
+    op = ResultOp.build(result_types=[0])
+    op1 = OptOperandOp.build(operands=[[op]])
+    op2 = OptOperandOp.build(operands=[[]])
+    op1.verify()
+    op2.verify()
+    assert [operand for operand in op1.operands] == [op.res]
+    assert len(op2.operands) == 0
+
+
+def test_opt_operand_builder_two_args():
+    op = ResultOp.build(result_types=[0])
+    with pytest.raises(ValueError) as _:
+        OptOperandOp.build(operands=[[op, op]])
 
 
 @irdl_op_definition
@@ -205,6 +267,14 @@ def test_two_var_operand_builder2():
             dense_type, [1, 3])
 
 
+#      _   _   _        _ _           _
+#     / \ | |_| |_ _ __(_) |__  _   _| |_ ___
+#    / _ \| __| __| '__| | '_ \| | | | __/ _ \
+#   / ___ \ |_| |_| |  | | |_) | |_| | ||  __/
+#  /_/   \_\__|\__|_|  |_|_.__/ \__,_|\__\___|
+#
+
+
 @irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
@@ -226,6 +296,28 @@ def test_attr_new_attr_op():
     op.verify()
     assert op.attr == StringAttr.from_int(0)
     assert op.attributes["new_attr"] == StringAttr.from_int(1)
+
+
+@irdl_op_definition
+class OptionalAttrOp(Operation):
+    name: str = "test.opt_attr_op"
+
+    opt_attr = OptAttributeDef(StringAttr)
+
+
+def test_optional_attr_op_empty():
+    op = OptionalAttrOp.build()
+    op.verify()
+    assert op.opt_attr == None
+
+
+#  ____            _
+# |  _ \ ___  __ _(_) ___  _ __
+# | |_) / _ \/ _` | |/ _ \| '_ \
+# |  _ <  __/ (_| | | (_) | | | |
+# |_| \_\___|\__, |_|\___/|_| |_|
+#            |___/
+#
 
 
 @irdl_op_definition
@@ -257,28 +349,44 @@ def test_region_op_ops():
 
 
 @irdl_op_definition
-class OptionalAttrOp(Operation):
-    name: str = "test.opt_attr_op"
+class OptRegionOp(Operation):
+    name: str = "test.opt_region_op"
 
-    opt_attr = OptAttributeDef(StringAttr)
+    reg = OptRegionDef()
 
 
-def test_optional_attr_op_empty():
-    op = OptionalAttrOp.build()
+def test_opt_region_builder():
+    op1 = OptRegionOp.build(regions=[[[Block(), Block()]]])
+    op2 = OptRegionOp.build(regions=[[Region()]])
+    op1.verify()
+    op2.verify()
+
+
+def test_opt_region_builder_two_args():
+    with pytest.raises(ValueError) as _:
+        OptRegionOp.build(regions=[[Region(), Region()]])
+
+
+@irdl_op_definition
+class VarRegionOp(Operation):
+    name: str = "test.var_operand_op"
+
+    regs = VarRegionDef()
+
+
+def test_var_region_builder():
+    op = VarRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op.verify()
-    assert op.opt_attr is None
+    assert len(op.regs[0].blocks) == 0
+    assert len(op.regs[1].blocks) == 2
 
 
-def test_optional_attr_op_non_empty_attr():
-    op = OptionalAttrOp.build(attributes={"opt_attr": StringAttr.from_int(1)})
-    op.verify()
-    assert op.opt_attr == StringAttr.from_int(1)
-
-
-def test_optional_attr_op_non_empty_builder():
-    op = OptionalAttrOp.build(attributes={"opt_attr": 1})
-    op.verify()
-    assert op.opt_attr == StringAttr.from_int(1)
+#  __  __ _
+# |  \/  (_)___  ___
+# | |\/| | / __|/ __|
+# | |  | | \__ \ (__
+# |_|  |_|_|___/\___|
+#
 
 
 def test_parent_pointers():

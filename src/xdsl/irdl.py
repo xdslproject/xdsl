@@ -348,7 +348,7 @@ class VariadicDef(OperandOrResultDef):
 
 
 @dataclass
-class OptionalDef(OperandOrResultDef):
+class OptionalDef(VariadicDef):
     """An optional operand or result definition. Should not be used directly."""
     ...
 
@@ -764,9 +764,17 @@ def irdl_build_arg_list(arg_type: VariadicType,
         if isinstance(arg_def, VariadicDef):
             if not isinstance(arg, list):
                 raise ValueError(error_prefix +
-                                 f"variadic {arg_type} {arg_idx} '{arg_name}'"
+                                 f"variadic {arg_type} {arg_idx} '{arg_name}' "
                                  f" expects a list, but got {arg}")
             arg = cast(list[Any], arg)
+
+            # Check we have at most one argument for optional defintions.
+            if isinstance(arg_def, OptionalDef) and len(arg) > 1:
+                raise ValueError(error_prefix +
+                                 f"optional {arg_type} {arg_idx} '{arg_name}' "
+                                 "expects a list of size at most 1, but "
+                                 f"got a list of size {len(arg)}")
+
             res.extend([build_arg(arg_def, arg_arg) for arg_arg in arg])
             arg_sizes.append(len(arg))
         else:
@@ -777,10 +785,10 @@ def irdl_build_arg_list(arg_type: VariadicType,
 
 def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                     operands: Sequence[SSAValue | Operation
-                                       | list[SSAValue | Operation]],
-                    res_types: Sequence[Any | list[Any]],
+                                       | list[SSAValue | Operation] | None],
+                    res_types: Sequence[Any | list[Any] | None],
                     attributes: dict[str, Any], successors: Sequence[Block],
-                    regions: Sequence[Region]) -> _OpT:
+                    regions: Sequence[Any | None]) -> _OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseIntOrFPElementsAttr, but here we need
