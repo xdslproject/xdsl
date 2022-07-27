@@ -80,10 +80,8 @@ class TempType(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
-        return TempType([
-            ArrayAttr.from_list(
-                [IntegerAttr[IndexType].build(d) for d in shape])
-        ])
+        return TempType(
+            [ArrayAttr.from_list([IntegerAttr.build(d, 64) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
@@ -97,6 +95,14 @@ class TempType(ParametrizedAttribute):
 class ResultType(ParametrizedAttribute):
     name = "stencil.result"
     elem: ParameterDef[Float64Type]
+
+    @staticmethod
+    @builder
+    def from_type(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
+        return TempType([
+            ArrayAttr.from_list(
+                [IntegerAttr[IndexType].build(d) for d in shape])
+        ])
 
 
 @dataclass

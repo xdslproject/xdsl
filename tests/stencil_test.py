@@ -364,9 +364,9 @@ def test_inlining_reroute():
         stencil.return(%6: !stencil.result<!f64>)
     }
     %7 : !stencil.temp<[64,64,60]>  = stencil.apply(%2 : !stencil.temp<[65,66,63]>) ["lb" = [0, 0, 0], "ub" = [64, 64, 60]] {
-        ^1(%arg5: !stencil.temp<[64,64,60]>): 
-        %7 : !f64 = stencil.access(%arg5: !stencil.temp<[64,64,60]>) ["offset" = [0, 0, 0]]
-        %8 : !f64 = stencil.access(%arg5: !stencil.temp<[64,64,60]>) ["offset" = [1, 2, 3]]
+        ^1(%arg5: !stencil.temp<[65,66,63]>): 
+        %7 : !f64 = stencil.access(%arg5: !stencil.temp<[65,66,63]>) ["offset" = [0, 0, 0]]
+        %8 : !f64 = stencil.access(%arg5: !stencil.temp<[65,66,63]>) ["offset" = [1, 2, 3]]
         %9 : !f64 = arith.addf(%7: !f64, %8: !f64)
         %10 : !stencil.result<!f64> = stencil.store_result(%9: !f64)
         stencil.return(%10: !stencil.result<!f64>)
@@ -379,6 +379,31 @@ def test_inlining_reroute():
 
     intermediate  = \
 """
+func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
+^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
+  %3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [-1 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
+  %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.apply(%3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  ^1(%5 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>):
+    %6 : !f64 = stencil.access(%5 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
+    %7 : !f64 = stencil.access(%5 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
+    %8 : !f64 = arith.addf(%6 : !f64, %7 : !f64)
+    %9 : !stencil.result<!f64> = stencil.store_result(%8 : !f64)
+    stencil.return(%9 : !stencil.result<!f64>)
+  }
+  (%10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) = stencil.apply(%4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  ^2(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %13 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>):
+    %14 : !f64 = stencil.access(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %15 : !f64 = stencil.access(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
+    %16 : !f64 = arith.addf(%14 : !f64, %15 : !f64)
+    %17 : !stencil.result<!f64> = stencil.store_result(%16 : !f64)
+    %18 : !f64 = stencil.access(%13 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %19 : !stencil.result<!f64> = stencil.store_result(%18 : !f64)
+    stencil.return(%17 : !stencil.result<!f64>, %19 : !stencil.result<!f64>)
+  }
+  stencil.store(%11 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]]
+  stencil.store(%10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  func.return()
+}
 """
     # Source before:
     #   "func"() ( {
@@ -408,35 +433,74 @@ def test_inlining_reroute():
     #     "std.return"() : () -> ()
     #   }) {stencil.program, sym_name = "reroute", type = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> ()} : () -> ()
 
+    # Source intermediate:
+    #   // module  {
+    #   //   func @reroute(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>, %arg2: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+    #   //     %0 = stencil.cast %arg0([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %1 = stencil.cast %arg1([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %2 = stencil.cast %arg2([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %3 = stencil.load %0([-1, 0, 0] : [66, 66, 63]) : (!stencil.field<70x70x70xf64>) -> !stencil.temp<67x66x63xf64>
+    #   //     %4 = stencil.apply (%arg3 = %3 : !stencil.temp<67x66x63xf64>) -> !stencil.temp<65x66x63xf64> {
+    #   //       %6 = stencil.access %arg3 [-1, 0, 0] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %7 = stencil.access %arg3 [1, 0, 0] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %8 = addf %6, %7 : f64
+    #   //       %9 = stencil.store_result %8 : (f64) -> !stencil.result<f64>
+    #   //       stencil.return %9 : !stencil.result<f64>
+    #   //     } to ([0, 0, 0] : [65, 66, 63])
+    #   //     %5:2 = stencil.apply (%arg3 = %4 : !stencil.temp<65x66x63xf64>, %arg4 = %4 : !stencil.temp<65x66x63xf64>) -> (!stencil.temp<65x66x63xf64>, !stencil.temp<65x66x63xf64>) {
+    #   //       %6 = stencil.access %arg3 [0, 0, 0] : (!stencil.temp<65x66x63xf64>) -> f64
+    #   //       %7 = stencil.access %arg3 [1, 2, 3] : (!stencil.temp<65x66x63xf64>) -> f64
+    #   //       %8 = addf %6, %7 : f64
+    #   //       %9 = stencil.store_result %8 : (f64) -> !stencil.result<f64>
+    #   //       %10 = stencil.access %arg4 [0, 0, 0] : (!stencil.temp<65x66x63xf64>) -> f64
+    #   //       %11 = stencil.store_result %10 : (f64) -> !stencil.result<f64>
+    #   //       stencil.return %9, %11 : !stencil.result<f64>, !stencil.result<f64>
+    #   //     } to ([0, 0, 0] : [65, 66, 63])
+    #   //     stencil.store %5#1 to %1([0, 0, 0] : [65, 66, 63]) : !stencil.temp<65x66x63xf64> to !stencil.field<70x70x70xf64>
+    #   //     stencil.store %5#0 to %2([0, 0, 0] : [64, 64, 60]) : !stencil.temp<65x66x63xf64> to !stencil.field<70x70x70xf64>
+    #   //     return
+    #   //   }
+    #   // }
+
     # Source after:
-    # // module  {
-    # //   func @simple_index(%arg0: f64, %arg1: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
-    # //     %0 = stencil.cast %arg1([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
-    # //     %1 = stencil.apply (%arg2 = %arg0 : f64) -> !stencil.temp<64x64x60xf64> {
-    # //       %c20 = constant 20 : index
-    # //       %cst = constant 0.000000e+00 : f64
-    # //       %2 = stencil.index 2 [3, 1, 4] : index
-    # //       %3 = cmpi slt, %2, %c20 : index
-    # //       %4 = select %3, %arg2, %cst : f64
-    # //       %5 = addf %4, %arg2 : f64
-    # //       %6 = stencil.store_result %5 : (f64) -> !stencil.result<f64>
-    # //       stencil.return %6 : !stencil.result<f64>
-    # //     } to ([0, 0, 0] : [64, 64, 60])
-    # //     stencil.store %1 to %0([0, 0, 0] : [64, 64, 60]) : !stencil.temp<64x64x60xf64> to !stencil.field<70x70x70xf64>
-    # //     return
-    # //   }
-    # // }
+
+    #   // module  {
+    #   //   func @reroute(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>, %arg2: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+    #   //     %0 = stencil.cast %arg0([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %1 = stencil.cast %arg1([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %2 = stencil.cast %arg2([-3, -3, -3] : [67, 67, 67]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    #   //     %3 = stencil.load %0([-1, 0, 0] : [66, 66, 63]) : (!stencil.field<70x70x70xf64>) -> !stencil.temp<67x66x63xf64>
+    #   //     %4:2 = stencil.apply (%arg3 = %3 : !stencil.temp<67x66x63xf64>) -> (!stencil.temp<65x66x63xf64>, !stencil.temp<65x66x63xf64>) {
+    #   //       %5 = stencil.access %arg3 [-1, 0, 0] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %6 = stencil.access %arg3 [1, 0, 0] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %7 = addf %5, %6 : f64
+    #   //       %8 = stencil.access %arg3 [0, 2, 3] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %9 = stencil.access %arg3 [2, 2, 3] : (!stencil.temp<67x66x63xf64>) -> f64
+    #   //       %10 = addf %8, %9 : f64
+    #   //       %11 = addf %7, %10 : f64
+    #   //       %12 = stencil.store_result %11 : (f64) -> !stencil.result<f64>
+    #   //       %13 = stencil.store_result %7 : (f64) -> !stencil.result<f64>
+    #   //       stencil.return %12, %13 : !stencil.result<f64>, !stencil.result<f64>
+    #   //     } to ([0, 0, 0] : [65, 66, 63])
+    #   //     stencil.store %4#1 to %1([0, 0, 0] : [65, 66, 63]) : !stencil.temp<65x66x63xf64> to !stencil.field<70x70x70xf64>
+    #   //     stencil.store %4#0 to %2([0, 0, 0] : [64, 64, 60]) : !stencil.temp<65x66x63xf64> to !stencil.field<70x70x70xf64>
+    #   //     return
+    #   //   }
+    #   // }
+
     parse(before)
 
     apply_strategy_and_compare(
-        before, before,
+        before, intermediate,
         multiRoot(
             matchTopToBottom(RerouteUse.Match()), lambda matched_consumer:
             topToBottom(RerouteUse(*matched_consumer))))
 
+    # TODO: now apply the reroute rewrite afterwards
+
 
 if __name__ == "__main__":
-    # test_inlining_simple()
-    # test_inlining_simple_index()
-    # test_inlining_simple_ifelse()
+    test_inlining_simple()
+    test_inlining_simple_index()
+    test_inlining_simple_ifelse()
     test_inlining_reroute()
