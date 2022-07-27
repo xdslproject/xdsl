@@ -136,5 +136,54 @@ class InlineProducer(Strategy):
             case _:
                 return failure(self)
 
+@dataclass(frozen=True)
+class RerouteUse(Strategy):
+    # In this rewrite we match two consumers that depend on the same producer
+    fst_consumer: IOp
+    producer: IOp
+
+    @dataclass(frozen=True)
+    class Match(Matcher):
+        def apply(self, op: IOp) -> MatchResult:
+            match op:
+                case IOp(op_type=stencil.Apply,
+                    operands=[ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result]) if check_inlining_possible(producer, op, producer_result):
+                    print("found first match!")
+                    return match_success([op, producer])
+                case _:
+                    return match_failure(self)
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match snd_consumer := op:
+            case IOp(op_type=stencil.Apply | stencil.Store,
+                operands=[ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result]) if snd_consumer != self.fst_consumer and self.producer == producer and check_inlining_possible(producer, snd_consumer, producer_result):
+                print("found second match!")
+                # Do preprocessing of operands
+                # Move operands referencing the producer from the snd_consumer to fst_consumer
 
 
+                # Adjust bounds of fst_consumer
+                producer_lb: list[int] = [int_attr.value.data for int_attr in producer.attributes["lb"].data]
+                producer_ub: list[int] = [int_attr.value.data for int_attr in producer.attributes["ub"].data]
+                fst_consumer_lb: list[int] = [int_attr.value.data for int_attr in self.fst_consumer.attributes["ub"].data]
+                fst_consumer_ub: list[int] = [int_attr.value.data for int_attr in self.fst_consumer.attributes["ub"].data]
+
+                new_fst_consumer_attr = self.fst_consumer.attributes.copy()
+                new_fst_consumer_attr["lb"] = ArrayAttr.from_list([IntegerAttr.from_int_and_width(min(producer_lb[idx], fst_consumer_lb[idx]), 64) for idx in range(3)])
+                new_fst_consumer_attr["ub"] = ArrayAttr.from_list([IntegerAttr.from_int_and_width(max(producer_ub[idx], fst_consumer_ub[idx]), 64) for idx in range(3)])
+                
+                print(f"adjusted bounds to: {new_fst_consumer_attr}")
+                
+                # Add stencil.storeResultOps for each of the moved operands + adjust return op <- this actually depends on being able to properly process multiple return values. 
+                
+
+
+                return success(op)
+            case _:
+                return failure(self)
+
+
+# How is this called?
+# multiRoot(
+#         matchTopToBottom(RerouteUse.Match()), 
+#         lambda matched_consumer: topToBottom(RerouteUse(*matched_consumer)))
