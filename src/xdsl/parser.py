@@ -226,6 +226,11 @@ class Parser:
             raise ParserError(self._pos, "int literal expected")
         return res
 
+    def peek_char(self, char: str) -> Optional[bool]:
+        if self.get_char() == char:
+            return True
+        return None
+
     def parse_optional_char(self,
                             char: str,
                             skip_white_space: bool = True) -> Optional[bool]:
