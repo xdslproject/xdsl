@@ -397,6 +397,52 @@ f64 = Float64Type()
 
 
 @irdl_attr_definition
+class FloatData(Data[float]):
+    name = "float_data"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> float:
+        return parser.parse_float_literal()
+
+    @staticmethod
+    def print_parameter(data: float, printer: Printer) -> None:
+        printer.print_string(f'{data}')
+
+    @staticmethod
+    @builder
+    def from_float(data: float) -> FloatData:
+        return FloatData(data)
+
+
+_FloatAttrTyp = TypeVar("_FloatAttrTyp",
+                        bound=Float32Type | Float64Type,
+                        covariant=True)
+
+
+@irdl_attr_definition
+class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
+    name = "float"
+
+    value = ParameterDef[FloatData]
+    type = ParameterDef[Float32Type | Float64Type]
+
+    @staticmethod
+    @builder
+    def from_value(value: float) -> FloatAttr[Float64Type]:
+        return FloatAttr([FloatData.from_float(value), Float64Type()])
+
+    @staticmethod
+    @builder
+    def from_float_and_width(
+            value: float, width: int) -> FloatAttr[Float32Type | Float64Type]:
+        if width == 32:
+            return FloatAttr([FloatData.from_float(value), Float32Type()])
+        if width == 64:
+            return FloatAttr([FloatData.from_float(value), Float64Type()])
+        raise ValueError(f"Invalid bitwidth: {width}")
+
+
+@irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name: str = "unit"
 

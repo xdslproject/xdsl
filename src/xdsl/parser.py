@@ -221,6 +221,36 @@ class Parser:
             raise ParserError(self._pos, "int literal expected")
         return res
 
+    def parse_float_literal(self) -> float:
+        # Parse the optional sign
+        value = ""
+        if self.parse_optional_char("+"):
+            value += "+"
+        elif self.parse_optional_char("-"):
+            value += "-"
+
+        # Parse the significant digits
+        value += self.parse_while(lambda x: x.isdigit())
+
+        # Parse the optional decimal point
+        if self.parse_optional_char("."):
+            # Parse the fractional digits
+            value += "."
+            value += self.parse_while(lambda x: x.isdigit())
+
+        # Parse the optional exponent
+        if self.parse_optional_char("e"):
+            value += "e"
+            # Parse the optional exponent sign
+            if self.parse_optional_char("+"):
+                value += "+"
+            elif self.parse_optional_char("-"):
+                value += "-"
+            # Parse the exponent digits
+            value += self.parse_while(lambda x: x.isdigit())
+
+        return float(value)
+
     def peek_char(self, char: str) -> Optional[bool]:
         if self.get_char() == char:
             return True
