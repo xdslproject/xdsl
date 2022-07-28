@@ -14,13 +14,13 @@ module() {
         }
     }
 }
-//CHECK:module {
-//CHECK:irdl.dialect test_any_dyn {
-//CHECK:irdl.type complex {
-//CHECK:irdl.parameters(elementType: !i32)
-//CHECK:}
-//CHECK:irdl.operation foo {
-//CHECK:irdl.operands(any: Any, basetype: complex)
-//CHECK:}
-//CHECK:}
-//CHECK:}
+//CHECK: module {
+//CHECK:    irdl.dialect test_any_dyn {
+//CHECK:        irdl.type complex {
+//CHECK:            irdl.parameters(elementType: !i32)
+//CHECK:        }
+//CHECK:        irdl.operation foo {
+//CHECK:            irdl.operands(any: Any, basetype: complex)
+//CHECK:        }
+//CHECK:    }
+//CHECK: }   

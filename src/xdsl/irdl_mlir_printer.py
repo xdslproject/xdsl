@@ -32,8 +32,7 @@ class IRDLPrinter:
             raise Exception(f"Operation {op.name} is not an operation in IRDL")
 
     def print_type_definition(self, type: TypeOp):
-        self._print(
-            f"    {TypeOp.name} {type.attributes['type_name'].data} {{")
+        self._print(f"    {TypeOp.name} {type.type_name.data} {{")
         type.walk(lambda param: self.print_parameters_definition(param)
                   if isinstance(param, ParametersOp) else None)
         self._print("    }")
@@ -108,7 +107,7 @@ class IRDLPrinter:
         self._print(f"      {ResultsOp.name}", end="(")
 
         for i in range(len(res_list)):
-            for result in res_list[i].attributes['constraints'].data:
+            for result in res_list[i].constraints.data:
                 self.print_attr_constraint(result)
                 self._print(", ", end='') if i != len(res_list) - 1 else None
         self._print(")")
@@ -117,7 +116,7 @@ class IRDLPrinter:
         self._print(f"      {OperandsOp.name}", end="(")
 
         for i in range(len(op_list)):
-            for ops in op_list[i].attributes['constraints'].data:
+            for ops in op_list[i].constraints.data:
                 self.print_attr_constraint(ops)
                 self._print(", ", end='') if i != len(op_list) - 1 else None
         self._print(")")
