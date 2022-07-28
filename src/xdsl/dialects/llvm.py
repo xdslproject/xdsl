@@ -1,11 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_op_builder,
                        irdl_attr_definition, AttributeDef, OperandDef,
                        ResultDef, irdl_op_definition, builder)
-from xdsl.ir import MLContext, ParametrizedAttribute, TYPE_CHECKING, Attribute, Operation
-from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
+from xdsl.ir import (MLContext, ParametrizedAttribute, Attribute, Operation)
+from xdsl.dialects.builtin import (StringAttr, ArrayOfConstraint, ArrayAttr,
+                                   IntegerAttr, IntegerType)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -21,6 +23,7 @@ class LLVM:
 
         self.ctx.register_op(LLVMExtractValue)
         self.ctx.register_op(LLVMInsertValue)
+        self.ctx.register_op(LLVMMLIRUndef)
 
 
 @irdl_attr_definition
@@ -59,5 +62,12 @@ class LLVMInsertValue(Operation):
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
     container = OperandDef(AnyAttr())
     value = OperandDef(AnyAttr())
+
+    res = ResultDef(AnyAttr())
+
+
+@irdl_op_definition
+class LLVMMLIRUndef(Operation):
+    name = "llvm.mlir.undef"
 
     res = ResultDef(AnyAttr())
