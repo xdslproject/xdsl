@@ -107,7 +107,7 @@ class IRDLPrinter:
         self._print(f"      {ResultsOp.name}", end="(")
 
         for i in range(len(res_list)):
-            for result in res_list[i].constraints.data:
+            for result in res_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(result)
                 self._print(", ", end='') if i != len(res_list) - 1 else None
         self._print(")")
@@ -116,7 +116,7 @@ class IRDLPrinter:
         self._print(f"      {OperandsOp.name}", end="(")
 
         for i in range(len(op_list)):
-            for ops in op_list[i].constraints.data:
+            for ops in op_list[i].attributes['constraints'].data:
                 self.print_attr_constraint(ops)
                 self._print(", ", end='') if i != len(op_list) - 1 else None
         self._print(")")
