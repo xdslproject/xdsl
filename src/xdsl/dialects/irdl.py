@@ -128,6 +128,7 @@ class OperandsOp(Operation):
     """
     name = "irdl.operands"
     op = VarOperandDef(AnyAttr())
+    constraints = AttributeDef(AnyAttr())
 
 
 @irdl_op_definition
@@ -137,6 +138,7 @@ class ResultsOp(Operation):
     """
     name = "irdl.results"
     res = VarResultDef(AnyAttr())
+    constraints = AttributeDef(AnyAttr())
 
 
 @irdl_op_definition
