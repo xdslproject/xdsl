@@ -8,28 +8,77 @@ from pytest import raises
 
 @irdl_op_definition
 class UnkownOp(Operation):
-    name = "unkown"
+    name = "unknown"
     ops = VarOperandDef(AnyAttr())
     res = VarResultDef(AnyAttr())
 
 
-def test_parser_error():
-    """Test the error in case of a parsing error."""
+def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    prog = \
-"""
-unkown() {
-  %0 : !i32 unknown()
-}
-"""
     parser = Parser(ctx, prog)
     with raises(ParserError) as e:
         parser.parse_op()
 
     assert e.value.pos is not None
-    assert e.value.pos.line == 3
-    assert e.value.pos.column == 13
+    assert e.value.pos.line is line
+    assert e.value.pos.column is column
+    assert e.value.message == message
 
-    assert e.value.message == "'=' expected"
+
+def test_parser_missing_equal():
+    """Test a missing equal sign error."""
+    ctx = MLContext()
+    ctx.register_op(UnkownOp)
+
+    prog = \
+"""
+unknown() {
+  %0 : !i32 unknown()
+}
+"""
+    check_error(prog, 3, 13, "'=' expected")
+
+
+def test_parser_redefined_value():
+    """Test an SSA value redefinition error."""
+    ctx = MLContext()
+    ctx.register_op(UnkownOp)
+
+    prog = \
+"""
+unknown() {
+  %val : !i32 = unknown()
+  %val : !i32 = unknown()
+}
+"""
+    check_error(prog, 4, 3, "SSA value val is already defined")
+
+
+def test_parser_missing_operation_name():
+    """Test a missing operation name error."""
+    ctx = MLContext()
+    ctx.register_op(UnkownOp)
+
+    prog = \
+"""
+unknown() {
+  %val : !i32 = 
+}
+"""
+    check_error(prog, 4, 1, "operation name expected")
+
+
+def test_parser_missing_attribute():
+    """Test a missing attribute error."""
+    ctx = MLContext()
+    ctx.register_op(UnkownOp)
+
+    prog = \
+"""
+unknown() {
+  %val : i32 = unknown()
+}
+"""
+    check_error(prog, 3, 10, "attribute expected")
