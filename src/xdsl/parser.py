@@ -4,45 +4,142 @@ from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
 from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
                                    IntegerAttr, ArrayAttr)
 from xdsl.irdl import Data
-
+from dataclasses import dataclass, field
 from typing import TypeVar, Dict, Optional, Tuple, List
 
 indentNumSpaces = 2
 
 
-class Parser:
+@dataclass(frozen=True)
+class Position:
+    """A position in a file"""
 
-    def __init__(self, ctx: MLContext, _str: str):
-        self._ctx: MLContext = ctx
-        self._str: str = _str
-        self._idx: int = 0
-        self._ssaValues: Dict[str, SSAValue] = dict()
-        self._blocks: Dict[str, Block] = dict()
+    file: str
+    """
+    A handle to the file contents. The position is relative to this file.
+    """
+
+    idx: int = field(default=0)
+    """
+    The character index in the entire file.
+    A line break is consider to be a character here.
+    """
+
+    line: int = field(default=1)
+    """The line index."""
+
+    column: int = field(default=1)
+    """The character index in the current line."""
+
+    def __str__(self):
+        return f"{self.line}:{self.column}"
+
+    def next_char_pos(self, n: int = 1) -> Position | None:
+        """Return the position of the next character in the string."""
+        if self.idx >= len(self.file) - n:
+            return None
+        new_idx = self.idx
+        new_line = self.line
+        new_column = self.column
+        while n > 0:
+            if self.file[new_idx] == '\n':
+                new_line += 1
+                new_column = 1
+            else:
+                new_column += 1
+            new_idx += 1
+            n -= 1
+        assert new_idx < len(self.file)
+        return Position(self.file, new_idx, new_line, new_column)
+
+    def get_char(self) -> str:
+        """Return the character at the current position."""
+        assert self.idx < len(self.file)
+        return self.file[self.idx]
+
+    def get_current_line(self) -> str:
+        """Return the current line."""
+        assert self.idx < len(self.file)
+        start_idx = self.idx - self.column + 1
+        end_idx = self.idx
+        while self.file[end_idx] != '\n':
+            end_idx += 1
+        return self.file[start_idx:end_idx]
+
+
+@dataclass
+class ParserError(Exception):
+    """An error triggered during parsing."""
+
+    pos: Position | None
+    message: str
+
+    def __str__(self):
+        if self.pos is None:
+            return f"Parsing error at end of file :{self.message}\n"
+        message = f"Parsing error at {self.pos}:\n"
+        message += self.pos.get_current_line() + '\n'
+        message += " " * (self.pos.column - 1) + "^\n"
+        message += self.message + '\n'
+        return message
+
+
+@dataclass
+class Parser:
+    _ctx: MLContext
+    """xDSL context."""
+
+    _str: str
+    """The current file/input to parse."""
+
+    _pos: Position | None = field(init=False)
+    """Position in the file. None represent the end of the file."""
+
+    _ssaValues: Dict[str, SSAValue] = field(init=False, default_factory=dict)
+    """Associate SSA values with their names."""
+
+    _blocks: Dict[str, Block] = field(init=False, default_factory=dict)
+    """Associate blocks with their names."""
+
+    def __post_init__(self):
+        if len(self._str) == 0:
+            self._pos = None
+        else:
+            self._pos = Position(self._str)
+
+    def get_char(self, n: int = 1) -> str | None:
+        """Get the next n characters (including the current one)"""
+        assert n >= 0
+        if self._pos is None:
+            return None
+        if self._pos.idx + n >= len(self._str):
+            return None
+        return self._str[self._pos.idx:self._pos.idx + n]
 
     def skip_white_space(self) -> None:
-        while self._idx < len(self._str):
-            if self._str[self._idx].isspace():
-                self._idx += 1
-            # TODO: rewrite this hack to support comments
-            elif self._idx < len(self._str) - 1 and self._str[
-                    self._idx] == self._str[self._idx + 1] == '/':
+        while (pos := self._pos) is not None:
+            char = pos.get_char()
+            if char.isspace():
+                self._pos = pos.next_char_pos()
+            elif self.get_char(2) == "//":
                 self.parse_while(lambda x: x != '\n', False)
-
             else:
                 return
 
     def parse_while(self,
                     cond: Callable[[str], bool],
-                    skip_white_space=True) -> str:
+                    skip_white_space: bool = True) -> str:
         if skip_white_space:
             self.skip_white_space()
-        start_idx = self._idx
-        while self._idx < len(self._str):
-            char = self._str[self._idx]
+        start_pos = self._pos
+        if start_pos is None:
+            return ""
+        while self._pos is not None:
+            char = self._pos.get_char()
             if not cond(char):
-                return self._str[start_idx:self._idx]
-            self._idx += 1
-        return self._str[start_idx:]
+                return self._str[start_pos.idx:self._pos.idx]
+            self._pos = self._pos.next_char_pos()
+        return self._str[start_pos.idx:]
 
     # TODO why two different functions, no nums in ident?
     def parse_optional_ident(self, skip_white_space=True) -> Optional[str]:
@@ -55,7 +152,7 @@ class Parser:
     def parse_ident(self, skip_white_space=True) -> str:
         res = self.parse_optional_ident(skip_white_space=skip_white_space)
         if res is None:
-            raise Exception("ident expected")
+            raise ParserError(self._pos, "ident expected")
         return res
 
     def parse_optional_alpha_num(self, skip_white_space=True) -> Optional[str]:
@@ -68,37 +165,45 @@ class Parser:
     def parse_alpha_num(self, skip_white_space=True) -> str:
         res = self.parse_optional_alpha_num(skip_white_space=skip_white_space)
         if res is None:
-            raise Exception("alphanum expected")
+            raise ParserError(self._pos, "alphanum expected")
         return res
 
     def parse_optional_str_literal(self) -> Optional[str]:
         parsed = self.parse_optional_char('"')
         if parsed is None:
             return None
-        start_idx = self._idx
-        while self._idx < len(self._str):
-            char = self._str[self._idx]
+        start_pos = self._pos
+        if start_pos is None:
+            raise ParserError(None, "Unexpected end of file")
+        while self._pos is not None:
+            pos = self._pos
+            char = pos.get_char()
             if char == '\\':
-                if self._idx + 1 < len(self._str):
-                    if self._str[self._idx + 1] in ['\\', 'n', 't', 'r', '"']:
-                        self._idx += 1
+                if (next_pos := pos.next_char_pos()) is not None:
+                    escaped = next_pos.get_char()
+                    if escaped in ['\\', 'n', 't', 'r', '"']:
+                        self._pos = next_pos.next_char_pos()
+                        continue
                     else:
-                        raise Exception(
-                            f"Unrecognized escaped character: \\{self._str[self._idx + 1]}"
-                        )
+                        raise ParserError(
+                            next_pos,
+                            f"Unrecognized escaped character: \\{escaped}")
                 else:
-                    raise Exception("Unexpected end of file")
+                    raise ParserError(None, "Unexpected end of file")
             elif char == '"':
                 break
-            self._idx += 1
-        res = self._str[start_idx:self._idx]
+            self._pos = pos.next_char_pos()
+        if self._pos is None:
+            res = self._str[start_pos.idx:]
+        else:
+            res = self._str[start_pos.idx:self._pos.idx]
         self.parse_char('"')
         return res
 
     def parse_str_literal(self) -> str:
         res = self.parse_optional_str_literal()
         if res is None:
-            raise Exception("string literal expected")
+            raise ParserError(self._pos, "string literal expected")
         return res
 
     def parse_optional_int_literal(self) -> Optional[int]:
@@ -106,47 +211,48 @@ class Parser:
         res = self.parse_while(lambda char: char.isnumeric())
         if len(res) == 0:
             if is_negative is not None:
-                raise Exception("int literal expected")
+                raise ParserError(self._pos, "int literal expected")
             return None
         return int(res) if is_negative is None else -int(res)
 
     def parse_int_literal(self) -> int:
         res = self.parse_optional_int_literal()
         if res is None:
-            raise Exception("int literal expected")
+            raise ParserError(self._pos, "int literal expected")
         return res
 
     def peek_char(self, char: str) -> Optional[bool]:
-        self.skip_white_space()
-        if self._idx == len(self._str):
-            return None
-        if self._str[self._idx] == char:
+        if self.get_char() == char:
             return True
         return None
 
-    def parse_optional_char(self, char: str) -> Optional[bool]:
+    def parse_optional_char(self,
+                            char: str,
+                            skip_white_space: bool = True) -> Optional[bool]:
         assert (len(char) == 1)
-        res = self.peek_char(char)
-        if res:
-            self._idx += 1
-        return res
+        if skip_white_space:
+            self.skip_white_space()
+        if self._pos is None:
+            return None
+        if self._pos.get_char() == char:
+            self._pos = self._pos.next_char_pos()
+            return True
+        return None
 
-    def parse_char(self, char: str) -> bool:
+    def parse_char(self, char: str, skip_white_space: bool = True) -> bool:
         assert (len(char) == 1)
-        res = self.parse_optional_char(char)
+        res = self.parse_optional_char(char, skip_white_space=skip_white_space)
         if res is None:
-            raise Exception("'%s' expected" % char)
+            raise ParserError(self._pos, f"'{char}' expected")
         return True
 
-    def parse_string(self, contents: List[str]) -> bool:
-        self.skip_white_space()
-        for char in contents:
-            if self._idx >= len(self._str):
-                raise Exception(f"{contents} expected")
-            if self._str[self._idx] != char:
-                raise Exception(f"{contents} expected")
-            self._idx += 1
-        return True
+    def parse_string(self, contents: str) -> bool:
+        chars = self.get_char(len(contents))
+        if chars == contents:
+            assert self._pos is not None
+            self._pos = self._pos.next_char_pos(len(contents))
+            return True
+        raise ParserError(self._pos, f"'{contents}' expected")
 
     T = TypeVar('T')
 
@@ -193,7 +299,8 @@ class Parser:
             # the block
             for (idx, res) in enumerate(tuple_list):
                 if res[0] in self._ssaValues:
-                    raise Exception("SSA value %s is already defined" % res[0])
+                    raise ParserError(
+                        self._pos, f"SSA value {res[0]} is already defined")
                 arg = res[1]
                 self._ssaValues[res[0]] = arg
                 arg.index = idx
@@ -214,7 +321,8 @@ class Parser:
         oldBBNames = self._blocks.copy()
         self._blocks = dict[str, Block]()
 
-        if self.peek_char("^"):
+        self.skip_white_space()
+        if self.get_char() == '^':
             for block in self.parse_list(self.parse_optional_named_block,
                                          delimiter=""):
                 region.add_block(block)
@@ -235,17 +343,20 @@ class Parser:
         return name
 
     def parse_optional_ssa_value(self) -> Optional[SSAValue]:
+        self.skip_white_space()
+        start_pos = self._pos
         name = self.parse_optional_ssa_name()
         if name is None:
             return None
         if name not in self._ssaValues:
-            raise Exception("name '%s' does not refer to a SSA value" % name)
+            raise ParserError(start_pos,
+                              f"name {name} does not refer to a SSA value")
         return self._ssaValues[name]
 
     def parse_ssa_value(self) -> SSAValue:
         res = self.parse_optional_ssa_value()
         if res is None:
-            raise Exception("Expected SSA value")
+            raise ParserError(self._pos, "SSA value expected")
         return res
 
     def parse_optional_result(self) -> Optional[Tuple[str, Attribute]]:
@@ -280,8 +391,8 @@ class Parser:
         self.parse_char(":")
         typ = self.parse_attribute()
         if value.typ != typ:
-            raise Exception("type mismatch between %s and %s" %
-                            (typ, value.typ))
+            raise ParserError(self._pos,
+                              f"type mismatch between {typ} and {value.typ}")
         return value
 
     def parse_operands(self) -> List[Optional[SSAValue]]:
@@ -299,8 +410,7 @@ class Parser:
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
         if integer_lit is not None:
-            if self.peek_char(":"):
-                self.parse_char(":")
+            if self.parse_optional_char(":"):
                 typ = self.parse_attribute()
             else:
                 typ = IntegerType.from_width(64)
@@ -350,7 +460,7 @@ class Parser:
     def parse_attribute(self) -> Attribute:
         res = self.parse_optional_attribute()
         if res is None:
-            raise Exception("attribute expected")
+            raise ParserError(self._pos, "attribute expected")
         return res
 
     def parse_optional_named_attribute(
@@ -425,10 +535,11 @@ class Parser:
     def _parse_op_name(self) -> Tuple[str, bool]:
         op_name = self._parse_optional_op_name()
         if op_name is None:
-            raise Exception("Expected operation name")
+            raise ParserError(self._pos, "operation name expected")
         return op_name
 
     def parse_optional_op(self) -> Optional[Operation]:
+        start_pos = self._pos
         results = self.parse_optional_results()
         if results is None:
             op_name_and_generic = self._parse_optional_op_name()
@@ -450,7 +561,8 @@ class Parser:
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
             if res[0] in self._ssaValues:
-                raise Exception("SSA value %s is already defined" % res[0])
+                raise ParserError(start_pos,
+                                  f"SSA value {res[0]} is already defined")
             self._ssaValues[res[0]] = op.results[idx]
             if self.is_valid_name(res[0]):
                 self._ssaValues[res[0]].name = res[0]
@@ -460,5 +572,5 @@ class Parser:
     def parse_op(self) -> Operation:
         res = self.parse_optional_op()
         if res is None:
-            raise Exception("operation expected")
+            raise ParserError(self._pos, "operation expected")
         return res
