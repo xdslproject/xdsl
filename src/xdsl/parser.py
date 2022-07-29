@@ -137,13 +137,8 @@ class Parser:
         while self._pos is not None:
             char = self._pos.get_char()
             if not cond(char):
-                # We need to assert here because Python does not understand that
-                # pos and start_pos are equal, and thus not None
-                assert start_pos is not None
                 return self._str[start_pos.idx:self._pos.idx]
             self._pos = self._pos.next_char_pos()
-        # We need to assert here because Python does not understand that
-        # pos and start_pos are equal, and thus not None
         return self._str[start_pos.idx:]
 
     # TODO why two different functions, no nums in ident?
