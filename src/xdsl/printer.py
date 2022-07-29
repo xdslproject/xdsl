@@ -5,8 +5,8 @@ from typing import TypeVar, Any, Dict, Optional, List
 
 from dataclasses import dataclass, field
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
-from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
-                                   IntegerAttr, ArrayAttr,
+from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
+                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
                                    ParametrizedAttribute, IntAttr)
 from xdsl.irdl import Data
 
@@ -265,6 +265,14 @@ class Printer:
             typ = attribute.parameters[1]
             assert (isinstance(width, IntAttr))
             self.print(width.data)
+            self.print(" : ")
+            self.print_attribute(typ)
+            return
+
+        if isinstance(attribute, FloatAttr):
+            value = attribute.value
+            typ = attribute.type
+            self.print(value.data)
             self.print(" : ")
             self.print_attribute(typ)
             return

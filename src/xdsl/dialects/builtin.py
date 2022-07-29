@@ -36,6 +36,8 @@ class Builtin:
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
         self.ctx.register_attr(Float64Type)
+        self.ctx.register_attr(FloatData)
+        self.ctx.register_attr(FloatAttr)
         self.ctx.register_attr(IntegerType)
         self.ctx.register_attr(IndexType)
 
@@ -423,13 +425,15 @@ _FloatAttrTyp = TypeVar("_FloatAttrTyp",
 class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     name = "float"
 
-    value = ParameterDef[FloatData]
-    type = ParameterDef[Float32Type | Float64Type]
+    value: ParameterDef[FloatData]
+    type: ParameterDef[Float32Type | Float64Type]
 
     @staticmethod
     @builder
-    def from_value(value: float) -> FloatAttr[Float64Type]:
-        return FloatAttr([FloatData.from_float(value), Float64Type()])
+    def from_value(
+        value: float, type: Float32Type | Float64Type = Float32Type()
+    ) -> FloatAttr[Float64Type]:
+        return FloatAttr([FloatData.from_float(value), type])
 
     @staticmethod
     @builder

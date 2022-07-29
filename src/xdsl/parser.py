@@ -1,8 +1,9 @@
 from __future__ import annotations
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext)
-from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
-                                   IntegerAttr, ArrayAttr)
+from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
+                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
+                                   ArrayAttr)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import TypeVar, Dict, Optional, Tuple, List
@@ -116,6 +117,21 @@ class Parser:
             return None
         return self._str[self._pos.idx:self._pos.idx + n]
 
+    _T = TypeVar("_T")
+
+    def try_parse(self, parse_fn: Callable[[], _T | None]) -> _T | None:
+        """
+        Wrap a parsing function. If the parsing fails, then return without
+        any change to the current position.
+        """
+        start_pos = self._pos
+        try:
+            return parse_fn()
+        except ParserError:
+            pass
+        self._pos = start_pos
+        return None
+
     def skip_white_space(self) -> None:
         while (pos := self._pos) is not None:
             char = pos.get_char()
@@ -221,6 +237,9 @@ class Parser:
             raise ParserError(self._pos, "int literal expected")
         return res
 
+    def parse_optional_float_literal(self) -> float | None:
+        return self.try_parse(self.parse_float_literal)
+
     def parse_float_literal(self) -> float:
         # Parse the optional sign
         value = ""
@@ -230,13 +249,20 @@ class Parser:
             value += "-"
 
         # Parse the significant digits
-        value += self.parse_while(lambda x: x.isdigit())
+        digits = self.parse_while(lambda x: x.isdigit())
+        if digits == "":
+            raise ParserError(self._pos, "float literal expected")
+        value += digits
+
+        # Check that we are parsing a float, and not an integer
+        is_float = False
 
         # Parse the optional decimal point
         if self.parse_optional_char("."):
             # Parse the fractional digits
             value += "."
             value += self.parse_while(lambda x: x.isdigit())
+            is_float = True
 
         # Parse the optional exponent
         if self.parse_optional_char("e"):
@@ -248,6 +274,12 @@ class Parser:
                 value += "-"
             # Parse the exponent digits
             value += self.parse_while(lambda x: x.isdigit())
+            is_float = True
+
+        if not is_float:
+            raise ParserError(
+                self._pos,
+                "float literal expected, but got an integer literal")
 
         return float(value)
 
@@ -436,6 +468,15 @@ class Parser:
         string_lit = self.parse_optional_str_literal()
         if string_lit is not None:
             return StringAttr.from_str(string_lit)
+
+        # Shorthand for FloatAttr
+        float_lit = self.parse_optional_float_literal()
+        if float_lit is not None:
+            if self.parse_optional_char(":"):
+                typ = self.parse_attribute()
+            else:
+                typ = Float32Type()
+            return FloatAttr.from_value(float_lit, typ)
 
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
