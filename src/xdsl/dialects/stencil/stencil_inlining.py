@@ -19,7 +19,7 @@ def check_inlining_possible(producer: IOp, consumer: IOp, producer_result: ISSAV
     if producer.region is None or consumer.region is None or consumer.region.block is None:
         return False
 
-    # Check that there are no stencil.store ops in the producer.
+    # Check that there are no empty stencil.store ops in the producer.
     for nested_op in consumer.region.ops:
         if nested_op.op_type == stencil.Store and len(nested_op.operands) == 0:
             return False
@@ -27,7 +27,7 @@ def check_inlining_possible(producer: IOp, consumer: IOp, producer_result: ISSAV
     # Check that there is no stencil.dynAccess in the consumer accessing the producer 
     # (i.e. the blockArg associated with the producer)
     producer_idx = consumer.operands.index(producer_result)
-    for nested_op in producer.region.ops:
+    for nested_op in consumer.region.ops:
         if nested_op.op_type == stencil.DynAccess and consumer.region.block.args[producer_idx] in nested_op.operands:
             return False
     return True
@@ -39,9 +39,14 @@ class InlineProducer(Strategy):
         # We match the consumer, rather than the producer.
         match op:
             case IOp(op_type=stencil.Apply,
-                    operands=[ISSAValue(op=IOp(op_type=stencil.Apply) as producer_apply) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer_apply) as producer_result]) if check_inlining_possible(producer_apply, op, producer_result):
+                    operands=[_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer_apply) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer_apply) as producer_result]) if check_inlining_possible(producer_apply, op, producer_result):
+
+
                 env: dict[ISSAValue, ISSAValue] = {}
-                
+                # The inlining cache remembers what blockArg of the consumerApply was inlined and for what offset.
+                # i.e. when it is accessed with different offsets, it will be inlined multiple times
+                inlining_cache: dict[tuple[IBlock, tuple[int]], ISSAValue] = {}
+
                 # They just merge the args and canonicalize them away later. We will not do this!
                 # i.e check before creation of the op, whether the args are actually used inside the region.
 
@@ -74,58 +79,86 @@ class InlineProducer(Strategy):
 
 
 
-                def get_ops_to_inline(old_ops: list[IOp], env: dict[ISSAValue, ISSAValue]) -> list[IOp]:
+                def get_ops_to_inline(producer_apply: IOp, consumer_apply: IOp, old_ops: list[IOp], env: dict[ISSAValue, ISSAValue]) -> list[IOp]:
                     new_ops: list[IOp] = []
 
                     for old_op in old_ops:
                         if old_op.op_type == stencil.StoreResult:
+                            assert old_op.result is not None
                             # StoreResult denotes which value we have to use to replace the access op
-                            assert access_op.result is not None
                             # In the inlined ops we move all references to the storeresult to its operand
                             env[old_op.result] = env[old_op.operands[0]]
 
                             # don't inline storeresult ops themselves
                             continue
-                        elif old_op.op_type == stencil.Return:
+                        elif (return_op := old_op).op_type == stencil.Return:
+                            assert access_op.result is not None
                             # stencil.Return denotes which value we have to use to replace the access op
                             # The operand of the returnop has already been visited and inlined. We look it up in env
-                            env[access_op.result] = env[old_op.operands[0]]
+
+                            # To replace all future references to the accessOp
+                            # TODO: This should not be 0
+                            env[access_op.result] = env[return_op.operands[0]]
+
+                            # To replace all future references to the blockArg we are inlining here:
+                            for idx, return_operand in enumerate(return_op.operands):
+                                if (producer_result := producer_apply.results[idx]) in consumer_apply.operands:
+                                    block_arg_idx = consumer_apply.operands.index(producer_result)
+                                    # env[consumer_apply.region.block.args[block_arg_idx]] = env[return_operand]
+                                    inlining_key = (consumer_apply.region.block.args[block_arg_idx].block, tuple([int_attr.value.data for int_attr in access_op.attributes["offset"].data]))
+                                    inlining_cache[inlining_key] = env[return_operand]
+                                
+
 
                             # don't inline the return op of the producer
                             continue
                         elif old_op.op_type == scf.If:
                             # rebuild the scf.If op
-                            then_region_ops: list[IOp] = get_ops_to_inline(old_op.regions[0].ops, env=env)
-                            else_region_ops: list[IOp] = get_ops_to_inline(old_op.regions[1].ops, env=env)
+                            then_region_ops: list[IOp] = get_ops_to_inline(producer_apply, consumer_apply, old_op.regions[0].ops, env=env)
+                            else_region_ops: list[IOp] = get_ops_to_inline(producer_apply, consumer_apply, old_op.regions[1].ops, env=env)
                             updated_scf_result_type = old_op.result_types[0].elem if isinstance(old_op.result_types[0], stencil.ResultType) else old_op.result_types[0]
                             new_ops.extend(from_op(old_op, regions=[IRegion([IBlock([], then_region_ops)]), IRegion([IBlock([], else_region_ops)])], env=env, result_types=[updated_scf_result_type]))
                             continue
                         # Ordinary inlining:
                         # Shift the producer op by the offset of the access op, i.e just adding the offsets
-                        if "offset" in old_op.attributes.keys():
+                        if any([(do_offset_change := "offset" in old_op.attributes.keys()), (do_lb_change := "lb" in old_op.attributes.keys()), (do_ub_change := "ub" in old_op.attributes.keys())]):
                             new_attributes = old_op.attributes.copy()
 
                             accessop_offset: list[int] = [int_attr.value.data for int_attr in access_op.attributes["offset"].data]
-                            old_op_offset: list[int] = [int_attr.value.data for int_attr in new_attributes["offset"].data]
 
-                            new_attributes["offset"] = ArrayAttr.from_list([IntegerAttr.from_int_and_width(accessop_offset[idx] + old_op_offset[idx], 64) for idx in range(3)])
+                            def get_shifted_attr(attribute_name: str, offset: list[int]) -> ArrayAttr:
+                                old_op_attr: list[int] = [int_attr.value.data for int_attr in new_attributes[attribute_name].data]
+                                return ArrayAttr.from_list([IntegerAttr.from_int_and_width(accessop_offset[idx] + old_op_attr[idx], 64) for idx in range(3)])
+
+
+                            if do_offset_change:
+                                new_attributes["offset"] = get_shifted_attr("offset", accessop_offset)
+                            if do_lb_change:
+                                new_attributes["lb"] = get_shifted_attr("lb", accessop_offset)
+                            if do_ub_change:
+                                new_attributes["ub"] = get_shifted_attr("ub", accessop_offset)
+
                             new_ops.extend(from_op(old_op, env=env, attributes=new_attributes))
                         else:
-                            new_ops.extend(from_op(old_op, env=env))                    
+                            new_ops.extend(from_op(old_op, env=env))
                     return new_ops
-
                 # Create the region for the new ApplyOp
                 new_apply_region_ops: list[IOp] = []
                 for consumer_op in op.region.ops:
                     if (access_op := consumer_op).op_type == stencil.Access:
                         if op.operands[(accessed_block_arg_index := op.region.block.args.index(access_op.operands[0]))] in producer_apply.results:
+                            tmp = [int_attr.value.data for int_attr in access_op.attributes["offset"].data]
+                            # Check whether we already inlined the same producer before
+                            inlining_key = (access_op.operands[0].block, tuple([int_attr.value.data for int_attr in access_op.attributes["offset"].data]))
+                            if inlining_key in inlining_cache:
+                                # We already inlined the corresponding producer!
+                                # i.e. we already have an existing mapping in inlining_cache for the blockArgs of the consumer_apply for this offset
+                                assert consumer_op.result is not None
+                                env[consumer_op.result] = inlining_cache[inlining_key]#env[access_op.operands[0]]
+                                continue
+
                             # found an access op where I can do inlining!
-
-                            # TODO: look in inlining cache for when the producer to be inlined has already been inlined
-                            # We can do the inlining cache just with the env. So check here whether the access thingy is already in the env.
-
-                            new_apply_region_ops.extend(get_ops_to_inline(producer_apply.region.ops, env=env))
-
+                            new_apply_region_ops.extend(get_ops_to_inline(producer_apply, op, producer_apply.region.ops, env=env))
                             # don't add the access op we do inlining for
                             continue
 
@@ -152,7 +185,6 @@ class RerouteUse(Strategy):
             match op:
                 case IOp(op_type=stencil.Apply,
                     operands=[ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result]) if check_inlining_possible(producer, op, producer_result):
-                    print("found first match!")
                     return match_success([op, producer])
                 case _:
                     return match_failure(self)
@@ -164,7 +196,6 @@ class RerouteUse(Strategy):
                 assert self.fst_consumer.region is not None
                 assert self.fst_consumer.region.block is not None
 
-                print("found second match!")
                 # Do preprocessing of operands
                 # Move operands referencing the producer from the snd_consumer to fst_consumer
                 env: dict[ISSAValue, ISSAValue] = {}
@@ -239,7 +270,6 @@ class RerouteUse(Strategy):
 
                 result = success(new_fst_consumer, matched_op=self.fst_consumer)
                 result += success(from_op(snd_consumer, env=env), matched_op=snd_consumer)
-                print("returning successfully")
                 return result
             case _:
                 return failure(self)
