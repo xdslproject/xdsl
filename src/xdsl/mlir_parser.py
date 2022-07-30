@@ -36,35 +36,15 @@ class MLIRParser(Parser):
 
     _T = TypeVar("_T")
 
-    def try_parse(
-        self,
-        parse_fn: Callable[[], _T | None],
-    ) -> _T | None:
-        """
-        Try to parse something.
-        If the parsing fails, then cancel any exceptions, and go back to where
-        we were in the parsing.
-        """
-        start_idx = self._idx
-        try:
-            res = parse_fn()
-            if res is not None:
-                return res
-        except:
-            pass
-        self._idx = start_idx
-        return None
-
     def parse_optional_balanced_string(self) -> str | None:
         open_parentheses = ["(", "[", "<", "{"]
-        if self._idx == len(
-                self._str) or self._str[self._idx] not in open_parentheses:
+        if self._pos is None or self.get_char() not in open_parentheses:
             return None
 
         paren_stack = list[str]()
-        start_idx = self._idx
-        while self._idx < len(self._str):
-            char = self._str[self._idx]
+        start_pos = self._pos
+        while self._pos is not None:
+            char = self.get_char()
             if char in open_parentheses:
                 paren_stack.append(char)
             elif char == '"':
@@ -79,9 +59,11 @@ class MLIRParser(Parser):
             elif char == "}" and paren_stack[-1] == "{":
                 paren_stack.pop()
 
-            self._idx += 1
+            self._pos = self._pos.next_char_pos()
             if len(paren_stack) == 0:
-                return self._str[start_idx:self._idx]
+                if self._pos is None:
+                    return self._str[start_pos.idx:]
+                return self._str[start_pos.idx:self._pos.idx]
 
     def parse_optional_attribute(self) -> Attribute | None:
         self.skip_white_space()
@@ -196,6 +178,7 @@ class MLIRParser(Parser):
         oldBBNames = self._blocks.copy()
         self._blocks = dict[str, Block]()
 
+        self.skip_white_space()
         if self.peek_char("^"):
             for block in self.parse_list(self.parse_optional_named_block,
                                          delimiter=""):
@@ -251,10 +234,10 @@ class MLIRParser(Parser):
             op_name_and_generic = self._parse_optional_op_name()
             if op_name_and_generic is None:
                 return None
-            op_name, is_generic_format = op_name_and_generic
+            op_name, _ = op_name_and_generic
             results = []
         else:
-            op_name, is_generic_format = self._parse_op_name()
+            op_name, _ = self._parse_op_name()
 
         # We first fix the name of the module
         if op_name == "builtin.module":
