@@ -1,5 +1,5 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import FunctionType, ModuleOp, StringAttr
+from xdsl.dialects.builtin import FunctionType, StringAttr
 from xdsl.ir import (Attribute, Operation, ParametrizedAttribute, Region,
                      SSAValue, Block)
 from xdsl.irdl import (VarOperandDef, AnyAttr, VarResultDef,
@@ -7,7 +7,7 @@ from xdsl.irdl import (VarOperandDef, AnyAttr, VarResultDef,
                        builder)
 from xdsl.parser import Parser
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 
 @irdl_op_definition
@@ -65,8 +65,11 @@ class MLIRParser(Parser):
                     return self._str[start_pos.idx:]
                 return self._str[start_pos.idx:self._pos.idx]
 
-    def parse_optional_attribute(self) -> Attribute | None:
-        self.skip_white_space()
+    def parse_optional_attribute(self,
+                                 skip_white_space: bool = True
+                                 ) -> Attribute | None:
+        if skip_white_space:
+            self.skip_white_space()
 
         # str_literal
         str_literal = self.parse_optional_str_literal()
@@ -117,25 +120,34 @@ class MLIRParser(Parser):
 
         return UnkownMLIRAttr.from_str(alnum_parens)
 
-    def parse_optional_result(self) -> str | None:
-        name = self.parse_optional_ssa_name()
+    def parse_optional_result(self,
+                              skip_white_space: bool = True) -> str | None:
+        name = self.parse_optional_ssa_name(skip_white_space=skip_white_space)
         if name is None:
             return None
         return name
 
-    def parse_optional_results(self) -> list[str] | None:
+    def parse_optional_results(self,
+                               skip_white_space: bool = True
+                               ) -> list[str] | None:
         # Multiple arguments
-        res = self.parse_list(lambda: self.parse_optional_result())
+        res = self.parse_list(lambda: self.parse_optional_result(),
+                              skip_white_space=skip_white_space)
         if len(res) == 0:
             return None
         self.parse_char("=")
         return res
 
-    def parse_optional_operand(self) -> SSAValue | None:
-        return self.parse_optional_ssa_value()
+    def parse_optional_operand(self,
+                               skip_white_space: bool = True
+                               ) -> SSAValue | None:
+        return self.parse_optional_ssa_value(skip_white_space=skip_white_space)
 
-    def parse_optional_named_attribute(self) -> tuple[str, Attribute] | None:
-        attr_name = self.parse_optional_alpha_num()
+    def parse_optional_named_attribute(
+            self,
+            skip_white_space: bool = True) -> tuple[str, Attribute] | None:
+        attr_name = self.parse_optional_alpha_num(
+            skip_white_space=skip_white_space)
         if attr_name is None:
             return None
 
@@ -147,15 +159,21 @@ class MLIRParser(Parser):
         print(attr_name, attr)
         return attr_name, attr
 
-    def parse_op_attributes(self) -> dict[str, Attribute]:
-        if not self.parse_optional_char("{"):
+    def parse_op_attributes(self,
+                            skip_white_space: bool = True
+                            ) -> dict[str, Attribute]:
+        if not self.parse_optional_char("{",
+                                        skip_white_space=skip_white_space):
             return dict()
         attrs_with_names = self.parse_list(self.parse_optional_named_attribute)
         self.parse_char("}")
         return {name: attr for (name, attr) in attrs_with_names}
 
-    def parse_op_type(self) -> tuple[list[Attribute], list[Attribute]]:
-        self.parse_char("(")
+    def parse_op_type(
+        self,
+        skip_white_space: bool = True
+    ) -> tuple[list[Attribute], list[Attribute]]:
+        self.parse_char("(", skip_white_space=skip_white_space)
         inputs = self.parse_list(self.parse_optional_attribute)
         self.parse_char(")")
         self.parse_string("->")
@@ -169,8 +187,10 @@ class MLIRParser(Parser):
 
         return inputs, outputs
 
-    def parse_optional_region(self) -> Region | None:
-        if not self.parse_optional_char("("):
+    def parse_optional_region(self,
+                              skip_white_space: bool = True) -> Region | None:
+        if not self.parse_optional_char("(",
+                                        skip_white_space=skip_white_space):
             return None
         self.parse_char("{")
         region = Region()
@@ -196,9 +216,12 @@ class MLIRParser(Parser):
 
     _OperationType = TypeVar('_OperationType', bound='Operation')
 
-    def parse_op_with_default_format(self, op_type: type[_OperationType],
-                                     num_results: int) -> _OperationType:
-        operands = self.parse_operands()
+    def parse_op_with_default_format(
+            self,
+            op_type: type[_OperationType],
+            num_results: int,
+            skip_white_space: bool = True) -> _OperationType:
+        operands = self.parse_operands(skip_white_space=skip_white_space)
 
         regions = list[Region]()
         region = self.parse_optional_region()
@@ -228,8 +251,10 @@ class MLIRParser(Parser):
                               result_types=result_types,
                               regions=regions)
 
-    def parse_optional_op(self) -> Operation | None:
-        results = self.parse_optional_results()
+    def parse_optional_op(self,
+                          skip_white_space: bool = True) -> Operation | None:
+        results = self.parse_optional_results(
+            skip_white_space=skip_white_space)
         if results is None:
             op_name_and_generic = self._parse_optional_op_name()
             if op_name_and_generic is None:
