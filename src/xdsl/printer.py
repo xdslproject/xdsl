@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from frozenlist import FrozenList
+
 from xdsl.diagnostic import Diagnostic
 from typing import TypeVar, Any, Dict, Optional, List
 
@@ -27,6 +29,7 @@ class Printer:
     print_operand_types: TypeLocation = field(default=TypeLocation.INLINE)
     print_result_types: TypeLocation = field(default=TypeLocation.INLINE)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
     _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
@@ -102,8 +105,8 @@ class Printer:
 
     T = TypeVar('T')
 
-    def print_list(self, elems: List[T], print_fn: Callable[[T],
-                                                            None]) -> None:
+    def print_list(self, elems: FrozenList[T] | List[T],
+                   print_fn: Callable[[T], None]) -> None:
         if len(elems) == 0:
             return
         print_fn(elems[0])
@@ -334,21 +337,11 @@ class Printer:
         if (self.print_operand_types == Printer.TypeLocation.AFTER
                 and self.print_result_types == Printer.TypeLocation.AFTER):
             self.print(" : (")
-            first = True
-            for operand in op.operands:
-                if first:
-                    first = False
-                else:
-                    self.print(", ")
-                self.print_attribute(operand.typ)
+            self.print_list(op.operands,
+                            lambda operand: self.print_attribute(operand.typ))
             self.print(") -> (")
-            first = True
-            for result in op.results:
-                if first:
-                    first = False
-                else:
-                    self.print(", ")
-                self.print_attribute(result.typ)
+            self.print_list(op.operands,
+                            lambda result: self.print_attribute(result.typ))
             self.print(")")
 
     def _print_op(self, op: Operation) -> None:
