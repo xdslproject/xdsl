@@ -24,11 +24,16 @@ class Printer:
         INLINE = 2
         AFTER = 3
 
+    class Target(Enum):
+        XDSL = 1
+        MLIR = 2
+
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
     print_operand_types: TypeLocation = field(default=TypeLocation.INLINE)
     print_result_types: TypeLocation = field(default=TypeLocation.INLINE)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    target: Target = field(default=Target.XDSL)
 
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
@@ -223,20 +228,20 @@ class Printer:
 
     def print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
-            self.print(" {}")
+            self.print(" {}" if self.target == self.Target.XDSL else " ({})")
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
-            self.print(" {")
+            self.print(" {" if self.target == self.Target.XDSL else " ({")
             self._print_ops(region.blocks[0].ops)
-            self.print("}")
+            self.print("}" if self.target == self.Target.XDSL else "})")
             return
 
-        self.print(" {")
+        self.print(" {" if self.target == self.Target.XDSL else " ({")
         self._print_new_line()
         for block in region.blocks:
             self._print_named_block(block)
-        self.print("}")
+        self.print("}" if self.target == self.Target.XDSL else "})")
 
     def print_regions(self, regions: List[Region]) -> None:
         for region in regions:
@@ -318,7 +323,7 @@ class Printer:
             return
 
         self.print(" ")
-        self.print("[")
+        self.print("[" if self.target == Printer.Target.XDSL else "{")
 
         attribute_list = [p for p in attributes.items()]
         self.print("\"%s\" = " % attribute_list[0][0])
@@ -326,7 +331,7 @@ class Printer:
         for (attr_name, attr) in attribute_list[1:]:
             self.print(", \"%s\" = " % attr_name)
             self.print_attribute(attr)
-        self.print("]")
+        self.print("]" if self.target == Printer.Target.XDSL else "}")
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self._print_operands(op.operands)
