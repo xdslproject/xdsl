@@ -1,6 +1,5 @@
 from __future__ import annotations
 from io import StringIO
-import xdsl.dialects.arith as arith
 import xdsl.dialects.scf as scf
 import xdsl.dialects.stencil.stencil as stencil
 from xdsl.parser import Parser
@@ -9,7 +8,7 @@ from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
-from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteUse
+from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteOutputDependency, RerouteInputDependency
 import difflib
 
 
@@ -633,11 +632,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(after)
 
     # Only performing the rerouting step
-    apply_strategy_and_compare(
-        before, intermediate,
-        multiRoot(
-            matchTopToBottom(RerouteUse.Match()), lambda matched_consumer:
-            topToBottom(RerouteUse(*matched_consumer))))
+    apply_strategy_and_compare(before, intermediate, RerouteOutputDependency)
 
     # Only performing the inlining step
     apply_strategy_and_compare(
@@ -646,11 +641,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     # combining both steps
     apply_strategy_and_compare(
-        before, after,
-        multiRoot(
-            matchTopToBottom(RerouteUse.Match()), lambda matched_consumer:
-            topToBottom(RerouteUse(*matched_consumer)))
-        ^ topToBottom(InlineProducer()) ^ topToBottom(GarbageCollect()))
+        before, after, RerouteOutputDependency ^ topToBottom(InlineProducer())
+        ^ topToBottom(GarbageCollect()))
 
 
 def test_inlining_avoid_redundant():
@@ -798,8 +790,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     %15 : !stencil.result<!f64> = stencil.store_result(%14 : !f64)
     stencil.return(%13 : !stencil.result<!f64>, %15 : !stencil.result<!f64>)
   }
-  stencil.store(%8 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
-  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  stencil.store(%8 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
   func.return()
 }
 """
@@ -810,15 +802,15 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 ^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
   %3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]]
   (%4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %5 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) = stencil.apply(%3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
-  ^1(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %7 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
-    %8 : !f64 = stencil.access(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
-    %9 : !stencil.result<!f64> = stencil.store_result(%8 : !f64)
-    %10 : !f64 = stencil.access(%7 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
-    %11 : !stencil.result<!f64> = stencil.store_result(%10 : !f64)
-    stencil.return(%9 : !stencil.result<!f64>, %11 : !stencil.result<!f64>)
+  ^1(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>):
+    %7 : !f64 = stencil.access(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
+    %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)
+    %9 : !f64 = stencil.access(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %10 : !stencil.result<!f64> = stencil.store_result(%9 : !f64)
+    stencil.return(%8 : !stencil.result<!f64>, %10 : !stencil.result<!f64>)
   }
-  stencil.store(%4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
-  stencil.store(%5 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  stencil.store(%5 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  stencil.store(%4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
   func.return()
 }
 """
@@ -898,28 +890,18 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(intermediate)
     parse(after)
 
-    # TODO: to make this work we need the other matching step in the rerouting rewrite.
-    # The actual rewrite should be the same, only the matching has to be improved
-
     # Only performing the rerouting step
-    # apply_strategy_and_compare(
-    #     before, intermediate,
-    #     multiRoot(
-    #         matchTopToBottom(RerouteUse.Match()), lambda matched_consumer:
-    #         topToBottom(RerouteUse(*matched_consumer))))
+    apply_strategy_and_compare(before, intermediate, RerouteInputDependency)
 
-    # # Only performing the inlining step
-    # apply_strategy_and_compare(
-    #     intermediate, after,
-    #     topToBottom(InlineProducer()) ^ topToBottom(GarbageCollect()))
+    # Only performing the inlining step
+    apply_strategy_and_compare(
+        intermediate, after,
+        topToBottom(InlineProducer()) ^ topToBottom(GarbageCollect()))
 
     # # combining both steps
-    # apply_strategy_and_compare(
-    #     before, after,
-    #     multiRoot(
-    #         matchTopToBottom(RerouteUse.Match()), lambda matched_consumer:
-    #         topToBottom(RerouteUse(*matched_consumer)))
-    #     ^ topToBottom(InlineProducer()) ^ topToBottom(GarbageCollect()))
+    apply_strategy_and_compare(
+        before, after, RerouteInputDependency ^ topToBottom(InlineProducer())
+        ^ topToBottom(GarbageCollect()))
 
 
 def test_inlining_dyn_access():
@@ -1120,12 +1102,12 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
 
 if __name__ == "__main__":
-    # test_inlining_simple()
-    # test_inlining_simple_index()
-    # test_inlining_multiple_edges()
-    # test_inlining_simple_ifelse()
-    # test_inlining_reroute()
-    # test_inlining_avoid_redundant()
+    test_inlining_simple()
+    test_inlining_simple_index()
+    test_inlining_multiple_edges()
+    test_inlining_simple_ifelse()
+    test_inlining_reroute()
+    test_inlining_avoid_redundant()
     test_inlining_root()
-    # test_inlining_dyn_access()
-    # test_inlining_simple_buffer()
+    test_inlining_dyn_access()
+    test_inlining_simple_buffer()

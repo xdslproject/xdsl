@@ -173,19 +173,51 @@ class InlineProducer(Strategy):
             case _:
                 return failure(self)
 
+
 @dataclass(frozen=True)
 class RerouteUse(Strategy):
     # In this rewrite we match two consumers that depend on the same producer
     fst_consumer: IOp
     producer: IOp
 
+    # Matches a reroute target that has the producer as operand
+    # Used in matching of Strategy `RerouteOutputdependency` 
     @dataclass(frozen=True)
-    class Match(Matcher):
+    class MatchRerouteTargetDirectUse(Matcher):
         def apply(self, op: IOp) -> MatchResult:
             match op:
                 case IOp(op_type=stencil.Apply,
                     operands=[ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result, *_] | [*_, ISSAValue(op=IOp(op_type=stencil.Apply) as producer) as producer_result]) if check_inlining_possible(producer, op, producer_result):
                     return match_success([op, producer])
+                case _:
+                    return match_failure(self)
+
+    # Used when the producer is not directly used by the reroute target and thus can not be matched through it.
+    # Used in matching of Strategy `RerouteInputdependency` 
+    @dataclass(frozen=True)
+    class MatchProducer(Matcher):
+        def apply(self, op: IOp) -> MatchResult:
+            match op:
+                case IOp(op_type=stencil.Apply):
+                    print("found first match!")
+                    return match_success([op])
+                case _:
+                    return match_failure(self)
+
+    # Matches a reroute target that has all operands of the producer as operand but not the producer itself
+    # Used in matching of Strategy `RerouteInputdependency` 
+    @dataclass(frozen=True)
+    class MatchRerouteTargetParallelUse(Matcher):
+        producer: IOp
+
+        def apply(self, op: IOp) -> MatchResult:
+            match op:
+                case IOp(op_type=stencil.Apply, operands=[*operands]) \
+                    if len(set(self.producer.operands).difference(operands)) == 0 and self.producer != op:
+                    # Checked that all operands of the producer are also operands of the reroute target (i.e. all dependencies available)
+
+                    print("found second match!")
+                    return match_success([op, self.producer])
                 case _:
                     return match_failure(self)
 
@@ -274,8 +306,13 @@ class RerouteUse(Strategy):
             case _:
                 return failure(self)
 
+RerouteOutputDependency: Strategy = multiRoot(
+            matchTopToBottom(RerouteUse.MatchRerouteTargetDirectUse()), lambda matched_consumer:
+            topToBottom(RerouteUse(*matched_consumer)))
 
-# How is this called?
-# multiRoot(
-#         matchTopToBottom(RerouteUse.Match()), 
-#         lambda matched_consumer: topToBottom(RerouteUse(*matched_consumer)))
+RerouteInputDependency: Strategy = multiRoot(
+    matchSeq(
+        matchTopToBottom(RerouteUse.MatchProducer()),
+        lambda producer: matchTopToBottom(
+            RerouteUse.MatchRerouteTargetParallelUse(*producer))),
+    lambda matched_ops: topToBottom(RerouteUse(*matched_ops)))
