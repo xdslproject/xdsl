@@ -37,7 +37,7 @@ class Update(Operation):
     value = OperandDef(AnyAttr())
 
     @staticmethod
-    def get(symbol: FlatSymbolRefAttr, value: Operation | SSAValue) -> Update:
+    def get(symbol: Union[str, FlatSymbolRefAttr], value: Operation | SSAValue) -> Update:
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
@@ -49,5 +49,5 @@ class Fetch(Operation):
     value: ResultDef(AnyAttr())
 
     @staticmethod
-    def get(symbol: FlatSymbolRefAttr, result_type: Attribute) -> Update:
+    def get(symbol: Union[str, FlatSymbolRefAttr], result_type: Attribute) -> Update:
         return Update.build(attributes={"symbol": symbol}, result_types=[result_type])
