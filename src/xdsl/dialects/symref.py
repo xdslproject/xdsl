@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Union
 from dataclasses import dataclass
 
-from xdsl.ir import Attribute, MLContext
+from xdsl.ir import Attribute, MLContext, SSAValue
 from xdsl.irdl import (ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
                        Operation, OperandDef)
 from xdsl.dialects.builtin import (StringAttr, FlatSymbolRefAttr)
@@ -34,10 +34,10 @@ class Update(Operation):
     name: str = "symref.update"
 
     symbol = AttributeDef(FlatSymbolRefAttr)
-    value: OperandDef(AnyAttr())
+    value = OperandDef(AnyAttr())
 
     @staticmethod
-    def get(symbol: FlatSymbolRefAttr, value: Attribute) -> Update:
+    def get(symbol: FlatSymbolRefAttr, value: Operation | SSAValue) -> Update:
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
