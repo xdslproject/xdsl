@@ -142,6 +142,13 @@ class xDSLOptMain:
                                 help="Prints the content of a triggered "
                                 "exception and exits with code 0")
 
+        arg_parser.add_argument(
+            "--use-mlir-bindings",
+            default=False,
+            action='store_true',
+            help="Use the MLIR bindings for printing MLIR. "
+            "This requires the MLIR Python bindings to be installed.")
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -213,13 +220,12 @@ class xDSLOptMain:
 
         self.available_targets['xdsl'] = _output_xdsl
         self.available_targets['irdl'] = _output_irdl
-        self.available_targets['xdsl-mlir'] = _output_xdsl_mlir
-        try:
+
+        if self.args.use_mlir_bindings:
             from xdsl.mlir_converter import MLIRConverter
             self.available_targets['mlir'] = _output_mlir
-        except ImportError:
-            # do not add mlir as target if import does not work
-            pass
+        else:
+            self.available_targets['mlir'] = _output_xdsl_mlir
 
     def setup_pipeline(self):
         """

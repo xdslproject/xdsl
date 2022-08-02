@@ -6,7 +6,8 @@ from xdsl.diagnostic import Diagnostic
 from typing import TypeVar, Any, Dict, Optional, List
 
 from dataclasses import dataclass, field
-from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
+from xdsl.ir import (BlockArgument, SSAValue, Block, Callable, Attribute,
+                     Region, Operation)
 from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
                                    FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
                                    ParametrizedAttribute, IntAttr, UnitAttr)
@@ -19,19 +20,12 @@ indentNumSpaces = 2
 @dataclass(eq=False, repr=False)
 class Printer:
 
-    class TypeLocation(Enum):
-        NONE = 1
-        INLINE = 2
-        AFTER = 3
-
     class Target(Enum):
         XDSL = 1
         MLIR = 2
 
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
-    print_operand_types: TypeLocation = field(default=TypeLocation.INLINE)
-    print_result_types: TypeLocation = field(default=TypeLocation.INLINE)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
     target: Target = field(default=Target.XDSL)
 
@@ -119,7 +113,9 @@ class Printer:
             self.print(", ")
             print_fn(elem)
 
-    def _print_new_line(self, indent=None, print_message=True) -> None:
+    def _print_new_line(self,
+                        indent: int | None = None,
+                        print_message: bool = True) -> None:
         indent = self._indent if indent is None else indent
         self.print("\n")
         if print_message:
@@ -150,7 +146,7 @@ class Printer:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
         self.print("%s" % name)
-        if self.print_result_types == Printer.TypeLocation.INLINE:
+        if self.target == self.Target.MLIR:
             self.print(" : ")
             self.print_attribute(val.typ)
 
@@ -188,7 +184,7 @@ class Printer:
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-        if self.print_operand_types == Printer.TypeLocation.INLINE:
+        if self.target == self.Target.XDSL:
             self.print(" : ")
             self.print_attribute(operand.typ)
 
@@ -346,8 +342,7 @@ class Printer:
         self._print_op_attributes(op.attributes)
         self.print_regions(op.regions)
 
-        if (self.print_operand_types == Printer.TypeLocation.AFTER
-                and self.print_result_types == Printer.TypeLocation.AFTER):
+        if self.target == self.Target.MLIR:
             self.print(" : (")
             self.print_list(op.operands,
                             lambda operand: self.print_attribute(operand.typ))
