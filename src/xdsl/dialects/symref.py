@@ -46,8 +46,8 @@ class Fetch(Operation):
     name: str = "symref.fetch"
 
     symbol = AttributeDef(FlatSymbolRefAttr)
-    value: ResultDef(AnyAttr())
+    value = ResultDef(AnyAttr())
 
     @staticmethod
-    def get(symbol: Union[str, FlatSymbolRefAttr], result_type: Attribute) -> Update:
-        return Update.build(attributes={"symbol": symbol}, result_types=[result_type])
+    def get(symbol: Union[str, FlatSymbolRefAttr], result_type: Attribute) -> Fetch:
+        return Fetch.build(attributes={"symbol": symbol}, result_types=[result_type])
