@@ -196,6 +196,12 @@ class xDSLOptMain:
             printer = Printer(stream=output)
             printer.print_op(prog)
 
+        def _output_xdsl_mlir(prog: ModuleOp, output: IOBase):
+            printer = Printer(stream=output,
+                              print_operand_types=Printer.TypeLocation.AFTER,
+                              print_result_types=Printer.TypeLocation.AFTER)
+            printer.print_op(prog)
+
         def _output_mlir(prog: ModuleOp, output: IOBase):
             converter = MLIRConverter(self.ctx)
             mlir_module = converter.convert_module(prog)
@@ -207,7 +213,7 @@ class xDSLOptMain:
 
         self.available_targets['xdsl'] = _output_xdsl
         self.available_targets['irdl'] = _output_irdl
-
+        self.available_targets['xdsl-mlir'] = _output_xdsl_mlir
         try:
             from xdsl.mlir_converter import MLIRConverter
             self.available_targets['mlir'] = _output_mlir
