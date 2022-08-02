@@ -49,5 +49,5 @@ class Fetch(Operation):
     value: ResultDef(AnyAttr())
 
     @staticmethod
-    def get(symbol: FlatSymbolRefAttr) -> Update:
-        return Update.build(attributes={"symbol": symbol})
+    def get(symbol: FlatSymbolRefAttr, result_type: Attribute) -> Update:
+        return Update.build(attributes={"symbol": symbol}, result_types=[result_type])
