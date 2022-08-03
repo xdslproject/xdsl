@@ -61,6 +61,9 @@ def apply_strategy_and_compare(program: str, expected_program: str,
         assert False
 
 
+# All tests sourced from: https://github.com/spcl/open-earth-compiler/blob/master/test/Dialect/Stencil/stencil-inlining.mlir
+
+
 def test_inlining_simple():
     before = \
 """
