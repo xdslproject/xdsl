@@ -495,35 +495,6 @@ class ArgType(Enum):
     RESULT = 2
     REGION = 3
 
-    def get_defs(
-        self, op_def: OpDef
-    ) -> list[tuple[str, OperandDef]] | list[tuple[str, ResultDef]] | list[
-            tuple[str, RegionDef]]:
-        """Get the definitions of this type in an operation definition."""
-        if self == self.OPERAND:
-            return op_def.operands
-        if self == self.RESULT:
-            return op_def.results
-        if self == self.REGION:
-            return op_def.regions
-        assert False, "Unknown ArgType value"
-
-    def get_args(
-            self, op: Operation
-    ) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
-        """
-        Get the list of arguments of the type in an operation.
-        For example, if the argument type is an operand, get the list of
-        operands.
-        """
-        if self == self.OPERAND:
-            return op.operands
-        if self == self.RESULT:
-            return op.results
-        if self == self.REGION:
-            return op.regions
-        assert False, "Unknown ArgType value"
-
     def get_name(self) -> str:
         """Get the type name, this is used mostly for error messages."""
         if self == self.OPERAND:
@@ -534,16 +505,49 @@ class ArgType(Enum):
             return "region"
         assert False, "Unknown ArgType value"
 
-    def get_attr_size_option(
-            self) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
-        """Get the AttrSized option for this type."""
-        if self == self.OPERAND:
-            return AttrSizedOperandSegments()
-        if self == self.RESULT:
-            return AttrSizedResultSegments()
-        if self == self.REGION:
-            return None
-        assert False, "Unknown ArgType value"
+
+def get_arg_defs(
+    op_def: OpDef, arg_type: ArgType
+) -> list[tuple[str, OperandDef]] | list[tuple[str, ResultDef]] | list[tuple[
+        str, RegionDef]]:
+    """Get the definitions of this type in an operation definition."""
+    if arg_type == ArgType.OPERAND:
+        return op_def.operands
+    if arg_type == ArgType.RESULT:
+        return op_def.results
+    if arg_type == ArgType.REGION:
+        return op_def.regions
+    assert False, "Unknown ArgType value"
+
+
+def get_op_args(
+        op: Operation, arg_type: ArgType
+) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
+    """
+        Get the list of arguments of the type in an operation.
+        For example, if the argument type is an operand, get the list of
+        operands.
+        """
+    if arg_type == ArgType.OPERAND:
+        return op.operands
+    if arg_type == ArgType.RESULT:
+        return op.results
+    if arg_type == ArgType.REGION:
+        return op.regions
+    assert False, "Unknown ArgType value"
+
+
+def get_attr_size_option(
+    arg_type: ArgType
+) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
+    """Get the AttrSized option for this type."""
+    if arg_type == ArgType.OPERAND:
+        return AttrSizedOperandSegments()
+    if arg_type == ArgType.RESULT:
+        return AttrSizedResultSegments()
+    if arg_type == ArgType.REGION:
+        return None
+    assert False, "Unknown ArgType value"
 
 
 def get_variadic_sizes_from_attr(op: Operation,
@@ -598,10 +602,10 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
                        typ: ArgType) -> list[int]:
     """Get variadic sizes of operands or results."""
 
-    defs = typ.get_defs(op_def)
-    args = typ.get_args(op)
+    defs = get_arg_defs(op_def, typ)
+    args = get_op_args(op, typ)
     def_type_name = typ.get_name()
-    attribute_option = typ.get_attr_size_option()
+    attribute_option = get_attr_size_option(typ)
 
     variadic_defs = [(arg_name, arg_def) for arg_name, arg_def in defs
                      if isinstance(arg_def, VariadicDef)]
@@ -649,8 +653,8 @@ def get_operand_result_or_region(
            (i.e. operand, result, or region)
     :return:
     """
-    defs = arg_type.get_defs(op_def)
-    args = arg_type.get_args(op)
+    defs = get_arg_defs(op_def, arg_type)
+    args = get_op_args(op, arg_type)
 
     variadic_sizes = get_variadic_sizes(op, op_def, arg_type)
 
@@ -675,7 +679,7 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
     arg_sizes = get_variadic_sizes(op, op_def, arg_type)
     arg_idx = 0
     var_idx = 0
-    args = arg_type.get_args(op)
+    args = get_op_args(op, arg_type)
 
     def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
         """Verify a single argument."""
@@ -695,7 +699,7 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
                 f"{arg_type.get_name()} at position {arg_idx} does not verify!\n{e}"
             )
 
-    for def_idx, (_, arg_def) in enumerate(arg_type.get_defs(op_def)):
+    for def_idx, (_, arg_def) in enumerate(get_arg_defs(op_def, arg_type)):
         if isinstance(arg_def, VariadicDef):
             for _ in range(arg_sizes[var_idx]):
                 verify_arg(args[arg_idx], arg_def, def_idx)
@@ -848,7 +852,7 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: ArgType,
                            op_def: OpDef) -> None:
 
     previous_variadics = 0
-    defs = arg_type.get_defs(op_def)
+    defs = get_arg_defs(op_def, arg_type)
     for arg_idx, (arg_name, arg_def) in enumerate(defs):
         new_attrs[arg_name] = property(
             lambda self, idx=arg_idx, previous_vars=
@@ -859,7 +863,7 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: ArgType,
 
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
-    arg_size_option = arg_type.get_attr_size_option()
+    arg_size_option = get_attr_size_option(arg_type)
     if previous_variadics > 1 and (arg_size_option is None
                                    or arg_size_option not in op_def.options):
         raise Exception(
