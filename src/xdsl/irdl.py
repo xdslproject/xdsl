@@ -152,8 +152,8 @@ class ParamAttrConstraint(AttrConstraint):
     """The attribute parameter constraints"""
 
     def __init__(self, base_attr: type[Attribute],
-                 param_constrs: list[(Attribute | type[Attribute]
-                                      | AttrConstraint)]):
+                 param_constrs: Sequence[(Attribute | type[Attribute]
+                                          | AttrConstraint)]):
         self.base_attr = base_attr
         self.param_constrs = [
             attr_constr_coercion(constr) for constr in param_constrs
@@ -551,8 +551,8 @@ def get_attr_size_option(
 
 
 def get_variadic_sizes_from_attr(op: Operation,
-                                 defs: list[tuple[str,
-                                                  OperandDef | ResultDef]],
+                                 defs: Sequence[tuple[str,
+                                                      OperandDef | ResultDef]],
                                  arg_typ: ArgType,
                                  size_attribute_name: str) -> list[int]:
     """
