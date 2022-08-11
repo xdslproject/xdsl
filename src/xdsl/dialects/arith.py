@@ -251,6 +251,30 @@ class Addf(Operation):
         return Addf.build(operands=[operand1, operand2],
                           result_types=[Float32Type()])
 
+# TODO: added by Miro. Idk if there was a reason to not have it as builtin (such as
+# subtraction = addition with flipped sign of the second operand). But imo this should
+# be a lowering step. We need an operation definition to specify that subtraction exists at all.
+
+
+@irdl_op_definition
+class Subf(Operation):
+    name: str = "arith.subf"
+    input1 = OperandDef(Float32Type)
+    input2 = OperandDef(Float32Type)
+    output = ResultDef(Float32Type)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Subf:
+        return Subf.build(operands=[operand1, operand2],
+                          result_types=[Float32Type()])
+
 
 @irdl_op_definition
 class Mulf(Operation):
