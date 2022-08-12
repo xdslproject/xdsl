@@ -116,7 +116,8 @@ class MLIRConverter:
         result_types = [self.convert_type(result.typ) for result in op.results]
         operands = [self.convert_value(operand) for operand in op.operands]
         attributes = {
-            name: self.convert_attribute(attr)
+            name:
+            self.convert_attribute(attr) if attr else mlir.ir.UnitAttr.get()
             for name, attr in op.attributes.items()
         }
 

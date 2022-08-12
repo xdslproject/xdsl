@@ -246,6 +246,10 @@ class Printer:
         self.print(")")
 
     def print_attribute(self, attribute: Attribute) -> None:
+        if attribute is None:
+            self.print('None')
+            return
+
         if isinstance(attribute, IntegerType):
             width = attribute.parameters[0]
             assert isinstance(width, IntAttr)
