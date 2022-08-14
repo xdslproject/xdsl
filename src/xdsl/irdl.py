@@ -495,15 +495,16 @@ class ArgType(Enum):
     RESULT = 2
     REGION = 3
 
-    def get_name(self) -> str:
-        """Get the type name, this is used mostly for error messages."""
-        if self == self.OPERAND:
-            return "operand"
-        if self == self.RESULT:
-            return "result"
-        if self == self.REGION:
-            return "region"
-        assert False, "Unknown ArgType value"
+
+def get_arg_name(arg_type: ArgType) -> str:
+    """Get the type name, this is used mostly for error messages."""
+    if arg_type == ArgType.OPERAND:
+        return "operand"
+    if arg_type == ArgType.RESULT:
+        return "result"
+    if arg_type == ArgType.REGION:
+        return "region"
+    assert False, "Unknown ArgType value"
 
 
 def get_arg_defs(
@@ -583,13 +584,14 @@ def get_variadic_sizes_from_attr(op: Operation,
     for ((arg_name, arg_def), arg_size) in zip(defs, def_sizes):
         if isinstance(arg_def, OptionalDef) and arg_size > 1:
             raise VerifyException(
-                f"optional {arg_typ.get_name} {arg_name} is expected to be of "
-                f"size 0 or 1 in {size_attribute_name}, but got {arg_size}")
+                f"optional {get_arg_name(arg_typ)} {arg_name} is expected to "
+                f"be of size 0 or 1 in {size_attribute_name}, but got "
+                f"{arg_size}")
 
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
-                f"non-variadic {arg_typ.get_name} {arg_name} is expected to "
-                f"be of size 0 or 1 in {size_attribute_name}, but got "
+                f"non-variadic {get_arg_name(arg_typ)} {arg_name} is expected "
+                f"to be of size 0 or 1 in {size_attribute_name}, but got "
                 f"{arg_size}")
 
         if isinstance(arg_def, VariadicDef):
@@ -604,7 +606,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 
     defs = get_arg_defs(op_def, typ)
     args = get_op_args(op, typ)
-    def_type_name = typ.get_name()
+    def_type_name = get_arg_name(typ)
     attribute_option = get_attr_size_option(typ)
 
     variadic_defs = [(arg_name, arg_def) for arg_name, arg_def in defs
@@ -695,9 +697,8 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
                 assert False, "Unknown ArgType value"
         except Exception as e:
             error(
-                op,
-                f"{arg_type.get_name()} at position {arg_idx} does not verify!\n{e}"
-            )
+                op, f"{get_arg_name(arg_type)} at position "
+                f"{arg_idx} does not verify!\n{e}")
 
     for def_idx, (_, arg_def) in enumerate(get_arg_defs(op_def, arg_type)):
         if isinstance(arg_def, VariadicDef):
@@ -760,7 +761,7 @@ def irdl_build_arg_list(arg_type: ArgType,
             assert False, "Unknown ArgType value"
 
     if len(args) != len(arg_defs):
-        raise ValueError(f"expected {len(arg_defs)} {arg_type.get_name()}, "
+        raise ValueError(f"expected {len(arg_defs)} {get_arg_name(arg_type)}, "
                          f"but got {len(args)}")
 
     res = list[Any]()
@@ -866,9 +867,9 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: ArgType,
     arg_size_option = get_attr_size_option(arg_type)
     if previous_variadics > 1 and (arg_size_option is None
                                    or arg_size_option not in op_def.options):
-        raise Exception(
-            f"Operation defines more than two variadic {arg_type.get_name()}s, "
-            f"but do not define the {arg_size_option.__name__} PyRDL option.")
+        raise Exception("Operation defines more than two variadic "
+                        f"{get_arg_name(arg_type)}s, but do not define the "
+                        f"{arg_size_option.__name__} PyRDL option.")
 
 
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
