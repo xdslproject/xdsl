@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypeAlias, List, cast, Type, Sequence, Optional
 
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, ParametrizedAttribute,
-                     Operation)
+from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
+                     ParametrizedAttribute, Operation)
 from xdsl.irdl import (irdl_attr_definition, attr_constr_coercion,
                        irdl_to_attr_constraint, irdl_op_definition, builder,
                        ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
@@ -263,7 +263,7 @@ _VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
 
 
 @irdl_attr_definition
-class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute):
+class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -305,7 +305,7 @@ _TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute):
+class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -389,14 +389,14 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute):
+class Float32Type(ParametrizedAttribute, MLIRType):
     name = "f32"
 
 
 f32 = Float32Type()
 
 
-class Float64Type(ParametrizedAttribute):
+class Float64Type(ParametrizedAttribute, MLIRType):
     name = "f64"
 
 
@@ -457,7 +457,7 @@ class UnitAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class FunctionType(ParametrizedAttribute):
+class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 
     inputs: ParameterDef[ArrayAttr[Attribute]]

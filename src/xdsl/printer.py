@@ -262,7 +262,10 @@ class Printer:
         if isinstance(attribute, IntegerType):
             width = attribute.parameters[0]
             assert isinstance(width, IntAttr)
-            self.print(f'!i{width.data}')
+            if self.target == self.Target.MLIR:
+                self.print(f'i{width.data}')
+            else:
+                self.print(f'!i{width.data}')
             return
 
         if isinstance(attribute, StringAttr):
@@ -294,6 +297,10 @@ class Printer:
             self.print_string("[")
             self.print_list(attribute.data, self.print_attribute)
             self.print_string("]")
+            return
+
+        if self.target == self.Target.MLIR:
+            attribute.print_as_mlir(self)
             return
 
         if isinstance(attribute, Data):
@@ -354,7 +361,7 @@ class Printer:
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column
         self._print_results(op)
-        if self.print_generic_format:
+        if self.print_generic_format or self.target == self.Target.MLIR:
             self.print(f'"{op.name}"')
         else:
             self.print(op.name)
@@ -363,7 +370,7 @@ class Printer:
             for message in self.diagnostic.op_messages[op]:
                 self._add_message_on_next_line(message, begin_op_pos,
                                                end_op_pos)
-        if self.print_generic_format:
+        if self.print_generic_format or self.target == self.Target.MLIR:
             self.print_op_with_default_format(op)
         else:
             op.print(self)

@@ -173,6 +173,22 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
+@dataclass
+class MLIRType:
+    """
+    A class representing an MLIR type.
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    def __post_init__(self):
+        if not isinstance(self, Attribute):
+            raise TypeError(
+                "MLIRType should only be inherited by classes inheriting Attribute"
+            )
+
+
 A = TypeVar('A', bound='Attribute')
 
 
@@ -201,6 +217,11 @@ class Attribute(ABC):
         """
         pass
 
+    @abstractmethod
+    def print_as_mlir(self, printer: Printer) -> None:
+        """Print the attribute in MLIR format."""
+        ...
+
 
 DataElement = TypeVar("DataElement")
 
@@ -221,6 +242,12 @@ class Data(Generic[DataElement], Attribute, ABC):
     def print_parameter(data: DataElement, printer: Printer) -> None:
         """Print the attribute parameter."""
 
+    def print_as_mlir(self, printer: Printer) -> None:
+        printer.print("!" if isinstance(self, MLIRType) else "#")
+        printer.print(f"{self.name}<")
+        self.print_parameter(self.data, printer)
+        printer.print(">")
+
 
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
@@ -233,6 +260,14 @@ class ParametrizedAttribute(Attribute):
     def irdl_definition(cls) -> ParamAttrDef:
         """Get the IRDL attribute definition."""
         ...
+
+    def print_as_mlir(self, printer: Printer) -> None:
+        printer.print("!" if isinstance(self, MLIRType) else "#")
+        printer.print(f'{self.name}')
+        if len(self.parameters) != 0:
+            printer.print("<")
+            printer.print_list(self.parameters, printer.print_attribute)
+            printer.print(">")
 
 
 @dataclass

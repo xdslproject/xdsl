@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_op_builder,
                        irdl_attr_definition, AttributeDef, OperandDef,
                        ResultDef, irdl_op_definition, builder)
-from xdsl.ir import (MLContext, ParametrizedAttribute, Attribute, Operation)
+from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
+                     Operation)
 from xdsl.dialects.builtin import (StringAttr, ArrayOfConstraint, ArrayAttr,
                                    IntegerAttr, IntegerType)
 
@@ -27,7 +28,7 @@ class LLVM:
 
 
 @irdl_attr_definition
-class LLVMStructType(ParametrizedAttribute):
+class LLVMStructType(ParametrizedAttribute, MLIRType):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
