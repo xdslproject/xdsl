@@ -307,15 +307,12 @@ class Printer:
         self.print_list(successors, self.print_block_name)
         self.print(")")
 
-    def _print_attr_string(self, name: str, attr: Attribute,
-                           first: bool) -> None:
-        if not first:
-            self.print(", ")
-        if isinstance(attr, UnitAttr):
-            self.print("\"%s\"" % name)
+    def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
+        if isinstance(attr_tuple[1], UnitAttr):
+            self.print("\"%s\"" % attr_tuple[0])
         else:
-            self.print("\"%s\" = " % name)
-            self.print_attribute(attr)
+            self.print("\"%s\" = " % attr_tuple[0])
+            self.print_attribute(attr_tuple[1])
 
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
         if len(attributes) == 0:
@@ -325,10 +322,8 @@ class Printer:
         self.print("[")
 
         attribute_list = [p for p in attributes.items()]
-        self._print_attr_string(attribute_list[0][0], attribute_list[0][1],
-                                True)
-        for (attr_name, attr) in attribute_list[1:]:
-            self._print_attr_string(attr_name, attr, False)
+        self.print_list(attribute_list, self._print_attr_string)
+
         self.print("]")
 
     def print_op_with_default_format(self, op: Operation) -> None:
