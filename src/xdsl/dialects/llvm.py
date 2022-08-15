@@ -45,6 +45,12 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
             [StringAttr.from_str(""),
              ArrayAttr.from_list(types)])
 
+    def print_parameters_as_mlir(self, printer: Printer) -> None:
+        assert self.struct_name.data == ""
+        printer.print("<(")
+        printer.print_list(self.types.data, printer.print_attribute)
+        printer.print(")>")
+
 
 @irdl_op_definition
 class LLVMExtractValue(Operation):
