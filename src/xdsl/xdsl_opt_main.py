@@ -203,16 +203,15 @@ class xDSLOptMain:
             printer = Printer(stream=output)
             printer.print_op(prog)
 
-        def _output_xdsl_mlir(prog: ModuleOp, output: IOBase):
-            printer = Printer(stream=output,
-                              print_operand_types=Printer.TypeLocation.AFTER,
-                              print_result_types=Printer.TypeLocation.AFTER)
-            printer.print_op(prog)
-
         def _output_mlir(prog: ModuleOp, output: IOBase):
-            converter = MLIRConverter(self.ctx)
-            mlir_module = converter.convert_module(prog)
-            print(mlir_module, file=output)
+            if self.args.use_mlir_bindings:
+                from xdsl.mlir_converter import MLIRConverter
+                converter = MLIRConverter(self.ctx)
+                mlir_module = converter.convert_module(prog)
+                print(mlir_module, file=output)
+            else:
+                printer = Printer(stream=output, target=Printer.Target.MLIR)
+                printer.print_op(prog)
 
         def _output_irdl(prog: ModuleOp, output: IOBase):
             irdl_to_mlir = IRDLPrinter(stream=output)
@@ -220,12 +219,7 @@ class xDSLOptMain:
 
         self.available_targets['xdsl'] = _output_xdsl
         self.available_targets['irdl'] = _output_irdl
-
-        if self.args.use_mlir_bindings:
-            from xdsl.mlir_converter import MLIRConverter
-            self.available_targets['mlir'] = _output_mlir
-        else:
-            self.available_targets['mlir'] = _output_xdsl_mlir
+        self.available_targets['mlir'] = _output_mlir
 
     def setup_pipeline(self):
         """
