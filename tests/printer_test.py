@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from io import StringIO
 
-from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType
+from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.diagnostic import Diagnostic
 from xdsl.ir import MLContext
-from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef
+from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 
@@ -68,6 +68,48 @@ module() {
     printer = Printer(stream=file)
     printer.print_op(mod)
 
+    assert file.getvalue().strip() == expected.strip()
+
+
+@irdl_op_definition
+class UnitAttrOp(Operation):
+    name = "unit_attr_op"
+
+    parallelize = OptAttributeDef(UnitAttr)
+
+
+def test_unit_attr():
+    """Test that a UnitAttr can be defined and printed"""
+
+    expected = \
+"""
+unit_attr_op() ["parallelize"]
+"""
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+
+    printer.print_op(unit_op)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_added_unit_attr():
+    """Test that a UnitAttr can be added to an op, even if its not defined as a field."""
+
+    expected = \
+"""
+unit_attr_op() ["parallelize", "vectorize"]
+"""
+    file = StringIO("")
+    printer = Printer(stream=file)
+    unitop = UnitAttrOp.build(attributes={
+        "parallelize": UnitAttr([]),
+        "vectorize": UnitAttr([])
+    })
+
+    printer.print_op(unitop)
     assert file.getvalue().strip() == expected.strip()
 
 

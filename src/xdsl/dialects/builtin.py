@@ -131,6 +131,11 @@ i1 = IntegerType.from_width(1)
 
 
 @irdl_attr_definition
+class UnitAttr(ParametrizedAttribute):
+    name = "unit"
+
+
+@irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
 

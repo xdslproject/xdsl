@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
                                    ArrayAttr, FlatSymbolRefAttr, StringAttr,
                                    FunctionType, TupleType, ModuleOp,
-                                   Float32Type, SymbolNameAttr)
+                                   Float32Type, SymbolNameAttr, UnitAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
 from typing import Dict
@@ -103,6 +103,8 @@ class MLIRConverter:
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
+        if isinstance(attr, UnitAttr):
+            return mlir.ir.UnitAttr.get()
         # SymbolNameAttrs are in fact just StringAttrs
         if isinstance(attr, SymbolNameAttr):
             return mlir.ir.StringAttr.get(attr.parameters[0].data)

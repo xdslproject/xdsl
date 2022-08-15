@@ -3,7 +3,7 @@ from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext)
 from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
                                    StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr)
+                                   ArrayAttr, UnitAttr)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -596,6 +596,8 @@ class Parser:
             skip_white_space=skip_white_space)
         if attr_name is None:
             return None
+        if not self.peek_char("="):
+            return attr_name, UnitAttr([])
         self.parse_char("=")
         attr = self.parse_attribute()
         return attr_name, attr
