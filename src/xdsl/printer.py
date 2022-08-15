@@ -10,7 +10,8 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
                                    FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr, UnitAttr)
+                                   ParametrizedAttribute, IntAttr, UnitAttr,
+                                   FunctionType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -299,7 +300,23 @@ class Printer:
             self.print_string("]")
             return
 
+        # Function types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, FunctionType)
+                and self.target == self.Target.MLIR):
+            self.print("(")
+            self.print_list(attribute.inputs.data, self.print_attribute)
+            self.print(") -> ")
+            outputs = attribute.outputs.data
+            if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
+                self.print_attribute(outputs[0])
+            else:
+                self.print("(")
+                self.print_list(outputs, self.print_attribute)
+                self.print(")")
+            return
+
         if self.target == self.Target.MLIR:
+            # For the MLIR target, we may print differently some attributes
             self.print("!" if isinstance(attribute, MLIRType) else "#")
             self.print(attribute.name)
 
@@ -357,9 +374,16 @@ class Printer:
     def print_op_with_default_format(self, op: Operation) -> None:
         self._print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_attributes(op.attributes)
-        self.print_regions(op.regions)
 
+        # We print attributes with the operation in xDSL.
+        if self.target == self.Target.XDSL:
+            self._print_op_attributes(op.attributes)
+            self.print_regions(op.regions)
+        else:
+            self.print_regions(op.regions)
+            self._print_op_attributes(op.attributes)
+
+        # Print the operation type
         if self.target == self.Target.MLIR:
             self.print(" : (")
             self.print_list(op.operands,
@@ -368,7 +392,12 @@ class Printer:
             if len(op.results) == 0:
                 self.print("()")
             elif len(op.results) == 1:
-                self.print_attribute(op.results[0].typ)
+                typ = op.results[0].typ
+                # Handle ambiguous case
+                if isinstance(typ, FunctionType):
+                    self.print("(", typ, ")")
+                else:
+                    self.print(typ)
             else:
                 self.print("(")
                 self.print_list(
