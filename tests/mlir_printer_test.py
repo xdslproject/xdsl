@@ -1,8 +1,7 @@
 from io import StringIO
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, AttributeDef, ParameterDef, RegionDef,
-                       VarOperandDef, VarResultDef, irdl_attr_definition,
-                       irdl_op_definition)
+from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOperandDef,
+                       VarResultDef, irdl_attr_definition, irdl_op_definition)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -17,9 +16,9 @@ class ModuleOp(Operation):
 
 
 @irdl_op_definition
-class TestOp(Operation):
+class AnyOp(Operation):
     """Operation only used for testing."""
-    name = "test"
+    name = "any"
     op = VarOperandDef(AnyAttr())
     res = VarResultDef(AnyAttr())
 
@@ -97,7 +96,7 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     ctx = MLContext()
 
     ctx.register_op(ModuleOp)
-    ctx.register_op(TestOp)
+    ctx.register_op(AnyOp)
     ctx.register_attr(DataAttr)
     ctx.register_attr(DataType)
     ctx.register_attr(ParamAttr)
@@ -122,40 +121,40 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
 def test_empty_op():
     """Test printing an empty operation."""
     print_as_mlir_and_compare(
-        """test()""",
-        """"test"() : () -> ()""",
+        """any()""",
+        """"any"() : () -> ()""",
     )
 
 
 def test_data_attr():
     """Test printing an operation with a data attribute."""
     print_as_mlir_and_compare(
-        """test() [ "attr" = !data_attr<42> ]""",
-        """"test"() {"attr" = #data_attr<42>} : () -> ()""",
+        """any() [ "attr" = !data_attr<42> ]""",
+        """"any"() {"attr" = #data_attr<42>} : () -> ()""",
     )
 
 
 def test_data_type():
     """Test printing an operation with a data type."""
     print_as_mlir_and_compare(
-        """%0 : !data_type<42> = test()""",
-        """%0 = "test"() : () -> !data_type<42>""",
+        """%0 : !data_type<42> = any()""",
+        """%0 = "any"() : () -> !data_type<42>""",
     )
 
 
 def test_param_attr():
     """Test printing an operation with a parametrized attribute."""
     print_as_mlir_and_compare(
-        """test() [ "attr" = !param_attr ]""",
-        """"test"() {"attr" = #param_attr } : () -> ()""",
+        """any() [ "attr" = !param_attr ]""",
+        """"any"() {"attr" = #param_attr } : () -> ()""",
     )
 
 
 def test_param_type():
     """Test printing an operation with a parametrized type."""
     print_as_mlir_and_compare(
-        """%0 : !param_type = test()""",
-        """%0 = "test"() : () -> !param_type""",
+        """%0 : !param_type = any()""",
+        """%0 = "any"() : () -> !param_type""",
     )
 
 
@@ -164,14 +163,14 @@ def test_param_attr_with_param():
     Test printing an operation with a parametrized attribute with parameters.
     """
     print_as_mlir_and_compare(
-        """test() [ "attr" = !param_attr_with_param<!param_attr> ]""",
-        """"test"() {"attr" = #param_attr_with_param<#param_attr> }
+        """any() [ "attr" = !param_attr_with_param<!param_attr> ]""",
+        """"any"() {"attr" = #param_attr_with_param<#param_attr> }
           : () -> ()""",
     )
 
     print_as_mlir_and_compare(
-        """test() [ "attr" = !param_attr_with_param<!param_type> ]""",
-        """"test"() {"attr" = #param_attr_with_param<!param_type> }
+        """any() [ "attr" = !param_attr_with_param<!param_type> ]""",
+        """"any"() {"attr" = #param_attr_with_param<!param_type> }
           : () -> ()""",
     )
 
@@ -189,13 +188,13 @@ def test_op_with_results():
     """Test printing an operation with results."""
 
     print_as_mlir_and_compare(
-        """%0 : !param_attr = test()""",
-        """%0 = "test"() : () -> #param_attr""",
+        """%0 : !param_attr = any()""",
+        """%0 = "any"() : () -> #param_attr""",
     )
 
     print_as_mlir_and_compare(
-        """(%0 : !param_attr, %1 : !param_type) = test()""",
-        """(%0, %1) = "test"() : () -> (#param_attr, !param_type)""",
+        """(%0 : !param_attr, %1 : !param_type) = any()""",
+        """(%0, %1) = "any"() : () -> (#param_attr, !param_type)""",
     )
 
 
@@ -203,24 +202,24 @@ def test_op_with_operands():
     """Test printing an operation with operands."""
     print_as_mlir_and_compare(
         """module() {
-           %0 : !param_attr = test()
-           test(%0 : !param_attr)
+           %0 : !param_attr = any()
+           any(%0 : !param_attr)
         }""",
         """"module"() ({
-              %0 = "test"() : () -> #param_attr
-              "test"(%0) : (#param_attr) -> ()
+              %0 = "any"() : () -> #param_attr
+              "any"(%0) : (#param_attr) -> ()
             }) : () -> ()
         """,
     )
 
     print_as_mlir_and_compare(
         """module() {
-           %0 : !param_attr = test()
-           test(%0 : !param_attr, %0 : !param_attr)
+           %0 : !param_attr = any()
+           any(%0 : !param_attr, %0 : !param_attr)
         }""",
         """"module"() ({
-              %0 = "test"() : () -> #param_attr
-              "test"(%0, %0) : (#param_attr, #param_attr) -> ()
+              %0 = "any"() : () -> #param_attr
+              "any"(%0, %0) : (#param_attr, #param_attr) -> ()
             }) : () -> ()
         """,
     )
@@ -229,22 +228,22 @@ def test_op_with_operands():
 def test_op_with_attributes():
     """Test printing an operation with attributes."""
     print_as_mlir_and_compare(
-        """test() [ "attr" = !data_attr<42> ]""",
-        """"test"() {"attr" = #data_attr<42>} : () -> ()""",
+        """any() [ "attr" = !data_attr<42> ]""",
+        """"any"() {"attr" = #data_attr<42>} : () -> ()""",
     )
 
 
 def test_data_custom_format():
     """Test printing an operation with a data attribute with custom format."""
     print_as_mlir_and_compare(
-        """test() [ "attr" = !data_custom_format<42> ]""",
-        """"test"() {"attr" = #data_custom_format<~42~>} : () -> ()""",
+        """any() [ "attr" = !data_custom_format<42> ]""",
+        """"any"() {"attr" = #data_custom_format<~42~>} : () -> ()""",
     )
 
 
 def test_param_custom_format():
     """Test printing an operation with a param attribute with custom format."""
     print_as_mlir_and_compare(
-        """test() [ "attr" = !param_custom_format<!param_attr> ]""",
-        """"test"() {"attr" = #param_custom_format~~} : () -> ()""",
+        """any() [ "attr" = !param_custom_format<!param_attr> ]""",
+        """"any"() {"attr" = #param_custom_format~~} : () -> ()""",
     )
