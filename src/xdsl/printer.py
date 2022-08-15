@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
 from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
                                    FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr)
+                                   ParametrizedAttribute, IntAttr, UnitAttr)
 from xdsl.irdl import Data
 
 indentNumSpaces = 2
@@ -246,8 +246,7 @@ class Printer:
         self.print(")")
 
     def print_attribute(self, attribute: Attribute) -> None:
-        if attribute is None:
-            self.print('None')
+        if isinstance(attribute, UnitAttr):
             return
 
         if isinstance(attribute, IntegerType):
@@ -308,6 +307,16 @@ class Printer:
         self.print_list(successors, self.print_block_name)
         self.print(")")
 
+    def _print_attr_string(self, name: str, attr: Attribute,
+                           first: bool) -> None:
+        if not first:
+            self.print(", ")
+        if isinstance(attr, UnitAttr):
+            self.print("\"%s\"" % name)
+        else:
+            self.print("\"%s\" = " % name)
+            self.print_attribute(attr)
+
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
         if len(attributes) == 0:
             return
@@ -316,11 +325,10 @@ class Printer:
         self.print("[")
 
         attribute_list = [p for p in attributes.items()]
-        self.print("\"%s\" = " % attribute_list[0][0])
-        self.print_attribute(attribute_list[0][1])
+        self._print_attr_string(attribute_list[0][0], attribute_list[0][1],
+                                True)
         for (attr_name, attr) in attribute_list[1:]:
-            self.print(", \"%s\" = " % attr_name)
-            self.print_attribute(attr)
+            self._print_attr_string(attr_name, attr, False)
         self.print("]")
 
     def print_op_with_default_format(self, op: Operation) -> None:

@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
                                    ArrayAttr, FlatSymbolRefAttr, StringAttr,
                                    FunctionType, TupleType, ModuleOp,
-                                   Float32Type, SymbolNameAttr)
+                                   Float32Type, SymbolNameAttr, UnitAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
 from typing import Dict
@@ -103,11 +103,14 @@ class MLIRConverter:
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
+        if isinstance(attr, UnitAttr):
+            return mlir.ir.UnitAttr.get()
         # SymbolNameAttrs are in fact just StringAttrs
         if isinstance(attr, SymbolNameAttr):
             return mlir.ir.StringAttr.get(attr.parameters[0].data)
         try:
             return mlir.ir.TypeAttr.get(self.convert_type(attr))
+
         except Exception:
             raise Exception(
                 f"Unsupported attribute for mlir conversion: {attr}")
@@ -116,8 +119,7 @@ class MLIRConverter:
         result_types = [self.convert_type(result.typ) for result in op.results]
         operands = [self.convert_value(operand) for operand in op.operands]
         attributes = {
-            name:
-            self.convert_attribute(attr) if attr else mlir.ir.UnitAttr.get()
+            name: self.convert_attribute(attr)
             for name, attr in op.attributes.items()
         }
 
