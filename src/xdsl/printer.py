@@ -6,8 +6,8 @@ from xdsl.diagnostic import Diagnostic
 from typing import TypeVar, Any, Dict, Optional, List
 
 from dataclasses import dataclass, field
-from xdsl.ir import (BlockArgument, SSAValue, Block, Callable, Attribute,
-                     Region, Operation)
+from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
+                     Attribute, Region, Operation)
 from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
                                    FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
                                    ParametrizedAttribute, IntAttr, UnitAttr)
@@ -300,7 +300,18 @@ class Printer:
             return
 
         if self.target == self.Target.MLIR:
-            attribute.print_as_mlir(self)
+            self.print("!" if isinstance(attribute, MLIRType) else "#")
+            self.print(attribute.name)
+
+            if isinstance(attribute, Data):
+                self.print("<")
+                attribute.print_parameter_as_mlir(self)
+                self.print(">")
+                return
+
+            assert isinstance(attribute, ParametrizedAttribute)
+
+            attribute.print_parameters_as_mlir(self)
             return
 
         if isinstance(attribute, Data):
@@ -353,10 +364,17 @@ class Printer:
             self.print(" : (")
             self.print_list(op.operands,
                             lambda operand: self.print_attribute(operand.typ))
-            self.print(") -> (")
-            self.print_list(op.results,
-                            lambda result: self.print_attribute(result.typ))
-            self.print(")")
+            self.print(") -> ")
+            if len(op.results) == 0:
+                self.print("()")
+            elif len(op.results) == 1:
+                self.print_attribute(op.results[0].typ)
+            else:
+                self.print("(")
+                self.print_list(
+                    op.results,
+                    lambda result: self.print_attribute(result.typ))
+                self.print(")")
 
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column

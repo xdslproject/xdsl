@@ -217,11 +217,6 @@ class Attribute(ABC):
         """
         pass
 
-    @abstractmethod
-    def print_as_mlir(self, printer: Printer) -> None:
-        """Print the attribute in MLIR format."""
-        ...
-
 
 DataElement = TypeVar("DataElement")
 
@@ -242,11 +237,9 @@ class Data(Generic[DataElement], Attribute, ABC):
     def print_parameter(data: DataElement, printer: Printer) -> None:
         """Print the attribute parameter."""
 
-    def print_as_mlir(self, printer: Printer) -> None:
-        printer.print("!" if isinstance(self, MLIRType) else "#")
-        printer.print(f"{self.name}<")
+    def print_parameter_as_mlir(self, printer: Printer) -> None:
+        """Print the attribute parameter in MLIR format."""
         self.print_parameter(self.data, printer)
-        printer.print(">")
 
 
 @dataclass(frozen=True)
@@ -261,9 +254,7 @@ class ParametrizedAttribute(Attribute):
         """Get the IRDL attribute definition."""
         ...
 
-    def print_as_mlir(self, printer: Printer) -> None:
-        printer.print("!" if isinstance(self, MLIRType) else "#")
-        printer.print(f'{self.name}')
+    def print_parameters_as_mlir(self, printer: Printer) -> None:
         if len(self.parameters) != 0:
             printer.print("<")
             printer.print_list(self.parameters, printer.print_attribute)
