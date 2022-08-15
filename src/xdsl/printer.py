@@ -146,7 +146,7 @@ class Printer:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
         self.print("%s" % name)
-        if self.target == self.Target.MLIR:
+        if self.target == self.Target.XDSL:
             self.print(" : ")
             self.print_attribute(val.typ)
 
@@ -354,7 +354,7 @@ class Printer:
             self.print_list(op.operands,
                             lambda operand: self.print_attribute(operand.typ))
             self.print(") -> (")
-            self.print_list(op.operands,
+            self.print_list(op.results,
                             lambda result: self.print_attribute(result.typ))
             self.print(")")
 
