@@ -110,7 +110,6 @@ class MLIRConverter:
             return mlir.ir.StringAttr.get(attr.parameters[0].data)
         try:
             return mlir.ir.TypeAttr.get(self.convert_type(attr))
-
         except Exception:
             raise Exception(
                 f"Unsupported attribute for mlir conversion: {attr}")
