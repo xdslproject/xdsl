@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from xdsl.fronted.dialects.builtin import IntegerAttr, Float32Type, Float64Type
+from xdsl.frontend.dialects.builtin import IntegerAttr, Float32Type, Float64Type
 
 V = TypeVar("V", bound=int)
 

@@ -7,9 +7,9 @@ from inspect import getsource
 from sys import _getframe
 
 from xdsl.printer import Printer
-from xdsl.fronted.program import FrontendProgram
-from xdsl.fronted.visitors.scoping import ScopingVisitor
-from xdsl.fronted.visitors.frontend_to_xdsl import FrontendToXDSL
+from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.visitors.scoping import ScopingVisitor
+from xdsl.frontend.visitors.frontend_to_xdsl import FrontendToXDSL
 
 
 class CodeContext(AbstractContextManager):

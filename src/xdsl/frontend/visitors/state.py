@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple, Union, Dict
 
 import xdsl.ir
 import xdsl.dialects.builtin
-from xdsl.fronted.block import block
+from xdsl.frontend.block import block
 
 
 class StateException(Exception):

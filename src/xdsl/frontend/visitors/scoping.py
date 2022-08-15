@@ -6,9 +6,9 @@ from typing import Any, Dict, Optional
 
 import xdsl.ir
 import xdsl.dialects.builtin
-from xdsl.fronted.block import block
-from xdsl.fronted.visitors.state import ProgramState
-from xdsl.fronted.visitors.utils import is_region, is_module
+from xdsl.frontend.block import block
+from xdsl.frontend.visitors.state import ProgramState
+from xdsl.frontend.visitors.utils import is_region, is_module
 
 
 @dataclass

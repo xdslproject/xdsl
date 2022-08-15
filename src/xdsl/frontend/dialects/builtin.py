@@ -20,7 +20,7 @@ class IntegerType(Generic[V], Attribute):
     """
 
     def __add__(self, other: 'IntegerType[V]') -> 'IntegerType[V]':
-        from xdsl.fronted.dialects.arith import Addi
+        from xdsl.frontend.dialects.arith import Addi
         return Addi(self, other)
 
 
@@ -56,15 +56,15 @@ class Float32Type(Attribute):
     """name: f32"""
 
     def __sub__(self, other: 'Float32Type') -> 'Float32Type':
-        from xdsl.fronted.dialects.arith import Subf
+        from xdsl.frontend.dialects.arith import Subf
         return Subf(self, other)
 
     def __add__(self, other: 'Float32Type') -> 'Float32Type':
-        from xdsl.fronted.dialects.arith import Addf
+        from xdsl.frontend.dialects.arith import Addf
         return Addf(self, other)
 
     def __mul__(self, other: 'Float32Type') -> 'Float32Type':
-        from xdsl.fronted.dialects.arith import Mulf
+        from xdsl.frontend.dialects.arith import Mulf
         return Mulf(self, other)
 
 
@@ -72,15 +72,15 @@ class Float64Type(Attribute):
     """name: f64"""
 
     def __sub__(self, other: 'Float64Type') -> 'Float64Type':
-        from xdsl.fronted.dialects.arith import Subf
+        from xdsl.frontend.dialects.arith import Subf
         return Subf(self, other)
 
     def __add__(self, other: 'Float64Type') -> 'Float64Type':
-        from xdsl.fronted.dialects.arith import Addf
+        from xdsl.frontend.dialects.arith import Addf
         return Addf(self, other)
 
     def __mul__(self, other: 'Float64Type') -> 'Float64Type':
-        from xdsl.fronted.dialects.arith import Mulf
+        from xdsl.frontend.dialects.arith import Mulf
         return Mulf(self, other)
 
 
