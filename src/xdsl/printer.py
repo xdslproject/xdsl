@@ -309,9 +309,9 @@ class Printer:
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
         if isinstance(attr_tuple[1], UnitAttr):
-            self.print("\"%s\"" % attr_tuple[0])
+            self.print(f"\"{attr_tuple[0]}\"")
         else:
-            self.print("\"%s\" = " % attr_tuple[0])
+            self.print(f"\"{attr_tuple[0]}\" = ")
             self.print_attribute(attr_tuple[1])
 
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
