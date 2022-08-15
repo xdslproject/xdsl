@@ -10,8 +10,8 @@
 
 
 // CHECK:     "module"() ({
-// CHECK-NEXT:  "func.func"() {"sym_name" = "struct_to_struct", "function_type" = !fun<[!llvm.struct<(i32)>], [!llvm.struct<(i32)>]>, "sym_visibility" = "private"} ({
+// CHECK-NEXT:  "func.func"() ({
 // CHECK-NEXT:  ^0(%0 : !llvm.struct<(i32)>):
 // CHECK-NEXT:    "func.return"(%0) : (!llvm.struct<(i32)>) -> ()
-// CHECK-NEXT:  }) : () -> ()
+// CHECK-NEXT:  }) {"sym_name" = "struct_to_struct", "function_type" = (!llvm.struct<(i32)>) -> !llvm.struct<(i32)>, "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT:}) : () -> ()
