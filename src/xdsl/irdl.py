@@ -486,7 +486,7 @@ class OpDef:
         return op_def
 
 
-class ArgType(Enum):
+class VarIRConstruct(Enum):
     """
     An enum representing the part of an IR that may be variadic.
     This contains operands, results, and regions.
@@ -496,65 +496,65 @@ class ArgType(Enum):
     REGION = 3
 
 
-def get_arg_name(arg_type: ArgType) -> str:
+def get_construct_name(construct: VarIRConstruct) -> str:
     """Get the type name, this is used mostly for error messages."""
-    if arg_type == ArgType.OPERAND:
+    if construct == VarIRConstruct.OPERAND:
         return "operand"
-    if arg_type == ArgType.RESULT:
+    if construct == VarIRConstruct.RESULT:
         return "result"
-    if arg_type == ArgType.REGION:
+    if construct == VarIRConstruct.REGION:
         return "region"
-    assert False, "Unknown ArgType value"
+    assert False, "Unknown VarIRConstruct value"
 
 
-def get_arg_defs(
-    op_def: OpDef, arg_type: ArgType
+def get_construct_defs(
+    op_def: OpDef, construct: VarIRConstruct
 ) -> list[tuple[str, OperandDef]] | list[tuple[str, ResultDef]] | list[tuple[
         str, RegionDef]]:
     """Get the definitions of this type in an operation definition."""
-    if arg_type == ArgType.OPERAND:
+    if construct == VarIRConstruct.OPERAND:
         return op_def.operands
-    if arg_type == ArgType.RESULT:
+    if construct == VarIRConstruct.RESULT:
         return op_def.results
-    if arg_type == ArgType.REGION:
+    if construct == VarIRConstruct.REGION:
         return op_def.regions
-    assert False, "Unknown ArgType value"
+    assert False, "Unknown VarIRConstruct value"
 
 
-def get_op_args(
-        op: Operation, arg_type: ArgType
+def get_op_constructs(
+    op: Operation, construct: VarIRConstruct
 ) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
     """
         Get the list of arguments of the type in an operation.
         For example, if the argument type is an operand, get the list of
         operands.
         """
-    if arg_type == ArgType.OPERAND:
+    if construct == VarIRConstruct.OPERAND:
         return op.operands
-    if arg_type == ArgType.RESULT:
+    if construct == VarIRConstruct.RESULT:
         return op.results
-    if arg_type == ArgType.REGION:
+    if construct == VarIRConstruct.REGION:
         return op.regions
-    assert False, "Unknown ArgType value"
+    assert False, "Unknown VarIRConstruct value"
 
 
 def get_attr_size_option(
-    arg_type: ArgType
+    construct: VarIRConstruct
 ) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
     """Get the AttrSized option for this type."""
-    if arg_type == ArgType.OPERAND:
+    if construct == VarIRConstruct.OPERAND:
         return AttrSizedOperandSegments()
-    if arg_type == ArgType.RESULT:
+    if construct == VarIRConstruct.RESULT:
         return AttrSizedResultSegments()
-    if arg_type == ArgType.REGION:
+    if construct == VarIRConstruct.REGION:
         return None
-    assert False, "Unknown ArgType value"
+    assert False, "Unknown VarIRConstruct value"
 
 
 def get_variadic_sizes_from_attr(op: Operation,
                                  defs: Sequence[tuple[str,
                                                       OperandDef | ResultDef]],
-                                 arg_typ: ArgType,
+                                 construct: VarIRConstruct,
                                  size_attribute_name: str) -> list[int]:
     """
     Get the sizes of the variadic definitions
@@ -584,13 +584,13 @@ def get_variadic_sizes_from_attr(op: Operation,
     for ((arg_name, arg_def), arg_size) in zip(defs, def_sizes):
         if isinstance(arg_def, OptionalDef) and arg_size > 1:
             raise VerifyException(
-                f"optional {get_arg_name(arg_typ)} {arg_name} is expected to "
+                f"optional {get_construct_name(construct)} {arg_name} is expected to "
                 f"be of size 0 or 1 in {size_attribute_name}, but got "
                 f"{arg_size}")
 
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
-                f"non-variadic {get_arg_name(arg_typ)} {arg_name} is expected "
+                f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
                 f"to be of size 0 or 1 in {size_attribute_name}, but got "
                 f"{arg_size}")
 
@@ -601,20 +601,20 @@ def get_variadic_sizes_from_attr(op: Operation,
 
 
 def get_variadic_sizes(op: Operation, op_def: OpDef,
-                       typ: ArgType) -> list[int]:
+                       construct: VarIRConstruct) -> list[int]:
     """Get variadic sizes of operands or results."""
 
-    defs = get_arg_defs(op_def, typ)
-    args = get_op_args(op, typ)
-    def_type_name = get_arg_name(typ)
-    attribute_option = get_attr_size_option(typ)
+    defs = get_construct_defs(op_def, construct)
+    args = get_op_constructs(op, construct)
+    def_type_name = get_construct_name(construct)
+    attribute_option = get_attr_size_option(construct)
 
     variadic_defs = [(arg_name, arg_def) for arg_name, arg_def in defs
                      if isinstance(arg_def, VariadicDef)]
 
     # If the size is in the attributes, fetch it
     if (attribute_option is not None) and (attribute_option in op_def.options):
-        return get_variadic_sizes_from_attr(op, defs, typ,
+        return get_variadic_sizes_from_attr(op, defs, construct,
                                             attribute_option.attribute_name)
 
     # If there are no variadics arguments,
@@ -641,7 +641,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 
 def get_operand_result_or_region(
     op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
-    arg_type: ArgType
+    construct: VarIRConstruct
 ) -> None | SSAValue | FrozenList[SSAValue] | list[OpResult] | Region | list[
         Region]:
     """
@@ -655,10 +655,10 @@ def get_operand_result_or_region(
            (i.e. operand, result, or region)
     :return:
     """
-    defs = get_arg_defs(op_def, arg_type)
-    args = get_op_args(op, arg_type)
+    defs = get_construct_defs(op_def, construct)
+    args = get_op_constructs(op, construct)
 
-    variadic_sizes = get_variadic_sizes(op, op_def, arg_type)
+    variadic_sizes = get_variadic_sizes(op, op_def, construct)
 
     begin_arg = arg_def_idx - previous_var_args + sum(
         variadic_sizes[:previous_var_args])
@@ -676,19 +676,19 @@ def get_operand_result_or_region(
 
 
 def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
-                            arg_type: ArgType) -> None:
+                            construct: VarIRConstruct) -> None:
     """Verify the argument list of an operation."""
-    arg_sizes = get_variadic_sizes(op, op_def, arg_type)
+    arg_sizes = get_variadic_sizes(op, op_def, construct)
     arg_idx = 0
     var_idx = 0
-    args = get_op_args(op, arg_type)
+    args = get_op_constructs(op, construct)
 
     def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
         """Verify a single argument."""
         try:
-            if arg_type == ArgType.OPERAND or arg_type == ArgType.RESULT:
+            if construct == VarIRConstruct.OPERAND or construct == VarIRConstruct.RESULT:
                 arg_def.constr.verify(arg.typ)
-            elif arg_type == ArgType.REGION:
+            elif construct == VarIRConstruct.REGION:
                 if isinstance(arg_def,
                               SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException("expected a single block, but got "
@@ -697,10 +697,11 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
                 assert False, "Unknown ArgType value"
         except Exception as e:
             error(
-                op, f"{get_arg_name(arg_type)} at position "
+                op, f"{get_construct_name(construct)} at position "
                 f"{arg_idx} does not verify!\n{e}")
 
-    for def_idx, (_, arg_def) in enumerate(get_arg_defs(op_def, arg_type)):
+    for def_idx, (_,
+                  arg_def) in enumerate(get_construct_defs(op_def, construct)):
         if isinstance(arg_def, VariadicDef):
             for _ in range(arg_sizes[var_idx]):
                 verify_arg(args[arg_idx], arg_def, def_idx)
@@ -715,13 +716,13 @@ def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
     """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
     # Verify operands.
-    irdl_op_verify_arg_list(op, op_def, ArgType.OPERAND)
+    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.OPERAND)
 
     # Verify results.
-    irdl_op_verify_arg_list(op, op_def, ArgType.RESULT)
+    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.RESULT)
 
     # Verify regions.
-    irdl_op_verify_arg_list(op, op_def, ArgType.REGION)
+    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.REGION)
 
     for attr_name, attr_def in op_def.attributes.items():
         if attr_name not in op.attributes:
@@ -741,7 +742,7 @@ def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     raise Exception(f"builder expected an attribute, got {result}")
 
 
-def irdl_build_arg_list(arg_type: ArgType,
+def irdl_build_arg_list(construct: VarIRConstruct,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
                         error_prefix: str = "") -> tuple[list[Any], list[int]]:
@@ -749,20 +750,21 @@ def irdl_build_arg_list(arg_type: ArgType,
 
     def build_arg(arg_def: Any, arg: Any) -> Any:
         """Build a single argument."""
-        if arg_type == ArgType.OPERAND:
+        if construct == VarIRConstruct.OPERAND:
             return SSAValue.get(arg)
-        elif arg_type == ArgType.RESULT:
+        elif construct == VarIRConstruct.RESULT:
             assert isinstance(arg_def, ResultDef)
             return irdl_build_attribute(arg_def.constr, arg)
-        elif arg_type == ArgType.REGION:
+        elif construct == VarIRConstruct.REGION:
             assert isinstance(arg_def, RegionDef)
             return Region.get(arg)
         else:
             assert False, "Unknown ArgType value"
 
     if len(args) != len(arg_defs):
-        raise ValueError(f"expected {len(arg_defs)} {get_arg_name(arg_type)}, "
-                         f"but got {len(args)}")
+        raise ValueError(
+            f"expected {len(arg_defs)} {get_construct_name(construct)}, "
+            f"but got {len(args)}")
 
     res = list[Any]()
     arg_sizes = list[int]()
@@ -770,17 +772,19 @@ def irdl_build_arg_list(arg_type: ArgType,
     for arg_idx, ((arg_name, arg_def), arg) in enumerate(zip(arg_defs, args)):
         if isinstance(arg_def, VariadicDef):
             if not isinstance(arg, list):
-                raise ValueError(error_prefix +
-                                 f"variadic {arg_type} {arg_idx} '{arg_name}' "
-                                 f" expects a list, but got {arg}")
+                raise ValueError(
+                    error_prefix +
+                    f"variadic {construct} {arg_idx} '{arg_name}' "
+                    f" expects a list, but got {arg}")
             arg = cast(list[Any], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:
-                raise ValueError(error_prefix +
-                                 f"optional {arg_type} {arg_idx} '{arg_name}' "
-                                 "expects a list of size at most 1, but "
-                                 f"got a list of size {len(arg)}")
+                raise ValueError(
+                    error_prefix +
+                    f"optional {construct} {arg_idx} '{arg_name}' "
+                    "expects a list of size at most 1, but "
+                    f"got a list of size {len(arg)}")
 
             res.extend([build_arg(arg_def, arg_arg) for arg_arg in arg])
             arg_sizes.append(len(arg))
@@ -807,14 +811,14 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
 
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
-        ArgType.OPERAND, operands, op_def.operands, error_prefix)
+        VarIRConstruct.OPERAND, operands, op_def.operands, error_prefix)
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
-        ArgType.RESULT, res_types, op_def.results, error_prefix)
+        VarIRConstruct.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(ArgType.REGION, regions,
+    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions,
                                            op_def.regions, error_prefix)
 
     # Build attributes by forwarding the values to the attribute builders
@@ -849,27 +853,27 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                       regions=built_regions)
 
 
-def irdl_op_arg_definition(new_attrs: dict[str, Any], arg_type: ArgType,
-                           op_def: OpDef) -> None:
-
+def irdl_op_arg_definition(new_attrs: dict[str, Any],
+                           construct: VarIRConstruct, op_def: OpDef) -> None:
     previous_variadics = 0
-    defs = get_arg_defs(op_def, arg_type)
+    defs = get_construct_defs(op_def, construct)
     for arg_idx, (arg_name, arg_def) in enumerate(defs):
         new_attrs[arg_name] = property(
             lambda self, idx=arg_idx, previous_vars=
             previous_variadics: get_operand_result_or_region(
-                self, op_def, idx, previous_vars, arg_type))
+                self, op_def, idx, previous_vars, construct))
         if isinstance(arg_def, VariadicDef):
             previous_variadics += 1
 
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
-    arg_size_option = get_attr_size_option(arg_type)
+    arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (arg_size_option is None
                                    or arg_size_option not in op_def.options):
-        raise Exception("Operation defines more than two variadic "
-                        f"{get_arg_name(arg_type)}s, but do not define the "
-                        f"{arg_size_option.__name__} PyRDL option.")
+        raise Exception(
+            "Operation defines more than two variadic "
+            f"{get_construct_name(construct)}s, but do not define the "
+            f"{arg_size_option.__name__} PyRDL option.")
 
 
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
@@ -888,13 +892,13 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     new_attrs = dict[str, Any]()
 
     # Add operand access fields
-    irdl_op_arg_definition(new_attrs, ArgType.OPERAND, op_def)
+    irdl_op_arg_definition(new_attrs, VarIRConstruct.OPERAND, op_def)
 
     # Add result access fields
-    irdl_op_arg_definition(new_attrs, ArgType.RESULT, op_def)
+    irdl_op_arg_definition(new_attrs, VarIRConstruct.RESULT, op_def)
 
     # Add region access fields
-    irdl_op_arg_definition(new_attrs, ArgType.REGION, op_def)
+    irdl_op_arg_definition(new_attrs, VarIRConstruct.REGION, op_def)
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
