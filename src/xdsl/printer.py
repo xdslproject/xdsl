@@ -3,15 +3,18 @@ from __future__ import annotations
 from frozenlist import FrozenList
 
 from xdsl.diagnostic import Diagnostic
-from typing import TypeVar, Any, Dict, Optional, List
+from typing import TypeVar, Any, Dict, Optional, List, cast
 
 from dataclasses import dataclass, field
+from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
-from xdsl.dialects.builtin import (FloatAttr, IntegerType, StringAttr,
+from xdsl.dialects.builtin import (AnyArrayAttr, AnyVectorType,
+                                   DenseIntOrFPElementsAttr, FloatAttr,
+                                   IndexType, IntegerType, StringAttr,
                                    FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr, UnitAttr,
-                                   FunctionType)
+                                   ParametrizedAttribute, IntAttr, TensorType,
+                                   UnitAttr, FunctionType, VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -105,13 +108,15 @@ class Printer:
 
     T = TypeVar('T')
 
-    def print_list(self, elems: FrozenList[T] | List[T],
-                   print_fn: Callable[[T], None]) -> None:
+    def print_list(self,
+                   elems: FrozenList[T] | List[T],
+                   print_fn: Callable[[T], None],
+                   delimiter: str = ", ") -> None:
         if len(elems) == 0:
             return
         print_fn(elems[0])
         for elem in elems[1:]:
-            self.print(", ")
+            self.print(delimiter)
             print_fn(elem)
 
     def _print_new_line(self,
@@ -225,24 +230,32 @@ class Printer:
 
     def print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
-            self.print(" {}" if self.target == self.Target.XDSL else " ({})")
+            self.print("{}")
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
-            self.print(" {" if self.target == self.Target.XDSL else " ({")
+            self.print("{")
             self._print_ops(region.blocks[0].ops)
-            self.print("}" if self.target == self.Target.XDSL else "})")
+            self.print("}")
             return
 
-        self.print(" {" if self.target == self.Target.XDSL else " ({")
+        self.print("{")
         self._print_new_line()
         for block in region.blocks:
             self._print_named_block(block)
-        self.print("}" if self.target == self.Target.XDSL else "})")
+        self.print("}")
 
     def print_regions(self, regions: List[Region]) -> None:
-        for region in regions:
-            self.print_region(region)
+        if len(regions) == 0:
+            return
+
+        if self.target == self.Target.MLIR:
+            self.print(" (")
+            self.print_list(regions, self.print_region)
+            self.print(")")
+        else:
+            self.print(" ")
+            self.print_list(regions, self.print_region, delimiter=" ")
 
     def _print_operands(self, operands: FrozenList[SSAValue]) -> None:
         if len(operands) == 0:
@@ -315,6 +328,62 @@ class Printer:
                 self.print(")")
             return
 
+        # Dense element types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, DenseIntOrFPElementsAttr)
+                and self.target == self.Target.MLIR):
+
+            def print_dense_list(array: AnyArrayAttr):
+
+                def print_one_elem(val: Attribute):
+                    if isinstance(val, ArrayAttr):
+                        print_dense_list(cast(AnyArrayAttr, val))
+                    elif isinstance(val, IntegerAttr):
+                        self.print(val.value.data)
+                    else:
+                        raise Exception("unexpected attribute type "
+                                        "in DenseIntOrFPElementsAttr: "
+                                        f"{type(val)}")
+
+                self.print("[")
+                self.print_list(array.data, print_one_elem)
+                self.print("]")
+
+            self.print("dense<")
+            print_dense_list(attribute.data)
+            self.print("> : ")
+            self.print(attribute.type)
+            return
+
+        # vector types have an alias in MLIR, but not in xDSL
+        if ((isinstance(attribute, VectorType)
+             or isinstance(attribute, TensorType))
+                and self.target == self.Target.MLIR):
+            attribute = cast(AnyVectorType, attribute)
+            self.print(
+                "vector<" if isinstance(attribute, VectorType) else "tensor<")
+            self.print_list(attribute.shape.data,
+                            lambda x: self.print(x.value.data), "x")
+            self.print("x", attribute.element_type)
+            self.print(">")
+            return
+
+        # memref types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, MemRefType)
+                and self.target == self.Target.MLIR):
+            attribute = cast(MemRefType[Attribute], attribute)
+            self.print("memref<")
+            self.print_list(attribute.shape.data,
+                            lambda x: self.print(x.value.data), "x")
+            self.print("x", attribute.element_type)
+            self.print(">")
+            return
+
+        # index type have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, IndexType)
+                and self.target == self.Target.MLIR):
+            self.print("index")
+            return
+
         if self.target == self.Target.MLIR:
             # For the MLIR target, we may print differently some attributes
             self.print("!" if isinstance(attribute, MLIRType) else "#")
@@ -348,9 +417,9 @@ class Printer:
     def print_successors(self, successors: List[Block]):
         if len(successors) == 0:
             return
-        self.print(" (")
+        self.print(" (" if self.target == self.Target.XDSL else " [")
         self.print_list(successors, self.print_block_name)
-        self.print(")")
+        self.print(")" if self.target == self.Target.XDSL else "]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
         if isinstance(attr_tuple[1], UnitAttr):
