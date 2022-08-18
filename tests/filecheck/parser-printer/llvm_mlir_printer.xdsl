@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -t mlir %s | filecheck %s
 
 
-"module"() {
+"builtin.module"() {
   func.func() ["sym_name" = "struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!i32]>], [!llvm.struct<"", [!i32]>]>, "sym_visibility" = "private"] {
     ^0(%0 : !llvm.struct<"", [!i32]>):
       func.return(%0 : !llvm.struct<"", [!i32]>)
@@ -9,7 +9,7 @@
 }
 
 
-// CHECK:     "module"() ({
+// CHECK:     "builtin.module"() ({
 // CHECK-NEXT:  "func.func"() ({
 // CHECK-NEXT:  ^0(%0 : !llvm.struct<(i32)>):
 // CHECK-NEXT:    "func.return"(%0) : (!llvm.struct<(i32)>) -> ()
