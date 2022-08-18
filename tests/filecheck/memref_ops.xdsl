@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
   
   memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public"]
 

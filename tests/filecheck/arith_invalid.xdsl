@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
-module () {
+builtin.module () {
     
   func.func() ["sym_name" = "wrong_types", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 32 : !i32]

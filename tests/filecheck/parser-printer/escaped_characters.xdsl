@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
   func.func() ["sym_name" = "\"", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
   func.func() ["sym_name" = "\n", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}
   func.func() ["sym_name" = "\t", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {}

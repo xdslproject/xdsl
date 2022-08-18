@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 
-module() {
+builtin.module() {
   func.func() ["sym_name" = "tuple_to_tuple", "function_type" = !fun<[!tuple<[!i32]>], [!tuple<[!i32]>]>, "sym_visibility" = "private"] {
     ^0(%0 : !tuple<[!i32]>):
       func.return(%0 : !tuple<[!i32]>)

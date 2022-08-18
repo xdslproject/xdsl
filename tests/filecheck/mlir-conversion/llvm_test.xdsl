@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -t mlir %s | filecheck %s
 
 
-module() {
+builtin.module() {
   // Type tests
   func.func() ["sym_name" = "struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!i32]>], [!llvm.struct<"", [!i32]>]>, "sym_visibility" = "private"] {
   // CHECK: func private @struct_to_struct(%arg0: !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
