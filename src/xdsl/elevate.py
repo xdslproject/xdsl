@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import List, Callable, MutableSequence, TypeAlias
 from xdsl.immutable_ir import *
+from xdsl.printer import Printer
 
 
 @dataclass(frozen=True)
@@ -154,7 +155,10 @@ class fail(Strategy):
 class debug(Strategy):
 
     def impl(self, op: IOp) -> RewriteResult:
+
+        printer = Printer()
         print("debug:" + op.name)
+        printer.print_op(op.get_mutable_copy())
         return success(op)
 
 
