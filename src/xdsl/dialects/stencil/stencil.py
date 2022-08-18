@@ -79,7 +79,15 @@ class TempType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
+    def from_shape(
+        shape: ArrayAttr[IntegerAttr[IntegerType]]
+        | Sequence[int | IntegerAttr[IndexType]]
+    ) -> TempType:
+        assert len(shape) > 0
+        if isinstance(shape, ArrayAttr):
+            return TempType([shape])
+        if isinstance(shape[0], IntegerAttr):
+            return TempType([ArrayAttr.from_list(shape)])
         return TempType(
             [ArrayAttr.from_list([IntegerAttr.build(d, 64) for d in shape])])
 
