@@ -189,6 +189,21 @@ class try_(Strategy):
         return leftChoice(self.s, id()).apply(op)
 
 
+@dataclass(frozen=True)
+class repeat(Strategy):
+    s: Strategy
+
+    def impl(self, op: IOp) -> RewriteResult:
+        return try_(seq(self.s, repeat(self.s))).apply(op)
+
+
+@dataclass(frozen=True)
+class everywhere(Strategy):
+    s: Strategy
+
+    def impl(self, op: IOp) -> RewriteResult:
+        return repeat(topToBottom(self.s)).apply(op)
+
 ########################################################################
 ######################    Traversal Strategies    ######################
 ########################################################################

@@ -262,6 +262,10 @@ RerouteInputDependency_decomp: Strategy = multiRoot(
     lambda matched_ops: topToBottom(RerouteUse_decomp(*matched_ops)))
 
 
+StencilNormalForm: Strategy = everywhere(RemoveUnusedApplyOperands()) ^ everywhere(RemoveDuplicateApplyOperands()) ^ GarbageCollect()
+InlineAll: Strategy = everywhere(RerouteOutputDependency_decomp) ^ everywhere(RerouteInputDependency_decomp) ^ everywhere(StencilNormalForm ^ InlineApply() ^ StencilNormalForm) ^ GarbageCollect()
+
+
 def apply_strategy_and_compare(program: str, expected_program: str,
                                strategy: Strategy):
     ctx = MLContext()

@@ -9,7 +9,7 @@ from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteOutputDependency, RerouteInputDependency
-from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp
+from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll
 import difflib
 
 
@@ -165,6 +165,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
+    apply_strategy_and_compare(before, after, InlineAll)
+
 
 def test_inlining_simple_index():
     before = \
@@ -265,6 +267,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands())
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(before, after, InlineAll)
 
 
 def test_inlining_simple_ifelse():
@@ -367,6 +371,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         before, after,
         topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands())
         ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(before, after, InlineAll)
 
 
 def test_inlining_multiple_edges():
@@ -490,6 +496,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands())
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(before, after, InlineAll)
 
 
 def test_inlining_reroute():
@@ -721,6 +729,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
+    apply_strategy_and_compare(before, after_without_CSE, InlineAll)
+
 
 def test_inlining_avoid_redundant():
     before = \
@@ -851,6 +861,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveUnusedApplyOperands())
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
 
 def test_inlining_root():
@@ -1024,6 +1036,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
+    apply_strategy_and_compare(before, after, InlineAll)
+
 
 def test_inlining_dyn_access():
     before = \
@@ -1154,6 +1168,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
+    apply_strategy_and_compare(before, after, InlineAll)
+
 
 def test_inlining_simple_buffer():
     unchanging = \
@@ -1231,6 +1247,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(
         unchanging, unchanging,
         try_(topToBottom(InlineApply())) ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(unchanging, unchanging, InlineAll)
 
 
 if __name__ == "__main__":
