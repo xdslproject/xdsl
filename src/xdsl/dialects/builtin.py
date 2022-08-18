@@ -114,6 +114,9 @@ class IntAttr(Data[int]):
     def __add__(self, other: IntAttr) -> IntAttr:
         return IntAttr(self.data + other.data)
 
+    def __sub__(self, other: IntAttr) -> IntAttr:
+        return IntAttr(self.data - other.data)
+
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
@@ -174,6 +177,12 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
         if self.typ != other.typ:
             raise ValueError("Cannot add two integers with different types")
         return IntegerAttr.from_params(self.value + other.value, self.typ)
+
+    def __sub__(self,
+                other: IntegerAttr[IntegerType]) -> IntegerAttr[IntegerType]:
+        if self.typ != other.typ:
+            raise ValueError("Cannot add two integers with different types")
+        return IntegerAttr.from_params(self.value - other.value, self.typ)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -246,9 +255,15 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
         return ArrayAttr(data)
 
     def __add__(self, other: ArrayAttr[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        print("adding an array attr")
         return ArrayAttr.from_list(
             [a + b for a, b in zip(self.data, other.data)])
+
+    def __sub__(self, other: ArrayAttr[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+        return ArrayAttr.from_list(
+            [a - b for a, b in zip(self.data, other.data)])
+
+    def __getitem__(self, idx: int) -> _ArrayAttrT:
+        return self.data[idx]
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
