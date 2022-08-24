@@ -117,8 +117,8 @@ class IRegion:
     def from_mutable(
         cls,
         blocks: Sequence[Block],
-        value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
-        block_map: Optional[Dict[Block, IBlock]] = None,
+        value_map: Optional[dict[SSAValue, ISSAValue]] = None,
+        block_map: Optional[dict[Block, IBlock]] = None,
     ) -> IRegion:
         if value_map is None:
             value_map = {}
@@ -133,8 +133,8 @@ class IRegion:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[Dict[IBlock, Block]] = None) -> Region:
+            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
+            block_mapping: Optional[dict[IBlock, Block]] = None) -> Region:
         if value_mapping is None:
             value_mapping = {}
         if block_mapping is None:
@@ -150,6 +150,27 @@ class IRegion:
         for block in self.blocks:
             block.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        """
+        Walks all blocks and ops inside this region. 
+        Aborts the walk if fun returns False.
+        """
+        for block in self.blocks:
+            if not block.walk_abortable(fun):
+                return False
+        return True
+
+    def value_used_inside(self, value: ISSAValue) -> bool:
+        use_found = False
+        def check_used(op: IOp) -> bool:
+            if value in op.operands:
+                nonlocal use_found
+                use_found = True
+                # abort walk
+                return False
+            return True
+        self.walk_abortable(check_used)
+        return use_found
 
 @dataclass(frozen=True)
 class IBlock:
@@ -214,7 +235,7 @@ class IBlock:
     def from_iblock(cls,
                     ops: Sequence[IOp],
                     old_block: IBlock,
-                    env: Optional[Dict[ISSAValue, ISSAValue]] = None):
+                    env: Optional[dict[ISSAValue, ISSAValue]] = None):
         """Creates a new immutable block to replace an existing immutable block, e.g.
         in the context of rewriting. The number and types of block args are retained 
         and all references to block args of the old block will be updated to the new block
@@ -303,8 +324,8 @@ class IBlock:
     def from_mutable(
         cls,
         block: Block,
-        value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
-        block_map: Optional[Dict[Block, IBlock]] = None,
+        value_map: Optional[dict[SSAValue, ISSAValue]] = None,
+        block_map: Optional[dict[Block, IBlock]] = None,
     ) -> IBlock:
         if value_map is None:
             value_map = {}
@@ -328,8 +349,8 @@ class IBlock:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[Dict[IBlock, Block]] = None) -> Block:
+            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
+            block_mapping: Optional[dict[IBlock, Block]] = None) -> Block:
         if value_mapping is None:
             value_mapping = {}
         if block_mapping is None:
@@ -350,6 +371,11 @@ class IBlock:
         for op in self.ops:
             op.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        for op in self.ops:
+            if not op.walk_abortable(fun):
+                return False
+        return True
 
 def get_immutable_copy(op: Operation) -> IOp:
     return IOp.from_mutable(op, {})
@@ -365,7 +391,7 @@ class OpData:
     """
     name: str
     op_type: type[Operation]
-    attributes: Dict[str, Attribute]
+    attributes: dict[str, Attribute]
 
 
 @dataclass(frozen=True)
@@ -401,7 +427,7 @@ class IOp:
     @classmethod
     def get(cls, name: str, op_type: type[Operation],
             operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
-            attributes: Dict[str, Attribute], successors: Sequence[IBlock],
+            attributes: dict[str, Attribute], successors: Sequence[IBlock],
             regions: Sequence[IRegion]) -> IOp:
         return cls(OpData(name, op_type, attributes), operands, result_types,
                    successors, regions)
@@ -421,7 +447,7 @@ class IOp:
         return self._op_data.op_type
 
     @property
-    def attributes(self) -> Dict[str, Attribute]:
+    def attributes(self) -> dict[str, Attribute]:
         return self._op_data.attributes
 
     @property
@@ -442,8 +468,8 @@ class IOp:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[Dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[Dict[IBlock, Block]] = None) -> Operation:
+            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
+            block_mapping: Optional[dict[IBlock, Block]] = None) -> Operation:
         if value_mapping is None:
             value_mapping = {}
         if block_mapping is None:
@@ -493,8 +519,8 @@ class IOp:
     def from_mutable(
             cls,
             op: Operation,
-            value_map: Optional[Dict[SSAValue, ISSAValue]] = None,
-            block_map: Optional[Dict[Block, IBlock]] = None,
+            value_map: Optional[dict[SSAValue, ISSAValue]] = None,
+            block_map: Optional[dict[Block, IBlock]] = None,
             existing_operands: Optional[Sequence[ISSAValue]] = None) -> IOp:
         """creates an immutable view on an existing mutable op and all nested regions"""
         assert isinstance(op, Operation)
@@ -530,7 +556,7 @@ class IOp:
         else:
             operands.extend(existing_operands)
 
-        attributes: Dict[str, Attribute] = op.attributes.copy()
+        attributes: dict[str, Attribute] = op.attributes.copy()
 
         successors: List[IBlock] = []
         for successor in op.successors:
@@ -559,7 +585,7 @@ class IOp:
     def get_attribute(self, name: str) -> Attribute:
         return self.attributes[name]
 
-    def get_attributes_copy(self) -> Dict[str, Attribute]:
+    def get_attributes_copy(self) -> dict[str, Attribute]:
         return self.attributes.copy()
 
     def walk(self, fun: Callable[[IOp], None]) -> None:
@@ -567,12 +593,19 @@ class IOp:
         for region in self.regions:
             region.walk(fun)
 
+    def walk_abortable(self, fun: Callable[[IOp], bool]) -> bool:
+        if not fun(self):
+            return False
+        for region in self.regions:
+            if not region.walk_abortable(fun):
+                return False
+        return True
 
 def new_op(op_type: type[Operation],
            operands: Optional[Sequence[ISSAValue | IOp
                                        | Sequence[IOp]]] = None,
            result_types: Optional[Sequence[Attribute]] = None,
-           attributes: Optional[Dict[str, Attribute]] = None,
+           attributes: Optional[dict[str, Attribute]] = None,
            successors: Optional[Sequence[IBlock]] = None,
            regions: Optional[Sequence[IRegion]] = None) -> List[IOp]:
     """Creates a new operation with the specified arguments. 
@@ -602,10 +635,10 @@ def from_op(old_op: IOp,
             operands: Optional[Sequence[ISSAValue | IOp
                                         | Sequence[IOp]]] = None,
             result_types: Optional[Sequence[Attribute]] = None,
-            attributes: Optional[Dict[str, Attribute]] = None,
+            attributes: Optional[dict[str, Attribute]] = None,
             successors: Optional[Sequence[IBlock]] = None,
             regions: Optional[Sequence[IRegion]] = None,
-            env: Optional[Dict[ISSAValue, ISSAValue]] = None) -> List[IOp]:
+            env: Optional[dict[ISSAValue, ISSAValue]] = None) -> List[IOp]:
     """Creates a new operation by assuming all fields of `old_op`, apart from 
     those specified via the arguments. Returns a list of all created IOps in
     the current nesting of calls to `new_op` and `from_op` with this new IOp
@@ -646,8 +679,8 @@ def from_op(old_op: IOp,
 
 def _unpack_operands(
     operands: Sequence[ISSAValue | IOp | Sequence[IOp]],
-    env: Optional[Dict[ISSAValue, ISSAValue]] = None
-) -> Tuple[List[ISSAValue], List[IOp]]:
+    env: Optional[dict[ISSAValue, ISSAValue]] = None
+) -> tuple[list[ISSAValue], list[IOp]]:
     """Maps all structures supplied in `operands` to a corresponding
     ISSAValue to be used as operand for constructing an IOp. 
     This facilitates nesting of calls to `new_op` and `from_op`
@@ -656,13 +689,13 @@ def _unpack_operands(
     """
     if env is None:
         env = {}
-    unpacked_operands: List[ISSAValue] = []
-    rewritten_ops: List[IOp] = []
+    unpacked_operands: list[ISSAValue] = []
+    rewritten_ops: list[IOp] = []
     for operand in operands:
         if isinstance(operand, IOp):
             assert operand.result is not None
             operand = operand.result
-        if isinstance(ops := operand, List):
+        if isinstance(ops := operand, list):
             assert ops[-1].result is not None
             # avoid adding duplicates to rewritten ops
             for op in reversed(ops):
@@ -676,7 +709,7 @@ def _unpack_operands(
         assert isinstance(operand, ISSAValue)
         if operand in env:
             operand = env[operand]
-        assert not isinstance(operand, List)
+        assert not isinstance(operand, list)
         if isinstance(operand, IResult) and operand.op.op_type == RewriteId:
             operand = operand.op.operands[-1]
         unpacked_operands.append(operand)

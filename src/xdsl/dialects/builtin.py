@@ -1,9 +1,15 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
-from xdsl.irdl import *
-from xdsl.ir import *
-from typing import TypeAlias
+from dataclasses import dataclass
+from typing import TypeAlias, List, cast, Type, Sequence, Optional
+
+from xdsl.ir import (MLContext, TYPE_CHECKING, Data, ParametrizedAttribute,
+                     Operation)
+from xdsl.irdl import (irdl_attr_definition, attr_constr_coercion,
+                       irdl_to_attr_constraint, irdl_op_definition, builder,
+                       ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
+                       GenericData, AttrConstraint, Any, Attribute, Region,
+                       VerifyException, AnyAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -29,6 +35,7 @@ class Builtin:
 
         self.ctx.register_attr(FunctionType)
         self.ctx.register_attr(Float32Type)
+        self.ctx.register_attr(Float64Type)
         self.ctx.register_attr(IntegerType)
         self.ctx.register_attr(IndexType)
 
@@ -104,6 +111,12 @@ class IntAttr(Data[int]):
     def from_int(data: int) -> IntAttr:
         return IntAttr(data)
 
+    def __add__(self, other: IntAttr) -> IntAttr:
+        return IntAttr(self.data + other.data)
+
+    def __sub__(self, other: IntAttr) -> IntAttr:
+        return IntAttr(self.data - other.data)
+
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
@@ -112,7 +125,7 @@ class IntegerType(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_width(width: int) -> Attribute:
+    def from_width(width: int) -> IntegerType:
         return IntegerType([IntAttr.from_int(width)])
 
 
@@ -158,6 +171,18 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
         if not isinstance(typ, IndexType):
             typ = IntegerType.build(typ)
         return IntegerAttr([value, typ])
+
+    def __add__(self,
+                other: IntegerAttr[IntegerType]) -> IntegerAttr[IntegerType]:
+        if self.typ != other.typ:
+            raise ValueError("Cannot add two integers with different types")
+        return IntegerAttr.from_params(self.value + other.value, self.typ)
+
+    def __sub__(self,
+                other: IntegerAttr[IntegerType]) -> IntegerAttr[IntegerType]:
+        if self.typ != other.typ:
+            raise ValueError("Cannot add two integers with different types")
+        return IntegerAttr.from_params(self.value - other.value, self.typ)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -228,6 +253,17 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     @builder
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
         return ArrayAttr(data)
+
+    def __add__(self, other: ArrayAttr[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+        return ArrayAttr.from_list(
+            [a + b for a, b in zip(self.data, other.data)])
+
+    def __sub__(self, other: ArrayAttr[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+        return ArrayAttr.from_list(
+            [a - b for a, b in zip(self.data, other.data)])
+
+    def __getitem__(self, idx: int) -> _ArrayAttrT:
+        return self.data[idx]
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
@@ -380,6 +416,13 @@ class Float32Type(ParametrizedAttribute):
 
 
 f32 = Float32Type()
+
+
+class Float64Type(ParametrizedAttribute):
+    name = "f64"
+
+
+f64 = Float64Type()
 
 
 @irdl_attr_definition

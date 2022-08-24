@@ -1,8 +1,12 @@
 from __future__ import annotations
-from xdsl.ir import *
-from xdsl.irdl import *
-from xdsl.util import *
+
+from dataclasses import dataclass
+from typing import Union
+
 from xdsl.dialects.builtin import IntegerType, Float32Type, IntegerAttr
+from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.irdl import (irdl_op_definition, AttributeDef, AnyAttr, ResultDef,
+                       OperandDef, VerifyException, Attribute)
 
 
 @dataclass
@@ -26,6 +30,8 @@ class Arith:
         self.ctx.register_op(MinF)
         self.ctx.register_op(MinSI)
         self.ctx.register_op(MinUI)
+
+        self.ctx.register_op(Select)
 
         self.ctx.register_op(ShLI)
 
@@ -182,7 +188,7 @@ class FloorDiviSI(Operation):
         return FloorDiviSI.build(operands=[operand1, operand2],
                                  result_types=[IntegerType.from_width(32)])
 
-                                 
+
 @irdl_op_definition
 class CeilDiviSI(Operation):
     name: str = "arith.ceildivsi"
@@ -366,6 +372,7 @@ class Select(Operation):
         return Select.build(operands=[operand1, operand2, operand3],
                             result_types=[type])
 
+
 @irdl_op_definition
 class ShLI(Operation):
     """
@@ -386,7 +393,8 @@ class ShLI(Operation):
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> ShLI:
         return ShLI.build(operands=[operand1, operand2],
-                           result_types=[IntegerType.from_width(32)])
+                          result_types=[IntegerType.from_width(32)])
+
 
 @irdl_op_definition
 class RemSI(Operation):

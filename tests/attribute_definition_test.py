@@ -5,14 +5,15 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, List, TypeVar, cast, Annotated, Generic, TypeAlias
+from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
                        VerifyException, irdl_attr_definition, builder,
-                       irdl_to_attr_constraint)
+                       irdl_to_attr_constraint, AnyAttr, BaseAttr,
+                       ParamAttrDef)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -92,7 +93,7 @@ def test_simple_data_verifier_failure():
                                "<class 'bool'>, but <class 'int'> given.")
 
 
-class IntListMissingVerifierData(Data[List[int]]):
+class IntListMissingVerifierData(Data[list[int]]):
     """
     An attribute holding a list of integers.
     The definition should fail, since no verifier is provided, and the Data
@@ -101,11 +102,11 @@ class IntListMissingVerifierData(Data[List[int]]):
     name = "missing_verifier_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[int]:
+    def parse_parameter(parser: Parser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[int], printer: Printer) -> None:
+    def print_parameter(data: list[int], printer: Printer) -> None:
         raise NotImplementedError()
 
 
@@ -117,22 +118,23 @@ def test_data_with_non_class_param_missing_verifier_failure():
         irdl_attr_definition(IntListMissingVerifierData)
     assert e.value.args[0] == (
         'In IntListMissingVerifierData definition: '
-        'Cannot infer "verify" method. Type parameter of Data is not a class.')
+        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.'
+    )
 
 
 @irdl_attr_definition
-class IntListData(Data[List[int]]):
+class IntListData(Data[list[int]]):
     """
     An attribute holding a list of integers.
     """
     name = "int_list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[int]:
+    def parse_parameter(parser: Parser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[int], printer: Printer) -> None:
+    def print_parameter(data: list[int], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
@@ -477,15 +479,15 @@ class DataListAttr(AttrConstraint):
 
 
 @irdl_attr_definition
-class ListData(GenericData[List[A]]):
+class ListData(GenericData[list[A]]):
     name = "list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[A]:
+    def parse_parameter(parser: Parser) -> list[A]:
         raise NotImplementedError()
 
     @staticmethod
-    def print_parameter(data: List[A], printer: Printer) -> None:
+    def print_parameter(data: list[A], printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(data, printer.print_attribute)
         printer.print_string("]")
@@ -497,7 +499,7 @@ class ListData(GenericData[List[A]]):
 
     @staticmethod
     @builder
-    def from_list(data: List[A]) -> ListData[A]:
+    def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
 
     def verify(self) -> None:
@@ -587,3 +589,27 @@ def test_generic_data_no_generics_wrapper_verifier():
     p.print_attribute(attr)
     assert stream.getvalue(
     ) == "!list_no_generics_wrapper<!list<[!bool<True>, !list<[!bool<False>]>]>>"
+
+
+#  ____                              _   _   _        ____        __
+# |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __|  _ \  ___ / _|
+# | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__| | | |/ _ \ |_
+# |  __/ (_| | | | (_| | | | | | |/ ___ \ |_| |_| |  | |_| |  __/  _|
+# |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|  |____/ \___|_|
+#
+
+
+@irdl_attr_definition
+class ParamAttrDefAttr(ParametrizedAttribute):
+    name = "test.param_attr_def_attr"
+
+    arg1: ParameterDef[Attribute]
+    arg2: ParameterDef[BoolData]
+
+
+def test_irdl_definition():
+    """Test that we can get the IRDL definition of a parametrized attribute."""
+
+    assert ParamAttrDefAttr.irdl_definition == ParamAttrDef(
+        "test.param_attr_def_attr", [("arg1", AnyAttr()),
+                                     ("arg2", BaseAttr(BoolData))])

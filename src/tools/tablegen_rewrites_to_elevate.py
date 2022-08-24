@@ -17,6 +17,19 @@ class AdvanceMode(Enum):
     NoSkip = False
 
 
+def get_header():
+    return """from __future__ import annotations
+import xdsl.dialects.arith as arith
+import xdsl.dialects.scf as scf
+import xdsl.dialects.onnx as onnx
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.elevate import *
+from xdsl.immutable_ir import *
+from xdsl.immutable_utils import *
+"""
+
+
 @dataclass
 class Value():
     name: str
@@ -26,6 +39,15 @@ class Value():
 
     def get_replacement_code(self, dialect_name: str) -> str:
         return self.name
+
+
+@dataclass
+class ParsedAttribute(Value):
+    name_def: str
+
+    def get_matching_code(self, dialect_name: str) -> str:
+        return f"\"{self.name_def}\" : {self.name}"
+
 
 @dataclass
 class NativeCodeCall():
@@ -37,12 +59,13 @@ class NativeCodeCall():
     def get_replacement_code(self, dialect_name: str) -> str:
         return self.name + "()"
 
+
 @dataclass
 class Op():
     name: str
     type: Type[Operation]
     operands: List[Value | Op]
-    attributes: List[Value | NativeCodeCall]
+    attributes: List[Value | ParsedAttribute | NativeCodeCall]
     result_types: List[Attribute]
     result_binder: Optional[str]
 
@@ -65,7 +88,7 @@ class Op():
             for attribute in self.attributes:
                 matching_code += attribute.get_matching_code(dialect_name)
                 if not attribute == self.attributes[-1]:
-                                matching_code += ", "
+                    matching_code += ", "
             matching_code += "}"
 
         matching_code += ")"
@@ -92,22 +115,23 @@ class Op():
 
         return replacement_code
 
+
 @dataclass
 class Pattern():
     name: str
     matched_op: Op
     replacements: List[Op]
+    comments: List[str]
 
     def get_code(self, dialect_name: str) -> str:
         code = """"""
         code += "@dataclass(frozen=True)\n"
-        code += f"class {self.name}(Strategy):\n"
+        code += f"class {self.name.removesuffix(':')}(Strategy):\n"
         code += "\n"
         code += "    def impl(self, op: IOp) -> RewriteResult:\n"
         code += "        match op:\n"
         code += "            case " + self.matched_op.get_matching_code(
             dialect_name) + ":\n"
-        code += "                # replacement here\n"
         code += "                results: List[IOp] = []\n"
         if len(self.replacements) > 0:
             for replacement in self.replacements:
@@ -116,6 +140,9 @@ class Pattern():
             code += "                " + "return success(results)\n"
         code += "            case _:\n"
         code += "                return failure(self)\n"
+        code += f"        # comments:\n"
+        for comment in self.comments:
+            code += f"        # {comment}\n"
 
         return code
 
@@ -131,8 +158,6 @@ class Parser():
         self.cur_line = self.file.readline()
         if self.cur_line:
             self.cur_line = self.cur_line.strip()
-            if self.cur_line.startswith("def MulAddToGemmOptPattern"):
-                pass
             self.line_number += 1
             self.cur_line_idx = 0
         else:
@@ -150,7 +175,7 @@ class Parser():
             self.advance_if_useless_stuff()
             return
         if len(self.cur_line) > self.cur_line_idx + 2 and self.cur_line[
-            self.cur_line_idx:self.cur_line_idx + 2] == "//":
+                self.cur_line_idx:self.cur_line_idx + 2] == "//":
             self.next_line()
             self.advance_if_useless_stuff()
             return
@@ -191,8 +216,8 @@ class Parser():
 
         parsed_str = ""
         while ord((cur_char := self.cur_line[self.cur_line_idx])) in range(
-            ord("A"),
-            ord("z")) or cur_char in [str(num) for num in range(0, 9)]:
+                ord("A"),
+                ord("z")) or cur_char in [str(num) for num in range(0, 9)]:
             parsed_str += cur_char
             self.cur_line_idx += 1
             if self.cur_line_idx >= len(self.cur_line):
@@ -226,6 +251,7 @@ class Parser():
         """
         Parse an op on the LHS of a pattern.
         """
+        self.parse_string("(")
         (op_name, op_type) = self._parse_op_name()
         if op_type is None:
             return None
@@ -237,24 +263,28 @@ class Parser():
         else:
             result_binder = None
         operands: List[Op | Value] = []
-        attributes : List[Value | NativeCodeCall] = []
+        attributes: List[Value | NativeCodeCall] = []
         self.parse_string("(")
-        for operand in op_type.irdl_operand_defs:
+        op_def = op_type.irdl_definition
+
+        for operand in op_def.operands:
             if (new_operand := self.parse_matched_operand()) is None:
                 return None
 
             operands.append(new_operand)
 
             self.parse_string(",")
-        for attribute in op_type.irdl_attribute_defs:
-            if (new_attribute := self.parse_matched_operand()) is None:
-                return None
+        for attribute in op_def.attributes:
+            if (new_attribute := self.parse_matched_attr(
+                    attribute[0])) is None:
+                self.parse_string(",")
+                continue
             attributes.append(new_attribute)
             self.parse_string(",")
-        # TODO: what about attributes?
         self.parse_string(")")
-        result_types = [Attribute() for _ in op_type.irdl_result_defs]
-        return Op(op_name, op_type, operands, attributes, result_types, result_binder)
+        result_types = [Attribute() for _ in op_def.results]
+        return Op(op_name, op_type, operands, attributes, result_types,
+                  result_binder)
 
     def parse_matched_operand(self) -> Op | Value | None:
         """
@@ -262,9 +292,23 @@ class Parser():
         """
         if self.parse_string("$"):
             val_name = self.parse_into_string()
+            if val_name == "_":
+                return None
             return Value(val_name)
         else:
             return self.parse_matched_op()
+
+    def parse_matched_attr(self, name_def: str) -> ParsedAttribute | None:
+        """
+        Parse a value or op that is used as an operand for another op.
+        """
+        if self.parse_string("$"):
+            attr_name = self.parse_into_string()
+            if attr_name == "_":
+                return None
+            return ParsedAttribute(name=attr_name, name_def=name_def)
+        else:
+            return None
 
     def parse_replacement_op(self) -> Optional[Op]:
         """
@@ -273,23 +317,25 @@ class Parser():
         (op_name, op_type) = self._parse_op_name()
         if op_type is None:
             return None
+        op_def = op_type.irdl_definition
+
         operands: List[Op | Value] = []
         attributes: List[Attribute | Value | NativeCodeCall] = []
         self.parse_string("(")
         # Parse operands
-        for operand in op_type.irdl_operand_defs:
+        for operand in op_def.operands:
             if (new_operand := self.parse_replacement_argument()) is None:
                 return None
             operands.append(new_operand)
             self.parse_string(",")
         # Parse attributes
-        for attribute in op_type.irdl_attribute_defs:
+        for attribute in op_def.attributes:
             if (new_attribute := self.parse_replacement_argument()) is None:
                 return None
             attributes.append(new_attribute)
             self.parse_string(",")
         self.parse_string(")")
-        result_types = [Attribute() for _ in op_type.irdl_result_defs]
+        result_types = [Attribute() for _ in op_def.results]
         return Op(op_name, op_type, operands, attributes, result_types, None)
 
     def parse_replacement_argument(
@@ -318,8 +364,10 @@ class Parser():
             return NativeCodeCall(name)
 
     def parse_pattern(self) -> Optional[Pattern]:
+        # Skipping lines until we find a Pattern
         self.parse_string("Pat<", True)
-        assert self.cur_line is not None
+        if self.cur_line is None:
+            return None
         name = self.cur_line.split()[1]
         replacements: List[Op] = []
         if self.parse_string("(") and (op := self.parse_matched_op()):
@@ -327,40 +375,46 @@ class Parser():
             self.parse_string("(")
             if (replacement := self.parse_replacement_op()):
                 replacements.append(replacement)
-
-            self.next_line()
-            return Pattern(name, op, replacements)
+                if self.cur_line[-1] == ";":
+                    return Pattern(name, op, replacements, [])
+                self.next_line()
+            comments: list[str] = []
+            while True:
+                comments.append(self.cur_line)
+                if len(self.cur_line) == 0 or self.cur_line[-1] == ";":
+                    break
+                self.next_line()
+            return Pattern(name, op, replacements, comments)
         return None
 
 
 def main():
     file = open_file(
-        "/home/martin/development/phd/projects/xDSL/onnx-mlir/src/Dialect/ONNX/Rewrite.td"
+        "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/Rewrite.td"
     )
     parser = Parser(file)
     patterns: List[Pattern] = []
     tries = 0
+    file = StringIO()
+    print(get_header(), file=file)
     while tries < 100:
         tries += 1
         if (pattern := parser.parse_pattern()) is not None:
             patterns.append(pattern)
             print(pattern.get_code("onnx"))
-
+            print(pattern.get_code("onnx"), file=file)
+            print(f"found {len(patterns)} patterns")
 
     # ops: List[Op] = []
     # while (op := parse_op_def()):
     #     ops.append(op)
 
     # dialect_name = "Onnx"
-    # file = StringIO()
-    # print(get_dialect_def(dialect_name, ops, include_imports=True), file=file)
-    # for op in ops:
-    #     print(op.to_irdl_string(dialect_name=dialect_name), file=file)
 
-    # with open(
-    #     "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx.py",
-    #     mode='w') as f:
-    #     print(file.getvalue(), file=f)
+    with open(
+            "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx_rewrites_generated.py",
+            mode='w') as f:
+        print(file.getvalue(), file=f)
 
 
 if __name__ == "__main__":

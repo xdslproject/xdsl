@@ -1,11 +1,19 @@
+from typing import Dict
+
+from xdsl import _mlir_module as mlir
+from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
+                     BlockArgument, Attribute)
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                   VectorType, IntegerType, IndexType,
+                                   ArrayAttr, FlatSymbolRefAttr, StringAttr,
+                                   FunctionType, TupleType, ModuleOp,
+                                   Float32Type)
+from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.llvm import LLVMStructType
+
 from xdsl import ensure_mlir_module_loaded
 
 ensure_mlir_module_loaded()
-
-from xdsl import _mlir_module as mlir
-import array
-from xdsl.dialects.builtin import *
-from xdsl.dialects.memref import MemRefType
 
 
 class MLIRConverter:
@@ -46,6 +54,26 @@ class MLIRConverter:
         if isinstance(typ, TupleType):
             return mlir.ir.TupleType.get_tuple(
                 [self.convert_type(t) for t in typ.types.data])
+        if isinstance(typ, LLVMStructType):
+            from xdsl.printer import Printer
+            from io import StringIO
+            types = []
+            for t in typ.types.data:
+                file = StringIO("")
+                p = Printer(stream=file)
+                p.print_attribute(t)
+                types.append(file.getvalue()[1:])
+            type_string = "(" + ", ".join(types) + ")"
+
+            if typ.struct_name.data != "":
+                mlir_module = mlir.ir.Module.parse(
+                    "%0 = llvm.mlir.undef : !llvm.struct<" +
+                    typ.struct_name.data + ", " + type_string + ">")
+            else:
+                mlir_module = mlir.ir.Module.parse(
+                    "%0 = llvm.mlir.undef : !llvm.struct<" + type_string + ">")
+            return mlir_module.body.operations.__getitem__(
+                0).operation.result.type
         raise Exception(f"Unsupported type for mlir conversion: {typ}")
 
     def convert_value(self, value: SSAValue) -> mlir.ir.Value:

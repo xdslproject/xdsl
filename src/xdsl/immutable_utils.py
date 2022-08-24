@@ -29,6 +29,73 @@ def new_bin_op(op_type: Type[Operation],
                   attributes=attributes,
                   result_types=[lhs_unpacked[-1].typ])
 
+def from_block(old_block: IBlock,
+            args: Optional[Sequence[IBlockArg]] = None,
+            ops: Optional[Sequence[IOp]] = None,
+            env: Optional[dict[ISSAValue, ISSAValue]] = None,
+            modify_op: Optional[Callable[[IOp, Optional[dict[ISSAValue, ISSAValue]]], List[IOp]]] = None) -> IBlock:
+    """Creates a new iblock by assuming all fields of `old_block`, apart from 
+    those specified via the arguments. 
+    If new args are specified, they match the old args in length and no env is provided we add 
+    an automatic mapping from the old_args to the new args.
+    If `env` is specified all block_args and operands will be updated if they are included in
+    the mapping.
+    """
+
+    if args is None:
+        args = old_block.args
+
+    if ops is None:
+        ops = old_block.ops
+
+    match (env, modify_op):
+        case (None, None):
+            new_ops: Sequence[IOp] = ops
+        case (env, None):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(from_op(op, env=env))
+        case (None, modify_op):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(modify_op(op, None))
+        case (env, modify_op):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(modify_op(op, env))
+
+    return IBlock(args=args, ops=new_ops)
+
+
+def new_block(args: Optional[Sequence[IBlockArg] | Sequence[Attribute]] = None, 
+            ops: Optional[List[IOp]] = None, 
+            env: Optional[dict[ISSAValue, ISSAValue]] = None, 
+            modify_op: Optional[Callable[[IOp, Optional[dict[ISSAValue, ISSAValue]]], List[IOp]]] = None) -> IBlock:
+    """
+    """
+    if args is None:
+        args = []
+    if ops is None:
+        ops = []
+
+    match (env, modify_op):
+        case (None, None):
+            new_ops: Sequence[IOp] = ops
+        case (env, None):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(from_op(op, env=env))
+        case (None, modify_op):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(modify_op(op, None))
+        case (env, modify_op):
+            new_ops: Sequence[IOp] = []
+            for op in ops:
+                new_ops.extend(modify_op(op, env))
+
+    return IBlock(args=args, ops=new_ops)
+
 
 @dataclass(frozen=True)
 class GarbageCollect(Strategy):

@@ -1,8 +1,16 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from xdsl.ir import *
-from xdsl.dialects.builtin import *
-from xdsl.irdl import *
+from typing import TypeVar, Optional, List, TypeAlias
+
+from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
+                                   IntegerType, FlatSymbolRefAttr, StringAttr,
+                                   DenseIntOrFPElementsAttr)
+from xdsl.ir import Operation, SSAValue, MLContext
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
+                       ParameterDef, Generic, Attribute, ParametrizedAttribute,
+                       AnyAttr, OperandDef, VarOperandDef, ResultDef,
+                       AttributeDef, AttrSizedOperandSegments, OptAttributeDef)
 
 
 @dataclass
@@ -23,6 +31,8 @@ class MemRef:
 
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+
+AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
@@ -181,7 +191,7 @@ class GetGlobal(Operation):
     memref = ResultDef(MemRefType)
 
     def verify_(self) -> None:
-        if not 'name' in self.attributes:
+        if 'name' not in self.attributes:
             raise Exception("GetGlobal requires a 'name' attribute")
 
         if not isinstance(self.attributes['name'], FlatSymbolRefAttr):

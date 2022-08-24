@@ -1,13 +1,15 @@
 from __future__ import annotations
-
-import typing
-
-from xdsl.ir import ParametrizedAttribute, Data, Block
-from xdsl.irdl import *
 import pytest
+
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
+                                   IntegerType, Operation, builder)
+from xdsl.ir import Data, Block
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ResultDef,
+                       VarResultDef, AttrSizedResultSegments, OperandDef,
+                       VarOperandDef, AttrSizedOperandSegments, AttributeDef,
+                       RegionDef, OptAttributeDef, Region)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, VectorType, IntegerType
 
 
 @irdl_attr_definition
@@ -112,7 +114,7 @@ class MixedResultOp(Operation):
     irdl_options = [AttrSizedResultSegments()]
 
 
-def test_two_var_result_builder():
+def test_var_mixed_builder():
     op = MixedResultOp.build(result_types=[[0, 1], 2, [3, 4]])
     op.verify()
     assert [res.typ for res in op.results] == [
@@ -123,11 +125,11 @@ def test_two_var_result_builder():
         StringAttr.from_int(4)
     ]
 
-    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
+    dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [2])
 
     assert op.attributes[AttrSizedResultSegments.
                          attribute_name] == DenseIntOrFPElementsAttr.from_list(
-                             dense_type, [2, 1, 2])
+                             dense_type, [2, 2])
 
 
 @irdl_op_definition
@@ -152,7 +154,7 @@ def test_operand_builder_value():
 
 
 def test_operand_builder_exception():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         OperandOp.build()
 
 

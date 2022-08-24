@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from io import StringIO
 
+from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType
+from xdsl.dialects.arith import Arith, Addi, Constant
+from xdsl.diagnostic import Diagnostic
+from xdsl.ir import MLContext
+from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef
 from xdsl.printer import Printer
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin
-from xdsl.dialects.arith import *
-from xdsl.diagnostic import Diagnostic
 
 
-def test_forgotten_op():
+def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
     arith = Arith(ctx)
@@ -18,13 +20,55 @@ def test_forgotten_op():
     add = Addi.get(lit, lit)
 
     add.verify()
-    try:
-        printer = Printer()
-        printer.print_op(add)
-    except KeyError:
-        return
 
-    assert False, "Exception expected"
+    expected = \
+"""
+%0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
+-----------------------^^^^^^^^^^----------------------------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+-------------------------------------------------------------------------------------------------
+------------------------------------------^^^^^^^^^^---------------------------------------------
+| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+-------------------------------------------------------------------------------------------------
+"""
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(add)
+
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_forgotten_op_non_fail():
+    """Test that the parsing of an undefined operand raises an exception."""
+    ctx = MLContext()
+    arith = Arith(ctx)
+
+    lit = Constant.from_int_constant(42, 32)
+    add = Addi.get(lit, lit)
+    add2 = Addi.get(add, add)
+    mod = ModuleOp.from_region_or_ops([add, add2])
+    mod.verify()
+
+    expected = \
+"""
+module() {
+  %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
+  -----------------------^^^^^^^^^^----------------------------------------------------------------
+  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+  -------------------------------------------------------------------------------------------------
+  ------------------------------------------^^^^^^^^^^---------------------------------------------
+  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
+  -------------------------------------------------------------------------------------------------
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+}
+"""
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(mod)
+
+    assert file.getvalue().strip() == expected.strip()
 
 
 #  ____  _                             _   _
@@ -45,13 +89,15 @@ def test_op_message():
     }"""
 
     expected = \
-"""module() {
+"""
+module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message
   --------------------------
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+}
+"""
 
     ctx = MLContext()
     arith = Arith(ctx)
@@ -151,9 +197,9 @@ def test_op_message_with_region():
     expected = \
 """\
 module() {
-^^^^^^-
+^^^^^^
 | Test
--------
+------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -187,9 +233,9 @@ def test_op_message_with_region_and_overflow():
     expected = \
 """\
 module() {
-^^^^^^---------
+^^^^^^--------
 | Test message
----------------
+--------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""

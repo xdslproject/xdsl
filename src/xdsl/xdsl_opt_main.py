@@ -1,17 +1,25 @@
 import argparse
 import sys
 import os
-from io import IOBase
-from xdsl.ir import *
-from xdsl.parser import *
-from xdsl.printer import *
-from xdsl.dialects.func import *
-from xdsl.dialects.scf import *
-from xdsl.dialects.arith import *
-from xdsl.dialects.affine import *
-from xdsl.dialects.memref import *
-from xdsl.dialects.builtin import *
-from xdsl.dialects.cf import *
+from io import IOBase, StringIO
+
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.dialects.func import Func
+from xdsl.dialects.scf import Scf
+from xdsl.dialects.arith import Arith
+from xdsl.dialects.affine import Affine
+from xdsl.dialects.memref import MemRef
+from xdsl.dialects.builtin import ModuleOp, Builtin
+from xdsl.dialects.cmath import CMath
+from xdsl.dialects.cf import Cf
+from xdsl.diagnostic import DiagnosticException
+from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.irdl import IRDL
+from xdsl.mlir_parser import MLIRParser
+
+from typing import Dict, Callable, List
 
 
 class xDSLOptMain:
@@ -24,7 +32,7 @@ class xDSLOptMain:
 
     available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
     """
-    A mapping from file extension to a frontend that can handle this 
+    A mapping from file extension to a frontend that can handle this
     file type.
     """
 
@@ -39,7 +47,7 @@ class xDSLOptMain:
     stream.
     """
 
-    pipeline: List[Tuple[str, Callable[[ModuleOp], None]]]
+    pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
     def __init__(self, description='xDSL modular optimizer driver'):
@@ -147,6 +155,9 @@ class xDSLOptMain:
         affine = Affine(self.ctx)
         scf = Scf(self.ctx)
         cf = Cf(self.ctx)
+        cmath = CMath(self.ctx)
+        irdl = IRDL(self.ctx)
+        llvm = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """
@@ -164,7 +175,17 @@ class xDSLOptMain:
                     "Expected module or program as toplevel operation")
             return module
 
+        def parse_mlir(f: IOBase):
+            input_str = f.read()
+            parser = MLIRParser(self.ctx, input_str)
+            module = parser.parse_op()
+            if not (isinstance(module, ModuleOp)):
+                raise Exception(
+                    "Expected module or program as toplevel operation")
+            return module
+
         self.available_frontends['xdsl'] = parse_xdsl
+        self.available_frontends['mlir'] = parse_mlir
 
     def register_all_passes(self):
         """
@@ -194,7 +215,7 @@ class xDSLOptMain:
         try:
             from xdsl.mlir_converter import MLIRConverter
             self.available_targets['mlir'] = _output_mlir
-        except ImportError as ex:
+        except ImportError:
             # do not add mlir as target if import does not work
             pass
 
@@ -225,7 +246,7 @@ class xDSLOptMain:
             f = sys.stdin
             file_extension = 'xdsl'
         else:
-            f = open(self.args.input_file, mode='r')
+            f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
