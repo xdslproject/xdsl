@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s | filecheck %s
+// RUN: xdsl-opt -t mlir --use-mlir-bindings %s | filecheck %s
 
 
 builtin.module() {
