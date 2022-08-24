@@ -60,7 +60,7 @@ class RemoveDuplicateApplyOperands(Strategy):
             case _:
                 return failure(self)
 
-def match_inlinable(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IOp]]:
+def match_inlinable(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
     # Explaining the matching:
     # - We match an apply op with operands and a region
     # - We check that one of the operands is another applyOp and remember it by `producer_apply`
@@ -92,55 +92,13 @@ class InlineApply(Strategy):
                 assert access_op_to_inline_at is not None
                 assert consumer_apply.region is not None
                 assert op.region is not None
-
-                def handle_merging(op_to_merge: IOp, env: dict[ISSAValue, ISSAValue]) -> list[IOp]:
-                    assert producer_apply.region is not None
-                    match op_to_merge:
-                        case IOp(op_type=stencil.StoreResult) if op_to_merge not in consumer_apply.region.ops:
-                            assert op_to_merge.result is not None
-                            env[op_to_merge.result] = env[op_to_merge.operands[0]] 
-                            return []
-                        case IOp(op_type=stencil.Return) if op_to_merge not in consumer_apply.region.ops:
-                            assert access_op_to_inline_at.result is not None
-                            # Get the index of the operand to be inlined in the result of the producer apply and 
-                            # map add the mapping of the access_op where we inline to the corresponding operand of stencil.result 
-                            producer_result_index_to_inline = producer_apply.results.index(operand_to_inline)
-                            env[access_op_to_inline_at.result] = env[op_to_merge.operands[producer_result_index_to_inline]]
-                            return []
-                        case IOp(op_type=scf.If, regions=[IRegion() as then_region, IRegion() as else_region]) if op_to_merge not in consumer_apply.region.ops:
-                            # We add the args to the env so we can just recurse here for the ops in the then and else region
-                            for arg in producer_apply.region.block.args:
-                                env[arg] = arg
-                            then_region_ops: list[IOp] = []
-                            for op in then_region.ops:
-                                then_region_ops.extend(handle_merging(op, env))
-                            else_region_ops: list[IOp] = []
-                            for op in else_region.ops:
-                                else_region_ops.extend(handle_merging(op, env))
-
-                            return from_op(op_to_merge, regions=[IRegion([IBlock([], then_region_ops)]), IRegion([IBlock([], else_region_ops)])], env=env, 
-                                            result_types=[res_type.elem if isinstance(res_type, stencil.ResultType) else res_type for res_type in op_to_merge.result_types])
-                        case IOp() if op_to_merge not in consumer_apply.region.ops:
-                            # update the attributes `offset`, `lb`, `ub` for inlined ops
-                            updated_attrs: dict[str, Attribute] = op_to_merge.attributes.copy()
-                            if "offset" in updated_attrs:
-                                updated_attrs["offset"] = updated_attrs["offset"] + access_op_to_inline_at.attributes["offset"]
-                            if "lb" in updated_attrs:
-                                updated_attrs["lb"] = updated_attrs["lb"] + access_op_to_inline_at.attributes["offset"]
-                            if "ub" in updated_attrs:
-                                updated_attrs["ub"] = updated_attrs["ub"] + access_op_to_inline_at.attributes["offset"]
-
-                            return from_op(op_to_merge, attributes=updated_attrs, env=env)
-                        case _:
-                            return from_op(op_to_merge, env=env)
-                    
+                
                 inlining_index = consumer_apply.region.ops.index(access_op_to_inline_at)
                 
-                env: dict[ISSAValue, ISSAValue] = {}
                 new_apply_block = new_block(args=new_apply_block_args, 
                                             ops=consumer_apply.region.ops[0:inlining_index] + producer_apply.region.ops + consumer_apply.region.ops[inlining_index+1:], 
-                                            env=env,
-                                            modify_op=handle_merging)
+                                            env={},
+                                            modify_op=self.handle_merging(producer_apply, consumer_apply, access_op_to_inline_at, operand_to_inline))
 
                 new_apply = new_op(op_type=stencil.Apply, operands=new_apply_operands, 
                         result_types=op.result_types, attributes=op.attributes, 
@@ -149,6 +107,51 @@ class InlineApply(Strategy):
                 return success(new_apply)
             case _:
                 return failure(self)
+
+    def handle_merging(self, producer_apply: IOp, consumer_apply: IOp, access_op_to_inline_at: IOp, operand_to_inline: IResult) -> Callable[[IOp, Optional[dict[ISSAValue, ISSAValue]]], list[IOp]]:
+        def merge(op_to_merge: IOp, env: Optional[dict[ISSAValue, ISSAValue]]) -> list[IOp]:
+            assert producer_apply.region is not None
+            if env is None:
+                env = {}
+            match op_to_merge:
+                case IOp(op_type=stencil.StoreResult) if op_to_merge not in consumer_apply.region.ops:
+                    assert op_to_merge.result is not None
+                    env[op_to_merge.result] = env[op_to_merge.operands[0]] 
+                    return []
+                case IOp(op_type=stencil.Return) if op_to_merge not in consumer_apply.region.ops:
+                    assert access_op_to_inline_at.result is not None
+                    # Get the index of the operand to be inlined in the result of the producer apply and 
+                    # map add the mapping of the access_op where we inline to the corresponding operand of stencil.result 
+                    producer_result_index_to_inline = producer_apply.results.index(operand_to_inline)
+                    env[access_op_to_inline_at.result] = env[op_to_merge.operands[producer_result_index_to_inline]]
+                    return []
+                case IOp(op_type=scf.If, regions=[IRegion() as then_region, IRegion() as else_region]) if op_to_merge not in consumer_apply.region.ops:
+                    # We add the args to the env so we can just recurse here for the ops in the then and else region
+                    for arg in producer_apply.region.block.args:
+                        env[arg] = arg
+                    then_region_ops: list[IOp] = []
+                    for op in then_region.ops:
+                        then_region_ops.extend(merge(op, env))
+                    else_region_ops: list[IOp] = []
+                    for op in else_region.ops:
+                        else_region_ops.extend(merge(op, env))
+
+                    return from_op(op_to_merge, regions=[IRegion([IBlock([], then_region_ops)]), IRegion([IBlock([], else_region_ops)])], env=env, 
+                                    result_types=[res_type.elem if isinstance(res_type, stencil.ResultType) else res_type for res_type in op_to_merge.result_types])
+                case IOp() if op_to_merge not in consumer_apply.region.ops:
+                    # update the attributes `offset`, `lb`, `ub` for inlined ops
+                    updated_attrs: dict[str, Attribute] = op_to_merge.attributes.copy()
+                    if "offset" in updated_attrs:
+                        updated_attrs["offset"] = updated_attrs["offset"] + access_op_to_inline_at.attributes["offset"]
+                    if "lb" in updated_attrs:
+                        updated_attrs["lb"] = updated_attrs["lb"] + access_op_to_inline_at.attributes["offset"]
+                    if "ub" in updated_attrs:
+                        updated_attrs["ub"] = updated_attrs["ub"] + access_op_to_inline_at.attributes["offset"]
+
+                    return from_op(op_to_merge, attributes=updated_attrs, env=env)
+                case _:
+                    return from_op(op_to_merge, env=env)
+        return merge
 
 @dataclass(frozen=True)
 class RerouteUse_decomp(Strategy):
@@ -208,32 +211,14 @@ class RerouteUse_decomp(Strategy):
                 fst_consumer_new_block_args: list[IBlockArg] = self.fst_consumer.region.block.args + [IBlockArg(typ=result.typ, block=None, index=len(self.fst_consumer.operands) + idx) for idx, result in enumerate(self.producer.results)]
 
                 # Compute new bounds:
-                def int_array_attr_element_wise(attr1: ArrayAttr, attr2: ArrayAttr, fun: Callable[[int, int], int]) -> ArrayAttr:
-                    return ArrayAttr.from_list([IntegerAttr.from_int_and_width(fun(int_attr1.value.data, int_attr2.value.data), 64) for int_attr1, int_attr2 in zip(attr1.data, attr2.data)])
                 new_fst_consumer_attr = self.fst_consumer.attributes.copy()
-                new_fst_consumer_attr["lb"] = int_array_attr_element_wise(self.producer.attributes["lb"], self.fst_consumer.attributes["lb"], min)
-                new_fst_consumer_attr["ub"] = int_array_attr_element_wise(self.producer.attributes["ub"], self.fst_consumer.attributes["ub"], max)
+                new_fst_consumer_attr["lb"] = self.int_array_attr_element_wise(self.producer.attributes["lb"], self.fst_consumer.attributes["lb"], min)
+                new_fst_consumer_attr["ub"] = self.int_array_attr_element_wise(self.producer.attributes["ub"], self.fst_consumer.attributes["ub"], max)
                 
                 fst_consumer_result_type = stencil.TempType.from_shape([new_fst_consumer_attr["ub"][idx] - new_fst_consumer_attr["lb"][idx] for idx in range(3)])
-
-                def handle_merging(op_to_merge: IOp, env: Optional[dict[ISSAValue, ISSAValue]]) -> list[IOp]:
-                    match op_to_merge:
-                        case IOp(op_type=stencil.Return):
-                            result: list[IOp] = []
-                            additional_return_vals : list[ISSAValue] = []
-                            # Add a stencil.access and stencil.store_result for all new operands/block_args
-                            for idx in range(len(self.fst_consumer.operands), len(fst_consumer_new_operands)):
-                                result.extend(new_op(op_type=stencil.Access, operands=[fst_consumer_new_block_args[idx]], attributes={"offset" : ArrayAttr.from_list([IntegerAttr.from_int_and_width(0, 64) for _ in range(3)])}, result_types=[f64]))
-                                assert result[-1].result is not None
-                                result.extend(new_op(op_type=stencil.StoreResult, operands=[result[-1].result], result_types=[stencil.ResultType([f64])]))
-                                additional_return_vals.append(result[-1].result)
-                            result.extend(new_op(op_type=stencil.Return, operands=[operand for operand in op_to_merge.operands] + additional_return_vals))
-                            return result
-                        case _:
-                            return [op_to_merge]
                 
-                new_fst_consumer_block = from_block(self.fst_consumer.region.block, args=fst_consumer_new_block_args, modify_op=handle_merging)
-
+                # Build new fst consumer
+                new_fst_consumer_block = from_block(self.fst_consumer.region.block, args=fst_consumer_new_block_args, modify_op=self.handle_merging(fst_consumer_new_operands, fst_consumer_new_block_args))
                 new_fst_consumer = new_op(op_type=stencil.Apply, operands=fst_consumer_new_operands, 
                         result_types=[fst_consumer_result_type for _ in range(len(self.producer.results)+1)], attributes=new_fst_consumer_attr, 
                         regions=[IRegion([new_fst_consumer_block])])
@@ -249,6 +234,28 @@ class RerouteUse_decomp(Strategy):
                 return result
             case _:
                 return failure(self)
+
+    def int_array_attr_element_wise(self, attr1: ArrayAttr, attr2: ArrayAttr, fun: Callable[[int, int], int]) -> ArrayAttr:
+        return ArrayAttr.from_list([IntegerAttr.from_int_and_width(fun(int_attr1.value.data, int_attr2.value.data), 64) for int_attr1, int_attr2 in zip(attr1.data, attr2.data)])
+
+    def handle_merging(self, fst_consumer_new_operands: list[ISSAValue], fst_consumer_new_block_args: list[IBlockArg]) -> Callable[[IOp, Optional[dict[ISSAValue, ISSAValue]]], list[IOp]]:
+        def merge(op_to_merge: IOp, env: Optional[dict[ISSAValue, ISSAValue]]) -> list[IOp]:
+            match op_to_merge:
+                case IOp(op_type=stencil.Return):
+                    result: list[IOp] = []
+                    additional_return_vals : list[ISSAValue] = []
+                    # Add a stencil.access and stencil.store_result for all new operands/block_args
+                    for idx in range(len(self.fst_consumer.operands), len(fst_consumer_new_operands)):
+                        result.extend(new_op(op_type=stencil.Access, operands=[fst_consumer_new_block_args[idx]], attributes={"offset" : ArrayAttr.from_list([IntegerAttr.from_int_and_width(0, 64) for _ in range(3)])}, result_types=[f64]))
+                        assert result[-1].result is not None
+                        result.extend(new_op(op_type=stencil.StoreResult, operands=[result[-1].result], result_types=[stencil.ResultType([f64])]))
+                        additional_return_vals.append(result[-1].result)
+                    result.extend(new_op(op_type=stencil.Return, operands=[operand for operand in op_to_merge.operands] + additional_return_vals))
+                    return result
+                case _:
+                    return [op_to_merge]
+
+        return merge
 
 RerouteOutputDependency_decomp: Strategy = multiRoot(
             matchTopToBottom(RerouteUse_decomp.MatchRerouteTargetDirectUse()), lambda matched_consumer:
