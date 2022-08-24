@@ -480,7 +480,7 @@ class FunctionType(ParametrizedAttribute):
 
 @irdl_op_definition
 class ModuleOp(Operation):
-    name: str = "module"
+    name: str = "builtin.module"
 
     body = SingleBlockRegionDef()
 

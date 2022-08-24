@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
   
   func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     ^0:

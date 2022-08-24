@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
   func.func() ["sym_name" = "main", "function_type" = !fun<[], []>, "sym_visibility" = "private"]{
     %0 : !f32 = arith.constant() ["value" = 42.0 : !f32]
     // CHECK: %{{.*}} : !f32 = arith.constant() ["value" = 42.0 : !f32]

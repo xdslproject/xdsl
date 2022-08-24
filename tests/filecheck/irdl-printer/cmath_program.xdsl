@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s -t irdl | filecheck %s
 
 
-module() {
+builtin.module() {
 
     irdl.dialect() ["dialect_name" = "cmath"] {
 

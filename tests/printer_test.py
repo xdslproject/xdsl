@@ -52,7 +52,7 @@ def test_forgotten_op_non_fail():
 
     expected = \
 """
-module() {
+builtin.module() {
   %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
   -----------------------^^^^^^^^^^----------------------------------------------------------------
   | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
@@ -125,14 +125,14 @@ unit_attr_op() ["parallelize", "vectorize"]
 def test_op_message():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message
@@ -159,13 +159,13 @@ module() {
 def test_two_different_op_messages():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -195,13 +195,13 @@ def test_two_different_op_messages():
 def test_two_same_op_messages():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -231,17 +231,17 @@ def test_two_same_op_messages():
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """\
-module() {
-^^^^^^
+builtin.module() {
+^^^^^^^^^^^^^^
 | Test
-------
+--------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -267,17 +267,17 @@ def test_op_message_with_region_and_overflow():
     where the message is bigger than the operation.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """\
-module() {
-^^^^^^--------
-| Test message
---------------
+builtin.module() {
+^^^^^^^^^^^^^^-----
+| Test long message
+-------------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -292,7 +292,7 @@ module() {
     file = StringIO("")
     diagnostic = Diagnostic()
     printer = Printer(stream=file, diagnostic=diagnostic)
-    diagnostic.add_message(module, "Test message")
+    diagnostic.add_message(module, "Test long message")
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -303,7 +303,7 @@ def test_diagnostic():
     where the message is bigger than the operation.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
@@ -312,7 +312,7 @@ def test_diagnostic():
 """\
 Exception: test message
 
-module() {
+builtin.module() {
 ^^^^^^^^-------
 | Test message
 ---------------
@@ -348,14 +348,14 @@ def test_print_costum_name():
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %i : !i32 = arith.constant() ["value" = 42 : !i32]
     %213 : !i32 = arith.addi(%i : !i32, %i : !i32)
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %i : !i32 = arith.constant() ["value" = 42 : !i32]
   %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
 }"""
@@ -407,14 +407,14 @@ def test_generic_format():
     Test that we can use generic formats in operations.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = "test.add"(%0: !i32, %0: !i32)
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
 }"""
@@ -438,14 +438,14 @@ def test_custom_format():
     Test that we can use custom formats in operations.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
 }"""
@@ -469,14 +469,14 @@ def test_custom_format():
     Test that we can print using generic formats.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
     expected = \
 """\
-"module"() {
+"builtin.module"() {
   %0 : !i32 = "arith.constant"() ["value" = 42 : !i32]
   %1 : !i32 = "test.add"(%0 : !i32, %0 : !i32)
 }"""

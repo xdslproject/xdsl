@@ -4,7 +4,7 @@ from xdsl.parser import Parser
 from xdsl.dialects.arith import Arith
 
 test_prog = """
-module() {
+builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 0 : !i1]
   %1 : !i1 = arith.andi(%0 : !i1, %0 : !i1)
 }
