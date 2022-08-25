@@ -595,7 +595,7 @@ class Parser:
 
         # Attribute with default format
         if parse_with_default_format:
-            if not isinstance(attr_def, ParametrizedAttribute):
+            if not issubclass(attr_def, ParametrizedAttribute):
                 raise ParserError(
                     self._pos,
                     f"{attr_def_name} is not a parameterized attribute, and "

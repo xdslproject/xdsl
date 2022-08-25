@@ -426,10 +426,7 @@ class Printer:
             return
 
         self.print(f'!{attribute.name}')
-        if len(attribute.parameters) != 0:
-            self.print("<")
-            self.print_list(attribute.parameters, self.print_attribute)
-            self.print(">")
+        attribute.print_parameters(self)
 
     def print_successors(self, successors: List[Block]):
         if len(successors) == 0:

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from io import StringIO
 
-from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType, UnitAttr
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.diagnostic import Diagnostic
-from xdsl.ir import MLContext
-from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition, irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 
@@ -485,6 +485,121 @@ def test_custom_format():
     arith = Arith(ctx)
     builtin = Builtin(ctx)
     ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+@irdl_attr_definition
+class CustomFormatAttr(ParametrizedAttribute):
+    name = "custom"
+
+    attr: ParameterDef[IntAttr]
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        value = parser.parse_alpha_num(skip_white_space=False)
+        if value == "zero":
+            parser.parse_char(">")
+            return [IntAttr.from_int(0)]
+        if value == "one":
+            parser.parse_char(">")
+            return [IntAttr.from_int(1)]
+        assert False
+
+    def print_parameters(self, printer: Printer) -> None:
+        assert 0 <= self.attr.data <= 1
+        printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
+
+
+@irdl_op_definition
+class AnyOp(Operation):
+    name = "any"
+
+
+def test_custom_format_attr():
+    """
+    Test that we can parse and print attributes using custom formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !custom<zero>]
+    }"""
+
+    expected = \
+"""\
+builtin.module() {
+  any() ["attr" = !custom<zero>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_generic_format_attr():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !"custom"<!int<0>>]
+    }"""
+
+    expected = \
+"""\
+builtin.module() {
+  any() ["attr" = !custom<zero>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_generic_format_attr():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !custom<zero>]
+    }"""
+
+    expected = \
+"""\
+"builtin.module"() {
+  "any"() ["attr" = !"custom"<!int<0>>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
