@@ -237,10 +237,6 @@ class Data(Generic[DataElement], Attribute, ABC):
     def print_parameter(data: DataElement, printer: Printer) -> None:
         """Print the attribute parameter."""
 
-    def print_parameter_as_mlir(self, printer: Printer) -> None:
-        """Print the attribute parameter in MLIR format."""
-        self.print_parameter(self.data, printer)
-
 
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
@@ -248,17 +244,15 @@ class ParametrizedAttribute(Attribute):
 
     parameters: list[Attribute] = field(default_factory=list)
 
+    def print_parameters(self, printer: Printer) -> None:
+        """Print the attribute parameters."""
+        printer.print_paramattr_parameters(self.parameters)
+
     @classmethod
     @property
     def irdl_definition(cls) -> ParamAttrDef:
         """Get the IRDL attribute definition."""
         ...
-
-    def print_parameters_as_mlir(self, printer: Printer) -> None:
-        if len(self.parameters) != 0:
-            printer.print("<")
-            printer.print_list(self.parameters, printer.print_attribute)
-            printer.print(">")
 
 
 @dataclass

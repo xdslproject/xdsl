@@ -269,6 +269,13 @@ class Printer:
             self._print_operand(operand)
         self.print(")")
 
+    def print_paramattr_parameters(self, params: list[Attribute]) -> None:
+        if len(params) == 0:
+            return
+        self.print("<")
+        self.print_list(params, self.print_attribute)
+        self.print(">")
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -391,13 +398,13 @@ class Printer:
 
             if isinstance(attribute, Data):
                 self.print("<")
-                attribute.print_parameter_as_mlir(self)
+                attribute.print_parameter(attribute.data, self)
                 self.print(">")
                 return
 
             assert isinstance(attribute, ParametrizedAttribute)
 
-            attribute.print_parameters_as_mlir(self)
+            attribute.print_parameters(self)
             return
 
         if isinstance(attribute, Data):
