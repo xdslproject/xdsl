@@ -1,6 +1,6 @@
 from __future__ import annotations
-from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
-                     BlockArgument, MLContext)
+from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
+                     Attribute, Operation, Region, BlockArgument, MLContext)
 from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
                                    StringAttr, FlatSymbolRefAttr, IntegerAttr,
                                    ArrayAttr, UnitAttr)
@@ -515,6 +515,20 @@ class Parser:
         self.parse_char(")")
         return res
 
+    def parse_paramattr_parameters(
+            self,
+            expect_brackets: bool = False,
+            skip_white_space: bool = True) -> list[Attribute]:
+        if expect_brackets:
+            self.parse_char("<", skip_white_space=skip_white_space)
+        elif self.parse_optional_char(
+                "<", skip_white_space=skip_white_space) is None:
+            return []
+
+        res = self.parse_list(self.parse_optional_attribute)
+        self.parse_char(">")
+        return res
+
     def parse_optional_attribute(self,
                                  skip_white_space: bool = True
                                  ) -> Attribute | None:
@@ -559,6 +573,7 @@ class Parser:
         if parsed is None:
             return None
 
+        parse_with_default_format = False
         parsed = self.parse_optional_char("i")
 
         # shorthand for integer types
@@ -568,19 +583,34 @@ class Parser:
                 return IntegerType.from_width(num)
             attr_def_name = "i" + self.parse_alpha_num(skip_white_space=True)
         else:
-            attr_def_name = self.parse_alpha_num(skip_white_space=True)
+            # Attribute with default format
+            if self.parse_optional_char('"'):
+                attr_def_name = self.parse_alpha_num(skip_white_space=False)
+                self.parse_char('"')
+                parse_with_default_format = True
+            else:
+                attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
         attr_def = self._ctx.get_attr(attr_def_name)
-        if self.parse_optional_char("<") is None:
-            return attr_def()
+
+        # Attribute with default format
+        if parse_with_default_format:
+            if not isinstance(attr_def, ParametrizedAttribute):
+                raise ParserError(
+                    self._pos,
+                    f"{attr_def_name} is not a parameterized attribute, and "
+                    "thus cannot be parsed with a generic format.")
+            params = self.parse_paramattr_parameters()
+            return attr_def(params)  # type: ignore
 
         if issubclass(attr_def, Data):
+            self.parse_char("<")
             attr: Any = attr_def.parse_parameter(self)
             self.parse_char(">")
             return attr_def(attr)  # type: ignore
 
-        param_list = self.parse_list(self.parse_optional_attribute)
-        self.parse_char(">")
+        assert issubclass(attr_def, ParametrizedAttribute)
+        param_list = attr_def.parse_parameters(self)
         return attr_def(param_list)  # type: ignore
 
     def parse_attribute(self, skip_white_space: bool = True) -> Attribute:

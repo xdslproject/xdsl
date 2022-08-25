@@ -244,6 +244,11 @@ class ParametrizedAttribute(Attribute):
 
     parameters: list[Attribute] = field(default_factory=list)
 
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        """Parse the attribute parameters."""
+        return parser.parse_paramattr_parameters()
+
     def print_parameters(self, printer: Printer) -> None:
         """Print the attribute parameters."""
         printer.print_paramattr_parameters(self.parameters)
