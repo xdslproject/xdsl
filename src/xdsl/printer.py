@@ -269,8 +269,11 @@ class Printer:
             self._print_operand(operand)
         self.print(")")
 
-    def print_paramattr_parameters(self, params: list[Attribute]) -> None:
-        if len(params) == 0:
+    def print_paramattr_parameters(
+            self,
+            params: list[Attribute],
+            always_print_brackets: bool = False) -> None:
+        if len(params) == 0 and not always_print_brackets:
             return
         self.print("<")
         self.print_list(params, self.print_attribute)
@@ -414,6 +417,13 @@ class Printer:
             return
 
         assert isinstance(attribute, ParametrizedAttribute)
+
+        # Print parametrized attribute with default formatting
+        if self.target == self.Target.XDSL and self.print_generic_format:
+            self.print(f'!"{attribute.name}"')
+            self.print_paramattr_parameters(attribute.parameters,
+                                            always_print_brackets=True)
+            return
 
         self.print(f'!{attribute.name}')
         if len(attribute.parameters) != 0:
