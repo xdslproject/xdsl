@@ -269,6 +269,16 @@ class Printer:
             self._print_operand(operand)
         self.print(")")
 
+    def print_paramattr_parameters(
+            self,
+            params: list[Attribute],
+            always_print_brackets: bool = False) -> None:
+        if len(params) == 0 and not always_print_brackets:
+            return
+        self.print("<")
+        self.print_list(params, self.print_attribute)
+        self.print(">")
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -391,13 +401,13 @@ class Printer:
 
             if isinstance(attribute, Data):
                 self.print("<")
-                attribute.print_parameter_as_mlir(self)
+                attribute.print_parameter(attribute.data, self)
                 self.print(">")
                 return
 
             assert isinstance(attribute, ParametrizedAttribute)
 
-            attribute.print_parameters_as_mlir(self)
+            attribute.print_parameters(self)
             return
 
         if isinstance(attribute, Data):
@@ -408,11 +418,15 @@ class Printer:
 
         assert isinstance(attribute, ParametrizedAttribute)
 
+        # Print parametrized attribute with default formatting
+        if self.target == self.Target.XDSL and self.print_generic_format:
+            self.print(f'!"{attribute.name}"')
+            self.print_paramattr_parameters(attribute.parameters,
+                                            always_print_brackets=True)
+            return
+
         self.print(f'!{attribute.name}')
-        if len(attribute.parameters) != 0:
-            self.print("<")
-            self.print_list(attribute.parameters, self.print_attribute)
-            self.print(">")
+        attribute.print_parameters(self)
 
     def print_successors(self, successors: List[Block]):
         if len(successors) == 0:

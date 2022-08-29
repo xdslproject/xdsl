@@ -68,27 +68,11 @@ class ParamType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class DataAttrWithCustomFormat(Data[int]):
-    name = "data_custom_format"
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> int:
-        return parser.parse_int_literal()
-
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print(data)
-
-    def print_parameter_as_mlir(self, printer: Printer) -> None:
-        printer.print(f"~{self.data}~")
-
-
-@irdl_attr_definition
 class ParamAttrWithCustomFormat(ParametrizedAttribute):
     name = "param_custom_format"
     param1: ParameterDef[ParamAttr]
 
-    def print_parameters_as_mlir(self, printer: Printer) -> None:
+    def print_parameters(self, printer: Printer) -> None:
         printer.print(f"~~")
 
 
@@ -102,7 +86,6 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     ctx.register_attr(ParamAttr)
     ctx.register_attr(ParamType)
     ctx.register_attr(ParamAttrWithParam)
-    ctx.register_attr(DataAttrWithCustomFormat)
     ctx.register_attr(ParamAttrWithCustomFormat)
 
     parser = Parser(ctx, test_prog)
@@ -230,14 +213,6 @@ def test_op_with_attributes():
     print_as_mlir_and_compare(
         """any() [ "attr" = !data_attr<42> ]""",
         """"any"() {"attr" = #data_attr<42>} : () -> ()""",
-    )
-
-
-def test_data_custom_format():
-    """Test printing an operation with a data attribute with custom format."""
-    print_as_mlir_and_compare(
-        """any() [ "attr" = !data_custom_format<42> ]""",
-        """"any"() {"attr" = #data_custom_format<~42~>} : () -> ()""",
     )
 
 
