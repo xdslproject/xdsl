@@ -1,4 +1,4 @@
-"module"() ({
+"builtin.module"() ({
   "func.func"() ({
   ^bb0(%arg0: i32, %arg1: i32):
     %0 = "arith.ceildivsi"(%arg0, %arg1) : (i32, i32) -> i32

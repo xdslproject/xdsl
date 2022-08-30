@@ -62,8 +62,8 @@ class MLIRParser(Parser):
             self._pos = self._pos.next_char_pos()
             if len(paren_stack) == 0:
                 if self._pos is None:
-                    return self._str[start_pos.idx:]
-                return self._str[start_pos.idx:self._pos.idx]
+                    return self.str[start_pos.idx:]
+                return self.str[start_pos.idx:self._pos.idx]
 
     def parse_optional_attribute(self,
                                  skip_white_space: bool = True
@@ -264,15 +264,11 @@ class MLIRParser(Parser):
         else:
             op_name, _ = self._parse_op_name()
 
-        # We first fix the name of the module
-        if op_name == "builtin.module":
-            op_name = "module"
-
         # We use UnkownMLIROp to handle unregistered operations
-        if op_name not in self._ctx._registeredOps:
+        if op_name not in self.ctx._registeredOps:
             op_type = UnkownMLIROp
         else:
-            op_type = self._ctx.get_op(op_name)
+            op_type = self.ctx.get_op(op_name)
 
         op = self.parse_op_with_default_format(op_type, len(results))
         if op_type is UnkownMLIROp:

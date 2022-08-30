@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
+from enum import Enum
 
 indentNumSpaces = 2
 
@@ -87,11 +88,19 @@ class ParserError(Exception):
 
 @dataclass
 class Parser:
-    _ctx: MLContext
+
+    class Source(Enum):
+        XDSL = 1
+        MLIR = 2
+
+    ctx: MLContext
     """xDSL context."""
 
-    _str: str
+    str: str
     """The current file/input to parse."""
+
+    source: Source = field(default=Source.XDSL, kw_only=True)
+    """The source language to parse."""
 
     _pos: Position | None = field(init=False)
     """Position in the file. None represent the end of the file."""
@@ -103,10 +112,10 @@ class Parser:
     """Associate blocks with their names."""
 
     def __post_init__(self):
-        if len(self._str) == 0:
+        if len(self.str) == 0:
             self._pos = None
         else:
-            self._pos = Position(self._str)
+            self._pos = Position(self.str)
 
     def get_char(self,
                  n: int = 1,
@@ -117,9 +126,9 @@ class Parser:
             self.skip_white_space()
         if self._pos is None:
             return None
-        if self._pos.idx + n >= len(self._str):
+        if self._pos.idx + n >= len(self.str):
             return None
-        return self._str[self._pos.idx:self._pos.idx + n]
+        return self.str[self._pos.idx:self._pos.idx + n]
 
     _T = TypeVar("_T")
 
@@ -161,9 +170,9 @@ class Parser:
         while self._pos is not None:
             char = self._pos.get_char()
             if not cond(char):
-                return self._str[start_pos.idx:self._pos.idx]
+                return self.str[start_pos.idx:self._pos.idx]
             self._pos = self._pos.next_char_pos()
-        return self._str[start_pos.idx:]
+        return self.str[start_pos.idx:]
 
     # TODO why two different functions, no nums in ident?
     def parse_optional_ident(self,
@@ -223,9 +232,9 @@ class Parser:
                 break
             self._pos = pos.next_char_pos()
         if self._pos is None:
-            res = self._str[start_pos.idx:]
+            res = self.str[start_pos.idx:]
         else:
-            res = self._str[start_pos.idx:self._pos.idx]
+            res = self.str[start_pos.idx:self._pos.idx]
         self.parse_char('"')
         return res
 
@@ -591,7 +600,7 @@ class Parser:
             else:
                 attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
-        attr_def = self._ctx.get_attr(attr_def_name)
+        attr_def = self.ctx.get_attr(attr_def_name)
 
         # Attribute with default format
         if parse_with_default_format:
@@ -728,7 +737,7 @@ class Parser:
 
         result_types = [typ for (_, typ) in results]
 
-        op_type = self._ctx.get_op(op_name)
+        op_type = self.ctx.get_op(op_name)
         if not is_generic_format:
             op = op_type.parse(result_types, self)
         else:
