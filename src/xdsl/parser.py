@@ -478,8 +478,9 @@ class Parser:
                                ) -> list[str] | None:
         res = self.parse_list(self.parse_optional_ssa_name,
                               skip_white_space=skip_white_space)
-        if len(res) != 0:
-            self.parse_char("=")
+        if len(res) == 0:
+            return None
+        self.parse_char("=")
         return res
 
     def parse_optional_typed_result(
@@ -642,8 +643,13 @@ class Parser:
     def parse_optional_named_attribute(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
+        # The attribute name is either a string literal, or an identifier.
         attr_name = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
+        if attr_name is None:
+            attr_name = self.parse_optional_alpha_num(
+                skip_white_space=skip_white_space)
+
         if attr_name is None:
             return None
         if not self.peek_char("="):

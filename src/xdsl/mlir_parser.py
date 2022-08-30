@@ -36,6 +36,10 @@ class MLIRParser(Parser):
 
     _T = TypeVar("_T")
 
+    def __post_init__(self):
+        self.source = self.Source.MLIR
+        return super().__post_init__()
+
     def parse_optional_balanced_string(self) -> str | None:
         open_parentheses = ["(", "[", "<", "{"]
         if self._pos is None or self.get_char() not in open_parentheses:
@@ -119,22 +123,6 @@ class MLIRParser(Parser):
                                            alnum_parens2.strip())
 
         return UnkownMLIRAttr.from_str(alnum_parens)
-
-    def parse_optional_named_attribute(
-            self,
-            skip_white_space: bool = True) -> tuple[str, Attribute] | None:
-        attr_name = self.parse_optional_alpha_num(
-            skip_white_space=skip_white_space)
-        if attr_name is None:
-            return None
-
-        # Unit attributes
-        if self.parse_optional_char("=") is None:
-            return attr_name, UnkownMLIRAttr.from_str("")
-
-        attr = self.parse_attribute()
-        print(attr_name, attr)
-        return attr_name, attr
 
     def parse_op_attributes(self,
                             skip_white_space: bool = True
