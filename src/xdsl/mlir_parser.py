@@ -124,16 +124,6 @@ class MLIRParser(Parser):
 
         return UnkownMLIRAttr.from_str(alnum_parens)
 
-    def parse_op_attributes(self,
-                            skip_white_space: bool = True
-                            ) -> dict[str, Attribute]:
-        if not self.parse_optional_char("{",
-                                        skip_white_space=skip_white_space):
-            return dict()
-        attrs_with_names = self.parse_list(self.parse_optional_named_attribute)
-        self.parse_char("}")
-        return {name: attr for (name, attr) in attrs_with_names}
-
     def parse_op_type(
         self,
         skip_white_space: bool = True

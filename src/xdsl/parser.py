@@ -661,11 +661,12 @@ class Parser:
     def parse_op_attributes(self,
                             skip_white_space: bool = True
                             ) -> dict[str, Attribute]:
-        if not self.parse_optional_char("[",
-                                        skip_white_space=skip_white_space):
+        if not self.parse_optional_char(
+                "[" if self.source == self.Source.XDSL else "{",
+                skip_white_space=skip_white_space):
             return dict()
         attrs_with_names = self.parse_list(self.parse_optional_named_attribute)
-        self.parse_char("]")
+        self.parse_char("]" if self.source == self.Source.XDSL else "}")
         return {name: attr for (name, attr) in attrs_with_names}
 
     def parse_optional_successor(self,
