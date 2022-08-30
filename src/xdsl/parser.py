@@ -520,11 +520,12 @@ class Parser:
             skip_white_space=skip_white_space)
         if value is None:
             return None
-        self.parse_char(":")
-        typ = self.parse_attribute()
-        if value.typ != typ:
-            raise ParserError(self._pos,
-                              f"type mismatch between {typ} and {value.typ}")
+        if self.source == self.Source.XDSL:
+            self.parse_char(":")
+            typ = self.parse_attribute()
+            if value.typ != typ:
+                raise ParserError(
+                    self._pos, f"type mismatch between {typ} and {value.typ}")
         return value
 
     def parse_operands(self,

@@ -120,11 +120,6 @@ class MLIRParser(Parser):
 
         return UnkownMLIRAttr.from_str(alnum_parens)
 
-    def parse_optional_operand(self,
-                               skip_white_space: bool = True
-                               ) -> SSAValue | None:
-        return self.parse_optional_ssa_value(skip_white_space=skip_white_space)
-
     def parse_optional_named_attribute(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
