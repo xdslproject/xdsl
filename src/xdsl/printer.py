@@ -64,7 +64,7 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
-    def print_string(self, text) -> None:
+    def print_string(self, text: str) -> None:
         lines = text.split('\n')
         if len(lines) != 1:
             self._current_line += len(lines) - 1
@@ -76,15 +76,18 @@ class Printer:
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        self._next_line_callback.append(
-            (lambda indent: lambda: self._print_message(
-                message, begin_pos, end_pos, indent))(self._indent))
+        # Python does not have a way to specify the type of an optional
+        # argument.
+        callback: Callable[[int], None] = (
+            lambda indent=self._indent: self._print_message(
+                message, begin_pos, end_pos, indent))
+        self._next_line_callback.append(cast(Callable[[], None], callback))
 
     def _print_message(self,
                        message: str,
                        begin_pos: int,
                        end_pos: int,
-                       indent=None):
+                       indent: int | None = None):
         """
         Print a message.
         This is expected to be called at the beginning of a new line and to create a new line at the end.
@@ -297,7 +300,7 @@ class Printer:
             return
 
         if isinstance(attribute, FlatSymbolRefAttr):
-            self.print(f'@{attribute.parameters[0].data}')
+            self.print(f'@{attribute.data.data}')
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -319,7 +322,9 @@ class Printer:
 
         if isinstance(attribute, ArrayAttr):
             self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)
+            self.print_list(
+                attribute.data,  # type: ignore
+                self.print_attribute)
             self.print_string("]")
             return
 
@@ -401,6 +406,7 @@ class Printer:
 
             if isinstance(attribute, Data):
                 self.print("<")
+                attribute = cast(Data[Any], attribute)
                 attribute.print_parameter(attribute.data, self)
                 self.print(">")
                 return
@@ -412,6 +418,7 @@ class Printer:
 
         if isinstance(attribute, Data):
             self.print(f'!{attribute.name}<')
+            attribute = cast(Data[Any], attribute)
             attribute.print_parameter(attribute.data, self)
             self.print(">")
             return
