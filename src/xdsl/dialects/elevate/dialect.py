@@ -1,8 +1,10 @@
 from __future__ import annotations
+from typing import Type
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.elevate import *
+import xdsl.elevate as elevate
+
 
 @dataclass
 class Elevate:
@@ -11,20 +13,22 @@ class Elevate:
     def __post_init__(self):
         self.ctx.register_attr(OpHandle)
         self.ctx.register_attr(StrategyHandle)
+        self.ctx.register_attr(Strategy)
         self.ctx.register_attr(RewriteResult)
 
         # Strategies which directly apply in the representation, i.e. produce an ophandle.
         self.ctx.register_op(StrategyOp)
+        self.ctx.register_op(ComposeOp)
+        self.ctx.register_op(ApplyOp)
         self.ctx.register_op(IdOp)
         self.ctx.register_op(FailOp)
         self.ctx.register_op(TopToBottomOp)
         self.ctx.register_op(TryOp)
         self.ctx.register_op(ReturnOp)
 
-
         # Strategies with explicit application
         self.ctx.register_op(StrategyStratOp)
-        self.ctx.register_op(ApplyOp)
+        self.ctx.register_op(ApplyStratOp)
         self.ctx.register_op(IdStratOp)
         self.ctx.register_op(FailStratOp)
         self.ctx.register_op(SeqStratOp)
@@ -32,17 +36,26 @@ class Elevate:
         self.ctx.register_op(TryStratOp)
         self.ctx.register_op(ReturnStratOp)
 
+
 @irdl_attr_definition
 class OpHandle(ParametrizedAttribute):
     name = "op_handle"
+
 
 @irdl_attr_definition
 class StrategyHandle(ParametrizedAttribute):
     name = "strategy_handle"
 
+
+@irdl_attr_definition
+class Strategy(ParametrizedAttribute):
+    name = "strategy"
+
+
 @irdl_attr_definition
 class RewriteResult(ParametrizedAttribute):
     name = "rewrite_result"
+
 
 # Explicit application
 
@@ -50,8 +63,9 @@ class RewriteResult(ParametrizedAttribute):
 class ElevateOperation(Operation, ABC):
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
+    def get_strategy(cls) -> Type[elevate.Strategy]:
         pass
+
 
 @irdl_op_definition
 class StrategyStratOp(ElevateOperation):
@@ -61,19 +75,20 @@ class StrategyStratOp(ElevateOperation):
     body = RegionDef()
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return id
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.id
+
 
 @irdl_op_definition
-class ApplyOp(ElevateOperation):
+class ApplyStratOp(ElevateOperation):
     name: str = "elevate2.apply"
     op = OperandDef(OpHandle)
     strategy = OperandDef(StrategyHandle)
     output = ResultDef(RewriteResult)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return id
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.id
 
 
 @irdl_op_definition
@@ -82,8 +97,8 @@ class IdStratOp(ElevateOperation):
     output = ResultDef(StrategyHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return id
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.id
 
 
 @irdl_op_definition
@@ -92,8 +107,8 @@ class FailStratOp(ElevateOperation):
     output = ResultDef(StrategyHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return fail
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.fail
 
 
 @irdl_op_definition
@@ -104,8 +119,8 @@ class SeqStratOp(ElevateOperation):
     output = ResultDef(StrategyHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return seq
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.seq
 
 
 @irdl_op_definition
@@ -115,8 +130,8 @@ class TopToBottomStratOp(ElevateOperation):
     output = ResultDef(StrategyHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return topToBottom
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.topToBottom
 
 
 @irdl_op_definition
@@ -126,8 +141,8 @@ class TryStratOp(ElevateOperation):
     output = ResultDef(StrategyHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return try_
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.try_
 
 
 @irdl_op_definition
@@ -140,61 +155,84 @@ class ReturnStratOp(ElevateOperation):
 @irdl_op_definition
 class StrategyOp(ElevateOperation):
     name: str = "elevate.strategy"
-    output = ResultDef(OpHandle)
+    output = ResultDef(Strategy)
     body = RegionDef()
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return id
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.id
+
+
+@irdl_op_definition
+class ApplyOp(ElevateOperation):
+    name: str = "elevate.apply"
+    strategy = OperandDef(Strategy)
+    args = VarOperandDef(Attribute)
+    body = RegionDef()
+
+    @classmethod
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        raise Exception("unreachable")
+        return elevate.id
+
+
+@irdl_op_definition
+class ComposeOp(ElevateOperation):
+    name: str = "elevate.compose"
+    output = ResultDef(Strategy)
+    body = RegionDef()
+
+    @classmethod
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        raise Exception("unreachable")
+        return elevate.id
 
 
 @irdl_op_definition
 class IdOp(ElevateOperation):
     name: str = "elevate.id"
-    input = OperandDef(OpHandle)
-    output = ResultDef(OpHandle)
+    # input = OperandDef(OpHandle)
+    # output = ResultDef(OpHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return id
-
-
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.id
 
 
 @irdl_op_definition
 class FailOp(ElevateOperation):
     name: str = "elevate.fail"
-    input = OperandDef(OpHandle)
-    output = ResultDef(OpHandle)
+    # input = OperandDef(OpHandle)
+    # output = ResultDef(OpHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return fail
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.fail
 
 
 @irdl_op_definition
 class TopToBottomOp(ElevateOperation):
     name: str = "elevate.toptobottom"
     region = RegionDef()
-    output = ResultDef(OpHandle)
+    # output = ResultDef(OpHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return topToBottom
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.topToBottom
 
 
 @irdl_op_definition
 class TryOp(ElevateOperation):
     name: str = "elevate.try"
     region = RegionDef()
-    output = ResultDef(OpHandle)
+    # output = ResultDef(OpHandle)
 
     @classmethod
-    def get_strategy(cls) -> Type[Strategy]:
-        return try_
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.try_
 
 
 @irdl_op_definition
 class ReturnOp(Operation):
     name: str = "elevate.return"
-    input = OperandDef(OpHandle)
+    # input = OperandDef(OpHandle)

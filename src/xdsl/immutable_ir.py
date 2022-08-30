@@ -1,8 +1,10 @@
 from __future__ import annotations
+from abc import ABC
 from typing import Iterable, Sequence, SupportsIndex, Type, TypeGuard, Any
+from xdsl.ir import *
 from xdsl.dialects.builtin import *
 from xdsl.dialects.arith import *
-from xdsl.dialects.rewrite import *
+from xdsl.dialects.rewrite.dialect import RewriteId
 
 _T = TypeVar('_T')
 

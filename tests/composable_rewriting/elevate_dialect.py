@@ -3,13 +3,40 @@ import xdsl.dialects.arith as arith
 import xdsl.dialects.scf as scf
 import xdsl.dialects.func as func
 import xdsl.dialects.builtin as builtin
-import xdsl.dialects.elevate_dialect as elevate
+import xdsl.dialects.match.dialect as match
+import xdsl.dialects.rewrite.dialect as rewrite
+import xdsl.dialects.elevate.dialect as elevate
+import xdsl.dialects.elevate.interpreter as interpreter
+
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
+
+
+def apply_strategy(program: str, strategy: Strategy):
+    ctx = MLContext()
+    Builtin(ctx)
+    Func(ctx)
+    Arith(ctx)
+    scf.Scf(ctx)
+    match.Match(ctx)
+    rewrite.Rewrite(ctx)
+
+    parser = Parser(ctx, program)
+    module: Operation = parser.parse_op()
+    imm_module: IOp = get_immutable_copy(module)
+
+    rr = strategy.apply(imm_module)
+    assert rr.isSuccess()
+
+    # for debugging
+    printer = Printer()
+    print(f'Result after applying "{strategy}":')
+    printer.print_op(rr.result_op.get_mutable_copy())
+    print()
 
 
 def parse_module(program: str) -> ModuleOp:
@@ -19,6 +46,8 @@ def parse_module(program: str) -> ModuleOp:
     Arith(ctx)
     scf.Scf(ctx)
     elevate.Elevate(ctx)
+    match.Match(ctx)
+    rewrite.Rewrite(ctx)
 
     parser = Parser(ctx, program)
     module: Operation = parser.parse_op()
@@ -30,31 +59,6 @@ def parse_module(program: str) -> ModuleOp:
     return module
 
 
-def interpret_elevate(strategy: elevate.StrategyOp) -> Strategy:
-    # Build strategy:
-
-    def get_strategy_for_region(region: Region) -> Strategy:
-        assert len(region.ops) > 0
-        strategy = get_strategy(region.ops[0])
-        for idx in range(1, len(region.ops)):
-            # TODO: assertion that all ops in the region are ElevateOps
-            if isinstance(region.ops[idx], elevate.ReturnOp):
-                break
-            strategy = seq(strategy, get_strategy(region.ops[idx]))
-        return strategy
-
-    def get_strategy(op: elevate.ElevateOperation) -> Strategy:
-        if len(op.regions) == 0:
-            return op.get_strategy()()
-        
-        strategy_type: Type[Strategy] = op.__class__.get_strategy()
-        operands_to_strat: List[Strategy] = [get_strategy_for_region(region) for region in op.regions]
-    
-        return strategy_type(*operands_to_strat)
-
-    return get_strategy_for_region(strategy.body)
-    
-
 def interpret_elevate_2(strategy: elevate.StrategyStratOp) -> Strategy:
     # Build strategy:
     returnOp = strategy.body.ops[-1]
@@ -62,40 +66,90 @@ def interpret_elevate_2(strategy: elevate.StrategyStratOp) -> Strategy:
 
     def get_strategy(op: elevate.ElevateOperation):
         strat: Type[Strategy] = op.get_strategy()
-        operands_to_strat: List[Strategy] = [get_strategy(operand.op) for operand in op.operands]
-    
+        operands_to_strat: List[Strategy] = [
+            get_strategy(operand.op) for operand in op.operands
+        ]
+
         return strat(*operands_to_strat)
 
     return get_strategy(returnOp.operands[0].op)
 
 
-def test_strats_produce_ophandles():
+def test_region_based_dialect():
     # In this case combinators as operations with regions
 
-
-    # The types here are not really proper. 
-    # I think everything should probably become !strategy_handle
-    ir = \
+    ir_to_rewrite = \
 """module() {
-  %0 : !op_handle = elevate.strategy() {
-    ^0(%1 : !op_handle):
-    %2 : !op_handle = elevate.toptobottom(%1 : !op_handle) {
-      ^1(%3 : !op_handle):
-      %4 : !op_handle = elevate.try(%3 : !op_handle) {
-        ^3(%5 : !op_handle):
-        %6 : !op_handle = elevate.fail(%5 : !op_handle)
-      }
-      %7 : !op_handle = elevate.id(%4 : !op_handle)
-      elevate.return(%7 : !op_handle)
+%0 : !i32 = arith.constant() ["value" = 1 : !i32]
+%1 : !i32 = arith.constant() ["value" = 2 : !i32]
+%2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+%3 : !i32 = arith.constant() ["value" = 4 : !i32]
+%4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+func.return(%4 : !i32)
+}
+"""
+
+    constant_fold_strat = \
+"""module() {
+  %0 : !strategy = elevate.strategy() {
+    %int_type : !type<!i32> = match.type()
+
+    // match the first constant
+    %attr1 : !i32 = match.attr() ["name" = "value"]
+    %3 : !operation = match.op(%attr1 : !i32, %int_type : !type<!i32>) ["name"="arith.constant"]
+    %4 : !value = match.get_result(%3 : !operation) ["idx" = 0]
+
+    // match the second constant
+    %attr2 : !i32 = match.attr() ["name" = "value"]
+    %5 : !operation = match.op(%attr2 : !i32, %int_type : !type<!i32>) ["name"="arith.constant"]
+    %6 : !value = match.get_result(%5 : !operation) ["idx" = 0]
+
+    // match the addition of these constants
+    %7 : !operation = match.root_op(%4 : !value, %6 : !value, %int_type : !type<!i32>) ["name"="arith.addi"]
+
+    // rewriting
+    %new_attr_val : !i32 = arith.addi(%attr1 : !i32, %attr2 : !i32)
+    %result : !operation = rewrite.new_op(%new_attr_val : !i32, %int_type : !type<!i32>) ["name" = "arith.constant", "attribute_names"=["value"]]
+    rewrite.success(%result : !operation)
+  }
+  %100 : !strategy = elevate.compose() {
+    elevate.toptobottom() {
+      //elevate.try() {
+            elevate.apply(%0 : !strategy)
+      //}
+      elevate.id()
     }
-    elevate.return(%2 : !op_handle)
   }
 }
 """
-    module = parse_module(ir)
-    assert isinstance(module.ops[0], elevate.StrategyOp)
-    print(interpret_elevate(module.ops[0]))
-    # prints: topToBottom(seq(try_(fail()),id()),0)
+
+    composed_strat_dsl_actually_python_question = \
+"""module() {
+  %0 : !strategy = elevate.strategy() {
+    match()
+
+  } { 
+    // Here we have the rewriting portion
+
+  }
+  %1 : !strategy = elevate.compose() {
+    elevate.toptobottom() {
+      elevate.try() {
+            elevate.apply(%0 : !strategy)
+      }
+      elevate.id()
+    }
+  }
+}
+"""
+
+    module = parse_module(constant_fold_strat)
+    elevate_interpreter = interpreter.ElevateInterpreter()
+    print(strategy := elevate_interpreter.get_strategy(module))
+
+    apply_strategy(ir_to_rewrite, strategy)
+    apply_strategy(ir_to_rewrite, strategy ^ strategy)
+
 
 def test_strats_explicit_apply():
     # This mimics how we use elevate right now much more closely.
@@ -121,5 +175,5 @@ def test_strats_explicit_apply():
 
 
 if __name__ == "__main__":
-    test_strats_produce_ophandles()
-    test_strats_explicit_apply()
+    # test_strats_explicit_apply()
+    test_region_based_dialect()
