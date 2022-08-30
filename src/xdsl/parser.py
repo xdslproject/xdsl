@@ -529,8 +529,7 @@ class Parser:
                     self._pos, f"type mismatch between {typ} and {value.typ}")
         return value
 
-    def parse_operands(self,
-                       skip_white_space: bool = True) -> list[SSAValue] | None:
+    def parse_operands(self, skip_white_space: bool = True) -> list[SSAValue]:
         self.parse_char("(", skip_white_space=skip_white_space)
         res = self.parse_list(lambda: self.parse_optional_operand())
         self.parse_char(")")
@@ -686,12 +685,13 @@ class Parser:
         return block
 
     def parse_successors(self, skip_white_space: bool = True) -> list[Block]:
-        parsed = self.parse_optional_char("(",
-                                          skip_white_space=skip_white_space)
+        parsed = self.parse_optional_char(
+            "(" if self.source == self.Source.XDSL else "[",
+            skip_white_space=skip_white_space)
         if parsed is None:
             return []
         res = self.parse_list(self.parse_optional_successor, delimiter=',')
-        self.parse_char(")")
+        self.parse_char(")" if self.source == self.Source.XDSL else "]")
         return res
 
     def is_valid_name(self, name: str) -> bool:
@@ -707,11 +707,7 @@ class Parser:
         operands = self.parse_operands(skip_white_space=skip_white_space)
         successors = self.parse_successors()
         attributes = self.parse_op_attributes()
-        regions = list[Region]()
-        region = self.parse_optional_region()
-        while region is not None:
-            regions.append(region)
-            region = self.parse_optional_region()
+        regions = self.parse_list(self.parse_optional_region, delimiter="")
 
         return op_type.create(operands=operands,
                               result_types=result_types,
@@ -741,6 +737,10 @@ class Parser:
 
     def parse_optional_op(self,
                           skip_white_space: bool = True) -> Operation | None:
+        if self.source == self.Source.MLIR:
+            return self.parse_optional_mlir_op(
+                skip_white_space=skip_white_space)
+
         start_pos = self._pos
         results = self.parse_optional_typed_results(
             skip_white_space=skip_white_space)
@@ -771,6 +771,85 @@ class Parser:
                 self._ssaValues[res[0]].name = res[0]
 
         return op
+
+    def parse_op_type(
+        self,
+        skip_white_space: bool = True
+    ) -> tuple[list[Attribute], list[Attribute]]:
+        self.parse_char("(", skip_white_space=skip_white_space)
+        inputs = self.parse_list(self.parse_optional_attribute)
+        self.parse_char(")")
+        self.parse_string("->")
+
+        # No or multiple result types
+        if self.parse_optional_char("("):
+            outputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(")")
+        else:
+            outputs = [self.parse_attribute()]
+
+        return inputs, outputs
+
+    def parse_mlir_op_with_default_format(
+            self,
+            op_type: type[_OperationType],
+            num_results: int,
+            skip_white_space: bool = True) -> _OperationType:
+        operands = self.parse_operands(skip_white_space=skip_white_space)
+
+        regions = []
+        if self.parse_optional_char("(") is not None:
+            regions = self.parse_list(self.parse_optional_region)
+            self.parse_char(")")
+
+        attributes = self.parse_op_attributes()
+
+        self.parse_char(":")
+        operand_types, result_types = self.parse_op_type()
+
+        if len(operand_types) != len(operands):
+            raise Exception(
+                "Operand types are not matching the number of operands.")
+        if len(result_types) != num_results:
+            raise Exception(
+                "Result types are not matching the number of results.")
+        for operand, operand_type in zip(operands, operand_types):
+            if operand.typ != operand_type:
+                raise Exception("Operation operand types are not matching "
+                                "the types of its operands. Got operand with "
+                                f"type {operand.typ}, but operation expect "
+                                f"operand to be of type {operand_type}")
+
+        return op_type.create(operands=operands,
+                              result_types=result_types,
+                              attributes=attributes,
+                              regions=regions)
+
+    def parse_optional_mlir_op(self,
+                               skip_white_space: bool = True
+                               ) -> Operation | None:
+        start_pos = self._pos
+        results = self.parse_optional_results(
+            skip_white_space=skip_white_space)
+        if results is None:
+            results = []
+            op_name = self.parse_optional_str_literal()
+            if op_name is None:
+                return None
+        else:
+            op_name = self.parse_str_literal()
+
+        op_type = self.ctx.get_op(op_name)
+        op = self.parse_mlir_op_with_default_format(op_type, len(results))
+
+        # Register the SSA value names in the parser
+        for (idx, res) in enumerate(results):
+            if res in self._ssaValues:
+                raise ParserError(start_pos,
+                                  f"SSA value {res} is already defined")
+            self._ssaValues[res] = op.results[idx]
+            if self.is_valid_name(res):
+                self._ssaValues[res].name = res
 
     def parse_op(self, skip_white_space: bool = True) -> Operation:
         res = self.parse_optional_op(skip_white_space=skip_white_space)
