@@ -473,7 +473,16 @@ class Parser:
             raise ParserError(self._pos, "SSA value expected")
         return res
 
-    def parse_optional_result(
+    def parse_optional_results(self,
+                               skip_white_space: bool = True
+                               ) -> list[str] | None:
+        res = self.parse_list(self.parse_optional_ssa_name,
+                              skip_white_space=skip_white_space)
+        if len(res) != 0:
+            self.parse_char("=")
+        return res
+
+    def parse_optional_typed_result(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
         name = self.parse_optional_ssa_name(skip_white_space=skip_white_space)
@@ -483,12 +492,13 @@ class Parser:
         typ = self.parse_attribute()
         return name, typ
 
-    def parse_optional_results(
+    def parse_optional_typed_results(
             self,
             skip_white_space: bool = True
     ) -> list[tuple[str, Attribute]] | None:
         # One argument
-        res = self.parse_optional_result(skip_white_space=skip_white_space)
+        res = self.parse_optional_typed_result(
+            skip_white_space=skip_white_space)
         if res is not None:
             self.parse_char("=")
             return [res]
@@ -498,7 +508,7 @@ class Parser:
             return None
 
         # Multiple arguments
-        res = self.parse_list(lambda: self.parse_optional_result())
+        res = self.parse_list(lambda: self.parse_optional_typed_result())
         self.parse_char(")")
         self.parse_char("=")
         return res
@@ -724,7 +734,7 @@ class Parser:
     def parse_optional_op(self,
                           skip_white_space: bool = True) -> Operation | None:
         start_pos = self._pos
-        results = self.parse_optional_results(
+        results = self.parse_optional_typed_results(
             skip_white_space=skip_white_space)
         if results is None:
             op_name_and_generic = self._parse_optional_op_name()
