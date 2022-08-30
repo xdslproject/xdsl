@@ -1,9 +1,9 @@
 from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
-from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
-                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr, UnitAttr)
+from xdsl.dialects.builtin import (Float32Type, FloatAttr, FunctionType,
+                                   IntegerType, StringAttr, FlatSymbolRefAttr,
+                                   IntegerAttr, ArrayAttr, UnitAttr)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -552,6 +552,9 @@ class Parser:
     def parse_optional_attribute(self,
                                  skip_white_space: bool = True
                                  ) -> Attribute | None:
+        if self.source == self.Source.MLIR:
+            return self.prase_optional_mlir_attribute(
+                skip_white_space=skip_white_space)
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
@@ -632,6 +635,32 @@ class Parser:
         assert issubclass(attr_def, ParametrizedAttribute)
         param_list = attr_def.parse_parameters(self)
         return attr_def(param_list)  # type: ignore
+
+    def parse_optional_mlir_attribute(self,
+                                      skip_white_space: bool = True
+                                      ) -> Attribute | None:
+        if skip_white_space:
+            self.skip_white_space()
+
+        # string literal
+        str_literal = self.parse_optional_str_literal()
+        if str_literal is not None:
+            return StringAttr.from_str(str_literal)
+
+        # function_type
+        def parse_function_type() -> Attribute | None:
+            self.parse_char('(')
+            inputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(')')
+            self.parse_string("->")
+            output = self.parse_attribute()
+            return FunctionType.from_lists(inputs, [output])
+
+        fun = self.try_parse(parse_function_type)
+        if fun is not None:
+            return fun
+
+        raise ParserError(self._pos, "mlir attribute expected")
 
     def parse_attribute(self, skip_white_space: bool = True) -> Attribute:
         res = self.parse_optional_attribute(skip_white_space=skip_white_space)
