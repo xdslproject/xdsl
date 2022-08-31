@@ -1,10 +1,10 @@
 from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
-from xdsl.dialects.builtin import (Float32Type, FloatAttr, FunctionType,
-                                   IndexType, IntegerType, StringAttr,
-                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   UnitAttr)
+from xdsl.dialects.builtin import (Float32Type, Float64Type, FloatAttr,
+                                   FunctionType, IndexType, IntegerType,
+                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
+                                   ArrayAttr, UnitAttr)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -662,6 +662,14 @@ class Parser:
         if self.parse_optional_char("i") is not None:
             width = self.parse_int_literal()
             return IntegerType.from_width(width)
+
+        # float type
+        if self.parse_optional_string("f32") is not None:
+            return Float32Type()
+
+        # float type
+        if self.parse_optional_string("f64") is not None:
+            return Float64Type()
 
         # string literal
         str_literal = self.parse_optional_str_literal()
