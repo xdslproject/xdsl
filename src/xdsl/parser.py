@@ -901,6 +901,8 @@ class Parser:
             if self.is_valid_name(res):
                 self._ssaValues[res].name = res
 
+        return op
+
     def parse_op(self, skip_white_space: bool = True) -> Operation:
         res = self.parse_optional_op(skip_white_space=skip_white_space)
         if res is None:
