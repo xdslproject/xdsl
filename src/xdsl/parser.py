@@ -2,8 +2,9 @@ from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
 from xdsl.dialects.builtin import (Float32Type, FloatAttr, FunctionType,
-                                   IntegerType, StringAttr, FlatSymbolRefAttr,
-                                   IntegerAttr, ArrayAttr, UnitAttr)
+                                   IndexType, IntegerType, StringAttr,
+                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+                                   UnitAttr)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -358,6 +359,18 @@ class Parser:
             return True
         raise ParserError(self._pos, f"'{contents}' expected")
 
+    def parse_optional_string(self,
+                              contents: str,
+                              skip_white_space: bool = True) -> bool | None:
+        if skip_white_space:
+            self.skip_white_space()
+        chars = self.get_char(len(contents))
+        if chars == contents:
+            assert self._pos is not None
+            self._pos = self._pos.next_char_pos(len(contents))
+            return True
+        return None
+
     T = TypeVar('T')
 
     def parse_list(self,
@@ -642,6 +655,14 @@ class Parser:
         if skip_white_space:
             self.skip_white_space()
 
+        if self.parse_optional_string("index"):
+            return IndexType()
+
+        # integer type
+        if self.parse_optional_char("i") is not None:
+            width = self.parse_int_literal()
+            return IntegerType.from_width(width)
+
         # string literal
         str_literal = self.parse_optional_str_literal()
         if str_literal is not None:
@@ -660,7 +681,7 @@ class Parser:
         if fun is not None:
             return fun
 
-        raise ParserError(self._pos, "mlir attribute expected")
+        return None
 
     def parse_attribute(self, skip_white_space: bool = True) -> Attribute:
         res = self.parse_optional_attribute(skip_white_space=skip_white_space)
