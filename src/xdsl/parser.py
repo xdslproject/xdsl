@@ -553,7 +553,7 @@ class Parser:
                                  skip_white_space: bool = True
                                  ) -> Attribute | None:
         if self.source == self.Source.MLIR:
-            return self.prase_optional_mlir_attribute(
+            return self.parse_optional_mlir_attribute(
                 skip_white_space=skip_white_space)
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal(
