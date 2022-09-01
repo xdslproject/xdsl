@@ -587,6 +587,8 @@ class opN(OpsTraversal):
         replacement = replacements[repl_idx]
         for idx, matched_op_value in enumerate(replacement.matched_op.results):
             if matched_op_value in user_op.operands:
+                if len(replacement.replacement_ops[-1].results) <= idx:
+                    raise Exception("Replacement op does not have enough results")
                 replacements.insert(
                     repl_idx + 1,
                     IOpReplacement(

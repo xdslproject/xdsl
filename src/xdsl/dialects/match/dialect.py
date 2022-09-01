@@ -14,12 +14,14 @@ class Match:
         self.ctx.register_attr(TypeType)
         self.ctx.register_attr(ValueType)
         self.ctx.register_attr(OperationType)
+        self.ctx.register_attr(RangeType)
 
         # Ops
         self.ctx.register_op(TypeOp)
         self.ctx.register_op(AttributeOp)
         self.ctx.register_op(OperationOp)
         self.ctx.register_op(RootOperationOp)
+        self.ctx.register_op(OperandOp)
         self.ctx.register_op(GetResultOp)
 
 
@@ -41,6 +43,12 @@ class ValueType(ParametrizedAttribute):
 @irdl_attr_definition
 class OperationType(ParametrizedAttribute):
     name = "operation"
+
+
+@irdl_attr_definition
+class RangeType(ParametrizedAttribute):
+    name = "range"
+    type: ParameterDef[Attribute]
 
 
 @irdl_op_definition
@@ -78,3 +86,10 @@ class OperationOp(MatchOperation):
 @irdl_op_definition
 class RootOperationOp(OperationOp):
     name: str = "match.root_op"
+
+
+@irdl_op_definition
+class OperandOp(MatchOperation):
+    name: str = "match.operand"
+    type_constraint = OptOperandDef(TypeType)
+    output = ResultDef(ValueType)

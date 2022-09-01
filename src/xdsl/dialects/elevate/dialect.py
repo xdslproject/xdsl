@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Type
+from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
@@ -23,8 +24,10 @@ class Elevate:
         self.ctx.register_op(IdOp)
         self.ctx.register_op(FailOp)
         self.ctx.register_op(TopToBottomOp)
+        self.ctx.register_op(BottomToTopOp)
         self.ctx.register_op(TryOp)
         self.ctx.register_op(ReturnOp)
+        self.ctx.register_op(NativeStrategyOp)
 
         # Strategies with explicit application
         self.ctx.register_op(StrategyStratOp)
@@ -33,6 +36,7 @@ class Elevate:
         self.ctx.register_op(FailStratOp)
         self.ctx.register_op(SeqStratOp)
         self.ctx.register_op(TopToBottomStratOp)
+        self.ctx.register_op(EverywhereOp)
         self.ctx.register_op(TryStratOp)
         self.ctx.register_op(ReturnStratOp)
 
@@ -58,8 +62,6 @@ class RewriteResult(ParametrizedAttribute):
 
 
 # Explicit application
-
-
 class ElevateOperation(Operation, ABC):
 
     @classmethod
@@ -179,6 +181,7 @@ class ApplyOp(ElevateOperation):
 @irdl_op_definition
 class ComposeOp(ElevateOperation):
     name: str = "elevate.compose"
+    strategy_name = AttributeDef(StringAttr)
     output = ResultDef(Strategy)
     body = RegionDef()
 
@@ -214,11 +217,30 @@ class FailOp(ElevateOperation):
 class TopToBottomOp(ElevateOperation):
     name: str = "elevate.toptobottom"
     region = RegionDef()
-    # output = ResultDef(OpHandle)
 
     @classmethod
     def get_strategy(cls) -> Type[elevate.Strategy]:
         return elevate.topToBottom
+
+
+@irdl_op_definition
+class BottomToTopOp(ElevateOperation):
+    name: str = "elevate.bottomtotop"
+    region = RegionDef()
+
+    @classmethod
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.bottomToTop
+
+
+@irdl_op_definition
+class EverywhereOp(ElevateOperation):
+    name: str = "elevate.everywhere"
+    region = RegionDef()
+
+    @classmethod
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.everywhere
 
 
 @irdl_op_definition
@@ -236,3 +258,10 @@ class TryOp(ElevateOperation):
 class ReturnOp(Operation):
     name: str = "elevate.return"
     # input = OperandDef(OpHandle)
+
+
+@irdl_op_definition
+class NativeStrategyOp(Operation):
+    name: str = "elevate.native"
+    strategy_name = AttributeDef(StringAttr)
+    strategy = ResultDef(Strategy)

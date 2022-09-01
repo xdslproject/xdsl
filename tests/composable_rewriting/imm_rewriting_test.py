@@ -8,6 +8,11 @@ from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
+import os
+import xdsl.dialects.match.dialect as match
+import xdsl.dialects.rewrite.dialect as rewrite
+import xdsl.dialects.elevate.dialect as elevate
+import xdsl.dialects.elevate.interpreter as interpreter
 import difflib
 
 
@@ -31,6 +36,56 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     print(f'Result after applying "{strategy}":')
     printer.print_op(rr.result_op.get_mutable_copy())
     print()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(rr.result_op.get_mutable_copy())
+
+    diff = difflib.Differ().compare(file.getvalue().splitlines(True),
+                                    expected_program.splitlines(True))
+    if file.getvalue().strip() != expected_program.strip():
+        print("Did not get expected output! Diff:")
+        print(''.join(diff))
+        assert False
+
+
+def apply_dyn_strategy_and_compare(program: str, expected_program: str,
+                               strategy_name: str):
+    ctx = MLContext()
+    Builtin(ctx)
+    Func(ctx)
+    Arith(ctx)
+    scf.Scf(ctx)
+    match.Match(ctx)
+    rewrite.Rewrite(ctx)
+    elevate.Elevate(ctx)
+
+    # fetch strategies.xdsl file
+    __location__ = os.path.realpath(
+        os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    strategy_file = open(os.path.join(__location__, 'strategies.xdsl'))
+    strategy_string = strategy_file.read()
+
+    ir_parser = Parser(ctx, program)
+    ir_module: Operation = ir_parser.parse_op()
+    imm_ir_module: IOp = get_immutable_copy(ir_module)
+
+    strat_parser = Parser(ctx, strategy_string)
+    strat_module: Operation = strat_parser.parse_op()
+    elevate_interpreter = interpreter.ElevateInterpreter()
+    elevate_interpreter.register_native_strategy(GarbageCollect,
+                                                 "garbage_collect")
+
+    strategies = elevate_interpreter.get_strategy(strat_module)
+    strategy = strategies[strategy_name]
+
+    rr = strategy.apply(imm_ir_module)
+    assert rr.isSuccess()
+
+    # for debugging
+    printer = Printer()
+    print(f'Result after applying "{strategy}":')
+    printer.print_op(rr.result_op.get_mutable_copy())
 
     file = StringIO("")
     printer = Printer(stream=file)
@@ -213,6 +268,12 @@ def test_double_commute():
                                expected_program=before,
                                strategy=seq(bottomToTop(CommuteAdd()),
                                             bottomToTop(CommuteAdd())))
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, once_commuted,
+                               "commute_add_bottom_top")
+
+    apply_dyn_strategy_and_compare(before, before,
+                               "commute_add_bottom_top_twice")
 
 def test_commute_block_args():
     """Tests a strategy which swaps the two operands of 
@@ -272,7 +333,12 @@ def test_commute_block_args():
                                strategy=seq(
                                         bottomToTop(CommuteAdd()),
                                         bottomToTop(CommuteAdd())))
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, commuted,
+                               "commute_add_bottom_top")
 
+    apply_dyn_strategy_and_compare(before, before,
+                               "commute_add_bottom_top_twice")
 
 def test_rewriting_with_blocks():
     before = \
@@ -309,7 +375,9 @@ def test_rewriting_with_blocks():
     apply_strategy_and_compare(program=before,
                                expected_program=constant_changed,
                                strategy=bottomToTop(ChangeConstantTo42()))
-
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, constant_changed,
+                               "change_cst_to_42_top_down")
 def test_constant_folding():
     before = \
 """module() {
@@ -384,6 +452,11 @@ func.return(%4 : !i32)
     apply_strategy_and_compare(program=twice_folded,
                                expected_program=twice_folded_garbage_collected,
                                strategy=GarbageCollect())
+
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, twice_folded_garbage_collected,
+                               "fold_everywhere_and_cleanup")
+
 def test_inline_if():
     before = \
 """module() {
@@ -429,6 +502,8 @@ def test_inline_if():
     apply_strategy_and_compare(program=inlined,
                                expected_program=inlined_garbage_collected,
                                strategy=GarbageCollect())
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, inlined, "inline_if_top_down")
 
 def test_inline_and_fold():
     before = \
@@ -545,6 +620,11 @@ def test_inline_and_fold():
     apply_strategy_and_compare(program=folded_and_inlined,
                                expected_program=folded_and_inlined_garbage_collected,
                                strategy=GarbageCollect())
+
+    # Dynamic Rewriting
+    apply_dyn_strategy_and_compare(before, folded_and_inlined_garbage_collected, "fold_everywhere_and_inline")
+
+    
 def test_add_zero():
     before = \
 """module() {
@@ -570,6 +650,8 @@ func.return(%0 : !i32)
     apply_strategy_and_compare(program=before,
                               expected_program=added_zero,
                               strategy=bottomToTop(AddZero()))
+    # Dynamic Rewriting
+    apply_dyn_strategy_and_compare(before, added_zero, "add_zero_top_down")
 
 def test_remove_add_zero():
     before = \
@@ -607,6 +689,8 @@ def test_remove_add_zero():
     apply_strategy_and_compare(program=removed_add_zero,
                               expected_program=removed_add_zero_garbage_collected,
                               strategy=bottomToTop(GarbageCollect()))
+    # Dynamic Rewriting
+    apply_dyn_strategy_and_compare(before, removed_add_zero, "remove_add_zero_top_down")
 
 def test_deeper_nested_block_args_commute():
     """This test demonstrates that substitution of block arguments also works when the 
@@ -649,6 +733,9 @@ def test_deeper_nested_block_args_commute():
     apply_strategy_and_compare(program=before,
                               expected_program=nested_commute,
                               strategy=bottomToTop(CommuteAdd()))
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, nested_commute,
+                               "commute_add_bottom_top")
 
 def test_mul2_to_lshift():
     """
@@ -696,7 +783,9 @@ def test_mul2_to_lshift():
     apply_strategy_and_compare(program=left_shifted,
                               expected_program=left_shifted_garbage_collected,
                               strategy=GarbageCollect())
-
+    # Dynamic rewriting:
+    apply_dyn_strategy_and_compare(before, left_shifted,
+                               "mul2shift_top_down")
                           
 if __name__ == "__main__":
     test_double_commute()
