@@ -1,0 +1,43 @@
+module() {
+
+  ////////////////////////////////////////////////////////////////////////////////
+  //   Define completely custom strategies with the match & rewrite dialects    //
+  ////////////////////////////////////////////////////////////////////////////////
+
+  %inline : !strategy = elevate.strategy() {
+    %consumer_apply : !operation = match.root_op() ["name" = "stencil.apply"]
+    (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = match.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
+    
+    %producer_operands : !range<!value> = match.get_operands(%producer_apply : !operation)
+    %consumer_operands : !range<!value> = match.get_operands(%consumer_apply : !operation)
+    
+    // TODO: implement the rest of the rewrite
+
+    // Concatenate the operands of the producer and consumer apply
+
+    // get block args and concatenate 
+    // ...
+
+    rewrite.success(%consumer_apply : !operation)
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////
+  //     Register native strategies (which were already defined in Python)      //
+  ////////////////////////////////////////////////////////////////////////////////
+
+  %garbage_collect : !strategy = elevate.native() ["strategy_name"="garbage_collect"]
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  //          Define strategies as compositions of other strategies             //
+  ////////////////////////////////////////////////////////////////////////////////
+
+  // inlining
+  %inline_top_down : !strategy = elevate.compose() ["strategy_name"="inline_top_down"] {
+    elevate.toptobottom() {
+        elevate.apply(%inline : !strategy)
+    }
+  }
+
+
+}

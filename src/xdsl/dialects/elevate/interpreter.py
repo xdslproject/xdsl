@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Type
+from typing import Collection, Type
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
@@ -15,11 +15,12 @@ import xdsl.dialects.scf as scf
 class ElevateInterpreter():
 
     matching_env: dict[SSAValue, Attribute | ISSAValue] = field(default_factory=dict)
+    native_matchers: dict[str, Callable[[IOp], Optional[Collection[IOp | IResult]]]] = field(default_factory=dict)
     native_strategies: dict[str, Type[Strategy]] = field(default_factory=dict)
 
 
-    def register_native_matcher(self):
-        pass
+    def register_native_matcher(self, matcher: Callable[[IOp], Optional[Collection[IOp | IResult]]], name: str):
+        self.native_matchers[name] = matcher
 
     def register_native_rewriter(self):
         pass
@@ -104,7 +105,8 @@ class ElevateInterpreter():
                     return success(result)
                 elif isinstance(result, IResult):
                     return success(result.op)
-            self._interpret_rhs(cur_op)
+            if not self._interpret_rhs(cur_op): 
+                return failure(id())
 
         # return success(op)
         return failure(id())
@@ -158,12 +160,21 @@ class ElevateInterpreter():
                 case match.GetResultOp() as get_res_op:
                     if not isinstance((op.operands[idx]), IResult):
                         return False
-                    if not get_res_op.idx.value.data == op.operands[
-                            idx].result_index: 
+                    if not get_res_op.idx.value.data == op.operands[idx].result_index: 
                         return False
                     if not self._match_for_op(
                             op=op.operands[idx].op,
                             op_constr=get_res_op.operands[0].op):
+                        return False
+                    self.matching_env[operand_constraint] = op.operands[idx]
+                case match.OperationOp() | match.RootOperationOp() as op_match_op:
+                    if not isinstance((op.operands[idx]), IResult):
+                        return False
+                    if not op_match_op.results.index(operand_constraint)-1 == op.operands[idx].result_index: 
+                        return False
+                    if not self._match_for_op(
+                            op=op.operands[idx].op,
+                            op_constr=op_match_op):
                         return False
                     self.matching_env[operand_constraint] = op.operands[idx]
                 case match.OperandOp() as operand_op:
@@ -177,16 +188,19 @@ class ElevateInterpreter():
 
         # record the match of this op in the matching environment so it can be referred to
         # in the rewriting part
-        for idx, op_constr_result in enumerate(op_constr.results):
-            self.matching_env[op_constr_result] = op.results[idx]
+        self.matching_env[op_constr.results[0]] = op
+        if len(op_constr.results) > 1:
+            for idx, op_constr_result in enumerate(op_constr.results[1:]):
+                self.matching_env[op_constr_result] = op.results[idx]
 
         return True
 
 
-    def _interpret_rhs(self, rhs_op: Operation):
+    def _interpret_rhs(self, rhs_op: Operation) -> bool:
         match rhs_op:
             case arith.Addi():
                 self.matching_env[rhs_op.results[0]] = self.matching_env[rhs_op.operands[0]] + self.matching_env[rhs_op.operands[1]]
+                return True
             case rewrite.NewOp() | rewrite.FromOp():
                 new_operands: list[ISSAValue] = []
                 new_result_types: list[Attribute] = []
@@ -230,15 +244,23 @@ class ElevateInterpreter():
                     op_type = eval(rhs_op.attributes["name"].data)
                     result = new_op(op_type, operands=new_operands, result_types=new_result_types, attributes=attributes)
                 if isinstance(rhs_op, rewrite.FromOp):
-                    result = from_op(self.matching_env[rhs_op.operands[0]].op, 
+                    result = from_op(self.matching_env[rhs_op.operands[0]], 
                                     operands=new_operands if len(new_operands) > 0 else None, 
                                     result_types=new_result_types if len(new_result_types) > 0 else None, 
                                     attributes=attributes if len(attributes) > 0 else None)
 
                 self.matching_env[rhs_op.results[0]] = result
-            case rewrite.GetNestedOps() as get_payload_op:
+                # TODO: think about this properly!
+                # Problem is when we just assign result[-1].results[idx] in the loop we lose the information
+                # that the op was just created and has to be included in the return of the next `new_op`
+                if len(rhs_op.results) > 1:
+                    for idx, rhs_result in enumerate(rhs_op.results[1:]):
+                        self.matching_env[rhs_result] = result
+
+                return True
+            case match.GetNestedOps() as get_payload_op:
                 # return all ops in this region except for the terminator
-                op: IOp = self.matching_env[get_payload_op.operands[0]].op
+                op: IOp = self.matching_env[get_payload_op.operands[0]]
                 if "region_idx" in get_payload_op.attributes:
                     region_idx: int = get_payload_op.attributes["region_idx"].value.data
                 else:
@@ -260,8 +282,32 @@ class ElevateInterpreter():
                         ops = ops[:-1]
 
                 self.matching_env[get_payload_op.results[0]] = ops
+                return True
+            case match.NativeMatcherOp() as native_matcher_op:
+                if not "matcher_name" in native_matcher_op.attributes:
+                    raise Exception("NativeMatcherOp needs a matcher_name attribute")
+                matcher_name: str = native_matcher_op.attributes["matcher_name"].data
+                if not matcher_name in self.native_matchers:
+                    raise Exception(f"NativeMatcherOp: Matcher {matcher_name} not registered")
+
+                args = [self.matching_env[operand] for operand in native_matcher_op.operands]
+                match_result : tuple = self.native_matchers[matcher_name](args[-1])
+                if match_result is None:
+                    return False
+
+                if len(native_matcher_op.results) != len(match_result):
+                    raise Exception(f"NativeMatcherOp: Matcher {matcher_name} returned {len(match_result)} results, but {len(native_matcher_op.results)} were expected")
+
+                for idx, result in enumerate(match_result):
+                    self.matching_env[native_matcher_op.results[idx]] = result
+                
+                return True
+            case match.GetOperands() as get_operands_op:
+                self.matching_env[get_operands_op.results[0]] = self.matching_env[get_operands_op.operands[0]].operands
+                return True
+
             case _:
-                return
+                return True
 
 
 @dataclass(frozen=True)

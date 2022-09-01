@@ -24,6 +24,11 @@ class Match:
         self.ctx.register_op(OperandOp)
         self.ctx.register_op(GetResultOp)
 
+        self.ctx.register_op(NativeMatcherOp)
+        self.ctx.register_op(GetNestedOps)
+        self.ctx.register_op(GetOperands)
+        self.ctx.register_op(GetBlockArgs)
+
 
 class MatchOperation(Operation, ABC):
     pass
@@ -78,7 +83,7 @@ class OperationOp(MatchOperation):
     name: str = "match.op"
     operands_constraint = VarOperandDef(ValueType)
     type_constraint = OptOperandDef(TypeType)
-    output = ResultDef(TypeType)
+    output = ResultDef(OperationType)
     name_constraint = OptAttributeDef(StringAttr)
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -93,3 +98,39 @@ class OperandOp(MatchOperation):
     name: str = "match.operand"
     type_constraint = OptOperandDef(TypeType)
     output = ResultDef(ValueType)
+
+
+@irdl_op_definition
+class NativeMatcherOp(MatchOperation):
+    name: str = "match.native_matcher"
+    matcher_name = AttributeDef(StringAttr)
+    output = ResultDef(ValueType)
+
+
+@irdl_op_definition
+class GetNestedOps(Operation):
+    """
+    Get the ops of a region excluding the terminator.
+    """
+    name: str = "match.get_nested_ops"
+    input = OperandDef(OperationType)
+    region_idx = OptAttributeDef(IntAttr)
+    block_idx = OptAttributeDef(IntAttr)
+    exclude_terminator = OptAttributeDef(IntAttr)
+    output = ResultDef(RangeType)
+
+
+@irdl_op_definition
+class GetOperands(Operation):
+    name: str = "match.get_operands"
+    input = OperandDef(OperationType)
+    output = ResultDef(RangeType)
+
+
+@irdl_op_definition
+class GetBlockArgs(Operation):
+    name: str = "match.get_block_args"
+    input = OperandDef(OperationType)
+    region_idx = OptAttributeDef(IntAttr)
+    block_idx = OptAttributeDef(IntAttr)
+    output = ResultDef(RangeType)

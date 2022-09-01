@@ -61,6 +61,9 @@ class RemoveDuplicateApplyOperands(Strategy):
                 return failure(self)
 
 def match_inlinable(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
+    # Workaround until the registration and passing of values in native matchers is fixed
+    if isinstance(consumer_apply, IResult):
+        consumer_apply = consumer_apply.op
     # Explaining the matching:
     # - We match an apply op with operands and a region
     # - We check that one of the operands is another applyOp and remember it by `producer_apply`

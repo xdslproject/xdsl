@@ -9,8 +9,14 @@ from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteOutputDependency, RerouteInputDependency
-from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll
+from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll, match_inlinable
 import difflib
+from xdsl.immutable_utils import *
+import os
+import xdsl.dialects.match.dialect as match
+import xdsl.dialects.rewrite.dialect as rewrite
+import xdsl.dialects.elevate.dialect as elevate
+import xdsl.dialects.elevate.interpreter as interpreter
 
 
 def parse(program: str):
@@ -49,6 +55,66 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     print(f'Result after applying "{strategy}":')
     printer.print_op(rr.result_op.get_mutable_copy())
     print()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(rr.result_op.get_mutable_copy())
+
+    diff = difflib.Differ().compare(file.getvalue().splitlines(True),
+                                    expected_program.splitlines(True))
+    if file.getvalue().strip() != expected_program.strip():
+        print("Did not get expected output! Diff:")
+        print(''.join(diff))
+        assert False
+
+
+def apply_dyn_strategy_and_compare(program: str, expected_program: str,
+                                   strategy_name: str):
+    ctx = MLContext()
+    Builtin(ctx)
+    Func(ctx)
+    Arith(ctx)
+    scf.Scf(ctx)
+    stencil.Stencil(ctx)
+    match.Match(ctx)
+    rewrite.Rewrite(ctx)
+    elevate.Elevate(ctx)
+
+    # fetch strategies.xdsl file
+    __location__ = os.path.realpath(
+        os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    strategy_file = open(
+        os.path.join(__location__, 'stencil_inlining_test_strategies.xdsl'))
+    strategy_string = strategy_file.read()
+
+    ir_parser = Parser(ctx, program)
+    ir_module: Operation = ir_parser.parse_op()
+    imm_ir_module: IOp = get_immutable_copy(ir_module)
+
+    strat_parser = Parser(ctx, strategy_string)
+    strat_module: Operation = strat_parser.parse_op()
+    elevate_interpreter = interpreter.ElevateInterpreter()
+
+    elevate_interpreter.register_native_matcher(match_inlinable,
+                                                "match_inlinable")
+
+    elevate_interpreter.register_native_strategy(GarbageCollect,
+                                                 "garbage_collect")
+    elevate_interpreter.register_native_strategy(
+        RemoveUnusedApplyOperands, "remove_unused_apply_operands")
+    elevate_interpreter.register_native_strategy(
+        RemoveDuplicateApplyOperands, "remove_duplicate_apply_operands")
+
+    strategies = elevate_interpreter.get_strategy(strat_module)
+    strategy = strategies[strategy_name]
+
+    rr = strategy.apply(imm_ir_module)
+    assert rr.isSuccess()
+
+    # for debugging
+    printer = Printer()
+    print(f'Result after applying "{strategy}":')
+    printer.print_op(rr.result_op.get_mutable_copy())
 
     file = StringIO("")
     printer = Printer(stream=file)
@@ -166,6 +232,9 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(GarbageCollect()))
 
     apply_strategy_and_compare(before, after, InlineAll)
+
+    # TODO: do
+    # apply_dyn_strategy_and_compare(before, before, "inline_top_down")
 
 
 def test_inlining_simple_index():

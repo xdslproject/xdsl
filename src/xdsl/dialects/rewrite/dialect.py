@@ -15,9 +15,6 @@ class Rewrite:
         self.ctx.register_op(FromOp)
         self.ctx.register_op(SuccessOp)
 
-        # New abstractions for the dialect
-        self.ctx.register_op(GetNestedOps)
-
         # Used in Elevate internals
         self.ctx.register_op(RewriteId)
 
@@ -32,19 +29,6 @@ class NewOp(Operation):
 class FromOp(Operation):
     name: str = "rewrite.from_op"
     # TODO: properly specify
-
-
-@irdl_op_definition
-class GetNestedOps(Operation):
-    """
-    Get the ops of a region excluding the terminator.
-    """
-    name: str = "rewrite.get_nested_ops"
-    input = OperandDef(OperationType)
-    region_idx = OptAttributeDef(IntAttr)
-    block_idx = OptAttributeDef(IntAttr)
-    exclude_terminator = OptAttributeDef(IntAttr)
-    output = ResultDef(RangeType)
 
 
 @irdl_op_definition
