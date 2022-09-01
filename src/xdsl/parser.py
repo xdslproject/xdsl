@@ -4,7 +4,7 @@ from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
 from xdsl.dialects.builtin import (Float32Type, Float64Type, FloatAttr,
                                    FunctionType, IndexType, IntegerType,
                                    StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr, UnitAttr)
+                                   ArrayAttr, UnitAttr, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -663,11 +663,11 @@ class Parser:
             width = self.parse_int_literal()
             return IntegerType.from_width(width)
 
-        # float type
+        # float types
+        if self.parse_optional_string("f16") is not None:
+            return Float32Type()
         if self.parse_optional_string("f32") is not None:
             return Float32Type()
-
-        # float type
         if self.parse_optional_string("f64") is not None:
             return Float64Type()
 
@@ -675,6 +675,25 @@ class Parser:
         str_literal = self.parse_optional_str_literal()
         if str_literal is not None:
             return StringAttr.from_str(str_literal)
+
+        # tensor type
+        if self.parse_optional_string("vector"):
+            self.parse_optional_char("<")
+
+            dims = list[int]()
+            # Parse the first dimension
+            dims.append(self.parse_int_literal())
+            self.parse_char("x")
+
+            # Parse the remaining dimensions
+            while (dim := self.parse_optional_int_literal()) is not None:
+                dims.append(dim)
+                self.parse_char("x")
+
+            # Parse the element type
+            typ = self.parse_attribute()
+            self.parse_char(">")
+            return VectorType.from_type_and_list(typ, dims)
 
         # function_type
         def parse_function_type() -> Attribute | None:
