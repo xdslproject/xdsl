@@ -429,6 +429,8 @@ class Float64Type(ParametrizedAttribute, MLIRType):
 
 f64 = Float64Type()
 
+AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+
 
 @irdl_attr_definition
 class FloatData(Data[float]):
@@ -448,9 +450,9 @@ class FloatData(Data[float]):
         return FloatData(data)
 
 
-_FloatAttrTyp = TypeVar("_FloatAttrTyp",
-                        bound=Float32Type | Float64Type,
-                        covariant=True)
+_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+
+_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -458,19 +460,20 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
-    type: ParameterDef[Float32Type | Float64Type]
+    type: ParameterDef[_FloatAttrTyp]
 
     @staticmethod
     @builder
     def from_value(
-        value: float, type: Float32Type | Float64Type = Float32Type()
-    ) -> FloatAttr[Float64Type]:
+        value: float, type: _FloatAttrTypContr = Float32Type()
+    ) -> FloatAttr[_FloatAttrTypContr]:
         return FloatAttr([FloatData.from_float(value), type])
 
     @staticmethod
     @builder
-    def from_float_and_width(
-            value: float, width: int) -> FloatAttr[Float32Type | Float64Type]:
+    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
+        if width == 16:
+            return FloatAttr([FloatData.from_float(value), Float16Type()])
         if width == 32:
             return FloatAttr([FloatData.from_float(value), Float32Type()])
         if width == 64:
