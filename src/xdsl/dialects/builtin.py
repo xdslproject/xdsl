@@ -34,6 +34,7 @@ class Builtin:
         self.ctx.register_attr(TupleType)
 
         self.ctx.register_attr(FunctionType)
+        self.ctx.register_attr(Float16Type)
         self.ctx.register_attr(Float32Type)
         self.ctx.register_attr(Float64Type)
         self.ctx.register_attr(FloatData)
@@ -386,6 +387,13 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
+
+
+class Float16Type(ParametrizedAttribute, MLIRType):
+    name = "f16"
+
+
+f16 = Float16Type()
 
 
 @irdl_attr_definition
