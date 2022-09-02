@@ -345,6 +345,25 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
+@dataclass(init=False)
+class ContainerOf(AttrConstraint):
+    """A type constraint that can be nested once in a vector or a tensor."""
+    elem_constr: AttrConstraint
+
+    def __init__(
+            self,
+            elem_constr: Attribute | type[Attribute] | AttrConstraint) -> None:
+        self.elem_constr = attr_constr_coercion(elem_constr)
+
+    def verify(self, attr: Attribute) -> None:
+        if isinstance(attr, VectorType):
+            self.elem_constr.verify(attr.element_type)  # type: ignore
+        elif isinstance(attr, TensorType):
+            self.elem_constr.verify(attr.element_type)  # type: ignore
+        else:
+            self.elem_constr.verify(attr)
+
+
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
