@@ -356,9 +356,7 @@ class ContainerOf(AttrConstraint):
         self.elem_constr = attr_constr_coercion(elem_constr)
 
     def verify(self, attr: Attribute) -> None:
-        if isinstance(attr, VectorType):
-            self.elem_constr.verify(attr.element_type)  # type: ignore
-        elif isinstance(attr, TensorType):
+        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
             self.elem_constr.verify(attr.element_type)  # type: ignore
         else:
             self.elem_constr.verify(attr)

@@ -113,7 +113,7 @@ def test_replace_op_new_results():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         add_op = module.ops[1]
 
-        rewriter.replace_op(add_op, [], [add_op.input1])
+        rewriter.replace_op(add_op, [], [add_op.lhs])
 
     rewrite_and_compare(prog, expected, transformation)
 

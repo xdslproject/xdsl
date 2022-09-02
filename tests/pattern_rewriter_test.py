@@ -237,7 +237,7 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Muli.get(op.input1, op.input2)])
+        rewriter.replace_matched_op([Muli.get(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog, expected,

@@ -8,5 +8,5 @@ builtin.module () {
     %res : !i32 = arith.addi(%0 : !i32, %1 : !i64)
   }
 
-  // CHECK: expect all input and output types to be equal
+  // CHECK: expect all input and result types to be equal
 }
