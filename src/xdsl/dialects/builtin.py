@@ -517,6 +517,13 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
+class Float16Type(ParametrizedAttribute, MLIRType):
+    name = "f16"
+
+
+f16 = Float16Type()
+
+
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name: str = "unit"
