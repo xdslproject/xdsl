@@ -676,22 +676,44 @@ class Parser:
         if str_literal is not None:
             return StringAttr.from_str(str_literal)
 
-        # tensor type
-        if self.parse_optional_string("vector"):
-            self.parse_optional_char("<")
+        def parse_shape() -> tuple[list[int], Attribute]:
+
+            def parse_optional_dim() -> int | None:
+                if self.parse_optional_char("?"):
+                    return -1
+                if (dim := self.parse_optional_int_literal()) is not None:
+                    return dim
+                return None
 
             dims = list[int]()
+
             # Parse the first dimension
-            dims.append(self.parse_int_literal())
+            dim = parse_optional_dim()
+            if dim is None:
+                raise ParserError(self._pos, "dimension expected")
+            dims.append(dim)
             self.parse_char("x")
 
             # Parse the remaining dimensions
-            while (dim := self.parse_optional_int_literal()) is not None:
+            while (dim := parse_optional_dim()) is not None:
                 dims.append(dim)
                 self.parse_char("x")
 
             # Parse the element type
             typ = self.parse_attribute()
+            return dims, typ
+
+        # tensor type
+        if self.parse_optional_string("tensor"):
+            self.parse_optional_char("<")
+            dims, typ = parse_shape()
+            self.parse_char(">")
+            return VectorType.from_type_and_list(typ, dims)
+
+        # vector type
+        if self.parse_optional_string("vector"):
+            self.parse_optional_char("<")
+            dims, typ = parse_shape()
             self.parse_char(">")
             return VectorType.from_type_and_list(typ, dims)
 
