@@ -649,6 +649,71 @@ class Parser:
         param_list = attr_def.parse_parameters(self)
         return attr_def(param_list)  # type: ignore
 
+    def parse_optional_dim(self, skip_white_space: bool = True) -> int | None:
+        """
+        Parse an optional dimension.
+        The dimension is either a non-negative integer, or -1 for dynamic dimensions.
+        """
+        if self.parse_optional_char("?", skip_white_space=skip_white_space):
+            return -1
+        if (dim := self.parse_optional_int_literal()) is not None:
+            return dim
+        return None
+
+    def parse_dim(self, skip_white_space: bool = True) -> int:
+        """
+        Parse a dimension.
+        The dimension is either a non-negative integer,
+        or -1 for dynamic dimensions, represented by `?`.
+        """
+        dim = self.parse_optional_dim(skip_white_space=skip_white_space)
+        if dim is not None:
+            return dim
+        raise ParserError(self._pos, "dimension expected")
+
+    def parse_optional_shape(
+            self,
+            skip_white_space: bool = True
+    ) -> tuple[list[int], Attribute] | None:
+        """
+        Parse a shape, with the format `dim0 x dim1 x ... x dimN x type`.
+        """
+        dims = list[int]()
+
+        # Parse the first dimension
+        dim = self.parse_optional_dim(skip_white_space=skip_white_space)
+        if dim is None:
+            return None
+        dims.append(dim)
+        self.parse_char("x")
+
+        # Parse the remaining dimensions
+        while (dim := self.parse_optional_dim()) is not None:
+            dims.append(dim)
+            self.parse_char("x")
+
+        # Parse the element type
+        typ = self.parse_attribute()
+        return dims, typ
+
+    def parse_shape(self, skip_white_space=skip_white_space):
+        """
+        Parse a shape, with the format `dim0 x dim1 x ... x dimN x type`.
+        """
+        shape = self.parse_optional_shape(skip_white_space=skip_white_space)
+        if shape is not None:
+            return shape
+        raise ParserError(self._pos, "shape expected")
+
+    def parse_optional_mlir_tensor(self,
+                                   skip_white_space: bool = True
+                                   ) -> TensorType | None:
+        if self.parse_optional_string("tensor"):
+            self.parse_optional_char("<")
+            dims, typ = parse_shape()
+            self.parse_char(">")
+            return VectorType.from_type_and_list(typ, dims)
+
     def parse_optional_mlir_attribute(self,
                                       skip_white_space: bool = True
                                       ) -> Attribute | None:
@@ -676,39 +741,9 @@ class Parser:
         if str_literal is not None:
             return StringAttr.from_str(str_literal)
 
-        def parse_shape() -> tuple[list[int], Attribute]:
-
-            def parse_optional_dim() -> int | None:
-                if self.parse_optional_char("?"):
-                    return -1
-                if (dim := self.parse_optional_int_literal()) is not None:
-                    return dim
-                return None
-
-            dims = list[int]()
-
-            # Parse the first dimension
-            dim = parse_optional_dim()
-            if dim is None:
-                raise ParserError(self._pos, "dimension expected")
-            dims.append(dim)
-            self.parse_char("x")
-
-            # Parse the remaining dimensions
-            while (dim := parse_optional_dim()) is not None:
-                dims.append(dim)
-                self.parse_char("x")
-
-            # Parse the element type
-            typ = self.parse_attribute()
-            return dims, typ
-
         # tensor type
-        if self.parse_optional_string("tensor"):
-            self.parse_optional_char("<")
-            dims, typ = parse_shape()
-            self.parse_char(">")
-            return VectorType.from_type_and_list(typ, dims)
+        if (tensor := self.parse_optional_mlir_tensor) is not None:
+            return tensor
 
         # vector type
         if self.parse_optional_string("vector"):
@@ -716,6 +751,19 @@ class Parser:
             dims, typ = parse_shape()
             self.parse_char(">")
             return VectorType.from_type_and_list(typ, dims)
+
+        # dense attribute
+        if self.parse_optional_string("dense"):
+            self.parse_char("<")
+            attr: int | float
+            # Parse either a float or an integer
+            if (f := self.parse_optional_float_literal) is not None:
+                value = f
+            if (i := self.parse_optional_int_literal) is not None:
+                value = i
+            self.parse_char(">")
+            self.parse_char(":")
+            self.parse_optional_
 
         # function_type
         def parse_function_type() -> Attribute | None:
