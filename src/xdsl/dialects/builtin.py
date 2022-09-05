@@ -34,6 +34,7 @@ class Builtin:
         self.ctx.register_attr(TupleType)
 
         self.ctx.register_attr(FunctionType)
+        self.ctx.register_attr(Float16Type)
         self.ctx.register_attr(Float32Type)
         self.ctx.register_attr(Float64Type)
         self.ctx.register_attr(FloatData)
@@ -344,6 +345,23 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
+@dataclass(init=False)
+class ContainerOf(AttrConstraint):
+    """A type constraint that can be nested once in a vector or a tensor."""
+    elem_constr: AttrConstraint
+
+    def __init__(
+            self,
+            elem_constr: Attribute | type[Attribute] | AttrConstraint) -> None:
+        self.elem_constr = attr_constr_coercion(elem_constr)
+
+    def verify(self, attr: Attribute) -> None:
+        if isinstance(attr, VectorType) or isinstance(attr, TensorType):
+            self.elem_constr.verify(attr.element_type)  # type: ignore
+        else:
+            self.elem_constr.verify(attr)
+
+
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
@@ -388,6 +406,13 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
+class Float16Type(ParametrizedAttribute, MLIRType):
+    name = "f16"
+
+
+f16 = Float16Type()
+
+
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute, MLIRType):
     name = "f32"
@@ -401,6 +426,8 @@ class Float64Type(ParametrizedAttribute, MLIRType):
 
 
 f64 = Float64Type()
+
+AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
 
 
 @irdl_attr_definition
@@ -421,9 +448,9 @@ class FloatData(Data[float]):
         return FloatData(data)
 
 
-_FloatAttrTyp = TypeVar("_FloatAttrTyp",
-                        bound=Float32Type | Float64Type,
-                        covariant=True)
+_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+
+_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -431,19 +458,20 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
-    type: ParameterDef[Float32Type | Float64Type]
+    type: ParameterDef[_FloatAttrTyp]
 
     @staticmethod
     @builder
     def from_value(
-        value: float, type: Float32Type | Float64Type = Float32Type()
-    ) -> FloatAttr[Float64Type]:
+        value: float, type: _FloatAttrTypContr = Float32Type()
+    ) -> FloatAttr[_FloatAttrTypContr]:
         return FloatAttr([FloatData.from_float(value), type])
 
     @staticmethod
     @builder
-    def from_float_and_width(
-            value: float, width: int) -> FloatAttr[Float32Type | Float64Type]:
+    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
+        if width == 16:
+            return FloatAttr([FloatData.from_float(value), Float16Type()])
         if width == 32:
             return FloatAttr([FloatData.from_float(value), Float32Type()])
         if width == 64:
