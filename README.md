@@ -33,11 +33,9 @@ lit tests/filecheck
 ## Generating executables through MLIR
 
 xDSL can generate executables using MLIR as the backend. To use this
-functionality, make sure to install the [MLIR Python
-Bindings](https://mlir.llvm.org/docs/Bindings/Python/). Given an input file
-`input.xdsl`, that contains IR with only the mirrored dialects found in
-`src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf),
-run:
+functionality, make sure to installed clang. Given an input file `input.xdsl`,
+that contains IR with only the mirrored dialects found in `src/xdsl/dialects`
+(arith, builtin, cf, func, irdl, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic from to tmp.mlir
