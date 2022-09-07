@@ -1,10 +1,12 @@
 from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
-from xdsl.dialects.builtin import (Float32Type, Float64Type, FloatAttr,
-                                   FunctionType, IndexType, IntegerType,
-                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr, UnitAttr, VectorType)
+from xdsl.dialects.builtin import (AnyFloat, AnyTensorType, AnyVectorType,
+                                   DenseIntOrFPElementsAttr, Float32Type,
+                                   Float64Type, FloatAttr, FunctionType,
+                                   IndexType, IntegerType, StringAttr,
+                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+                                   TensorType, UnitAttr, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -696,7 +698,9 @@ class Parser:
         typ = self.parse_attribute()
         return dims, typ
 
-    def parse_shape(self, skip_white_space=skip_white_space):
+    def parse_shape(
+            self,
+            skip_white_space: bool = True) -> tuple[list[int], Attribute]:
         """
         Parse a shape, with the format `dim0 x dim1 x ... x dimN x type`.
         """
@@ -707,12 +711,25 @@ class Parser:
 
     def parse_optional_mlir_tensor(self,
                                    skip_white_space: bool = True
-                                   ) -> TensorType | None:
-        if self.parse_optional_string("tensor"):
+                                   ) -> AnyTensorType | None:
+        if self.parse_optional_string("tensor",
+                                      skip_white_space=skip_white_space):
             self.parse_optional_char("<")
-            dims, typ = parse_shape()
+            dims, typ = self.parse_shape()
+            self.parse_char(">")
+            return TensorType.from_type_and_list(typ, dims)
+        return None
+
+    def parse_optional_mlir_vector(self,
+                                   skip_white_space: bool = True
+                                   ) -> AnyVectorType | None:
+        if self.parse_optional_string("vector",
+                                      skip_white_space=skip_white_space):
+            self.parse_optional_char("<")
+            dims, typ = self.parse_shape()
             self.parse_char(">")
             return VectorType.from_type_and_list(typ, dims)
+        return None
 
     def parse_optional_mlir_attribute(self,
                                       skip_white_space: bool = True
@@ -742,28 +759,42 @@ class Parser:
             return StringAttr.from_str(str_literal)
 
         # tensor type
-        if (tensor := self.parse_optional_mlir_tensor) is not None:
+        if (tensor := self.parse_optional_mlir_tensor()) is not None:
             return tensor
 
         # vector type
-        if self.parse_optional_string("vector"):
-            self.parse_optional_char("<")
-            dims, typ = parse_shape()
-            self.parse_char(">")
-            return VectorType.from_type_and_list(typ, dims)
+        if (vector := self.parse_optional_mlir_vector()) is not None:
+            return vector
 
         # dense attribute
         if self.parse_optional_string("dense"):
             self.parse_char("<")
-            attr: int | float
-            # Parse either a float or an integer
-            if (f := self.parse_optional_float_literal) is not None:
+            value: list[int] | list[float]
+            # Parse either a float list or an integer list
+            if len(f := self.parse_list(
+                    self.parse_optional_float_literal)) > 0:
                 value = f
-            if (i := self.parse_optional_int_literal) is not None:
+            elif len(
+                    i := self.parse_list(self.parse_optional_int_literal)) > 0:
                 value = i
+            else:
+                raise ParserError(self._pos,
+                                  "expected a float or an integer list")
+
             self.parse_char(">")
             self.parse_char(":")
-            self.parse_optional_
+
+            # Parse the dense attribute type. It is either a tensor or a vector.
+            loc = self._pos
+            type_attr: AnyVectorType | AnyTensorType
+            if (vec := self.parse_optional_mlir_vector()) is not None:
+                type_attr = vec
+            elif (tensor := self.parse_optional_mlir_tensor()) is not None:
+                type_attr = tensor
+            else:
+                raise ParserError(loc, "expected a tensor or a vector type")
+
+            return DenseIntOrFPElementsAttr.from_list(type_attr, value)
 
         # function_type
         def parse_function_type() -> Attribute | None:
