@@ -178,6 +178,82 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class Float16Type(ParametrizedAttribute, MLIRType):
+    name = "f16"
+
+
+f16 = Float16Type()
+
+
+@irdl_attr_definition
+class Float32Type(ParametrizedAttribute, MLIRType):
+    name = "f32"
+
+
+f32 = Float32Type()
+
+
+class Float64Type(ParametrizedAttribute, MLIRType):
+    name = "f64"
+
+
+f64 = Float64Type()
+
+AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+
+
+@irdl_attr_definition
+class FloatData(Data[float]):
+    name = "float_data"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> float:
+        return parser.parse_float_literal()
+
+    @staticmethod
+    def print_parameter(data: float, printer: Printer) -> None:
+        printer.print_string(f'{data}')
+
+    @staticmethod
+    @builder
+    def from_float(data: float) -> FloatData:
+        return FloatData(data)
+
+
+_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+
+_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
+
+
+@irdl_attr_definition
+class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
+    name = "float"
+
+    value: ParameterDef[FloatData]
+    type: ParameterDef[_FloatAttrTyp]
+
+    @staticmethod
+    @builder
+    def from_value(
+        value: float, type: _FloatAttrTypContr = Float32Type()
+    ) -> FloatAttr[_FloatAttrTypContr]:
+        return FloatAttr([FloatData.from_float(value), type])
+
+    @staticmethod
+    @builder
+    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
+        if width == 16:
+            return FloatAttr([FloatData.from_float(value), Float16Type()])
+        if width == 32:
+            return FloatAttr([FloatData.from_float(value), Float32Type()])
+        if width == 64:
+            return FloatAttr([FloatData.from_float(value), Float64Type()])
+        raise ValueError(f"Invalid bitwidth: {width}")
+
+
+AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+
+
 @dataclass
 class ArrayOfConstraint(AttrConstraint):
     """
@@ -365,118 +441,80 @@ class ContainerOf(AttrConstraint):
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    # TODO add support for FPElements
-    type: ParameterDef[AnyVectorType | AnyTensorType]
+    type: ParameterDef[VectorType[IntegerType] | VectorType[IndexType]
+                       | VectorType[AnyFloat] | TensorType[IndexType]
+                       | TensorType[IntegerType] | TensorType[AnyFloat]]
     # TODO add support for multi-dimensional data
-    data: ParameterDef[AnyArrayAttr]
+    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     @staticmethod
     @builder
-    def from_int_list(type: AnyVectorType | AnyTensorType, data: List[int],
-                      bitwidth: int) -> DenseIntOrFPElementsAttr:
-        data_attr = [IntegerAttr.from_int_and_width(d, bitwidth) for d in data]
+    def from_index_list(
+            type: VectorType[IndexType] | TensorType[IndexType],
+            data: List[int | IntegerAttr[IndexType]]
+    ) -> DenseIntOrFPElementsAttr:
+        attr_list = [
+            IntegerAttr.from_index_int_value(d) if isinstance(d, int) else d
+            for d in data
+        ]
+        return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(attr_list)])
+
+    @staticmethod
+    @builder
+    def from_int_list(
+        type: VectorType[IntegerType] | TensorType[IntegerType],
+        data: List[int | IntegerAttr[IntegerType]]
+    ) -> DenseIntOrFPElementsAttr:
+        attr_list = [
+            IntegerAttr.from_params(d, type.element_type) if isinstance(
+                d, int) else d for d in data
+        ]
+        return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(attr_list)])
+
+    @staticmethod
+    @builder
+    def from_float_list(
+            type: VectorType[AnyFloat] | TensorType[AnyFloat],
+            data: List[float | AnyFloatAttr]) -> DenseIntOrFPElementsAttr:
+        data_attr = [
+            FloatAttr.from_value(d, type.element_type)
+            if isinstance(d, float) else d for d in data
+        ]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
     def from_list(
-            type: AnyVectorType | AnyTensorType,
-            data: List[int] | List[AnyIntegerAttr]
+        type: AnyVectorType | AnyTensorType,
+        data: List[int | IntegerAttr[IntegerType]]
+        | List[int | IntegerAttr[IndexType]] | List[float | AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
-        element_type = type.element_type
-        # Only use the element_type if the passed data is an int, o/w use the IntegerAttr
-        data_attr = [(IntegerAttr.from_params(d, element_type) if isinstance(
-            d, int) else d) for d in data]
-        return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
+        if isinstance(type.element_type, IntegerType):
+            return DenseIntOrFPElementsAttr.from_int_list(type, data)
+        elif isinstance(type.element_type, IndexType):
+            return DenseIntOrFPElementsAttr.from_index_list(type, data)
+        elif isinstance(type.element_type, AnyFloat):
+            return DenseIntOrFPElementsAttr.from_float_list(type, data)
+        else:
+            raise TypeError(f"Unsupported element type {type.element_type}")
 
     @staticmethod
     @builder
     def vector_from_list(
-            data: List[int],
-            typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
+            data: List[int] | List[float],
+            typ: IntegerType | IndexType | AnyFloat
+    ) -> DenseIntOrFPElementsAttr:
         t = AnyVectorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
     @builder
     def tensor_from_list(
-            data: List[int],
-            typ: IntegerType | IndexType) -> DenseIntOrFPElementsAttr:
+            data: List[int] | List[float],
+            typ: IntegerType | IndexType | AnyFloat
+    ) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
-
-
-class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
-
-
-f16 = Float16Type()
-
-
-@irdl_attr_definition
-class Float32Type(ParametrizedAttribute, MLIRType):
-    name = "f32"
-
-
-f32 = Float32Type()
-
-
-class Float64Type(ParametrizedAttribute, MLIRType):
-    name = "f64"
-
-
-f64 = Float64Type()
-
-AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
-
-
-@irdl_attr_definition
-class FloatData(Data[float]):
-    name = "float_data"
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> float:
-        return parser.parse_float_literal()
-
-    @staticmethod
-    def print_parameter(data: float, printer: Printer) -> None:
-        printer.print_string(f'{data}')
-
-    @staticmethod
-    @builder
-    def from_float(data: float) -> FloatData:
-        return FloatData(data)
-
-
-_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
-
-_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
-
-
-@irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
-    name = "float"
-
-    value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrTyp]
-
-    @staticmethod
-    @builder
-    def from_value(
-        value: float, type: _FloatAttrTypContr = Float32Type()
-    ) -> FloatAttr[_FloatAttrTypContr]:
-        return FloatAttr([FloatData.from_float(value), type])
-
-    @staticmethod
-    @builder
-    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
-        if width == 16:
-            return FloatAttr([FloatData.from_float(value), Float16Type()])
-        if width == 32:
-            return FloatAttr([FloatData.from_float(value), Float32Type()])
-        if width == 64:
-            return FloatAttr([FloatData.from_float(value), Float64Type()])
-        raise ValueError(f"Invalid bitwidth: {width}")
 
 
 @irdl_attr_definition
