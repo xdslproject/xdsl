@@ -682,20 +682,19 @@ class Parser:
         """
         dims = list[int]()
 
-        # Parse the first dimension
-        dim = self.parse_optional_dim(skip_white_space=skip_white_space)
-        if dim is None:
+        if skip_white_space:
+            self.skip_white_space()
+
+        def parse_optional_dim_and_x():
+            if (dim := self.parse_optional_dim(
+                    skip_white_space=False)) is not None:
+                self.parse_char("x", skip_white_space=False)
+                return dim
             return None
-        dims.append(dim)
-        self.parse_char("x")
 
-        # Parse the remaining dimensions
-        while (dim := self.parse_optional_dim()) is not None:
-            dims.append(dim)
-            self.parse_char("x")
-
-        # Parse the element type
+        dims = self.parse_list(parse_optional_dim_and_x, delimiter="")
         typ = self.parse_attribute()
+
         return dims, typ
 
     def parse_shape(
@@ -731,32 +730,105 @@ class Parser:
             return VectorType.from_type_and_list(typ, dims)
         return None
 
-    def parse_optional_mlir_attribute(self,
-                                      skip_white_space: bool = True
-                                      ) -> Attribute | None:
-        if skip_white_space:
-            self.skip_white_space()
-
-        if self.parse_optional_string("index"):
+    def parse_optional_mlir_index_type(self,
+                                       skip_white_space: bool = True
+                                       ) -> IndexType | None:
+        if self.parse_optional_string("index",
+                                      skip_white_space=skip_white_space):
             return IndexType()
+        return None
 
-        # integer type
-        if self.parse_optional_char("i") is not None:
-            width = self.parse_int_literal()
-            return IntegerType.from_width(width)
+    def parse_mlir_index_type(self,
+                              skip_white_space: bool = True) -> IndexType:
+        typ = self.parse_optional_mlir_index_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "index type expected")
 
-        # float types
+    def parse_optional_mlir_integer_type(self,
+                                         skip_white_space: bool = True
+                                         ) -> IntegerType | None:
+        if self.parse_optional_string("i", skip_white_space=skip_white_space):
+            width = self.parse_optional_int_literal()
+            if width is not None:
+                return IntegerType.from_width(width)
+            raise ParserError(self._pos, "integer type width expected")
+        return None
+
+    def parse_mlir_integer_type(self,
+                                skip_white_space: bool = True) -> IntegerType:
+        typ = self.parse_optional_mlir_integer_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "integer type expected")
+
+    def parse_optional_mlir_float_type(self,
+                                       skip_white_space: bool = True
+                                       ) -> AnyFloat | None:
         if self.parse_optional_string("f16") is not None:
             return Float32Type()
         if self.parse_optional_string("f32") is not None:
             return Float32Type()
         if self.parse_optional_string("f64") is not None:
             return Float64Type()
+        return None
+
+    def parse_mlir_float_type(self, skip_white_space: bool = True) -> AnyFloat:
+        typ = self.parse_optional_mlir_float_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "float type expected")
+
+    def parse_optional_mlir_attribute(self,
+                                      skip_white_space: bool = True
+                                      ) -> Attribute | None:
+        if skip_white_space:
+            self.skip_white_space()
+
+        # index type
+        if (index_type := self.parse_optional_mlir_index_type()) is not None:
+            return index_type
+
+        # integer type
+        if (int_type := self.parse_optional_mlir_integer_type()) is not None:
+            return int_type
+
+        # float type
+        if (float_type := self.parse_optional_mlir_float_type()) is not None:
+            return float_type
+
+        # integer attribute
+        if (lit := self.parse_optional_int_literal()) is not None:
+            if self.parse_optional_char(":"):
+                if (typ :=
+                        self.parse_optional_mlir_integer_type()) is not None:
+                    return IntegerAttr.from_params(lit, typ)
+                if (typ := self.parse_optional_mlir_index_type()) is not None:
+                    return IntegerAttr.from_params(lit, typ)
+                raise ParserError(self._pos, "integer or index type expected")
+            return IntegerAttr.from_params(lit, IntegerType.from_width(64))
+
+        # float attribute
+        if (lit := self.parse_optional_float_literal()) is not None:
+            if self.parse_optional_char(":"):
+                if (typ := self.parse_optional_mlir_float_type()) is not None:
+                    return FloatAttr.from_value(lit, typ)
+                raise ParserError(self._pos, "float type expected")
+            return FloatAttr.from_value(lit, Float64Type())
 
         # string literal
         str_literal = self.parse_optional_str_literal()
         if str_literal is not None:
             return StringAttr.from_str(str_literal)
+
+        # Array attribute
+        if self.parse_optional_char("["):
+            contents = self.parse_list(self.parse_optional_mlir_attribute)
+            self.parse_char("]")
+            return ArrayAttr.from_list(contents)
 
         # tensor type
         if (tensor := self.parse_optional_mlir_tensor()) is not None:
