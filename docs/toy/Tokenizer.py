@@ -52,7 +52,7 @@ def tokenize(file, program=None):
             program = f.read()
     
     text = ''
-    row = col = 0
+    row = col = 1
 
     def flush():
         nonlocal col, row, text
@@ -71,7 +71,11 @@ def tokenize(file, program=None):
         text = ''
     
     for row, line in enumerate(program.splitlines()):
+        # 1-indexed
+        row += 1
         for col, char in enumerate(line):
+            # 1-indexed
+            col += 1
             if char == '#':
                 # Comment
                 break

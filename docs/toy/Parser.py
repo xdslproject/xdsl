@@ -254,7 +254,7 @@ class Parser:
                 rhs = self.parseBinOpRHS(tokPrec + 1, rhs)
 
             # Merge lhs/rhs
-            lhs = BinaryExprAST(lhs.loc, binOp, lhs, rhs)
+            lhs = BinaryExprAST(rhs.loc, binOp, lhs, rhs)
 
     def parseExpression(self):
         'expression::= primary binop rhs'

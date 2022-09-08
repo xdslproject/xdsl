@@ -7,3 +7,6 @@ class Location:
     file: str
     line: int
     col: int
+
+    def __repr__(self):
+        return f'{self.file}:{self.line}:{self.col}'

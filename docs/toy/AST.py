@@ -33,12 +33,12 @@ class Dumper():
     def append(self, prefix, line):
         self.lines.append(' ' * self.indentation * INDENT + prefix + line)
     
-    def append_list(self, prefix, exprs, block):
-        self.append(prefix, '[')
+    def append_list(self, prefix, open_paren, exprs, close_paren, block):
+        self.append(prefix, open_paren)
         child = self.child()
         for expr in exprs:
             block(child, expr)
-        self.append('', ']')
+        self.append('', close_paren)
     
     def child(self):
         return Dumper(self.lines, self.indentation+1)
@@ -80,11 +80,10 @@ class VarDeclExprAST(ExprAST):
         return ExprASTKind.Expr_VarDecl
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
+        dims_str = ', '.join(f'{int(dim)}' for dim in self.varType.shape)
+        dumper.append('VarDecl ', f'{self.name}<{dims_str}> {self.loc}')
         child = dumper.child()
-        child.append('name: ', f'{self.name}')
-        child.append('type: ', f'{self.varType}')
-        self.expr._dump('expr: ', child)
+        self.expr._dump('', child)
     
 @dataclass
 class ReturnExprAST(ExprAST):
@@ -96,10 +95,10 @@ class ReturnExprAST(ExprAST):
         return ExprASTKind.Expr_Return
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
+        dumper.append(prefix, 'Return')
         if self.expr is not None:
             child = dumper.child()
-            self.expr._dump('expr: ', child)
+            self.expr._dump('', child)
 
 @dataclass
 class NumberExprAST(ExprAST):
@@ -111,9 +110,7 @@ class NumberExprAST(ExprAST):
         return ExprASTKind.Expr_Num
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
-        child = dumper.child()
-        child.append('val: ', f'{self.val}')
+        dumper.append(prefix, ' {:.6e}'.format(self.val))
 
 @dataclass
 class LiteralExprAST(ExprAST):
@@ -124,12 +121,14 @@ class LiteralExprAST(ExprAST):
     @property
     def kind(self):
         return ExprASTKind.Expr_Literal
-    
+
+    def __dump(self):
+        dims_str = ', '.join(f'{int(dim)}' for dim in self.dims)
+        vals_str = ','.join(val.__dump() if isinstance(val, LiteralExprAST) else val.dump() for val in self.values)
+        return f' <{dims_str}>[{vals_str}]'
+
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
-        child = dumper.child()
-        child.append_list('values: ', self.values, lambda dd, val: val._dump('', dd))
-        child.append('dims: ', f'{self.dims}')
+        dumper.append('Literal:', self.__dump() + f' {self.loc}')
         
 @dataclass
 class VariableExprAST(ExprAST):
@@ -141,9 +140,7 @@ class VariableExprAST(ExprAST):
         return ExprASTKind.Expr_Var
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
-        child = dumper.child()
-        child.append('name: ', f'{self.name}')
+        dumper.append('var: ', f'{self.name} {self.loc}')
 
 @dataclass
 class BinaryExprAST(ExprAST):
@@ -157,11 +154,10 @@ class BinaryExprAST(ExprAST):
         return ExprASTKind.Expr_BinOp
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
+        dumper.append(prefix, f"BinOp: {self.op} {self.loc}")
         child = dumper.child()
-        child.append('op: ', self.op)
-        self.lhs._dump('lhs: ', child)
-        self.rhs._dump('rhs: ', child)
+        self.lhs._dump('', child)
+        self.rhs._dump('', child)
 
 @dataclass
 class CallExprAST(ExprAST):
@@ -174,10 +170,7 @@ class CallExprAST(ExprAST):
         return ExprASTKind.Expr_Call
     
     def _dump(self, prefix, dumper):
-        super()._dump(prefix, dumper)
-        child = dumper.child()
-        child.append('callee: ', f'{self.callee}')
-        child.append_list('args: ', self.args, lambda dd, arg: arg._dump('', dd))
+        dumper.append_list(prefix, f"Call '{self.callee}' [ {self.loc}", self.args, ']', lambda dd, arg: arg._dump('', dd))
 
 
 @dataclass
@@ -212,10 +205,8 @@ class PrototypeAST:
         return dumper.message
 
     def _dump(self, prefix, dumper):
-        dumper.append(prefix, self.__class__.__name__)
-        child = dumper.child()
-        child.append('name: ', f'{self.name}')
-        child.append_list('args: ', self.args, lambda dd, arg: arg._dump('', dd))
+        dumper.append('', f"Proto '{self.name}' {self.loc}'")
+        dumper.append('Params: ', f'[{", ".join(arg.name for arg in self.args)}]')
 
 @dataclass
 class FunctionAST:
@@ -230,10 +221,10 @@ class FunctionAST:
         return dumper.message
 
     def _dump(self, prefix, dumper):
-        dumper.append(prefix, self.__class__.__name__)
+        dumper.append(prefix, 'Function ')
         child = dumper.child()
         self.proto._dump('proto: ', child)
-        child.append_list('body: ', self.body, lambda dd, stmt: stmt._dump('', dd))
+        child.append_list('Block ', '{', self.body, '} // Block', lambda dd, stmt: stmt._dump('', dd))
 
 @dataclass
 class ModuleAST:
@@ -246,6 +237,4 @@ class ModuleAST:
         return dumper.message
 
     def _dump(self, prefix, dumper):
-        dumper.append(prefix, self.__class__.__name__)
-        child = dumper.child()
-        child.append_list('functions: ', self.funcs, lambda dd, func: func._dump('', dd))
+        dumper.append_list(prefix, 'Module:', self.funcs, '', lambda dd, func: func._dump('', dd))
