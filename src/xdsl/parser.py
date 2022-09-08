@@ -301,7 +301,9 @@ class Parser:
             is_float = True
 
         # Parse the optional exponent
-        if self.parse_optional_char("e", skip_white_space=False):
+        if self.parse_optional_char(
+                "e", skip_white_space=False) or self.parse_optional_char(
+                    "E", skip_white_space=False):
             value += "e"
             # Parse the optional exponent sign
             if self.parse_optional_char("+", skip_white_space=False):
