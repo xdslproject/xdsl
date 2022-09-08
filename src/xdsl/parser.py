@@ -751,7 +751,11 @@ class Parser:
     def parse_optional_mlir_integer_type(self,
                                          skip_white_space: bool = True
                                          ) -> IntegerType | None:
-        if self.parse_optional_string("i", skip_white_space=skip_white_space):
+        if (self.parse_optional_string("i", skip_white_space=skip_white_space)
+                or self.parse_optional_string(
+                    "si", skip_white_space=skip_white_space)
+                or self.parse_optional_string(
+                    "ui", skip_white_space=skip_white_space)):
             width = self.parse_optional_int_literal()
             if width is not None:
                 return IntegerType.from_width(width)
