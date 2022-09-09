@@ -895,6 +895,18 @@ class Parser:
                 return OpaqueAttr.from_strings(name, val, typ)
             return OpaqueAttr.from_strings(name, val)
 
+        # function attribute
+        if self.parse_optional_char("(") is not None:
+            inputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(")")
+            self.parse_string("->")
+            if self.parse_optional_char("("):
+                outputs = self.parse_list(self.parse_optional_attribute)
+                self.parse_char(")")
+                return FunctionType.from_lists(inputs, outputs)
+            output = self.parse_attribute()
+            return FunctionType.from_lists(inputs, [output])
+
         fun = self.try_parse(parse_function_type)
         if fun is not None:
             return fun
