@@ -42,6 +42,9 @@ class Builtin:
         self.ctx.register_attr(IntegerType)
         self.ctx.register_attr(IndexType)
 
+        self.ctx.register_attr(NoneAttr)
+        self.ctx.register_attr(OpaqueAttr)
+
         self.ctx.register_op(ModuleOp)
 
 
@@ -549,6 +552,28 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     def from_attrs(inputs: ArrayAttr[Attribute],
                    outputs: ArrayAttr[Attribute]) -> Attribute:
         return FunctionType([inputs, outputs])
+
+
+@irdl_attr_definition
+class NoneAttr(ParametrizedAttribute):
+    """An attribute representing the absence of an attribute."""
+    name: str = "none"
+
+
+@irdl_attr_definition
+class OpaqueAttr(ParametrizedAttribute):
+    name: str = "opaque"
+
+    ident: ParameterDef[StringAttr]
+    value: ParameterDef[StringAttr]
+    type: ParameterDef[Attribute]
+
+    @staticmethod
+    def from_strings(name: str, value: str,
+                     type: Attribute = NoneAttr()) -> OpaqueAttr:
+        return OpaqueAttr(
+            [StringAttr.from_str(name),
+             StringAttr.from_str(value), type])
 
 
 @irdl_op_definition

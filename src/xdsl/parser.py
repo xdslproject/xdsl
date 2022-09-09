@@ -4,9 +4,9 @@ from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
 from xdsl.dialects.builtin import (AnyFloat, AnyTensorType, AnyVectorType,
                                    DenseIntOrFPElementsAttr, Float32Type,
                                    Float64Type, FloatAttr, FunctionType,
-                                   IndexType, IntegerType, StringAttr,
-                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   TensorType, UnitAttr, VectorType)
+                                   IndexType, IntegerType, OpaqueAttr,
+                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
+                                   ArrayAttr, TensorType, UnitAttr, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -806,6 +806,14 @@ class Parser:
         if (float_type := self.parse_optional_mlir_float_type()) is not None:
             return float_type
 
+        # float attribute
+        if (lit := self.parse_optional_float_literal()) is not None:
+            if self.parse_optional_char(":"):
+                if (typ := self.parse_optional_mlir_float_type()) is not None:
+                    return FloatAttr.from_value(lit, typ)
+                raise ParserError(self._pos, "float type expected")
+            return FloatAttr.from_value(lit, Float64Type())
+
         # integer attribute
         if (lit := self.parse_optional_int_literal()) is not None:
             if self.parse_optional_char(":"):
@@ -816,14 +824,6 @@ class Parser:
                     return IntegerAttr.from_params(lit, typ)
                 raise ParserError(self._pos, "integer or index type expected")
             return IntegerAttr.from_params(lit, IntegerType.from_width(64))
-
-        # float attribute
-        if (lit := self.parse_optional_float_literal()) is not None:
-            if self.parse_optional_char(":"):
-                if (typ := self.parse_optional_mlir_float_type()) is not None:
-                    return FloatAttr.from_value(lit, typ)
-                raise ParserError(self._pos, "float type expected")
-            return FloatAttr.from_value(lit, Float64Type())
 
         # string literal
         str_literal = self.parse_optional_str_literal()
@@ -882,6 +882,18 @@ class Parser:
             self.parse_string("->")
             output = self.parse_attribute()
             return FunctionType.from_lists(inputs, [output])
+
+        # opaque attribute
+        if self.parse_optional_string("opaque") is not None:
+            self.parse_char("<")
+            name = self.parse_str_literal()
+            self.parse_char(",")
+            val: str = self.parse_str_literal()
+            self.parse_char(">")
+            if self.parse_optional_char(":") is not None:
+                typ = self.parse_attribute()
+                return OpaqueAttr.from_strings(name, val, typ)
+            return OpaqueAttr.from_strings(name, val)
 
         fun = self.try_parse(parse_function_type)
         if fun is not None:
