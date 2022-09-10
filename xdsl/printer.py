@@ -167,9 +167,8 @@ class Printer:
         # No results
         if len(results) == 0:
             return
-
         # One result
-        if len(results) == 1:
+        elif len(results) == 1:
             self._print_result_value(op, 0)
             self.print(" = ")
             return

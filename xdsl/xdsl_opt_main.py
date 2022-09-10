@@ -275,7 +275,7 @@ class xDSLOptMain:
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
-        if self.args.frontend is not None:
+        if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
