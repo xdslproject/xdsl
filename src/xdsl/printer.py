@@ -11,9 +11,10 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyVectorType, DenseIntOrFPElementsAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
-    TensorType, UnitAttr, FunctionType, VectorType)
+    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr,
+    OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
+    VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -409,6 +410,14 @@ class Printer:
         if (isinstance(attribute, IndexType)
                 and self.target == self.Target.MLIR):
             self.print("index")
+            return
+
+        # opaque attributes have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, OpaqueAttr)
+                and self.target == self.Target.MLIR):
+            self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
+            if not isinstance(attribute.type, NoneAttr):
+                self.print(" : ", attribute.type)
             return
 
         if self.target == self.Target.MLIR:
