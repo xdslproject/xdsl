@@ -388,7 +388,9 @@ class Printer:
                 "vector<" if isinstance(attribute, VectorType) else "tensor<")
             self.print_list(attribute.shape.data,
                             lambda x: self.print(x.value.data), "x")
-            self.print("x", attribute.element_type)
+            if len(attribute.shape.data) != 0:
+                self.print("x")
+            self.print(attribute.element_type)
             self.print(">")
             return
 
