@@ -1,12 +1,15 @@
 from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
-from xdsl.dialects.builtin import (Float32Type, FloatAttr, IntegerType,
-                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr, UnitAttr)
+from xdsl.dialects.builtin import (
+    AnyFloat, AnyTensorType, AnyVectorType, DenseIntOrFPElementsAttr,
+    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
+    IntegerType, OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr,
+    ArrayAttr, TensorType, UnitAttr, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
+from enum import Enum
 
 indentNumSpaces = 2
 
@@ -87,11 +90,19 @@ class ParserError(Exception):
 
 @dataclass
 class Parser:
-    _ctx: MLContext
+
+    class Source(Enum):
+        XDSL = 1
+        MLIR = 2
+
+    ctx: MLContext
     """xDSL context."""
 
-    _str: str
+    str: str
     """The current file/input to parse."""
+
+    source: Source = field(default=Source.XDSL, kw_only=True)
+    """The source language to parse."""
 
     _pos: Position | None = field(init=False)
     """Position in the file. None represent the end of the file."""
@@ -103,10 +114,10 @@ class Parser:
     """Associate blocks with their names."""
 
     def __post_init__(self):
-        if len(self._str) == 0:
+        if len(self.str) == 0:
             self._pos = None
         else:
-            self._pos = Position(self._str)
+            self._pos = Position(self.str)
 
     def get_char(self,
                  n: int = 1,
@@ -117,9 +128,9 @@ class Parser:
             self.skip_white_space()
         if self._pos is None:
             return None
-        if self._pos.idx + n >= len(self._str):
+        if self._pos.idx + n >= len(self.str):
             return None
-        return self._str[self._pos.idx:self._pos.idx + n]
+        return self.str[self._pos.idx:self._pos.idx + n]
 
     _T = TypeVar("_T")
 
@@ -161,9 +172,9 @@ class Parser:
         while self._pos is not None:
             char = self._pos.get_char()
             if not cond(char):
-                return self._str[start_pos.idx:self._pos.idx]
+                return self.str[start_pos.idx:self._pos.idx]
             self._pos = self._pos.next_char_pos()
-        return self._str[start_pos.idx:]
+        return self.str[start_pos.idx:]
 
     # TODO why two different functions, no nums in ident?
     def parse_optional_ident(self,
@@ -223,9 +234,9 @@ class Parser:
                 break
             self._pos = pos.next_char_pos()
         if self._pos is None:
-            res = self._str[start_pos.idx:]
+            res = self.str[start_pos.idx:]
         else:
-            res = self._str[start_pos.idx:self._pos.idx]
+            res = self.str[start_pos.idx:self._pos.idx]
         self.parse_char('"')
         return res
 
@@ -289,7 +300,9 @@ class Parser:
             is_float = True
 
         # Parse the optional exponent
-        if self.parse_optional_char("e", skip_white_space=False):
+        if self.parse_optional_char(
+                "e", skip_white_space=False) or self.parse_optional_char(
+                    "E", skip_white_space=False):
             value += "e"
             # Parse the optional exponent sign
             if self.parse_optional_char("+", skip_white_space=False):
@@ -348,6 +361,18 @@ class Parser:
             self._pos = self._pos.next_char_pos(len(contents))
             return True
         raise ParserError(self._pos, f"'{contents}' expected")
+
+    def parse_optional_string(self,
+                              contents: str,
+                              skip_white_space: bool = True) -> bool | None:
+        if skip_white_space:
+            self.skip_white_space()
+        chars = self.get_char(len(contents))
+        if chars == contents:
+            assert self._pos is not None
+            self._pos = self._pos.next_char_pos(len(contents))
+            return True
+        return None
 
     T = TypeVar('T')
 
@@ -464,7 +489,17 @@ class Parser:
             raise ParserError(self._pos, "SSA value expected")
         return res
 
-    def parse_optional_result(
+    def parse_optional_results(self,
+                               skip_white_space: bool = True
+                               ) -> list[str] | None:
+        res = self.parse_list(self.parse_optional_ssa_name,
+                              skip_white_space=skip_white_space)
+        if len(res) == 0:
+            return None
+        self.parse_char("=")
+        return res
+
+    def parse_optional_typed_result(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
         name = self.parse_optional_ssa_name(skip_white_space=skip_white_space)
@@ -474,12 +509,13 @@ class Parser:
         typ = self.parse_attribute()
         return name, typ
 
-    def parse_optional_results(
+    def parse_optional_typed_results(
             self,
             skip_white_space: bool = True
     ) -> list[tuple[str, Attribute]] | None:
         # One argument
-        res = self.parse_optional_result(skip_white_space=skip_white_space)
+        res = self.parse_optional_typed_result(
+            skip_white_space=skip_white_space)
         if res is not None:
             self.parse_char("=")
             return [res]
@@ -489,7 +525,7 @@ class Parser:
             return None
 
         # Multiple arguments
-        res = self.parse_list(lambda: self.parse_optional_result())
+        res = self.parse_list(lambda: self.parse_optional_typed_result())
         self.parse_char(")")
         self.parse_char("=")
         return res
@@ -501,15 +537,15 @@ class Parser:
             skip_white_space=skip_white_space)
         if value is None:
             return None
-        self.parse_char(":")
-        typ = self.parse_attribute()
-        if value.typ != typ:
-            raise ParserError(self._pos,
-                              f"type mismatch between {typ} and {value.typ}")
+        if self.source == self.Source.XDSL:
+            self.parse_char(":")
+            typ = self.parse_attribute()
+            if value.typ != typ:
+                raise ParserError(
+                    self._pos, f"type mismatch between {typ} and {value.typ}")
         return value
 
-    def parse_operands(self,
-                       skip_white_space: bool = True) -> list[SSAValue] | None:
+    def parse_operands(self, skip_white_space: bool = True) -> list[SSAValue]:
         self.parse_char("(", skip_white_space=skip_white_space)
         res = self.parse_list(lambda: self.parse_optional_operand())
         self.parse_char(")")
@@ -532,6 +568,9 @@ class Parser:
     def parse_optional_attribute(self,
                                  skip_white_space: bool = True
                                  ) -> Attribute | None:
+        if self.source == self.Source.MLIR:
+            return self.parse_optional_mlir_attribute(
+                skip_white_space=skip_white_space)
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
@@ -591,7 +630,7 @@ class Parser:
             else:
                 attr_def_name = self.parse_alpha_num(skip_white_space=True)
 
-        attr_def = self._ctx.get_attr(attr_def_name)
+        attr_def = self.ctx.get_attr(attr_def_name)
 
         # Attribute with default format
         if parse_with_default_format:
@@ -613,6 +652,264 @@ class Parser:
         param_list = attr_def.parse_parameters(self)
         return attr_def(param_list)  # type: ignore
 
+    def parse_optional_dim(self, skip_white_space: bool = True) -> int | None:
+        """
+        Parse an optional dimension.
+        The dimension is either a non-negative integer, or -1 for dynamic dimensions.
+        """
+        if self.parse_optional_char("?", skip_white_space=skip_white_space):
+            return -1
+        if (dim := self.parse_optional_int_literal()) is not None:
+            return dim
+        return None
+
+    def parse_dim(self, skip_white_space: bool = True) -> int:
+        """
+        Parse a dimension.
+        The dimension is either a non-negative integer,
+        or -1 for dynamic dimensions, represented by `?`.
+        """
+        dim = self.parse_optional_dim(skip_white_space=skip_white_space)
+        if dim is not None:
+            return dim
+        raise ParserError(self._pos, "dimension expected")
+
+    def parse_optional_shape(
+            self,
+            skip_white_space: bool = True
+    ) -> tuple[list[int], Attribute] | None:
+        """
+        Parse a shape, with the format `dim0 x dim1 x ... x dimN x type`.
+        """
+        dims = list[int]()
+
+        if skip_white_space:
+            self.skip_white_space()
+
+        def parse_optional_dim_and_x():
+            if (dim := self.parse_optional_dim(
+                    skip_white_space=False)) is not None:
+                self.parse_char("x", skip_white_space=False)
+                return dim
+            return None
+
+        dims = self.parse_list(parse_optional_dim_and_x, delimiter="")
+        typ = self.parse_attribute()
+
+        return dims, typ
+
+    def parse_shape(
+            self,
+            skip_white_space: bool = True) -> tuple[list[int], Attribute]:
+        """
+        Parse a shape, with the format `dim0 x dim1 x ... x dimN x type`.
+        """
+        shape = self.parse_optional_shape(skip_white_space=skip_white_space)
+        if shape is not None:
+            return shape
+        raise ParserError(self._pos, "shape expected")
+
+    def parse_optional_mlir_tensor(self,
+                                   skip_white_space: bool = True
+                                   ) -> AnyTensorType | None:
+        if self.parse_optional_string("tensor",
+                                      skip_white_space=skip_white_space):
+            self.parse_optional_char("<")
+            dims, typ = self.parse_shape()
+            self.parse_char(">")
+            return TensorType.from_type_and_list(typ, dims)
+        return None
+
+    def parse_optional_mlir_vector(self,
+                                   skip_white_space: bool = True
+                                   ) -> AnyVectorType | None:
+        if self.parse_optional_string("vector",
+                                      skip_white_space=skip_white_space):
+            self.parse_optional_char("<")
+            dims, typ = self.parse_shape()
+            self.parse_char(">")
+            return VectorType.from_type_and_list(typ, dims)
+        return None
+
+    def parse_optional_mlir_index_type(self,
+                                       skip_white_space: bool = True
+                                       ) -> IndexType | None:
+        if self.parse_optional_string("index",
+                                      skip_white_space=skip_white_space):
+            return IndexType()
+        return None
+
+    def parse_mlir_index_type(self,
+                              skip_white_space: bool = True) -> IndexType:
+        typ = self.parse_optional_mlir_index_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "index type expected")
+
+    def parse_optional_mlir_integer_type(self,
+                                         skip_white_space: bool = True
+                                         ) -> IntegerType | None:
+        if (self.parse_optional_string("i", skip_white_space=skip_white_space)
+                or self.parse_optional_string(
+                    "si", skip_white_space=skip_white_space)
+                or self.parse_optional_string(
+                    "ui", skip_white_space=skip_white_space)):
+            width = self.parse_optional_int_literal()
+            if width is not None:
+                return IntegerType.from_width(width)
+            raise ParserError(self._pos, "integer type width expected")
+        return None
+
+    def parse_mlir_integer_type(self,
+                                skip_white_space: bool = True) -> IntegerType:
+        typ = self.parse_optional_mlir_integer_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "integer type expected")
+
+    def parse_optional_mlir_float_type(self,
+                                       skip_white_space: bool = True
+                                       ) -> AnyFloat | None:
+        if self.parse_optional_string("f16") is not None:
+            return Float16Type()
+        if self.parse_optional_string("f32") is not None:
+            return Float32Type()
+        if self.parse_optional_string("f64") is not None:
+            return Float64Type()
+        return None
+
+    def parse_mlir_float_type(self, skip_white_space: bool = True) -> AnyFloat:
+        typ = self.parse_optional_mlir_float_type(
+            skip_white_space=skip_white_space)
+        if typ is not None:
+            return typ
+        raise ParserError(self._pos, "float type expected")
+
+    def parse_optional_mlir_attribute(self,
+                                      skip_white_space: bool = True
+                                      ) -> Attribute | None:
+        if skip_white_space:
+            self.skip_white_space()
+
+        # index type
+        if (index_type := self.parse_optional_mlir_index_type()) is not None:
+            return index_type
+
+        # integer type
+        if (int_type := self.parse_optional_mlir_integer_type()) is not None:
+            return int_type
+
+        # float type
+        if (float_type := self.parse_optional_mlir_float_type()) is not None:
+            return float_type
+
+        # float attribute
+        if (lit := self.parse_optional_float_literal()) is not None:
+            if self.parse_optional_char(":"):
+                if (typ := self.parse_optional_mlir_float_type()) is not None:
+                    return FloatAttr.from_value(lit, typ)
+                raise ParserError(self._pos, "float type expected")
+            return FloatAttr.from_value(lit, Float64Type())
+
+        # integer attribute
+        if (lit := self.parse_optional_int_literal()) is not None:
+            if self.parse_optional_char(":"):
+                if (typ :=
+                        self.parse_optional_mlir_integer_type()) is not None:
+                    return IntegerAttr.from_params(lit, typ)
+                if (typ := self.parse_optional_mlir_index_type()) is not None:
+                    return IntegerAttr.from_params(lit, typ)
+                raise ParserError(self._pos, "integer or index type expected")
+            return IntegerAttr.from_params(lit, IntegerType.from_width(64))
+
+        # string literal
+        str_literal = self.parse_optional_str_literal()
+        if str_literal is not None:
+            return StringAttr.from_str(str_literal)
+
+        # Array attribute
+        if self.parse_optional_char("["):
+            contents = self.parse_list(self.parse_optional_mlir_attribute)
+            self.parse_char("]")
+            return ArrayAttr.from_list(contents)
+
+        # tensor type
+        if (tensor := self.parse_optional_mlir_tensor()) is not None:
+            return tensor
+
+        # vector type
+        if (vector := self.parse_optional_mlir_vector()) is not None:
+            return vector
+
+        # dense attribute
+        if self.parse_optional_string("dense"):
+            self.parse_char("<")
+            value: list[int] | list[float]
+            # Parse either a float list or an integer list
+            if self.parse_optional_char("["):
+                if len(f := self.parse_list(
+                        self.parse_optional_float_literal)) > 0:
+                    value = f
+                elif len(i := self.parse_list(
+                        self.parse_optional_int_literal)) > 0:
+                    value = i
+                else:
+                    value = []
+                self.parse_char("]")
+            else:
+                if (float_val :=
+                        self.parse_optional_float_literal()) is not None:
+                    value = [float_val]
+                elif (int_val :=
+                      self.parse_optional_int_literal()) is not None:
+                    value = [int_val]
+                else:
+                    raise ParserError(self._pos,
+                                      "expected a float or an integer list")
+
+            self.parse_char(">")
+            self.parse_char(":")
+
+            # Parse the dense attribute type. It is either a tensor or a vector.
+            loc = self._pos
+            type_attr: AnyVectorType | AnyTensorType
+            if (vec := self.parse_optional_mlir_vector()) is not None:
+                type_attr = vec
+            elif (tensor := self.parse_optional_mlir_tensor()) is not None:
+                type_attr = tensor
+            else:
+                raise ParserError(loc, "expected a tensor or a vector type")
+
+            return DenseIntOrFPElementsAttr.from_list(type_attr, value)
+
+        # opaque attribute
+        if self.parse_optional_string("opaque") is not None:
+            self.parse_char("<")
+            name = self.parse_str_literal()
+            self.parse_char(",")
+            val: str = self.parse_str_literal()
+            self.parse_char(">")
+            if self.parse_optional_char(":") is not None:
+                typ = self.parse_attribute()
+                return OpaqueAttr.from_strings(name, val, typ)
+            return OpaqueAttr.from_strings(name, val)
+
+        # function attribute
+        if self.parse_optional_char("(") is not None:
+            inputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(")")
+            self.parse_string("->")
+            if self.parse_optional_char("("):
+                outputs = self.parse_list(self.parse_optional_attribute)
+                self.parse_char(")")
+                return FunctionType.from_lists(inputs, outputs)
+            output = self.parse_attribute()
+            return FunctionType.from_lists(inputs, [output])
+
+        return None
+
     def parse_attribute(self, skip_white_space: bool = True) -> Attribute:
         res = self.parse_optional_attribute(skip_white_space=skip_white_space)
         if res is None:
@@ -622,8 +919,13 @@ class Parser:
     def parse_optional_named_attribute(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
+        # The attribute name is either a string literal, or an identifier.
         attr_name = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
+        if attr_name is None:
+            attr_name = self.parse_optional_alpha_num(
+                skip_white_space=skip_white_space)
+
         if attr_name is None:
             return None
         if not self.peek_char("="):
@@ -635,11 +937,12 @@ class Parser:
     def parse_op_attributes(self,
                             skip_white_space: bool = True
                             ) -> dict[str, Attribute]:
-        if not self.parse_optional_char("[",
-                                        skip_white_space=skip_white_space):
+        if not self.parse_optional_char(
+                "[" if self.source == self.Source.XDSL else "{",
+                skip_white_space=skip_white_space):
             return dict()
         attrs_with_names = self.parse_list(self.parse_optional_named_attribute)
-        self.parse_char("]")
+        self.parse_char("]" if self.source == self.Source.XDSL else "}")
         return {name: attr for (name, attr) in attrs_with_names}
 
     def parse_optional_successor(self,
@@ -659,12 +962,13 @@ class Parser:
         return block
 
     def parse_successors(self, skip_white_space: bool = True) -> list[Block]:
-        parsed = self.parse_optional_char("(",
-                                          skip_white_space=skip_white_space)
+        parsed = self.parse_optional_char(
+            "(" if self.source == self.Source.XDSL else "[",
+            skip_white_space=skip_white_space)
         if parsed is None:
             return []
         res = self.parse_list(self.parse_optional_successor, delimiter=',')
-        self.parse_char(")")
+        self.parse_char(")" if self.source == self.Source.XDSL else "]")
         return res
 
     def is_valid_name(self, name: str) -> bool:
@@ -680,11 +984,7 @@ class Parser:
         operands = self.parse_operands(skip_white_space=skip_white_space)
         successors = self.parse_successors()
         attributes = self.parse_op_attributes()
-        regions = list[Region]()
-        region = self.parse_optional_region()
-        while region is not None:
-            regions.append(region)
-            region = self.parse_optional_region()
+        regions = self.parse_list(self.parse_optional_region, delimiter="")
 
         return op_type.create(operands=operands,
                               result_types=result_types,
@@ -714,8 +1014,12 @@ class Parser:
 
     def parse_optional_op(self,
                           skip_white_space: bool = True) -> Operation | None:
+        if self.source == self.Source.MLIR:
+            return self.parse_optional_mlir_op(
+                skip_white_space=skip_white_space)
+
         start_pos = self._pos
-        results = self.parse_optional_results(
+        results = self.parse_optional_typed_results(
             skip_white_space=skip_white_space)
         if results is None:
             op_name_and_generic = self._parse_optional_op_name()
@@ -728,7 +1032,7 @@ class Parser:
 
         result_types = [typ for (_, typ) in results]
 
-        op_type = self._ctx.get_op(op_name)
+        op_type = self.ctx.get_op(op_name)
         if not is_generic_format:
             op = op_type.parse(result_types, self)
         else:
@@ -742,6 +1046,87 @@ class Parser:
             self._ssaValues[res[0]] = op.results[idx]
             if self.is_valid_name(res[0]):
                 self._ssaValues[res[0]].name = res[0]
+
+        return op
+
+    def parse_op_type(
+        self,
+        skip_white_space: bool = True
+    ) -> tuple[list[Attribute], list[Attribute]]:
+        self.parse_char("(", skip_white_space=skip_white_space)
+        inputs = self.parse_list(self.parse_optional_attribute)
+        self.parse_char(")")
+        self.parse_string("->")
+
+        # No or multiple result types
+        if self.parse_optional_char("("):
+            outputs = self.parse_list(self.parse_optional_attribute)
+            self.parse_char(")")
+        else:
+            outputs = [self.parse_attribute()]
+
+        return inputs, outputs
+
+    def parse_mlir_op_with_default_format(
+            self,
+            op_type: type[_OperationType],
+            num_results: int,
+            skip_white_space: bool = True) -> _OperationType:
+        operands = self.parse_operands(skip_white_space=skip_white_space)
+
+        regions = []
+        if self.parse_optional_char("(") is not None:
+            regions = self.parse_list(self.parse_optional_region)
+            self.parse_char(")")
+
+        attributes = self.parse_op_attributes()
+
+        self.parse_char(":")
+        operand_types, result_types = self.parse_op_type()
+
+        if len(operand_types) != len(operands):
+            raise Exception(
+                "Operand types are not matching the number of operands.")
+        if len(result_types) != num_results:
+            raise Exception(
+                "Result types are not matching the number of results.")
+        for operand, operand_type in zip(operands, operand_types):
+            if operand.typ != operand_type:
+                raise Exception("Operation operand types are not matching "
+                                "the types of its operands. Got operand with "
+                                f"type {operand.typ}, but operation expect "
+                                f"operand to be of type {operand_type}")
+
+        return op_type.create(operands=operands,
+                              result_types=result_types,
+                              attributes=attributes,
+                              regions=regions)
+
+    def parse_optional_mlir_op(self,
+                               skip_white_space: bool = True
+                               ) -> Operation | None:
+        start_pos = self._pos
+        results = self.parse_optional_results(
+            skip_white_space=skip_white_space)
+        if results is None:
+            results = []
+            op_name = self.parse_optional_str_literal()
+            if op_name is None:
+                return None
+        else:
+            op_name = self.parse_str_literal()
+
+        op_type = self.ctx.get_op(op_name)
+        op = self.parse_mlir_op_with_default_format(op_type, len(results))
+
+        # Register the SSA value names in the parser
+        for (idx, res) in enumerate(results):
+            if res in self._ssaValues:
+                raise ParserError(start_pos,
+                                  f"SSA value {res} is already defined")
+            self._ssaValues[res] = op.results[idx]
+            if self.is_valid_name(res):
+                self._ssaValues[res].name = res
 
         return op
 

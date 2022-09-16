@@ -9,12 +9,12 @@ from dataclasses import dataclass, field
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
-from xdsl.dialects.builtin import (AnyArrayAttr, AnyVectorType,
-                                   DenseIntOrFPElementsAttr, FloatAttr,
-                                   IndexType, IntegerType, StringAttr,
-                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr, TensorType,
-                                   UnitAttr, FunctionType, VectorType)
+from xdsl.dialects.builtin import (
+    AnyArrayAttr, AnyVectorType, DenseIntOrFPElementsAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr,
+    OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
+    VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -295,6 +295,17 @@ class Printer:
                 self.print(f'!i{width.data}')
             return
 
+        if self.target == self.Target.MLIR:
+            if isinstance(attribute, Float16Type):
+                self.print('f16')
+                return
+            if isinstance(attribute, Float32Type):
+                self.print('f32')
+                return
+            if isinstance(attribute, Float64Type):
+                self.print('f64')
+                return
+
         if isinstance(attribute, StringAttr):
             self.print(f'"{attribute.data}"')
             return
@@ -354,18 +365,18 @@ class Printer:
                         print_dense_list(cast(AnyArrayAttr, val))
                     elif isinstance(val, IntegerAttr):
                         self.print(val.value.data)
+                    elif isinstance(val, FloatAttr):
+                        self.print(val.value.data)
                     else:
                         raise Exception("unexpected attribute type "
                                         "in DenseIntOrFPElementsAttr: "
                                         f"{type(val)}")
 
-                self.print("[")
                 self.print_list(array.data, print_one_elem)
-                self.print("]")
 
-            self.print("dense<")
+            self.print("dense<[")
             print_dense_list(attribute.data)
-            self.print("> : ")
+            self.print("]> : ")
             self.print(attribute.type)
             return
 
@@ -378,7 +389,9 @@ class Printer:
                 "vector<" if isinstance(attribute, VectorType) else "tensor<")
             self.print_list(attribute.shape.data,
                             lambda x: self.print(x.value.data), "x")
-            self.print("x", attribute.element_type)
+            if len(attribute.shape.data) != 0:
+                self.print("x")
+            self.print(attribute.element_type)
             self.print(">")
             return
 
@@ -397,6 +410,14 @@ class Printer:
         if (isinstance(attribute, IndexType)
                 and self.target == self.Target.MLIR):
             self.print("index")
+            return
+
+        # opaque attributes have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, OpaqueAttr)
+                and self.target == self.Target.MLIR):
+            self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
+            if not isinstance(attribute.type, NoneAttr):
+                self.print(" : ", attribute.type)
             return
 
         if self.target == self.Target.MLIR:

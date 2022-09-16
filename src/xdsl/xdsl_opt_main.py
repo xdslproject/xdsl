@@ -182,7 +182,17 @@ class xDSLOptMain:
                     "Expected module or program as toplevel operation")
             return module
 
+        def parse_mlir(f: IOBase):
+            input_str = f.read()
+            parser = Parser(self.ctx, input_str, source=Parser.Source.MLIR)
+            module = parser.parse_op()
+            if not (isinstance(module, ModuleOp)):
+                raise Exception(
+                    "Expected module or program as toplevel operation")
+            return module
+
         self.available_frontends['xdsl'] = parse_xdsl
+        self.available_frontends['mlir'] = parse_mlir
 
     def register_all_passes(self):
         """
