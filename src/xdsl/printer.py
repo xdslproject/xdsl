@@ -364,18 +364,18 @@ class Printer:
                         print_dense_list(cast(AnyArrayAttr, val))
                     elif isinstance(val, IntegerAttr):
                         self.print(val.value.data)
+                    elif isinstance(val, FloatAttr):
+                        self.print(val.value.data)
                     else:
                         raise Exception("unexpected attribute type "
                                         "in DenseIntOrFPElementsAttr: "
                                         f"{type(val)}")
 
-                self.print("[")
                 self.print_list(array.data, print_one_elem)
-                self.print("]")
 
-            self.print("dense<")
+            self.print("dense<[")
             print_dense_list(attribute.data)
-            self.print("> : ")
+            self.print("]> : ")
             self.print(attribute.type)
             return
 

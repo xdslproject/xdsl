@@ -848,15 +848,26 @@ class Parser:
             self.parse_char("<")
             value: list[int] | list[float]
             # Parse either a float list or an integer list
-            if len(f := self.parse_list(
-                    self.parse_optional_float_literal)) > 0:
-                value = f
-            elif len(
-                    i := self.parse_list(self.parse_optional_int_literal)) > 0:
-                value = i
+            if self.parse_optional_char("["):
+                if len(f := self.parse_list(
+                        self.parse_optional_float_literal)) > 0:
+                    value = f
+                elif len(i := self.parse_list(
+                        self.parse_optional_int_literal)) > 0:
+                    value = i
+                else:
+                    value = []
+                self.parse_char("]")
             else:
-                raise ParserError(self._pos,
-                                  "expected a float or an integer list")
+                if (float_val :=
+                        self.parse_optional_float_literal()) is not None:
+                    value = [float_val]
+                elif (int_val :=
+                      self.parse_optional_int_literal()) is not None:
+                    value = [int_val]
+                else:
+                    raise ParserError(self._pos,
+                                      "expected a float or an integer list")
 
             self.parse_char(">")
             self.parse_char(":")
