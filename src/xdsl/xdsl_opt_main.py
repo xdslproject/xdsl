@@ -14,7 +14,6 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
-from xdsl.dialects.onnx import Onnx
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
@@ -166,7 +165,6 @@ class xDSLOptMain:
         cmath = CMath(self.ctx)
         irdl = IRDL(self.ctx)
         llvm = LLVM(self.ctx)
-        onnx = Onnx(self.ctx)
 
     def register_all_frontends(self):
         """
