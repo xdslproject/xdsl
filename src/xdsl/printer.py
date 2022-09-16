@@ -9,12 +9,11 @@ from dataclasses import dataclass, field
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
-from xdsl.dialects.builtin import (AnyArrayAttr, AnyVectorType,
-                                   DenseIntOrFPElementsAttr, FloatAttr,
-                                   IndexType, IntegerType, StringAttr,
-                                   FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr, TensorType,
-                                   UnitAttr, FunctionType, VectorType)
+from xdsl.dialects.builtin import (
+    AnyArrayAttr, AnyVectorType, DenseIntOrFPElementsAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
+    TensorType, UnitAttr, FunctionType, VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -294,6 +293,17 @@ class Printer:
             else:
                 self.print(f'!i{width.data}')
             return
+
+        if self.target == self.Target.MLIR:
+            if isinstance(attribute, Float16Type):
+                self.print('f16')
+                return
+            if isinstance(attribute, Float32Type):
+                self.print('f32')
+                return
+            if isinstance(attribute, Float64Type):
+                self.print('f64')
+                return
 
         if isinstance(attribute, StringAttr):
             self.print(f'"{attribute.data}"')
