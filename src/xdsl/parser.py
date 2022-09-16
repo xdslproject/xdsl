@@ -884,15 +884,6 @@ class Parser:
 
             return DenseIntOrFPElementsAttr.from_list(type_attr, value)
 
-        # function_type
-        def parse_function_type() -> Attribute | None:
-            self.parse_char('(')
-            inputs = self.parse_list(self.parse_optional_attribute)
-            self.parse_char(')')
-            self.parse_string("->")
-            output = self.parse_attribute()
-            return FunctionType.from_lists(inputs, [output])
-
         # opaque attribute
         if self.parse_optional_string("opaque") is not None:
             self.parse_char("<")
@@ -916,10 +907,6 @@ class Parser:
                 return FunctionType.from_lists(inputs, outputs)
             output = self.parse_attribute()
             return FunctionType.from_lists(inputs, [output])
-
-        fun = self.try_parse(parse_function_type)
-        if fun is not None:
-            return fun
 
         return None
 
