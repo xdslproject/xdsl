@@ -46,30 +46,30 @@
 
 
   "func.func"() ({
-    ^bb0(%arg0: vector<4xf32>, %arg1: vector<f32>, %arg2: vector<0x12xi32>):
+    ^bb0(%arg0: vector<4xf32>, %arg1: vector<f32>, %arg2: vector<1x12xi32>):
     "func.return"() : () -> ()
-  }) {function_type = (vector<4xf32>, vector<f32>, vector<0x12xi32>) -> (), sym_name = "vector_type"} : () -> ()
+  }) {function_type = (vector<4xf32>, vector<f32>, vector<1x12xi32>) -> (), sym_name = "vector_type"} : () -> ()
 
-  // CHECK: (vector<4xf32>, vector<f32>, vector<0x12xi32>)
+  // CHECK: (vector<4xf32>, vector<f32>, vector<1x12xi32>)
 
 
   "func.func"() ({
-    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<0x12xi32>):
+    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>):
     "func.return"() : () -> ()
-  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<0x12xi32>) -> (), sym_name = "tensor_type"} : () -> ()
+  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>) -> (), sym_name = "tensor_type"} : () -> ()
 
-  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<0x12xi32>)
+  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>)
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = dense<0> : tensor<0xi32>,
+                      value1 = dense<0> : tensor<1xi32>,
                       value2 = dense<[0.0, 1.0]> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: dense<[0]> : tensor<0xi32>
+  // CHECK: dense<[0]> : tensor<1xi32>
   // CHECK: dense<[0.0, 1.0]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = opaque<"test", "contents">,
+                      value1 = opaque<"test", "contents">
                       value2 = opaque<"test", "contents"> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
