@@ -774,7 +774,7 @@ class Parser:
                                        skip_white_space: bool = True
                                        ) -> AnyFloat | None:
         if self.parse_optional_string("f16") is not None:
-            return Float32Type()
+            return Float16Type()
         if self.parse_optional_string("f32") is not None:
             return Float32Type()
         if self.parse_optional_string("f64") is not None:
