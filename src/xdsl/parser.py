@@ -1,12 +1,11 @@
 from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
-from xdsl.dialects.builtin import (AnyFloat, AnyTensorType, AnyVectorType,
-                                   DenseIntOrFPElementsAttr, Float32Type,
-                                   Float64Type, FloatAttr, FunctionType,
-                                   IndexType, IntegerType, OpaqueAttr,
-                                   StringAttr, FlatSymbolRefAttr, IntegerAttr,
-                                   ArrayAttr, TensorType, UnitAttr, VectorType)
+from xdsl.dialects.builtin import (
+    AnyFloat, AnyTensorType, AnyVectorType, DenseIntOrFPElementsAttr,
+    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
+    IntegerType, OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr,
+    ArrayAttr, TensorType, UnitAttr, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
