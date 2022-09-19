@@ -2,9 +2,9 @@
 
 // Check that SSA values and blocks can reuse names across regions
 
-module() {
+builtin.module() {
 
-// CHECK: module() {
+// CHECK: builtin.module() {
 
   // Two functions that share a basic block name and a value name
   func.func() ["sym_name" = "id", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {

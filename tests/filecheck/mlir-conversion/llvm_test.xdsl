@@ -1,10 +1,10 @@
-// RUN: xdsl-opt -t mlir %s | filecheck %s
+// RUN: xdsl-opt -t mlir --use-mlir-bindings %s | filecheck %s
 
 
-module() {
+builtin.module() {
   // Type tests
   func.func() ["sym_name" = "struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!i32]>], [!llvm.struct<"", [!i32]>]>, "sym_visibility" = "private"] {
-  // CHECK: func.func private @struct_to_struct(%arg0: !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
+  // CHECK: func private @struct_to_struct(%arg0: !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
     ^0(%0 : !llvm.struct<"", [!i32]>):
       func.return(%0 : !llvm.struct<"", [!i32]>)
   // CHECK-NEXT:   return %arg0 : !llvm.struct<(i32)>
@@ -12,16 +12,24 @@ module() {
   // CHECK-NEXT: }
 
   func.func() ["sym_name" = "struct_to_struct2", "function_type" = !fun<[!llvm.struct<"", [!i32, !i32]>], [!llvm.struct<"", [!i32, !i32]>]>, "sym_visibility" = "private"] {
-    // CHECK: func.func private @struct_to_struct2(%arg0: !llvm.struct<(i32, i32)>) -> !llvm.struct<(i32, i32)> {
+    // CHECK: func private @struct_to_struct2(%arg0: !llvm.struct<(i32, i32)>) -> !llvm.struct<(i32, i32)> {
     ^1(%1 : !llvm.struct<"", [!i32, !i32]>):
       func.return(%1 : !llvm.struct<"", [!i32, !i32]>)
     // CHECK-NEXT: return %arg0 : !llvm.struct<(i32, i32)>
   }
   // CHECK-NEXT: }
 
+  func.func() ["sym_name" = "nested_struct_to_struct", "function_type" = !fun<[!llvm.struct<"", [!llvm.struct<"", [!i32]>]>], [!llvm.struct<"", [!llvm.struct<"", [!i32]>]>]>, "sym_visibility" = "private"] {
+  // CHECK-NEXT:  func private @nested_struct_to_struct(%arg0: !llvm.struct<(struct<(i32)>)>) -> !llvm.struct<(struct<(i32)>)> {
+    ^1(%1 : !llvm.struct<"", [!llvm.struct<"", [!i32]>]>):
+      func.return(%1 : !llvm.struct<"", [!llvm.struct<"", [!i32]>]>)
+  // CHECK-NEXT:  return %arg0 : !llvm.struct<(struct<(i32)>)>
+  }
+  // CHECK-NEXT:}
+
   // Op tests
   func.func() ["sym_name" = "main", "function_type" = !fun<[], []>, "sym_visibility" = "public"] {
-  // CHECK:  func.func public @main() {
+  // CHECK:  func public @main() {
     %2 : !i32 = arith.constant() ["value" = 1 : !i32]
   // CHECK-NEXT:  %c1_i32 = arith.constant 1 : i32
     %3 : !llvm.struct<"", [!i32]> = llvm.mlir.undef()

@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
                                    ArrayAttr, FlatSymbolRefAttr, StringAttr,
                                    FunctionType, TupleType, ModuleOp,
-                                   Float32Type)
+                                   Float32Type, SymbolNameAttr, UnitAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
 
@@ -39,6 +39,18 @@ class MLIRConverter:
         ]
         return mlir.ir.FunctionType.get(inputs, outputs)
 
+    def get_mlir_struct_string(self, typ: LLVMStructType) -> str:
+        types = []
+        for t in typ.types.data:
+            types.append(
+                self.get_mlir_struct_string(t) if isinstance(
+                    t, LLVMStructType) else str(self.convert_type(t)))
+        type_string = "(" + ", ".join(types) + ")"
+
+        if typ.struct_name.data == "":
+            return "!llvm.struct<" + type_string + ">"
+        return "!llvm.struct<" + typ.struct_name.data + ", " + type_string + ">"
+
     def convert_type(self, typ: Attribute) -> mlir.ir.Type:
         if isinstance(typ, Float32Type):
             return mlir.ir.F32Type.get()
@@ -55,23 +67,8 @@ class MLIRConverter:
             return mlir.ir.TupleType.get_tuple(
                 [self.convert_type(t) for t in typ.types.data])
         if isinstance(typ, LLVMStructType):
-            from xdsl.printer import Printer
-            from io import StringIO
-            types = []
-            for t in typ.types.data:
-                file = StringIO("")
-                p = Printer(stream=file)
-                p.print_attribute(t)
-                types.append(file.getvalue()[1:])
-            type_string = "(" + ", ".join(types) + ")"
-
-            if typ.struct_name.data != "":
-                mlir_module = mlir.ir.Module.parse(
-                    "%0 = llvm.mlir.undef : !llvm.struct<" +
-                    typ.struct_name.data + ", " + type_string + ">")
-            else:
-                mlir_module = mlir.ir.Module.parse(
-                    "%0 = llvm.mlir.undef : !llvm.struct<" + type_string + ">")
+            mlir_module = mlir.ir.Module.parse(
+                "%0 = llvm.mlir.undef : " + self.get_mlir_struct_string(typ))
             return mlir_module.body.operations.__getitem__(
                 0).operation.result.type
         raise Exception(f"Unsupported type for mlir conversion: {typ}")
@@ -106,6 +103,8 @@ class MLIRConverter:
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
+        if isinstance(attr, UnitAttr):
+            return mlir.ir.UnitAttr.get()
         # SymbolNameAttrs are in fact just StringAttrs
         if isinstance(attr, SymbolNameAttr):
             return mlir.ir.StringAttr.get(attr.parameters[0].data)
@@ -161,18 +160,22 @@ class MLIRConverter:
             mlir_block = self.block_to_mlir_blocks[block]
             self.convert_block(block, mlir_block)
 
+    def convert_module_with_ctx(self, op: Operation,
+                                mlir_ctx: mlir.ir.Context) -> mlir.ir.Module:
+        with mlir.ir.Location.unknown(mlir_ctx):
+            if not isinstance(op, ModuleOp):
+                raise Exception("top-level operation should be a ModuleOp")
+            mlir_module = mlir.ir.Module.create()
+            mlir_block = mlir_module.operation.regions[0].blocks[0]
+            block = op.regions[0].blocks[0]
+
+            ip = mlir.ir.InsertionPoint.at_block_begin(mlir_block)
+            for op in block.ops:
+                ip.insert(self.convert_op(op))
+            return mlir_module
+
     def convert_module(self, op: Operation) -> mlir.ir.Module:
         with mlir.ir.Context() as mlir_ctx:
             mlir_ctx.allow_unregistered_dialects = True
             self.register_external_dialects()
-            with mlir.ir.Location.unknown(mlir_ctx):
-                if not isinstance(op, ModuleOp):
-                    raise Exception("top-level operation should be a ModuleOp")
-                mlir_module = mlir.ir.Module.create()
-                mlir_block = mlir_module.operation.regions[0].blocks[0]
-                block = op.regions[0].blocks[0]
-
-                ip = mlir.ir.InsertionPoint.at_block_begin(mlir_block)
-                for op in block.ops:
-                    ip.insert(self.convert_op(op))
-                return mlir_module
+            return self.convert_module_with_ctx(op, mlir_ctx)

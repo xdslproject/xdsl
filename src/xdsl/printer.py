@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+from frozenlist import FrozenList
+
 from xdsl.diagnostic import Diagnostic
-from typing import TypeVar, Any, Dict, Optional, List
+from typing import TypeVar, Any, Dict, Optional, List, cast
 
 from dataclasses import dataclass, field
-from xdsl.ir import (SSAValue, Block, Callable, Attribute, Region, Operation)
-from xdsl.dialects.builtin import (IntegerType, StringAttr, FlatSymbolRefAttr,
-                                   IntegerAttr, ArrayAttr,
-                                   ParametrizedAttribute, IntAttr)
+from xdsl.dialects.memref import MemRefType
+from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
+                     Attribute, Region, Operation)
+from xdsl.dialects.builtin import (
+    AnyArrayAttr, AnyVectorType, DenseIntOrFPElementsAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr,
+    OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
+    VectorType)
 from xdsl.irdl import Data
+from enum import Enum
 
 indentNumSpaces = 2
 
@@ -16,11 +24,15 @@ indentNumSpaces = 2
 @dataclass(eq=False, repr=False)
 class Printer:
 
+    class Target(Enum):
+        XDSL = 1
+        MLIR = 2
+
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
-    print_operand_types: bool = field(default=True)
-    print_result_types: bool = field(default=True)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    target: Target = field(default=Target.XDSL)
+
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
     _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
@@ -32,7 +44,7 @@ class Printer:
     _next_line_callback: List[Callable[[], None]] = field(default_factory=list,
                                                           init=False)
 
-    def print(self, *argv) -> None:
+    def print(self, *argv: Any) -> None:
         for arg in argv:
             if isinstance(arg, str):
                 self.print_string(arg)
@@ -52,7 +64,7 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
-    def print_string(self, text) -> None:
+    def print_string(self, text: str) -> None:
         lines = text.split('\n')
         if len(lines) != 1:
             self._current_line += len(lines) - 1
@@ -64,15 +76,18 @@ class Printer:
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        self._next_line_callback.append(
-            (lambda indent: lambda: self._print_message(
-                message, begin_pos, end_pos, indent))(self._indent))
+        # Python does not have a way to specify the type of an optional
+        # argument.
+        callback: Callable[[int], None] = (
+            lambda indent=self._indent: self._print_message(
+                message, begin_pos, end_pos, indent))
+        self._next_line_callback.append(cast(Callable[[], None], callback))
 
     def _print_message(self,
                        message: str,
                        begin_pos: int,
                        end_pos: int,
-                       indent=None):
+                       indent: int | None = None):
         """
         Print a message.
         This is expected to be called at the beginning of a new line and to create a new line at the end.
@@ -96,16 +111,20 @@ class Printer:
 
     T = TypeVar('T')
 
-    def print_list(self, elems: List[T], print_fn: Callable[[T],
-                                                            None]) -> None:
+    def print_list(self,
+                   elems: FrozenList[T] | List[T],
+                   print_fn: Callable[[T], None],
+                   delimiter: str = ", ") -> None:
         if len(elems) == 0:
             return
         print_fn(elems[0])
         for elem in elems[1:]:
-            self.print(", ")
+            self.print(delimiter)
             print_fn(elem)
 
-    def _print_new_line(self, indent=None, print_message=True) -> None:
+    def _print_new_line(self,
+                        indent: int | None = None,
+                        print_message: bool = True) -> None:
         indent = self._indent if indent is None else indent
         self.print("\n")
         if print_message:
@@ -136,7 +155,7 @@ class Printer:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
         self.print("%s" % name)
-        if self.print_result_types:
+        if self.target == self.Target.XDSL:
             self.print(" : ")
             self.print_attribute(val.typ)
 
@@ -174,7 +193,7 @@ class Printer:
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-        if self.print_operand_types:
+        if self.target == self.Target.XDSL:
             self.print(" : ")
             self.print_attribute(operand.typ)
 
@@ -214,24 +233,32 @@ class Printer:
 
     def print_region(self, region: Region) -> None:
         if len(region.blocks) == 0:
-            self.print(" {}")
+            self.print("{}")
             return
 
         if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
-            self.print(" {")
+            self.print("{")
             self._print_ops(region.blocks[0].ops)
             self.print("}")
             return
 
-        self.print(" {")
+        self.print("{")
         self._print_new_line()
         for block in region.blocks:
             self._print_named_block(block)
         self.print("}")
 
     def print_regions(self, regions: List[Region]) -> None:
-        for region in regions:
-            self.print_region(region)
+        if len(regions) == 0:
+            return
+
+        if self.target == self.Target.MLIR:
+            self.print(" (")
+            self.print_list(regions, self.print_region)
+            self.print(")")
+        else:
+            self.print(" ")
+            self.print_list(regions, self.print_region, delimiter=" ")
 
     def _print_operands(self, operands: FrozenList[SSAValue]) -> None:
         if len(operands) == 0:
@@ -245,19 +272,46 @@ class Printer:
             self._print_operand(operand)
         self.print(")")
 
+    def print_paramattr_parameters(
+            self,
+            params: list[Attribute],
+            always_print_brackets: bool = False) -> None:
+        if len(params) == 0 and not always_print_brackets:
+            return
+        self.print("<")
+        self.print_list(params, self.print_attribute)
+        self.print(">")
+
     def print_attribute(self, attribute: Attribute) -> None:
+        if isinstance(attribute, UnitAttr):
+            return
+
         if isinstance(attribute, IntegerType):
             width = attribute.parameters[0]
             assert isinstance(width, IntAttr)
-            self.print(f'!i{width.data}')
+            if self.target == self.Target.MLIR:
+                self.print(f'i{width.data}')
+            else:
+                self.print(f'!i{width.data}')
             return
+
+        if self.target == self.Target.MLIR:
+            if isinstance(attribute, Float16Type):
+                self.print('f16')
+                return
+            if isinstance(attribute, Float32Type):
+                self.print('f32')
+                return
+            if isinstance(attribute, Float64Type):
+                self.print('f64')
+                return
 
         if isinstance(attribute, StringAttr):
             self.print(f'"{attribute.data}"')
             return
 
         if isinstance(attribute, FlatSymbolRefAttr):
-            self.print(f'@{attribute.parameters[0].data}')
+            self.print(f'@{attribute.data.data}')
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -269,58 +323,203 @@ class Printer:
             self.print_attribute(typ)
             return
 
+        if isinstance(attribute, FloatAttr):
+            value = attribute.value
+            typ = attribute.type
+            self.print(value.data)
+            self.print(" : ")
+            self.print_attribute(typ)
+            return
+
         if isinstance(attribute, ArrayAttr):
             self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)
+            self.print_list(
+                attribute.data,  # type: ignore
+                self.print_attribute)
             self.print_string("]")
+            return
+
+        # Function types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, FunctionType)
+                and self.target == self.Target.MLIR):
+            self.print("(")
+            self.print_list(attribute.inputs.data, self.print_attribute)
+            self.print(") -> ")
+            outputs = attribute.outputs.data
+            if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
+                self.print_attribute(outputs[0])
+            else:
+                self.print("(")
+                self.print_list(outputs, self.print_attribute)
+                self.print(")")
+            return
+
+        # Dense element types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, DenseIntOrFPElementsAttr)
+                and self.target == self.Target.MLIR):
+
+            def print_dense_list(array: AnyArrayAttr):
+
+                def print_one_elem(val: Attribute):
+                    if isinstance(val, ArrayAttr):
+                        print_dense_list(cast(AnyArrayAttr, val))
+                    elif isinstance(val, IntegerAttr):
+                        self.print(val.value.data)
+                    elif isinstance(val, FloatAttr):
+                        self.print(val.value.data)
+                    else:
+                        raise Exception("unexpected attribute type "
+                                        "in DenseIntOrFPElementsAttr: "
+                                        f"{type(val)}")
+
+                self.print_list(array.data, print_one_elem)
+
+            self.print("dense<[")
+            print_dense_list(attribute.data)
+            self.print("]> : ")
+            self.print(attribute.type)
+            return
+
+        # vector types have an alias in MLIR, but not in xDSL
+        if ((isinstance(attribute, VectorType)
+             or isinstance(attribute, TensorType))
+                and self.target == self.Target.MLIR):
+            attribute = cast(AnyVectorType, attribute)
+            self.print(
+                "vector<" if isinstance(attribute, VectorType) else "tensor<")
+            self.print_list(attribute.shape.data,
+                            lambda x: self.print(x.value.data), "x")
+            if len(attribute.shape.data) != 0:
+                self.print("x")
+            self.print(attribute.element_type)
+            self.print(">")
+            return
+
+        # memref types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, MemRefType)
+                and self.target == self.Target.MLIR):
+            attribute = cast(MemRefType[Attribute], attribute)
+            self.print("memref<")
+            self.print_list(attribute.shape.data,
+                            lambda x: self.print(x.value.data), "x")
+            self.print("x", attribute.element_type)
+            self.print(">")
+            return
+
+        # index type have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, IndexType)
+                and self.target == self.Target.MLIR):
+            self.print("index")
+            return
+
+        # opaque attributes have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, OpaqueAttr)
+                and self.target == self.Target.MLIR):
+            self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
+            if not isinstance(attribute.type, NoneAttr):
+                self.print(" : ", attribute.type)
+            return
+
+        if self.target == self.Target.MLIR:
+            # For the MLIR target, we may print differently some attributes
+            self.print("!" if isinstance(attribute, MLIRType) else "#")
+            self.print(attribute.name)
+
+            if isinstance(attribute, Data):
+                self.print("<")
+                attribute = cast(Data[Any], attribute)
+                attribute.print_parameter(attribute.data, self)
+                self.print(">")
+                return
+
+            assert isinstance(attribute, ParametrizedAttribute)
+
+            attribute.print_parameters(self)
             return
 
         if isinstance(attribute, Data):
             self.print(f'!{attribute.name}<')
+            attribute = cast(Data[Any], attribute)
             attribute.print_parameter(attribute.data, self)
             self.print(">")
             return
 
         assert isinstance(attribute, ParametrizedAttribute)
 
+        # Print parametrized attribute with default formatting
+        if self.target == self.Target.XDSL and self.print_generic_format:
+            self.print(f'!"{attribute.name}"')
+            self.print_paramattr_parameters(attribute.parameters,
+                                            always_print_brackets=True)
+            return
+
         self.print(f'!{attribute.name}')
-        if len(attribute.parameters) != 0:
-            self.print("<")
-            self.print_list(attribute.parameters, self.print_attribute)
-            self.print(">")
+        attribute.print_parameters(self)
 
     def print_successors(self, successors: List[Block]):
         if len(successors) == 0:
             return
-        self.print(" (")
+        self.print(" (" if self.target == self.Target.XDSL else " [")
         self.print_list(successors, self.print_block_name)
-        self.print(")")
+        self.print(")" if self.target == self.Target.XDSL else "]")
+
+    def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
+        if isinstance(attr_tuple[1], UnitAttr):
+            self.print(f"\"{attr_tuple[0]}\"")
+        else:
+            self.print(f"\"{attr_tuple[0]}\" = ")
+            self.print_attribute(attr_tuple[1])
 
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
         if len(attributes) == 0:
             return
 
         self.print(" ")
-        self.print("[")
+        self.print("[" if self.target == Printer.Target.XDSL else "{")
 
         attribute_list = [p for p in attributes.items()]
-        self.print("\"%s\" = " % attribute_list[0][0])
-        self.print_attribute(attribute_list[0][1])
-        for (attr_name, attr) in attribute_list[1:]:
-            self.print(", \"%s\" = " % attr_name)
-            self.print_attribute(attr)
-        self.print("]")
+        self.print_list(attribute_list, self._print_attr_string)
+
+        self.print("]" if self.target == Printer.Target.XDSL else "}")
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self._print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_attributes(op.attributes)
-        self.print_regions(op.regions)
+
+        # We print attributes with the operation in xDSL.
+        if self.target == self.Target.XDSL:
+            self._print_op_attributes(op.attributes)
+            self.print_regions(op.regions)
+        else:
+            self.print_regions(op.regions)
+            self._print_op_attributes(op.attributes)
+
+        # Print the operation type
+        if self.target == self.Target.MLIR:
+            self.print(" : (")
+            self.print_list(op.operands,
+                            lambda operand: self.print_attribute(operand.typ))
+            self.print(") -> ")
+            if len(op.results) == 0:
+                self.print("()")
+            elif len(op.results) == 1:
+                typ = op.results[0].typ
+                # Handle ambiguous case
+                if isinstance(typ, FunctionType):
+                    self.print("(", typ, ")")
+                else:
+                    self.print(typ)
+            else:
+                self.print("(")
+                self.print_list(
+                    op.results,
+                    lambda result: self.print_attribute(result.typ))
+                self.print(")")
 
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column
         self._print_results(op)
-        if self.print_generic_format:
+        if self.print_generic_format or self.target == self.Target.MLIR:
             self.print(f'"{op.name}"')
         else:
             self.print(op.name)
@@ -329,7 +528,7 @@ class Printer:
             for message in self.diagnostic.op_messages[op]:
                 self._add_message_on_next_line(message, begin_op_pos,
                                                end_op_pos)
-        if self.print_generic_format:
+        if self.print_generic_format or self.target == self.Target.MLIR:
             self.print_op_with_default_format(op)
         else:
             op.print(self)

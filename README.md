@@ -11,7 +11,7 @@ pip install -r requirements.txt
 Optional dependencies, necessary for formatting the code may be installed via:
 
 ```
-pip install -r requirements-optionals.txt
+pip install -r requirements-optional.txt
 ```
 
 TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
@@ -33,11 +33,12 @@ lit tests/filecheck
 ## Generating executables through MLIR
 
 xDSL can generate executables using MLIR as the backend. To use this
-functionality, make sure to install the [MLIR Python
-Bindings](https://mlir.llvm.org/docs/Bindings/Python/). Given an input file
-`input.xdsl`, that contains IR with only the mirrored dialects found in
-`src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf),
-run:
+functionality, make sure to have clang, mlir-opt and mlir-translate installed
+and in the PATH. Clang can be installed by standard package managers (apt,
+pacman...), for MLIR follow [this](https://mlir.llvm.org/getting_started/) and
+run `ninja install` afterward. Given an input file `input.xdsl`, that contains
+IR with only the mirrored dialects found in `src/xdsl/dialects` (arith, builtin,
+cf, func, irdl, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic from to tmp.mlir

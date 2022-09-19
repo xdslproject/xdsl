@@ -34,13 +34,13 @@ def test_non_recursive_rewrite():
     """Test a simple non-recursive rewrite"""
 
     prog = \
-"""module() {
+"""builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
 %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -61,13 +61,13 @@ def test_non_recursive_rewrite_reversed():
     """Test a simple non-recursive rewrite with reverse walk order."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
 %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -90,13 +90,13 @@ def test_op_type_rewrite_pattern_method_decorator():
     """Test op_type_rewrite_pattern decorator on methods."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -116,13 +116,13 @@ def test_op_type_rewrite_pattern_static_decorator():
     """Test op_type_rewrite_pattern decorator on static functions."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -141,12 +141,12 @@ def test_recursive_rewriter():
     """Test recursive walks on operations created by rewrites."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i64]
   %1 : !i32 = arith.constant() ["value" = 1 : !i64]
   %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -180,12 +180,12 @@ def test_recursive_rewriter_reversed():
     """Test recursive walks on operations created by rewrites, in reverse walk order."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i64]
   %1 : !i32 = arith.constant() ["value" = 1 : !i64]
   %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -220,13 +220,13 @@ def test_greedy_rewrite_pattern_applier():
     """Test GreedyRewritePatternApplier."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
 }"""
@@ -237,7 +237,7 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Muli.get(op.input1, op.input2)])
+        rewriter.replace_matched_op([Muli.get(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog, expected,
@@ -252,12 +252,12 @@ def test_insert_op_before_matched_op():
     """Test rewrites where operations are inserted before the matched operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
@@ -277,12 +277,12 @@ def test_insert_op_at_pos():
     """Test rewrites where operations are inserted with a given position."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
@@ -302,12 +302,12 @@ def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
@@ -327,12 +327,12 @@ def test_insert_op_after():
     """Test rewrites where operations are inserted after a given operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
   %1 : !i32 = arith.constant() ["value" = 42 : !i32]
 }"""
@@ -352,12 +352,12 @@ def test_insert_op_after_matched_op():
     """Test rewrites where operations are inserted after a given operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
   %1 : !i32 = arith.constant() ["value" = 42 : !i32]
 }"""
@@ -377,12 +377,12 @@ def test_insert_op_after_matched_op_reversed():
     """Test rewrites where operations are inserted after a given operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
   %1 : !i32 = arith.constant() ["value" = 42 : !i32]
 }"""
@@ -403,12 +403,12 @@ def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
     expected = \
-"""module() {}"""
+"""builtin.module() {}"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -426,13 +426,13 @@ def test_operation_deletion_reversed():
     """
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
 
     expected = \
-"""module() {}"""
+"""builtin.module() {}"""
 
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
@@ -452,7 +452,7 @@ def test_operation_deletion_failure():
     arith = Arith(ctx)
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -477,13 +477,13 @@ def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
 
     expected = \
-"""module() {}"""
+"""builtin.module() {}"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
@@ -498,13 +498,13 @@ def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
 }"""
 
@@ -521,21 +521,21 @@ def test_block_argument_type_change():
     """Test the modification of a block argument type."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
   %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
-}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
   ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -553,17 +553,17 @@ def test_block_argument_erasure():
     """Test the erasure of a block argument."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
-}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -580,17 +580,17 @@ def test_block_argument_insertion():
     """Test the insertion of a block argument."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
-scf.if(%0 : !i1) {}
+scf.if(%0 : !i1) {} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
   ^0(%1 : !i32):
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -607,22 +607,22 @@ def test_inline_block_at_pos():
     """Test the inlining of a block at a certain position."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
-}
+  } {}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {}
-  }
+    scf.if(%0 : !i1) {} {}
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -643,18 +643,18 @@ def test_inline_block_before_matched_op():
     """Test the inlining of a block before the matched operation."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -671,22 +671,22 @@ def test_inline_block_before():
     """Test the inlining of a block before an operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
-}
+  } {}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {}
-  }
+    scf.if(%0 : !i1) {} {}
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -708,18 +708,18 @@ def test_inline_block_at_before_when_op_is_matched_op():
     """Test the inlining of a block before an operation, being the matched one."""
 
     prog = \
-    """module() {
+    """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = 1 : !i1]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+} {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
@@ -736,22 +736,22 @@ def test_inline_block_after():
     """Test the inlining of a block after an operation."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     scf.if(%0 : !i1) {
       %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    }
-  }
+    } {}
+  } {}
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {}
+    scf.if(%0 : !i1) {} {}
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
+  } {}
 }"""
 
     @op_type_rewrite_pattern
@@ -773,7 +773,7 @@ def test_move_region_contents_to_new_regions():
     """Test moving a region outside of a region."""
 
     prog = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -781,7 +781,7 @@ def test_move_region_contents_to_new_regions():
 }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i1 = arith.constant() ["value" = 1 : !i1]
   scf.if(%0 : !i1) {}
   scf.if(%0 : !i1) {

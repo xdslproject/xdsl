@@ -173,6 +173,22 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
+@dataclass
+class MLIRType:
+    """
+    A class representing an MLIR type.
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    def __post_init__(self):
+        if not isinstance(self, Attribute):
+            raise TypeError(
+                "MLIRType should only be inherited by classes inheriting Attribute"
+            )
+
+
 A = TypeVar('A', bound='Attribute')
 
 
@@ -227,6 +243,15 @@ class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
     parameters: list[Attribute] = field(default_factory=list)
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        """Parse the attribute parameters."""
+        return parser.parse_paramattr_parameters()
+
+    def print_parameters(self, printer: Printer) -> None:
+        """Print the attribute parameters."""
+        printer.print_paramattr_parameters(self.parameters)
 
     @classmethod
     @property

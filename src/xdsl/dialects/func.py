@@ -4,9 +4,9 @@ from typing import List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbolRefAttr
 from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
-                       RegionDef, Region, Operation, AttributeDef,
-                       VarResultDef, OptAttributeDef)
+from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
+                       AnyAttr, Block, RegionDef, Region, Operation,
+                       AttributeDef, VarResultDef)
 
 
 @dataclass
