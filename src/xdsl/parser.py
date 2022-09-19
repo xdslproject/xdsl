@@ -90,8 +90,6 @@ class ParserError(Exception):
 
 @dataclass
 class Parser:
-    _ctx: MLContext
-    """xDSL context."""
 
     class Source(Enum):
         XDSL = 1

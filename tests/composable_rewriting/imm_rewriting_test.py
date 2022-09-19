@@ -216,7 +216,7 @@ def test_double_commute():
     """Tests a strategy which swaps the two operands of an arith.addi."""
 
     before = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 4 : !i32]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   %2 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -226,7 +226,7 @@ def test_double_commute():
 }
 """
     once_commuted = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 4 : !i32]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   %2 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -280,7 +280,7 @@ def test_commute_block_args():
     an arith.addi which are block_args."""
 
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -289,7 +289,7 @@ def test_commute_block_args():
 }
 """
     commuted = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
@@ -342,7 +342,7 @@ def test_commute_block_args():
 
 def test_rewriting_with_blocks():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
@@ -354,7 +354,7 @@ def test_rewriting_with_blocks():
 }
 """
     constant_changed = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i1):
     %1 : !i32 = scf.if(%0 : !i1) {
@@ -380,7 +380,7 @@ def test_rewriting_with_blocks():
                                "change_cst_to_42_top_down")
 def test_constant_folding():
     before = \
-"""module() {
+"""builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -390,7 +390,7 @@ func.return(%4 : !i32)
 }
 """
     once_folded = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   %2 : !i32 = arith.constant() ["value" = 3 : !i32]
@@ -400,7 +400,7 @@ func.return(%4 : !i32)
 }
 """
     twice_folded = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   %2 : !i32 = arith.constant() ["value" = 3 : !i32]
@@ -410,7 +410,7 @@ func.return(%4 : !i32)
 }
 """
     twice_folded_garbage_collected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 7 : !i32]
   func.return(%0 : !i32)
 }
@@ -459,7 +459,7 @@ func.return(%4 : !i32)
 
 def test_inline_if():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
   ^0():
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
@@ -472,7 +472,7 @@ def test_inline_if():
 }
 """
     inlined = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -481,7 +481,7 @@ def test_inline_if():
 }
 """
     inlined_garbage_collected = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     func.return(%0 : !i32)
@@ -507,7 +507,7 @@ def test_inline_if():
 
 def test_inline_and_fold():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
   ^0():
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
@@ -525,7 +525,7 @@ def test_inline_and_fold():
 """
 
     inlined = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -538,7 +538,7 @@ def test_inline_and_fold():
 }
 """
     folded_and_inlined = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i1 = arith.constant() ["value" = 1 : !i1]
     %1 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -551,7 +551,7 @@ def test_inline_and_fold():
 }
 """
     folded_and_inlined_garbage_collected = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 7 : !i32]
     func.return(%0 : !i32)
@@ -627,13 +627,13 @@ def test_inline_and_fold():
     
 def test_add_zero():
     before = \
-"""module() {
+"""builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 func.return(%0 : !i32)
 }
 """
     added_zero = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   %1 : !i32 = arith.constant() ["value" = 0 : !i32]
   %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -655,7 +655,7 @@ func.return(%0 : !i32)
 
 def test_remove_add_zero():
     before = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   %1 : !i32 = arith.constant() ["value" = 0 : !i32]
   %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
@@ -663,14 +663,14 @@ def test_remove_add_zero():
 }
 """
     removed_add_zero = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   %1 : !i32 = arith.constant() ["value" = 0 : !i32]
   func.return(%0 : !i32)
 }
 """
     removed_add_zero_garbage_collected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
   func.return(%0 : !i32)
 }
@@ -698,7 +698,7 @@ def test_deeper_nested_block_args_commute():
     """
   
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.constant() ["value" = 1 : !i1]
@@ -711,7 +711,7 @@ def test_deeper_nested_block_args_commute():
 }
 """
     nested_commute = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.constant() ["value" = 1 : !i1]
@@ -742,7 +742,7 @@ def test_mul2_to_lshift():
     """
   
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32):
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -752,7 +752,7 @@ def test_mul2_to_lshift():
 }
 """
     left_shifted = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32):
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -763,7 +763,7 @@ def test_mul2_to_lshift():
 }
 """
     left_shifted_garbage_collected = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "times_2", "type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32):
     %1 : !i32 = arith.constant() ["value" = 1 : !i32]

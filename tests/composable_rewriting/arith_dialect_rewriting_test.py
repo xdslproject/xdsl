@@ -58,7 +58,7 @@ def test_expand_ceildivui():
         # This rewrite is actually not 100% correct, as unsigned types are not supported currently
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=arith.CeilDiviUI,
+                case IOp(op_type=arith.CeilDivUI,
                          operands=[lhs, rhs],
                          results=[IResult(type)]):
 
@@ -80,7 +80,7 @@ def test_expand_ceildivui():
                 case _:
                     return failure(self)
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.ceildivui(%0 : !i32, %1 : !i32)
@@ -89,7 +89,7 @@ def test_expand_ceildivui():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.constant() ["value" = 0 : !i32]
@@ -118,7 +118,7 @@ def test_expand_ceildivsi():
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=arith.CeilDiviSI,
+                case IOp(op_type=arith.CeilDivSI,
                          operands=[lhs, rhs],
                          results=[IResult(type)]):
                     cst_0 = new_cst(0)
@@ -153,7 +153,7 @@ def test_expand_ceildivsi():
                     return failure(self)
 
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.ceildivsi(%0 : !i32, %1 : !i32)
@@ -162,7 +162,7 @@ def test_expand_ceildivsi():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.constant() ["value" = 0 : !i32]
@@ -202,7 +202,7 @@ def test_expand_floordivsi():
 
         def impl(self, op: IOp) -> RewriteResult:
             match op:
-                case IOp(op_type=arith.FloorDiviSI,
+                case IOp(op_type=arith.FloorDivSI,
                          operands=[lhs, rhs],
                          results=[IResult(type)]):
                     cst_0 = new_cst(0)
@@ -236,7 +236,7 @@ def test_expand_floordivsi():
                     return failure(self)
 
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.floordivsi(%0 : !i32, %1 : !i32)
@@ -245,7 +245,7 @@ def test_expand_floordivsi():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.divsi(%0 : !i32, %1 : !i32)
@@ -304,7 +304,7 @@ class ExpandMaxMinI(Strategy):
 
 def test_expand_minui():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.minui(%0 : !i32, %1 : !i32)
@@ -313,7 +313,7 @@ def test_expand_minui():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.cmpi(%0 : !i32, %1 : !i32) ["predicate" = 6 : !i64]
@@ -327,7 +327,7 @@ def test_expand_minui():
 
 def test_expand_minsi():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.minsi(%0 : !i32, %1 : !i32)
@@ -336,7 +336,7 @@ def test_expand_minsi():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.cmpi(%0 : !i32, %1 : !i32) ["predicate" = 2 : !i64]
@@ -350,7 +350,7 @@ def test_expand_minsi():
 
 def test_expand_maxui():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.maxui(%0 : !i32, %1 : !i32)
@@ -359,7 +359,7 @@ def test_expand_maxui():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.cmpi(%0 : !i32, %1 : !i32) ["predicate" = 8 : !i64]
@@ -373,7 +373,7 @@ def test_expand_maxui():
 
 def test_expand_maxsi():
     before = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.maxsi(%0 : !i32, %1 : !i32)
@@ -382,7 +382,7 @@ def test_expand_maxsi():
 }
 """
     expanded = \
-"""module() {
+"""builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i1 = arith.cmpi(%0 : !i32, %1 : !i32) ["predicate" = 4 : !i64]

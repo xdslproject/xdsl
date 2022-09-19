@@ -1,4 +1,4 @@
-module() {
+builtin.module() {
 
   ////////////////////////////////////////////////////////////////////////////////
   //   Define completely custom strategies with the match & rewrite dialects    //

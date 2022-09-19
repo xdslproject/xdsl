@@ -22,9 +22,12 @@ class Arith:
         self.ctx.register_op(Addi)
         self.ctx.register_op(Muli)
         self.ctx.register_op(Subi)
+        self.ctx.register_op(DivUI)
+        self.ctx.register_op(DivSI)
         self.ctx.register_op(FloorDivSI)
         self.ctx.register_op(CeilDivSI)
         self.ctx.register_op(CeilDivUI)
+        self.ctx.register_op(ShLI)
         self.ctx.register_op(RemSI)
         self.ctx.register_op(MinSI)
         self.ctx.register_op(MaxSI)
@@ -128,6 +131,46 @@ class Subi(Operation):
         operand1 = SSAValue.get(operand1)
         return Subi.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class DivUI(Operation):
+    name: str = "arith.divui"
+    input1 = OperandDef(IntegerType)
+    input2 = OperandDef(IntegerType)
+    output = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> DivUI:
+        return DivUI.build(operands=[operand1, operand2],
+                           result_types=[IntegerType.from_width(32)])
+
+
+@irdl_op_definition
+class DivSI(Operation):
+    name: str = "arith.divsi"
+    input1 = OperandDef(IntegerType)
+    input2 = OperandDef(IntegerType)
+    output = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.input1.typ != self.input2.typ or self.input2.typ != self.output.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> DivSI:
+        return DivSI.build(operands=[operand1, operand2],
+                           result_types=[IntegerType.from_width(32)])
 
 
 @irdl_op_definition
