@@ -619,15 +619,21 @@ class Parser:
     def parse_optional_attribute(self,
                                  skip_white_space: bool = True
                                  ) -> Attribute | None:
+        # If we are parsing an MLIR file, we first try to parse builtin
+        # attributes, which have a different format.
         if self.source == self.Source.MLIR:
             if attr := self.parse_optional_mlir_attribute(
                     skip_white_space=skip_white_space):
                 return attr
 
+        # If we are parsing an xDSL file, we first try to parse builtin
+        # attributes, which have a different format.
         if self.source == self.Source.XDSL:
             if attr := self.parse_optional_xdsl_builtin_attribute(
                     skip_white_space=skip_white_space):
                 return attr
+
+        # Then, we parse attributes/types with the generic format.
 
         if self.parse_optional_char("!") is None:
             if self.source == self.Source.MLIR:
