@@ -89,12 +89,12 @@ class InlineApply(Strategy):
         match consumer_apply := op:
             case IOp(op_type=stencil.Apply) if (matched_bits := match_inlinable(consumer_apply)):
                 (producer_apply, access_op_to_inline_at, operand_to_inline) = matched_bits
-                new_apply_operands: list[ISSAValue] = producer_apply.operands + op.operands
-                new_apply_block_args: list[IBlockArg] = producer_apply.region.block.args + op.region.block.args
+                new_apply_operands: list[ISSAValue] = producer_apply.operands + consumer_apply.operands
+                new_apply_block_args: list[IBlockArg] = producer_apply.region.block.args + consumer_apply.region.block.args
 
                 assert access_op_to_inline_at is not None
                 assert consumer_apply.region is not None
-                assert op.region is not None
+                assert consumer_apply.region is not None
                 
                 inlining_index = consumer_apply.region.ops.index(access_op_to_inline_at)
                 
@@ -104,7 +104,7 @@ class InlineApply(Strategy):
                                             modify_op=self.handle_merging(producer_apply, consumer_apply, access_op_to_inline_at, operand_to_inline))
 
                 new_apply = new_op(op_type=stencil.Apply, operands=new_apply_operands, 
-                        result_types=op.result_types, attributes=op.attributes, 
+                        result_types=consumer_apply.result_types, attributes=consumer_apply.attributes, 
                         regions=[IRegion([new_apply_block])])
 
                 return success(new_apply)

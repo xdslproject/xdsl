@@ -1,24 +1,54 @@
-module() {
+builtin.module() {
 
   ////////////////////////////////////////////////////////////////////////////////
   //   Define completely custom strategies with the match & rewrite dialects    //
   ////////////////////////////////////////////////////////////////////////////////
 
   %inline : !strategy = elevate.strategy() {
-    %consumer_apply : !operation = match.root_op() ["name" = "stencil.apply"]
+    // automatically using results here should work with ranges as well (i.e. all results are in the range)
+    (%consumer_apply : !operation, %cons_apply_vals : !range<!value>) = match.root_op() ["name" = "stencil.apply"]
     (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = match.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
     
+    // concat producer and consumer operands
     %producer_operands : !range<!value> = match.get_operands(%producer_apply : !operation)
-    %consumer_operands : !range<!value> = match.get_operands(%consumer_apply : !operation)
-    
-    // TODO: implement the rest of the rewrite
+    %consumer_operands : !range<!value> = match.get_operands(%consumer_apply : !operation)    
+    %new_operands : !range<!value> = rewrite.concat(%producer_operands : !range<!value>, %consumer_operands : !range<!value>)
 
-    // Concatenate the operands of the producer and consumer apply
+    // concat producer and consumer blockargs
+    %producer_args : !range<!value> = match.get_block_args(%producer_apply : !operation)
+    %consumer_args : !range<!value> = match.get_block_args(%consumer_apply : !operation)
+    %new_args : !range<!value> = rewrite.concat(%producer_args : !range<!value>, %consumer_args : !range<!value>)
 
-    // get block args and concatenate 
-    // ...
+    // Get index to inline at
+    %consumer_ops : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation)
+    %inlining_idx : !index = match.get_index_of_op_in_range(%access_op_to_inline_at : !operation, %consumer_ops : !range<!operation>)
+    %cst0 : !index = arith.constant() ["value" = 0 : !index]
+    %cst1 : !index = arith.constant() ["value" = 1 : !index]
+    %inlining_idx_plus_one : !index = arith.addi(%inlining_idx : !index, %cst1 : !index)
 
-    rewrite.success(%consumer_apply : !operation)
+    // create list of new ops from consumer and producer
+    %consumer_ops_first_half : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation, %inlining_idx : !index) ["custom_ub" = 1 : !i1]
+    %consumer_ops_second_half : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation, %inlining_idx_plus_one : !index) ["custom_lb" = 1 : !i1]
+    %producer_ops : !range<!operation> = match.get_nested_ops(%producer_apply : !operation)
+    %new_ops : !range<!operation> = rewrite.concat(%consumer_ops_first_half : !range<!operation>, %producer_ops : !range<!operation>, %consumer_ops_second_half : !range<!operation>)
+
+    // create region for the new applyOp
+    %custom_merger : !native_handle = rewrite.apply_native_rewrite(%producer_apply : !operation, %consumer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) ["rewriter_name" = "inlining_merger"]
+    %new_apply_block : !block = rewrite.new_block(%new_args : !range<!value>, %new_ops : !range<!operation>, %custom_merger : !native_handle)
+    %new_apply_region : !region = rewrite.region_from_blocks(%new_apply_block : !block)
+
+    // create new applyOp
+    %result_types : !range<!type<!any>> = match.get_type(%cons_apply_vals : !range<!value>)
+    %attributes : !range<!attribute> = match.get_attributes(%consumer_apply : !operation)
+    // // We have to get the types in here as well (might be multiple)
+    %new_apply_op : !operation = rewrite.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
+
+
+    // new_op(op_type=stencil.Apply, operands=new_apply_operands, 
+    //                       result_types=consumer_apply.result_types, attributes=consumer_apply.attributes, 
+    //                       regions=[IRegion([new_apply_block])])
+
+    rewrite.success(%new_apply_op : !operation)
   }
 
 
@@ -27,6 +57,8 @@ module() {
   ////////////////////////////////////////////////////////////////////////////////
 
   %garbage_collect : !strategy = elevate.native() ["strategy_name"="garbage_collect"]
+  %remove_unused_apply_operands : !strategy = elevate.native() ["strategy_name"="remove_unused_apply_operands"]
+  %remove_duplicate_apply_operands : !strategy = elevate.native() ["strategy_name"="remove_duplicate_apply_operands"]
   
   ////////////////////////////////////////////////////////////////////////////////
   //          Define strategies as compositions of other strategies             //
@@ -37,7 +69,14 @@ module() {
     elevate.toptobottom() {
         elevate.apply(%inline : !strategy)
     }
+    elevate.toptobottom() {
+        elevate.apply(%remove_unused_apply_operands : !strategy)
+    }
+    elevate.toptobottom() {
+        elevate.apply(%remove_duplicate_apply_operands : !strategy)
+    }
+    elevate.toptobottom() {
+        elevate.apply(%garbage_collect : !strategy)
+    }
   }
-
-
 }

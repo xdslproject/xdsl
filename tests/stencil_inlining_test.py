@@ -97,6 +97,8 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
 
     elevate_interpreter.register_native_matcher(match_inlinable,
                                                 "match_inlinable")
+    elevate_interpreter.register_native_rewriter(InlineApply().handle_merging,
+                                                 "inlining_merger")
 
     elevate_interpreter.register_native_strategy(GarbageCollect,
                                                  "garbage_collect")
@@ -233,8 +235,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
-    # TODO: do
-    # apply_dyn_strategy_and_compare(before, before, "inline_top_down")
+    apply_dyn_strategy_and_compare(before, after, "inline_top_down")
 
 
 def test_inlining_simple_index():
