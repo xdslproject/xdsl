@@ -64,16 +64,22 @@ builtin.module() {
   //          Define strategies as compositions of other strategies             //
   ////////////////////////////////////////////////////////////////////////////////
 
-  // inlining
-  %inline_top_down : !strategy = elevate.compose() ["strategy_name"="inline_top_down"] {
-    elevate.toptobottom() {
-        elevate.apply(%inline : !strategy)
-    }
-    elevate.toptobottom() {
+
+  %stencil_normal_form : !strategy = elevate.compose() ["strategy_name"="stencil_normal_form"] {
+    elevate.everywhere() {
         elevate.apply(%remove_unused_apply_operands : !strategy)
     }
-    elevate.toptobottom() {
+    elevate.everywhere() {
         elevate.apply(%remove_duplicate_apply_operands : !strategy)
+    }
+  }
+
+  // inlining
+  %basic_inlining : !strategy = elevate.compose() ["strategy_name"="basic_inlining"] {
+    elevate.everywhere() {
+        elevate.apply(%stencil_normal_form : !strategy)
+        elevate.apply(%inline : !strategy)
+        elevate.apply(%stencil_normal_form : !strategy)
     }
     elevate.toptobottom() {
         elevate.apply(%garbage_collect : !strategy)

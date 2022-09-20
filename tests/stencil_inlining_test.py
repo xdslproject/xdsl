@@ -235,7 +235,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
-    apply_dyn_strategy_and_compare(before, after, "inline_top_down")
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
 
 
 def test_inlining_simple_index():
@@ -340,6 +340,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+
 
 def test_inlining_simple_ifelse():
     before = \
@@ -443,6 +445,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(GarbageCollect()))
 
     apply_strategy_and_compare(before, after, InlineAll)
+
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
 
 
 def test_inlining_multiple_edges():
@@ -568,6 +572,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(GarbageCollect()))
 
     apply_strategy_and_compare(before, after, InlineAll)
+
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
 
 
 def test_inlining_reroute():
@@ -801,6 +807,9 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
+    apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
+                                   "basic_inlining")
+
 
 def test_inlining_avoid_redundant():
     before = \
@@ -933,6 +942,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(GarbageCollect()))
 
     apply_strategy_and_compare(before, after_without_CSE, InlineAll)
+
+    apply_dyn_strategy_and_compare(before, after_without_CSE, "basic_inlining")
 
 
 def test_inlining_root():
@@ -1108,6 +1119,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
+    apply_dyn_strategy_and_compare(intermediate, after, "basic_inlining")
+
 
 def test_inlining_dyn_access():
     before = \
@@ -1240,6 +1253,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+
 
 def test_inlining_simple_buffer():
     unchanging = \
@@ -1319,6 +1334,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         try_(topToBottom(InlineApply())) ^ topToBottom(GarbageCollect()))
 
     apply_strategy_and_compare(unchanging, unchanging, InlineAll)
+
+    apply_dyn_strategy_and_compare(unchanging, unchanging, "basic_inlining")
 
 
 if __name__ == "__main__":
