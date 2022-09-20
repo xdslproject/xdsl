@@ -51,6 +51,13 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
         printer.print_list(self.types.data, printer.print_attribute)
         printer.print(")>")
 
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_string("<(")
+        params = parser.parse_list(parser.parse_optional_attribute)
+        parser.parse_string(")>")
+        return [StringAttr.from_str(""), ArrayAttr.from_list(params)]
+
 
 @irdl_op_definition
 class LLVMExtractValue(Operation):
