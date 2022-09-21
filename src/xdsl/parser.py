@@ -565,12 +565,9 @@ class Parser:
         self.parse_char(">")
         return res
 
-    def parse_optional_attribute(self,
-                                 skip_white_space: bool = True
-                                 ) -> Attribute | None:
-        if self.source == self.Source.MLIR:
-            return self.parse_optional_mlir_attribute(
-                skip_white_space=skip_white_space)
+    def parse_optional_xdsl_builtin_attribute(self,
+                                              skip_white_space: bool = True
+                                              ) -> Attribute | None:
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
@@ -608,27 +605,54 @@ class Parser:
             symbol_name = self.parse_alpha_num(skip_white_space=False)
             return FlatSymbolRefAttr.from_str(symbol_name)
 
-        parsed = self.parse_optional_char("!")
-        if parsed is None:
-            return None
+        def parse_integer_type():
+            self.parse_char("!", skip_white_space=skip_white_space)
+            self.parse_char("i", skip_white_space=False)
+            val = self.parse_int_literal(skip_white_space=False)
+            return IntegerType.from_width(val)
+
+        if int_type := self.try_parse(parse_integer_type):
+            return int_type
+
+        return None
+
+    def parse_optional_attribute(self,
+                                 skip_white_space: bool = True
+                                 ) -> Attribute | None:
+        # If we are parsing an MLIR file, we first try to parse builtin
+        # attributes, which have a different format.
+        if self.source == self.Source.MLIR:
+            if attr := self.parse_optional_mlir_attribute(
+                    skip_white_space=skip_white_space):
+                return attr
+
+        # If we are parsing an xDSL file, we first try to parse builtin
+        # attributes, which have a different format.
+        if self.source == self.Source.XDSL:
+            if attr := self.parse_optional_xdsl_builtin_attribute(
+                    skip_white_space=skip_white_space):
+                return attr
+
+        # Then, we parse attributes/types with the generic format.
+
+        if self.parse_optional_char("!") is None:
+            if self.source == self.Source.MLIR:
+                if self.parse_optional_char("#") is None:
+                    return None
+            else:
+                return None
 
         parse_with_default_format = False
-        parsed = self.parse_optional_char("i")
-
-        # shorthand for integer types
-        if parsed:
-            num = self.parse_optional_int_literal()
-            if num:
-                return IntegerType.from_width(num)
-            attr_def_name = "i" + self.parse_alpha_num(skip_white_space=True)
+        # Attribute with default format
+        if self.parse_optional_char('"'):
+            attr_def_name = self.parse_alpha_num(skip_white_space=False)
+            self.parse_char('"')
+            parse_with_default_format = True
         else:
-            # Attribute with default format
-            if self.parse_optional_char('"'):
-                attr_def_name = self.parse_alpha_num(skip_white_space=False)
-                self.parse_char('"')
-                parse_with_default_format = True
-            else:
-                attr_def_name = self.parse_alpha_num(skip_white_space=True)
+            attr_def_name = self.parse_alpha_num(skip_white_space=True)
+
+        if (self.source == self.Source.MLIR) and parse_with_default_format:
+            raise ParserError(self._pos, "cannot parse generic MLIR attribute")
 
         attr_def = self.ctx.get_attr(attr_def_name)
 
