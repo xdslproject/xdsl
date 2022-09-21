@@ -1,5 +1,7 @@
 from __future__ import annotations
+import operator
 from typing import Collection, Type
+from xdsl.dialects.stencil.stencil_rewrites_decomposed import RerouteUse_decomp
 from xdsl.immutable_utils import new_block
 from xdsl.ir import *
 from xdsl.irdl import *
@@ -141,9 +143,11 @@ class ElevateInterpreter():
                     attr_constraints.append(constraint)
         
         if "name" in op_constr.attributes:
-            if (attr_name := op_constr.attributes["name"].data) != op.name:
-                return InterpResult(False, f"name does not match: {attr_name} vs {op.name}")
-            
+            if isinstance((name_attr := op_constr.attributes["name"].data), str) and name_attr != op.name:
+                return InterpResult(False, f"name does not match: {name_attr} vs {op.name}")
+            elif isinstance(name_attr, list) and op.name not in [attr.data for attr in name_attr]:
+                return InterpResult(False, f"name does not match: {name_attr} vs {op.name}")
+
         # General checks
         if len(operand_constraints) > 0 and len(op.operands) != len(operand_constraints):
             return InterpResult(False, f"wrong num of operands for op {op.name}")
@@ -169,7 +173,7 @@ class ElevateInterpreter():
         # check operand constraints:
         for idx, operand_constraint in enumerate(operand_constraints):
             match operand_constraint.op:
-                case match.GetResultOp() as get_res_op:
+                case match.GetResultsOp() as get_res_op:
                     if not isinstance((op.operands[idx]), IResult):
                         return InterpResult(False, f"GetResultOp malformed")
                     if not get_res_op.idx.value.data == op.operands[idx].result_index: 
@@ -231,7 +235,7 @@ class ElevateInterpreter():
                         case match.TypeType():
                             new_result_types.append(operand.typ.type)
                         case match.ValueType():
-                            if isinstance(operand, OpResult) and isinstance(operand.op, match.GetResultOp):
+                            if isinstance(operand, OpResult) and isinstance(operand.op, match.GetResultsOp):
                                 new_operands.append(self.matching_env[operand.op.operands[0]])
                             else:
                                 new_operands.append(self.matching_env[operand])
@@ -299,6 +303,14 @@ class ElevateInterpreter():
                 result = new_block(args, ops, {}, custom_merger)
                 self.matching_env[block_op.results[0]] = result
                 return InterpResult(True)
+            case rewrite.NewBlockArgsOp() as new_block_args_op:
+                if not (isinstance(new_block_args_op.types.typ, match.RangeType) or isinstance(new_block_args_op.types.typ.type, match.ValueType)):
+                    raise Exception("Malformed NewBlockArgsOp")
+                types: list[Attribute] = self.matching_env[new_block_args_op.operands[0]]
+
+                self.matching_env[new_block_args_op.results[0]] = [IBlockArg(typ=typ, block=None, index=idx) for idx, typ in enumerate(types)]
+                
+                return InterpResult(True)
             case rewrite.RegionFromBlocksOp() as region_from_blocks_op:
                 blocks: list[IBlock] = []
                 for block_operand in region_from_blocks_op.operands:
@@ -317,6 +329,25 @@ class ElevateInterpreter():
                 for range_val in concat_op.ranges[1:]:
                     new_list += self.matching_env[range_val]
                 self.matching_env[concat_op.output] = new_list
+                return InterpResult(True)
+            case rewrite.AddAttributeOp() as add_attribute_op:
+                attribute_names: list[str] = []
+                if "attribute_names" in add_attribute_op.attributes:
+                    attribute_names = [name.data for name in add_attribute_op.attributes["attribute_names"].data]
+                if isinstance(add_attribute_op.operands[0].typ, match.RangeType):
+                    attributes = self.matching_env[add_attribute_op.operands[0]]
+                else:
+                    attributes: dict[str, Attribute] = {}
+                for new_attr in add_attribute_op.operands[1:]:
+                    if isinstance(new_attr.typ, match.RangeType):
+                        attributes |= self.matching_env[new_attr]
+                    elif isinstance(new_attr.typ, match.AttributeType):
+                        if len(attribute_names) == 0:
+                            raise Exception("AddAttributeOp: Attributenames underspecified")
+                        attributes[attribute_names.pop(0)] = self.matching_env[new_attr]
+                    else:
+                        raise Exception("Unexpected operand type for AddAttributeOp")
+                self.matching_env[add_attribute_op.output] = attributes
                 return InterpResult(True)
             case match.GetNestedOps() as get_payload_op:
                 # return all ops in this region except for the terminator
@@ -375,7 +406,7 @@ class ElevateInterpreter():
                     self.matching_env[native_matcher_op.results[idx]] = result
                 
                 return InterpResult(True)
-            case rewrite.ApplyNativeRewrite() as native_rewriter_op:
+            case rewrite.ApplyNativeRewriteOp() as native_rewriter_op:
                 if not "rewriter_name" in native_rewriter_op.attributes:
                     raise Exception("NativeRewriterOp needs a rewriter_name attribute")
                 rewriter_name: str = native_rewriter_op.attributes["rewriter_name"].data
@@ -387,11 +418,46 @@ class ElevateInterpreter():
                 args = [self.matching_env[operand] for operand in native_rewriter_op.operands]
                 self.matching_env[native_rewriter_op.results[0]] = self.native_rewriters[rewriter_name](*args)
                 return InterpResult(True)
+            case match.GetResultsOp() as get_results_op:
+                if "idx" in get_results_op.attributes and isinstance(get_results_op.results[0].typ, match.ValueType):
+                    idx: int = get_results_op.attributes["idx"].value.data
+                    if idx < 0 or idx >= len(self.matching_env[get_results_op.operands[0]].results):
+                        raise Exception("GetResultsOp: idx out of bounds")
+                    self.matching_env[get_results_op.results[0]] = self.matching_env[get_results_op.operands[0]].results[idx]
+                elif isinstance(get_results_op.results[0].typ, match.RangeType) and isinstance(get_results_op.results[0].typ.type, match.ValueType):
+                    self.matching_env[get_results_op.results[0]] = self.matching_env[get_results_op.operands[0]].results
+                else:
+                    raise Exception("Malformed GetResultsOp")
+                
+                return InterpResult(True)
             case match.GetOperands() as get_operands_op:
                 self.matching_env[get_operands_op.results[0]] = self.matching_env[get_operands_op.operands[0]].operands
                 return InterpResult(True)
             case match.GetAttributes() as get_attributes_op:
                 self.matching_env[get_attributes_op.results[0]] = self.matching_env[get_attributes_op.operands[0]].attributes
+                return InterpResult(True)
+            case match.GetAttribute() as get_attributes_op:
+                if not "attr_name" in get_attributes_op.attributes:
+                    raise Exception("GetAttributeOp needs an attr_name attribute")
+                attr_name: str = get_attributes_op.attributes["attr_name"].data
+                if not attr_name in self.matching_env[get_attributes_op.operands[0]].attributes:
+                    raise Exception(f"GetAttributeOp: Attribute {attr_name} not found")
+                self.matching_env[get_attributes_op.results[0]] = self.matching_env[get_attributes_op.operands[0]].attributes[attr_name]
+                return InterpResult(True)
+            case rewrite.ArrayAttrElementWiseOp() as array_attr_element_wise_op:
+                if not "op" in array_attr_element_wise_op.attributes:
+                    raise Exception("ArrayAttrElementWiseOp needs an op attribute")
+                if not (isinstance((array0 := self.matching_env[array_attr_element_wise_op.array0]), match.ArrayAttr) and isinstance((array1 := self.matching_env[array_attr_element_wise_op.array1]), match.ArrayAttr)):
+                    raise Exception("ArrayAttrElementWiseOp: Operands must be ArrayAttr")
+                match array_attr_element_wise_op.attributes["op"].data:
+                    case "sub":
+                        self.matching_env[array_attr_element_wise_op.results[0]] = RerouteUse_decomp.int_array_attr_element_wise(array0, array1, operator.__sub__)
+                    case "min":
+                        self.matching_env[array_attr_element_wise_op.results[0]] = RerouteUse_decomp.int_array_attr_element_wise(array0, array1, min)
+                    case "max":
+                        self.matching_env[array_attr_element_wise_op.results[0]] = RerouteUse_decomp.int_array_attr_element_wise(array0, array1, max)
+                    case _:
+                        raise Exception("ArrayAttrElementWiseOp: Unknown op")
                 return InterpResult(True)
             case match.GetBlockArgs() as get_blockargs_op:
                 region_idx = 0
@@ -409,6 +475,19 @@ class ElevateInterpreter():
                     self.matching_env[get_type_op.results[0]] = self.matching_env[get_type_op.operands[0]].typ
                 else:
                     raise Exception("Malformed GetTypeOp")
+                return InterpResult(True)
+            case rewrite.ConstructTypeOp() as construct_type_op:
+                if "name" not in construct_type_op.attributes:
+                    raise Exception("ConstructTypeOp needs a name attribute")
+                # again, very unsafe
+                #type = eval(rhs_op.attributes["name"].data)(*[self.matching_env[operand] for operand in construct_type_op.operands])
+                # This should actually work, but not sure whether something is wrongly defined in TempType
+                
+                if rhs_op.attributes["name"].data == "stencil.TempType":
+                    type = stencil.TempType.from_shape(self.matching_env[construct_type_op.operands[0]])
+                    self.matching_env[construct_type_op.results[0]] = type
+                else:
+                    raise Exception("ConstructTypeOp: Type not supported")
                 return InterpResult(True)
             case match.GetIndexOfOpInRange() as get_index_op:
                 if not all((get_index_op.operands[idx] in self.matching_env) for idx in range(len(get_index_op.operands))):

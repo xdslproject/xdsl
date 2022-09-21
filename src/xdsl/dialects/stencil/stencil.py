@@ -83,9 +83,9 @@ class TempType(ParametrizedAttribute):
         shape: ArrayAttr[IntegerAttr[IntegerType]]
         | Sequence[int | IntegerAttr[IndexType]]
     ) -> TempType:
-        assert len(shape) > 0
         if isinstance(shape, ArrayAttr):
             return TempType([shape])
+        assert len(shape) > 0
         if isinstance(shape[0], IntegerAttr):
             return TempType([ArrayAttr.from_list(shape)])
         return TempType(

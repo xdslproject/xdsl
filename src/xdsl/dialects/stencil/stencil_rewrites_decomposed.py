@@ -1,6 +1,8 @@
 from __future__ import annotations
 import xdsl.dialects.scf as scf
 import xdsl.dialects.stencil.stencil as stencil
+import xdsl.dialects.builtin as builtin
+import xdsl.dialects.func as func
 from xdsl.dialects.func import *
 from xdsl.elevate import *
 from xdsl.immutable_ir import *
@@ -170,7 +172,9 @@ class RerouteUse_decomp(Strategy):
             match consumer_apply := op:
                 case IOp(op_type=stencil.Apply) if (matched_bits := match_inlinable(consumer_apply)):
                     (producer_apply, _, _) = matched_bits
-                    return match_success([consumer_apply, producer_apply])
+                    if producer_apply == consumer_apply:
+                        return match_failure(self)
+                    return match_success([consumer_apply, producer_apply]) # cons_apply: 65, 66, 63, prod_apply: 67, 66, 63
                 case _:
                     return match_failure(self)
 
@@ -200,6 +204,10 @@ class RerouteUse_decomp(Strategy):
                 case _:
                     return match_failure(self)
 
+
+    # self.producer: apply with operands 67, 66, 63
+    # self.fst_consumer: apply with operands: 65, 66, 63
+    # snd_consumer: stencil.store with operand 65, 66, 63
     def impl(self, op: IOp) -> RewriteResult:
         match snd_consumer := op:
             # For a stencil.apply as snd_consumer the matching reuses the matching of InlineApply. For stencil.store as snd_consumer, we have match for the producer in the operands.
@@ -237,8 +245,9 @@ class RerouteUse_decomp(Strategy):
                 return result
             case _:
                 return failure(self)
-
-    def int_array_attr_element_wise(self, attr1: ArrayAttr, attr2: ArrayAttr, fun: Callable[[int, int], int]) -> ArrayAttr:
+                
+    @staticmethod
+    def int_array_attr_element_wise(attr1: ArrayAttr, attr2: ArrayAttr, fun: Callable[[int, int], int]) -> ArrayAttr:
         return ArrayAttr.from_list([IntegerAttr.from_int_and_width(fun(int_attr1.value.data, int_attr2.value.data), 64) for int_attr1, int_attr2 in zip(attr1.data, attr2.data)])
 
     def handle_merging(self, fst_consumer_new_operands: list[ISSAValue], fst_consumer_new_block_args: list[IBlockArg]) -> Callable[[IOp, Optional[dict[ISSAValue, ISSAValue]]], list[IOp]]:
@@ -276,141 +285,48 @@ StencilNormalForm: Strategy = everywhere(RemoveUnusedApplyOperands()) ^ everywhe
 InlineAll: Strategy = everywhere(RerouteOutputDependency_decomp) ^ everywhere(RerouteInputDependency_decomp) ^ everywhere(StencilNormalForm ^ InlineApply() ^ StencilNormalForm) ^ GarbageCollect()
 
 
-def apply_strategy_and_compare(program: str, expected_program: str,
-                               strategy: Strategy):
-    ctx = MLContext()
-    Builtin(ctx)
-    Func(ctx)
-    Arith(ctx)
-    scf.Scf(ctx)
-    stencil.Stencil(ctx)
+##########################################################################
+###################### Utils for rewriting dialect #######################
+##########################################################################
 
-    parser = Parser(ctx, program)
-    module: Operation = parser.parse_op()
-    imm_module: IOp = get_immutable_copy(module)
+def matchRerouteOutputDependency(fst_consumer: IOp) -> Optional[list[IOp, ISSAValue]]:
+    """
+    This is just temporary to enable testing the rerouting rewrites defined in the rewriting dialect without specifying the matching component.
+    """
+    producer_: Optional[IOp] = None
+    fst_consumer_: Optional[IOp] = None
+    snd_consumer_: Optional[IOp] = None
 
-    rr = strategy.apply(imm_module)
-    assert rr.isSuccess()
+    @dataclass(frozen=True)
+    class dummyStrat(Strategy):
+        fst_consumer: IOp
+        producer: IOp
 
-    # for debugging
-    printer = Printer()
-    print(f'Result after applying "{strategy}":')
-    printer.print_op(rr.result_op.get_mutable_copy())
-    print()
+        def impl(self, op: IOp) -> RewriteResult:
+            match snd_consumer := op:
+                # For a stencil.apply as snd_consumer the matching reuses the matching of InlineApply. For stencil.store as snd_consumer, we have match for the producer in the operands.
+                case IOp(op_type=stencil.Apply | stencil.Store, operands=operands) if (((matched_bits := match_inlinable(snd_consumer)) and (producer_apply := matched_bits[0])) or \
+                    (any(isinstance((operand), IResult) and (producer_apply := operand.op).op_type == stencil.Apply for operand in operands))) \
+                    and snd_consumer != self.fst_consumer and self.producer == producer_apply and self.fst_consumer.op_type != func.FuncOp:
+                    # currently we only get here when fst_consumer==snd_consumer
+                    
+                    nonlocal producer_
+                    nonlocal fst_consumer_
+                    nonlocal snd_consumer_
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(rr.result_op.get_mutable_copy())
+                    producer_ = producer_apply
+                    fst_consumer_ = self.fst_consumer
+                    snd_consumer_ = snd_consumer
+                    return success(op)
+                case _:
+                    return failure(self)
 
-    diff = difflib.Differ().compare(file.getvalue().splitlines(True),
-                                    expected_program.splitlines(True))
-    if file.getvalue().strip() != expected_program.strip():
-        print("Did not get expected output! Diff:")
-        print(''.join(diff))
-        assert False
-
-def parse(program: str):
-    ctx = MLContext()
-    Builtin(ctx)
-    Func(ctx)
-    Arith(ctx)
-    scf.Scf(ctx)
-    stencil.Stencil(ctx)
-
-    parser = Parser(ctx, program)
-    module: Operation = parser.parse_op()
-
-    printer = Printer()
-    printer.print_op(module)
-
-# All tests sourced from: https://github.com/spcl/open-earth-compiler/blob/master/test/Dialect/Stencil/stencil-inlining.mlir
-
-
-def test_cleanup_apply():
-    before = \
-"""
-func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
-^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
-  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
-  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [1 : !i64, 2 : !i64, 3 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
-  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
-    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
-    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
-    %7 : !f64 = arith.addf(%5 : !f64, %6 : !f64)
-    %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)
-    stencil.return(%8 : !stencil.result<!f64>)
-  }
-  %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
-  ^2(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %12 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
-    %13 : !f64 = stencil.access(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
-    %14 : !f64 = stencil.access(%11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
-    %15 : !f64 = arith.addf(%13 : !f64, %14 : !f64)
-    %16 : !stencil.result<!f64> = stencil.store_result(%15 : !f64)
-    stencil.return(%16 : !stencil.result<!f64>)
-  }
-  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
-  func.return()
-}
-"""
-
-    after = \
-"""
-func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
-^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
-  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
-  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [1 : !i64, 2 : !i64, 3 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
-  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
-    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
-    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
-    %7 : !f64 = arith.addf(%5 : !f64, %6 : !f64)
-    %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)
-    stencil.return(%8 : !stencil.result<!f64>)
-  }
-  %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
-  ^2(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
-    %12 : !f64 = stencil.access(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
-    %13 : !f64 = stencil.access(%11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
-    %14 : !f64 = arith.addf(%12 : !f64, %13 : !f64)
-    %15 : !stencil.result<!f64> = stencil.store_result(%14 : !f64)
-    stencil.return(%15 : !stencil.result<!f64>)
-  }
-  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
-  func.return()
-}
-"""
-
-    inlined  = \
-"""
-func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
-^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
-  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
-  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
-  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
-    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
-    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 2 : !i64, 3 : !i64]]
-    %7 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [2 : !i64, 2 : !i64, 3 : !i64]]
-    %8 : !f64 = arith.addf(%6 : !f64, %7 : !f64)
-    %9 : !f64 = arith.addf(%5 : !f64, %8 : !f64)
-    %10 : !stencil.result<!f64> = stencil.store_result(%9 : !f64)
-    stencil.return(%10 : !stencil.result<!f64>)
-  }
-  stencil.store(%3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
-  func.return()
-}
-"""
-    apply_strategy_and_compare(
-        before, after,
-        topToBottom(RemoveUnusedApplyOperands()))
-
-    apply_strategy_and_compare(
-        after, inlined,
-        topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands()) ^ debug() ^ topToBottom(RemoveDuplicateApplyOperands()) ^ topToBottom(GarbageCollect()))
-
-    apply_strategy_and_compare(
-        before, inlined,
-        topToBottom(RemoveUnusedApplyOperands()) ^ topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands()) ^ debug() ^ topToBottom(RemoveDuplicateApplyOperands()) ^ topToBottom(GarbageCollect()))
-
-
-
-if __name__ == "__main__":
-    test_cleanup_apply()
+    rr = multiRoot(matchTopToBottom(RerouteUse_decomp.MatchRerouteTargetDirectUse()), lambda matched_consumer:
+            topToBottom(dummyStrat(*matched_consumer))).apply(fst_consumer)
+    
+    if rr.isSuccess():
+        assert producer_ is not None
+        assert snd_consumer_ is not None
+        return [producer_, fst_consumer_, snd_consumer_]
+    else:
+        return None 

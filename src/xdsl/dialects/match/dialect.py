@@ -29,9 +29,10 @@ class Match:
         self.ctx.register_op(OperandOp)
 
         # Ops for rhs
-        self.ctx.register_op(GetResultOp)
+        self.ctx.register_op(GetResultsOp)
         self.ctx.register_op(GetTypeOp)
         self.ctx.register_op(GetAttributes)
+        self.ctx.register_op(GetAttribute)
         self.ctx.register_op(NativeMatcherOp)
         self.ctx.register_op(GetNestedOps)
         self.ctx.register_op(GetOperands)
@@ -109,11 +110,11 @@ class AttributeOp(MatchOperation):
 
 
 @irdl_op_definition
-class GetResultOp(MatchOperation):
-    name: str = "match.get_result"
+class GetResultsOp(MatchOperation):
+    name: str = "match.get_results"
     op = OperandDef(OperationType)
-    idx = AttributeDef(IntegerAttr)
-    output = ResultDef(ValueType)
+    idx = OptAttributeDef(IntegerAttr)  # if not specified returns all results
+    output = ResultDef(ValueType)  # or RangeType
 
 
 @irdl_op_definition
@@ -196,6 +197,13 @@ class GetAttributes(Operation):
     name: str = "match.get_attributes"
     input = OperandDef(OperationType)
     output = ResultDef(RangeType)
+
+
+@irdl_op_definition
+class GetAttribute(Operation):
+    name: str = "match.get_attribute"
+    input = OperandDef(OperationType)
+    output = ResultDef(AttributeType)
 
 
 @irdl_op_definition

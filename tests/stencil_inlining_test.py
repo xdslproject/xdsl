@@ -9,7 +9,7 @@ from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteOutputDependency, RerouteInputDependency
-from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll, match_inlinable
+from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll, match_inlinable, matchRerouteOutputDependency
 import difflib
 from xdsl.immutable_utils import *
 import os
@@ -97,6 +97,8 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
 
     elevate_interpreter.register_native_matcher(match_inlinable,
                                                 "match_inlinable")
+    elevate_interpreter.register_native_matcher(
+        matchRerouteOutputDependency, "match_reroute_output_dependency")
     elevate_interpreter.register_native_rewriter(InlineApply().handle_merging,
                                                  "inlining_merger")
 
@@ -807,6 +809,9 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
+    # apply_dyn_strategy_and_compare(before, after_without_CSE,
+    #                                "reroute_output_dep")
+
     apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
                                    "basic_inlining")
 
@@ -1338,6 +1343,95 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_dyn_strategy_and_compare(unchanging, unchanging, "basic_inlining")
 
 
+def test_cleanup_apply():
+    before = \
+"""
+func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
+^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
+  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
+  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [1 : !i64, 2 : !i64, 3 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
+    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
+    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
+    %7 : !f64 = arith.addf(%5 : !f64, %6 : !f64)
+    %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)
+    stencil.return(%8 : !stencil.result<!f64>)
+  }
+  %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
+  ^2(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %12 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
+    %13 : !f64 = stencil.access(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %14 : !f64 = stencil.access(%11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
+    %15 : !f64 = arith.addf(%13 : !f64, %14 : !f64)
+    %16 : !stencil.result<!f64> = stencil.store_result(%15 : !f64)
+    stencil.return(%16 : !stencil.result<!f64>)
+  }
+  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  func.return()
+}
+"""
+
+    after = \
+"""
+func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
+^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
+  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
+  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [1 : !i64, 2 : !i64, 3 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
+    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
+    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
+    %7 : !f64 = arith.addf(%5 : !f64, %6 : !f64)
+    %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)
+    stencil.return(%8 : !stencil.result<!f64>)
+  }
+  %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
+  ^2(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
+    %12 : !f64 = stencil.access(%10 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %13 : !f64 = stencil.access(%11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
+    %14 : !f64 = arith.addf(%12 : !f64, %13 : !f64)
+    %15 : !stencil.result<!f64> = stencil.store_result(%14 : !f64)
+    stencil.return(%15 : !stencil.result<!f64>)
+  }
+  stencil.store(%9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  func.return()
+}
+"""
+
+    inlined  = \
+"""
+func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
+^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
+  %2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
+  %3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%2 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
+  ^1(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>):
+    %5 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
+    %6 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 2 : !i64, 3 : !i64]]
+    %7 : !f64 = stencil.access(%4 : !stencil.temp<[66 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [2 : !i64, 2 : !i64, 3 : !i64]]
+    %8 : !f64 = arith.addf(%6 : !f64, %7 : !f64)
+    %9 : !f64 = arith.addf(%5 : !f64, %8 : !f64)
+    %10 : !stencil.result<!f64> = stencil.store_result(%9 : !f64)
+    stencil.return(%10 : !stencil.result<!f64>)
+  }
+  stencil.store(%3 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]]
+  func.return()
+}
+"""
+    apply_strategy_and_compare(before, after,
+                               topToBottom(RemoveUnusedApplyOperands()))
+
+    apply_strategy_and_compare(
+        after, inlined,
+        topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands())
+        ^ debug() ^ topToBottom(RemoveDuplicateApplyOperands())
+        ^ topToBottom(GarbageCollect()))
+
+    apply_strategy_and_compare(
+        before, inlined,
+        topToBottom(RemoveUnusedApplyOperands()) ^ topToBottom(InlineApply())
+        ^ topToBottom(RemoveUnusedApplyOperands()) ^ debug()
+        ^ topToBottom(RemoveDuplicateApplyOperands())
+        ^ topToBottom(GarbageCollect()))
+
+
 if __name__ == "__main__":
     test_inlining_simple()
     test_inlining_simple_index()
@@ -1348,3 +1442,4 @@ if __name__ == "__main__":
     test_inlining_root()
     test_inlining_dyn_access()
     test_inlining_simple_buffer()
+    test_cleanup_apply()

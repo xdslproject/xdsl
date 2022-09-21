@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import IntAttr, StringAttr
 from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
-from xdsl.dialects.match.dialect import OperationType, RangeType
+from xdsl.dialects.match.dialect import AttributeType, OperationType, RangeType, TypeType
 
 
 @dataclass
@@ -18,10 +18,14 @@ class Rewrite:
         self.ctx.register_op(NewBlockOp)
         self.ctx.register_op(FromBlockOp)
         self.ctx.register_op(RegionFromBlocksOp)
+        self.ctx.register_op(NewBlockArgsOp)
 
         # Rewriting Utilities
         self.ctx.register_op(ConcatOp)
-        self.ctx.register_op(ApplyNativeRewrite)
+        self.ctx.register_op(AddAttributeOp)
+        self.ctx.register_op(ArrayAttrElementWiseOp)
+        self.ctx.register_op(ApplyNativeRewriteOp)
+        self.ctx.register_op(ConstructTypeOp)
 
         # Used in rewriting to return a value of an existing op
         self.ctx.register_op(RewriteId)
@@ -63,6 +67,13 @@ class FromBlockOp(Operation):
 
 
 @irdl_op_definition
+class NewBlockArgsOp(Operation):
+    name: str = "rewrite.new_block_args"
+    types = OperandDef(RangeType)  # range of types
+    output = ResultDef(RangeType)  # range of BlockArgs
+
+
+@irdl_op_definition
 class RegionFromBlocksOp(Operation):
     name: str = "rewrite.region_from_blocks"
     # TODO: properly specify
@@ -81,11 +92,33 @@ class ConcatOp(Operation):
 
 
 @irdl_op_definition
-class ApplyNativeRewrite(Operation):
+class AddAttributeOp(Operation):
+    name: str = "rewrite.add_attribute"
+    ranges = VarOperandDef(RangeType)  # or AttrType
+    output = ResultDef(RangeType)
+
+
+@irdl_op_definition
+class ArrayAttrElementWiseOp(Operation):
+    name: str = "rewrite.array_attr_element_wise"
+    array0 = OperandDef(AttributeType)
+    array1 = OperandDef(AttributeType)
+    output = ResultDef(AttributeType)
+
+
+@irdl_op_definition
+class ApplyNativeRewriteOp(Operation):
     name: str = "rewrite.apply_native_rewrite"
     args = VarOperandDef(RangeType)
     rewriter_name = AttributeDef(StringAttr)
     output = ResultDef(Attribute)
+
+
+@irdl_op_definition
+class ConstructTypeOp(Operation):
+    name: str = "rewrite.construct_type"
+    args = VarOperandDef(Attribute)
+    output = ResultDef(TypeType)
 
 
 # Used in Elevate internals

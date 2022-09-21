@@ -43,13 +43,51 @@ builtin.module() {
     // // We have to get the types in here as well (might be multiple)
     %new_apply_op : !operation = rewrite.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
 
-
-    // new_op(op_type=stencil.Apply, operands=new_apply_operands, 
-    //                       result_types=consumer_apply.result_types, attributes=consumer_apply.attributes, 
-    //                       regions=[IRegion([new_apply_block])])
-
     rewrite.success(%new_apply_op : !operation)
   }
+
+  // The concept of this rerouting rewrite is different from the multipattern in Python. This does not represent
+  // the last matching step + rewriting but rather the first matching step, calling into native for the rest
+  // and then performing the rewrite
+  %reroute : !strategy = elevate.strategy() {
+    // we have a root "anchor" op (will be func here) and do the actual matching only natively -> matchTopToBottom
+    %root : !operation = match.root_op() []
+    (%producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation) = match.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
+    
+    // concat producer and consumer operands
+    %consumer_operands : !range<!value> = match.get_operands(%fst_consumer : !operation)
+    %producer_operands : !range<!value> = match.get_operands(%producer : !operation)
+    %new_operands : !range<!value> = rewrite.concat(%consumer_operands : !range<!value>, %producer_operands : !range<!value>)
+
+    %fst_consumer_args : !range<!value> = match.get_block_args(%fst_consumer : !operation)
+    %producer_results : !range<!value> = match.get_results(%producer : !operation)
+    %additional_block_args : !range<!value> = rewrite.new_block_args(%producer_results : !range<!value>)
+    %new_block_args : !range<!value> = rewrite.concat(%fst_consumer_args : !range<!value>, %additional_block_args : !range<!value>)
+
+    // computing of new bounds
+    %fst_consumer_attributes : !range<!attribute> = match.get_attributes(%fst_consumer : !operation)
+
+    %producer_lb : !attribute = match.get_attribute(%producer : !operation) ["attr_name" = "lb"]
+    %producer_ub : !attribute = match.get_attribute(%producer : !operation) ["attr_name" = "ub"]
+    %fst_consumer_lb : !attribute = match.get_attribute(%fst_consumer : !operation) ["attr_name" = "lb"]
+    %fst_consumer_ub : !attribute = match.get_attribute(%fst_consumer : !operation) ["attr_name" = "ub"]
+
+    %new_lb_attr : !attribute = rewrite.array_attr_element_wise(%producer_lb : !attribute, %fst_consumer_lb : !attribute) ["op" = "min"]
+    %new_ub_attr : !attribute = rewrite.array_attr_element_wise(%producer_ub : !attribute, %fst_consumer_ub : !attribute) ["op" = "max"]
+
+    %new_attributes : !range<!attribute> = rewrite.add_attribute(%fst_consumer_attributes : !range<!attribute>, %new_lb_attr : !attribute, %new_ub_attr : !attribute) ["attribute_names"=["lb", "ub"]]
+
+    // computing new result type
+    %result_shape : !attribute = rewrite.array_attr_element_wise(%new_ub_attr : !attribute, %new_lb_attr : !attribute) ["op" = "sub"]
+    %result_type : !type<!any> = rewrite.construct_type(%result_shape : !attribute) ["name" = "stencil.TempType"]
+
+    // incomplete from here, actual construction of the new ops is missing
+
+
+
+    rewrite.success(%fst_consumer : !operation)
+  }
+
 
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -84,5 +122,12 @@ builtin.module() {
     elevate.toptobottom() {
         elevate.apply(%garbage_collect : !strategy)
     }
+  }
+
+  // reroute
+  %reroute_output_dep : !strategy = elevate.compose() ["strategy_name"="reroute_output_dep"] {
+    // elevate.toptobottom() {
+      elevate.apply(%reroute : !strategy)
+    // }
   }
 }
