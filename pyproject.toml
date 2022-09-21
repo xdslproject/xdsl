@@ -1,0 +1,10 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+
+[tool.pyright]
+include = ["src"]
+reportImportCycles = false
+reportUnnecessaryIsInstance = false

@@ -2,19 +2,21 @@
 
 ## Prerequisites
 
-To install the required dependencies, execute the following command:
+To install XDSL you can either clone the Github repository and install the requirements by following:
+
+### Clone and install
+```bash
+git clone https://github.com/xdslproject/xdsl.git
+pip install -e .
+# or for the optional requirements
+# pip install -e .[extras]
+```
+
+### pip installation
 
 ```bash
-pip install -r requirements.txt
+pip install xdsl
 ```
-
-Optional dependencies, necessary for formatting the code may be installed via:
-
-```
-pip install -r requirements-optional.txt
-```
-
-TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
 ## Testing
 
