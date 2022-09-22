@@ -39,8 +39,3 @@ jobs:
       run: |
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/ 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        name: python-app

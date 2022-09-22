@@ -1,8 +1,5 @@
 # xDSL
 
-[![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
-[![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/branch/master/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
-
 ## Prerequisites
 
 To install XDSL you can either clone the Github repository and install the requirements by following:

@@ -2,4 +2,3 @@ pytest<8.0
 filecheck<0.0.23
 lit<16.0.0
 frozenlist<1.4.*
-codecov
