@@ -10,11 +10,11 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
-    AnyArrayAttr, AnyVectorType, DenseIntOrFPElementsAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr,
-    OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
-    VectorType)
+    AnyArrayAttr, AnyUnrankedTensorType, AnyVectorType,
+    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
+    IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
+    TensorType, UnitAttr, FunctionType, UnrankedTensorType, VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -391,6 +391,15 @@ class Printer:
                             lambda x: self.print(x.value.data), "x")
             if len(attribute.shape.data) != 0:
                 self.print("x")
+            self.print(attribute.element_type)
+            self.print(">")
+            return
+
+        # Unranked tensors have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, UnrankedTensorType)
+                and self.target == self.Target.MLIR):
+            attribute = cast(AnyUnrankedTensorType, attribute)
+            self.print("tensor<*x")
             self.print(attribute.element_type)
             self.print(">")
             return
