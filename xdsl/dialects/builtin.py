@@ -479,8 +479,28 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     type: ParameterDef[VectorOrTensorOf[IntegerType]
                        | VectorOrTensorOf[IndexType]
                        | VectorOrTensorOf[AnyFloat]]
-    # TODO add support for multi-dimensional data
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+
+    # The type stores the shape data
+    @property
+    def shape(self) -> List[int]:
+        return self.type.get_shape()
+
+    @property
+    def shape_is_complete(self) -> bool:
+        shape = self.shape
+        if not len(shape):
+            return False
+
+        n = 1
+        for dim in shape:
+            if dim < 1:
+                # Dimensions need to be greater or equal to one
+                return False
+            n *= dim
+        
+        # Product of dimensions needs to equal length
+        return n == len(shape)
 
     @staticmethod
     @builder
