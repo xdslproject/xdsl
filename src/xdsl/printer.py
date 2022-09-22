@@ -61,6 +61,9 @@ class Printer:
             if isinstance(arg, Block):
                 self.print_block_name(arg)
                 continue
+            if isinstance(arg, Operation):
+                self.print_op(arg)
+                continue
             text = str(arg)
             self.print_string(text)
 
