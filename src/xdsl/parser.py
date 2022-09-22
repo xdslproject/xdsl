@@ -2,10 +2,11 @@ from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyVectorType, DenseIntOrFPElementsAttr,
-    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
-    IntegerType, OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr,
-    ArrayAttr, TensorType, UnitAttr, VectorType)
+    AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
+    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
+    FunctionType, IndexType, IntegerType, OpaqueAttr, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
+    UnrankedTensorType, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -733,12 +734,19 @@ class Parser:
             return shape
         raise ParserError(self._pos, "shape expected")
 
-    def parse_optional_mlir_tensor(self,
-                                   skip_white_space: bool = True
-                                   ) -> AnyTensorType | None:
+    def parse_optional_mlir_tensor(
+        self,
+        skip_white_space: bool = True
+    ) -> AnyTensorType | AnyUnrankedTensorType | None:
         if self.parse_optional_string("tensor",
                                       skip_white_space=skip_white_space):
-            self.parse_optional_char("<")
+            self.parse_char("<")
+            # Unranked tensor case
+            if self.parse_optional_char("*"):
+                self.parse_char("x")
+                typ = self.parse_attribute()
+                self.parse_char(">")
+                return UnrankedTensorType.from_type(typ)
             dims, typ = self.parse_shape()
             self.parse_char(">")
             return TensorType.from_type_and_list(typ, dims)

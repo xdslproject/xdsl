@@ -29,6 +29,7 @@ class Builtin:
         self.ctx.register_attr(ArrayAttr)
         self.ctx.register_attr(VectorType)
         self.ctx.register_attr(TensorType)
+        self.ctx.register_attr(UnrankedTensorType)
         self.ctx.register_attr(DenseIntOrFPElementsAttr)
         self.ctx.register_attr(UnitAttr)
         self.ctx.register_attr(TupleType)
@@ -423,6 +424,28 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
+_UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
+                                   bound=Attribute,
+                                   covariant=True)
+
+
+@irdl_attr_definition
+class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
+                         ParametrizedAttribute, MLIRType):
+    name = "unranked_tensor"
+
+    element_type: ParameterDef[_UnrankedTensorTypeElems]
+
+    @staticmethod
+    @builder
+    def from_type(
+        referenced_type: _UnrankedTensorTypeElems
+    ) -> UnrankedTensorType[_UnrankedTensorTypeElems]:
+        return UnrankedTensorType([referenced_type])
+
+
+AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+
 
 @dataclass(init=False)
 class ContainerOf(AttrConstraint):
@@ -441,19 +464,26 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
+_VectorOrTensorElem = TypeVar("_VectorOrTensorElem", bound=Attribute)
+
+VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
+                               | TensorType[_VectorOrTensorElem]
+                               | UnrankedTensorType[_VectorOrTensorElem])
+
+
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    type: ParameterDef[VectorType[IntegerType] | VectorType[IndexType]
-                       | VectorType[AnyFloat] | TensorType[IndexType]
-                       | TensorType[IntegerType] | TensorType[AnyFloat]]
+    type: ParameterDef[VectorOrTensorOf[IntegerType]
+                       | VectorOrTensorOf[IndexType]
+                       | VectorOrTensorOf[AnyFloat]]
     # TODO add support for multi-dimensional data
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     @staticmethod
     @builder
     def from_index_list(
-            type: VectorType[IndexType] | TensorType[IndexType],
+            type: VectorOrTensorOf[IndexType],
             data: List[int | IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
         attr_list = [
@@ -465,7 +495,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_int_list(
-        type: VectorType[IntegerType] | TensorType[IntegerType],
+        type: VectorOrTensorOf[IntegerType],
         data: List[int | IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         attr_list = [
@@ -477,7 +507,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_float_list(
-            type: VectorType[AnyFloat] | TensorType[AnyFloat],
+            type: VectorOrTensorOf[AnyFloat],
             data: List[float | AnyFloatAttr]) -> DenseIntOrFPElementsAttr:
         data_attr = [
             FloatAttr.from_value(d, type.element_type)
@@ -488,7 +518,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_list(
-        type: AnyVectorType | AnyTensorType,
+        type: VectorOrTensorOf[Attribute],
         data: List[int | IntegerAttr[IntegerType]]
         | List[int | IntegerAttr[IndexType]] | List[float | AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
