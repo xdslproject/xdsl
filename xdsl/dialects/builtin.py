@@ -500,7 +500,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             n *= dim
         
         # Product of dimensions needs to equal length
-        return n == len(shape)
+        return n == len(self.data.data)
 
     @staticmethod
     @builder
