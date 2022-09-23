@@ -39,7 +39,7 @@ functionality, make sure to have clang, mlir-opt and mlir-translate installed
 and in the PATH. Clang can be installed by standard package managers (apt,
 pacman...), for MLIR follow [this](https://mlir.llvm.org/getting_started/) and
 run `ninja install` afterward. Given an input file `input.xdsl`, that contains
-IR with only the mirrored dialects found in `src/xdsl/dialects` (arith, builtin,
+IR with only the mirrored dialects found in `xdsl/dialects` (arith, builtin,
 cf, func, irdl, llvm, memref, and scf), run:
 
 ```bash

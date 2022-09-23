@@ -5,6 +5,6 @@ requires = [
 ]
 
 [tool.pyright]
-include = ["src"]
+include = ["xdsl"]
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
