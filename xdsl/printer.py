@@ -10,7 +10,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
-    AnyArrayAttr, AnyUnrankedTensorType, AnyVectorType,
+    AnyArrayAttr, AnyIntegerAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
@@ -318,6 +318,14 @@ class Printer:
             return
 
         if isinstance(attribute, IntegerAttr):
+            attribute = cast(AnyIntegerAttr, attribute)
+
+            # boolean shorthands
+            if isinstance(
+                (typ := attribute.typ), IntegerType) and typ.width == 1:
+                self.print("false" if attribute.value.data == 0 else "true")
+                return
+
             width = attribute.parameters[0]
             typ = attribute.parameters[1]
             assert (isinstance(width, IntAttr))

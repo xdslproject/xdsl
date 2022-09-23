@@ -584,6 +584,12 @@ class Parser:
                 typ = Float32Type()
             return FloatAttr.from_value(float_lit, typ)
 
+        # Shorthand for boolean literals (IntegerAttr of width 1)
+        if self.parse_optional_string("true") is not None:
+            return IntegerAttr.from_int_and_width(1, 1)
+        if self.parse_optional_string("false") is not None:
+            return IntegerAttr.from_int_and_width(0, 1)
+
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
         if integer_lit is not None:
@@ -844,6 +850,12 @@ class Parser:
                     return FloatAttr.from_value(lit, typ)
                 raise ParserError(self._pos, "float type expected")
             return FloatAttr.from_value(lit, Float64Type())
+
+        # Shorthand for boolean attributes (integer attributes of width 1)
+        if self.parse_optional_string("true") is not None:
+            return IntegerAttr.from_int_and_width(1, 1)
+        if self.parse_optional_string("false") is not None:
+            return IntegerAttr.from_int_and_width(0, 1)
 
         # integer attribute
         if (lit := self.parse_optional_int_literal()) is not None:
