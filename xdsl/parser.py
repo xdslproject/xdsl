@@ -779,9 +779,9 @@ class Parser:
             return typ
         raise ParserError(self._pos, "index type expected")
 
-    def parse_optional_mlir_integer_type(self,
-                                         skip_white_space: bool = True
-                                         ) -> IntegerType | None:
+    def parse_mlir_integer_type(self,
+                                skip_white_space: bool = True
+                                ) -> IntegerType | None:
         if (self.parse_optional_string("i", skip_white_space=skip_white_space)
                 or self.parse_optional_string(
                     "si", skip_white_space=skip_white_space)
@@ -791,15 +791,13 @@ class Parser:
             if width is not None:
                 return IntegerType.from_width(width)
             raise ParserError(self._pos, "integer type width expected")
-        return None
-
-    def parse_mlir_integer_type(self,
-                                skip_white_space: bool = True) -> IntegerType:
-        typ = self.parse_optional_mlir_integer_type(
-            skip_white_space=skip_white_space)
-        if typ is not None:
-            return typ
         raise ParserError(self._pos, "integer type expected")
+
+    def parse_optional_mlir_integer_type(self,
+                                         skip_white_space: bool = True
+                                         ) -> IntegerType | None:
+        return self.try_parse(self.parse_mlir_integer_type,
+                              skip_white_space=skip_white_space)
 
     def parse_optional_mlir_float_type(self,
                                        skip_white_space: bool = True
