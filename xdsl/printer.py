@@ -14,7 +14,8 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
-    TensorType, UnitAttr, FunctionType, UnrankedTensorType, VectorType)
+    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
+    VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -531,7 +532,9 @@ class Printer:
     def _print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column
         self._print_results(op)
-        if self.print_generic_format or self.target == self.Target.MLIR:
+        if isinstance(op, UnregisteredOp):
+            self.print(f'"{op.op_name.data}"')
+        elif self.print_generic_format or self.target == self.Target.MLIR:
             self.print(f'"{op.name}"')
         else:
             self.print(op.name)
@@ -540,7 +543,12 @@ class Printer:
             for message in self.diagnostic.op_messages[op]:
                 self._add_message_on_next_line(message, begin_op_pos,
                                                end_op_pos)
-        if self.print_generic_format or self.target == self.Target.MLIR:
+        if isinstance(op, UnregisteredOp):
+            op_name = op.op_name
+            del op.attributes["op_name__"]
+            self.print_op_with_default_format(op)
+            op.attributes["op_name__"] = op_name
+        elif self.print_generic_format or self.target == self.Target.MLIR:
             self.print_op_with_default_format(op)
         else:
             op.print(self)

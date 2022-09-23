@@ -149,6 +149,12 @@ class xDSLOptMain:
             help="Use the MLIR bindings for printing MLIR. "
             "This requires the MLIR Python bindings to be installed.")
 
+        arg_parser.add_argument(
+            "--allow-unregistered-ops",
+            default=False,
+            action='store_true',
+            help="Allow the parsing of unregistered operations.")
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -175,7 +181,10 @@ class xDSLOptMain:
 
         def parse_xdsl(f: IOBase):
             input_str = f.read()
-            parser = Parser(self.ctx, input_str)
+            parser = Parser(
+                self.ctx,
+                input_str,
+                allow_unregistered_ops=self.args.allow_unregistered_ops)
             module = parser.parse_op()
             if not (isinstance(module, ModuleOp)):
                 raise Exception(
@@ -184,7 +193,11 @@ class xDSLOptMain:
 
         def parse_mlir(f: IOBase):
             input_str = f.read()
-            parser = Parser(self.ctx, input_str, source=Parser.Source.MLIR)
+            parser = Parser(
+                self.ctx,
+                input_str,
+                source=Parser.Source.MLIR,
+                allow_unregistered_ops=self.args.allow_unregistered_ops)
             module = parser.parse_op()
             if not (isinstance(module, ModuleOp)):
                 raise Exception(
