@@ -321,8 +321,8 @@ class Printer:
             attribute = cast(AnyIntegerAttr, attribute)
 
             # boolean shorthands
-            if isinstance(
-                (typ := attribute.typ), IntegerType) and typ.width == 1:
+            if (isinstance((typ := attribute.typ), IntegerType)
+                    and typ.width.data == 1):
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
