@@ -34,6 +34,10 @@
 
   // CHECK: 42 : i32
 
+  "func.func"() ({}) {function_type = () -> (), value = 54 : index, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 54 : index
+
 
   "func.func"() ({}) {function_type = () -> (), value = "foo", sym_name = "string_attr"} : () -> ()
 
