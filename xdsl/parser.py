@@ -380,6 +380,26 @@ class Parser:
 
     T = TypeVar('T')
 
+    def parse_nested_list(self,
+                          parse_optional_one: Callable[[], T | None],
+                          delimiter: str = ",",
+                          skip_white_space: bool = True) -> list[T]:
+        '''
+        Parse and flatten a list of lists. The result is a list of elements, no matter the
+        rank of the input.
+        '''
+        if self.parse_optional_char("["):
+            result = [
+                el for els in self.parse_list(lambda: self.parse_nested_list(
+                    parse_optional_one, delimiter, skip_white_space))
+                for el in els
+            ]
+            self.parse_char("]")
+        else:
+            result = self.parse_list(parse_optional_one, delimiter,
+                                     skip_white_space)
+        return result
+
     def parse_list(self,
                    parse_optional_one: Callable[[], T | None],
                    delimiter: str = ",",
@@ -898,29 +918,9 @@ class Parser:
         # dense attribute
         if self.parse_optional_string("dense"):
             self.parse_char("<")
-            value: list[int] | list[float]
-            # Parse either a float list or an integer list
-            if self.parse_optional_char("["):
-                if len(f := self.parse_list(
-                        self.parse_optional_float_literal)) > 0:
-                    value = f
-                elif len(i := self.parse_list(
-                        self.parse_optional_int_literal)) > 0:
-                    value = i
-                else:
-                    value = []
-                self.parse_char("]")
-            else:
-                if (float_val :=
-                        self.parse_optional_float_literal()) is not None:
-                    value = [float_val]
-                elif (int_val :=
-                      self.parse_optional_int_literal()) is not None:
-                    value = [int_val]
-                else:
-                    raise ParserError(self._pos,
-                                      "expected a float or an integer list")
-
+            value = self.parse_nested_list(lambda: (
+                self.parse_optional_int_literal()
+                if (f := self.parse_optional_float_literal()) is None else f))
             self.parse_char(">")
             self.parse_char(":")
 
