@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     FunctionType, IndexType, IntegerType, OpaqueAttr, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
-    UnrankedTensorType, VectorType)
+    UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -104,6 +104,9 @@ class Parser:
 
     source: Source = field(default=Source.XDSL, kw_only=True)
     """The source language to parse."""
+
+    allow_unregistered_ops: bool = field(default=False, kw_only=True)
+    """Allow the parsing of unregistered ops."""
 
     _pos: Position | None = field(init=False)
     """Position in the file. None represent the end of the file."""
@@ -1080,12 +1083,25 @@ class Parser:
             op_name, is_generic_format = self._parse_op_name()
 
         result_types = [typ for (_, typ) in results]
+        op_type = self.ctx.get_optional_op(op_name)
 
-        op_type = self.ctx.get_op(op_name)
-        if not is_generic_format:
-            op = op_type.parse(result_types, self)
+        # If the operation is not registered, we create an UnregisteredOp instead, or fail.
+        if op_type is None:
+            if not self.allow_unregistered_ops:
+                raise ParserError(start_pos, f"unknown operation '{op_name}'")
+            if not is_generic_format:
+                raise ParserError(
+                    start_pos, f"unknown operation '{op_name}' can "
+                    "only be parsed using the generic format")
+
+            op = self.parse_op_with_default_format(UnregisteredOp,
+                                                   result_types)
+            op.attributes["op_name__"] = StringAttr.from_str(op_name)
         else:
-            op = self.parse_op_with_default_format(op_type, result_types)
+            if not is_generic_format:
+                op = op_type.parse(result_types, self)
+            else:
+                op = self.parse_op_with_default_format(op_type, result_types)
 
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):

@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import TypeAlias, List, cast, Type, Sequence, Optional
 
 from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
-                     ParametrizedAttribute, Operation)
-from xdsl.irdl import (irdl_attr_definition, attr_constr_coercion,
+                     ParametrizedAttribute, Operation, SSAValue)
+from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
+                       irdl_attr_definition, attr_constr_coercion,
                        irdl_to_attr_constraint, irdl_op_definition, builder,
                        ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
                        GenericData, AttrConstraint, Any, Attribute, Region,
@@ -47,6 +48,7 @@ class Builtin:
         self.ctx.register_attr(OpaqueAttr)
 
         self.ctx.register_op(ModuleOp)
+        self.ctx.register_op(UnregisteredOp)
 
 
 @irdl_attr_definition
@@ -604,6 +606,35 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr(
             [StringAttr.from_str(name),
              StringAttr.from_str(value), type])
+
+
+@irdl_op_definition
+class UnregisteredOp(Operation):
+    name: str = "builtin.unregistered"
+
+    op_name__ = AttributeDef(StringAttr)
+    args = VarOperandDef(AnyAttr())
+    res = VarResultDef(AnyAttr())
+    regs = VarRegionDef()
+
+    @property
+    def op_name(self) -> StringAttr:
+        return self.op_name__  # type: ignore
+
+    @staticmethod
+    def from_name(name: str | StringAttr,
+                  args: list[SSAValue | Operation] = [],
+                  res: list[Attribute] = [],
+                  regs: list[Region] = [],
+                  attrs: dict[str, Attribute] = {}) -> UnregisteredOp:
+        if "op_name__" in attrs:
+            raise Exception(
+                "Cannot create an unregistered op with an __op_name attribute")
+        attrs["op_name__"] = StringAttr.build(name)
+        return UnregisteredOp.build(operands=args,
+                                    result_types=res,
+                                    regions=regs,
+                                    attributes=attrs)
 
 
 @irdl_op_definition
