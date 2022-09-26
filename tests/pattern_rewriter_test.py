@@ -522,7 +522,7 @@ def test_block_argument_type_change():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
   %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
@@ -531,7 +531,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
   ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
@@ -554,7 +554,7 @@ def test_block_argument_erasure():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
 ^0(%1 : !i32):
 } {}
@@ -562,7 +562,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {} {}
 }"""
 
@@ -581,13 +581,13 @@ def test_block_argument_insertion():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {} {}
 }"""
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
   ^0(%1 : !i32):
   } {}
@@ -608,7 +608,7 @@ def test_inline_block_at_pos():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -618,7 +618,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
     scf.if(%0 : !i1) {} {}
@@ -644,7 +644,7 @@ def test_inline_block_before_matched_op():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 } {}
@@ -652,7 +652,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   scf.if(%0 : !i1) {} {}
 }"""
@@ -672,7 +672,7 @@ def test_inline_block_before():
 
     prog = \
 """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -682,7 +682,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
     scf.if(%0 : !i1) {} {}
@@ -709,7 +709,7 @@ def test_inline_block_at_before_when_op_is_matched_op():
 
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 } {}
@@ -717,7 +717,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   scf.if(%0 : !i1) {} {}
 }"""
@@ -737,7 +737,7 @@ def test_inline_block_after():
 
     prog = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     scf.if(%0 : !i1) {
       %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -747,7 +747,7 @@ def test_inline_block_after():
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     scf.if(%0 : !i1) {} {}
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -774,7 +774,7 @@ def test_move_region_contents_to_new_regions():
 
     prog = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   }
@@ -782,7 +782,7 @@ def test_move_region_contents_to_new_regions():
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {}
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
