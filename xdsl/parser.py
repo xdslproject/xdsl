@@ -566,6 +566,16 @@ class Parser:
         self.parse_char(">")
         return res
 
+    def parse_optional_boolean_attribute(
+            self,
+            skip_white_space: bool = True) -> IntegerAttr[IntegerType] | None:
+        if self.parse_optional_string(
+                "true", skip_white_space=skip_white_space) is not None:
+            return IntegerAttr.from_int_and_width(1, 1)
+        if self.parse_optional_string(
+                "false", skip_white_space=skip_white_space) is not None:
+            return IntegerAttr.from_int_and_width(0, 1)
+
     def parse_optional_xdsl_builtin_attribute(self,
                                               skip_white_space: bool = True
                                               ) -> Attribute | None:
@@ -583,6 +593,11 @@ class Parser:
             else:
                 typ = Float32Type()
             return FloatAttr.from_value(float_lit, typ)
+
+        # Shorthand for boolean literals (IntegerAttr of width 1)
+        if (bool_attr := self.parse_optional_boolean_attribute(
+                skip_white_space=skip_white_space)):
+            return bool_attr
 
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
@@ -842,6 +857,10 @@ class Parser:
                     return FloatAttr.from_value(lit, typ)
                 raise ParserError(self._pos, "float type expected")
             return FloatAttr.from_value(lit, Float64Type())
+
+        # Shorthand for boolean attributes (integer attributes of width 1)
+        if (bool_attr := self.parse_optional_boolean_attribute()) is not None:
+            return bool_attr
 
         # integer attribute
         if (lit := self.parse_optional_int_literal()) is not None:

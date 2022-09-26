@@ -29,6 +29,22 @@
 
   // CHECK: 42.0 : f32
 
+  "func.func"() ({}) {function_type = () -> (), value = true, sym_name = "true_attr"} : () -> ()
+
+  // CHECK: value = true
+
+  "func.func"() ({}) {function_type = () -> (), value = 1 : i1, sym_name = "true_explicit_attr"} : () -> ()
+
+  // CHECK: value = true
+
+  "func.func"() ({}) {function_type = () -> (), value = false, sym_name = "false_attr"} : () -> ()
+
+  // CHECK: value = false
+
+  "func.func"() ({}) {function_type = () -> (), value = 0 : i1, sym_name = "false_explicit_attr"} : () -> ()
+
+  // CHECK: value = false
+
 
   "func.func"() ({}) {function_type = () -> (), value = 42 : i32, sym_name = "int_attr"} : () -> ()
 
