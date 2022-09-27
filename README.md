@@ -34,17 +34,24 @@ lit tests/filecheck
 
 ## Generating executables through MLIR
 
-xDSL can generate executables using MLIR as the backend. To use this
-functionality, make sure to have clang, mlir-opt and mlir-translate installed
-and in the PATH. Clang can be installed by standard package managers (apt,
-pacman...), for MLIR follow [this](https://mlir.llvm.org/getting_started/) and
-run `ninja install` afterward. Given an input file `input.xdsl`, that contains
-IR with only the mirrored dialects found in `xdsl/dialects` (arith, builtin,
-cf, func, irdl, llvm, memref, and scf), run:
+xDSL can generate executables using MLIR as its backend.
+To benefit from this functionality, we first need to clone and build MLIR.
+Please follow: https://mlir.llvm.org/getting_started/
+
+Next, we need to have `mlir-opt`, `mlir-translate` and `clang` in the path:
+
+```bash
+# For XDSL-MLIR
+export PATH=<insert-your-path>/llvm-project/build/bin:$PATH
+```
+
+Given an input file `input.xdsl`, that contains IR with only the mirrored dialects
+found in `src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic from to tmp.mlir
-./src/tools/xdsl_opt -t mlir  -o tmp.mlir `input.xdsl`
+# e.g.  ./src/tools/xdsl_opt -t mlir -o tmp.mlir `input.xdsl`
+/src/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
 
 mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --convert-arith-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
 ```
