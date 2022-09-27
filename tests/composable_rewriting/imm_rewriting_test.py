@@ -9,6 +9,7 @@ from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 import os
+import xdsl.dialects.IRUtils.dialect as IRUtils
 import xdsl.dialects.match.dialect as match
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.elevate.dialect as elevate
@@ -56,6 +57,7 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
     Func(ctx)
     Arith(ctx)
     scf.Scf(ctx)
+    IRUtils.IRUtils(ctx)
     match.Match(ctx)
     rewrite.Rewrite(ctx)
     elevate.Elevate(ctx)

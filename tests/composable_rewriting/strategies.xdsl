@@ -10,31 +10,32 @@ builtin.module() {
     // match the first constant
     %attr1 : !i32 = match.attr() ["name" = "value"]
     (%3 : !operation, %4 : !value) = match.op(%attr1 : !i32, %int_type : !type<!i32>) ["name"="arith.constant"]
-    // other option would be:
-    // %4 : !value = match.get_result(%3 : !operation) ["idx" = 0]
 
     // match the second constant
     %attr2 : !i32 = match.attr() ["name" = "value"]
     (%5 : !operation, %6 : !value) = match.op(%attr2 : !i32, %int_type : !type<!i32>) ["name"="arith.constant"]
 
     // match the addition of these constants
-    %7 : !operation = match.root_op(%4 : !value, %6 : !value, %int_type : !type<!i32>) ["name"="arith.addi"]
+    rewrite.replace_op(%4 : !value, %6 : !value, %int_type : !type<!i32>) ["name"="arith.addi"] {
+      ^rewrite(%7 : !operation):
+      // rewriting
+      %new_attr_val : !i32 = arith.addi(%attr1 : !i32, %attr2 : !i32)
+      %result : !operation = irutils.new_op(%new_attr_val : !i32, %int_type : !type<!i32>) ["name" = "arith.Constant", "attribute_names"=["value"]]
+      rewrite.return(%result : !operation)
+    }
 
-    // rewriting
-    %new_attr_val : !i32 = arith.addi(%attr1 : !i32, %attr2 : !i32)
-    %result : !operation = rewrite.new_op(%new_attr_val : !i32, %int_type : !type<!i32>) ["name" = "arith.Constant", "attribute_names"=["value"]]
-    rewrite.success(%result : !operation)
   }
 
   %commute_add : !strategy = elevate.strategy() ["strategy_name"="commute_add"] {
     // match an addition of two arbitrary values
     %operand : !value = match.operand()
     %other_operand : !value = match.operand()
-    %add_op : !operation = match.root_op(%operand : !value, %other_operand : !value) ["name"="arith.addi"]
-
-    // rewriting
-    %result : !operation = rewrite.from_op(%add_op : !operation, %other_operand : !value, %operand : !value)
-    rewrite.success(%result : !operation)
+    rewrite.replace_op(%operand : !value, %other_operand : !value) ["name"="arith.addi"] {
+      ^rewrite(%add_op : !operation):
+      // rewriting
+      %result : !operation = irutils.from_op(%add_op : !operation, %other_operand : !value, %operand : !value)
+      rewrite.return(%result : !operation)
+    }
   }
 
   // Demonstrates manipulation of nested ops and replacement of an op with multiple ops
@@ -42,23 +43,25 @@ builtin.module() {
     %bool_type : !type<!i1> = match.type()
     %cond_value : !i1 = match.attr() ["name" = "value", "value" = 1 : !i1]
     (%condition : !operation, %condition_res : !value) = match.op(%cond_value : !i1, %bool_type : !type<!i1>) ["name"="arith.constant"]
-    %add_op : !operation = match.root_op(%condition_res : !value) ["name"="scf.if"]
-
-    %nested_ops : !range<!operation> = match.get_nested_ops(%add_op : !operation) ["region_idx" = 0, "block_idx" = 0, "exclude_terminator" = 1]
-    rewrite.success(%nested_ops : !range<!operation>)
+    rewrite.replace_op(%condition_res : !value) ["name"="scf.if"] {
+      ^rewrite(%add_op : !operation):
+      %nested_ops : !range<!operation> = irutils.get_nested_ops(%add_op : !operation) ["region_idx" = 0, "block_idx" = 0, "exclude_terminator" = 1]
+      rewrite.return(%nested_ops : !range<!operation>)
+    }
   }
 
   // Demonstrates creation of a new attribute (see the first "new_op")
   %add_zero : !strategy = elevate.strategy() ["strategy_name"="add_zero"] {
     // here is a parser error! If I leave out the "[]", the parser fails
     %int_type : !type<!i32> = match.type() []
-    (%op : !operation, %op_res : !value) = match.root_op(%int_type : !type<!i32>) []
+    (%op : !operation, %op_res : !value) = rewrite.replace_op(%int_type : !type<!i32>) [] {
+      ^rewrite(%op : !operation, %op_res : !value):
+      // rewriting
+      (%cst0_ : !operation, %cst0_res : !value) = irutils.new_op(%int_type : !type<!i32>) ["name" = "arith.Constant", "value" = 0 : !i32, "attribute_names"=["value"]]
+      %result : !operation = irutils.new_op(%op_res : !value, %cst0_res : !value, %int_type : !type<!i32>) ["name" = "arith.Addi"]
 
-    // rewriting
-    (%cst0_ : !operation, %cst0_res : !value) = rewrite.new_op(%int_type : !type<!i32>) ["name" = "arith.Constant", "value" = 0 : !i32, "attribute_names"=["value"]]
-    %result : !operation = rewrite.new_op(%op_res : !value, %cst0_res : !value, %int_type : !type<!i32>) ["name" = "arith.Addi"]
-
-    rewrite.success(%result : !operation)
+      rewrite.return(%result : !operation)
+    }
   }
 
   // Demonstrates replacement of an op with an existing value using RewriteId
@@ -66,17 +69,17 @@ builtin.module() {
     // matching the cst 0
     %attr_value : !i32 = match.attr() ["name" = "value", "value" = 0 : !i32]
     (%cst0_ : !operation, %cst0_res : !value) = match.op(%attr_value : !i32) ["name"="arith.constant"]
-
     // matching any other operand
     %int_type : !type<!i32> = match.type()
     %any_operand : !value = match.operand(%int_type : !type<!i32>)
     
-    %add_op : !operation = match.root_op(%cst0_res : !value, %any_operand : !value) ["name" = "arith.addi"]
+    rewrite.replace_op(%cst0_res : !value, %any_operand : !value) ["name" = "arith.addi"] {
+      ^rewrite(%add_op : !operation):
+      // rewriting
+      %result : !operation = irutils.new_op(%any_operand : !value, %int_type : !type<!i32>) ["name" = "rewrite.RewriteId"]
 
-    // rewriting
-    %result : !operation = rewrite.new_op(%any_operand : !value, %int_type : !type<!i32>) ["name" = "rewrite.RewriteId"]
-
-    rewrite.success(%result : !operation)
+      rewrite.return(%result : !operation)
+    }
   }
 
   // Demonstrates replacement of an op with an existing value using RewriteId
@@ -84,25 +87,27 @@ builtin.module() {
     // matching the cst 1
     %attr_value : !i32 = match.attr() ["name" = "value", "value" = 2 : !i32]
     (%cst0_ : !operation, %cst0_res : !value) = match.op(%attr_value : !i32) ["name"="arith.constant"]
-
     // matching any other operand
     %int_type : !type<!i32> = match.type()
     %any_operand : !value = match.operand(%int_type : !type<!i32>)
 
-    %add_op : !operation = match.root_op(%any_operand : !value, %cst0_res : !value) ["name" = "arith.muli"]
+    rewrite.replace_op(%any_operand : !value, %cst0_res : !value) ["name" = "arith.muli"] {
+      ^rewrite(%add_op : !operation):
+      // rewriting
+      (%cst1_ : !operation, %cst1_res : !value) = irutils.new_op(%int_type : !type<!i32>) ["name" = "arith.Constant", "value" = 1 : !i32, "attribute_names"=["value"]]
+      %result : !operation = irutils.new_op(%any_operand : !value, %cst1_res : !value, %int_type : !type<!i32>) ["name" = "arith.ShLI"]
 
-    // rewriting
-    (%cst1_ : !operation, %cst1_res : !value) = rewrite.new_op(%int_type : !type<!i32>) ["name" = "arith.Constant", "value" = 1 : !i32, "attribute_names"=["value"]]
-    %result : !operation = rewrite.new_op(%any_operand : !value, %cst1_res : !value, %int_type : !type<!i32>) ["name" = "arith.ShLI"]
-
-    rewrite.success(%result : !operation)
+      rewrite.return(%result : !operation)
+    }
   }
 
   %change_cst_to_42 : !strategy = elevate.strategy() ["strategy_name"="change_cst_to_42"] {
-    (%any_cst : !operation, %any_cst_res : !value) = match.root_op() ["name"="arith.constant"]
-    // rewriting
-    %result : !operation = rewrite.from_op(%any_cst : !operation) ["value" = 42 : !i32, "attribute_names"=["value"]]
-    rewrite.success(%result : !operation)
+    rewrite.replace_op() ["name"="arith.constant"] {
+      ^rewrite(%any_cst : !operation, %any_cst_res : !value):
+      // rewriting
+      %result : !operation = irutils.from_op(%any_cst : !operation) ["value" = 42 : !i32, "attribute_names"=["value"]]
+      rewrite.return(%result : !operation)
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////

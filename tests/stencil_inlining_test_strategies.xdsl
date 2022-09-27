@@ -6,44 +6,46 @@ builtin.module() {
 
   %inline : !strategy = elevate.strategy() {
     // automatically using results here should work with ranges as well (i.e. all results are in the range)
-    (%consumer_apply : !operation, %cons_apply_vals : !range<!value>) = match.root_op() ["name" = "stencil.apply"]
-    (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = match.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
-    
-    // concat producer and consumer operands
-    %producer_operands : !range<!value> = match.get_operands(%producer_apply : !operation)
-    %consumer_operands : !range<!value> = match.get_operands(%consumer_apply : !operation)    
-    %new_operands : !range<!value> = rewrite.concat(%producer_operands : !range<!value>, %consumer_operands : !range<!value>)
+    rewrite.replace_op() ["name" = "stencil.apply"] {
+      ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
+      (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
+      
+      // concat producer and consumer operands
+      %producer_operands : !range<!value> = irutils.get_operands(%producer_apply : !operation)
+      %consumer_operands : !range<!value> = irutils.get_operands(%consumer_apply : !operation)    
+      %new_operands : !range<!value> = irutils.concat(%producer_operands : !range<!value>, %consumer_operands : !range<!value>)
 
-    // concat producer and consumer blockargs
-    %producer_args : !range<!value> = match.get_block_args(%producer_apply : !operation)
-    %consumer_args : !range<!value> = match.get_block_args(%consumer_apply : !operation)
-    %new_args : !range<!value> = rewrite.concat(%producer_args : !range<!value>, %consumer_args : !range<!value>)
+      // concat producer and consumer blockargs
+      %producer_args : !range<!value> = irutils.get_block_args(%producer_apply : !operation)
+      %consumer_args : !range<!value> = irutils.get_block_args(%consumer_apply : !operation)
+      %new_args : !range<!value> = irutils.concat(%producer_args : !range<!value>, %consumer_args : !range<!value>)
 
-    // Get index to inline at
-    %consumer_ops : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation)
-    %inlining_idx : !index = match.get_index_of_op_in_range(%access_op_to_inline_at : !operation, %consumer_ops : !range<!operation>)
-    %cst0 : !index = arith.constant() ["value" = 0 : !index]
-    %cst1 : !index = arith.constant() ["value" = 1 : !index]
-    %inlining_idx_plus_one : !index = arith.addi(%inlining_idx : !index, %cst1 : !index)
+      // Get index to inline at
+      %consumer_ops : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation)
+      %inlining_idx : !index = irutils.get_index_of_op_in_range(%access_op_to_inline_at : !operation, %consumer_ops : !range<!operation>)
+      %cst0 : !index = arith.constant() ["value" = 0 : !index]
+      %cst1 : !index = arith.constant() ["value" = 1 : !index]
+      %inlining_idx_plus_one : !index = arith.addi(%inlining_idx : !index, %cst1 : !index)
 
-    // create list of new ops from consumer and producer
-    %consumer_ops_first_half : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation, %inlining_idx : !index) ["custom_ub" = 1 : !i1]
-    %consumer_ops_second_half : !range<!operation> = match.get_nested_ops(%consumer_apply : !operation, %inlining_idx_plus_one : !index) ["custom_lb" = 1 : !i1]
-    %producer_ops : !range<!operation> = match.get_nested_ops(%producer_apply : !operation)
-    %new_ops : !range<!operation> = rewrite.concat(%consumer_ops_first_half : !range<!operation>, %producer_ops : !range<!operation>, %consumer_ops_second_half : !range<!operation>)
+      // create list of new ops from consumer and producer
+      %consumer_ops_first_half : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation, %inlining_idx : !index) ["custom_ub" = 1 : !i1]
+      %consumer_ops_second_half : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation, %inlining_idx_plus_one : !index) ["custom_lb" = 1 : !i1]
+      %producer_ops : !range<!operation> = irutils.get_nested_ops(%producer_apply : !operation)
+      %new_ops : !range<!operation> = irutils.concat(%consumer_ops_first_half : !range<!operation>, %producer_ops : !range<!operation>, %consumer_ops_second_half : !range<!operation>)
 
-    // create region for the new applyOp
-    %custom_merger : !native_handle = rewrite.apply_native_rewrite(%producer_apply : !operation, %consumer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) ["rewriter_name" = "inlining_merger"]
-    %new_apply_block : !block = rewrite.new_block(%new_args : !range<!value>, %new_ops : !range<!operation>, %custom_merger : !native_handle)
-    %new_apply_region : !region = rewrite.region_from_blocks(%new_apply_block : !block)
+      // create region for the new applyOp
+      %custom_merger : !native_handle = irutils.apply_native_rewrite(%producer_apply : !operation, %consumer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) ["rewriter_name" = "inlining_merger"]
+      %new_apply_block : !block = irutils.new_block(%new_args : !range<!value>, %new_ops : !range<!operation>, %custom_merger : !native_handle)
+      %new_apply_region : !region = irutils.region_from_blocks(%new_apply_block : !block)
 
-    // create new applyOp
-    %result_types : !range<!type<!any>> = match.get_type(%cons_apply_vals : !range<!value>)
-    %attributes : !range<!attribute> = match.get_attributes(%consumer_apply : !operation)
-    // // We have to get the types in here as well (might be multiple)
-    %new_apply_op : !operation = rewrite.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
+      // create new applyOp
+      %result_types : !range<!type<!any>> = irutils.get_type(%cons_apply_vals : !range<!value>)
+      %attributes : !range<!attribute> = irutils.get_attributes(%consumer_apply : !operation)
+      // // We have to get the types in here as well (might be multiple)
+      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
 
-    rewrite.success(%new_apply_op : !operation)
+      rewrite.return(%new_apply_op : !operation)
+    }
   }
 
   // The concept of this rerouting rewrite is different from the multipattern in Python. This does not represent
@@ -51,41 +53,44 @@ builtin.module() {
   // and then performing the rewrite
   %reroute : !strategy = elevate.strategy() {
     // we have a root "anchor" op (will be func here) and do the actual matching only natively -> matchTopToBottom
-    %root : !operation = match.root_op() []
-    (%producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation) = match.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
-    
-    // concat producer and consumer operands
-    %consumer_operands : !range<!value> = match.get_operands(%fst_consumer : !operation)
-    %producer_operands : !range<!value> = match.get_operands(%producer : !operation)
-    %new_operands : !range<!value> = rewrite.concat(%consumer_operands : !range<!value>, %producer_operands : !range<!value>)
+    %root : !operation = rewrite.replace_op() [] {
+      ^rewrite(%root : !operation):
+      (%producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation) = irutils.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
+      
+      // concat producer and consumer operands
+      %consumer_operands : !range<!value> = irutils.get_operands(%fst_consumer : !operation)
+      %producer_operands : !range<!value> = irutils.get_operands(%producer : !operation)
+      %new_operands : !range<!value> = irutils.concat(%consumer_operands : !range<!value>, %producer_operands : !range<!value>)
 
-    %fst_consumer_args : !range<!value> = match.get_block_args(%fst_consumer : !operation)
-    %producer_results : !range<!value> = match.get_results(%producer : !operation)
-    %additional_block_args : !range<!value> = rewrite.new_block_args(%producer_results : !range<!value>)
-    %new_block_args : !range<!value> = rewrite.concat(%fst_consumer_args : !range<!value>, %additional_block_args : !range<!value>)
+      %fst_consumer_args : !range<!value> = irutils.get_block_args(%fst_consumer : !operation)
+      %producer_results : !range<!value> = irutils.get_results(%producer : !operation)
+      %additional_block_args : !range<!value> = irutils.new_block_args(%producer_results : !range<!value>)
+      %new_block_args : !range<!value> = irutils.concat(%fst_consumer_args : !range<!value>, %additional_block_args : !range<!value>)
 
-    // computing of new bounds
-    %fst_consumer_attributes : !range<!attribute> = match.get_attributes(%fst_consumer : !operation)
+      // computing of new bounds
+      %fst_consumer_attributes : !range<!attribute> = irutils.get_attributes(%fst_consumer : !operation)
 
-    %producer_lb : !attribute = match.get_attribute(%producer : !operation) ["attr_name" = "lb"]
-    %producer_ub : !attribute = match.get_attribute(%producer : !operation) ["attr_name" = "ub"]
-    %fst_consumer_lb : !attribute = match.get_attribute(%fst_consumer : !operation) ["attr_name" = "lb"]
-    %fst_consumer_ub : !attribute = match.get_attribute(%fst_consumer : !operation) ["attr_name" = "ub"]
+      %producer_lb : !attribute = irutils.get_attribute(%producer : !operation) ["attr_name" = "lb"]
+      %producer_ub : !attribute = irutils.get_attribute(%producer : !operation) ["attr_name" = "ub"]
+      %fst_consumer_lb : !attribute = irutils.get_attribute(%fst_consumer : !operation) ["attr_name" = "lb"]
+      %fst_consumer_ub : !attribute = irutils.get_attribute(%fst_consumer : !operation) ["attr_name" = "ub"]
 
-    %new_lb_attr : !attribute = rewrite.array_attr_element_wise(%producer_lb : !attribute, %fst_consumer_lb : !attribute) ["op" = "min"]
-    %new_ub_attr : !attribute = rewrite.array_attr_element_wise(%producer_ub : !attribute, %fst_consumer_ub : !attribute) ["op" = "max"]
+      %new_lb_attr : !attribute = irutils.array_attr_element_wise(%producer_lb : !attribute, %fst_consumer_lb : !attribute) ["op" = "min"]
+      %new_ub_attr : !attribute = irutils.array_attr_element_wise(%producer_ub : !attribute, %fst_consumer_ub : !attribute) ["op" = "max"]
 
-    %new_attributes : !range<!attribute> = rewrite.add_attribute(%fst_consumer_attributes : !range<!attribute>, %new_lb_attr : !attribute, %new_ub_attr : !attribute) ["attribute_names"=["lb", "ub"]]
+      %new_attributes : !range<!attribute> = irutils.add_attribute(%fst_consumer_attributes : !range<!attribute>, %new_lb_attr : !attribute, %new_ub_attr : !attribute) ["attribute_names"=["lb", "ub"]]
 
-    // computing new result type
-    %result_shape : !attribute = rewrite.array_attr_element_wise(%new_ub_attr : !attribute, %new_lb_attr : !attribute) ["op" = "sub"]
-    %result_type : !type<!any> = rewrite.construct_type(%result_shape : !attribute) ["name" = "stencil.TempType"]
+      // computing new result type
+      %result_shape : !attribute = irutils.array_attr_element_wise(%new_ub_attr : !attribute, %new_lb_attr : !attribute) ["op" = "sub"]
+      %result_type : !type<!any> = irutils.construct_type(%result_shape : !attribute) ["name" = "stencil.TempType"]
 
-    // incomplete from here, actual construction of the new ops is missing
+      // incomplete from here, actual construction of the new ops is missing
 
 
 
-    rewrite.success(%fst_consumer : !operation)
+      rewrite.return(%fst_consumer : !operation)
+    }
+
   }
 
 

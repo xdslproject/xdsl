@@ -13,6 +13,7 @@ from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyO
 import difflib
 from xdsl.immutable_utils import *
 import os
+import xdsl.dialects.IRUtils.dialect as irutils
 import xdsl.dialects.match.dialect as match
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.elevate.dialect as elevate
@@ -76,6 +77,7 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
     Arith(ctx)
     scf.Scf(ctx)
     stencil.Stencil(ctx)
+    irutils.IRUtils(ctx)
     match.Match(ctx)
     rewrite.Rewrite(ctx)
     elevate.Elevate(ctx)

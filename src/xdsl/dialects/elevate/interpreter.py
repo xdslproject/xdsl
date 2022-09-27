@@ -8,6 +8,8 @@ from xdsl.irdl import *
 from xdsl.util import *
 from xdsl.elevate import *
 import xdsl.dialects.elevate.dialect as elevate_dialect
+from xdsl.dialects.IRUtils.dialect import ValueType, TypeType, OperationType, AnyType, AttributeType, RegionType, BlockType, RangeType, NativeHandleType
+import xdsl.dialects.IRUtils.dialect as IRUtils
 import xdsl.dialects.match.dialect as match
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.arith as arith
@@ -95,22 +97,30 @@ class ElevateInterpreter():
         # This is executed when a DynStrategy is actually applied
 
         # get root_op
-        root_op: Optional[match.RootOperationOp] = None
-        root_index: int = 0
-        for idx, nested_op in enumerate(strat_op.body.ops):
-            if isinstance(nested_op, match.RootOperationOp):
+        root_op: Optional[rewrite.ReplaceOperationOp] = None
+        for nested_op in strat_op.body.ops:
+            if isinstance(nested_op, rewrite.ReplaceOperationOp):
                 root_op = nested_op
-                root_index = idx
                 break
         assert root_op is not None
+        if root_op is None:
+            raise Exception("No rewrite.replaceOp found in strategy!")
 
+        # check root_op is well formed
+        if len(root_op.regions) != 1 or len(root_op.regions[0].blocks) != 1:
+            raise Exception("rewrite.replaceOp must have exactly one region with one block!")
+
+        # matching part
         if not self._match_for_op(op, root_op).success:
-            # matching successful
             return failure(id())
 
-        for idx in range(root_index+1, len(strat_op.body.ops)):
-            if isinstance((cur_op := strat_op.body.ops[idx]), rewrite.SuccessOp):
-                result = self.matching_env[cur_op.operands[0]]
+        # Matching successful
+
+        # Interpret the region of replace op line by line until we hit a rewrite.return
+        # for idx in range(root_index+1, len(strat_op.body.ops)):
+        for rhs_op in root_op.body.ops:
+            if isinstance(rhs_op, rewrite.ReturnOp):
+                result = self.matching_env[rhs_op.operands[0]]
                 if isinstance(result, list):
                     return success(result)
                 elif isinstance(result, IResult):
@@ -118,7 +128,7 @@ class ElevateInterpreter():
                 elif isinstance(result, IOp):
                     return success([result])
                 raise Exception("malformed rewrite.success operation")
-            if not (interp_result := self._interpret_rhs(cur_op)).success: 
+            if not (interp_result := self._interpret_rhs(rhs_op)).success: 
                 print(f"Failed to interpret with error msg: {interp_result}")
                 return failure(id())
 
@@ -135,9 +145,9 @@ class ElevateInterpreter():
         for idx, constraint in enumerate(op_constr.operands):
             assert isinstance(constraint, OpResult)
             match constraint.typ:
-                case match.TypeType():
+                case TypeType():
                     result_constraints.append(constraint)
-                case match.ValueType():
+                case ValueType():
                     operand_constraints.append(constraint)
                 case _:
                     attr_constraints.append(constraint)
@@ -173,7 +183,7 @@ class ElevateInterpreter():
         # check operand constraints:
         for idx, operand_constraint in enumerate(operand_constraints):
             match operand_constraint.op:
-                case match.GetResultsOp() as get_res_op:
+                case IRUtils.GetResultsOp() as get_res_op:
                     if not isinstance((op.operands[idx]), IResult):
                         return InterpResult(False, f"GetResultOp malformed")
                     if not get_res_op.idx.value.data == op.operands[idx].result_index: 
@@ -183,7 +193,7 @@ class ElevateInterpreter():
                             op_constr=get_res_op.operands[0].op):
                         return InterpResult(False, f"GetResultOp: Could not find match for op: {op.operands[idx].op.name}")
                     self.matching_env[operand_constraint] = op.operands[idx]
-                case match.OperationOp() | match.RootOperationOp() as op_match_op:
+                case match.OperationOp() | rewrite.ReplaceOperationOp() as op_match_op:
                     if not isinstance((op.operands[idx]), IResult):
                         return InterpResult(False, f"")
                     if not op_match_op.results.index(operand_constraint)-1 == op.operands[idx].result_index: 
@@ -202,15 +212,26 @@ class ElevateInterpreter():
                 case _:
                     return InterpResult(False, f"Could not resolve constraint")
 
+        
+        if isinstance(op_constr, rewrite.ReplaceOperationOp):
+            env_binder_vals = op_constr.body.blocks[0].args
+        elif isinstance(op_constr, match.OperationOp):
+            env_binder_vals = op_constr.results
+        else:
+            raise Exception("malformed op constr")
+
+        if len(env_binder_vals) == 0:
+            raise Exception("No values (results or blockArgs) to bind the matched operation to.")
+
         # record the match of this op in the matching environment so it can be referred to
         # in the rewriting part
-        self.matching_env[op_constr.results[0]] = op
+        self.matching_env[env_binder_vals[0]] = op
 
         # bind the results of the matched op the the results of the op constraint (either to a range or individually)
-        if len(op_constr.results) == 2 and isinstance(op_constr.results[1].typ, match.RangeType):
-            self.matching_env[op_constr.results[1]] = op.results
-        elif len(op_constr.results) > 1:
-            for idx, op_constr_result in enumerate(op_constr.results[1:]):
+        if len(env_binder_vals) == 2 and isinstance(env_binder_vals[1].typ, RangeType):
+            self.matching_env[env_binder_vals[1]] = op.results
+        elif len(env_binder_vals) > 1:
+            for idx, op_constr_result in enumerate(env_binder_vals[1:]):
                 self.matching_env[op_constr_result] = op.results[idx]
 
         return InterpResult(True)
@@ -224,30 +245,30 @@ class ElevateInterpreter():
             case arith.Constant() as const_op:
                 self.matching_env[rhs_op.results[0]] = const_op.attributes["value"].value.data
                 return InterpResult(True)
-            case rewrite.NewOp() | rewrite.FromOp():
+            case IRUtils.NewOp() | IRUtils.FromOp():
                 new_operands: list[ISSAValue] = []
                 new_result_types: list[Attribute] = []
                 attribute_operands: list[SSAValue] = []
                 new_regions: list[IRegion] = []
                 attributes: dict[str, Attribute] = {}
-                for operand in rhs_op.operands if isinstance(rhs_op, rewrite.NewOp) else rhs_op.operands[1:]:
+                for operand in rhs_op.operands if isinstance(rhs_op, IRUtils.NewOp) else rhs_op.operands[1:]:
                     match operand.typ:
-                        case match.TypeType():
+                        case TypeType():
                             new_result_types.append(operand.typ.type)
-                        case match.ValueType():
-                            if isinstance(operand, OpResult) and isinstance(operand.op, match.GetResultsOp):
+                        case ValueType():
+                            if isinstance(operand, OpResult) and isinstance(operand.op, IRUtils.GetResultsOp):
                                 new_operands.append(self.matching_env[operand.op.operands[0]])
                             else:
                                 new_operands.append(self.matching_env[operand])
-                        case match.RangeType() if isinstance(operand.typ.type, match.ValueType):
+                        case RangeType() if isinstance(operand.typ.type, ValueType):
                             new_operands.extend(self.matching_env[operand])
-                        case match.RangeType() if isinstance(operand.typ.type, match.TypeType):
+                        case RangeType() if isinstance(operand.typ.type, TypeType):
                             new_result_types.extend(self.matching_env[operand])
-                        case match.RangeType() if isinstance(operand.typ.type, match.RegionType):
+                        case RangeType() if isinstance(operand.typ.type, RegionType):
                             new_regions.extend(self.matching_env[operand])
-                        case match.RegionType():
+                        case RegionType():
                             new_regions.append(self.matching_env[operand])
-                        case match.RangeType() if isinstance(operand.typ.type, match.AttributeType):
+                        case RangeType() if isinstance(operand.typ.type, AttributeType):
                             attributes |= self.matching_env[operand]
                         case _:
                             attribute_operands.append(operand)
@@ -269,14 +290,14 @@ class ElevateInterpreter():
                         raise Exception("Not all attributes were specified in \"attribute_names\"")
                         
 
-                if isinstance(rhs_op, rewrite.NewOp):
+                if isinstance(rhs_op, IRUtils.NewOp):
                     if not "name" in rhs_op.attributes:
                         raise Exception("NewOp needs a name attribute")
 
                     # This is dangerous to do, but in this research context it is fine
                     op_type = eval(rhs_op.attributes["name"].data)
                     result = new_op(op_type, operands=new_operands, result_types=new_result_types, attributes=attributes, regions=new_regions)
-                if isinstance(rhs_op, rewrite.FromOp):
+                if isinstance(rhs_op, IRUtils.FromOp):
                     result = from_op(self.matching_env[rhs_op.operands[0]], 
                                     operands=new_operands if len(new_operands) > 0 else None, 
                                     result_types=new_result_types if len(new_result_types) > 0 else None, 
@@ -292,7 +313,7 @@ class ElevateInterpreter():
                         self.matching_env[rhs_result] = result
 
                 return InterpResult(True)
-            case rewrite.NewBlockOp() | rewrite.FromBlockOp() as block_op:
+            case IRUtils.NewBlockOp() | IRUtils.FromBlockOp() as block_op:
                 # Incomplete, only implemented for a basic case of new_block
                 args = self.matching_env[block_op.operands[0]]
                 ops = self.matching_env[block_op.operands[1]]
@@ -303,26 +324,26 @@ class ElevateInterpreter():
                 result = new_block(args, ops, {}, custom_merger)
                 self.matching_env[block_op.results[0]] = result
                 return InterpResult(True)
-            case rewrite.NewBlockArgsOp() as new_block_args_op:
-                if not (isinstance(new_block_args_op.types.typ, match.RangeType) or isinstance(new_block_args_op.types.typ.type, match.ValueType)):
+            case IRUtils.NewBlockArgsOp() as new_block_args_op:
+                if not (isinstance(new_block_args_op.types.typ, RangeType) or isinstance(new_block_args_op.types.typ.type, ValueType)):
                     raise Exception("Malformed NewBlockArgsOp")
                 types: list[Attribute] = self.matching_env[new_block_args_op.operands[0]]
 
                 self.matching_env[new_block_args_op.results[0]] = [IBlockArg(typ=typ, block=None, index=idx) for idx, typ in enumerate(types)]
                 
                 return InterpResult(True)
-            case rewrite.RegionFromBlocksOp() as region_from_blocks_op:
+            case IRUtils.RegionFromBlocksOp() as region_from_blocks_op:
                 blocks: list[IBlock] = []
                 for block_operand in region_from_blocks_op.operands:
-                    if isinstance(block_operand.typ, match.BlockType):
+                    if isinstance(block_operand.typ, BlockType):
                         blocks.append(self.matching_env[block_operand])
-                    elif isinstance(block_operand.typ, match.RangeType):
+                    elif isinstance(block_operand.typ, RangeType):
                         blocks.extend(self.matching_env[block_operand])
                     else:
                         raise Exception("Unexpected operand type for RegionFromBlocksOp")
                 self.matching_env[region_from_blocks_op.results[0]] = IRegion(blocks)
                 return InterpResult(True)
-            case rewrite.ConcatOp() as concat_op:
+            case IRUtils.ConcatOp() as concat_op:
                 if not all((concat_op.ranges[idx] in self.matching_env) for idx in range(len(concat_op.ranges))):
                     raise Exception("Malformed ConcatOp")
                 new_list = self.matching_env[concat_op.ranges[0]].copy()
@@ -330,18 +351,18 @@ class ElevateInterpreter():
                     new_list += self.matching_env[range_val]
                 self.matching_env[concat_op.output] = new_list
                 return InterpResult(True)
-            case rewrite.AddAttributeOp() as add_attribute_op:
+            case IRUtils.AddAttributeOp() as add_attribute_op:
                 attribute_names: list[str] = []
                 if "attribute_names" in add_attribute_op.attributes:
                     attribute_names = [name.data for name in add_attribute_op.attributes["attribute_names"].data]
-                if isinstance(add_attribute_op.operands[0].typ, match.RangeType):
+                if isinstance(add_attribute_op.operands[0].typ, RangeType):
                     attributes = self.matching_env[add_attribute_op.operands[0]]
                 else:
                     attributes: dict[str, Attribute] = {}
                 for new_attr in add_attribute_op.operands[1:]:
-                    if isinstance(new_attr.typ, match.RangeType):
+                    if isinstance(new_attr.typ, RangeType):
                         attributes |= self.matching_env[new_attr]
-                    elif isinstance(new_attr.typ, match.AttributeType):
+                    elif isinstance(new_attr.typ, AttributeType):
                         if len(attribute_names) == 0:
                             raise Exception("AddAttributeOp: Attributenames underspecified")
                         attributes[attribute_names.pop(0)] = self.matching_env[new_attr]
@@ -349,7 +370,7 @@ class ElevateInterpreter():
                         raise Exception("Unexpected operand type for AddAttributeOp")
                 self.matching_env[add_attribute_op.output] = attributes
                 return InterpResult(True)
-            case match.GetNestedOps() as get_payload_op:
+            case IRUtils.GetNestedOps() as get_payload_op:
                 # return all ops in this region except for the terminator
                 op: IOp = self.matching_env[get_payload_op.operands[0]]
                 if "region_idx" in get_payload_op.attributes:
@@ -387,7 +408,7 @@ class ElevateInterpreter():
 
                 self.matching_env[get_payload_op.results[0]] = ops
                 return InterpResult(True)
-            case match.NativeMatcherOp() as native_matcher_op:
+            case IRUtils.NativeMatcherOp() as native_matcher_op:
                 if not "matcher_name" in native_matcher_op.attributes:
                     raise Exception("NativeMatcherOp needs a matcher_name attribute")
                 matcher_name: str = native_matcher_op.attributes["matcher_name"].data
@@ -406,7 +427,7 @@ class ElevateInterpreter():
                     self.matching_env[native_matcher_op.results[idx]] = result
                 
                 return InterpResult(True)
-            case rewrite.ApplyNativeRewriteOp() as native_rewriter_op:
+            case IRUtils.ApplyNativeRewriteOp() as native_rewriter_op:
                 if not "rewriter_name" in native_rewriter_op.attributes:
                     raise Exception("NativeRewriterOp needs a rewriter_name attribute")
                 rewriter_name: str = native_rewriter_op.attributes["rewriter_name"].data
@@ -418,25 +439,25 @@ class ElevateInterpreter():
                 args = [self.matching_env[operand] for operand in native_rewriter_op.operands]
                 self.matching_env[native_rewriter_op.results[0]] = self.native_rewriters[rewriter_name](*args)
                 return InterpResult(True)
-            case match.GetResultsOp() as get_results_op:
-                if "idx" in get_results_op.attributes and isinstance(get_results_op.results[0].typ, match.ValueType):
+            case IRUtils.GetResultsOp() as get_results_op:
+                if "idx" in get_results_op.attributes and isinstance(get_results_op.results[0].typ, ValueType):
                     idx: int = get_results_op.attributes["idx"].value.data
                     if idx < 0 or idx >= len(self.matching_env[get_results_op.operands[0]].results):
                         raise Exception("GetResultsOp: idx out of bounds")
                     self.matching_env[get_results_op.results[0]] = self.matching_env[get_results_op.operands[0]].results[idx]
-                elif isinstance(get_results_op.results[0].typ, match.RangeType) and isinstance(get_results_op.results[0].typ.type, match.ValueType):
+                elif isinstance(get_results_op.results[0].typ, RangeType) and isinstance(get_results_op.results[0].typ.type, ValueType):
                     self.matching_env[get_results_op.results[0]] = self.matching_env[get_results_op.operands[0]].results
                 else:
                     raise Exception("Malformed GetResultsOp")
                 
                 return InterpResult(True)
-            case match.GetOperands() as get_operands_op:
+            case IRUtils.GetOperands() as get_operands_op:
                 self.matching_env[get_operands_op.results[0]] = self.matching_env[get_operands_op.operands[0]].operands
                 return InterpResult(True)
-            case match.GetAttributes() as get_attributes_op:
+            case IRUtils.GetAttributes() as get_attributes_op:
                 self.matching_env[get_attributes_op.results[0]] = self.matching_env[get_attributes_op.operands[0]].attributes
                 return InterpResult(True)
-            case match.GetAttribute() as get_attributes_op:
+            case IRUtils.GetAttribute() as get_attributes_op:
                 if not "attr_name" in get_attributes_op.attributes:
                     raise Exception("GetAttributeOp needs an attr_name attribute")
                 attr_name: str = get_attributes_op.attributes["attr_name"].data
@@ -444,10 +465,10 @@ class ElevateInterpreter():
                     raise Exception(f"GetAttributeOp: Attribute {attr_name} not found")
                 self.matching_env[get_attributes_op.results[0]] = self.matching_env[get_attributes_op.operands[0]].attributes[attr_name]
                 return InterpResult(True)
-            case rewrite.ArrayAttrElementWiseOp() as array_attr_element_wise_op:
+            case IRUtils.ArrayAttrElementWiseOp() as array_attr_element_wise_op:
                 if not "op" in array_attr_element_wise_op.attributes:
                     raise Exception("ArrayAttrElementWiseOp needs an op attribute")
-                if not (isinstance((array0 := self.matching_env[array_attr_element_wise_op.array0]), match.ArrayAttr) and isinstance((array1 := self.matching_env[array_attr_element_wise_op.array1]), match.ArrayAttr)):
+                if not (isinstance((array0 := self.matching_env[array_attr_element_wise_op.array0]), ArrayAttr) and isinstance((array1 := self.matching_env[array_attr_element_wise_op.array1]), ArrayAttr)):
                     raise Exception("ArrayAttrElementWiseOp: Operands must be ArrayAttr")
                 match array_attr_element_wise_op.attributes["op"].data:
                     case "sub":
@@ -459,7 +480,7 @@ class ElevateInterpreter():
                     case _:
                         raise Exception("ArrayAttrElementWiseOp: Unknown op")
                 return InterpResult(True)
-            case match.GetBlockArgs() as get_blockargs_op:
+            case IRUtils.GetBlockArgs() as get_blockargs_op:
                 region_idx = 0
                 block_idx = 0
                 if "region_idx" in get_blockargs_op.attributes:
@@ -468,15 +489,15 @@ class ElevateInterpreter():
                     block_idx = get_blockargs_op.attributes["block_idx"].value.data
                 self.matching_env[get_blockargs_op.results[0]] = self.matching_env[get_blockargs_op.operands[0]].regions[region_idx].blocks[block_idx].args
                 return InterpResult(True)
-            case match.GetTypeOp() as get_type_op:
-                if isinstance(get_type_op.operands[0].typ, match.RangeType) and isinstance(get_type_op.operands[0].typ.type, match.ValueType):
+            case IRUtils.GetTypeOp() as get_type_op:
+                if isinstance(get_type_op.operands[0].typ, RangeType) and isinstance(get_type_op.operands[0].typ.type, ValueType):
                     self.matching_env[get_type_op.results[0]] = [value.typ for value in self.matching_env[get_type_op.operands[0]]]
-                elif isinstance(get_type_op.operands[0].typ, match.ValueType):
+                elif isinstance(get_type_op.operands[0].typ, ValueType):
                     self.matching_env[get_type_op.results[0]] = self.matching_env[get_type_op.operands[0]].typ
                 else:
                     raise Exception("Malformed GetTypeOp")
                 return InterpResult(True)
-            case rewrite.ConstructTypeOp() as construct_type_op:
+            case IRUtils.ConstructTypeOp() as construct_type_op:
                 if "name" not in construct_type_op.attributes:
                     raise Exception("ConstructTypeOp needs a name attribute")
                 # again, very unsafe
@@ -489,7 +510,7 @@ class ElevateInterpreter():
                 else:
                     raise Exception("ConstructTypeOp: Type not supported")
                 return InterpResult(True)
-            case match.GetIndexOfOpInRange() as get_index_op:
+            case IRUtils.GetIndexOfOpInRange() as get_index_op:
                 if not all((get_index_op.operands[idx] in self.matching_env) for idx in range(len(get_index_op.operands))):
                     raise Exception("Malformed GetIndexOfOpInRange")
                 self.matching_env[get_index_op.results[0]] = self.matching_env[get_index_op.operands[1]].index(self.matching_env[get_index_op.operands[0]])
