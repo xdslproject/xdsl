@@ -170,8 +170,7 @@ class MulOp(Operation):
     @classmethod
     def from_summands(cls: type[MulOpT], lhs: OpResult,
                       rhs: SSAValue) -> MulOpT:
-        return super().create(result_types=[lhs.typ.element_type],
-                              operands=[lhs, rhs])
+        return super().create(result_types=[lhs.typ], operands=[lhs, rhs])
 
 
 PrintOpT = TypeVar('PrintOpT', bound='PrintOp')
