@@ -218,7 +218,7 @@ def irdl_to_attr_constraint(
     if isinstance(irdl, TypeVar):
         if not allow_type_var:
             raise Exception("TypeVar in unexpected context.")
-        if type_var_mapping is not None:
+        if type_var_mapping:
             if irdl in type_var_mapping:
                 return type_var_mapping[irdl]
         if irdl.__bound__ is None:
@@ -613,7 +613,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
                      if isinstance(arg_def, VariadicDef)]
 
     # If the size is in the attributes, fetch it
-    if (attribute_option is not None) and (attribute_option in op_def.options):
+    if attribute_option in op_def.options:
         return get_variadic_sizes_from_attr(op, defs, construct,
                                             attribute_option.attribute_name)
 
@@ -1171,7 +1171,7 @@ def irdl_attr_builder(cls: type[_PAttrT],
         return args[0]
     for builder in builders:
         res = irdl_attr_try_builder(builder, *args)
-        if res is not None:
+        if res:
             return res
     raise TypeError(
         f"No available {cls.__name__} builders for arguments {args}")
