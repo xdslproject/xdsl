@@ -46,7 +46,7 @@ export PATH=<insert-your-path>/llvm-project/build/bin:$PATH
 ```
 
 Given an input file `input.xdsl`, that contains IR with only the mirrored dialects
-found in `src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf), run:
+found in `src/xdsl/dialects` (arith, builtin, cf, func, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic from to tmp.mlir
