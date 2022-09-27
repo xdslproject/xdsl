@@ -395,7 +395,11 @@ class Printer:
                     if isinstance(val, IntegerAttr):
                         self.print(val.value.data)
                     elif isinstance(val, FloatAttr):
-                        self.print(val.value.data)
+                        number = val.value.data
+                        if self.target == Printer.Target.MLIR:
+                            self.print(f'{number:.6e}')
+                        else:
+                            self.print(number)
                     else:
                         raise Exception("unexpected attribute type "
                                         "in DenseIntOrFPElementsAttr: "
