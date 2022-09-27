@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
 
   func.func() ["sym_name" = "sum_vec", "function_type" = !fun<[!memref<[128 : !index], !i32>], [!i32]>, "sym_visibility" = "private"] {
   ^10(%ref : !memref<[128 : !index], !i32>):

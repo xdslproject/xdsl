@@ -2,7 +2,7 @@ from __future__ import annotations
 from io import StringIO
 import xdsl.dialects.arith as arith
 import xdsl.dialects.scf as scf
-import xdsl.dialects.onnx as onnx
+# import xdsl.dialects.onnx as onnx
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import *
@@ -19,7 +19,7 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     Func(ctx)
     Arith(ctx)
     scf.Scf(ctx)
-    onnx.Onnx(ctx)
+    # onnx.Onnx(ctx)
 
     parser = Parser(ctx, program)
     module: Operation = parser.parse_op()

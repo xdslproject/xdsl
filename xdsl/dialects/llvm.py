@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_op_builder,
                        irdl_attr_definition, AttributeDef, OperandDef,
                        ResultDef, irdl_op_definition, builder)
-from xdsl.ir import (MLContext, ParametrizedAttribute, Attribute, Operation)
+from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
+                     Operation)
 from xdsl.dialects.builtin import (StringAttr, ArrayOfConstraint, ArrayAttr,
                                    IntegerAttr, IntegerType)
 
@@ -27,7 +28,7 @@ class LLVM:
 
 
 @irdl_attr_definition
-class LLVMStructType(ParametrizedAttribute):
+class LLVMStructType(ParametrizedAttribute, MLIRType):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
@@ -43,6 +44,19 @@ class LLVMStructType(ParametrizedAttribute):
         return LLVMStructType(
             [StringAttr.from_str(""),
              ArrayAttr.from_list(types)])
+
+    def print_parameters(self, printer: Printer) -> None:
+        assert self.struct_name.data == ""
+        printer.print("<(")
+        printer.print_list(self.types.data, printer.print_attribute)
+        printer.print(")>")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_string("<(")
+        params = parser.parse_list(parser.parse_optional_attribute)
+        parser.parse_string(")>")
+        return [StringAttr.from_str(""), ArrayAttr.from_list(params)]
 
 
 @irdl_op_definition
