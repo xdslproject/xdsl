@@ -9,8 +9,9 @@ from typing import List, Union, TypeVar, Optional, Any
 
 from xdsl.ir import MLContext, SSAValue
 from xdsl.dialects.builtin import (FunctionType, Attribute, FlatSymbolRefAttr,
-                                   TensorType, f64, DenseIntOrFPElementsAttr,
-                                   SymbolNameAttr, AnyTensorType)
+                                   TensorType, UnrankedTensorType, f64,
+                                   DenseIntOrFPElementsAttr, SymbolNameAttr,
+                                   AnyTensorType)
 from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
                        RegionDef, Region, Operation, AttributeDef,
                        VarResultDef, ResultDef, OpResult, OptOperandDef,
@@ -250,10 +251,13 @@ class TransposeOp(Operation):
     @staticmethod
     def from_input(input: SSAValue):
         input_type = input.typ
-        if not isinstance(input_type, TensorType):
+        output_type: TensorType[Any] | UnrankedTensorType[Any]
+        if isinstance(input_type, TensorType):
+            output_type = TensorType.from_type_and_list(
+                input_type.element_type, list(reversed(input_type.shape.data)))
+        elif isinstance(input_type, UnrankedTensorType):
+            output_type = input_type
+        else:
             assert False, f'{input_type}: {type(input_type)}'
-
-        output_type = TensorType.from_type_and_list(
-            input_type.element_type, list(reversed(input_type.shape.data)))
 
         return TransposeOp.create(operands=[input], result_types=[output_type])
