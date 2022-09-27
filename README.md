@@ -2,19 +2,21 @@
 
 ## Prerequisites
 
-To install the required dependencies, execute the following command:
+To install XDSL you can either clone the Github repository and install the requirements by following:
+
+### Clone and install
+```bash
+git clone https://github.com/xdslproject/xdsl.git
+pip install -e .
+# or for the optional requirements
+# pip install -e .[extras]
+```
+
+### pip installation
 
 ```bash
-pip install -r requirements.txt
+pip install xdsl
 ```
-
-Optional dependencies, necessary for formatting the code may be installed via:
-
-```
-pip install -r requirements-optional.txt
-```
-
-TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
 ## Testing
 
@@ -37,7 +39,7 @@ functionality, make sure to have clang, mlir-opt and mlir-translate installed
 and in the PATH. Clang can be installed by standard package managers (apt,
 pacman...), for MLIR follow [this](https://mlir.llvm.org/getting_started/) and
 run `ninja install` afterward. Given an input file `input.xdsl`, that contains
-IR with only the mirrored dialects found in `src/xdsl/dialects` (arith, builtin,
+IR with only the mirrored dialects found in `xdsl/dialects` (arith, builtin,
 cf, func, irdl, llvm, memref, and scf), run:
 
 ```bash

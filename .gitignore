@@ -144,3 +144,6 @@ cython_debug/
 
 # lit tests results
 tests/filecheck/.lit_test_times.txt
+
+# Mac
+.DS_Store

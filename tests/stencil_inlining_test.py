@@ -354,7 +354,7 @@ def test_inlining_simple_ifelse():
   ^0(%arg0 : !f64, %arg1 : !stencil.field<[70, 70, 70]>):
     %1 : !stencil.temp<[64,64,60]> = stencil.apply(%arg0 : !f64) ["lb" = [0, 0, 0], "ub" = [64, 64, 60]] {
         ^0(%arg2: !f64): 
-        %true : !i1 = arith.constant() ["value" = 1 : !i1]
+        %true : !i1 = arith.constant() ["value" = true]
         %2 : !stencil.result<!f64> = scf.if(%true : !i1) {
             %3 : !stencil.result<!f64> = stencil.store_result(%arg2 : !f64)
             scf.yield(%3 : !stencil.result<!f64>)
@@ -381,7 +381,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 ^0(%0 : !f64, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
   %2 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%0 : !f64) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
   ^1(%3 : !f64):
-    %4 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %4 : !i1 = arith.constant() ["value" = true]
     %5 : !f64 = scf.if(%4 : !i1) {
       scf.yield(%3 : !f64)
     } {

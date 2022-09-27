@@ -29,10 +29,30 @@
 
   // CHECK: 42.0 : f32
 
+  "func.func"() ({}) {function_type = () -> (), value = true, sym_name = "true_attr"} : () -> ()
+
+  // CHECK: value = true
+
+  "func.func"() ({}) {function_type = () -> (), value = 1 : i1, sym_name = "true_explicit_attr"} : () -> ()
+
+  // CHECK: value = true
+
+  "func.func"() ({}) {function_type = () -> (), value = false, sym_name = "false_attr"} : () -> ()
+
+  // CHECK: value = false
+
+  "func.func"() ({}) {function_type = () -> (), value = 0 : i1, sym_name = "false_explicit_attr"} : () -> ()
+
+  // CHECK: value = false
+
 
   "func.func"() ({}) {function_type = () -> (), value = 42 : i32, sym_name = "int_attr"} : () -> ()
 
   // CHECK: 42 : i32
+
+  "func.func"() ({}) {function_type = () -> (), value = 54 : index, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 54 : index
 
 
   "func.func"() ({}) {function_type = () -> (), value = "foo", sym_name = "string_attr"} : () -> ()
@@ -52,13 +72,12 @@
 
   // CHECK: (vector<4xf32>, vector<f32>, vector<1x12xi32>)
 
-
   "func.func"() ({
-    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>):
+    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>, %arg3: tensor<*xf64>):
     "func.return"() : () -> ()
-  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>) -> (), sym_name = "tensor_type"} : () -> ()
+  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>) -> (), sym_name = "tensor_type"} : () -> ()
 
-  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>)
+  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>)
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<0> : tensor<1xi32>,

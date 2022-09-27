@@ -2,10 +2,11 @@ from __future__ import annotations
 from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
                      Attribute, Operation, Region, BlockArgument, MLContext)
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyVectorType, DenseIntOrFPElementsAttr,
-    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
-    IntegerType, OpaqueAttr, StringAttr, FlatSymbolRefAttr, IntegerAttr,
-    ArrayAttr, TensorType, UnitAttr, VectorType)
+    AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
+    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
+    FunctionType, IndexType, IntegerType, OpaqueAttr, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
+    UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -103,6 +104,9 @@ class Parser:
 
     source: Source = field(default=Source.XDSL, kw_only=True)
     """The source language to parse."""
+
+    allow_unregistered_ops: bool = field(default=False, kw_only=True)
+    """Allow the parsing of unregistered ops."""
 
     _pos: Position | None = field(init=False)
     """Position in the file. None represent the end of the file."""
@@ -565,12 +569,19 @@ class Parser:
         self.parse_char(">")
         return res
 
-    def parse_optional_attribute(self,
-                                 skip_white_space: bool = True
-                                 ) -> Attribute | None:
-        if self.source == self.Source.MLIR:
-            return self.parse_optional_mlir_attribute(
-                skip_white_space=skip_white_space)
+    def parse_optional_boolean_attribute(
+            self,
+            skip_white_space: bool = True) -> IntegerAttr[IntegerType] | None:
+        if self.parse_optional_string(
+                "true", skip_white_space=skip_white_space) is not None:
+            return IntegerAttr.from_int_and_width(1, 1)
+        if self.parse_optional_string(
+                "false", skip_white_space=skip_white_space) is not None:
+            return IntegerAttr.from_int_and_width(0, 1)
+
+    def parse_optional_xdsl_builtin_attribute(self,
+                                              skip_white_space: bool = True
+                                              ) -> Attribute | None:
         # Shorthand for StringAttr
         string_lit = self.parse_optional_str_literal(
             skip_white_space=skip_white_space)
@@ -585,6 +596,11 @@ class Parser:
             else:
                 typ = Float32Type()
             return FloatAttr.from_value(float_lit, typ)
+
+        # Shorthand for boolean literals (IntegerAttr of width 1)
+        if (bool_attr := self.parse_optional_boolean_attribute(
+                skip_white_space=skip_white_space)):
+            return bool_attr
 
         # Shorthand for IntegerAttr
         integer_lit = self.parse_optional_int_literal()
@@ -608,27 +624,54 @@ class Parser:
             symbol_name = self.parse_alpha_num(skip_white_space=False)
             return FlatSymbolRefAttr.from_str(symbol_name)
 
-        parsed = self.parse_optional_char("!")
-        if parsed is None:
-            return None
+        def parse_integer_type():
+            self.parse_char("!", skip_white_space=skip_white_space)
+            self.parse_char("i", skip_white_space=False)
+            val = self.parse_int_literal(skip_white_space=False)
+            return IntegerType.from_width(val)
+
+        if int_type := self.try_parse(parse_integer_type):
+            return int_type
+
+        return None
+
+    def parse_optional_attribute(self,
+                                 skip_white_space: bool = True
+                                 ) -> Attribute | None:
+        # If we are parsing an MLIR file, we first try to parse builtin
+        # attributes, which have a different format.
+        if self.source == self.Source.MLIR:
+            if attr := self.parse_optional_mlir_attribute(
+                    skip_white_space=skip_white_space):
+                return attr
+
+        # If we are parsing an xDSL file, we first try to parse builtin
+        # attributes, which have a different format.
+        if self.source == self.Source.XDSL:
+            if attr := self.parse_optional_xdsl_builtin_attribute(
+                    skip_white_space=skip_white_space):
+                return attr
+
+        # Then, we parse attributes/types with the generic format.
+
+        if self.parse_optional_char("!") is None:
+            if self.source == self.Source.MLIR:
+                if self.parse_optional_char("#") is None:
+                    return None
+            else:
+                return None
 
         parse_with_default_format = False
-        parsed = self.parse_optional_char("i")
-
-        # shorthand for integer types
-        if parsed:
-            num = self.parse_optional_int_literal()
-            if num:
-                return IntegerType.from_width(num)
-            attr_def_name = "i" + self.parse_alpha_num(skip_white_space=True)
+        # Attribute with default format
+        if self.parse_optional_char('"'):
+            attr_def_name = self.parse_alpha_num(skip_white_space=False)
+            self.parse_char('"')
+            parse_with_default_format = True
         else:
-            # Attribute with default format
-            if self.parse_optional_char('"'):
-                attr_def_name = self.parse_alpha_num(skip_white_space=False)
-                self.parse_char('"')
-                parse_with_default_format = True
-            else:
-                attr_def_name = self.parse_alpha_num(skip_white_space=True)
+            attr_def_name = self.parse_alpha_num(skip_white_space=True)
+
+        if (self.source == self.Source.MLIR) and parse_with_default_format:
+            raise ParserError(self._pos, "cannot parse generic MLIR attribute")
 
         attr_def = self.ctx.get_attr(attr_def_name)
 
@@ -709,12 +752,19 @@ class Parser:
             return shape
         raise ParserError(self._pos, "shape expected")
 
-    def parse_optional_mlir_tensor(self,
-                                   skip_white_space: bool = True
-                                   ) -> AnyTensorType | None:
+    def parse_optional_mlir_tensor(
+        self,
+        skip_white_space: bool = True
+    ) -> AnyTensorType | AnyUnrankedTensorType | None:
         if self.parse_optional_string("tensor",
                                       skip_white_space=skip_white_space):
-            self.parse_optional_char("<")
+            self.parse_char("<")
+            # Unranked tensor case
+            if self.parse_optional_char("*"):
+                self.parse_char("x")
+                typ = self.parse_attribute()
+                self.parse_char(">")
+                return UnrankedTensorType.from_type(typ)
             dims, typ = self.parse_shape()
             self.parse_char(">")
             return TensorType.from_type_and_list(typ, dims)
@@ -747,9 +797,9 @@ class Parser:
             return typ
         raise ParserError(self._pos, "index type expected")
 
-    def parse_optional_mlir_integer_type(self,
-                                         skip_white_space: bool = True
-                                         ) -> IntegerType | None:
+    def parse_mlir_integer_type(self,
+                                skip_white_space: bool = True
+                                ) -> IntegerType | None:
         if (self.parse_optional_string("i", skip_white_space=skip_white_space)
                 or self.parse_optional_string(
                     "si", skip_white_space=skip_white_space)
@@ -759,15 +809,13 @@ class Parser:
             if width is not None:
                 return IntegerType.from_width(width)
             raise ParserError(self._pos, "integer type width expected")
-        return None
-
-    def parse_mlir_integer_type(self,
-                                skip_white_space: bool = True) -> IntegerType:
-        typ = self.parse_optional_mlir_integer_type(
-            skip_white_space=skip_white_space)
-        if typ is not None:
-            return typ
         raise ParserError(self._pos, "integer type expected")
+
+    def parse_optional_mlir_integer_type(self,
+                                         skip_white_space: bool = True
+                                         ) -> IntegerType | None:
+        return self.try_parse(self.parse_mlir_integer_type,
+                              skip_white_space=skip_white_space)
 
     def parse_optional_mlir_float_type(self,
                                        skip_white_space: bool = True
@@ -812,6 +860,10 @@ class Parser:
                     return FloatAttr.from_value(lit, typ)
                 raise ParserError(self._pos, "float type expected")
             return FloatAttr.from_value(lit, Float64Type())
+
+        # Shorthand for boolean attributes (integer attributes of width 1)
+        if (bool_attr := self.parse_optional_boolean_attribute()) is not None:
+            return bool_attr
 
         # integer attribute
         if (lit := self.parse_optional_int_literal()) is not None:
@@ -1031,12 +1083,25 @@ class Parser:
             op_name, is_generic_format = self._parse_op_name()
 
         result_types = [typ for (_, typ) in results]
+        op_type = self.ctx.get_optional_op(op_name)
 
-        op_type = self.ctx.get_op(op_name)
-        if not is_generic_format:
-            op = op_type.parse(result_types, self)
+        # If the operation is not registered, we create an UnregisteredOp instead, or fail.
+        if op_type is None:
+            if not self.allow_unregistered_ops:
+                raise ParserError(start_pos, f"unknown operation '{op_name}'")
+            if not is_generic_format:
+                raise ParserError(
+                    start_pos, f"unknown operation '{op_name}' can "
+                    "only be parsed using the generic format")
+
+            op = self.parse_op_with_default_format(UnregisteredOp,
+                                                   result_types)
+            op.attributes["op_name__"] = StringAttr.from_str(op_name)
         else:
-            op = self.parse_op_with_default_format(op_type, result_types)
+            if not is_generic_format:
+                op = op_type.parse(result_types, self)
+            else:
+                op = self.parse_op_with_default_format(op_type, result_types)
 
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):

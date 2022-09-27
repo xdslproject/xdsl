@@ -122,7 +122,7 @@ def test_inline_block_at_pos():
     """Test the inlining of a block at a certain position."""
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 }
@@ -130,7 +130,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   scf.if(%0 : !i1) {}
 }"""
@@ -149,7 +149,7 @@ def test_inline_block_before():
     """Test the inlining of a block before an operation."""
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 }
@@ -157,7 +157,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   scf.if(%0 : !i1) {}
 }"""
@@ -175,7 +175,7 @@ def test_inline_block_after():
     """Test the inlining of a block after an operation."""
     prog = \
     """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = 1 : !i1]
+%0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 }
@@ -183,7 +183,7 @@ scf.if(%0 : !i1) {
 
     expected = \
 """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   scf.if(%0 : !i1) {}
 }"""
@@ -202,14 +202,14 @@ def test_insert_block():
     """Test the insertion of a block in a region."""
     prog = \
     """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     expected = \
 """builtin.module() {
 ^0:
 ^1:
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -222,13 +222,13 @@ def test_insert_block2():
     """Test the insertion of a block in a region."""
     prog = \
     """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     expected = \
 """builtin.module() {
 ^0:
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 ^1:
 }"""
 
@@ -242,14 +242,14 @@ def test_insert_block_before():
     """Test the insertion of a block before another block."""
     prog = \
     """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     expected = \
 """builtin.module() {
 ^0:
 ^1:
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -262,13 +262,13 @@ def test_insert_block_after():
     """Test the insertion of a block after another block."""
     prog = \
     """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
     expected = \
 """builtin.module() {
 ^0:
-  %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+  %0 : !i1 = arith.constant() ["value" = true]
 ^1:
 }"""
 
