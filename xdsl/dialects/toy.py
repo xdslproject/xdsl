@@ -5,7 +5,7 @@ Toy language dialect from MLIR tutorial.
 # pylint: disable=missing-function-docstring, missing-class-docstring, redefined-builtin
 
 from dataclasses import dataclass
-from typing import List, Union, TypeVar
+from typing import List, Union, TypeVar, Optional, Any
 
 from xdsl.ir import MLContext, SSAValue
 from xdsl.dialects.builtin import (FunctionType, Attribute, FlatSymbolRefAttr,
@@ -212,8 +212,9 @@ class ReturnOp(Operation):
     arguments = OptOperandDef(AnyAttr())
 
     @classmethod
-    def from_input(cls: type[ReturnOpT], input: SSAValue) -> ReturnOpT:
-        return super().create(operands=[input])
+    def from_input(cls: type[ReturnOpT],
+                   input: Optional[SSAValue] = None) -> ReturnOpT:
+        return super().create(operands=[input] if input is not None else [])
 
 
 ROpT = TypeVar('ROpT', bound='ReshapeOp')
