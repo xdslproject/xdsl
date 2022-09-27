@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
+from xdsl.util import _T
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 from enum import Enum
@@ -140,8 +141,6 @@ class Parser:
             return None
         return self.str[self._pos.idx:self._pos.idx + n]
 
-    _T = TypeVar("_T")
-
     def try_parse(self,
                   parse_fn: Callable[[], _T | None],
                   skip_white_space: bool = True) -> _T | None:
@@ -160,7 +159,7 @@ class Parser:
         return None
 
     def skip_white_space(self) -> None:
-        while (pos := self._pos) is not None:
+        while pos := self._pos:
             char = pos.get_char()
             if char.isspace():
                 self._pos = pos.next_char_pos()
@@ -177,7 +176,7 @@ class Parser:
         start_pos = self._pos
         if start_pos is None:
             return ""
-        while self._pos is not None:
+        while self._pos:
             char = self._pos.get_char()
             if not cond(char):
                 return self.str[start_pos.idx:self._pos.idx]
@@ -223,11 +222,11 @@ class Parser:
         start_pos = self._pos
         if start_pos is None:
             raise ParserError(None, "Unexpected end of file")
-        while self._pos is not None:
+        while self._pos:
             pos = self._pos
             char = pos.get_char()
             if char == '\\':
-                if (next_pos := pos.next_char_pos()) is not None:
+                if next_pos := pos.next_char_pos():
                     escaped = next_pos.get_char()
                     if escaped in ['\\', 'n', 't', 'r', '"']:
                         self._pos = next_pos.next_char_pos()
@@ -263,7 +262,7 @@ class Parser:
         res = self.parse_while(lambda char: char.isnumeric(),
                                skip_white_space=False)
         if len(res) == 0:
-            if is_negative is not None:
+            if is_negative:
                 raise ParserError(self._pos, "int literal expected")
             return None
         return int(res) if is_negative is None else -int(res)
@@ -325,7 +324,7 @@ class Parser:
         if not is_float:
             raise ParserError(
                 self._pos,
-                "float literal expected, but got an integer literal")
+                "float literal expected, but got an integer literal instead")
 
         return float(value)
 
@@ -341,7 +340,7 @@ class Parser:
     def parse_optional_char(self,
                             char: str,
                             skip_white_space: bool = True) -> bool | None:
-        assert (len(char) == 1)
+        assert len(char) == 1
         if skip_white_space:
             self.skip_white_space()
         if self._pos is None:
@@ -365,7 +364,7 @@ class Parser:
             self.skip_white_space()
         chars = self.get_char(len(contents))
         if chars == contents:
-            assert self._pos is not None
+            assert self._pos
             self._pos = self._pos.next_char_pos(len(contents))
             return True
         raise ParserError(self._pos, f"'{contents}' expected")
@@ -447,7 +446,7 @@ class Parser:
         assert (len(delimiter) <= 1)
         res = list[Any]()  # Pyright do not let us use `T` here
         one = parse_optional_one()
-        if one is not None:
+        if one:
             res.append(one)
         while self.parse_optional_char(delimiter) if len(
                 delimiter) == 1 else True:
@@ -1088,10 +1087,10 @@ class Parser:
                                 ) -> tuple[str, bool] | None:
         op_name = self.parse_optional_alpha_num(
             skip_white_space=skip_white_space)
-        if op_name is not None:
+        if op_name:
             return op_name, False
         op_name = self.parse_optional_str_literal()
-        if op_name is not None:
+        if op_name:
             return op_name, True
         return None
 

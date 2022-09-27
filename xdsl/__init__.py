@@ -19,7 +19,7 @@ def load_mlir_module(mlir_module: _xdsl_init_types.ModuleType) -> None:
     _REQUIRED_MLIR_MODULES by the caller prior to calling this function.
     """
     global _mlir_module
-    if _mlir_module is not None and _mlir_module != mlir_module:
+    if _mlir_module != mlir_module:
         raise RuntimeError('Different modules already loaded previously.')
     for submodule in _REQUIRED_MLIR_MODULES:
         if not hasattr(mlir_module, submodule):
@@ -34,7 +34,7 @@ def ensure_mlir_module_loaded() -> None:
     Loads the default `mlir` module if no module has been loaded previously by
     `load_mlir_module`.
     """
-    if _mlir_module is not None:
+    if _mlir_module:
         return
     import mlir
     import mlir.ir
