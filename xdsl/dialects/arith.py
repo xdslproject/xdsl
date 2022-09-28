@@ -22,9 +22,12 @@ class Arith:
         self.ctx.register_op(Addi)
         self.ctx.register_op(Muli)
         self.ctx.register_op(Subi)
+        self.ctx.register_op(DivUI)
+        self.ctx.register_op(DivSI)
         self.ctx.register_op(FloorDivSI)
         self.ctx.register_op(CeilDivSI)
         self.ctx.register_op(CeilDivUI)
+        self.ctx.register_op(RemUI)
         self.ctx.register_op(RemSI)
         self.ctx.register_op(MinSI)
         self.ctx.register_op(MaxSI)
@@ -32,13 +35,19 @@ class Arith:
         self.ctx.register_op(MaxUI)
 
         self.ctx.register_op(Addf)
+        self.ctx.register_op(Subf)
         self.ctx.register_op(Mulf)
+        self.ctx.register_op(Divf)
 
         self.ctx.register_op(Cmpi)
+        self.ctx.register_op(Select)
 
         self.ctx.register_op(AndI)
         self.ctx.register_op(OrI)
         self.ctx.register_op(XOrI)
+        self.ctx.register_op(ShLI)
+        self.ctx.register_op(ShRUI)
+        self.ctx.register_op(ShRSI) 
         self.ctx.register_op(Minf)
         self.ctx.register_op(Maxf)
 
@@ -127,6 +136,55 @@ class Subi(Operation):
         return Subi.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
 
+@irdl_op_definition
+class DivUI(Operation):
+    """
+    Unsigned integer division. Rounds towards zero. Treats the leading bit as
+    the most significant, i.e. for `i16` given two's complement representation,
+    `6 / -2 = 6 / (2^16 - 2) = 0`.
+    """
+    name: str = "arith.divui"
+    lhs = OperandDef(signlessIntegerLike)
+    rhs = OperandDef(signlessIntegerLike)
+    result = ResultDef(signlessIntegerLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> DivUI:
+        operand1 = SSAValue.get(operand1)
+        return DivUI.build(operands=[operand1, operand2],
+                           result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class DivSI(Operation):
+    """
+    Signed integer division. Rounds towards zero. Treats the leading bit as
+    sign, i.e. `6 / -2 = -3`.
+    """
+    name: str = "arith.divsi"
+    lhs = OperandDef(signlessIntegerLike)
+    rhs = OperandDef(signlessIntegerLike)
+    result = ResultDef(signlessIntegerLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> DivSI:
+        return DivSI.build(operands=[operand1, operand2],
+                           result_types=[operand1.typ])
+
 
 @irdl_op_definition
 class FloorDivSI(Operation):
@@ -192,11 +250,32 @@ class CeilDivUI(Operation):
 
 
 @irdl_op_definition
-class RemSI(Operation):
-    name: str = "arith.remsi"
+class RemUI(Operation):
+    name: str = "arith.remui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> RemUI:
+        operand1 = SSAValue.get(operand1)
+        return RemUI.build(operands=[operand1, operand2],
+                           result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class RemSI(Operation):
+    name: str = "arith.remsi"
+    lhs = OperandDef(IntegerType)
+    rhs = OperandDef(IntegerType)
+    result = ResultDef(IntegerType)
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -360,7 +439,102 @@ class XOrI(Operation):
 
 
 @irdl_op_definition
+class ShLI(Operation):
+    """
+    The `shli` operation shifts an integer value to the left by a variable
+    amount. The low order bits are filled with zeros.
+    """
+    name: str = "arith.shli"
+    lhs = OperandDef(IntegerType)
+    rhs = OperandDef(IntegerType)
+    result = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> ShLI:
+        operand1 = SSAValue.get(operand1)
+        return ShLI.build(operands=[operand1, operand2],
+                          result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class ShRUI(Operation):
+    """
+    The `shrui` operation shifts an integer value to the right by a variable
+    amount. The integer is interpreted as unsigned. The high order bits are
+    always filled with zeros.
+    """
+    name: str = "arith.shrui"
+    lhs = OperandDef(signlessIntegerLike)
+    rhs = OperandDef(signlessIntegerLike)
+    result = ResultDef(signlessIntegerLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> ShRUI:
+        operand1 = SSAValue.get(operand1)
+        return ShRUI.build(operands=[operand1, operand2],
+                          result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class ShRSI(Operation):
+    """
+    The `shrsi` operation shifts an integer value to the right by a variable
+    amount. The integer is interpreted as signed. The high order bits in the
+    output are filled with copies of the most-significant bit of the shifted
+    value (which means that the sign of the value is preserved).
+    """
+    name: str = "arith.shrsi"
+    lhs = OperandDef(IntegerType)
+    rhs = OperandDef(IntegerType)
+    result = ResultDef(IntegerType)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> ShRSI:
+        operand1 = SSAValue.get(operand1)
+        return ShRSI.build(operands=[operand1, operand2],
+                          result_types=[operand1.typ])
+
+
+@irdl_op_definition
 class Cmpi(Operation):
+    """
+    The `cmpi` operation is a comparison for integers.
+    
+    Its first argument is an attribute that defines which type of comparison is
+    performed. The following comparisons are supported:
+
+    -   equal (mnemonic: `"eq"`; integer value: `0`)
+    -   not equal (mnemonic: `"ne"`; integer value: `1`)
+    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+    """
     name: str = "arith.cmpi"
     predicate = AttributeDef(IntegerAttr)
     lhs = OperandDef(IntegerType)
@@ -374,6 +548,65 @@ class Cmpi(Operation):
             operands=[operand1, operand2],
             result_types=[IntegerType.from_width(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
+
+    @staticmethod
+    def from_mnemonic(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
+        match mnemonic:
+            case "eq":
+                arg: int = 0
+            case "ne":
+                arg: int = 1
+            case "slt":
+                arg: int = 2
+            case "sle":
+                arg: int = 3
+            case "sgt":
+                arg: int = 4
+            case "sge":
+                arg: int = 5
+            case "ult":
+                arg: int = 6
+            case "ule":
+                arg: int = 7
+            case "ugt":
+                arg: int = 8
+            case "uge":
+                arg: int = 9
+            case _:
+                raise VerifyException(f"unknown cmpi mnemonic: {mnemonic}")
+        return Cmpi.get(operand1, operand2, arg)
+
+
+@irdl_op_definition
+class Select(Operation):
+    """
+    The `arith.select` operation chooses one value based on a binary condition
+    supplied as its first operand. If the value of the first operand is `1`,
+    the second operand is chosen, otherwise the third operand is chosen.
+    The second and the third operand must have the same type.
+    """
+    name: str = "arith.select"
+    cond = OperandDef(IntegerType.from_width(1))  # should be unsigned
+    lhs = OperandDef(Attribute)
+    rhs = OperandDef(Attribute)
+    result = ResultDef(Attribute)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.cond.typ != IntegerType.from_width(1):
+            raise VerifyException("Condition has to be of type !i1")
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue], operand2: Union[Operation,
+                                                                  SSAValue],
+            operand3: Union[Operation, SSAValue]) -> Select:
+        operand2 = SSAValue.get(operand2)
+        return Select.build(operands=[operand1, operand2, operand3],
+                            result_types=[operand2.typ])
 
 
 @irdl_op_definition
@@ -398,6 +631,27 @@ class Addf(Operation):
 
 
 @irdl_op_definition
+class Subf(Operation):
+    name: str = "arith.subf"
+    lhs = OperandDef(floatingPointLike)
+    rhs = OperandDef(floatingPointLike)
+    result = ResultDef(floatingPointLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Subf:
+        operand1 = SSAValue.get(operand1)
+        return Subf.build(operands=[operand1, operand2],
+                          result_types=[operand1.typ])
+
+
+@irdl_op_definition
 class Mulf(Operation):
     name: str = "arith.mulf"
     lhs = OperandDef(floatingPointLike)
@@ -415,6 +669,27 @@ class Mulf(Operation):
             operand2: Union[Operation, SSAValue]) -> Mulf:
         operand1 = SSAValue.get(operand1)
         return Mulf.build(operands=[operand1, operand2],
+                          result_types=[operand1.typ])
+
+
+@irdl_op_definition
+class Divf(Operation):
+    name: str = "arith.divf"
+    lhs = OperandDef(floatingPointLike)
+    rhs = OperandDef(floatingPointLike)
+    result = ResultDef(floatingPointLike)
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Divf:
+        operand1 = SSAValue.get(operand1)
+        return Divf.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
 
 
