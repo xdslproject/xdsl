@@ -388,7 +388,7 @@ class Parser:
         Parse and flatten a list of lists. The result is a list of elements, no matter the
         rank of the input.
         '''
-        if self.parse_optional_char("["):
+        if self.parse_optional_char("[", skip_white_space=skip_white_space):
             result = [
                 el for els in self.parse_list(lambda: self.parse_nested_list(
                     parse_optional_one, delimiter, skip_white_space))
