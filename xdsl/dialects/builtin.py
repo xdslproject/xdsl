@@ -498,7 +498,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
                 # Dimensions need to be greater or equal to one
                 return False
             n *= dim
-        
+
         # Product of dimensions needs to equal length
         return n == len(self.data.data)
 
@@ -564,12 +564,11 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def tensor_from_list(
-            data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat,
-            shape: List[int] = []
-    ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
+    def tensor_from_list(data: List[int] | List[float],
+                         typ: IntegerType | IndexType | AnyFloat,
+                         shape: List[int] = []) -> DenseIntOrFPElementsAttr:
+        t = AnyTensorType.from_type_and_list(
+            typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
