@@ -1,6 +1,42 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 builtin.module() {
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "divsi"] {
+^0(%0 : !i32, %1 : !i32):
+  %2 : !i32 = arith.divsi(%0 : !i32, %1 : !i32)
+  func.return(%2 : !i32)
+}
+
+//CHECK:   %{{.*}} : !i32 = arith.divsi(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!index, !index], [!index]>, "sym_name" = "divsi_index"] {
+^1(%3 : !index, %4 : !index):
+  %5 : !index = arith.divsi(%3 : !index, %4 : !index)
+  func.return(%5 : !index)
+}
+
+// CHECK:   %{{.*}} : !index = arith.divsi(%{{.*}} : !index, %{{.*}} : !index)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "divui"] {
+^4(%12 : !i32, %13 : !i32):
+  %14 : !i32 = arith.divui(%12 : !i32, %13 : !i32)
+  func.return(%14 : !i32)
+}
+
+// CHECK:   %{{.*}} : !i32 = arith.divui(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!index, !index], [!index]>, "sym_name" = "divui_index"] {
+^5(%15 : !index, %16 : !index):
+  %17 : !index = arith.divui(%15 : !index, %16 : !index)
+  func.return(%17 : !index)
+}
+
+// CHECK:   %{{.*}} : !index = arith.divui(%{{.*}} : !index, %{{.*}} : !index)
+
+
 func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "ceildivi"] {
 ^0(%0 : !i32, %1 : !i32):
   %2 : !i32 = arith.ceildivsi(%0 : !i32, %1 : !i32)
@@ -53,6 +89,24 @@ func.func() ["function_type" = !fun<[!index, !index], [!index]>, "sym_name" = "c
 }
 
 // CHECK:   %{{.*}} : !index = arith.ceildivui(%{{.*}} : !index, %{{.*}} : !index)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "remsi"] {
+^4(%12 : !i32, %13 : !i32):
+  %14 : !i32 = arith.remsi(%12 : !i32, %13 : !i32)
+  func.return(%14 : !i32)
+}
+
+// CHECK:   %{{.*}} : !i32 = arith.remsi(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "remui"] {
+^4(%12 : !i32, %13 : !i32):
+  %14 : !i32 = arith.remui(%12 : !i32, %13 : !i32)
+  func.return(%14 : !i32)
+}
+
+// CHECK:   %{{.*}} : !i32 = arith.remui(%{{.*}} : !i32, %{{.*}} : !i32)
 
 
 func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "maxf"] {
@@ -116,4 +170,85 @@ func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "minui"]
 }
 
 // CHECK:   %{{.*}} !i32 = arith.minui(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "addf"] {
+^6(%18 : !f32, %19 : !f32):
+  %20 : !f32 = arith.addf(%18 : !f32, %19 : !f32)
+  func.return(%20 : !f32)
+}
+
+// CHECK:   %{{.*}} : !f32 = arith.addf(%{{.*}} : !f32, %{{.*}} : !f32)
+
+
+func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "subf"] {
+^6(%18 : !f32, %19 : !f32):
+  %20 : !f32 = arith.subf(%18 : !f32, %19 : !f32)
+  func.return(%20 : !f32)
+}
+
+// CHECK:   %{{.*}} : !f32 = arith.subf(%{{.*}} : !f32, %{{.*}} : !f32)
+
+
+func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "mulf"] {
+^6(%18 : !f32, %19 : !f32):
+  %20 : !f32 = arith.mulf(%18 : !f32, %19 : !f32)
+  func.return(%20 : !f32)
+}
+
+// CHECK:   %{{.*}} : !f32 = arith.mulf(%{{.*}} : !f32, %{{.*}} : !f32)
+
+
+func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "divf"] {
+^6(%18 : !f32, %19 : !f32):
+  %20 : !f32 = arith.divf(%18 : !f32, %19 : !f32)
+  func.return(%20 : !f32)
+}
+
+// CHECK:   %{{.*}} : !f32 = arith.divf(%{{.*}} : !f32, %{{.*}} : !f32)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "select_int"] {
+^6(%0 : !i1, %18 : !i32, %19 : !i32):
+  %8 : !i32 = arith.select(%0 : !i1, %18 : !i32, %19 : !i32)
+  func.return(%8 : !i32)
+}
+
+// CHECK:   %{{.*}} : !i32 = arith.select(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "select_float"] {
+^6(%0 : !i1, %18 : !f32, %19 : !f32):
+  %8 : !f32 = arith.select(%0 : !i1, %18 : !f32, %19 : !f32)
+  func.return(%8 : !f32)
+}
+
+// CHECK:   %{{.*}} : !f32 = arith.select(%{{.*}} : !f32, %{{.*}} : !f32)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shli"] {
+^12(%36 : !i32, %37 : !i32):
+  %38 : !i32 = arith.shli(%36 : !i32, %37 : !i32)
+  func.return(%38 : !i32)
+}
+
+// CHECK:   %{{.*}} !i32 = arith.shli(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shrui"] {
+^12(%36 : !i32, %37 : !i32):
+  %38 : !i32 = arith.shrui(%36 : !i32, %37 : !i32)
+  func.return(%38 : !i32)
+}
+
+// CHECK:   %{{.*}} !i32 = arith.shrui(%{{.*}} : !i32, %{{.*}} : !i32)
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shrsi"] {
+^12(%36 : !i32, %37 : !i32):
+  %38 : !i32 = arith.shrsi(%36 : !i32, %37 : !i32)
+  func.return(%38 : !i32)
+}
+
+// CHECK:   %{{.*}} !i32 = arith.shrsi(%{{.*}} : !i32, %{{.*}} : !i32)
 }
