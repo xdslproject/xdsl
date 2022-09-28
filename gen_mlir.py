@@ -40,7 +40,9 @@ def main_body() -> List[Operation]:
 
 multiply_transpose = FuncOp.from_callable(
     'multiply_transpose', [UnrankedTensorTypeF64, UnrankedTensorTypeF64],
-    [UnrankedTensorTypeF64], func_body)
+    [UnrankedTensorTypeF64],
+    func_body,
+    private=True)
 main = FuncOp.from_callable('main', [], [], main_body)
 
 module = ModuleOp.from_region_or_ops([multiply_transpose, main])

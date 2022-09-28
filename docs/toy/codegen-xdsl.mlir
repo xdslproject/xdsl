@@ -5,7 +5,7 @@
     %3 = "toy.transpose"(%1) : (tensor<*xf64>) -> tensor<*xf64>
     %4 = "toy.mul"(%2, %3) : (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>
     "toy.return"(%4) : (tensor<*xf64>) -> ()
-  }) {sym_name = "multiply_transpose", function_type = (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>} : () -> ()
+  }) {sym_name = "multiply_transpose", function_type = (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>, sym_visibility = "private"} : () -> ()
   "toy.func"() ({
     %5 = "toy.constant"() {value = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
     %6 = "toy.reshape"(%5) : (tensor<2x3xf64>) -> tensor<2x3xf64>

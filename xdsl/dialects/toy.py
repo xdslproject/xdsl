@@ -6,16 +6,17 @@ Toy language dialect from MLIR tutorial.
 
 from dataclasses import dataclass
 from typing import List, Union, TypeVar, Optional, Any
+from xmlrpc.client import Boolean
 
 from xdsl.ir import MLContext, SSAValue
 from xdsl.dialects.builtin import (FunctionType, Attribute, FlatSymbolRefAttr,
                                    TensorType, UnrankedTensorType, f64,
                                    DenseIntOrFPElementsAttr, SymbolNameAttr,
-                                   AnyTensorType)
+                                   AnyTensorType, StringAttr)
 from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
                        RegionDef, Region, Operation, AttributeDef,
                        VarResultDef, ResultDef, OpResult, OptOperandDef,
-                       OperandDef)
+                       OperandDef, OptAttributeDef)
 
 
 @dataclass
@@ -105,25 +106,32 @@ class FuncOp(Operation):
     body = RegionDef()
     sym_name = AttributeDef(SymbolNameAttr)
     function_type = AttributeDef(FunctionType)
+    sym_visibility = OptAttributeDef(StringAttr)
 
     @staticmethod
     def from_region(name: str, ftype: FunctionType, region: Region):
         return FuncOp.create(result_types=[ftype.outputs],
                              attributes={
                                  "sym_name": SymbolNameAttr.from_str(name),
-                                 "function_type": ftype
+                                 "function_type": ftype,
+                                 "sym_visibility": "private"
                              },
                              regions=[region])
 
     @staticmethod
-    def from_callable(name: str, input_types: List[Attribute],
+    def from_callable(name: str,
+                      input_types: List[Attribute],
                       return_types: List[Attribute],
-                      func: Block.BlockCallback):
+                      func: Block.BlockCallback,
+                      private: Boolean = False):
         type_attr = FunctionType.from_lists(input_types, return_types)
-        return FuncOp.build(attributes={
+        attributes = {
             "sym_name": name,
             "function_type": type_attr,
-        },
+        }
+        if private:
+            attributes["sym_visibility"] = "private"
+        return FuncOp.build(attributes=attributes,
                             regions=[
                                 Region.from_block_list(
                                     [Block.from_callable(input_types, func)])
