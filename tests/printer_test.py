@@ -610,6 +610,32 @@ def test_parse_generic_format_attr():
     assert file.getvalue().strip() == expected.strip()
 
 
+def test_parse_dense_xdsl():
+    '''
+    Test that parsing of shaped dense tensors works.
+    '''
+    # TODO: handle nested array syntax
+    prog = """
+    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
+    """
+
+    expected = """
+    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
+    """
+
+    ctx = MLContext()
+    Builtin(ctx)
+    Arith(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
 def test_parse_dense_mlir():
     """
     Test that we can parse attributes using generic formats.
