@@ -119,16 +119,10 @@ class Printer:
                    elems: Iterable[T],
                    print_fn: Callable[[T], None],
                    delimiter: str = ", ") -> None:
-        it = iter(elems)
-        try:
-            el = next(it)
-            print_fn(el)
-            while True:
-                el = next(it)
+        for i, elem in enumerate(elems):
+            if i:
                 self.print(delimiter)
-                print_fn(el)
-        except StopIteration:
-            return
+            print_fn(elem)
 
     def _print_new_line(self,
                         indent: int | None = None,
