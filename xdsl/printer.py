@@ -3,19 +3,19 @@ from __future__ import annotations
 from frozenlist import FrozenList
 
 from xdsl.diagnostic import Diagnostic
-from typing import TypeVar, Any, Dict, Optional, List, cast
+from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
 
 from dataclasses import dataclass, field
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
-    AnyArrayAttr, AnyIntegerAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
-    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
-    VectorType)
+    AnyArrayAttr, AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType,
+    AnyVectorType, DenseIntOrFPElementsAttr, Float16Type, Float32Type,
+    Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr, OpaqueAttr,
+    StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
+    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
+    UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -116,14 +116,12 @@ class Printer:
     T = TypeVar('T')
 
     def print_list(self,
-                   elems: FrozenList[T] | List[T],
+                   elems: Iterable[T],
                    print_fn: Callable[[T], None],
                    delimiter: str = ", ") -> None:
-        if len(elems) == 0:
-            return
-        print_fn(elems[0])
-        for elem in elems[1:]:
-            self.print(delimiter)
+        for i, elem in enumerate(elems):
+            if i:
+                self.print(delimiter)
             print_fn(elem)
 
     def _print_new_line(self,
@@ -370,12 +368,11 @@ class Printer:
         if (isinstance(attribute, DenseIntOrFPElementsAttr)
                 and self.target == self.Target.MLIR):
 
-            def print_dense_list(array: AnyArrayAttr):
+            def print_dense_list(array: List[AnyIntegerAttr]
+                                 | List[AnyFloatAttr], shape: List[int]):
 
                 def print_one_elem(val: Attribute):
-                    if isinstance(val, ArrayAttr):
-                        print_dense_list(cast(AnyArrayAttr, val))
-                    elif isinstance(val, IntegerAttr):
+                    if isinstance(val, IntegerAttr):
                         self.print(val.value.data)
                     elif isinstance(val, FloatAttr):
                         self.print(val.value.data)
@@ -384,11 +381,23 @@ class Printer:
                                         "in DenseIntOrFPElementsAttr: "
                                         f"{type(val)}")
 
-                self.print_list(array.data, print_one_elem)
+                self.print('[')
+                if len(shape) > 1:
+                    k = len(array) // shape[0]
+                    self.print_list(
+                        (array[i:i + k] for i in range(0, len(array), k)),
+                        lambda subarray: print_dense_list(subarray, shape[1:]))
+                else:
+                    self.print_list(array, print_one_elem)
+                self.print(']')
 
-            self.print("dense<[")
-            print_dense_list(attribute.data)
-            self.print("]> : ")
+            self.print("dense<")
+            data = attribute.data.data
+            shape = attribute.shape if attribute.shape_is_complete else [
+                len(data)
+            ]
+            print_dense_list(data, shape)
+            self.print("> : ")
             self.print(attribute.type)
             return
 
@@ -465,7 +474,9 @@ class Printer:
             self.print(">")
             return
 
-        assert isinstance(attribute, ParametrizedAttribute)
+        assert isinstance(
+            attribute,
+            ParametrizedAttribute), f'{attribute}: {type(attribute)}'
 
         # Print parametrized attribute with default formatting
         if self.target == self.Target.XDSL and self.print_generic_format:
