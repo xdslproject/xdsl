@@ -508,8 +508,28 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     type: ParameterDef[VectorOrTensorOf[IntegerType]
                        | VectorOrTensorOf[IndexType]
                        | VectorOrTensorOf[AnyFloat]]
-    # TODO add support for multi-dimensional data
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+
+    # The type stores the shape data
+    @property
+    def shape(self) -> List[int]:
+        return self.type.get_shape()
+
+    @property
+    def shape_is_complete(self) -> bool:
+        shape = self.shape
+        if not len(shape):
+            return False
+
+        n = 1
+        for dim in shape:
+            if dim < 1:
+                # Dimensions need to be greater or equal to one
+                return False
+            n *= dim
+
+        # Product of dimensions needs to equal length
+        return n == len(self.data.data)
 
     @staticmethod
     @builder
@@ -573,11 +593,11 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def tensor_from_list(
-            data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat
-    ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, [len(data)])
+    def tensor_from_list(data: List[int] | List[float],
+                         typ: IntegerType | IndexType | AnyFloat,
+                         shape: List[int] = []) -> DenseIntOrFPElementsAttr:
+        t = AnyTensorType.from_type_and_list(
+            typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
