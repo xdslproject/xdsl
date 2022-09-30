@@ -13,10 +13,24 @@ def new_cst(value: int, width: int = 32) -> List[IOp]:
         result_types=[IntegerType.from_width(width)])
 
 
+def new_cst_with_type(value: int, type: Attribute) -> List[IOp]:
+    if isinstance(type, IndexType):
+        new_value = IntegerAttr.from_index_int_value(value)
+    elif isinstance(type, IntegerType):
+        new_value = IntegerAttr.from_int_and_width(value, type.width.data)
+    else:
+        raise Exception("Invalid type for constant")
+
+    return new_op(
+        arith.Constant,
+        attributes={"value": new_value},
+        result_types=[type])
+
+
 def new_bin_op(op_type: Type[Operation],
                lhs: ISSAValue | IOp | List[IOp],
                rhs: ISSAValue | IOp | List[IOp],
-               attributes: Optional[Dict[str, Attribute]] = None):
+               attributes: Optional[dict[str, Attribute]] = None):
     """
     Generates a new op of `op_type`. Only to be used for ops which produce one 
     result and lhs.type == rhs.type == result.type
@@ -165,10 +179,10 @@ class GarbageCollect(Strategy):
 # TODO: Do we want specialized stuff like this?
 
 
-def new_cmpi(pred: str, lhs: ISSAValue | IOp | List[IOp],
+def new_cmpi(mnemonic: str, lhs: ISSAValue | IOp | List[IOp],
              rhs: ISSAValue | IOp | List[IOp]):
     predicate: int = 0
-    match pred:
+    match mnemonic:
         case "eq":
             predicate = 0
         case "ne":
@@ -198,3 +212,60 @@ def new_cmpi(pred: str, lhs: ISSAValue | IOp | List[IOp],
                       IntegerAttr.from_int_and_width(predicate, 64)
                   },
                   result_types=[IntegerType.from_width(1)])
+
+def new_cmpf(mnemonic: str, lhs: ISSAValue | IOp | List[IOp],
+             rhs: ISSAValue | IOp | List[IOp]):
+    predicate: int = 0
+    match mnemonic:
+        case "false":
+            predicate: int = 0
+        case "oeq":
+            predicate: int = 1
+        case "ogt":
+            predicate: int = 2
+        case "oge":
+            predicate: int = 3
+        case "olt":
+            predicate: int = 4
+        case "ole":
+            predicate: int = 5
+        case "one":
+            predicate: int = 6
+        case "ord":
+            predicate: int = 7
+        case "ueq":
+            predicate: int = 8
+        case "ugt":
+            predicate: int = 9
+        case "uge":
+            predicate: int = 10
+        case "ult":
+            predicate: int = 11
+        case "ule":
+            predicate: int = 12
+        case "une":
+            predicate: int = 13
+        case "uno":
+            predicate: int = 14
+        case "true":
+            predicate: int = 15
+        case _:
+            raise VerifyException(f"unknown cmpf mnemonic: {mnemonic}")
+    if isinstance(lhs, list):
+        typ = lhs[0].result.typ
+    elif isinstance(lhs, IOp):
+        typ = lhs.result.typ
+    else:
+        typ = lhs.typ
+
+    if isinstance(typ, VectorType):
+        result_type = VectorType.from_type_and_list(IntegerType.from_width(1), lhs.typ.get_shape())
+    else:
+        result_type = IntegerType.from_width(1)
+    return new_op(arith.Cmpf,
+                  operands=[lhs, rhs],
+                  attributes={
+                      "predicate":
+                      IntegerAttr.from_int_and_width(predicate, 64)
+                  },
+                  result_types=[result_type])

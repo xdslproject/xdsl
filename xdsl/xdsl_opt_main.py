@@ -18,6 +18,8 @@ from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.irdl_mlir_printer import IRDLPrinter
+# passes
+from xdsl.passes.arith_expansion import arith_expansion_pass
 
 from typing import Dict, Callable, List
 
@@ -213,7 +215,7 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        pass
+        self.available_passes["arith-expand"] = arith_expansion_pass
 
     def register_all_targets(self):
         """
