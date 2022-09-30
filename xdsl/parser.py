@@ -380,25 +380,59 @@ class Parser:
 
     T = TypeVar('T')
 
-    def parse_nested_list(self,
-                          parse_optional_one: Callable[[], T | None],
-                          delimiter: str = ",",
-                          skip_white_space: bool = True) -> list[T]:
+    def parse_optional_nested_list(
+            self,
+            parse_optional_one: Callable[[], T | None],
+            delimiter: str = ",",
+            brackets: str = "[]",
+            skip_white_space: bool = True) -> list[T] | None:
         '''
         Parse and flatten a list of lists. The result is a list of elements, no matter the
         rank of the input.
+        Delimiter must be length one, for example ",".
+        Brackets must be length two, for example "[]".
         '''
-        if self.parse_optional_char("[", skip_white_space=skip_white_space):
-            result = [
-                el for els in self.parse_list(lambda: self.parse_nested_list(
-                    parse_optional_one, delimiter, skip_white_space))
-                for el in els
-            ]
-            self.parse_char("]")
-        else:
-            result = self.parse_list(parse_optional_one, delimiter,
-                                     skip_white_space)
-        return result
+
+        assert len(delimiter) == 1
+        assert len(brackets) == 2
+
+        open_bracket, close_bracket = brackets
+        if not self.parse_optional_char(open_bracket,
+                                        skip_white_space=skip_white_space):
+            # This is not a list that opens with the opening bracket
+            return None
+
+        indices = [0]
+
+        res = list[Any]()  # Pyright does not let us use `T` here
+
+        while len(indices) > 0:
+            if self.parse_optional_char(close_bracket,
+                                        skip_white_space=skip_white_space):
+                # This is the end of a list
+                indices.pop()
+                if len(indices) > 0:
+                    indices[-1] += 1
+                continue
+
+            if indices[-1]:
+                # If we're not at the end of the list, then it's a delimiter followed by
+                # the next eleement, which might be a nested list.
+                self.parse_char(delimiter, skip_white_space=skip_white_space)
+
+            if self.parse_optional_char(open_bracket,
+                                        skip_white_space=skip_white_space):
+                # A new nested list, reset the index
+                indices.append(0)
+            else:
+                # This must be a list element
+                one = parse_optional_one()
+                if one is None:
+                    raise ParserError(self._pos, 'Expected list element')
+                res.append(one)
+                indices[-1] += 1
+
+        return res
 
     def parse_list(self,
                    parse_optional_one: Callable[[], T | None],
@@ -918,9 +952,15 @@ class Parser:
         # dense attribute
         if self.parse_optional_string("dense"):
             self.parse_char("<")
-            value = self.parse_nested_list(lambda: (
-                self.parse_optional_int_literal()
-                if (f := self.parse_optional_float_literal()) is None else f))
+
+            def parse_num() -> int | float | None:
+                if (f := self.parse_optional_float_literal()) is not None:
+                    return f
+                if (i := self.parse_optional_int_literal()) is not None:
+                    return i
+                return None
+
+            value = self.parse_optional_nested_list(parse_num)
             self.parse_char(">")
             self.parse_char(":")
 
