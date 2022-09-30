@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, Type,
+                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
+                    get_type_hints)
 
 from frozenlist import FrozenList
 
@@ -31,6 +32,7 @@ class VerifyException(DiagnosticException):
 
 class IRDLAnnotations(Enum):
     ParamDefAnnot = 1
+    ResultDefAnnot = 2
 
 
 #   ____                _             _       _
@@ -335,6 +337,11 @@ class AttrSizedResultSegments(IRDLOption):
     """Name of the attribute containing the variadic result sizes."""
 
 
+_R = TypeVar("_R", bound=Attribute | type[Attribute] | AttrConstraint)
+
+S_ResultDef: TypeAlias = Annotated[_R, IRDLAnnotations.ResultDefAnnot]
+
+
 @dataclass
 class OperandOrResultDef(ABC):
     """An operand or a result definition. Should not be used directly."""
@@ -474,6 +481,13 @@ class OpDef:
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):
                 op_def.operands.append((field_name, field_value))
+            elif get_origin(field_value) == Annotated:
+                # Annotated case
+                args = get_args(field_value)
+                if IRDLAnnotations.ResultDefAnnot in args:
+                    op_def.results.append((field_name, ResultDef(args[0]())))
+                else:
+                    assert False
             elif isinstance(field_value, ResultDef):
                 op_def.results.append((field_name, field_value))
             elif isinstance(field_value, RegionDef):
