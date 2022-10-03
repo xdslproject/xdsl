@@ -707,7 +707,6 @@ class Parser:
                 return attr
 
         # Then, we parse attributes/types with the generic format.
-
         if self.parse_optional_char("!") is None:
             if self.source == self.Source.MLIR:
                 if self.parse_optional_char("#") is None:
@@ -937,7 +936,7 @@ class Parser:
 
         # Array attribute
         if self.parse_optional_char("["):
-            contents = self.parse_list(self.parse_optional_mlir_attribute)
+            contents = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
             return ArrayAttr.from_list(contents)
 
