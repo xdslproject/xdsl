@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from io import StringIO
 
-from xdsl.dialects.builtin import Builtin, ModuleOp, IntegerType
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.diagnostic import Diagnostic
-from xdsl.ir import MLContext
-from xdsl.irdl import irdl_op_definition, Operation, OperandDef, ResultDef
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition, irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 
@@ -52,7 +52,7 @@ def test_forgotten_op_non_fail():
 
     expected = \
 """
-module() {
+builtin.module() {
   %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
   -----------------------^^^^^^^^^^----------------------------------------------------------------
   | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
@@ -71,6 +71,48 @@ module() {
     assert file.getvalue().strip() == expected.strip()
 
 
+@irdl_op_definition
+class UnitAttrOp(Operation):
+    name = "unit_attr_op"
+
+    parallelize = OptAttributeDef(UnitAttr)
+
+
+def test_unit_attr():
+    """Test that a UnitAttr can be defined and printed"""
+
+    expected = \
+"""
+unit_attr_op() ["parallelize"]
+"""
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+
+    printer.print_op(unit_op)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_added_unit_attr():
+    """Test that a UnitAttr can be added to an op, even if its not defined as a field."""
+
+    expected = \
+"""
+unit_attr_op() ["parallelize", "vectorize"]
+"""
+    file = StringIO("")
+    printer = Printer(stream=file)
+    unitop = UnitAttrOp.build(attributes={
+        "parallelize": UnitAttr([]),
+        "vectorize": UnitAttr([])
+    })
+
+    printer.print_op(unitop)
+    assert file.getvalue().strip() == expected.strip()
+
+
 #  ____  _                             _   _
 # |  _ \(_) __ _  __ _ _ __   ___  ___| |_(_) ___
 # | | | | |/ _` |/ _` | '_ \ / _ \/ __| __| |/ __|
@@ -83,14 +125,14 @@ module() {
 def test_op_message():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message
@@ -117,13 +159,13 @@ module() {
 def test_two_different_op_messages():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -153,13 +195,13 @@ def test_two_different_op_messages():
 def test_two_same_op_messages():
     """Test that an operation message can be printed."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
-"""module() {
+"""builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -189,17 +231,17 @@ def test_two_same_op_messages():
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """\
-module() {
-^^^^^^
+builtin.module() {
+^^^^^^^^^^^^^^
 | Test
-------
+--------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -225,17 +267,17 @@ def test_op_message_with_region_and_overflow():
     where the message is bigger than the operation.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
     expected = \
 """\
-module() {
-^^^^^^--------
-| Test message
---------------
+builtin.module() {
+^^^^^^^^^^^^^^-----
+| Test long message
+-------------------
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
 }"""
@@ -250,7 +292,7 @@ module() {
     file = StringIO("")
     diagnostic = Diagnostic()
     printer = Printer(stream=file, diagnostic=diagnostic)
-    diagnostic.add_message(module, "Test message")
+    diagnostic.add_message(module, "Test long message")
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
 
@@ -261,7 +303,7 @@ def test_diagnostic():
     where the message is bigger than the operation.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
@@ -270,7 +312,7 @@ def test_diagnostic():
 """\
 Exception: test message
 
-module() {
+builtin.module() {
 ^^^^^^^^-------
 | Test message
 ---------------
@@ -306,14 +348,14 @@ def test_print_costum_name():
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %i : !i32 = arith.constant() ["value" = 42 : !i32]
     %213 : !i32 = arith.addi(%i : !i32, %i : !i32)
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %i : !i32 = arith.constant() ["value" = 42 : !i32]
   %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
 }"""
@@ -365,14 +407,14 @@ def test_generic_format():
     Test that we can use generic formats in operations.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = "test.add"(%0: !i32, %0: !i32)
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
 }"""
@@ -396,14 +438,14 @@ def test_custom_format():
     Test that we can use custom formats in operations.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
     expected = \
 """\
-module() {
+builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
 }"""
@@ -427,14 +469,14 @@ def test_custom_format():
     Test that we can print using generic formats.
     """
     prog = \
-        """module() {
+        """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
     expected = \
 """\
-"module"() {
+"builtin.module"() {
   %0 : !i32 = "arith.constant"() ["value" = 42 : !i32]
   %1 : !i32 = "test.add"(%0 : !i32, %0 : !i32)
 }"""
@@ -449,5 +491,171 @@ def test_custom_format():
 
     file = StringIO("")
     printer = Printer(stream=file, print_generic_format=True)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+@irdl_attr_definition
+class CustomFormatAttr(ParametrizedAttribute):
+    name = "custom"
+
+    attr: ParameterDef[IntAttr]
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        value = parser.parse_alpha_num(skip_white_space=False)
+        if value == "zero":
+            parser.parse_char(">")
+            return [IntAttr.from_int(0)]
+        if value == "one":
+            parser.parse_char(">")
+            return [IntAttr.from_int(1)]
+        assert False
+
+    def print_parameters(self, printer: Printer) -> None:
+        assert 0 <= self.attr.data <= 1
+        printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
+
+
+@irdl_op_definition
+class AnyOp(Operation):
+    name = "any"
+
+
+def test_custom_format_attr():
+    """
+    Test that we can parse and print attributes using custom formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !custom<zero>]
+    }"""
+
+    expected = \
+"""\
+builtin.module() {
+  any() ["attr" = !custom<zero>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_generic_format_attr():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !"custom"<!int<0>>]
+    }"""
+
+    expected = \
+"""\
+builtin.module() {
+  any() ["attr" = !custom<zero>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_generic_format_attr():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !custom<zero>]
+    }"""
+
+    expected = \
+"""\
+"builtin.module"() {
+  "any"() ["attr" = !"custom"<!int<0>>]
+}"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_dense_xdsl():
+    '''
+    Test that parsing of shaped dense tensors works.
+    '''
+    # TODO: handle nested array syntax
+    prog = """
+    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
+    """
+
+    expected = """
+    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
+    """
+
+    ctx = MLContext()
+    Builtin(ctx)
+    Arith(ctx)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
+def test_parse_dense_mlir():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = """
+    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+    """
+
+    expected = """
+    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+    """
+
+    ctx = MLContext()
+    Builtin(ctx)
+    Arith(ctx)
+
+    parser = Parser(ctx, prog, source=Parser.Source.MLIR)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file, target=Printer.Target.MLIR)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()

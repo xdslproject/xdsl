@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
-module () {
+builtin.module () {
     
   func.func() ["sym_name" = "wrong_types", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     %0 : !i32 = arith.constant() ["value" = 32 : !i32]
@@ -8,5 +8,5 @@ module () {
     %res : !i32 = arith.addi(%0 : !i32, %1 : !i64)
   }
 
-  // CHECK: expect all input and output types to be equal
+  // CHECK: expect all input and result types to be equal
 }

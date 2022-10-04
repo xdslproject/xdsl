@@ -2,13 +2,14 @@ import pytest
 
 docutils = pytest.importorskip("mlir")
 
-from xdsl.mlir_converter import MLContext, Builtin, MLIRConverter, mlir
+from xdsl.mlir_converter import MLIRConverter, mlir
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.func import Func
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.parser import Parser
+from xdsl.dialects.builtin import Builtin, MLContext
 
 
 def convert_and_verify(test_prog: str):
@@ -35,7 +36,7 @@ def convert_and_verify(test_prog: str):
 
 def test_func_conversion():
     test_prog = """
-module() {
+builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
     func.return()
@@ -48,7 +49,7 @@ module() {
 
 def test_arith_conversion():
     test_prog = """
-module() {
+builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]{
   ^0(%arg : !i32):
     %0 : !i32 = arith.constant() ["value" = 0 : !i32]
@@ -62,7 +63,7 @@ module() {
 
 def test_scf_conversion():
     test_prog = """
-module() {
+builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]{
   ^0(%arg : !i32):
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -83,7 +84,7 @@ module() {
 
 def test_variadic_conversion():
     test_prog = """
-module() {
+builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
     %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
@@ -97,7 +98,7 @@ module() {
 
 def test_memref_conversion():
     test_prog = """
-module() {
+builtin.module() {
   func.func() ["sym_name" = "sum", "function_type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "public"]{
   ^0(%0 : !i32, %1 : !i32):
     %2 : !index = arith.constant() ["value" = 0 : !index]
@@ -112,6 +113,20 @@ module() {
     %9 : !i32 = memref.load(%5 : !memref<[1 : !index], !i32>, %8 : !index)
     %10 : !i32 = arith.addi(%7 : !i32, %9 : !i32)
     func.return(%10 : !i32)
+  }
+}
+    """
+    convert_and_verify(test_prog)
+
+
+def test_unit_attr_conversion():
+    test_prog = """
+builtin.module() {
+  func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private", "llvm.emit_c_interface"]
+  {
+    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
+
+    func.return()
   }
 }
     """

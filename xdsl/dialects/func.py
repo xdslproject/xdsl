@@ -4,9 +4,9 @@ from typing import List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbolRefAttr
 from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
-                       RegionDef, Region, Operation, AttributeDef,
-                       VarResultDef)
+from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
+                       AnyAttr, Block, RegionDef, Region, Operation,
+                       AttributeDef, VarResultDef)
 
 
 @dataclass
@@ -26,7 +26,7 @@ class FuncOp(Operation):
     body = RegionDef()
     sym_name = AttributeDef(StringAttr)
     function_type = AttributeDef(FunctionType)
-    sym_visibility = AttributeDef(StringAttr)
+    sym_visibility = OptAttributeDef(StringAttr)
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],

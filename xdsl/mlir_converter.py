@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
                                    ArrayAttr, FlatSymbolRefAttr, StringAttr,
                                    FunctionType, TupleType, ModuleOp,
-                                   Float32Type, SymbolNameAttr)
+                                   Float32Type, SymbolNameAttr, UnitAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
 from typing import Dict
@@ -103,6 +103,8 @@ class MLIRConverter:
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
+        if isinstance(attr, UnitAttr):
+            return mlir.ir.UnitAttr.get()
         # SymbolNameAttrs are in fact just StringAttrs
         if isinstance(attr, SymbolNameAttr):
             return mlir.ir.StringAttr.get(attr.parameters[0].data)
@@ -158,18 +160,22 @@ class MLIRConverter:
             mlir_block = self.block_to_mlir_blocks[block]
             self.convert_block(block, mlir_block)
 
+    def convert_module_with_ctx(self, op: Operation,
+                                mlir_ctx: mlir.ir.Context) -> mlir.ir.Module:
+        with mlir.ir.Location.unknown(mlir_ctx):
+            if not isinstance(op, ModuleOp):
+                raise Exception("top-level operation should be a ModuleOp")
+            mlir_module = mlir.ir.Module.create()
+            mlir_block = mlir_module.operation.regions[0].blocks[0]
+            block = op.regions[0].blocks[0]
+
+            ip = mlir.ir.InsertionPoint.at_block_begin(mlir_block)
+            for op in block.ops:
+                ip.insert(self.convert_op(op))
+            return mlir_module
+
     def convert_module(self, op: Operation) -> mlir.ir.Module:
         with mlir.ir.Context() as mlir_ctx:
             mlir_ctx.allow_unregistered_dialects = True
             self.register_external_dialects()
-            with mlir.ir.Location.unknown(mlir_ctx):
-                if not isinstance(op, ModuleOp):
-                    raise Exception("top-level operation should be a ModuleOp")
-                mlir_module = mlir.ir.Module.create()
-                mlir_block = mlir_module.operation.regions[0].blocks[0]
-                block = op.regions[0].blocks[0]
-
-                ip = mlir.ir.InsertionPoint.at_block_begin(mlir_block)
-                for op in block.ops:
-                    ip.insert(self.convert_op(op))
-                return mlir_module
+            return self.convert_module_with_ctx(op, mlir_ctx)

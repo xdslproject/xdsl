@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
 
     func.func() ["sym_name" = "conorm", "function_type" = !fun<[!cmath.complex<!f32>, !cmath.complex<!f32>], [!f32]>, "sym_visibility" = "private"] {
       ^0(%p: !cmath.complex<!f32>, %q: !cmath.complex<!f32>):

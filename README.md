@@ -2,19 +2,21 @@
 
 ## Prerequisites
 
-To install the required dependencies, execute the following command:
+To install XDSL you can either clone the Github repository and install the requirements by following:
+
+### Clone and install
+```bash
+git clone https://github.com/xdslproject/xdsl.git
+pip install -e .
+# or for the optional requirements
+# pip install -e .[extras]
+```
+
+### pip installation
 
 ```bash
-pip install -r requirements.txt
+pip install xdsl
 ```
-
-Optional dependencies, necessary for formatting the code may be installed via:
-
-```
-pip install -r requirements-optional.txt
-```
-
-TODO: check if PYTHONPATH is required or if there exists an easy fix for it.
 
 ## Testing
 
@@ -32,16 +34,24 @@ lit tests/filecheck
 
 ## Generating executables through MLIR
 
-xDSL can generate executables using MLIR as the backend. To use this
-functionality, make sure to install the [MLIR Python
-Bindings](https://mlir.llvm.org/docs/Bindings/Python/). Given an input file
-`input.xdsl`, that contains IR with only the mirrored dialects found in
-`src/xdsl/dialects` (arith, builtin, cf, func, irdl, llvm, memref, and scf),
-run:
+xDSL can generate executables using MLIR as its backend.
+To benefit from this functionality, we first need to clone and build MLIR.
+Please follow: https://mlir.llvm.org/getting_started/
+
+Next, we need to have `mlir-opt`, `mlir-translate` and `clang` in the path:
+
+```bash
+# For XDSL-MLIR
+export PATH=<insert-your-path>/llvm-project/build/bin:$PATH
+```
+
+Given an input file `input.xdsl`, that contains IR with only the mirrored dialects
+found in `src/xdsl/dialects` (arith, builtin, cf, func, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic from to tmp.mlir
-./src/tools/xdsl_opt -t mlir  -o tmp.mlir `input.xdsl`
+# e.g.  ./src/tools/xdsl_opt -t mlir -o tmp.mlir `input.xdsl`
+/src/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
 
 mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --convert-arith-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
 ```

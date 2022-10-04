@@ -34,17 +34,29 @@ class MLContext:
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
+    def get_optional_op(self, name: str) -> type[Operation] | None:
+        """Get an operation class from its name if it exists."""
+        if name not in self._registeredOps:
+            return None
+        return self._registeredOps[name]
+
     def get_op(self, name: str) -> type[Operation]:
         """Get an operation class from its name."""
-        if name not in self._registeredOps:
-            raise Exception(f"Operation {name} is not registered")
-        return self._registeredOps[name]
+        if op_type := self.get_optional_op(name):
+            return op_type
+        raise Exception(f"Operation {name} is not registered")
+
+    def get_optional_attr(self, name: str) -> type[Attribute] | None:
+        """Get an attribute class from its name if it exists."""
+        if name not in self._registeredAttrs:
+            return None
+        return self._registeredAttrs[name]
 
     def get_attr(self, name: str) -> type[Attribute]:
         """Get an attribute class from its name."""
-        if name not in self._registeredAttrs:
-            raise Exception(f"Attribute {name} is not registered")
-        return self._registeredAttrs[name]
+        if attr_type := self.get_optional_attr(name):
+            return attr_type
+        raise Exception(f"Attribute {name} is not registered")
 
 
 @dataclass(frozen=True)
@@ -173,6 +185,22 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
+@dataclass
+class MLIRType:
+    """
+    A class representing an MLIR type.
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    def __post_init__(self):
+        if not isinstance(self, Attribute):
+            raise TypeError(
+                "MLIRType should only be inherited by classes inheriting Attribute"
+            )
+
+
 A = TypeVar('A', bound='Attribute')
 
 
@@ -227,6 +255,15 @@ class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
     parameters: list[Attribute] = field(default_factory=list)
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        """Parse the attribute parameters."""
+        return parser.parse_paramattr_parameters()
+
+    def print_parameters(self, printer: Printer) -> None:
+        """Print the attribute parameters."""
+        printer.print_paramattr_parameters(self.parameters)
 
     @classmethod
     @property

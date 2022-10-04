@@ -1,0 +1,29 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+
+// CHECK: module
+builtin.module() {
+
+  func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "builtin"] {
+    
+    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>
+    %x1 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>]
+
+    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32>, [0.0 : !f32]>
+    %x2 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32>, [0.0 : !f32]>]
+
+    // CHECK: "test" = true
+    %x3 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = true]
+
+    // CHECK: "test" = false
+    %x4 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = false]
+
+    // CHECK: "test" = true
+    %x5 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 1 : !i1]
+
+    // CHECK: "test" = false
+    %x6 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 0 : !i1]
+
+  }
+
+}

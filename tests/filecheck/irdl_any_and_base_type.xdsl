@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
 
     //CHECK: irdl.dialect() ["dialect_name" = "test_any_dyn"] {
     irdl.dialect() ["dialect_name" = "test_any_dyn"] {

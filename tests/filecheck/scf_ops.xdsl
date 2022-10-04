@@ -1,8 +1,8 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
-module() {
+builtin.module() {
   func.func() ["sym_name" = "if", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %0 : !i1 = arith.constant() ["value" = true]
     scf.if(%0 : !i1) 
     {
         %1 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -25,7 +25,7 @@ module() {
   }
 
   // CHECK: func.func() ["sym_name" = "if"
-  // CHECK-NEXT:  %{{.*}} : !i1 = arith.constant() ["value" = 1 : !i1]
+  // CHECK-NEXT:  %{{.*}} : !i1 = arith.constant() ["value" = true]
   // CHECK-NEXT:  scf.if(%{{.*}} : !i1) {
   // CHECK-NEXT:    %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
   // CHECK-NEXT:    scf.yield()
