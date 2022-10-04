@@ -706,6 +706,7 @@ class Parser:
                 return attr
 
         # Then, we parse attributes/types with the generic format.
+
         if self.parse_optional_char("!") is None:
             if self.source == self.Source.MLIR:
                 if self.parse_optional_char("#") is None:
