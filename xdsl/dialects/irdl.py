@@ -94,8 +94,8 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
         return [StringAttr.from_str(type_name), params_constraints]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<", self.type_name.data, " : ", self.params_constraints,
-                      ">")
+        printer.print("<\"", self.type_name.data, "\" : ",
+                      self.params_constraints, ">")
 
 
 @irdl_op_definition
@@ -123,7 +123,7 @@ class ParametersOp(Operation):
     Define the parameters of a type/attribute definition
     """
     name = "irdl.parameters"
-    constraints = AttributeDef(ArrayAttr)
+    params = AttributeDef(ArrayAttr)
 
 
 @irdl_op_definition
@@ -132,8 +132,17 @@ class TypeOp(Operation):
     Defines new types belonging to previously defined dialect
     """
     name = "irdl.type"
-    type_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
+
+    @property
+    def type_name(self) -> StringAttr:
+        return cast(StringAttr, self.attributes["name"])
+
+    def verify_(self) -> None:
+        if "name" not in self.attributes.keys():
+            raise ValueError("name attribute is required")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise ValueError("name attribute must be a string attribute")
 
 
 @irdl_op_definition
