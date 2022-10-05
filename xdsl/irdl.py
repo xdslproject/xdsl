@@ -32,7 +32,7 @@ class VerifyException(DiagnosticException):
 
 class IRDLAnnotations(Enum):
     'Marker for IRDL constraint annotations'
-    ParamDefAnnot = 1
+    PARAM_DEF_ANNOT = 1
     ResultDefAnnot = 2
 
 
@@ -1090,7 +1090,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
 
 _A = TypeVar("_A", bound=Attribute)
 
-ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.PARAM_DEF_ANNOT]
 
 
 def irdl_param_attr_get_param_type_hints(
@@ -1104,7 +1104,7 @@ def irdl_param_attr_get_param_type_hints(
 
         origin = get_origin(field_type)
         args = get_args(field_type)
-        if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
+        if origin != Annotated or IRDLAnnotations.PARAM_DEF_ANNOT not in args:
             raise ValueError(
                 f"In attribute {cls.__name__} definition: Parameter " +
                 f"definition {field_name} should be defined with " +
