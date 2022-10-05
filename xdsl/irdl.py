@@ -31,6 +31,7 @@ class VerifyException(DiagnosticException):
 
 
 class IRDLAnnotations(Enum):
+    'Marker for IRDL constraint annotations'
     ParamDefAnnot = 1
     ResultDefAnnot = 2
 
