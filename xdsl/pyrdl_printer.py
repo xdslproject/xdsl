@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from io import IOBase
-from typing import Any
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.irdl import DialectOp, OperationOp
+from typing import Any, cast
+from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, ModuleOp
+from xdsl.dialects.irdl import AnyTypeConstraintAttr, DialectOp, NamedTypeConstraintAttr, OperationOp
+from xdsl.ir import Attribute
+from xdsl.irdl import AnyAttr
 
 INDENTATION_SIZE: int = 4
 """The number of spaces per identation level"""
@@ -64,6 +66,22 @@ class PyRDLPrinter:
         self._print(f'class {op_py_name}(Operation):')
         self._print(' ' * INDENTATION_SIZE, 'name = ', f'"{op.op_name.data}"')
 
+        if (operands := op.get_operands()) is not None:
+            for operand in cast(ArrayAttr[NamedTypeConstraintAttr],
+                                operands.params).data:
+                self._print(' ' * INDENTATION_SIZE,
+                            f'{operand.type_name.data} = OperandDef(',
+                            end='')
+                self.print_constraint(operand.params_constraints)
+                self._print(')')
+
         self._print(' ' * INDENTATION_SIZE, 'ops = VarOperandDef(AnyAttr())')
         self._print(' ' * INDENTATION_SIZE, 'res = VarResultDef(AnyAttr())')
         self._print(' ' * INDENTATION_SIZE, 'regs = VarRegionDef(AnyAttr())')
+
+    def print_constraint(self, constraint: Attribute) -> None:
+        if isinstance(constraint, AnyTypeConstraintAttr):
+            self._print("AnyAttr()", end='')
+        else:
+            raise NotImplementedError(
+                f"Unsupported constraint type: {type(constraint)}")
