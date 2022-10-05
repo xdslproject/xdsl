@@ -33,7 +33,7 @@ class VerifyException(DiagnosticException):
 class IRDLAnnotations(Enum):
     'Marker for IRDL constraint annotations'
     PARAM_DEF_ANNOT = 1
-    ResultDefAnnot = 2
+    RESULT_DEF_ANNOT = 2
 
 
 #   ____                _             _       _
@@ -340,7 +340,7 @@ class AttrSizedResultSegments(IRDLOption):
 
 _R = TypeVar("_R", bound=Attribute | type[Attribute] | AttrConstraint)
 
-S_ResultDef: TypeAlias = Annotated[_R, IRDLAnnotations.ResultDefAnnot]
+S_ResultDef: TypeAlias = Annotated[_R, IRDLAnnotations.RESULT_DEF_ANNOT]
 
 
 @dataclass
@@ -485,7 +485,7 @@ class OpDef:
             elif get_origin(field_value) == Annotated:
                 # Annotated case
                 args = get_args(field_value)
-                if IRDLAnnotations.ResultDefAnnot in args:
+                if IRDLAnnotations.RESULT_DEF_ANNOT in args:
                     op_def.results.append((field_name, ResultDef(args[0]())))
                 else:
                     assert False
