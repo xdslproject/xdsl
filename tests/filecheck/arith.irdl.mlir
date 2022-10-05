@@ -7,179 +7,179 @@
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.addf"} : () -> ()
+    }) {name = "addf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.addi"} : () -> ()
+    }) {name = "addi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"sum" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"carry" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.addui_carry"} : () -> ()
+    }) {name = "addui_carry"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.andi"} : () -> ()
+    }) {name = "andi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.bitcast"} : () -> ()
+    }) {name = "bitcast"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.ceildivsi"} : () -> ()
+    }) {name = "ceildivsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.ceildivui"} : () -> ()
+    }) {name = "ceildivui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.cmpf"} : () -> ()
+    }) {name = "cmpf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.cmpi"} : () -> ()
+    }) {name = "cmpi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = []} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.constant"} : () -> ()
+    }) {name = "constant"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.divf"} : () -> ()
+    }) {name = "divf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.divsi"} : () -> ()
+    }) {name = "divsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.divui"} : () -> ()
+    }) {name = "divui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.extf"} : () -> ()
+    }) {name = "extf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.extsi"} : () -> ()
+    }) {name = "extsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.extui"} : () -> ()
+    }) {name = "extui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.fptosi"} : () -> ()
+    }) {name = "fptosi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.fptoui"} : () -> ()
+    }) {name = "fptoui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.floordivsi"} : () -> ()
+    }) {name = "floordivsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.index_cast"} : () -> ()
+    }) {name = "index_cast"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.maxf"} : () -> ()
+    }) {name = "maxf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.maxsi"} : () -> ()
+    }) {name = "maxsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.maxui"} : () -> ()
+    }) {name = "maxui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.minf"} : () -> ()
+    }) {name = "minf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.minsi"} : () -> ()
+    }) {name = "minsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.minui"} : () -> ()
+    }) {name = "minui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.mulf"} : () -> ()
+    }) {name = "mulf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.muli"} : () -> ()
+    }) {name = "muli"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"operand" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.negf"} : () -> ()
+    }) {name = "negf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.ori"} : () -> ()
+    }) {name = "ori"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.remf"} : () -> ()
+    }) {name = "remf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.remsi"} : () -> ()
+    }) {name = "remsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.remui"} : () -> ()
+    }) {name = "remui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.sitofp"} : () -> ()
+    }) {name = "sitofp"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.shli"} : () -> ()
+    }) {name = "shli"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.shrsi"} : () -> ()
+    }) {name = "shrsi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.shrui"} : () -> ()
+    }) {name = "shrui"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.subf"} : () -> ()
+    }) {name = "subf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.subi"} : () -> ()
+    }) {name = "subi"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.truncf"} : () -> ()
+    }) {name = "truncf"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.trunci"} : () -> ()
+    }) {name = "trunci"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"in" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"out" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.uitofp"} : () -> ()
+    }) {name = "uitofp"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"lhs" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"rhs" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.xori"} : () -> ()
+    }) {name = "xori"} : () -> ()
     "irdl.operation"() ({
       "irdl.operands"() {params = [#irdl.named_type_constraint<"condition" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"true_value" : #irdl.any_type_constraint>, #irdl.named_type_constraint<"false_value" : #irdl.any_type_constraint>]} : () -> ()
       "irdl.results"() {params = [#irdl.named_type_constraint<"result" : #irdl.any_type_constraint>]} : () -> ()
-    }) {name = "arith.select"} : () -> ()
+    }) {name = "select"} : () -> ()
   }) {name = "arith"} : () -> ()
 }) : () -> ()
 
