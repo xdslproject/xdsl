@@ -937,7 +937,7 @@ class Parser:
 
         # Array attribute
         if self.parse_optional_char("["):
-            contents = self.parse_list(self.parse_optional_mlir_attribute)
+            contents = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
             return ArrayAttr.from_list(contents)
 
