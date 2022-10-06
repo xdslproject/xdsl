@@ -137,6 +137,7 @@ class Subi(Operation):
         return Subi.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
 
+
 @irdl_op_definition
 class DivUI(Operation):
     """
