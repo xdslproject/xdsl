@@ -266,14 +266,12 @@ def irdl_to_attr_constraint(
         }
 
         origin_parameters = irdl_param_attr_get_param_type_hints(origin)
-        origin_constraints: list[Attribute | type[Attribute]
-                                 | AttrConstraint] = [
-                                     irdl_to_attr_constraint(
-                                         param,
-                                         allow_type_var=True,
-                                         type_var_mapping=type_var_mapping)
-                                     for _, param in origin_parameters
-                                 ]
+        origin_constraints = [
+            irdl_to_attr_constraint(param,
+                                    allow_type_var=True,
+                                    type_var_mapping=type_var_mapping)
+            for _, param in origin_parameters
+        ]
         return ParamAttrConstraint(origin, origin_constraints)
 
     # Union case

@@ -56,13 +56,14 @@ class For(Operation):
                     region: Region,
                     step: int | IntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
+        attributes = {
+            "lower_bound": lower_bound,
+            "upper_bound": upper_bound,
+            "step": step,
+        }
         return For.build(operands=[[operand for operand in operands]],
                          result_types=[result_types],
-                         attributes={
-                             "lower_bound": lower_bound,
-                             "upper_bound": upper_bound,
-                             "step": step
-                         },
+                         attributes=attributes,
                          regions=[region])
 
     @staticmethod
