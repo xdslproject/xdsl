@@ -1125,7 +1125,8 @@ class Parser:
         result_types = [typ for (_, typ) in results]
         op_type = self.ctx.get_optional_op(op_name)
 
-        # If the operation is not registered, we create an UnregisteredOp instead, or fail.
+        # If the operation is not registered, we create an UnregisteredOp instead,
+        # or fail.
         if op_type is None:
             if not self.allow_unregistered_ops:
                 raise ParserError(start_pos, f"unknown operation '{op_name}'")

@@ -99,7 +99,8 @@ class MLIRConverter:
             typ = "vector" if isinstance(attr.type, VectorType) else "tensor"
 
             return mlir.ir.DenseIntElementsAttr.parse(
-                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : {typ}<{len(attr.data.data)}x{element_type}>"
+                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : " + \
+                f"{typ}<{len(attr.data.data)}x{element_type}>"
             )
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)

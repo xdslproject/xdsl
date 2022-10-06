@@ -85,7 +85,7 @@ class SSAValue(ABC):
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
-        """Get a new SSAValue from either a SSAValue, or an operation with a single result."""
+        "Get a new SSAValue from either a SSAValue, or an operation with a single result."
         if isinstance(arg, SSAValue):
             return arg
         if isinstance(arg, Operation):
@@ -135,8 +135,9 @@ class OpResult(SSAValue):
     """The index of the result in the defining operation."""
 
     def __repr__(self) -> str:
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-            f", op_name={repr(self.op.name)}, result_index={repr(self.result_index)}, name={repr(self.name)})"
+        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}, " + \
+               f"op_name={repr(self.op.name)}, " + \
+               f"result_index={repr(self.result_index)}, name={repr(self.name)})"
 
     def __eq__(self, other: OpResult) -> bool:
         return self is other
@@ -158,12 +159,12 @@ class BlockArgument(SSAValue):
 
     def __repr__(self) -> str:
         if isinstance(self.block, Block):
-            block_repr = f"Block(num_arguments={len(self.block.args)}, num_blocks={len(self.block.ops)} ops)"
+            block_repr = f"Block(num_arguments={len(self.block.args)}, " + \
+                         f"num_blocks={len(self.block.ops)} ops)"
         else:
             block_repr = repr(self.block)
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-            f", block={block_repr}," \
-            " index={repr(self.index)}"
+               f", block={block_repr}, index={repr(self.index)}"
 
     def __eq__(self, other: BlockArgument) -> bool:
         return self is other
@@ -404,7 +405,9 @@ class Operation:
             region.drop_all_references()
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
-        """Call a function on all operations contained in the operation (including this one)"""
+        """
+        Call a function on all operations contained in the operation (including this one)
+        """
         fun(self)
         for region in self.regions:
             region.walk(fun)
@@ -477,7 +480,8 @@ class Operation:
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
         """
-        assert self.parent is None, "Operation with parents should first be detached before erasure."
+        assert self.parent is None, "Operation with parents should first be detached " + \
+                                    "before erasure."
         if drop_references:
             self.drop_all_references()
         for result in self.results:
@@ -496,7 +500,9 @@ class Operation:
         return self.parent.get_toplevel_object()
 
     def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """Returns true if the operation is an ancestor of the operation, block, or region."""
+        """
+        Returns true if the operation is an ancestor of the operation, block, or region.
+        """
         if op is self:
             return True
         if op.parent is None:
@@ -656,7 +662,8 @@ class Block:
         """
         if index < 0 or index > len(self.ops):
             raise ValueError(
-                f"Can't insert operation in index {index} in a block with {len(self.ops)} operations."
+                f"Can't insert operation in index {index} in a block with " + \
+                f"{len(self.ops)} operations."
             )
         if not isinstance(ops, list):
             ops = [ops]
@@ -726,9 +733,11 @@ class Block:
     def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
-        If safe_erase is specified, check that no operation results are used outside the block.
+        If safe_erase is specified, check that no operation results are used outside 
+        the block.
         """
-        assert self.parent is None, "Blocks with parents should first be detached before erasure."
+        assert self.parent is None, "Blocks with parents should first be detached " + \
+                                    "before erasure."
         self.drop_all_references()
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
@@ -803,7 +812,8 @@ class Region:
         """
         if len(self.blocks) != 1:
             raise ValueError(
-                "'ops' property of Region class is only available for single-block regions."
+                "'ops' property of Region class is only available " + \
+                "for single-block regions."
             )
         return self.blocks[0].ops
 
@@ -840,7 +850,8 @@ class Region:
         """
         if index < 0 or index > len(self.blocks):
             raise ValueError(
-                f"Can't insert block in index {index} in a block with {len(self.blocks)} blocks."
+                f"Can't insert block in index {index} in a block with " + \
+                f"{len(self.blocks)} blocks."
             )
         if not isinstance(blocks, list):
             blocks = [blocks]
@@ -935,11 +946,14 @@ class Region:
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent is not None, "Regions with parents should first be detached before erasure."
+        assert self.parent is not None, "Regions with parents should first be " + \
+                                        "detached before erasure."
         self.drop_all_references()
 
     def move_blocks(self, region: Region) -> None:
-        """Move the blocks of this region to another region. Leave no blocks in this region."""
+        """
+        Move the blocks of this region to another region. Leave no blocks in this region.
+        """
         region.blocks = self.blocks
         self.blocks = []
         for block in region.blocks:
@@ -952,7 +966,7 @@ class Region:
         return self.parent.get_toplevel_object()
 
     def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """Returns true if the region is an ancestor of the operation, block, or region."""
+        "Returns true if the region is an ancestor of the operation, block, or region."
         if op is self:
             return True
         if op.parent is None:
