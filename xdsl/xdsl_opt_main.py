@@ -160,16 +160,16 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        builtin = Builtin(self.ctx)
-        func = Func(self.ctx)
-        arith = Arith(self.ctx)
-        memref = MemRef(self.ctx)
-        affine = Affine(self.ctx)
-        scf = Scf(self.ctx)
-        cf = Cf(self.ctx)
-        cmath = CMath(self.ctx)
-        irdl = IRDL(self.ctx)
-        llvm = LLVM(self.ctx)
+        _ = Builtin(self.ctx)
+        _ = Func(self.ctx)
+        _ = Arith(self.ctx)
+        _ = MemRef(self.ctx)
+        _ = Affine(self.ctx)
+        _ = Scf(self.ctx)
+        _ = Cf(self.ctx)
+        _ = CMath(self.ctx)
+        _ = IRDL(self.ctx)
+        _ = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """
