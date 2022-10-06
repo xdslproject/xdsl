@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from io import IOBase
 from typing import Any, cast
-from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, ModuleOp
-from xdsl.dialects.irdl import AnyTypeConstraintAttr, DialectOp, NamedTypeConstraintAttr, OperationOp
+from keyword import iskeyword
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.irdl import (AnyTypeConstraintAttr, DialectOp,
+                                NamedTypeConstraintAttr, OperationOp)
 from xdsl.ir import Attribute
-from xdsl.irdl import AnyAttr
 
 INDENTATION_SIZE: int = 4
 """The number of spaces per identation level"""
@@ -24,8 +25,18 @@ class PyRDLPrinter:
         """Convert a snake_case name to PascalCase."""
         return ''.join([part.capitalize() for part in name.split('_')])
 
+    def print_imports(self) -> None:
+        self._print("""\
+from dataclasses import dataclass
+from xdsl.ir import Operation, MLContext
+from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
+                       VarRegionDef, irdl_op_definition)""")
+
     def print_module(self, module: ModuleOp) -> None:
         """Print all dialect definitions in a module to pyrdl."""
+        self.print_imports()
+        self._print('')
+        self._print('')
         for op in module.ops:
             if isinstance(op, DialectOp):
                 self.print_dialect(op)
@@ -52,6 +63,7 @@ class PyRDLPrinter:
             self._print(' ' * INDENTATION_SIZE * 2,
                         f'self.ctx.register_op({op_py_name})')
         self._print('')
+        self._print('')
 
         # Print each op definition
         for op in dialect.get_op_defs():
@@ -69,15 +81,28 @@ class PyRDLPrinter:
         if (operands := op.get_operands()) is not None:
             for operand in cast(ArrayAttr[NamedTypeConstraintAttr],
                                 operands.params).data:
+                name = operand.type_name.data
+                if iskeyword(name):
+                    name = '_' + name
                 self._print(' ' * INDENTATION_SIZE,
-                            f'{operand.type_name.data} = OperandDef(',
+                            f'{name} = OperandDef(',
                             end='')
                 self.print_constraint(operand.params_constraints)
                 self._print(')')
 
-        self._print(' ' * INDENTATION_SIZE, 'ops = VarOperandDef(AnyAttr())')
-        self._print(' ' * INDENTATION_SIZE, 'res = VarResultDef(AnyAttr())')
-        self._print(' ' * INDENTATION_SIZE, 'regs = VarRegionDef(AnyAttr())')
+        if (results := op.get_results()) is not None:
+            for result in cast(ArrayAttr[NamedTypeConstraintAttr],
+                               results.params).data:
+                name = result.type_name.data
+                if iskeyword(name):
+                    name = '_' + name
+                self._print(' ' * INDENTATION_SIZE,
+                            f'{name} = ResultDef(',
+                            end='')
+                self.print_constraint(result.params_constraints)
+                self._print(')')
+
+        self._print(' ' * INDENTATION_SIZE, 'regs = VarRegionDef()')
 
     def print_constraint(self, constraint: Attribute) -> None:
         if isinstance(constraint, AnyTypeConstraintAttr):
