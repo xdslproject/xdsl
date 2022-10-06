@@ -84,7 +84,8 @@ class BaseAttr(AttrConstraint):
 
 
 def attr_constr_coercion(attr: (Attribute | type[Attribute]
-                                | AttrConstraint)) -> AttrConstraint:
+                                | AttrConstraint
+                                | type[AttrConstraint])) -> AttrConstraint:
     """
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
@@ -93,6 +94,8 @@ def attr_constr_coercion(attr: (Attribute | type[Attribute]
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
         return BaseAttr(attr)
+    if isclass(attr) and issubclass(attr, AttrConstraint):
+        return attr()
     assert (isinstance(attr, AttrConstraint))
     return attr
 
@@ -390,7 +393,8 @@ class ResultDef(OperandOrResultDef):
     constr: AttrConstraint
     """The result constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
+    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint
+                 | type[AttrConstraint]):
         self.constr = attr_constr_coercion(typ)
 
 
@@ -489,9 +493,11 @@ class OpDef:
                 continue
 
             if args[-1] == IRDLAnnotations.RESULT_DEF_ANNOT:
-                op_def.results.append((field_name, ResultDef(args[1]())))
+                op_def.results.append((field_name, ResultDef(args[1])))
             else:
-                assert False
+                raise ValueError(f'''
+                    Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
+                    ''')
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):
