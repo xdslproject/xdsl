@@ -10,12 +10,12 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
-    AnyArrayAttr, AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType,
-    AnyVectorType, DenseIntOrFPElementsAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr, OpaqueAttr,
-    StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
-    UnrankedTensorType, UnregisteredOp, VectorType)
+    AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
+    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
+    IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
+    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
+    VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
