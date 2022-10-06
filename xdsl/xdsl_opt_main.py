@@ -108,9 +108,9 @@ class xDSLOptMain:
             type=str,
             required=False,
             choices=frontends,
-            help=
-            f"Frontend to be used for the input. If not set, the xdsl frontend "
-            "or the one for the file extension is used.")
+            help=f"Frontend to be used for the input. If not set, "
+            "the xdsl frontend or the one for the file extension "
+            "is used.")
 
         arg_parser.add_argument("--disable-verify",
                                 default=False,
@@ -122,14 +122,13 @@ class xDSLOptMain:
                                 help="path to output file")
 
         pass_names = ",".join([name for name in self.available_passes])
-        arg_parser.add_argument(
-            "-p",
-            "--passes",
-            required=False,
-            help=
-            f"Delimited list of passes. Available passes are: {pass_names}",
-            type=str,
-            default="")
+        arg_parser.add_argument("-p",
+                                "--passes",
+                                required=False,
+                                help="Delimited list of passes."
+                                f" Available passes are: {pass_names}",
+                                type=str,
+                                default="")
 
         arg_parser.add_argument("--print-between-passes",
                                 default=False,
