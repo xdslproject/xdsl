@@ -469,15 +469,15 @@ class OpDef:
 
         op_def = OpDef(clsdict["name"])
 
-        for field_name, field in clsdict.items():
-            if isinstance(field, OperandDef):
-                op_def.operands.append((field_name, field))
-            elif isinstance(field, ResultDef):
-                op_def.results.append((field_name, field))
-            elif isinstance(field, RegionDef):
-                op_def.regions.append((field_name, field))
-            elif isinstance(field, AttributeDef):
-                op_def.attributes[field_name] = field
+        for field_name, field_value in clsdict.items():
+            if isinstance(field_value, OperandDef):
+                op_def.operands.append((field_name, field_value))
+            elif isinstance(field_value, ResultDef):
+                op_def.results.append((field_name, field_value))
+            elif isinstance(field_value, RegionDef):
+                op_def.regions.append((field_name, field_value))
+            elif isinstance(field_value, AttributeDef):
+                op_def.attributes[field_name] = field_value
 
         op_def.options = clsdict.get("irdl_options", [])
 
