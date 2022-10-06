@@ -190,9 +190,8 @@ class Printer:
             self.print("%<UNKNOWN>")
             end_pos = self._current_column
             self._add_message_on_next_line(
-                "ERROR: SSAValue is not part of the IR, are you sure all operations " + \
-                "are added before their uses?",
-                begin_pos, end_pos)
+                "ERROR: SSAValue is not part of the IR, are you sure all operations "
+                "are added before their uses?", begin_pos, end_pos)
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)

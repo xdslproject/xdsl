@@ -169,9 +169,8 @@ class ParamAttrConstraint(AttrConstraint):
             )
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
-                f"{len(self.param_constrs)} parameters expected, " + \
-                f"but got {len(attr.parameters)}"
-            )
+                f"{len(self.param_constrs)} parameters expected, "
+                f"but got {len(attr.parameters)}")
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx])
 
@@ -1020,9 +1019,8 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
     # Build method is added for all definitions.
     if "build" in cls.__dict__:
         raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, ' + \
-            f'and should not be defined.'
-        )
+            f'"build" method for {cls.__name__} is reserved for IRDL, '
+            f'and should not be defined.')
     builders = irdl_get_builders(cls)
     new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
 

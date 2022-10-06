@@ -662,9 +662,8 @@ class Block:
         """
         if index < 0 or index > len(self.ops):
             raise ValueError(
-                f"Can't insert operation in index {index} in a block with " + \
-                f"{len(self.ops)} operations."
-            )
+                f"Can't insert operation in index {index} in a block with "
+                f"{len(self.ops)} operations.")
         if not isinstance(ops, list):
             ops = [ops]
         if name:
@@ -812,9 +811,8 @@ class Region:
         """
         if len(self.blocks) != 1:
             raise ValueError(
-                "'ops' property of Region class is only available " + \
-                "for single-block regions."
-            )
+                "'ops' property of Region class is only available "
+                "for single-block regions.")
         return self.blocks[0].ops
 
     @property
@@ -850,9 +848,8 @@ class Region:
         """
         if index < 0 or index > len(self.blocks):
             raise ValueError(
-                f"Can't insert block in index {index} in a block with " + \
-                f"{len(self.blocks)} blocks."
-            )
+                f"Can't insert block in index {index} in a block with "
+                f"{len(self.blocks)} blocks.")
         if not isinstance(blocks, list):
             blocks = [blocks]
         for block in blocks:
