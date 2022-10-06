@@ -451,10 +451,10 @@ class PatternRewriteWalker:
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                return len(rewriter.added_operations_before) + len(
-                    rewriter.added_operations_after) - int(
-                        rewriter.has_erased_matched_operation
-                    ) if self.walk_reverse else 0
+                return (len(rewriter.added_operations_before) +
+                        len(rewriter.added_operations_after) -
+                        int(rewriter.has_erased_matched_operation)
+                        if self.walk_reverse else 0)
             # Else, we rewrite only their regions if they are supposed to be
             # rewritten after
             else:
