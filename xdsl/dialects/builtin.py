@@ -580,11 +580,6 @@ f16 = Float16Type()
 
 
 @irdl_attr_definition
-class UnitAttr(ParametrizedAttribute):
-    name: str = "unit"
-
-
-@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 
