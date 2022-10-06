@@ -43,8 +43,9 @@ class For(Operation):
             )
 
         entry_block: Block = self.body.blocks[0]
-        if ([IndexType()] + operand_types !=
-            [arg.typ for arg in entry_block.args]):
+        block_arg_types = [IndexType()] + operand_types
+        arg_types = [arg.typ for arg in entry_block.args]
+        if block_arg_types != arg_types:
             raise Exception(
                 "Expected BlockArguments to have the same types as the operands"
             )
