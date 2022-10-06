@@ -94,7 +94,7 @@ class Printer:
                        indent: int | None = None):
         """
         Print a message.
-        This is expected to be called at the beginning of a new line and to create a new 
+        This is expected to be called at the beginning of a new line and to create a new
         line at the end.
         [begin_pos, end_pos)
         """

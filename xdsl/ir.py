@@ -732,7 +732,7 @@ class Block:
     def erase(self, safe_erase: bool = True) -> None:
         """
         Erase the block, and remove all its references to other operations.
-        If safe_erase is specified, check that no operation results are used outside 
+        If safe_erase is specified, check that no operation results are used outside
         the block.
         """
         assert self.parent is None, "Blocks with parents should first be detached " + \

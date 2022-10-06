@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Union
 
-from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, 
+from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
 from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
@@ -48,7 +48,7 @@ class Arith:
         self.ctx.register_op(XOrI)
         self.ctx.register_op(ShLI)
         self.ctx.register_op(ShRUI)
-        self.ctx.register_op(ShRSI) 
+        self.ctx.register_op(ShRSI)
         self.ctx.register_op(Minf)
         self.ctx.register_op(Maxf)
 

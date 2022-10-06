@@ -224,7 +224,7 @@ class PatternRewriter:
         """
         Erase a new block argument.
         The block should be contained in the matched operation.
-        If safe_erase is true, then raise an exception if the block argument has still 
+        If safe_erase is true, then raise an exception if the block argument has still
         uses, otherwise, replace it with an ErasedSSAValue.
         """
         if not self._can_modify_block(arg.block):
@@ -251,7 +251,7 @@ class PatternRewriter:
     def inline_block_before_matched_op(self, block: Block):
         """
         Move the block operations before the matched operation.
-        The block should not be a parent of the operation, and should be a child of the 
+        The block should not be a parent of the operation, and should be a child of the
         matched operation.
         """
         self.has_done_action = True
@@ -265,7 +265,7 @@ class PatternRewriter:
     def inline_block_before(self, block: Block, op: Operation):
         """
         Move the block operations before the given operation.
-        The block should not be a parent of the operation, and should be a child of the 
+        The block should not be a parent of the operation, and should be a child of the
         matched operation.
         The operation should also be a child of the matched operation.
         """
@@ -285,7 +285,7 @@ class PatternRewriter:
     def inline_block_after(self, block: Block, op: Operation):
         """
         Move the block operations after the given operation.
-        The block should not be a parent of the operation, and should be a child of the 
+        The block should not be a parent of the operation, and should be a child of the
         matched operation.
         The operation should also be a child of the matched operation.
         """
@@ -340,7 +340,7 @@ class AnonymousRewritePattern(RewritePattern):
 def op_type_rewrite_pattern(func):
     """
     This function is intended to be used as a decorator on a RewritePatter method.
-    It uses type hints to match on a specific operation type before calling the decorated 
+    It uses type hints to match on a specific operation type before calling the decorated
     function.
     """
     # Get the operation argument and check that it is a subclass of Operation
@@ -388,7 +388,7 @@ def op_type_rewrite_pattern(func):
 @dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
     """
-    Apply a list of patterns in order until one pattern matches, 
+    Apply a list of patterns in order until one pattern matches,
     and then use this rewrite.
     """
 
@@ -418,7 +418,7 @@ class PatternRewriteWalker:
 
     walk_regions_first: bool = field(default=False)
     """
-    Choose if the walker should first walk the operation regions first, 
+    Choose if the walker should first walk the operation regions first,
     or the operation itself.
     """
 
@@ -427,7 +427,7 @@ class PatternRewriteWalker:
 
     walk_reverse: bool = field(default=False)
     """
-    Walk the regions and blocks in reverse order. 
+    Walk the regions and blocks in reverse order.
     That way, all uses are replaced before the definitions.
     """
 
@@ -477,7 +477,7 @@ class PatternRewriteWalker:
 
     def _rewrite_op_regions(self, op: Operation):
         """
-        Rewrite the regions of an operation, and update the operation with the 
+        Rewrite the regions of an operation, and update the operation with the
         new regions.
         """
         if not self.walk_reverse:
