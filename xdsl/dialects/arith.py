@@ -521,7 +521,7 @@ class ShRSI(Operation):
 class Cmpi(Operation):
     """
     The `cmpi` operation is a comparison for integers.
-    
+
     Its first argument is an attribute that defines which type of comparison is
     performed. The following comparisons are supported:
 
