@@ -187,7 +187,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    #name = AttributeDef(FlatSymbolRefAttr)
+    # name = AttributeDef(FlatSymbolRefAttr)
 
     memref = ResultDef(MemRefType)
 
