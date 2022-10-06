@@ -25,6 +25,12 @@ class PyRDLPrinter:
         """Convert a snake_case name to PascalCase."""
         return ''.join([part.capitalize() for part in name.split('_')])
 
+    @staticmethod
+    def is_legal_name(name: str) -> bool:
+        """Check if a name is a legal identifier for an operand/result."""
+        return not (iskeyword(name) or name
+                    in ['attributes', 'name', 'results', 'operands', ''])
+
     def print_imports(self) -> None:
         self._print("""\
 from dataclasses import dataclass
@@ -80,11 +86,15 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
 
         # Convert the operands
         if (operands := op.get_operands()) is not None:
-            for operand in cast(ArrayAttr[NamedTypeConstraintAttr],
-                                operands.params).data:
+            for idx, operand in enumerate(
+                    cast(ArrayAttr[NamedTypeConstraintAttr],
+                         operands.params).data):
                 name = operand.type_name.data
-                if iskeyword(name):
-                    name = '_' + name
+                if not self.is_legal_name(name):
+                    if name == '':
+                        name = f'operand_{idx}'
+                    else:
+                        name = f'_{name}'
                 self._print(' ' * INDENTATION_SIZE,
                             f'{name} = OperandDef(',
                             end='')
@@ -93,11 +103,15 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
 
         # Convert the results
         if (results := op.get_results()) is not None:
-            for result in cast(ArrayAttr[NamedTypeConstraintAttr],
-                               results.params).data:
+            for idx, result in enumerate(
+                    cast(ArrayAttr[NamedTypeConstraintAttr],
+                         results.params).data):
                 name = result.type_name.data
-                if iskeyword(name):
-                    name = '_' + name
+                if not self.is_legal_name(name):
+                    if name == '':
+                        name = f'result_{idx}'
+                    else:
+                        name = f'_{name}'
                 self._print(' ' * INDENTATION_SIZE,
                             f'{name} = ResultDef(',
                             end='')
