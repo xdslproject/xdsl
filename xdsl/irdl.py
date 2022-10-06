@@ -856,10 +856,14 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     previous_variadics = 0
     defs = get_construct_defs(op_def, construct)
     for arg_idx, (arg_name, arg_def) in enumerate(defs):
-        new_attrs[arg_name] = property(
-            lambda self, idx=arg_idx, previous_vars=previous_variadics: \
-                get_operand_result_or_region(self, op_def, idx,
-                                             previous_vars, construct))
+
+        def fun(self: Any,
+                idx: int = arg_idx,
+                previous_vars: int = previous_variadics):
+            return get_operand_result_or_region(self, op_def, idx,
+                                                previous_vars, construct)
+
+        new_attrs[arg_name] = property(fun)
         if isinstance(arg_def, VariadicDef):
             previous_variadics += 1
 
