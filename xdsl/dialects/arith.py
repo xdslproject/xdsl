@@ -487,7 +487,7 @@ class ShRUI(Operation):
             operand2: Union[Operation, SSAValue]) -> ShRUI:
         operand1 = SSAValue.get(operand1)
         return ShRUI.build(operands=[operand1, operand2],
-                          result_types=[operand1.typ])
+                           result_types=[operand1.typ])
 
 
 @irdl_op_definition
@@ -514,7 +514,7 @@ class ShRSI(Operation):
             operand2: Union[Operation, SSAValue]) -> ShRSI:
         operand1 = SSAValue.get(operand1)
         return ShRSI.build(operands=[operand1, operand2],
-                          result_types=[operand1.typ])
+                           result_types=[operand1.typ])
 
 
 @irdl_op_definition
@@ -552,7 +552,7 @@ class Cmpi(Operation):
 
     @staticmethod
     def from_mnemonic(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
+                      operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
         match mnemonic:
             case "eq":
                 arg: int = 0
