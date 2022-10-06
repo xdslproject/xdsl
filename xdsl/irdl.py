@@ -338,9 +338,19 @@ class AttrSizedResultSegments(IRDLOption):
     """Name of the attribute containing the variadic result sizes."""
 
 
-_R = TypeVar("_R", bound=Attribute | type[Attribute] | AttrConstraint)
+_RC = TypeVar("_RC", bound=Attribute | type[Attribute] | AttrConstraint)
+_RS = TypeVar("_RS", bound=Annotated[SSAValue, _RC])
 
-S_ResultDef: TypeAlias = Annotated[_R, IRDLAnnotations.RESULT_DEF_ANNOT]
+S_ResultDef = Annotated[_RS, IRDLAnnotations.RESULT_DEF_ANNOT]
+
+# _A = TypeVar("_A", bound=AttrConstraint)
+# _B = TypeVar("_B", bound=Annotated[SSAValue, _A])
+
+# S_ResultDef6 = Annotated[_B, IRDLAnnotations.RESULT_DEF_ANNOT]
+# S_ResultDef3 = Annotated[SSAValue, _A]
+
+# S_ResultDef2 = Annotated[_RC, IRDLAnnotations.RESULT_DEF_ANNOT, SSAValue]
+# S_ResultDef5 = Annotated[SSAValue, IRDLAnnotations.RESULT_DEF_ANNOT, _RC]
 
 
 @dataclass
@@ -477,18 +487,32 @@ class OpDef:
                 "define the operation name. The operation name is defined by "
                 "adding a 'name' field.")
 
+        print('Aha')
+        print(clsdict.items())
         op_def = OpDef(clsdict["name"])
+        for field_name, field_type in get_type_hints(
+                pyrdl_def, include_extras=True).items():
+            origin = get_origin(field_type)
+            if origin != Annotated:
+                continue
+            args = get_args(field_type)
+            if not isinstance(args[-1], IRDLAnnotations):
+                continue
+
+            if args[-1] == IRDLAnnotations.RESULT_DEF_ANNOT:
+                op_def.results.append((field_name, ResultDef(args[1]())))
+            else:
+                assert False
+
+            # if origin != Annotated or IRDLAnnotations.PARAM_DEF_ANNOT not in args:
+            #     raise ValueError(
+            #         f"In attribute {cls.__name__} definition: Parameter " +
+            #         f"definition {field_name} should be defined with " +
+            #         f"type `ParameterDef`, got type {field_type}.")
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):
                 op_def.operands.append((field_name, field_value))
-            elif get_origin(field_value) == Annotated:
-                # Annotated case
-                args = get_args(field_value)
-                if IRDLAnnotations.RESULT_DEF_ANNOT in args:
-                    op_def.results.append((field_name, ResultDef(args[0]())))
-                else:
-                    assert False
             elif isinstance(field_value, ResultDef):
                 op_def.results.append((field_name, field_value))
             elif isinstance(field_value, RegionDef):
