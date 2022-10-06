@@ -108,7 +108,7 @@ class xDSLOptMain:
             type=str,
             required=False,
             choices=frontends,
-            help=f"Frontend to be used for the input. If not set, "
+            help="Frontend to be used for the input. If not set, "
             "the xdsl frontend or the one for the file extension "
             "is used.")
 
