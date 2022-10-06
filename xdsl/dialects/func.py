@@ -1,12 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbolRefAttr
-from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
-                       AnyAttr, Block, RegionDef, Region, Operation,
-                       AttributeDef, VarResultDef)
+from xdsl.ir import MLContext, OpResult, SSAValue
+from xdsl.irdl import (OptAttributeDef, S_VarResultDef, irdl_op_definition,
+                       VarOperandDef, AnyAttr, Block, RegionDef, Region,
+                       Operation, AttributeDef)
 
 
 @dataclass
@@ -65,7 +65,7 @@ class Call(Operation):
     callee = AttributeDef(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res = VarResultDef(AnyAttr())
+    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
     # TODO how do we verify that the types are correct?
 
     @staticmethod

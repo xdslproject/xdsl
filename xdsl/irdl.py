@@ -34,6 +34,8 @@ class IRDLAnnotations(Enum):
     'Marker for IRDL constraint annotations'
     PARAM_DEF_ANNOT = 1
     RESULT_DEF_ANNOT = 2
+    OPT_RESULT_DEF_ANNOT = 3
+    VAR_RESULT_DEF_ANNOT = 4
 
 
 #   ____                _             _       _
@@ -342,9 +344,11 @@ class AttrSizedResultSegments(IRDLOption):
 
 
 _RC = TypeVar("_RC", bound=Attribute | type[Attribute] | AttrConstraint)
-_RS = TypeVar("_RS", bound=Annotated[SSAValue, _RC])
+_RS = TypeVar("_RS", bound=Annotated[OpResult, _RC])
 
 S_ResultDef = Annotated[_RS, IRDLAnnotations.RESULT_DEF_ANNOT]
+S_OptResultDef = Annotated[_RS, IRDLAnnotations.OPT_RESULT_DEF_ANNOT]
+S_VarResultDef = Annotated[_RS, IRDLAnnotations.VAR_RESULT_DEF_ANNOT]
 
 
 @dataclass
@@ -492,12 +496,19 @@ class OpDef:
             if not isinstance(args[-1], IRDLAnnotations):
                 continue
 
-            if args[-1] == IRDLAnnotations.RESULT_DEF_ANNOT:
-                op_def.results.append((field_name, ResultDef(args[1])))
-            else:
+            handlers = {
+                IRDLAnnotations.RESULT_DEF_ANNOT: ResultDef,
+                IRDLAnnotations.OPT_RESULT_DEF_ANNOT: OptResultDef,
+                IRDLAnnotations.VAR_RESULT_DEF_ANNOT: VarResultDef,
+            }
+
+            try:
+                handler = handlers[args[-1]]
+            except KeyError as exc:
                 raise ValueError(f'''
                     Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
-                    ''')
+                    ''') from exc
+            op_def.results.append((field_name, handler(args[1])))
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):

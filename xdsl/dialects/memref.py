@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar, Optional, List, TypeAlias
+from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, MLContext
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, ParametrizedAttribute,
-                       AnyAttr, OperandDef, VarOperandDef, ResultDef,
-                       AttributeDef, AttrSizedOperandSegments, OptAttributeDef)
+from xdsl.ir import MLIRType, OpResult, Operation, SSAValue, MLContext
+from xdsl.irdl import (S_ResultDef, irdl_attr_definition, irdl_op_definition,
+                       builder, ParameterDef, Generic, Attribute,
+                       ParametrizedAttribute, AnyAttr, OperandDef,
+                       VarOperandDef, ResultDef, AttributeDef,
+                       AttrSizedOperandSegments, OptAttributeDef)
 
 
 @dataclass
@@ -76,7 +77,7 @@ class Load(Operation):
     name = "memref.load"
     memref = OperandDef(MemRefType)
     indices = VarOperandDef(IndexType)
-    res = ResultDef(AnyAttr())
+    res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,

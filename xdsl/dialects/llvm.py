@@ -1,12 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from xdsl.irdl import (ParameterDef, AnyAttr, irdl_attr_definition,
+from xdsl.irdl import (ParameterDef, AnyAttr, S_ResultDef, irdl_attr_definition,
                        AttributeDef, OperandDef, ResultDef, irdl_op_definition,
                        builder)
-from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
-                     Operation)
+from xdsl.ir import (MLContext, MLIRType, OpResult, ParametrizedAttribute, 
+                     Attribute, Operation)
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
@@ -65,7 +65,7 @@ class LLVMExtractValue(Operation):
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
     container = OperandDef(AnyAttr())
 
-    res = ResultDef(AnyAttr())
+    res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
 
 @irdl_op_definition
@@ -76,11 +76,11 @@ class LLVMInsertValue(Operation):
     container = OperandDef(AnyAttr())
     value = OperandDef(AnyAttr())
 
-    res = ResultDef(AnyAttr())
+    res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
 
 @irdl_op_definition
 class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 
-    res = ResultDef(AnyAttr())
+    res: S_ResultDef[Annotated[OpResult, AnyAttr]]

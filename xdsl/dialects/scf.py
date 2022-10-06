@@ -1,11 +1,11 @@
 from __future__ import annotations
-from xdsl.ir import MLContext
-from xdsl.irdl import (VarOperandDef, irdl_op_definition, Attribute,
-                       VarResultDef, OperandDef, SSAValue, Operation,
-                       RegionDef, Region, Block, AnyAttr)
+from xdsl.ir import MLContext, OpResult
+from xdsl.irdl import (S_VarResultDef, VarOperandDef, irdl_op_definition,
+                       Attribute, OperandDef, SSAValue, Operation, RegionDef,
+                       Region, Block, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 from dataclasses import dataclass
-from typing import List
+from typing import Annotated, List
 
 
 @dataclass
@@ -22,7 +22,7 @@ class Scf:
 @irdl_op_definition
 class If(Operation):
     name: str = "scf.if"
-    output = VarResultDef(AnyAttr())
+    output: S_VarResultDef[Annotated[OpResult, AnyAttr]]
     cond = OperandDef(IntegerType.from_width(1))
 
     true_region = RegionDef()
@@ -67,7 +67,7 @@ class While(Operation):
     name: str = "scf.while"
     arguments = VarOperandDef(AnyAttr())
 
-    res = VarResultDef(AnyAttr())
+    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
     before_region = RegionDef()
     after_region = RegionDef()
 

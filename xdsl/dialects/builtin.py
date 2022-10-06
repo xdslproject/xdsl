@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
+from typing import Annotated, TypeAlias, List, cast, Type, Sequence, Optional
 
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
+from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType, OpResult,
                      ParametrizedAttribute, Operation, SSAValue)
-from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
-                       irdl_attr_definition, attr_constr_coercion,
-                       irdl_to_attr_constraint, irdl_op_definition, builder,
-                       ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
-                       GenericData, AttrConstraint, Any, Attribute, Region,
-                       VerifyException, AnyAttr)
+from xdsl.irdl import (AttributeDef, S_VarResultDef, VarOperandDef,
+                       VarRegionDef, VarResultDef, irdl_attr_definition,
+                       attr_constr_coercion, irdl_to_attr_constraint,
+                       irdl_op_definition, builder, ParameterDef,
+                       SingleBlockRegionDef, TypeVar, Generic, GenericData,
+                       AttrConstraint, Any, Attribute, Region, VerifyException,
+                       AnyAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -629,7 +630,7 @@ class UnregisteredOp(Operation):
 
     op_name__ = AttributeDef(StringAttr)
     args = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
     regs = VarRegionDef()
 
     @property

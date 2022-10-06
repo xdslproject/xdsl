@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Union
+from typing import Annotated, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, SSAValue
-from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
+from xdsl.ir import MLContext, OpResult, Operation, SSAValue
+from xdsl.irdl import (AnyOf, S_ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, VerifyException, Attribute)
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -56,7 +56,7 @@ class Arith:
 @irdl_op_definition
 class Constant(Operation):
     name: str = "arith.constant"
-    result = ResultDef(AnyAttr())
+    result: S_ResultDef[Annotated[OpResult, AnyAttr]]
     value = AttributeDef(AnyAttr())
 
     # TODO verify that the result and value type are equal
@@ -80,7 +80,7 @@ class Addi(Operation):
     name: str = "arith.addi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -101,7 +101,7 @@ class Muli(Operation):
     name: str = "arith.muli"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -122,7 +122,7 @@ class Subi(Operation):
     name: str = "arith.subi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -148,7 +148,7 @@ class DivUI(Operation):
     name: str = "arith.divui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -173,7 +173,7 @@ class DivSI(Operation):
     name: str = "arith.divsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -193,7 +193,7 @@ class FloorDivSI(Operation):
     name: str = "arith.floordivsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -214,7 +214,7 @@ class CeilDivSI(Operation):
     name: str = "arith.ceildivsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -235,7 +235,7 @@ class CeilDivUI(Operation):
     name: str = "arith.ceildivui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -256,7 +256,7 @@ class RemUI(Operation):
     name: str = "arith.remui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -298,7 +298,7 @@ class MinUI(Operation):
     name: str = "arith.minui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -319,7 +319,7 @@ class MaxUI(Operation):
     name: str = "arith.maxui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -340,7 +340,7 @@ class MinSI(Operation):
     name: str = "arith.minsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -361,7 +361,7 @@ class MaxSI(Operation):
     name: str = "arith.maxsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -382,7 +382,7 @@ class AndI(Operation):
     name: str = "arith.andi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -403,7 +403,7 @@ class OrI(Operation):
     name: str = "arith.ori"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -424,7 +424,7 @@ class XOrI(Operation):
     name: str = "arith.xori"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -475,7 +475,7 @@ class ShRUI(Operation):
     name: str = "arith.shrui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
