@@ -78,6 +78,7 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
         self._print(f'class {op_py_name}(Operation):')
         self._print(' ' * INDENTATION_SIZE, 'name = ', f'"{op.op_name.data}"')
 
+        # Convert the operands
         if (operands := op.get_operands()) is not None:
             for operand in cast(ArrayAttr[NamedTypeConstraintAttr],
                                 operands.params).data:
@@ -90,6 +91,7 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
                 self.print_constraint(operand.params_constraints)
                 self._print(')')
 
+        # Convert the results
         if (results := op.get_results()) is not None:
             for result in cast(ArrayAttr[NamedTypeConstraintAttr],
                                results.params).data:
@@ -102,6 +104,7 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
                 self.print_constraint(result.params_constraints)
                 self._print(')')
 
+        # Add variadic regions, since IRDL does not support yet regions
         self._print(' ' * INDENTATION_SIZE, 'regs = VarRegionDef()')
 
     def print_constraint(self, constraint: Attribute) -> None:
