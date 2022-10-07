@@ -2,7 +2,7 @@ from xdsl import ensure_mlir_module_loaded
 
 ensure_mlir_module_loaded()
 
-from xdsl import _mlir_module as mlir
+from xdsl import _mlir_module as mlir  # type: ignore
 
 from xdsl.ir import (MLContext, SSAValue, OpResult, Block, Operation, Region,
                      BlockArgument, Attribute)
