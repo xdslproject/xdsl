@@ -953,13 +953,15 @@ _BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
 
 BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
 
+IRDL_IS_BUILDER = '__irdl_is_builder'
+
 
 def builder(f: BuilderTy[_AttrT]) -> BuilderTy[_AttrT]:
     """
     Annotate a function and mark it as an IRDL builder.
     This should only be used as decorator in classes decorated by irdl_attr_builder.
     """
-    f.__irdl_is_builder = True
+    setattr(f, IRDL_IS_BUILDER, True)
     return f
 
 
@@ -971,7 +973,7 @@ def irdl_get_builders(cls: type[_AttrT]) -> list[BuilderTy[_AttrT]]:
         # Builders are staticmethods, so we need to get back the original function
         # with __func__
         if hasattr(field_, "__func__") and hasattr(field_.__func__,
-                                                   "__irdl_is_builder"):
+                                                   IRDL_IS_BUILDER):
             builders.append(field_.__func__)
     return builders
 
