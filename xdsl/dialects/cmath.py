@@ -5,9 +5,9 @@ from typing import Annotated
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import MLContext, MLIRType, OpResult, SSAValue
 from xdsl.irdl import (S_OperandDef, S_ResultDef, irdl_op_definition,
-                       Operation, OperandDef, irdl_attr_definition,
-                       ParameterDef, ParamAttrConstraint, AnyOf, ResultDef,
-                       ParametrizedAttribute, VerifyException)
+                       Operation, irdl_attr_definition, ParameterDef,
+                       ParamAttrConstraint, AnyOf, ParametrizedAttribute,
+                       VerifyException)
 
 
 @dataclass
