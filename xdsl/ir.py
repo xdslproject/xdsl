@@ -424,9 +424,11 @@ class Operation:
     def verify_(self) -> None:
         pass
 
+    _OperationType = TypeVar('_OperationType', bound='Operation')
+
     @classmethod
-    def parse(cls: type[Parser._OperationType], result_types: list[Attribute],
-              parser: Parser) -> Parser._OperationType:
+    def parse(cls: type[_OperationType], result_types: list[Attribute],
+              parser: Parser) -> _OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):
