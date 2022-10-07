@@ -4,12 +4,16 @@ import argparse
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
+def constantFold(MLContext, ModuleOp):
+    pass
+
 class OptMain(xDSLOptMain):
 
     def register_all_dialects(self):
         super().register_all_dialects()
 
     def register_all_passes(self):
+        super().available_passes['constant-fold'] = constantFold
         super().register_all_passes()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
