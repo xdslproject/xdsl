@@ -277,7 +277,7 @@ class RemSI(Operation):
     name: str = "arith.remsi"
     lhs = OperandDef(IntegerType)
     rhs = OperandDef(IntegerType)
-    result = ResultDef(IntegerType)
+    result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -449,7 +449,7 @@ class ShLI(Operation):
     name: str = "arith.shli"
     lhs = OperandDef(IntegerType)
     rhs = OperandDef(IntegerType)
-    result = ResultDef(IntegerType)
+    result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -502,7 +502,7 @@ class ShRSI(Operation):
     name: str = "arith.shrsi"
     lhs = OperandDef(IntegerType)
     rhs = OperandDef(IntegerType)
-    result = ResultDef(IntegerType)
+    result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -592,7 +592,7 @@ class Select(Operation):
     cond = OperandDef(IntegerType.from_width(1))  # should be unsigned
     lhs = OperandDef(Attribute)
     rhs = OperandDef(Attribute)
-    result = ResultDef(Attribute)
+    result: S_ResultDef[Annotated[OpResult, Attribute]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -616,7 +616,7 @@ class Addf(Operation):
     name: str = "arith.addf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -637,7 +637,7 @@ class Subf(Operation):
     name: str = "arith.subf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -658,7 +658,7 @@ class Mulf(Operation):
     name: str = "arith.mulf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -679,7 +679,7 @@ class Divf(Operation):
     name: str = "arith.divf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -700,7 +700,7 @@ class Maxf(Operation):
     name: str = "arith.maxf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -721,7 +721,7 @@ class Minf(Operation):
     name: str = "arith.minf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
-    result = ResultDef(floatingPointLike)
+    result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
     def verify_(self) -> None:

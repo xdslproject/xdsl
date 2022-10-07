@@ -126,7 +126,7 @@ class Alloc(Operation):
     dynamic_sizes = VarOperandDef(IndexType)
     symbol_operands = VarOperandDef(IndexType)
 
-    memref = ResultDef(MemRefType)
+    memref: S_ResultDef[Annotated[OpResult, MemRefType]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -154,7 +154,7 @@ class Alloca(Operation):
     dynamic_sizes = VarOperandDef(IndexType)
     symbol_operands = VarOperandDef(IndexType)
 
-    memref = ResultDef(MemRefType)
+    memref: S_ResultDef[Annotated[OpResult, MemRefType]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -190,7 +190,7 @@ class GetGlobal(Operation):
     name = "memref.get_global"
     # name = AttributeDef(FlatSymbolRefAttr)
 
-    memref = ResultDef(MemRefType)
+    memref: S_ResultDef[Annotated[OpResult, MemRefType]]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
