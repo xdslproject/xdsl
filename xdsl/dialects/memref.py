@@ -7,11 +7,11 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
 from xdsl.ir import MLIRType, OpResult, Operation, SSAValue, MLContext
-from xdsl.irdl import (S_ResultDef, irdl_attr_definition, irdl_op_definition,
-                       builder, ParameterDef, Generic, Attribute,
-                       ParametrizedAttribute, AnyAttr, OperandDef,
-                       VarOperandDef, ResultDef, AttributeDef,
-                       AttrSizedOperandSegments, OptAttributeDef)
+from xdsl.irdl import (S_OperandDef, S_ResultDef, irdl_attr_definition,
+                       irdl_op_definition, builder, ParameterDef, Generic,
+                       Attribute, ParametrizedAttribute, AnyAttr, OperandDef,
+                       VarOperandDef, AttributeDef, AttrSizedOperandSegments,
+                       OptAttributeDef)
 
 
 @dataclass
@@ -75,7 +75,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref = OperandDef(MemRefType)
+    memref: S_OperandDef[Annotated[SSAValue, MemRefType]]
     indices = VarOperandDef(IndexType)
     res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
@@ -101,8 +101,8 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "memref.store"
-    value = OperandDef(AnyAttr())
-    memref = OperandDef(MemRefType)
+    value: S_OperandDef[Annotated[SSAValue, AnyAttr]]
+    memref: S_OperandDef[Annotated[SSAValue, MemRefType]]
     indices = VarOperandDef(IndexType)
 
     def verify_(self):
@@ -178,7 +178,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref = OperandDef(MemRefType)
+    memref: S_OperandDef[Annotated[SSAValue, MemRefType]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:

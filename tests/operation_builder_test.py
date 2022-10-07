@@ -5,13 +5,13 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, builder)
 from xdsl.ir import Data, Block, OpResult
-from xdsl.irdl import (OptOperandDef, OptRegionDef, OptSingleBlockRegionDef,
-                       S_OptResultDef, S_ResultDef, S_VarResultDef,
-                       SingleBlockRegionDef, VarRegionDef,
+from xdsl.irdl import (S_OperandDef, S_OptOperandDef, OptRegionDef,
+                       OptSingleBlockRegionDef, S_OptResultDef, S_ResultDef,
+                       S_VarResultDef, SingleBlockRegionDef, VarRegionDef,
                        VarSingleBlockRegionDef, irdl_attr_definition,
-                       irdl_op_definition, AttrSizedResultSegments, OperandDef,
+                       irdl_op_definition, AttrSizedResultSegments,
                        VarOperandDef, AttrSizedOperandSegments, AttributeDef,
-                       RegionDef, OptAttributeDef, Region)
+                       RegionDef, OptAttributeDef, Region, SSAValue)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -178,7 +178,7 @@ def test_var_mixed_builder():
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
-    res = OperandDef(StringAttr)
+    res: S_OperandDef[Annotated[SSAValue, StringAttr]]
 
 
 def test_operand_builder_operation():
@@ -204,7 +204,7 @@ def test_operand_builder_exception():
 class OptOperandOp(Operation):
     name: str = "test.opt_operand_op"
 
-    res = OptOperandDef(StringAttr)
+    res: S_OptOperandDef[Annotated[SSAValue, StringAttr]]
 
 
 def test_opt_operand_builder():

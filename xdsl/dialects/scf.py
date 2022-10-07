@@ -1,8 +1,8 @@
 from __future__ import annotations
 from xdsl.ir import MLContext, OpResult
-from xdsl.irdl import (S_VarResultDef, VarOperandDef, irdl_op_definition,
-                       Attribute, OperandDef, SSAValue, Operation, RegionDef,
-                       Region, Block, AnyAttr)
+from xdsl.irdl import (S_OperandDef, S_VarResultDef, VarOperandDef,
+                       irdl_op_definition, Attribute, OperandDef, SSAValue,
+                       Operation, RegionDef, Region, Block, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 from dataclasses import dataclass
 from typing import Annotated, List
@@ -23,7 +23,7 @@ class Scf:
 class If(Operation):
     name: str = "scf.if"
     output: S_VarResultDef[Annotated[OpResult, AnyAttr]]
-    cond = OperandDef(IntegerType.from_width(1))
+    cond: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]
 
     true_region = RegionDef()
     # TODO this should be optional under certain conditions
@@ -52,7 +52,7 @@ class Yield(Operation):
 @irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
-    cond = OperandDef(IntegerType.from_width(1))
+    cond: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]
     arguments = VarOperandDef(AnyAttr())
 
     @staticmethod

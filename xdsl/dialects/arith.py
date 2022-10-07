@@ -6,7 +6,7 @@ from typing import Annotated, Union
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
 from xdsl.ir import MLContext, OpResult, Operation, SSAValue
-from xdsl.irdl import (AnyOf, S_ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
+from xdsl.irdl import (AnyOf, S_OperandDef, S_ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, VerifyException, Attribute)
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -78,8 +78,8 @@ class Constant(Operation):
 @irdl_op_definition
 class Addi(Operation):
     name: str = "arith.addi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -99,8 +99,8 @@ class Addi(Operation):
 @irdl_op_definition
 class Muli(Operation):
     name: str = "arith.muli"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -120,8 +120,8 @@ class Muli(Operation):
 @irdl_op_definition
 class Subi(Operation):
     name: str = "arith.subi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -146,8 +146,8 @@ class DivUI(Operation):
     `6 / -2 = 6 / (2^16 - 2) = 0`.
     """
     name: str = "arith.divui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -171,8 +171,8 @@ class DivSI(Operation):
     sign, i.e. `6 / -2 = -3`.
     """
     name: str = "arith.divsi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -191,8 +191,8 @@ class DivSI(Operation):
 @irdl_op_definition
 class FloorDivSI(Operation):
     name: str = "arith.floordivsi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -212,8 +212,8 @@ class FloorDivSI(Operation):
 @irdl_op_definition
 class CeilDivSI(Operation):
     name: str = "arith.ceildivsi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -233,8 +233,8 @@ class CeilDivSI(Operation):
 @irdl_op_definition
 class CeilDivUI(Operation):
     name: str = "arith.ceildivui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -254,8 +254,8 @@ class CeilDivUI(Operation):
 @irdl_op_definition
 class RemUI(Operation):
     name: str = "arith.remui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -275,8 +275,8 @@ class RemUI(Operation):
 @irdl_op_definition
 class RemSI(Operation):
     name: str = "arith.remsi"
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
+    lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
+    rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
@@ -296,8 +296,8 @@ class RemSI(Operation):
 @irdl_op_definition
 class MinUI(Operation):
     name: str = "arith.minui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -317,8 +317,8 @@ class MinUI(Operation):
 @irdl_op_definition
 class MaxUI(Operation):
     name: str = "arith.maxui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -338,8 +338,8 @@ class MaxUI(Operation):
 @irdl_op_definition
 class MinSI(Operation):
     name: str = "arith.minsi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -359,8 +359,8 @@ class MinSI(Operation):
 @irdl_op_definition
 class MaxSI(Operation):
     name: str = "arith.maxsi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -380,8 +380,8 @@ class MaxSI(Operation):
 @irdl_op_definition
 class AndI(Operation):
     name: str = "arith.andi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -401,8 +401,8 @@ class AndI(Operation):
 @irdl_op_definition
 class OrI(Operation):
     name: str = "arith.ori"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -422,8 +422,8 @@ class OrI(Operation):
 @irdl_op_definition
 class XOrI(Operation):
     name: str = "arith.xori"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -447,8 +447,8 @@ class ShLI(Operation):
     amount. The low order bits are filled with zeros.
     """
     name: str = "arith.shli"
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
+    lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
+    rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
@@ -473,8 +473,8 @@ class ShRUI(Operation):
     always filled with zeros.
     """
     name: str = "arith.shrui"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
+    lhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, signlessIntegerLike]]
     result: S_ResultDef[Annotated[OpResult, signlessIntegerLike]]
 
     # TODO replace with trait
@@ -500,8 +500,8 @@ class ShRSI(Operation):
     value (which means that the sign of the value is preserved).
     """
     name: str = "arith.shrsi"
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
+    lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
+    rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     result: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     # TODO replace with trait
@@ -539,8 +539,8 @@ class Cmpi(Operation):
     """
     name: str = "arith.cmpi"
     predicate = AttributeDef(IntegerAttr)
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
+    lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
+    rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     result = ResultDef(IntegerType.from_width(1))
 
     @staticmethod
@@ -589,9 +589,9 @@ class Select(Operation):
     The second and the third operand must have the same type.
     """
     name: str = "arith.select"
-    cond = OperandDef(IntegerType.from_width(1))  # should be unsigned
-    lhs = OperandDef(Attribute)
-    rhs = OperandDef(Attribute)
+    cond: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]  # should be unsigned
+    lhs: S_OperandDef[Annotated[SSAValue, Attribute]]
+    rhs: S_OperandDef[Annotated[SSAValue, Attribute]]
     result: S_ResultDef[Annotated[OpResult, Attribute]]
 
     # TODO replace with trait
@@ -614,8 +614,8 @@ class Select(Operation):
 @irdl_op_definition
 class Addf(Operation):
     name: str = "arith.addf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
@@ -635,8 +635,8 @@ class Addf(Operation):
 @irdl_op_definition
 class Subf(Operation):
     name: str = "arith.subf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
@@ -656,8 +656,8 @@ class Subf(Operation):
 @irdl_op_definition
 class Mulf(Operation):
     name: str = "arith.mulf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
@@ -677,8 +677,8 @@ class Mulf(Operation):
 @irdl_op_definition
 class Divf(Operation):
     name: str = "arith.divf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
@@ -698,8 +698,8 @@ class Divf(Operation):
 @irdl_op_definition
 class Maxf(Operation):
     name: str = "arith.maxf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait
@@ -719,8 +719,8 @@ class Maxf(Operation):
 @irdl_op_definition
 class Minf(Operation):
     name: str = "arith.minf"
-    lhs = OperandDef(floatingPointLike)
-    rhs = OperandDef(floatingPointLike)
+    lhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
+    rhs: S_OperandDef[Annotated[SSAValue, floatingPointLike]]
     result: S_ResultDef[Annotated[OpResult, floatingPointLike]]
 
     # TODO replace with trait

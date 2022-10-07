@@ -6,7 +6,7 @@ from typing import Annotated
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
 from xdsl.ir import OpResult, Operation, SSAValue, MLContext, Block, Region
 from xdsl.irdl import (S_VarResultDef, irdl_op_definition, AttributeDef,
-                       RegionDef, VarResultDef, VarOperandDef, AnyAttr)
+                       RegionDef, VarOperandDef, AnyAttr)
 
 
 @dataclass

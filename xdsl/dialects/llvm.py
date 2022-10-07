@@ -2,12 +2,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated
 
-from xdsl.irdl import (ParameterDef, AnyAttr, S_ResultDef, irdl_attr_definition,
-                       AttributeDef, OperandDef, ResultDef, irdl_op_definition,
+from xdsl.irdl import (ParameterDef, AnyAttr, S_OperandDef, S_ResultDef,
+                       irdl_attr_definition, AttributeDef, irdl_op_definition,
                        builder)
-from xdsl.ir import (MLContext, MLIRType, OpResult, ParametrizedAttribute, 
-                     Attribute, Operation)
-from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
+from xdsl.ir import (MLContext, MLIRType, OpResult, ParametrizedAttribute,
+                     Attribute, Operation, SSAValue)
+from xdsl.dialects.builtin import (StringAttr, ArrayOfConstraint, ArrayAttr,
+                                   IntegerAttr, IntegerType)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -63,7 +64,7 @@ class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container = OperandDef(AnyAttr())
+    container: S_OperandDef[Annotated[SSAValue, AnyAttr]]
 
     res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
@@ -73,8 +74,8 @@ class LLVMInsertValue(Operation):
     name = "llvm.insertvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container = OperandDef(AnyAttr())
-    value = OperandDef(AnyAttr())
+    container: S_OperandDef[Annotated[SSAValue, AnyAttr]]
+    value: S_OperandDef[Annotated[SSAValue, AnyAttr]]
 
     res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 

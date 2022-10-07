@@ -5,8 +5,10 @@ from io import StringIO
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.diagnostic import Diagnostic
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition, irdl_op_definition, Operation, OperandDef, S_ResultDef, OptAttributeDef, Annotated, OpResult
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, SSAValue
+from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
+                       Operation, S_OperandDef, S_ResultDef, OptAttributeDef,
+                       Annotated, OpResult)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 
@@ -372,8 +374,8 @@ builtin.module() {
 @irdl_op_definition
 class PlusCustomFormatOp(Operation):
     name = "test.add"
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
+    lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
+    rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     res: S_ResultDef[Annotated[OpResult, IntegerType]]
 
     @classmethod
