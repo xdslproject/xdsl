@@ -36,7 +36,11 @@ def constant_folding(ctx: MLContext, module: ModuleOp) -> ModuleOp:
     walker = PatternRewriteWalker(
         GreedyRewritePatternApplier([
             BinaryExprRewriter(),
-        ]), apply_recursively=False, walk_reverse=False)
+        ]), apply_recursively=False, walk_reverse=True)
+
+    walker.rewrite_module(module)
+
+    module = module.clone()
 
     walker.rewrite_module(module)
 
