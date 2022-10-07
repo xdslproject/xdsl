@@ -14,7 +14,7 @@ from xdsl.parser import Parser
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    arith = Arith(ctx)
+    _ = Arith(ctx)
 
     lit = Constant.from_int_constant(42, 32)
     add = Addi.get(lit, lit)
@@ -42,7 +42,7 @@ def test_simple_forgotten_op():
 def test_forgotten_op_non_fail():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    arith = Arith(ctx)
+    _ = Arith(ctx)
 
     lit = Constant.from_int_constant(42, 32)
     add = Addi.get(lit, lit)
@@ -142,8 +142,8 @@ builtin.module() {
 """
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -177,8 +177,8 @@ def test_two_different_op_messages():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -213,8 +213,8 @@ def test_two_same_op_messages():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -247,8 +247,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -283,8 +283,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -308,21 +308,9 @@ def test_diagnostic():
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""\
-Exception: test message
-
-builtin.module() {
-^^^^^^^^-------
-| Test message
----------------
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
-
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -361,8 +349,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -420,8 +408,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -451,8 +439,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -482,8 +470,8 @@ def test_custom_format():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Builtin(ctx)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
