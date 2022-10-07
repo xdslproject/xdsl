@@ -3,6 +3,9 @@ _REQUIRED_MLIR_MODULES = ['ir']
 
 import types as _xdsl_init_types
 
+# pyright: reportMissingImports=false, reportUnknownVariableType=false
+# pyright: reportUnknownArgumentType=false
+
 
 def load_mlir_module(mlir_module: _xdsl_init_types.ModuleType) -> None:
     """
