@@ -139,7 +139,7 @@ class OpResult(SSAValue):
                f"op_name={repr(self.op.name)}, " + \
                f"result_index={repr(self.result_index)}, name={repr(self.name)})"
 
-    def __eq__(self, other: OpResult) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     # This might be problematic, as the superclass is not hashable ...
@@ -166,7 +166,7 @@ class BlockArgument(SSAValue):
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
                f", block={block_repr}, index={repr(self.index)}"
 
-    def __eq__(self, other: BlockArgument) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -509,7 +509,7 @@ class Operation:
             return False
         return self.is_ancestor(op.parent)
 
-    def __eq__(self, other: Operation) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -747,7 +747,7 @@ class Block:
             return self
         return self.parent.get_toplevel_object()
 
-    def __eq__(self, other: Block) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
