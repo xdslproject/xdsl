@@ -50,7 +50,7 @@ class xDSLOptMain:
     pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
-    def __init__(self, description='xDSL modular optimizer driver'):
+    def __init__(self, description: str = 'xDSL modular optimizer driver'):
         self.ctx = MLContext()
         self.register_all_dialects()
         self.register_all_frontends()

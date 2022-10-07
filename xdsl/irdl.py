@@ -16,6 +16,8 @@ from xdsl.diagnostic import Diagnostic, DiagnosticException
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 
+# pyright: reportMissingParameterType=false
+
 
 def error(op: Operation, msg: str):
     diag = Diagnostic()

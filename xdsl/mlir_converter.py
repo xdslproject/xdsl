@@ -4,7 +4,7 @@ ensure_mlir_module_loaded()
 
 from xdsl import _mlir_module as mlir
 
-from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
+from xdsl.ir import (MLContext, SSAValue, OpResult, Block, Operation, Region,
                      BlockArgument, Attribute)
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
@@ -18,7 +18,7 @@ from typing import Dict
 
 class MLIRConverter:
 
-    def __init__(self, ctx):
+    def __init__(self, ctx: MLContext):
         self.ctx = ctx
         self.op_to_mlir_ops: Dict[Operation, mlir.ir.Operation] = dict()
         self.block_to_mlir_blocks: Dict[Block, mlir.ir.Block] = dict()
