@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from typing import cast, Annotated
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
 
-from xdsl.irdl import (ParameterDef, S_VarResultDef, VarOperandDef, AnyAttr,
+from xdsl.irdl import (ParameterDef, S_VarOperandDef, S_VarResultDef, AnyAttr,
                        AttributeDef, SingleBlockRegionDef, irdl_op_definition,
                        irdl_attr_definition)
-from xdsl.ir import OpResult, ParametrizedAttribute, Operation, MLContext, Attribute
+from xdsl.ir import OpResult, ParametrizedAttribute, Operation, MLContext, Attribute, SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -161,7 +161,7 @@ class OperandsOp(Operation):
     Define the operands of a parent operation
     """
     name = "irdl.operands"
-    op = VarOperandDef(AnyAttr())
+    op: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
     params = AttributeDef(AnyAttr())
 
 
@@ -171,7 +171,7 @@ class ResultsOp(Operation):
     Define results of parent operation
     """
     name = "irdl.results"
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
     params = AttributeDef(AnyAttr())
 
 

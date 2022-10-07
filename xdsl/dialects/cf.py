@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
+from xdsl.irdl import (S_VarOperandDef, irdl_op_definition, AnyAttr, Block,
                        Operation, S_OperandDef, AttrSizedOperandSegments)
 
 
@@ -21,7 +21,7 @@ class Cf:
 class Branch(Operation):
     name: str = "cf.br"
 
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     @staticmethod
     def get(block: Block, *ops: Union[Operation, SSAValue]) -> Branch:
@@ -33,8 +33,8 @@ class ConditionalBranch(Operation):
     name: str = "cf.cond_br"
 
     then: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]
-    then_arguments = VarOperandDef(AnyAttr())
-    else_arguments = VarOperandDef(AnyAttr())
+    then_arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
+    else_arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     irdl_options = [AttrSizedOperandSegments()]
 

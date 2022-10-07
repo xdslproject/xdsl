@@ -7,10 +7,10 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
 from xdsl.ir import MLIRType, OpResult, Operation, SSAValue, MLContext
-from xdsl.irdl import (S_OperandDef, S_ResultDef, irdl_attr_definition,
-                       irdl_op_definition, builder, ParameterDef, Generic,
-                       Attribute, ParametrizedAttribute, AnyAttr, OperandDef,
-                       VarOperandDef, AttributeDef, AttrSizedOperandSegments,
+from xdsl.irdl import (S_OperandDef, S_ResultDef, S_VarOperandDef,
+                       irdl_attr_definition, irdl_op_definition, builder,
+                       ParameterDef, Generic, Attribute, ParametrizedAttribute,
+                       AnyAttr, AttributeDef, AttrSizedOperandSegments,
                        OptAttributeDef)
 
 
@@ -76,7 +76,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 class Load(Operation):
     name = "memref.load"
     memref: S_OperandDef[Annotated[SSAValue, MemRefType]]
-    indices = VarOperandDef(IndexType)
+    indices: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
     res: S_ResultDef[Annotated[OpResult, AnyAttr]]
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -103,7 +103,7 @@ class Store(Operation):
     name = "memref.store"
     value: S_OperandDef[Annotated[SSAValue, AnyAttr]]
     memref: S_OperandDef[Annotated[SSAValue, MemRefType]]
-    indices = VarOperandDef(IndexType)
+    indices: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
 
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
@@ -123,8 +123,8 @@ class Store(Operation):
 class Alloc(Operation):
     name = "memref.alloc"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
+    symbol_operands: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
 
     memref: S_ResultDef[Annotated[OpResult, MemRefType]]
 
@@ -151,8 +151,8 @@ class Alloc(Operation):
 class Alloca(Operation):
     name = "memref.alloca"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
+    symbol_operands: S_VarOperandDef[Annotated[list[SSAValue], IndexType]]
 
     memref: S_ResultDef[Annotated[OpResult, MemRefType]]
 

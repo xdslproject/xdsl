@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated
+from typing import Annotated, Optional
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
@@ -7,11 +7,12 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
 from xdsl.ir import Data, Block, OpResult
 from xdsl.irdl import (S_OperandDef, S_OptOperandDef, OptRegionDef,
                        OptSingleBlockRegionDef, S_OptResultDef, S_ResultDef,
-                       S_VarResultDef, SingleBlockRegionDef, VarRegionDef,
-                       VarSingleBlockRegionDef, irdl_attr_definition,
-                       irdl_op_definition, AttrSizedResultSegments,
-                       VarOperandDef, AttrSizedOperandSegments, AttributeDef,
-                       RegionDef, OptAttributeDef, Region, SSAValue)
+                       S_VarOperandDef, S_VarResultDef, SingleBlockRegionDef,
+                       VarRegionDef, VarSingleBlockRegionDef,
+                       irdl_attr_definition, irdl_op_definition,
+                       AttrSizedResultSegments, AttrSizedOperandSegments,
+                       AttributeDef, RegionDef, OptAttributeDef, Region,
+                       SSAValue)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -64,7 +65,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res: S_OptResultDef[Annotated[OpResult, StringAttr]]
+    res: S_OptResultDef[Annotated[Optional[OpResult], StringAttr]]
 
 
 def test_opt_result_builder():
@@ -227,7 +228,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
-    res = VarOperandDef(StringAttr)
+    res: S_VarOperandDef[Annotated[list[SSAValue], StringAttr]]
 
 
 def test_var_operand_builder():
@@ -241,8 +242,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
-    res1 = VarOperandDef(StringAttr)
-    res2 = VarOperandDef(StringAttr)
+    res1: S_VarOperandDef[Annotated[list[SSAValue], StringAttr]]
+    res2: S_VarOperandDef[Annotated[list[SSAValue], StringAttr]]
     irdl_options = [AttrSizedOperandSegments()]
 
 

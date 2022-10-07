@@ -5,8 +5,8 @@ from typing import Annotated, TypeAlias, List, cast, Type, Sequence, Optional
 
 from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType, OpResult,
                      ParametrizedAttribute, Operation, SSAValue)
-from xdsl.irdl import (AttributeDef, S_VarResultDef, VarOperandDef,
-                       VarRegionDef, VarResultDef, irdl_attr_definition,
+from xdsl.irdl import (AttributeDef, S_VarOperandDef, S_VarResultDef,
+                       VarRegionDef, irdl_attr_definition,
                        attr_constr_coercion, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
                        SingleBlockRegionDef, TypeVar, Generic, GenericData,
@@ -629,8 +629,8 @@ class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
     op_name__ = AttributeDef(StringAttr)
-    args = VarOperandDef(AnyAttr())
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    args: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
     regs = VarRegionDef()
 
     @property

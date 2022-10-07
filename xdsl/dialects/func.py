@@ -4,8 +4,8 @@ from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbolRefAttr
 from xdsl.ir import MLContext, OpResult, SSAValue
-from xdsl.irdl import (OptAttributeDef, S_VarResultDef, irdl_op_definition,
-                       VarOperandDef, AnyAttr, Block, RegionDef, Region,
+from xdsl.irdl import (OptAttributeDef, S_VarOperandDef, S_VarResultDef,
+                       irdl_op_definition, AnyAttr, Block, RegionDef, Region,
                        Operation, AttributeDef)
 
 
@@ -61,11 +61,11 @@ class FuncOp(Operation):
 @irdl_op_definition
 class Call(Operation):
     name: str = "func.call"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
     callee = AttributeDef(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
     # TODO how do we verify that the types are correct?
 
     @staticmethod
@@ -80,7 +80,7 @@ class Call(Operation):
 @irdl_op_definition
 class Return(Operation):
     name: str = "func.return"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     @staticmethod
     def get(*ops: Union[Operation, SSAValue]) -> Return:

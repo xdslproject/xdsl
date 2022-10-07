@@ -1,8 +1,10 @@
 from io import StringIO
 from typing import Annotated
-from xdsl.ir import Attribute, Data, MLContext, MLIRType, OpResult, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, S_VarResultDef,
-                       VarOperandDef, irdl_attr_definition, irdl_op_definition)
+from xdsl.ir import (Attribute, Data, MLContext, MLIRType, OpResult, Operation,
+                     ParametrizedAttribute, SSAValue)
+from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, S_VarOperandDef,
+                       S_VarResultDef, irdl_attr_definition,
+                       irdl_op_definition)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -20,8 +22,8 @@ class ModuleOp(Operation):
 class AnyOp(Operation):
     """Operation only used for testing."""
     name = "any"
-    op = VarOperandDef(AnyAttr())
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    op: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
 
 
 @irdl_attr_definition

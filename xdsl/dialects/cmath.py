@@ -1,12 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Annotated
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
-from xdsl.ir import MLContext, MLIRType
-from xdsl.irdl import (irdl_op_definition, Operation, OperandDef,
-                       irdl_attr_definition, ParameterDef, ParamAttrConstraint,
-                       AnyOf, ResultDef, ParametrizedAttribute,
-                       VerifyException)
+from xdsl.ir import MLContext, MLIRType, OpResult, SSAValue
+from xdsl.irdl import (S_OperandDef, S_ResultDef, irdl_op_definition,
+                       Operation, OperandDef, irdl_attr_definition,
+                       ParameterDef, ParamAttrConstraint, AnyOf, ResultDef,
+                       ParametrizedAttribute, VerifyException)
 
 
 @dataclass
@@ -30,9 +31,10 @@ class ComplexType(ParametrizedAttribute, MLIRType):
 class Norm(Operation):
     name: str = "cmath.norm"
 
-    op = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    res = ResultDef(AnyOf([Float32Type, Float64Type]))
+    op: S_OperandDef[Annotated[
+        SSAValue,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]]
+    res: S_ResultDef[Annotated[OpResult, Float32Type | Float64Type]]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -45,12 +47,15 @@ class Norm(Operation):
 class Mul(Operation):
     name: str = "cmath.mul"
 
-    lhs = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    rhs = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    res = ResultDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
+    lhs: S_OperandDef[Annotated[
+        SSAValue,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]]
+    rhs: S_OperandDef[Annotated[
+        SSAValue,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]]
+    res: S_ResultDef[Annotated[
+        OpResult,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]]
 
     # TODO replace with trait
     def verify_(self) -> None:

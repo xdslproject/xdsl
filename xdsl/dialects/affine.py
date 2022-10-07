@@ -5,8 +5,8 @@ from typing import Annotated
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
 from xdsl.ir import OpResult, Operation, SSAValue, MLContext, Block, Region
-from xdsl.irdl import (S_VarResultDef, irdl_op_definition, AttributeDef,
-                       RegionDef, VarOperandDef, AnyAttr)
+from xdsl.irdl import (S_VarOperandDef, S_VarResultDef, irdl_op_definition,
+                       AttributeDef, RegionDef, AnyAttr)
 
 
 @dataclass
@@ -22,8 +22,8 @@ class Affine:
 class For(Operation):
     name: str = "affine.for"
 
-    arguments = VarOperandDef(AnyAttr())
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
@@ -84,7 +84,7 @@ class For(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "affine.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

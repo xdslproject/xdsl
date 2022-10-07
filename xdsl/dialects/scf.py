@@ -1,8 +1,8 @@
 from __future__ import annotations
 from xdsl.ir import MLContext, OpResult
-from xdsl.irdl import (S_OperandDef, S_VarResultDef, VarOperandDef,
-                       irdl_op_definition, Attribute, OperandDef, SSAValue,
-                       Operation, RegionDef, Region, Block, AnyAttr)
+from xdsl.irdl import (S_OperandDef, S_VarOperandDef, S_VarResultDef,
+                       irdl_op_definition, Attribute, SSAValue, Operation,
+                       RegionDef, Region, Block, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 from dataclasses import dataclass
 from typing import Annotated, List
@@ -22,7 +22,7 @@ class Scf:
 @irdl_op_definition
 class If(Operation):
     name: str = "scf.if"
-    output: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    output: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
     cond: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]
 
     true_region = RegionDef()
@@ -41,7 +41,7 @@ class If(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -53,7 +53,7 @@ class Yield(Operation):
 class Condition(Operation):
     name: str = "scf.condition"
     cond: S_OperandDef[Annotated[SSAValue, IntegerType.from_width(1)]]
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
     @staticmethod
     def get(cond: SSAValue | Operation,
@@ -65,9 +65,9 @@ class Condition(Operation):
 @irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: S_VarOperandDef[Annotated[list[SSAValue], AnyAttr]]
 
-    res: S_VarResultDef[Annotated[OpResult, AnyAttr]]
+    res: S_VarResultDef[Annotated[list[OpResult], AnyAttr]]
     before_region = RegionDef()
     after_region = RegionDef()
 

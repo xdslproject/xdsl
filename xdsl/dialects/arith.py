@@ -6,8 +6,8 @@ from typing import Annotated, Union
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
 from xdsl.ir import MLContext, OpResult, Operation, SSAValue
-from xdsl.irdl import (AnyOf, S_OperandDef, S_ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
-                       ResultDef, OperandDef, VerifyException, Attribute)
+from xdsl.irdl import (AnyOf, S_OperandDef, S_ResultDef, irdl_op_definition, AttributeDef, 
+                       AnyAttr, VerifyException, Attribute)
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
@@ -541,7 +541,7 @@ class Cmpi(Operation):
     predicate = AttributeDef(IntegerAttr)
     lhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
     rhs: S_OperandDef[Annotated[SSAValue, IntegerType]]
-    result = ResultDef(IntegerType.from_width(1))
+    result: S_ResultDef[Annotated[OpResult, IntegerType.from_width(1)]]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],

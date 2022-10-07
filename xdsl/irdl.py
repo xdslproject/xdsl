@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, Type,
+from typing import (Annotated, Any, Callable, Generic, Optional, Sequence,
                     TypeAlias, TypeVar, Union, cast, get_args, get_origin,
                     get_type_hints)
 
@@ -346,17 +346,23 @@ class AttrSizedResultSegments(IRDLOption):
     """Name of the attribute containing the variadic result sizes."""
 
 
-_RC = TypeVar("_RC", bound=Attribute | type[Attribute] | AttrConstraint)
-_RS = TypeVar("_RS", bound=Annotated[OpResult, _RC])
-_OS = TypeVar("_OS", bound=Annotated[SSAValue, _RC])
+_C = TypeVar("_C", bound=Attribute | type[Attribute] | AttrConstraint)
 
-S_ResultDef = Annotated[_RS, IRDLAnnotations.RESULT_DEF_ANNOT]
-S_OptResultDef = Annotated[_RS, IRDLAnnotations.OPT_RESULT_DEF_ANNOT]
-S_VarResultDef = Annotated[_RS, IRDLAnnotations.VAR_RESULT_DEF_ANNOT]
+_RC = TypeVar("_RC", bound=Annotated[OpResult, _C])
+_RCO = TypeVar("_RCO", bound=Annotated[Optional[OpResult], _C])
+_RCV = TypeVar("_RCV", bound=Annotated[list[OpResult], _C])
 
-S_OperandDef = Annotated[_OS, IRDLAnnotations.OPERAND_DEF_ANNOT]
-S_OptOperandDef = Annotated[_OS, IRDLAnnotations.OPT_OPERAND_DEF_ANNOT]
-S_VarOperandDef = Annotated[_OS, IRDLAnnotations.VAR_OPERAND_DEF_ANNOT]
+_OC = TypeVar("_OC", bound=Annotated[SSAValue, _C])
+_OCO = TypeVar("_OCO", bound=Annotated[Optional[SSAValue], _C])
+_OCV = TypeVar("_OCV", bound=Annotated[list[SSAValue], _C])
+
+S_ResultDef = Annotated[_RC, IRDLAnnotations.RESULT_DEF_ANNOT]
+S_OptResultDef = Annotated[_RCO, IRDLAnnotations.OPT_RESULT_DEF_ANNOT]
+S_VarResultDef = Annotated[_RCV, IRDLAnnotations.VAR_RESULT_DEF_ANNOT]
+
+S_OperandDef = Annotated[_OC, IRDLAnnotations.OPERAND_DEF_ANNOT]
+S_OptOperandDef = Annotated[_OCO, IRDLAnnotations.OPT_OPERAND_DEF_ANNOT]
+S_VarOperandDef = Annotated[_OCV, IRDLAnnotations.VAR_OPERAND_DEF_ANNOT]
 
 
 @dataclass

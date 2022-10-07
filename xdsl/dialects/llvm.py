@@ -7,8 +7,7 @@ from xdsl.irdl import (ParameterDef, AnyAttr, S_OperandDef, S_ResultDef,
                        builder)
 from xdsl.ir import (MLContext, MLIRType, OpResult, ParametrizedAttribute,
                      Attribute, Operation, SSAValue)
-from xdsl.dialects.builtin import (StringAttr, ArrayOfConstraint, ArrayAttr,
-                                   IntegerAttr, IntegerType)
+from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
