@@ -10,12 +10,12 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation)
 from xdsl.dialects.builtin import (
-    AnyArrayAttr, AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType,
-    AnyVectorType, DenseIntOrFPElementsAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr, OpaqueAttr,
-    StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr,
-    ParametrizedAttribute, IntAttr, TensorType, UnitAttr, FunctionType,
-    UnrankedTensorType, UnregisteredOp, VectorType)
+    AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
+    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
+    IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
+    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
+    VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 
@@ -94,7 +94,8 @@ class Printer:
                        indent: int | None = None):
         """
         Print a message.
-        This is expected to be called at the beginning of a new line and to create a new line at the end.
+        This is expected to be called at the beginning of a new line and to create a new
+        line at the end.
         [begin_pos, end_pos)
         """
         indent = self._indent if indent is None else indent
@@ -189,8 +190,8 @@ class Printer:
             self.print("%<UNKNOWN>")
             end_pos = self._current_column
             self._add_message_on_next_line(
-                "ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?",
-                begin_pos, end_pos)
+                "ERROR: SSAValue is not part of the IR, are you sure all operations "
+                "are added before their uses?", begin_pos, end_pos)
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)

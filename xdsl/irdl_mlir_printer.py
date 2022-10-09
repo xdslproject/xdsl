@@ -40,7 +40,7 @@ class IRDLPrinter:
     def print_attr_constraint(self, f):
 
         if isinstance(f, AnyOfTypeConstraintAttr):
-            self._print(f"AnyOf", end="<")
+            self._print("AnyOf", end="<")
             for i in range(len(f.params.data) - 1):
                 self.print_attr_constraint(f.params.data[i])
                 self._print(", ", end="")
@@ -52,7 +52,7 @@ class IRDLPrinter:
             p.print(f.type)
 
         elif isinstance(f, AnyTypeConstraintAttr):
-            self._print(f"Any", end="")
+            self._print("Any", end="")
 
         elif isinstance(f, DynTypeBaseConstraintAttr):
             self._print(f.type_name.data, end='')
@@ -101,7 +101,7 @@ class IRDLPrinter:
         if result_list:
             self.print_result_definition(result_list)
 
-        self._print(f"    }}")
+        self._print("    }}")
 
     def print_result_definition(self, res_list=list[ResultsOp]):
         self._print(f"      {ResultsOp.name}", end="(")
@@ -129,4 +129,4 @@ class IRDLPrinter:
 
         di.walk(lambda op: self.print_operation_definition(op)
                 if isinstance(op, OperationOp) else None)
-        self._print(f"  }}")
+        self._print("  }}")

@@ -43,8 +43,9 @@ class For(Operation):
             )
 
         entry_block: Block = self.body.blocks[0]
-        if ([IndexType()] + operand_types !=
-            [arg.typ for arg in entry_block.args]):
+        block_arg_types = [IndexType()] + operand_types
+        arg_types = [arg.typ for arg in entry_block.args]
+        if block_arg_types != arg_types:
             raise Exception(
                 "Expected BlockArguments to have the same types as the operands"
             )
@@ -56,13 +57,14 @@ class For(Operation):
                     region: Region,
                     step: int | IntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
+        attributes = {
+            "lower_bound": lower_bound,
+            "upper_bound": upper_bound,
+            "step": step,
+        }
         return For.build(operands=[[operand for operand in operands]],
                          result_types=[result_types],
-                         attributes={
-                             "lower_bound": lower_bound,
-                             "upper_bound": upper_bound,
-                             "step": step
-                         },
+                         attributes=attributes,
                          regions=[region])
 
     @staticmethod
