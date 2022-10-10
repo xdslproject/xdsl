@@ -31,19 +31,19 @@
 
   "func.func"() ({}) {function_type = () -> (), value = true, sym_name = "true_attr"} : () -> ()
 
-  // CHECK: value = true
+  // CHECK: "value" = true
 
   "func.func"() ({}) {function_type = () -> (), value = 1 : i1, sym_name = "true_explicit_attr"} : () -> ()
 
-  // CHECK: value = true
+  // CHECK: "value" = true
 
   "func.func"() ({}) {function_type = () -> (), value = false, sym_name = "false_attr"} : () -> ()
 
-  // CHECK: value = false
+  // CHECK: "value" = false
 
   "func.func"() ({}) {function_type = () -> (), value = 0 : i1, sym_name = "false_explicit_attr"} : () -> ()
 
-  // CHECK: value = false
+  // CHECK: "value" = false
 
 
   "func.func"() ({}) {function_type = () -> (), value = 42 : i32, sym_name = "int_attr"} : () -> ()
@@ -80,19 +80,17 @@
   // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>)
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = dense<0> : tensor<1xi32>,
+                      value1 = dense<[0]> : tensor<1xi32>,
                       value2 = dense<[0.0, 1.0]> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: dense<[0]> : tensor<1xi32>
-  // CHECK: dense<[0.0, 1.0]> : tensor<2xf64>
+  // CHECK: "value1" = dense<[0]> : tensor<1xi32>, "value2" = dense<[0.0, 1.0]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = opaque<"test", "contents">
+                      value1 = opaque<"test", "contents">,
                       value2 = opaque<"test", "contents"> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: opaque<"test", "contents">
-  // CHECK: opaque<"test", "contents"> : tensor<2xf64>
+  // CHECK: "value1" = opaque<"test", "contents">, "value2" = opaque<"test", "contents"> : tensor<2xf64>
 
 }) : () -> ()
