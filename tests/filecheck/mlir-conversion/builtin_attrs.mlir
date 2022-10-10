@@ -16,6 +16,19 @@
 
   // CHECK: (i32, i64, i1)
 
+  "func.func"() ({
+    ^bb0(%arg0: si32, %arg1: si64, %arg2: si1):
+    "func.return"() : () -> ()
+  }) {function_type = (si32, si64, si1) -> (), sym_name = "signed_int_type"} : () -> ()
+
+  // CHECK: (si32, si64, si1)
+
+  "func.func"() ({
+    ^bb0(%arg0: ui32, %arg1: ui64, %arg2: si1):
+    "func.return"() : () -> ()
+  }) {function_type = (ui32, ui64, ui1) -> (), sym_name = "unsigned_int_type"} : () -> ()
+
+  // CHECK: (ui32, ui64, ui1)
 
   "func.func"() ({
     ^bb0(%arg0: f16, %arg1: f32, %arg2: f64):
