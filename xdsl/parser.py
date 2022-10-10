@@ -4,7 +4,7 @@ from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    FunctionType, IndexType, IntegerType, OpaqueAttr, StringAttr,
+    FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
@@ -684,9 +684,8 @@ class Parser:
 
         def parse_integer_type():
             self.parse_char("!", skip_white_space=skip_white_space)
-            self.parse_char("i", skip_white_space=False)
-            val = self.parse_int_literal(skip_white_space=False)
-            return IntegerType.from_width(val)
+            return self.parse_mlir_integer_type(
+                skip_white_space=skip_white_space)
 
         if int_type := self.try_parse(parse_integer_type):
             return int_type
@@ -856,18 +855,21 @@ class Parser:
         raise ParserError(self._pos, "index type expected")
 
     def parse_mlir_integer_type(self,
-                                skip_white_space: bool = True
-                                ) -> IntegerType | None:
-        if (self.parse_optional_string("i", skip_white_space=skip_white_space)
-                or self.parse_optional_string(
-                    "si", skip_white_space=skip_white_space)
-                or self.parse_optional_string(
-                    "ui", skip_white_space=skip_white_space)):
-            width = self.parse_optional_int_literal()
-            if width is not None:
-                return IntegerType.from_width(width)
-            raise ParserError(self._pos, "integer type width expected")
-        raise ParserError(self._pos, "integer type expected")
+                                skip_white_space: bool = True) -> IntegerType:
+        # Parse the optional signedness semantics
+        if self.parse_optional_string("si", skip_white_space=skip_white_space):
+            signedness = Signedness.SIGNED
+        elif self.parse_optional_string("ui",
+                                        skip_white_space=skip_white_space):
+            signedness = Signedness.UNSIGNED
+        elif self.parse_optional_string("i",
+                                        skip_white_space=skip_white_space):
+            signedness = Signedness.SIGNLESS
+        else:
+            raise ParserError(self._pos, "integer type expected")
+
+        val = self.parse_int_literal(skip_white_space=False)
+        return IntegerType.from_width(val, signedness)
 
     def parse_optional_mlir_integer_type(self,
                                          skip_white_space: bool = True
