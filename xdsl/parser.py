@@ -123,6 +123,10 @@ class Parser:
         else:
             self._pos = Position(self.str)
 
+    def get_pos(self) -> Position | None:
+        """Return the current position."""
+        return self._pos
+
     def get_char(self,
                  n: int = 1,
                  skip_white_space: bool = True) -> str | None:
