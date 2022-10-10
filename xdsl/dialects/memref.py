@@ -79,7 +79,8 @@ class Load(Operation):
     res = ResultDef(AnyAttr())
 
     # TODO varargs for indexing, which must match the memref dimensions
-    # Problem: memref dimensions require variadic type parameters, which is subject to change
+    # Problem: memref dimensions require variadic type parameters,
+    # which is subject to change
 
     def verify_(self):
         if self.memref.typ.element_type != self.res.typ:
@@ -186,7 +187,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    #name = AttributeDef(FlatSymbolRefAttr)
+    # name = AttributeDef(FlatSymbolRefAttr)
 
     memref = ResultDef(MemRefType)
 
@@ -204,7 +205,8 @@ class GetGlobal(Operation):
             result_types=[return_type],
             attributes={"name": FlatSymbolRefAttr.build(name)})
 
-    #TODO how to verify the types, as the global might be defined in another compilation unit
+    # TODO how to verify the types, as the global might be defined in another
+    # compilation unit
 
 
 @irdl_op_definition
