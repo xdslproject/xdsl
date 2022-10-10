@@ -12,7 +12,7 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    IndexType, IntegerType, NoneAttr, OpaqueAttr, StringAttr,
+    IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
     TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
     VectorType)
@@ -290,12 +290,15 @@ class Printer:
             return
 
         if isinstance(attribute, IntegerType):
-            width = attribute.parameters[0]
-            assert isinstance(width, IntAttr)
-            if self.target == self.Target.MLIR:
-                self.print(f'i{width.data}')
-            else:
-                self.print(f'!i{width.data}')
+            if self.target == self.Target.XDSL:
+                self.print("!")
+            if attribute.signedness.data == Signedness.SIGNLESS:
+                self.print("i")
+            elif attribute.signedness.data == Signedness.SIGNED:
+                self.print("si")
+            elif attribute.signedness.data == Signedness.UNSIGNED:
+                self.print("ui")
+            self.print(attribute.width.data)
             return
 
         if self.target == self.Target.MLIR:
