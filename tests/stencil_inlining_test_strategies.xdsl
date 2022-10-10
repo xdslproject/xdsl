@@ -41,7 +41,84 @@ builtin.module() {
       // create new applyOp
       %result_types : !range<!type<!any>> = irutils.get_type(%cons_apply_vals : !range<!value>)
       %attributes : !range<!attribute> = irutils.get_attributes(%consumer_apply : !operation)
-      // // We have to get the types in here as well (might be multiple)
+      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
+
+      rewrite.return(%new_apply_op : !operation)
+    }
+  }
+
+  // A simpler implementation of the above inlining rewrite. This one requires a cleanup rewrite afterwards (maybe the cleanup can even be included here?)
+  %inline_simplified : !strategy = elevate.strategy() {
+    // automatically using results here should work with ranges as well (i.e. all results are in the range)
+    rewrite.replace_op() ["name" = "stencil.apply"] {
+      ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
+      (%producer_apply : !operation, %access_op_to_inline_at : !operation, %inlined_operand_result_index : !index) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable_native_escape"]  
+
+      // concat producer and consumer operands
+      %producer_operands : !range<!value> = irutils.get_operands(%producer_apply : !operation)
+      %consumer_operands : !range<!value> = irutils.get_operands(%consumer_apply : !operation)    
+      %new_operands : !range<!value> = irutils.concat(%producer_operands : !range<!value>, %consumer_operands : !range<!value>)
+
+      // concat producer and consumer blockargs
+      %producer_args : !range<!value> = irutils.get_block_args(%producer_apply : !operation)
+      %consumer_args : !range<!value> = irutils.get_block_args(%consumer_apply : !operation)
+      %new_args : !range<!value> = irutils.concat(%producer_args : !range<!value>, %consumer_args : !range<!value>)
+
+      // Get index to inline at
+      %consumer_ops : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation)
+      %inlining_idx : !index = irutils.get_index_of_op_in_range(%access_op_to_inline_at : !operation, %consumer_ops : !range<!operation>)
+      %cst0 : !index = arith.constant() ["value" = 0 : !index]
+      %cst1 : !index = arith.constant() ["value" = 1 : !index]
+      %inlining_idx_plus_one : !index = arith.addi(%inlining_idx : !index, %cst1 : !index)
+
+      // create list of new ops from consumer and producer
+      %producer_ops : !range<!operation> = irutils.get_nested_ops(%producer_apply : !operation)
+      // update all existing offsets ops in %producer_ops
+      %updated_producer_ops : !range<!operation> = irutils.for_each(%producer_ops : !range<!operation>) {
+        ^foreach(%producer_op : !operation):
+        // check if producer_op has an offset in its attributes
+        %has_offset : !i1 = irutils.has_attribute(%producer_op : !operation) ["attr_name" = "offset"]
+        %updated_op : !operation = irutils.if (%has_offset : !i1) {
+          // return new producer_op with updated offset
+          // %producer_op_old_attrs : !range<!attribute> = irutils.get_attributes(%producer_op : !operation)
+          %producer_offset : !attribute = irutils.get_attribute(%producer_op : !operation) ["attr_name" = "offset"]
+          %access_op_offset : !attribute = irutils.get_attribute(%access_op_to_inline_at : !operation) ["attr_name" = "offset"]
+          %new_offset : !attribute = irutils.array_attr_element_wise(%producer_offset : !attribute, %access_op_offset : !attribute) ["op" = "add"]
+          %new_attributes : !range<!attribute> = irutils.attribute_range(%new_offset : !attribute) ["attribute_names"=["offset"]]
+          %updated_producer_op : !operation = irutils.from_op(%producer_op : !operation, %new_attributes : !range<!attribute>) []
+          irutils.yield(%updated_producer_op : !operation)
+        } {
+          // because the uses possibly have to be updated to the ops with a new offset
+          %updated_producer_op : !operation = irutils.from_op(%producer_op : !operation) []
+          irutils.yield(%updated_producer_op : !operation)
+        }
+        irutils.yield(%updated_op : !operation)
+      }
+
+      // replace use of %access_op_to_inline_at : !operation to whatever is in the return value
+      %producer_return : !operation = irutils.get_elem(%updated_producer_ops : !range<!operation>) ["index" = -1 : !index]
+      %producer_returned_val : !value = irutils.get_operand(%producer_return : !operation, %inlined_operand_result_index : !index)
+      %store_result_op : !operation = irutils.get_op(%producer_returned_val : !value)
+      %stored_val : !value = irutils.get_operand(%store_result_op : !operation) ["index" = -1 : !index]
+      %access_op_to_inline_at_res : !value = irutils.get_results(%access_op_to_inline_at : !operation) ["index" = 0 : !index]
+      irutils.replace_uses(%access_op_to_inline_at_res : !value, %stored_val : !value)
+
+      // remove return op (last element) of the updated producer ops
+      irutils.remove_element(%updated_producer_ops : !range<!operation>) ["index" = -1 : !index]
+
+
+      %consumer_ops_first_half : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation, %inlining_idx : !index) ["custom_ub" = 1 : !i1]
+      %consumer_ops_second_half : !range<!operation> = irutils.get_nested_ops(%consumer_apply : !operation, %inlining_idx_plus_one : !index) ["custom_lb" = 1 : !i1]
+      %new_ops : !range<!operation> = irutils.concat(%consumer_ops_first_half : !range<!operation>, %updated_producer_ops : !range<!operation>, %consumer_ops_second_half : !range<!operation>)
+
+
+      // create region for the new applyOp
+      %new_apply_block : !block = irutils.new_block(%new_args : !range<!value>, %new_ops : !range<!operation>)
+      %new_apply_region : !region = irutils.region_from_blocks(%new_apply_block : !block)
+
+      // create new applyOp
+      %result_types : !range<!type<!any>> = irutils.get_type(%cons_apply_vals : !range<!value>)
+      %attributes : !range<!attribute> = irutils.get_attributes(%consumer_apply : !operation)
       %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
 
       rewrite.return(%new_apply_op : !operation)
@@ -78,7 +155,7 @@ builtin.module() {
       %new_lb_attr : !attribute = irutils.array_attr_element_wise(%producer_lb : !attribute, %fst_consumer_lb : !attribute) ["op" = "min"]
       %new_ub_attr : !attribute = irutils.array_attr_element_wise(%producer_ub : !attribute, %fst_consumer_ub : !attribute) ["op" = "max"]
 
-      %new_attributes : !range<!attribute> = irutils.add_attribute(%fst_consumer_attributes : !range<!attribute>, %new_lb_attr : !attribute, %new_ub_attr : !attribute) ["attribute_names"=["lb", "ub"]]
+      %new_attributes : !range<!attribute> = irutils.attribute_range(%fst_consumer_attributes : !range<!attribute>, %new_lb_attr : !attribute, %new_ub_attr : !attribute) ["attribute_names"=["lb", "ub"]]
 
       // computing new result type
       %result_shape : !attribute = irutils.array_attr_element_wise(%new_ub_attr : !attribute, %new_lb_attr : !attribute) ["op" = "sub"]
@@ -114,6 +191,21 @@ builtin.module() {
     }
     elevate.everywhere() {
         elevate.apply(%remove_duplicate_apply_operands : !strategy)
+    }
+  }
+
+  // inlining
+  %basic_inlining_simplified : !strategy = elevate.compose() ["strategy_name"="basic_inlining_simplified"] {
+    elevate.everywhere() {
+        elevate.apply(%stencil_normal_form : !strategy)
+        elevate.apply(%inline_simplified : !strategy)
+        elevate.apply(%stencil_normal_form : !strategy)
+    }
+    elevate.toptobottom() {
+        elevate.apply(%garbage_collect : !strategy)
+    }
+    elevate.toptobottom() {
+        elevate.apply(%garbage_collect : !strategy)
     }
   }
 

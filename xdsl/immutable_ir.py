@@ -675,6 +675,9 @@ def from_op(old_op: IOp,
         # As other operations depending on this op might have to be updated as
         # well, we have to add a mapping to the new results of this op to env.
         for idx, result in enumerate(op.results):
+            # only update if there is no already existing mapping for this result
+            # if old_op.results[idx] not in env:
+            # TODO: This has to be rethought
             env[old_op.results[idx]] = result
     return rewritten_ops
 
@@ -709,7 +712,10 @@ def _unpack_operands(
                 rewritten_ops = [op] + rewritten_ops
             operand = ops[-1].result
         assert isinstance(operand, ISSAValue)
-        if operand in env:
+        # while here instead of if because there could already be 
+        # a remapping of the remapped operand
+        # TODO: In the GarbageCollect strategy we require the latter check! Fix that 
+        while operand in env and operand != env[operand]:
             operand = env[operand]
         assert not isinstance(operand, list)
         if isinstance(operand, IResult) and operand.op.op_type == RewriteId:

@@ -108,7 +108,7 @@ def parse_text_field(field_name: str, file: TextIOWrapper) -> str:
 
     field_contents = line[len("let " + field_name + " = ") + 1:]
     # ; terminates a field
-    while line[-1] != ";":
+    while len(line) != 0 and line[-1] != ";":
         field_contents += "\n"
         line = get_next_line(file)
         if line is None:
@@ -166,7 +166,7 @@ def parse_op_def(file: TextIOWrapper) -> Optional[Op]:
 
 def main():
     file: TextIOWrapper = open_file(
-        "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/ONNXOps.td.inc"
+        "/home/martin/development/phd/projects/onnx-mlir/onnx-mlir/src/Dialect/ONNX/AdditionalONNXOps.td"
     )
     ops: list[Op] = []
     while op := parse_op_def(file):
@@ -179,7 +179,7 @@ def main():
         print(op.to_irdl_string(dialect_name=dialect_name), file=file)
 
     with open(
-        "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx.py",
+        "/home/martin/development/phd/projects/xDSL/xdsl/xdsl/dialects/onnx.py",
         mode='w') as f:
         print(file.getvalue(), file=f)
 

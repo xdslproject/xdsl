@@ -6,7 +6,7 @@ import re
 import sys
 from typing import List, Optional, Sequence, Type
 
-from xdsl.dialects.onnx import *
+from xdsl.dialects.onnx.dialect import *
 
 from tablegen_dialect_def_to_irdl import *
 from xdsl.ir import Operation
@@ -412,7 +412,7 @@ def main():
     # dialect_name = "Onnx"
 
     with open(
-            "/home/martin/development/phd/projects/xDSL/xdsl/src/xdsl/dialects/onnx_rewrites_generated.py",
+            "/home/martin/development/phd/projects/xDSL/xdsl/xdsl/dialects/onnx_rewrites_generated.py",
             mode='w') as f:
         print(file.getvalue(), file=f)
 

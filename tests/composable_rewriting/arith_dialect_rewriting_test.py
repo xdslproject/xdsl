@@ -66,12 +66,12 @@ def test_expand_ceildivui():
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.constant() ["value" = 0 : !i32]
-    %3 : !i32 = arith.constant() ["value" = 1 : !i32]
-    %4 : !i32 = arith.subi(%0 : !i32, %3 : !i32)
-    %5 : !i32 = arith.divui(%4 : !i32, %1 : !i32)
-    %6 : !i32 = arith.addi(%5 : !i32, %3 : !i32)
-    %7 : !i1 = arith.cmpi(%0 : !i32, %2 : !i32) ["predicate" = 0 : !i64]
-    %8 : !i32 = arith.select(%7 : !i1, %2 : !i32, %6 : !i32)
+    %3 : !i1 = arith.cmpi(%0 : !i32, %2 : !i32) ["predicate" = 0 : !i64]
+    %4 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %5 : !i32 = arith.subi(%0 : !i32, %4 : !i32)
+    %6 : !i32 = arith.divui(%5 : !i32, %1 : !i32)
+    %7 : !i32 = arith.addi(%6 : !i32, %4 : !i32)
+    %8 : !i32 = arith.select(%3 : !i1, %2 : !i32, %7 : !i32)
     func.return(%8 : !i32)
   }
 }
@@ -96,25 +96,25 @@ def test_expand_ceildivsi():
 """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
-    %2 : !i32 = arith.constant() ["value" = 0 : !i32]
-    %3 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %3 : !i32 = arith.constant() ["value" = 0 : !i32]
     %4 : !i32 = arith.constant() ["value" = -1 : !i32]
-    %5 : !i32 = arith.subi(%2 : !i32, %0 : !i32)
-    %6 : !i32 = arith.divsi(%5 : !i32, %1 : !i32)
-    %7 : !i32 = arith.subi(%2 : !i32, %6 : !i32)
-    %8 : !i1 = arith.cmpi(%1 : !i32, %2 : !i32) ["predicate" = 4 : !i64]
-    %9 : !i32 = arith.select(%8 : !i1, %4 : !i32, %3 : !i32)
-    %10 : !i32 = arith.addi(%9 : !i32, %0 : !i32)
+    %5 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 4 : !i64]
+    %6 : !i32 = arith.select(%5 : !i1, %4 : !i32, %2 : !i32)
+    %7 : !i32 = arith.addi(%6 : !i32, %0 : !i32)
+    %8 : !i32 = arith.divsi(%7 : !i32, %1 : !i32)
+    %9 : !i32 = arith.addi(%2 : !i32, %8 : !i32)
+    %10 : !i32 = arith.subi(%3 : !i32, %0 : !i32)
     %11 : !i32 = arith.divsi(%10 : !i32, %1 : !i32)
-    %12 : !i32 = arith.addi(%3 : !i32, %11 : !i32)
-    %13 : !i1 = arith.cmpi(%1 : !i32, %2 : !i32) ["predicate" = 4 : !i64]
-    %14 : !i1 = arith.cmpi(%0 : !i32, %2 : !i32) ["predicate" = 4 : !i64]
-    %15 : !i1 = arith.andi(%14 : !i1, %13 : !i1)
-    %16 : !i1 = arith.cmpi(%1 : !i32, %2 : !i32) ["predicate" = 2 : !i64]
-    %17 : !i1 = arith.cmpi(%0 : !i32, %2 : !i32) ["predicate" = 2 : !i64]
-    %18 : !i1 = arith.andi(%17 : !i1, %16 : !i1)
-    %19 : !i1 = arith.ori(%18 : !i1, %15 : !i1)
-    %20 : !i32 = arith.select(%19 : !i1, %12 : !i32, %7 : !i32)
+    %12 : !i32 = arith.subi(%3 : !i32, %11 : !i32)
+    %13 : !i1 = arith.cmpi(%0 : !i32, %3 : !i32) ["predicate" = 2 : !i64]
+    %14 : !i1 = arith.cmpi(%0 : !i32, %3 : !i32) ["predicate" = 4 : !i64]
+    %15 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 2 : !i64]
+    %16 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 4 : !i64]
+    %17 : !i1 = arith.andi(%13 : !i1, %15 : !i1)
+    %18 : !i1 = arith.andi(%14 : !i1, %16 : !i1)
+    %19 : !i1 = arith.ori(%17 : !i1, %18 : !i1)
+    %20 : !i32 = arith.select(%19 : !i1, %9 : !i32, %12 : !i32)
     func.return(%20 : !i32)
   }
 }
@@ -139,23 +139,23 @@ def test_expand_floordivsi():
 """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
-    %2 : !i32 = arith.divsi(%0 : !i32, %1 : !i32)
-    %3 : !i32 = arith.constant() ["value" = -1 : !i32]
-    %4 : !i32 = arith.constant() ["value" = 1 : !i32]
-    %5 : !i32 = arith.constant() ["value" = 0 : !i32]
-    %6 : !i1 = arith.cmpi(%1 : !i32, %5 : !i32) ["predicate" = 2 : !i64]
-    %7 : !i32 = arith.select(%6 : !i1, %4 : !i32, %3 : !i32)
-    %8 : !i32 = arith.subi(%7 : !i32, %0 : !i32)
-    %9 : !i32 = arith.divsi(%8 : !i32, %1 : !i32)
-    %10 : !i32 = arith.subi(%3 : !i32, %9 : !i32)
-    %11 : !i1 = arith.cmpi(%1 : !i32, %5 : !i32) ["predicate" = 4 : !i64]
-    %12 : !i1 = arith.cmpi(%0 : !i32, %5 : !i32) ["predicate" = 4 : !i64]
-    %13 : !i1 = arith.andi(%12 : !i1, %11 : !i1)
-    %14 : !i1 = arith.cmpi(%1 : !i32, %5 : !i32) ["predicate" = 2 : !i64]
-    %15 : !i1 = arith.cmpi(%0 : !i32, %5 : !i32) ["predicate" = 2 : !i64]
-    %16 : !i1 = arith.andi(%15 : !i1, %14 : !i1)
-    %17 : !i1 = arith.ori(%16 : !i1, %13 : !i1)
-    %18 : !i32 = arith.select(%17 : !i1, %10 : !i32, %2 : !i32)
+    %2 : !i32 = arith.constant() ["value" = 1 : !i32]
+    %3 : !i32 = arith.constant() ["value" = 0 : !i32]
+    %4 : !i32 = arith.constant() ["value" = -1 : !i32]
+    %5 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 2 : !i64]
+    %6 : !i32 = arith.select(%5 : !i1, %2 : !i32, %4 : !i32)
+    %7 : !i32 = arith.subi(%6 : !i32, %0 : !i32)
+    %8 : !i32 = arith.divsi(%7 : !i32, %1 : !i32)
+    %9 : !i32 = arith.subi(%4 : !i32, %8 : !i32)
+    %10 : !i32 = arith.divsi(%0 : !i32, %1 : !i32)
+    %11 : !i1 = arith.cmpi(%0 : !i32, %3 : !i32) ["predicate" = 2 : !i64]
+    %12 : !i1 = arith.cmpi(%0 : !i32, %3 : !i32) ["predicate" = 4 : !i64]
+    %13 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 2 : !i64]
+    %14 : !i1 = arith.cmpi(%1 : !i32, %3 : !i32) ["predicate" = 4 : !i64]
+    %15 : !i1 = arith.andi(%11 : !i1, %14 : !i1)
+    %16 : !i1 = arith.andi(%12 : !i1, %13 : !i1)
+    %17 : !i1 = arith.ori(%15 : !i1, %16 : !i1)
+    %18 : !i32 = arith.select(%17 : !i1, %9 : !i32, %10 : !i32)
     func.return(%18 : !i32)
   }
 }

@@ -83,6 +83,27 @@ def match_inlinable(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
         return (producer_apply, access_op_to_inline_at, operand_to_inline)
     return None
 
+def match_inlinable_native_escape(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
+    # This is the matching code for the inlining rewrite defined in the rewriting dialect
+
+    # Explaining the matching:
+    # - We match an apply op with operands and a region
+    # - We check that one of the operands is another applyOp and remember it by `producer_apply`
+    # - We check that inside the region is an AccessOp, that has the corresponding blockArg as operand and we remember it by `access_op_to_inline_at`
+    # - we check that no empty stores are in the consumer apply + that no dynAccesses are in the consumer apply accessing the producer
+    if consumer_apply.region is None or consumer_apply.region.block is None:
+        return None
+    if any((isinstance((operand), IResult) and (producer_apply := (operand_to_inline := operand).op).op_type == stencil.Apply) and \
+                                any((consumer_apply.region.block.args[consumer_apply.operands.index(operand_to_inline)] in consumer_apply_op.operands) and (access_op_to_inline_at := consumer_apply_op).op_type == stencil.Access 
+                                for consumer_apply_op in consumer_apply.region.ops)\
+                                    and not any((consumer_apply_op.op_type == stencil.Store and len(consumer_apply.operands) == 0) | \
+                                        (consumer_apply_op.op_type == stencil.DynAccess and operand_to_inline in consumer_apply_op.operands)\
+                                    for consumer_apply_op in consumer_apply.region.ops)
+                        for operand in consumer_apply.operands):
+        inlined_operand_index = producer_apply.results.index(operand_to_inline)
+        return (producer_apply, access_op_to_inline_at, inlined_operand_index)
+    return None
+
 @dataclass(frozen=True)
 class InlineApply(Strategy):
     """

@@ -1,0 +1,43 @@
+builtin.module() {
+
+  ////////////////////////////////////////////////////////////////////////////////
+  //   Define completely custom strategies with the match & rewrite dialects    //
+  ////////////////////////////////////////////////////////////////////////////////
+
+// onnx.add(onnx.Gemm(%X, %Y, None), %Z) = onnx.Gemm(%X, %Y, %Z)
+%FuseGemmFollowedByAddition : !strategy = elevate.strategy() ["strategy_name"="FuseGemmFollowedByAddition"] {
+
+    // unspecified operands
+    %matmulLHS : !value = match.operand()
+    %matmulRHS : !value = match.operand()
+    %add_operand : !value = match.operand() []
+    (%5 : !operation, %matmul : !value) = match.op(%matmulLHS : !value, %matmulRHS : !value) ["name"="onnx.MatMul"]
+
+    rewrite.replace_op(%matmul : !value, %add_operand : !value) ["name"="onnx.Add"] {
+      ^rewrite(%add_op : !operation, %add_result : !value):
+      %type : !type<!any> = irutils.get_type(%add_result : !value)
+      %result : !operation = irutils.new_op(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %type : !type<!any>) ["name" = "onnx.ONNXGemmOp", "alpha"=1.0, "beta"=1.0, "transA"= 0 : !i64, "transB"= 0 : !i64, "attribute_names"=["alpha", "beta", "transA", "transB"]]
+      rewrite.return(%result : !operation)
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  //     Register native strategies (which were already defined in Python)      //
+  ////////////////////////////////////////////////////////////////////////////////
+
+  %garbage_collect : !strategy = elevate.native() ["strategy_name"="garbage_collect"]
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  //          Define strategies as compositions of other strategies             //
+  ////////////////////////////////////////////////////////////////////////////////
+
+  %FuseGemmFollowedByAdditionEverywhere : !strategy = elevate.compose() ["strategy_name"="onnx_opt_pass"] {
+    elevate.everywhere() {
+        elevate.apply(%FuseGemmFollowedByAddition : !strategy)
+    }
+    elevate.toptobottom() {
+        elevate.apply(%garbage_collect : !strategy)
+    }
+  }
+
+}

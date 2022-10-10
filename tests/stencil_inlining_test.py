@@ -9,7 +9,7 @@ from xdsl.elevate import *
 from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 from xdsl.dialects.stencil.stencil_inlining import InlineProducer, RerouteOutputDependency, RerouteInputDependency
-from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll, match_inlinable, matchRerouteOutputDependency
+from xdsl.dialects.stencil.stencil_rewrites_decomposed import RemoveUnusedApplyOperands, RemoveDuplicateApplyOperands, InlineApply, RerouteOutputDependency_decomp, RerouteInputDependency_decomp, StencilNormalForm, InlineAll, match_inlinable, match_inlinable_native_escape, matchRerouteOutputDependency
 import difflib
 from xdsl.immutable_utils import *
 import os
@@ -99,6 +99,8 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
 
     elevate_interpreter.register_native_matcher(match_inlinable,
                                                 "match_inlinable")
+    elevate_interpreter.register_native_matcher(
+        match_inlinable_native_escape, "match_inlinable_native_escape")
     elevate_interpreter.register_native_matcher(
         matchRerouteOutputDependency, "match_reroute_output_dependency")
     elevate_interpreter.register_native_rewriter(InlineApply().handle_merging,
@@ -240,6 +242,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_simple_index():
@@ -345,6 +348,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_simple_ifelse():
@@ -451,6 +455,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_multiple_edges():
@@ -577,7 +582,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
-    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_reroute():
@@ -816,6 +821,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
                                    "basic_inlining")
+    apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
+                                   "basic_inlining_simplified")
 
 
 def test_inlining_avoid_redundant():
@@ -951,6 +958,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after_without_CSE, "basic_inlining")
+    apply_dyn_strategy_and_compare(before, after_without_CSE,
+                                   "basic_inlining_simplified")
 
 
 def test_inlining_root():
@@ -1127,6 +1136,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(intermediate, after, "basic_inlining")
+    apply_dyn_strategy_and_compare(intermediate, after,
+                                   "basic_inlining_simplified")
 
 
 def test_inlining_dyn_access():
@@ -1261,6 +1272,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_simple_buffer():
@@ -1343,6 +1355,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(unchanging, unchanging, InlineAll)
 
     apply_dyn_strategy_and_compare(unchanging, unchanging, "basic_inlining")
+    apply_dyn_strategy_and_compare(unchanging, unchanging,
+                                   "basic_inlining_simplified")
 
 
 def test_cleanup_apply():
@@ -1436,12 +1450,12 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
 if __name__ == "__main__":
     test_inlining_simple()
-    test_inlining_simple_index()
+    test_inlining_simple_index()  # here simplified version is missing
     test_inlining_multiple_edges()
-    test_inlining_simple_ifelse()
+    test_inlining_simple_ifelse()  # here simplified version is missing
     test_inlining_reroute()
     test_inlining_avoid_redundant()
     test_inlining_root()
-    test_inlining_dyn_access()
+    test_inlining_dyn_access()  # here simplified version is missing
     test_inlining_simple_buffer()
     test_cleanup_apply()

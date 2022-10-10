@@ -1,1 +1,13 @@
 xdsl/dialects/arith.py
+xdsl/dialects/stencil/stencil_inlining.py
+xdsl/dialects/stencil/stencil_rewrites_decomposed.py
+xdsl/dialects/stencil/stencil_unrolling.py
+xdsl/elevate.py
+xdsl/immutable_ir.py
+xdsl/immutable_utils.py
+xdsl/tools/tablegen_dialect_def_to_irdl.py
+tests/composable_rewriting/arith_dialect_rewriting_test.py
+tests/composable_rewriting/imm_rewriting_test.py
+tests/composable_rewriting/immutabiliy_experiments_simple_add_4.py
+tests/composable_rewriting/multi_root_experiments.py
+tests/composable_rewriting/multi_root_rewriting_test.py
