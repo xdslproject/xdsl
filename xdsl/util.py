@@ -8,7 +8,7 @@ _T = TypeVar("_T")
 def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     """
     Check if `arg` is of the type described by `hint`.
-    For now, only lists, tuples, sets, dictionaries, unions, 
+    For now, only lists, tuples, sets, dictionaries, unions,
     and non-generic classes are supported for type hints.
     """
     if hint is Any:

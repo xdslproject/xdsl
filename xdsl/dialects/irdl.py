@@ -1,11 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import cast
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 
 from xdsl.irdl import (ParameterDef, VarOperandDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, VarResultDef, irdl_op_definition,
                        irdl_attr_definition)
 from xdsl.ir import ParametrizedAttribute, Operation, MLContext, Attribute
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 @dataclass
@@ -81,6 +84,19 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
     type_name: ParameterDef[StringAttr]
     params_constraints: ParameterDef[Attribute]
 
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        type_name = parser.parse_str_literal()
+        parser.parse_char(":")
+        params_constraints = parser.parse_attribute()
+        parser.parse_char(">")
+        return [StringAttr.from_str(type_name), params_constraints]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<\"", self.type_name.data, "\" : ",
+                      self.params_constraints, ">")
+
 
 @irdl_op_definition
 class DialectOp(Operation):
@@ -88,8 +104,17 @@ class DialectOp(Operation):
     Define a new dialect
     """
     name = "irdl.dialect"
-    dialect_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
+
+    @property
+    def dialect_name(self) -> StringAttr:
+        return cast(StringAttr, self.attributes["name"])
+
+    def verify_(self) -> None:
+        if "name" not in self.attributes.keys():
+            raise ValueError("name attribute is required")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise ValueError("name attribute must be a string attribute")
 
 
 @irdl_op_definition
@@ -98,7 +123,7 @@ class ParametersOp(Operation):
     Define the parameters of a type/attribute definition
     """
     name = "irdl.parameters"
-    constraints = AttributeDef(ArrayAttr)
+    params = AttributeDef(ArrayAttr)
 
 
 @irdl_op_definition
@@ -107,8 +132,17 @@ class TypeOp(Operation):
     Defines new types belonging to previously defined dialect
     """
     name = "irdl.type"
-    type_name = AttributeDef(StringAttr)
     body = SingleBlockRegionDef()
+
+    @property
+    def type_name(self) -> StringAttr:
+        return cast(StringAttr, self.attributes["name"])
+
+    def verify_(self) -> None:
+        if "name" not in self.attributes.keys():
+            raise ValueError("name attribute is required")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise ValueError("name attribute must be a string attribute")
 
 
 @irdl_op_definition
@@ -128,7 +162,7 @@ class OperandsOp(Operation):
     """
     name = "irdl.operands"
     op = VarOperandDef(AnyAttr())
-    constraints = AttributeDef(AnyAttr())
+    params = AttributeDef(AnyAttr())
 
 
 @irdl_op_definition
@@ -138,7 +172,7 @@ class ResultsOp(Operation):
     """
     name = "irdl.results"
     res = VarResultDef(AnyAttr())
-    constraints = AttributeDef(AnyAttr())
+    params = AttributeDef(AnyAttr())
 
 
 @irdl_op_definition
@@ -148,3 +182,13 @@ class OperationOp(Operation):
     """
     name = "irdl.operation"
     body = SingleBlockRegionDef()
+
+    @property
+    def op_name(self) -> StringAttr:
+        return cast(StringAttr, self.attributes["name"])
+
+    def verify_(self) -> None:
+        if "name" not in self.attributes.keys():
+            raise ValueError("name attribute is required")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise ValueError("name attribute must be a string attribute")

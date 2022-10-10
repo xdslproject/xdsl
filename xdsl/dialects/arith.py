@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Union
 
-from xdsl.dialects.builtin import ContainerOf, Float16Type, Float64Type, IndexType, IntegerType, Float32Type, IntegerAttr, VectorType
+from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
+                                   IntegerType, Float32Type, IntegerAttr, VectorType)
 from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, VerifyException, Attribute)
@@ -49,7 +50,7 @@ class Arith:
         self.ctx.register_op(XOrI)
         self.ctx.register_op(ShLI)
         self.ctx.register_op(ShRUI)
-        self.ctx.register_op(ShRSI) 
+        self.ctx.register_op(ShRSI)
         self.ctx.register_op(Minf)
         self.ctx.register_op(Maxf)
 
@@ -137,6 +138,7 @@ class Subi(Operation):
         operand1 = SSAValue.get(operand1)
         return Subi.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
+
 
 @irdl_op_definition
 class DivUI(Operation):
@@ -488,7 +490,7 @@ class ShRUI(Operation):
             operand2: Union[Operation, SSAValue]) -> ShRUI:
         operand1 = SSAValue.get(operand1)
         return ShRUI.build(operands=[operand1, operand2],
-                          result_types=[operand1.typ])
+                           result_types=[operand1.typ])
 
 
 @irdl_op_definition
@@ -515,16 +517,17 @@ class ShRSI(Operation):
             operand2: Union[Operation, SSAValue]) -> ShRSI:
         operand1 = SSAValue.get(operand1)
         return ShRSI.build(operands=[operand1, operand2],
-                          result_types=[operand1.typ])
+                           result_types=[operand1.typ])
 
 
 @irdl_op_definition
 class Cmpi(Operation):
     """
     The `cmpi` operation is a comparison for integers.
-    
+
     Its first argument is an attribute that defines which type of comparison is
     performed. The following comparisons are supported:
+
     -   equal (mnemonic: `"eq"`; integer value: `0`)
     -   not equal (mnemonic: `"ne"`; integer value: `1`)
     -   signed less than (mnemonic: `"slt"`; integer value: `2`)

@@ -2,14 +2,15 @@
 
 
 builtin.module() {
-  func.func() ["sym_name" = "tuple_to_tuple", "function_type" = !fun<[!tuple<[!i32]>], [!tuple<[!i32]>]>, "sym_visibility" = "private"] {
-    ^0(%0 : !tuple<[!i32]>):
-      func.return(%0 : !tuple<[!i32]>)
-  }
+  func.func() ["sym_name" = "tuple_to_tuple", "value" = !fun<[!tuple<[!i32]>], [!tuple<[!i32]>]>, "function_type" = !fun<[], []>] {}
+  // CHECK: "value" = !fun<[!tuple<[!i32]>], [!tuple<[!i32]>]>
+
+  func.func() ["sym_name" = "integer_type", "value" = !i32, "function_type" = !fun<[], []>] {}
+  // CHECK: "value" = !i32
+
+  func.func() ["sym_name" = "signed_integer_type", "value" = !si32, "function_type" = !fun<[], []>] {}
+  // CHECK: "value" = !si32
+
+  func.func() ["sym_name" = "unsigned_integer_type", "value" = !ui32, "function_type" = !fun<[], []>] {}
+  // CHECK: "value" = !ui32
 }
-
-
-//      CHECK:  func.func() ["sym_name" = "tuple_to_tuple", "function_type" = !fun<[!tuple<[!i32]>], [!tuple<[!i32]>]>, "sym_visibility" = "private"] {
-// CHECK-NEXT:    ^0(%0 : !tuple<[!i32]>):
-// CHECK-NEXT:      func.return(%0 : !tuple<[!i32]>)
-// CHECK-NEXT:  }

@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import TypeAlias, List, cast, Type, Sequence, Optional
 
 from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
                      ParametrizedAttribute, Operation, SSAValue)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
-                       irdl_to_attr_constraint, irdl_op_definition, builder,
-                       ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
-                       GenericData, AttrConstraint, Any, Attribute, Region,
-                       VerifyException, AnyAttr)
+                       irdl_data_definition, irdl_to_attr_constraint,
+                       irdl_op_definition, builder, ParameterDef,
+                       SingleBlockRegionDef, TypeVar, Generic, GenericData,
+                       AttrConstraint, Any, Attribute, Region, VerifyException,
+                       AnyAttr)
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import Parser, ParserError
     from xdsl.printer import Printer
 
 
@@ -127,15 +129,61 @@ class IntAttr(Data[int]):
         return IntAttr(self.data - other.data)
 
 
+class Signedness(Enum):
+    "Signedness semantics for integer"
+
+    SIGNLESS = 0
+    "No signedness semantics"
+
+    SIGNED = 1
+    UNSIGNED = 2
+
+
+@irdl_data_definition
+class SignednessAttr(Data[Signedness]):
+    name = "signedness"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> Signedness:
+        if parser.parse_optional_string("signless") is not None:
+            return Signedness.SIGNLESS
+        elif parser.parse_optional_string("signed") is not None:
+            return Signedness.SIGNED
+        elif parser.parse_optional_string("unsigned") is not None:
+            return Signedness.UNSIGNED
+        raise ParserError(parser.get_pos(), "Expected signedness")
+
+    @staticmethod
+    def print_parameter(data: Signedness, printer: Printer) -> None:
+        if data == Signedness.SIGNLESS:
+            printer.print_string("signless")
+        elif data == Signedness.SIGNED:
+            printer.print_string("signed")
+        elif data == Signedness.UNSIGNED:
+            printer.print_string("unsigned")
+        else:
+            raise ValueError(f"Invalid signedness {data}")
+
+    @staticmethod
+    @builder
+    def from_enum(signedness: Signedness) -> SignednessAttr:
+        return SignednessAttr(signedness)
+
+
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
     name = "integer_type"
     width: ParameterDef[IntAttr]
+    signedness: ParameterDef[SignednessAttr]
 
     @staticmethod
     @builder
-    def from_width(width: int) -> IntegerType:
-        return IntegerType([IntAttr.from_int(width)])
+    def from_width(
+            width: int,
+            signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
+        return IntegerType(
+            [IntAttr.from_int(width),
+             SignednessAttr.from_enum(signedness)])
 
 
 i64 = IntegerType.from_width(64)
@@ -508,8 +556,28 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     type: ParameterDef[VectorOrTensorOf[IntegerType]
                        | VectorOrTensorOf[IndexType]
                        | VectorOrTensorOf[AnyFloat]]
-    # TODO add support for multi-dimensional data
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+
+    # The type stores the shape data
+    @property
+    def shape(self) -> List[int]:
+        return self.type.get_shape()
+
+    @property
+    def shape_is_complete(self) -> bool:
+        shape = self.shape
+        if not len(shape):
+            return False
+
+        n = 1
+        for dim in shape:
+            if dim < 1:
+                # Dimensions need to be greater or equal to one
+                return False
+            n *= dim
+
+        # Product of dimensions needs to equal length
+        return n == len(self.data.data)
 
     @staticmethod
     @builder
@@ -573,11 +641,11 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def tensor_from_list(
-            data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat
-    ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, [len(data)])
+    def tensor_from_list(data: List[int] | List[float],
+                         typ: IntegerType | IndexType | AnyFloat,
+                         shape: List[int] = []) -> DenseIntOrFPElementsAttr:
+        t = AnyTensorType.from_type_and_list(
+            typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -586,11 +654,6 @@ class Float16Type(ParametrizedAttribute, MLIRType):
 
 
 f16 = Float16Type()
-
-
-@irdl_attr_definition
-class UnitAttr(ParametrizedAttribute):
-    name: str = "unit"
 
 
 @irdl_attr_definition

@@ -26,7 +26,7 @@ class xDSLOptMain:
     ctx: MLContext
     args: argparse.Namespace
     """
-    The argument parsers namespace which holds the parsed commandline 
+    The argument parsers namespace which holds the parsed commandline
     attributes.
     """
 
@@ -43,7 +43,7 @@ class xDSLOptMain:
 
     available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
     """
-    A mapping from target names to functions that serialize a ModuleOp into a 
+    A mapping from target names to functions that serialize a ModuleOp into a
     stream.
     """
 
@@ -108,9 +108,9 @@ class xDSLOptMain:
             type=str,
             required=False,
             choices=frontends,
-            help=
-            f"Frontend to be used for the input. If not set, the xdsl frontend "
-            "or the one for the file extension is used.")
+            help="Frontend to be used for the input. If not set, "
+            "the xdsl frontend or the one for the file extension "
+            "is used.")
 
         arg_parser.add_argument("--disable-verify",
                                 default=False,
@@ -122,14 +122,13 @@ class xDSLOptMain:
                                 help="path to output file")
 
         pass_names = ",".join([name for name in self.available_passes])
-        arg_parser.add_argument(
-            "-p",
-            "--passes",
-            required=False,
-            help=
-            f"Delimited list of passes. Available passes are: {pass_names}",
-            type=str,
-            default="")
+        arg_parser.add_argument("-p",
+                                "--passes",
+                                required=False,
+                                help="Delimited list of passes."
+                                f" Available passes are: {pass_names}",
+                                type=str,
+                                default="")
 
         arg_parser.add_argument("--print-between-passes",
                                 default=False,
@@ -161,16 +160,16 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        builtin = Builtin(self.ctx)
-        func = Func(self.ctx)
-        arith = Arith(self.ctx)
-        memref = MemRef(self.ctx)
-        affine = Affine(self.ctx)
-        scf = Scf(self.ctx)
-        cf = Cf(self.ctx)
-        cmath = CMath(self.ctx)
-        irdl = IRDL(self.ctx)
-        llvm = LLVM(self.ctx)
+        _ = Builtin(self.ctx)
+        _ = Func(self.ctx)
+        _ = Arith(self.ctx)
+        _ = MemRef(self.ctx)
+        _ = Affine(self.ctx)
+        _ = Scf(self.ctx)
+        _ = Cf(self.ctx)
+        _ = CMath(self.ctx)
+        _ = IRDL(self.ctx)
+        _ = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """
@@ -263,8 +262,8 @@ class xDSLOptMain:
 
     def parse_input(self) -> ModuleOp:
         """
-        Parse the input file by invoking the parser specified by the `parser` 
-        argument. If not set, the parser registered for this file extension 
+        Parse the input file by invoking the parser specified by the `parser`
+        argument. If not set, the parser registered for this file extension
         is used.
         """
         if self.args.input_file is None:
