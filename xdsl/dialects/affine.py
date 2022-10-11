@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import IntegerAttr, IndexType
+from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
 from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
 from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
                        VarResultDef, VarOperandDef, AnyAttr)
@@ -52,10 +52,10 @@ class For(Operation):
 
     @staticmethod
     def from_region(operands: list[Operation | SSAValue],
-                    lower_bound: int | IntegerAttr,
-                    upper_bound: int | IntegerAttr,
+                    lower_bound: int | AnyIntegerAttr,
+                    upper_bound: int | AnyIntegerAttr,
                     region: Region,
-                    step: int | IntegerAttr = 1) -> For:
+                    step: int | AnyIntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
         attributes = {
             "lower_bound": lower_bound,
@@ -69,10 +69,10 @@ class For(Operation):
 
     @staticmethod
     def from_callable(operands: list[Operation | SSAValue],
-                      lower_bound: int | IntegerAttr,
-                      upper_bound: int | IntegerAttr,
+                      lower_bound: int | AnyIntegerAttr,
+                      upper_bound: int | AnyIntegerAttr,
                       body: Block.BlockCallback,
-                      step: int | IntegerAttr = 1) -> For:
+                      step: int | AnyIntegerAttr = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
         return For.from_region(
             operands, lower_bound, upper_bound,
