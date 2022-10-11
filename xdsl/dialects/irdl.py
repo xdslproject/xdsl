@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import cast
-from xdsl.dialects.builtin import ArrayAttr, StringAttr
+
+from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
 
 from xdsl.irdl import (ParameterDef, VarOperandDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, VarResultDef, irdl_op_definition,
@@ -68,14 +68,14 @@ class DynTypeBaseConstraintAttr(ParametrizedAttribute):
 class DynTypeParamsConstraintAttr(ParametrizedAttribute):
     name = "irdl.dyn_type_params_constraint"
     type_name: ParameterDef[StringAttr]
-    params: ParameterDef[ArrayAttr]
+    params: ParameterDef[AnyArrayAttr]
 
 
 @irdl_attr_definition
 class TypeParamsConstraintAttr(ParametrizedAttribute):
     name = "irdl.type_params_constraint"
     type_name: ParameterDef[StringAttr]
-    params: ParameterDef[ArrayAttr]
+    params: ParameterDef[AnyArrayAttr]
 
 
 @irdl_attr_definition
