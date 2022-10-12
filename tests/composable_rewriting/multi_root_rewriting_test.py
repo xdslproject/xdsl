@@ -2,7 +2,7 @@ from __future__ import annotations
 from io import StringIO
 import xdsl.dialects.arith as arith
 import xdsl.dialects.scf as scf
-# import xdsl.dialects.onnx as onnx
+import xdsl.dialects.onnx.dialect as onnx
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import *
@@ -19,9 +19,9 @@ def apply_strategy_and_compare(program: str, expected_program: str,
     Func(ctx)
     Arith(ctx)
     scf.Scf(ctx)
-    # onnx.Onnx(ctx)
+    onnx.Onnx(ctx)
 
-    parser = Parser(ctx, program)
+    parser = Parser(ctx, program, allow_unregistered_ops=True)
     module: Operation = parser.parse_op()
     imm_module: IOp = get_immutable_copy(module)
 
@@ -57,7 +57,7 @@ class DoubleMatMulSameFstInput(Strategy):
     class Match(Matcher):
         def apply(self, op: IOp) -> MatchResult:
             match op:
-                case IOp(op_type=onnx.MatMul,
+                case IOp(op_type=onnx.ONNXMatMulOp,
                         operands=[ISSAValue(), ISSAValue()]):
                     # can we somehow enforce that only existing operations can be used in a match?
                     return match_success([op])
@@ -69,14 +69,14 @@ class DoubleMatMulSameFstInput(Strategy):
         fstMMInput0: ISSAValue = self.fstMM.operands[0]
         fstMMInput1: ISSAValue = self.fstMM.operands[1]
         match op:
-            case IOp(op_type=onnx.MatMul,
+            case IOp(op_type=onnx.ONNXMatMulOp,
                     operands=[input0, input1]) if op != self.fstMM and input0 == fstMMInput0:
                 axis = new_cst(1)
                 axis2 = new_cst(2)
-                concat = new_op(onnx.Concat, operands=[input1, fstMMInput1], result_types=[i32]) # i.e. input_2, input_3 in figure
-                matmul = new_op(onnx.MatMul, operands=[input0, concat], result_types=[i32])
-                split1 = new_op(onnx.Split, operands=[axis, matmul], result_types=[i32])
-                split2 = new_op(onnx.Split, operands=[axis2, matmul], result_types=[i32])[-2:] 
+                concat = new_op(onnx.ONNXConcatOp, operands=[input1, fstMMInput1], result_types=[i32]) # i.e. input_2, input_3 in figure
+                matmul = new_op(onnx.ONNXMatMulOp, operands=[input0, concat], result_types=[i32])
+                split1 = new_op(onnx.ONNXSplitOp, operands=[axis, matmul], result_types=[i32])
+                split2 = new_op(onnx.ONNXSplitOp, operands=[axis2, matmul], result_types=[i32])[-2:] 
                 # split2 will only contain the splitOp and the constant. 
                 # Only possible if the IR of the first replacement is in scope 
 
@@ -90,7 +90,7 @@ class DoubleMatMulSameFstInput(Strategy):
 class MatchMatMul(Matcher):
     def impl(self, op: IOp) -> MatchResult:
         match op:
-            case IOp(op_type=onnx.MatMul,
+            case IOp(op_type=onnx.ONNXMatMulOp,
                     operands=[ISSAValue(), ISSAValue()]):
                 return match_success([op])
             case _:
@@ -102,7 +102,7 @@ class MatchSndMatMulSameLHS(Matcher):
 
     def impl(self, op: IOp) -> MatchResult:
         match op:
-            case IOp(op_type=onnx.MatMul,
+            case IOp(op_type=onnx.ONNXMatMulOp,
                     operands=[input0, _]) if op != self.fstMM and input0 == self.fstMM.operands[0]:
                 return match_success([op])
             case _:
@@ -118,10 +118,10 @@ class FuseMatMulsSameLHS(Replacer):
 
         axis = new_cst(1)
         axis2 = new_cst(2)
-        concat = new_op(onnx.Concat, operands=[sndMM.operands[1], fstMM.operands[1]], result_types=[i32]) # i.e. input_2, input_3 in figure
-        matmul = new_op(onnx.MatMul, operands=[sndMM.operands[0], concat], result_types=[i32])
-        split1 = new_op(onnx.Split, operands=[axis, matmul], result_types=[i32])
-        split2 = new_op(onnx.Split, operands=[axis2, matmul], result_types=[i32])[-2:] 
+        concat = new_op(onnx.ONNXConcatOp, operands=[sndMM.operands[1], fstMM.operands[1]], result_types=[i32]) # i.e. input_2, input_3 in figure
+        matmul = new_op(onnx.ONNXMatMulOp, operands=[sndMM.operands[0], concat], result_types=[i32])
+        split1 = new_op(onnx.ONNXSplitOp, operands=[axis, matmul], result_types=[i32])
+        split2 = new_op(onnx.ONNXSplitOp, operands=[axis2, matmul], result_types=[i32])[-2:] 
         # split2 will only contain the splitOp and the constant. 
         # Only possible if the IR of the first replacement is in scope 
         
@@ -146,20 +146,20 @@ def test_commute_matmuls():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input4
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input5
-%2 : !i32 = onnx.matmul(%0 : !i32, %1 : !i32)
-%3 : !i32 = onnx.matmul(%2 : !i32, %0 : !i32)
-%4 : !i32 = onnx.matmul(%1 : !i32, %2 : !i32)
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input4
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input5
+%2 : !i32 = onnx.MatMul(%0 : !i32, %1 : !i32)
+%3 : !i32 = onnx.MatMul(%2 : !i32, %0 : !i32)
+%4 : !i32 = onnx.MatMul(%1 : !i32, %2 : !i32)
 }
 """
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.matmul(%1 : !i32, %0 : !i32)
-  %3 : !i32 = onnx.matmul(%0 : !i32, %2 : !i32)
-  %4 : !i32 = onnx.matmul(%2 : !i32, %1 : !i32)
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.MatMul(%1 : !i32, %0 : !i32)
+  %3 : !i32 = onnx.MatMul(%0 : !i32, %2 : !i32)
+  %4 : !i32 = onnx.MatMul(%2 : !i32, %1 : !i32)
 }
 """
 
@@ -174,25 +174,25 @@ Target:
 """
 
     before = \
-"""module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input1
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input2
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input3
-%3 : !i32 = onnx.matmul(%0 : !i32, %1 : !i32)
-%4 : !i32 = onnx.matmul(%0 : !i32, %2 : !i32)
+"""builtin.module() {
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input1
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input2
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input3
+%3 : !i32 = onnx.MatMul(%0 : !i32, %1 : !i32)
+%4 : !i32 = onnx.MatMul(%0 : !i32, %2 : !i32)
 }
 """
     after = \
-"""module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
-  %3 : !i32 = onnx.concat(%2 : !i32, %1 : !i32)
-  %4 : !i32 = onnx.matmul(%0 : !i32, %3 : !i32)
+"""builtin.module() {
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
+  %3 : !i32 = onnx.Concat(%2 : !i32, %1 : !i32)
+  %4 : !i32 = onnx.MatMul(%0 : !i32, %3 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %6 : !i32 = onnx.split(%5 : !i32, %4 : !i32)
+  %6 : !i32 = onnx.Split(%5 : !i32, %4 : !i32)
   %7 : !i32 = arith.constant() ["value" = 2 : !i32]
-  %8 : !i32 = onnx.split(%7 : !i32, %4 : !i32)
+  %8 : !i32 = onnx.Split(%7 : !i32, %4 : !i32)
 }
 """
     # old structure
@@ -224,21 +224,21 @@ def test_two_matmul_same_right_input():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input1
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input2
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input4
-%3 : !i32 = onnx.matmul(%0 : !i32, %2 : !i32)
-%4 : !i32 = onnx.matmul(%1 : !i32, %2 : !i32)
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input1
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input2
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input4
+%3 : !i32 = onnx.MatMul(%0 : !i32, %2 : !i32)
+%4 : !i32 = onnx.MatMul(%1 : !i32, %2 : !i32)
 }
 """
 
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
   %3 : !i32 = onnx.concat(%0 : !i32, %1 : !i32)
-  %4 : !i32 = onnx.matmul(%3 : !i32, %2 : !i32)
+  %4 : !i32 = onnx.MatMul(%3 : !i32, %2 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
   %6 : !i32 = onnx.split(%5 : !i32, %4 : !i32)
   %7 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -260,9 +260,9 @@ def test_two_conv_same_right_input():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input7
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input8
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input10
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input7
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input8
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input10
 %3 : !i32 = onnx.conv(%0 : !i32, %2 : !i32)
 %4 : !i32 = onnx.conv(%1 : !i32, %2 : !i32)
 }
@@ -270,9 +270,9 @@ def test_two_conv_same_right_input():
 
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
   %3 : !i32 = onnx.concat(%0 : !i32, %1 : !i32)
   %4 : !i32 = onnx.conv(%3 : !i32, %2 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -293,9 +293,9 @@ def test_two_conv_same_right_input_relu():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input7
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input8
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input10
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input7
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input8
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input10
 %3 : !i32 = onnx.conv(%0 : !i32, %3 : !i32)
 %4 : !i32 = onnx.relu(%3 : !i32)
 %5 : !i32 = onnx.conv(%1 : !i32, %2 : !i32)
@@ -304,9 +304,9 @@ def test_two_conv_same_right_input_relu():
 
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
   %3 : !i32 = onnx.concat(%0 : !i32, %1 : !i32)
   %4 : !i32 = onnx.conv(%3 : !i32, %2 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -328,9 +328,9 @@ def test_two_conv_same_left_input():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input7
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input10
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input11
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input7
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input10
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input11
 %3 : !i32 = onnx.conv(%0 : !i32, %1 : !i32)
 %4 : !i32 = onnx.conv(%0 : !i32, %2 : !i32)
 }
@@ -338,9 +338,9 @@ def test_two_conv_same_left_input():
 
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
   %3 : !i32 = onnx.concat(%1 : !i32, %2 : !i32)
   %4 : !i32 = onnx.conv(%2 : !i32, %3 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
@@ -361,9 +361,9 @@ def test_two_conv_same_left_input_relu():
 
     before = \
 """module() {
-%0 : !i32 = onnx.constant() ["value" = 10 : !i32]       // input7
-%1 : !i32 = onnx.constant() ["value" = 11 : !i32]       // input10
-%2 : !i32 = onnx.constant() ["value" = 12 : !i32]       // input11
+%0 : !i32 = onnx.Constant() ["value" = 10 : !i32]       // input7
+%1 : !i32 = onnx.Constant() ["value" = 11 : !i32]       // input10
+%2 : !i32 = onnx.Constant() ["value" = 12 : !i32]       // input11
 %3 : !i32 = onnx.conv(%0 : !i32, %1 : !i32)
 %4 : !i32 = onnx.relu(%3 : !i32)
 %5 : !i32 = onnx.conv(%0 : !i32, %2 : !i32)
@@ -372,9 +372,9 @@ def test_two_conv_same_left_input_relu():
 
     after = \
 """module() {
-  %0 : !i32 = onnx.constant() ["value" = 10 : !i32]
-  %1 : !i32 = onnx.constant() ["value" = 11 : !i32]
-  %2 : !i32 = onnx.constant() ["value" = 12 : !i32]
+  %0 : !i32 = onnx.Constant() ["value" = 10 : !i32]
+  %1 : !i32 = onnx.Constant() ["value" = 11 : !i32]
+  %2 : !i32 = onnx.Constant() ["value" = 12 : !i32]
   %3 : !i32 = onnx.concat(%1 : !i32, %2 : !i32)
   %4 : !i32 = onnx.conv(%2 : !i32, %3 : !i32)
   %5 : !i32 = arith.constant() ["value" = 1 : !i32]
