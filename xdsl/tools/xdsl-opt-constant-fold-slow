@@ -6,7 +6,7 @@ from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, GreedyRewrite
 
 from xdsl.dialects.builtin import ModuleOp, IntegerAttr
 from xdsl.dialects.arith import Constant, Addi
-from xdsl.ir import Attribute, Operation, SSAValue, MLContext
+from xdsl.ir import Operation, MLContext
 from xdsl.pattern_rewriter import (GreedyRewritePatternApplier,
                                    PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, op_type_rewrite_pattern)
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 @dataclass
 class BinaryExprRewriter(RewritePattern):
+
+    num_changed_values: int = 0
 
     def is_integer_literal(self, op: Operation) -> bool:
         return isinstance(op, Constant) and isinstance(op.value, IntegerAttr)
@@ -31,23 +33,61 @@ class BinaryExprRewriter(RewritePattern):
             new_constant = Constant.from_int_constant(result_value,
                                                       expr.results[0].typ)
             rewriter.replace_op(expr, [new_constant])
+            self.num_changed_values += 1
         return
 
 
-def constant_folding(ctx: MLContext, module: ModuleOp) -> ModuleOp:
+# Assign rvalue to lvalue, and delete rvalue contents.
+def assign_module_and_delete(lvalue: ModuleOp, rvalue: ModuleOp):
+    lregion = lvalue.regions[0]
+    rregion = rvalue.regions[0]
+    lvalue.regions[0] = rregion
+    rregion.parent = lvalue
+    lregion.parent = None
+
+
+def constant_folding(ctx: MLContext, module: ModuleOp) -> None:
+    rewriter = BinaryExprRewriter()
     walker = PatternRewriteWalker(GreedyRewritePatternApplier([
-        BinaryExprRewriter(),
+        rewriter,
     ]),
                                   apply_recursively=False,
                                   walk_reverse=True)
 
-    walker.rewrite_module(module)
+    old_rewriter_idx = rewriter.num_changed_values
+    module_copy = module.clone()
+    walker.rewrite_module(module_copy)
+    new_rewriter_idx = rewriter.num_changed_values
 
-    module = module.clone()
+    if old_rewriter_idx == new_rewriter_idx:
+        return
 
-    walker.rewrite_module(module)
+    while old_rewriter_idx != new_rewriter_idx:
+        assign_module_and_delete(module, module_copy)
+        old_rewriter_idx = new_rewriter_idx
+        module_copy = module.clone()
+        walker.rewrite_module(module_copy)
+        new_rewriter_idx = rewriter.num_changed_values
 
-    return module
+    return
+
+
+def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
+    rewriter = BinaryExprRewriter()
+    walker = PatternRewriteWalker(GreedyRewritePatternApplier([
+        rewriter,
+    ]),
+                                  apply_recursively=False,
+                                  walk_reverse=True)
+
+    old_rewriter_idx = rewriter.num_changed_values
+    new_rewriter_idx = rewriter.num_changed_values
+    while old_rewriter_idx != new_rewriter_idx:
+        old_rewriter_idx = new_rewriter_idx
+        walker.rewrite_module(module)
+        new_rewriter_idx = rewriter.num_changed_values
+
+    return
 
 
 class OptMain(xDSLOptMain):
@@ -57,6 +97,7 @@ class OptMain(xDSLOptMain):
 
     def register_all_passes(self):
         super().available_passes['constant-fold'] = constant_folding
+        super().available_passes['constant-fold-fast'] = constant_folding_fast
         super().register_all_passes()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
