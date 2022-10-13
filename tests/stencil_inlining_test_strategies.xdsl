@@ -5,8 +5,13 @@ builtin.module() {
   ////////////////////////////////////////////////////////////////////////////////
 
   %inline : !strategy = elevate.strategy() {
+    ^strategy(%op : !operation):
+    %pattern : !pattern = match.pattern() {
+      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
+      match.capture(%cons_apply_vals : !range<!value>)
+    }
     // automatically using results here should work with ranges as well (i.e. all results are in the range)
-    rewrite.replace_op() ["name" = "stencil.apply"] {
+    match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
       (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
       
@@ -39,18 +44,39 @@ builtin.module() {
       %new_apply_region : !region = irutils.region_from_blocks(%new_apply_block : !block)
 
       // create new applyOp
-      %result_types : !range<!type<!any>> = irutils.get_type(%cons_apply_vals : !range<!value>)
+      %result_types : !range<!type> = irutils.get_type(%cons_apply_vals : !range<!value>)
       %attributes : !range<!attribute> = irutils.get_attributes(%consumer_apply : !operation)
-      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
+      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
 
       rewrite.return(%new_apply_op : !operation)
     }
   }
 
-  // A simpler implementation of the above inlining rewrite. This one requires a cleanup rewrite afterwards (maybe the cleanup can even be included here?)
+  // A simpler implementation of the above inlining rewrite.
   %inline_simplified : !strategy = elevate.strategy() {
-    // automatically using results here should work with ranges as well (i.e. all results are in the range)
-    rewrite.replace_op() ["name" = "stencil.apply"] {
+    ^strategy(%op : !operation):
+    %pattern : !pattern = match.pattern() {
+      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
+      match.capture(%cons_apply_vals : !range<!value>)
+    }
+    // TODO: implement support for the following IR so we can perform the matching with the dialect 
+    //
+  
+    // ^b0(%producer_val : !value, %access_op_to_inline_at : !operation):
+
+    // %producer_apply : !operation, %producer_vals : !range<!value> = ir.stencil.apply()
+    // %producer_val : !value = match.any_in_range(%producer_vals : !range<!value>)
+
+    // %consumer_apply : !operation = ir.stencil.apply(%producer_val : !value) {
+    //   ^b1(%producer_arg : !value):
+    //   match.index_equal(%producer_val : !value, %producer_arg : !value)
+    //   %matched_access_op_to_inline_at = ir.stencil.access(%producer_arg : !value)
+
+    //   // make this match available in the rewrite region by binding it to a value in the outer scope
+    //   irutils.bind(%matched_access_op_to_inline_at, %access_op_to_inline_at)    
+    // }
+
+    match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
       (%producer_apply : !operation, %access_op_to_inline_at : !operation, %inlined_operand_result_index : !index) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable_native_escape"]  
 
@@ -117,9 +143,9 @@ builtin.module() {
       %new_apply_region : !region = irutils.region_from_blocks(%new_apply_block : !block)
 
       // create new applyOp
-      %result_types : !range<!type<!any>> = irutils.get_type(%cons_apply_vals : !range<!value>)
+      %result_types : !range<!type> = irutils.get_type(%cons_apply_vals : !range<!value>)
       %attributes : !range<!attribute> = irutils.get_attributes(%consumer_apply : !operation)
-      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type<!any>>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
+      %new_apply_op : !operation = irutils.new_op(%new_operands : !range<!value>, %result_types : !range<!type>, %attributes : !range<!attribute>, %new_apply_region : !region) ["name" = "stencil.Apply"]
 
       rewrite.return(%new_apply_op : !operation)
     }
@@ -129,8 +155,12 @@ builtin.module() {
   // the last matching step + rewriting but rather the first matching step, calling into native for the rest
   // and then performing the rewrite
   %reroute : !strategy = elevate.strategy() {
+    ^strategy(%op : !operation):
+    %pattern : !pattern = match.pattern() {
+      (%anchor_op : !operation) = pdl.operation()
+    }
     // we have a root "anchor" op (will be func here) and do the actual matching only natively -> matchTopToBottom
-    %root : !operation = rewrite.replace_op() [] {
+    match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%root : !operation):
       (%producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation) = irutils.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
       
@@ -159,7 +189,7 @@ builtin.module() {
 
       // computing new result type
       %result_shape : !attribute = irutils.array_attr_element_wise(%new_ub_attr : !attribute, %new_lb_attr : !attribute) ["op" = "sub"]
-      %result_type : !type<!any> = irutils.construct_type(%result_shape : !attribute) ["name" = "stencil.TempType"]
+      %result_type : !type = irutils.construct_type(%result_shape : !attribute) ["name" = "stencil.TempType"]
 
       // incomplete from here, actual construction of the new ops is missing
 

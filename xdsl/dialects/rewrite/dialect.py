@@ -4,7 +4,7 @@ from xdsl.ir import *
 from xdsl.irdl import *
 from xdsl.util import *
 from xdsl.dialects.IRUtils.dialect import AttributeType, OperationType, RangeType, TypeType
-from xdsl.dialects.match.dialect import OperationOp
+from xdsl.dialects.pdl.dialect import OperationOp
 
 
 @dataclass

@@ -12,6 +12,7 @@ from xdsl.immutable_ir import *
 from xdsl.immutable_utils import *
 import os
 import xdsl.dialects.IRUtils.dialect as irutils
+import xdsl.dialects.pdl.dialect as pdl
 import xdsl.dialects.match.dialect as match
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.elevate.dialect as elevate
@@ -28,6 +29,7 @@ def onnx_opt_pass(context: MLContext, module: ModuleOp) -> None:
     scf.Scf(ctx)
     onnx.Onnx(ctx)
     irutils.IRUtils(ctx)
+    pdl.PDL(ctx)
     match.Match(ctx)
     rewrite.Rewrite(ctx)
     elevate.Elevate(ctx)

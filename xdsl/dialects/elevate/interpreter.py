@@ -10,6 +10,7 @@ from xdsl.elevate import *
 import xdsl.dialects.elevate.dialect as elevate_dialect
 from xdsl.dialects.IRUtils.dialect import ValueType, TypeType, OperationType, AnyType, AttributeType, RegionType, BlockType, RangeType, NativeHandleType
 import xdsl.dialects.IRUtils.dialect as IRUtils
+import xdsl.dialects.pdl.dialect as pdl
 import xdsl.dialects.match.dialect as match
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.arith as arith
@@ -98,29 +99,62 @@ class ElevateInterpreter():
                            *args: ISSAValue) -> RewriteResult:
         # This is executed when a DynStrategy is actually applied
 
-        # get root_op
-        root_op: Optional[rewrite.ReplaceOperationOp] = None
-        for nested_op in strat_op.body.ops:
-            if isinstance(nested_op, rewrite.ReplaceOperationOp):
-                root_op = nested_op
+        # get match_and_replace op:
+        replace_op: Optional[match.MatchAndReplace] = None
+        for nested_op in reversed(strat_op.body.ops):
+            if isinstance(nested_op, match.MatchAndReplace):
+                replace_op = nested_op
                 break
+        assert replace_op is not None
+        if replace_op is None:
+            raise Exception("No match.match_and_replace found in strategy!")
+        
+        # check match_and_replace is well formed
+        if len(replace_op.regions) != 1 or len(replace_op.regions[0].blocks) != 1:
+            raise Exception("rewrite.replaceOp must have exactly one region with one block!")
+
+        pattern : match.Pattern = replace_op.pattern.op
+
+        # The last pdl.operation in the pattern is the root op
+        root_op: Optional[pdl.OperationOp] = None
+        capture_ops : List[match.Capture] = []
+        for nested_op in pattern.body.ops:
+            if isinstance(nested_op, pdl.OperationOp):
+                root_op = nested_op
+            elif isinstance(nested_op, match.Capture):
+                capture_ops.append(nested_op)
         assert root_op is not None
         if root_op is None:
-            raise Exception("No rewrite.replaceOp found in strategy!")
+            raise Exception("No valid root operation found in pattern!")
 
-        # check root_op is well formed
-        if len(root_op.regions) != 1 or len(root_op.regions[0].blocks) != 1:
-            raise Exception("rewrite.replaceOp must have exactly one region with one block!")
 
         # matching part
         if not self._match_for_op(op, root_op).success:
             return failure(id())
 
+        # registerd captured vals, ops, attrs
+        captured_vals = [operand for capture_op in capture_ops for operand in capture_op.operands]
+
+
+        if len(replace_op.body.blocks[0].args) == len(captured_vals):
+            idx = 0
+        elif len(replace_op.body.blocks[0].args) == len(captured_vals) + 1:
+            idx = 1
+            self.matching_env[replace_op.body.blocks[0].args[0]] = self.matching_env[root_op.results[0]]
+        else:
+            raise Exception("Number of arguments in replaceOp region must be equal to number of captured values or one more!")
+
+        for captured_val in captured_vals:
+            if not captured_val in self.matching_env:
+                raise Exception(f"CaptureOp: {captured_val} not found in matching env!")
+            self.matching_env[replace_op.body.blocks[0].args[idx]] = self.matching_env[captured_val]
+            idx += 1
+
         # Matching successful
 
         # Interpret the region of replace op line by line until we hit a rewrite.return
         # for idx in range(root_index+1, len(strat_op.body.ops)):
-        for rhs_op in root_op.body.ops:
+        for rhs_op in replace_op.body.ops:
             if isinstance(rhs_op, rewrite.ReturnOp):
                 result = self.matching_env[rhs_op.operands[0]]
                 if isinstance(result, list):
@@ -139,7 +173,7 @@ class ElevateInterpreter():
 
 
 
-    def _match_for_op(self, op: IOp, op_constr: match.OperationOp) -> InterpResult:
+    def _match_for_op(self, op: IOp, op_constr: pdl.OperationOp) -> InterpResult:
         # First check how many operands, attrs and other constraints are present:
         operand_constraints: list[SSAValue] = []
         result_constraints: list[SSAValue] = []
@@ -167,12 +201,26 @@ class ElevateInterpreter():
             return InterpResult(False, f"wrong num of results for op {op.name}")
         # check result constraints:
         for idx, res_constraint in enumerate(result_constraints):
-            if op.results[idx].typ != res_constraint.typ.type:
-                return InterpResult(False, f"result with index {idx} of op {op.name}has the wrong type")
+            if "type" in res_constraint.op.attributes:
+                enforced_type = res_constraint.op.attributes["type"]
+                if op.results[idx].typ == enforced_type:
+                    self.matching_env[res_constraint] = op.results[idx].typ
+                    continue
+                else:
+                    return InterpResult(False, f"result with index {idx} of op {op.name} has the wrong type")
+            else:
+                if res_constraint not in self.matching_env:
+                    self.matching_env[res_constraint] = op.results[idx].typ
+                    continue
+                elif self.matching_env[res_constraint] == op.results[idx].typ:
+                    continue
+                else:
+                    return InterpResult(False, f"result with index {idx} of op {op.name} has the wrong type")
+
             
         # check attribute constraints:
         for idx, attr_constraint in enumerate(attr_constraints):
-            assert isinstance((attr_op := attr_constraint.op), match.AttributeOp)
+            assert isinstance((attr_op := attr_constraint.op), pdl.AttributeOp)
             # Check that the attribute with the given name exists
             if not (attr_name := attr_op.attributes["name"].data) in op.attributes:
                 return InterpResult(False, f"Attr with name {attr_name} not found for op {op.name}")
@@ -195,7 +243,7 @@ class ElevateInterpreter():
                             op_constr=get_res_op.operands[0].op):
                         return InterpResult(False, f"GetResultOp: Could not find match for op: {op.operands[idx].op.name}")
                     self.matching_env[operand_constraint] = op.operands[idx]
-                case match.OperationOp() | rewrite.ReplaceOperationOp() as op_match_op:
+                case pdl.OperationOp() | rewrite.ReplaceOperationOp() as op_match_op:
                     if not isinstance((op.operands[idx]), IResult):
                         return InterpResult(False, f"")
                     if not op_match_op.results.index(operand_constraint)-1 == op.operands[idx].result_index: 
@@ -205,11 +253,22 @@ class ElevateInterpreter():
                             op_constr=op_match_op):
                         return InterpResult(False, f"")
                     self.matching_env[operand_constraint] = op.operands[idx]
-                case match.OperandOp() as operand_op:
+                case pdl.OperandOp() as operand_op:
                     if len(operand_op.operands) == 1:
-                        assert isinstance((type_constr := operand_op.operands[0].op), match.TypeOp)
-                        if op.operands[idx].typ != type_constr.results[0].typ.type:
-                            return InterpResult(False, f"")
+                        assert isinstance((type_constr := operand_op.operands[0].op), pdl.TypeOp)
+                        if "type" in type_constr.attributes:
+                            enforced_type = type_constr.attributes["type"]
+                            if op.operands[idx].typ == enforced_type:
+                                self.matching_env[type_constr.results[0]] = op.operands[idx].typ
+                            else:
+                                return InterpResult(False, f"operand of op {op.name} has the wrong type")
+                        else:
+                            if type_constr.results[0] not in self.matching_env:
+                                self.matching_env[type_constr.results[0]] = op.operands[idx].typ
+                            elif self.matching_env[type_constr.results[0]] == op.operands[idx].typ:
+                                pass
+                            else:
+                                return InterpResult(False, f"operand of op {op.name} has the wrong type")
                     self.matching_env[operand_constraint] = op.operands[idx]
                 case _:
                     return InterpResult(False, f"Could not resolve constraint")
@@ -217,7 +276,7 @@ class ElevateInterpreter():
         
         if isinstance(op_constr, rewrite.ReplaceOperationOp):
             env_binder_vals = op_constr.body.blocks[0].args
-        elif isinstance(op_constr, match.OperationOp):
+        elif isinstance(op_constr, pdl.OperationOp):
             env_binder_vals = op_constr.results
         else:
             raise Exception("malformed op constr")
@@ -256,11 +315,8 @@ class ElevateInterpreter():
                 attributes: dict[str, Attribute] = {}
                 for operand in rhs_op.operands if isinstance(rhs_op, IRUtils.NewOp) else rhs_op.operands[1:]:
                     match operand.typ:
-                        case TypeType() as typ:
-                            if isinstance(typ.type, AnyType):
-                                new_result_types.append(self.matching_env[operand])
-                            else: 
-                                new_result_types.append(operand.typ.type)
+                        case TypeType():
+                            new_result_types.append(self.matching_env[operand])
                         case ValueType():
                             if isinstance(operand, OpResult) and isinstance(operand.op, IRUtils.GetResults):
                                 new_operands.append(self.matching_env[operand.op.operands[0]])

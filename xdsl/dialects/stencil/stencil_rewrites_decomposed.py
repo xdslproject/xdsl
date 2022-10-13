@@ -73,6 +73,44 @@ def match_inlinable(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
     # - we check that no empty stores are in the consumer apply + that no dynAccesses are in the consumer apply accessing the producer
     if consumer_apply.region is None or consumer_apply.region.block is None:
         return None
+
+    for idx, operand in enumerate(consumer_apply.operands):
+        # check whether operand is an Apply
+        if isinstance((operand_to_inline := operand), IResult) and operand_to_inline.op.op_type == stencil.Apply:
+            producer_apply = operand_to_inline.op
+            # check whether the blockArg associated with the producer is used inside the region of the consumer
+            access_op_to_inline_at: Optional[IOp] = None
+            for op in consumer_apply.region.ops:
+                if op.op_type == stencil.Access and consumer_apply.region.block.args[idx] in op.operands:
+                    access_op_to_inline_at = op
+                    break
+            if not access_op_to_inline_at:
+                continue
+
+            # check whether no empty stores are in the consumer apply
+            if any(op.op_type == stencil.Store and len(op.operands) == 0 for op in consumer_apply.region.ops):
+                continue
+
+            # check whether no dynAccesses are in the consumer apply accessing the producer
+            if any(op.op_type == stencil.DynAccess and operand_to_inline in op.operands for op in consumer_apply.region.ops):
+                continue
+
+            return (producer_apply, access_op_to_inline_at, operand_to_inline)
+
+    return None
+
+
+def match_inlinable_old(consumer_apply: IOp) -> Optional[tuple[IOp, IOp, IResult]]:
+    # Workaround until the registration and passing of values in native matchers is fixed
+    if isinstance(consumer_apply, IResult):
+        consumer_apply = consumer_apply.op
+    # Explaining the matching:
+    # - We match an apply op with operands and a region
+    # - We check that one of the operands is another applyOp and remember it by `producer_apply`
+    # - We check that inside the region is an AccessOp, that has the corresponding blockArg as operand and we remember it by `access_op_to_inline_at`
+    # - we check that no empty stores are in the consumer apply + that no dynAccesses are in the consumer apply accessing the producer
+    if consumer_apply.region is None or consumer_apply.region.block is None:
+        return None
     if any((isinstance((operand), IResult) and (producer_apply := (operand_to_inline := operand).op).op_type == stencil.Apply) and \
                                 any((consumer_apply.region.block.args[consumer_apply.operands.index(operand_to_inline)] in consumer_apply_op.operands) and (access_op_to_inline_at := consumer_apply_op).op_type == stencil.Access 
                                 for consumer_apply_op in consumer_apply.region.ops)\

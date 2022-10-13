@@ -65,7 +65,6 @@ class IRUtils:
 @irdl_attr_definition
 class TypeType(ParametrizedAttribute):
     name = "type"
-    type: ParameterDef[Attribute]
 
 
 @irdl_attr_definition
@@ -271,7 +270,7 @@ class GetResults(Operation):
 @irdl_op_definition
 class GetType(Operation):
     """
-    Used to get the type of a value or from a range of values
+    Used to get the type of a value or attribute or from a range of such.
     """
     name: str = "irutils.get_type"
     value = OperandDef(Attribute)  # either ValueType or RangeType

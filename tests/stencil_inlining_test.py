@@ -15,6 +15,7 @@ from xdsl.immutable_utils import *
 import os
 import xdsl.dialects.IRUtils.dialect as irutils
 import xdsl.dialects.match.dialect as match
+import xdsl.dialects.pdl.dialect as pdl
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.elevate.dialect as elevate
 import xdsl.dialects.elevate.interpreter as interpreter
@@ -78,6 +79,7 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
     scf.Scf(ctx)
     stencil.Stencil(ctx)
     irutils.IRUtils(ctx)
+    pdl.PDL(ctx)
     match.Match(ctx)
     rewrite.Rewrite(ctx)
     elevate.Elevate(ctx)
@@ -242,7 +244,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
-    apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
+    # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_simple_index():
@@ -582,6 +584,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
     apply_strategy_and_compare(before, after, InlineAll)
 
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
     apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 

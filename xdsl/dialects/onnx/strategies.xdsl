@@ -6,20 +6,26 @@ builtin.module() {
 
 // onnx.add(onnx.Gemm(%X, %Y, None), %Z) = onnx.Gemm(%X, %Y, %Z)
 %FuseGemmFollowedByAddition : !strategy = elevate.strategy() ["strategy_name"="FuseGemmFollowedByAddition"] {
-
-    // unspecified operands
-    %matmulLHS : !value = match.operand()
-    %matmulRHS : !value = match.operand()
-    %add_operand : !value = match.operand() []
-    (%5 : !operation, %matmul : !value) = match.op(%matmulLHS : !value, %matmulRHS : !value) ["name"="onnx.MatMul"]
-
-    rewrite.replace_op(%matmul : !value, %add_operand : !value) ["name"="onnx.Add"] {
-      ^rewrite(%add_op : !operation, %add_result : !value):
-      %type : !type<!any> = irutils.get_type(%add_result : !value)
-      %result : !operation = irutils.new_op(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %type : !type<!any>) ["name" = "onnx.ONNXGemmOp", "alpha"=1.0, "beta"=1.0, "transA"= 0 : !i64, "transB"= 0 : !i64, "attribute_names"=["alpha", "beta", "transA", "transB"]]
+    ^strategy(%op : !operation):
+    %pattern : !pattern = match.pattern() {
+      // unspecified operands
+      %matmulLHS : !value = pdl.operand()
+      %matmulRHS : !value = pdl.operand()
+      %add_operand : !value = pdl.operand() []
+      (%5 : !operation, %matmul : !value) = pdl.operation(%matmulLHS : !value, %matmulRHS : !value) ["name"="onnx.MatMul"]
+      (%add_op : !operation, %add_result : !value) = pdl.operation(%matmul : !value, %add_operand : !value) ["name"="onnx.Add"]
+      
+      match.capture(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %add_result : !value)
+    }
+    match.match_and_replace(%op : !operation, %pattern : !pattern) {
+      ^rewrite(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %add_result : !value):
+      %type : !type = irutils.get_type(%add_result : !value)
+      %result : !operation = irutils.new_op(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %type : !type) ["name" = "onnx.ONNXGemmOp", "alpha"=1.0, "beta"=1.0, "transA"= 0 : !i64, "transB"= 0 : !i64, "attribute_names"=["alpha", "beta", "transA", "transB"]]
       rewrite.return(%result : !operation)
     }
   }
+
+  
 
   ////////////////////////////////////////////////////////////////////////////////
   //     Register native strategies (which were already defined in Python)      //
@@ -32,7 +38,7 @@ builtin.module() {
   ////////////////////////////////////////////////////////////////////////////////
 
   %FuseGemmFollowedByAdditionEverywhere : !strategy = elevate.compose() ["strategy_name"="onnx_opt_pass"] {
-    elevate.everywhere() {
+    elevate.toptobottom() {
         elevate.apply(%FuseGemmFollowedByAddition : !strategy)
     }
     elevate.toptobottom() {
