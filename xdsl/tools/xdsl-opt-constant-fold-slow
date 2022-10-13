@@ -12,31 +12,34 @@ from xdsl.pattern_rewriter import (GreedyRewritePatternApplier,
                                    RewritePattern, op_type_rewrite_pattern)
 from dataclasses import dataclass
 
+
 @dataclass
 class BinaryExprRewriter(RewritePattern):
 
-    def is_integer_literal(self, op):
+    def is_integer_literal(self, op: Operation) -> bool:
         return isinstance(op, Constant) and isinstance(op.value, IntegerAttr)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(  # type: ignore reportIncompatibleMethodOverride
             self, expr: Addi, rewriter: PatternRewriter) -> None:
-        if self.is_integer_literal(
-                expr.lhs.op) and self.is_integer_literal(expr.rhs.op):
+        if self.is_integer_literal(expr.lhs.op) and self.is_integer_literal(
+                expr.rhs.op):
             lhs_value = expr.lhs.op.value.parameters[0].data
             rhs_value = expr.rhs.op.value.parameters[0].data
             result_value = lhs_value + rhs_value
 
-            new_constant = Constant.from_int_constant(result_value, expr.results[0].typ)
+            new_constant = Constant.from_int_constant(result_value,
+                                                      expr.results[0].typ)
             rewriter.replace_op(expr, [new_constant])
         return
 
 
 def constant_folding(ctx: MLContext, module: ModuleOp) -> ModuleOp:
-    walker = PatternRewriteWalker(
-        GreedyRewritePatternApplier([
-            BinaryExprRewriter(),
-        ]), apply_recursively=False, walk_reverse=True)
+    walker = PatternRewriteWalker(GreedyRewritePatternApplier([
+        BinaryExprRewriter(),
+    ]),
+                                  apply_recursively=False,
+                                  walk_reverse=True)
 
     walker.rewrite_module(module)
 
@@ -45,6 +48,7 @@ def constant_folding(ctx: MLContext, module: ModuleOp) -> ModuleOp:
     walker.rewrite_module(module)
 
     return module
+
 
 class OptMain(xDSLOptMain):
 
