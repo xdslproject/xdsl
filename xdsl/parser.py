@@ -1228,8 +1228,16 @@ class Parser:
         else:
             op_name = self.parse_str_literal()
 
-        op_type = self.ctx.get_op(op_name)
-        op = self.parse_mlir_op_with_default_format(op_type, len(results))
+        op_type = self.ctx.get_optional_op(op_name)
+        if op_type is None:
+            if not self.allow_unregistered_ops:
+                raise ParserError(start_pos, f"unknown operation '{op_name}'")
+
+            op_type = UnregisteredOp
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
+            op.attributes["op_name__"] = StringAttr.from_str(op_name)
+        else:
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
 
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):
