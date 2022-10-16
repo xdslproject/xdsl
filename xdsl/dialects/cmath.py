@@ -21,7 +21,7 @@ class Norm(Operation):
 
     op = OperandDef(
         ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    res = ResultDef(AnyOf([Float32Type, Float64Type]))
+    res: Annotated[OpResult, ResultDef(AnyOf([Float32Type, Float64Type]))]
 
     # TODO replace with trait
     def verify_(self) -> None:

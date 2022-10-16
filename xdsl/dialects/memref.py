@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar, Optional, List, TypeAlias
+from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, ParametrizedAttribute, Dialect
+from xdsl.ir import MLIRType, Operation, SSAValue, ParametrizedAttribute, Dialect, OpResult
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
                        VarOperandDef, ResultDef, AttributeDef,
@@ -58,7 +58,7 @@ class Load(Operation):
     name = "memref.load"
     memref = OperandDef(MemRefType)
     indices = VarOperandDef(IndexType)
-    res = ResultDef(AnyAttr())
+    res: Annotated[OpResult, ResultDef(AnyAttr())]
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -107,7 +107,7 @@ class Alloc(Operation):
     dynamic_sizes = VarOperandDef(IndexType)
     symbol_operands = VarOperandDef(IndexType)
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, ResultDef(MemRefType)]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -135,7 +135,7 @@ class Alloca(Operation):
     dynamic_sizes = VarOperandDef(IndexType)
     symbol_operands = VarOperandDef(IndexType)
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, ResultDef(MemRefType)]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -171,7 +171,7 @@ class GetGlobal(Operation):
     name = "memref.get_global"
     # name = AttributeDef(FlatSymbolRefAttr)
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, ResultDef(MemRefType)]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:

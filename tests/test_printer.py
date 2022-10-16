@@ -6,7 +6,7 @@ from typing import List
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
                        Operation, OperandDef, ResultDef, OptAttributeDef)
 from xdsl.printer import Printer
@@ -377,7 +377,7 @@ class PlusCustomFormatOp(Operation):
     name = "test.add"
     lhs = OperandDef(IntegerType)
     rhs = OperandDef(IntegerType)
-    res = ResultDef(IntegerType)
+    res: Annotated[OpResult, ResultDef(IntegerType)]
 
     @classmethod
     def parse(cls, result_types: List[Attribute],
