@@ -19,8 +19,10 @@ class ComplexType(ParametrizedAttribute, MLIRType):
 class Norm(Operation):
     name: str = "cmath.norm"
 
-    op: Annotated[SSAValue, OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
+    op: Annotated[SSAValue,
+                  OperandDef(
+                      ParamAttrConstraint(
+                          ComplexType, [AnyOf([Float32Type, Float64Type])]))]
     res: Annotated[OpResult, ResultDef(AnyOf([Float32Type, Float64Type]))]
 
     # TODO replace with trait
