@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
-from xdsl.util import _T
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 from enum import Enum
@@ -140,6 +139,8 @@ class Parser:
         if self._pos.idx + n >= len(self.str):
             return None
         return self.str[self._pos.idx:self._pos.idx + n]
+
+    _T = TypeVar("_T")
 
     def try_parse(self,
                   parse_fn: Callable[[], _T | None],
@@ -446,7 +447,7 @@ class Parser:
         assert (len(delimiter) <= 1)
         res = list[Any]()  # Pyright do not let us use `T` here
         one = parse_optional_one()
-        if one:
+        if one is not None:
             res.append(one)
         while self.parse_optional_char(delimiter) if len(
                 delimiter) == 1 else True:
