@@ -26,7 +26,7 @@ class StringAttr(Data[str]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
-        pass
+        assert False
 
     @staticmethod
     def print_parameter(data: str, printer: Printer) -> None:
@@ -55,7 +55,7 @@ def test_result_builder():
 
 
 def test_result_builder_exception():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         ResultOp.build()
 
 
@@ -419,7 +419,7 @@ class VarSBRegionOp(Operation):
     regs = VarSingleBlockRegionDef()
 
 
-def test_opt_sbregion_one_block():
+def test_var_sbregion_one_block():
     op1 = VarSBRegionOp.build(regions=[[[Block()]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()

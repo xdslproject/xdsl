@@ -16,6 +16,8 @@ from xdsl.diagnostic import Diagnostic, DiagnosticException
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 
+# pyright: reportMissingParameterType=false, reportUnknownParameterType=false
+
 
 def error(op: Operation, msg: str):
     diag = Diagnostic()
@@ -872,10 +874,14 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (arg_size_option is None
                                    or arg_size_option not in op_def.options):
+        if arg_size_option is None:
+            arg_size_option_name = 'unknown'
+        else:
+            arg_size_option_name = arg_size_option.__name__  # type: ignore
         raise Exception(
             "Operation defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
-            f"{arg_size_option.__name__} PyRDL option.")
+            f"{arg_size_option_name} PyRDL option.")
 
 
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
@@ -951,13 +957,15 @@ _BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
 
 BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
 
+IRDL_IS_BUILDER = '__irdl_is_builder'
+
 
 def builder(f: BuilderTy[_AttrT]) -> BuilderTy[_AttrT]:
     """
     Annotate a function and mark it as an IRDL builder.
     This should only be used as decorator in classes decorated by irdl_attr_builder.
     """
-    f.__irdl_is_builder = True
+    setattr(f, IRDL_IS_BUILDER, True)
     return f
 
 
@@ -969,7 +977,7 @@ def irdl_get_builders(cls: type[_AttrT]) -> list[BuilderTy[_AttrT]]:
         # Builders are staticmethods, so we need to get back the original function
         # with __func__
         if hasattr(field_, "__func__") and hasattr(field_.__func__,
-                                                   "__irdl_is_builder"):
+                                                   IRDL_IS_BUILDER):
             builders.append(field_.__func__)
     return builders
 
