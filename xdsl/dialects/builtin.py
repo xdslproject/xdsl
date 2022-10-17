@@ -634,7 +634,7 @@ class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
     op_name__ = AttributeDef(StringAttr)
-    args = VarOperandDef(AnyAttr())
+    args: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     regs = VarRegionDef()
 

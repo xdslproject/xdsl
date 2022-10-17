@@ -206,7 +206,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
-    res = VarOperandDef(StringAttr)
+    res: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
 
 
 def test_var_operand_builder():
@@ -220,8 +220,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
-    res1 = VarOperandDef(StringAttr)
-    res2 = VarOperandDef(StringAttr)
+    res1: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
+    res2: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
     irdl_options = [AttrSizedOperandSegments()]
 
 

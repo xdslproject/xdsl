@@ -60,7 +60,7 @@ class FuncOp(Operation):
 @irdl_op_definition
 class Call(Operation):
     name: str = "func.call"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     callee = AttributeDef(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
@@ -79,7 +79,7 @@ class Call(Operation):
 @irdl_op_definition
 class Return(Operation):
     name: str = "func.return"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     def verify_(self) -> None:
         func_op = self.parent_op()

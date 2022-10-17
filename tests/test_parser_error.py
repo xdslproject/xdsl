@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated
 
-from xdsl.ir import MLContext, OpResult
+from xdsl.ir import MLContext, OpResult, SSAValue
 from xdsl.irdl import AnyAttr, VarOperandDef, VarResultDef, irdl_op_definition, Operation
 from xdsl.parser import Parser, ParserError
 from pytest import raises
@@ -10,7 +10,7 @@ from pytest import raises
 @irdl_op_definition
 class UnkownOp(Operation):
     name = "unknown"
-    ops = VarOperandDef(AnyAttr())
+    ops: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
 
 

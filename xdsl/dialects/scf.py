@@ -31,7 +31,7 @@ class If(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -43,7 +43,7 @@ class Yield(Operation):
 class Condition(Operation):
     name: str = "scf.condition"
     cond: Annotated[SSAValue, OperandDef(IntegerType.from_width(1))]
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     @staticmethod
     def get(cond: SSAValue | Operation,
@@ -55,7 +55,7 @@ class Condition(Operation):
 @irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     before_region = RegionDef()

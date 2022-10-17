@@ -57,7 +57,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 class Load(Operation):
     name = "memref.load"
     memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices = VarOperandDef(IndexType)
+    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -84,7 +84,7 @@ class Store(Operation):
     name = "memref.store"
     value: Annotated[SSAValue, OperandDef(AnyAttr())]
     memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices = VarOperandDef(IndexType)
+    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
 
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
@@ -104,8 +104,8 @@ class Store(Operation):
 class Alloc(Operation):
     name = "memref.alloc"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
 
     memref: Annotated[OpResult, ResultDef(MemRefType)]
 
@@ -132,8 +132,8 @@ class Alloc(Operation):
 class Alloca(Operation):
     name = "memref.alloca"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
 
     memref: Annotated[OpResult, ResultDef(MemRefType)]
 

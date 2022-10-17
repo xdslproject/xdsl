@@ -13,7 +13,7 @@ from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
 class For(Operation):
     name: str = "affine.for"
 
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
 
     # TODO the bounds are in fact affine_maps
@@ -75,7 +75,7 @@ class For(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "affine.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
