@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
 
