@@ -613,7 +613,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
                      if isinstance(arg_def, VariadicDef)]
 
     # If the size is in the attributes, fetch it
-    if attribute_option in op_def.options:
+    if (attribute_option is not None) and (attribute_option in op_def.options):
         return get_variadic_sizes_from_attr(op, defs, construct,
                                             attribute_option.attribute_name)
 
