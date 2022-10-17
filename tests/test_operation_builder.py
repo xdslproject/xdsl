@@ -183,7 +183,7 @@ def test_operand_builder_exception():
 class OptOperandOp(Operation):
     name: str = "test.opt_operand_op"
 
-    res = OptOperandDef(StringAttr)
+    res: Annotated[Optional[SSAValue], OptOperandDef(StringAttr)]
 
 
 def test_opt_operand_builder():

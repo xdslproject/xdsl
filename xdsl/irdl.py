@@ -477,6 +477,8 @@ class OpDef:
                 op_def.operands.append((field_name, args[-1]))
             elif isinstance(args[-1], VarOperandDef):
                 op_def.operands.append((field_name, args[-1]))
+            elif isinstance(args[-1], OptOperandDef):
+                op_def.operands.append((field_name, args[-1]))
             elif isinstance(args[-1], ResultDef):
                 op_def.results.append((field_name, args[-1]))
             elif isinstance(args[-1], VarResultDef):
