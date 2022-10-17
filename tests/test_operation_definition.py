@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated
 
-from xdsl.ir import OpResult, Operation
+from xdsl.ir import OpResult, Operation, SSAValue
 from xdsl.irdl import (irdl_op_definition, OperandDef, ResultDef, AttributeDef,
                        RegionDef, AnyAttr, OpDef)
 
@@ -17,7 +17,7 @@ from xdsl.irdl import (irdl_op_definition, OperandDef, ResultDef, AttributeDef,
 class OpDefTestOp(Operation):
     name = "test.op_def_test"
 
-    operand = OperandDef(AnyAttr())
+    operand: Annotated[SSAValue, OperandDef(AnyAttr())]
     result: Annotated[OpResult, ResultDef(AnyAttr())]
     attr = AttributeDef(AnyAttr())
     region = RegionDef()

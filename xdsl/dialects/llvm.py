@@ -7,7 +7,7 @@ from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_attr_definition,
                        AttributeDef, OperandDef, ResultDef, irdl_op_definition,
                        builder)
-from xdsl.ir import OpResult, Attribute
+from xdsl.ir import OpResult, Attribute, SSAValue
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container = OperandDef(AnyAttr())
+    container: Annotated[SSAValue, OperandDef(AnyAttr())]
 
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 
@@ -62,8 +62,8 @@ class LLVMInsertValue(Operation):
     name = "llvm.insertvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container = OperandDef(AnyAttr())
-    value = OperandDef(AnyAttr())
+    container: Annotated[SSAValue, OperandDef(AnyAttr())]
+    value: Annotated[SSAValue, OperandDef(AnyAttr())]
 
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 

@@ -19,7 +19,7 @@ class ComplexType(ParametrizedAttribute, MLIRType):
 class Norm(Operation):
     name: str = "cmath.norm"
 
-    op = OperandDef(
+    op: Annotated[SSAValue, OperandDef(
         ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
     res: Annotated[OpResult, ResultDef(AnyOf([Float32Type, Float64Type]))]
 
@@ -42,7 +42,6 @@ class Mul(Operation):
                    OperandDef(
                        ParamAttrConstraint(
                            ComplexType, [AnyOf([Float32Type, Float64Type])]))]
-    # rhs = OperandDef(ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
     res: Annotated[OpResult,
                    ResultDef(
                        ParamAttrConstraint(

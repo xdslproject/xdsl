@@ -1,12 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import cast
+from typing import cast, Annotated
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
 from xdsl.ir import ParametrizedAttribute, Operation, Attribute, Dialect
 from xdsl.irdl import (ParameterDef, VarOperandDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, VarResultDef, irdl_op_definition,
                        irdl_attr_definition)
+from xdsl.ir import OpResult
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -148,7 +149,7 @@ class ResultsOp(Operation):
     Define results of parent operation
     """
     name = "irdl.results"
-    res = VarResultDef(AnyAttr())
+    res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     params = AttributeDef(AnyAttr())
 
 

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Union
+from typing import Annotated, List, Union
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import IntegerType
@@ -23,7 +23,7 @@ class Branch(Operation):
 class ConditionalBranch(Operation):
     name: str = "cf.cond_br"
 
-    then = OperandDef(IntegerType.from_width(1))
+    then: Annotated[SSAValue, OperandDef(IntegerType.from_width(1))]
     then_arguments = VarOperandDef(AnyAttr())
     else_arguments = VarOperandDef(AnyAttr())
 

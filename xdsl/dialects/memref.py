@@ -56,7 +56,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref = OperandDef(MemRefType)
+    memref: Annotated[SSAValue, OperandDef(MemRefType)]
     indices = VarOperandDef(IndexType)
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 
@@ -82,8 +82,8 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "memref.store"
-    value = OperandDef(AnyAttr())
-    memref = OperandDef(MemRefType)
+    value: Annotated[SSAValue, OperandDef(AnyAttr())]
+    memref: Annotated[SSAValue, OperandDef(MemRefType)]
     indices = VarOperandDef(IndexType)
 
     def verify_(self):
@@ -159,7 +159,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref = OperandDef(MemRefType)
+    memref: Annotated[SSAValue, OperandDef(MemRefType)]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
