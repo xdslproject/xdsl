@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated
+from typing import Annotated, Optional
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
@@ -43,7 +43,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res = OptResultDef(StringAttr)
+    res: Annotated[Optional[OpResult], OptResultDef(StringAttr)]
 
 
 def test_opt_result_builder():
