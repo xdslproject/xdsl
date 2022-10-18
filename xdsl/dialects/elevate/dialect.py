@@ -26,6 +26,7 @@ class Elevate:
         self.ctx.register_op(TopToBottomOp)
         self.ctx.register_op(BottomToTopOp)
         self.ctx.register_op(TryOp)
+        self.ctx.register_op(RepeatNOp)
         self.ctx.register_op(ReturnOp)
         self.ctx.register_op(NativeStrategyOp)
 
@@ -252,6 +253,17 @@ class TryOp(ElevateOperation):
     @classmethod
     def get_strategy(cls) -> Type[elevate.Strategy]:
         return elevate.try_
+
+
+@irdl_op_definition
+class RepeatNOp(ElevateOperation):
+    name: str = "elevate.repeatN"
+    region = RegionDef()
+    # output = ResultDef(OpHandle)
+
+    @classmethod
+    def get_strategy(cls) -> Type[elevate.Strategy]:
+        return elevate.repeatN
 
 
 @irdl_op_definition

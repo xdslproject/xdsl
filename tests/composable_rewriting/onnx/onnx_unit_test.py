@@ -37,7 +37,8 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
     __location__ = os.path.realpath(
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     strategy_file = open(
-        os.path.join(__location__, '../../xdsl/dialects/onnx/strategies.xdsl'))
+        os.path.join(__location__,
+                     '../../../xdsl/dialects/onnx/strategies.xdsl'))
     strategy_string = strategy_file.read()
 
     ir_parser = Parser(ctx, program, source=Parser.Source.MLIR)
@@ -50,6 +51,8 @@ def apply_dyn_strategy_and_compare(program: str, expected_program: str,
 
     elevate_interpreter.register_native_strategy(GarbageCollect,
                                                  "garbage_collect")
+    elevate_interpreter.register_native_strategy(id, "id")
+    elevate_interpreter.register_native_strategy(debug, "debug")
 
     strategies = elevate_interpreter.get_strategy(strat_module)
     strategy = strategies[strategy_name]

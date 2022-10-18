@@ -198,6 +198,17 @@ class repeat(Strategy):
 
 
 @dataclass(frozen=True)
+class repeatN(Strategy):
+    s: Strategy
+    n: int = 20
+
+    def impl(self, op: IOp) -> RewriteResult:
+        if self.n > 0:
+            return try_(seq(self.s, repeatN(self.s, self.n - 1))).apply(op)
+        else:
+            return success(op)
+
+@dataclass(frozen=True)
 class everywhere(Strategy):
     s: Strategy
 

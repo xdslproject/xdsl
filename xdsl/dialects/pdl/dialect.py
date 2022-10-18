@@ -45,6 +45,7 @@ class OperationOp(Operation):
     type_constraint = OptOperandDef(TypeType)
     output = ResultDef(OperationType)
     name_constraint = OptAttributeDef(StringAttr)
+    operands_ordered = OptAttributeDef(IntAttr)
     irdl_options = [AttrSizedOperandSegments()]
 
 

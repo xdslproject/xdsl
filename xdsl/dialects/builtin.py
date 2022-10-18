@@ -387,6 +387,9 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
                     f"{self.name} data expects attribute list, but {idx} "
                     f"element is of type {type(val)}")
 
+    def get_as_data_array(self) -> list[Any]:
+        return [attr.value.data for attr in self.data]
+
     @staticmethod
     @builder
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:

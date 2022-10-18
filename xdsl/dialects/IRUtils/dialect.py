@@ -42,6 +42,7 @@ class IRUtils:
         self.ctx.register_op(GetOperand)
 
         self.ctx.register_op(GetBlockArgs)
+        self.ctx.register_op(GetIndex)
         self.ctx.register_op(GetIndexOfOpInRange)
         self.ctx.register_op(RemoveElement)
 
@@ -55,6 +56,9 @@ class IRUtils:
         self.ctx.register_op(ArrayAttrElementWise)
         self.ctx.register_op(ApplyNativeRewrite)
         self.ctx.register_op(ConstructType)
+
+        # Tensor Specific
+        self.ctx.register_op(ConcatTensors)
 
 
 ##############################################################################
@@ -361,9 +365,30 @@ class HasAttribute(Operation):
 
 
 @irdl_op_definition
+class GetIndex(Operation):
+    """
+    Returns the index of a BlockArg or an OpResult
+    """
+    name: str = "irutils.get_index"
+    value = OperandDef(ValueType)
+    output = ResultDef(IndexType)
+
+
+@irdl_op_definition
 class GetBlockArgs(Operation):
     name: str = "irutils.get_block_args"
     input = OperandDef(OperationType)
     region_idx = OptAttributeDef(IntAttr)
     block_idx = OptAttributeDef(IntAttr)
     output = ResultDef(RangeType)
+
+
+# Tensor Specific
+
+
+@irdl_op_definition
+class ConcatTensors(Operation):
+    name: str = "irutils.concat_tensors"
+    input = VarOperandDef(ValueType)
+    new_tensor = ResultDef(AttributeType)
+    new_tensor_type = OptResultDef(TypeType)

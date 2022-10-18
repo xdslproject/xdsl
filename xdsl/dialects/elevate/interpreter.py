@@ -156,7 +156,16 @@ class ElevateInterpreter():
         # for idx in range(root_index+1, len(strat_op.body.ops)):
         for rhs_op in replace_op.body.ops:
             if isinstance(rhs_op, rewrite.ReturnOp):
-                result = self.matching_env[rhs_op.operands[0]]
+                if len(rhs_op.operands) > 1:
+                    result = []
+                    for operand in rhs_op.operands:
+                        if operand in self.matching_env:
+                            env_result = self.matching_env[operand]
+                            result.extend(env_result if isinstance(env_result, list) else [env_result])
+                elif len(rhs_op.operands) == 1:
+                    result = self.matching_env[rhs_op.operands[0]]
+                else:
+                    raise Exception("rewrite.return must have at least one operand!")
                 if isinstance(result, list):
                     return success(result)
                 elif isinstance(result, IResult):
@@ -170,6 +179,79 @@ class ElevateInterpreter():
 
         # return success(op)
         return failure(id())
+
+
+    def evaluate_operand_constraint(self,  op: IOp, idx: int, operand_constraint: SSAValue) -> InterpResult:
+        match operand_constraint.op:
+            case IRUtils.GetResults() as get_res_op:
+                if not isinstance((op.operands[idx]), IResult):
+                    return InterpResult(False, f"GetResultOp malformed")
+                if not get_res_op.idx.value.data == op.operands[idx].result_index: 
+                    return InterpResult(False, f"GetResultOp malformed")
+                if not self._match_for_op(
+                        op=op.operands[idx].op,
+                        op_constr=get_res_op.operands[0].op):
+                    return InterpResult(False, f"GetResultOp: Could not find match for op: {op.operands[idx].op.name}")
+                self.matching_env[operand_constraint] = op.operands[idx]
+                return InterpResult(True)
+            case pdl.OperationOp() | rewrite.ReplaceOperationOp() as op_match_op:
+                if not isinstance((op.operands[idx]), IResult):
+                    return InterpResult(False, f"")
+                if not op_match_op.results.index(operand_constraint)-1 == op.operands[idx].result_index: 
+                    return InterpResult(False, f"")
+                if not (result := self._match_for_op(
+                        op=op.operands[idx].op,
+                        op_constr=op_match_op)).success:
+                    return result
+                self.matching_env[operand_constraint] = op.operands[idx]
+                return InterpResult(True)
+            case pdl.OperandOp() as operand_op:
+                if len(operand_op.operands) == 1:
+                    assert isinstance((type_constr := operand_op.operands[0].op), pdl.TypeOp)
+                    if "type" in type_constr.attributes:
+                        enforced_type = type_constr.attributes["type"]
+                        if op.operands[idx].typ == enforced_type:
+                            self.matching_env[type_constr.results[0]] = op.operands[idx].typ
+                        else:
+                            return InterpResult(False, f"operand of op {op.name} has the wrong type")
+                    else:
+                        if type_constr.results[0] not in self.matching_env:
+                            self.matching_env[type_constr.results[0]] = op.operands[idx].typ
+                        elif self.matching_env[type_constr.results[0]] == op.operands[idx].typ:
+                            pass
+                        else:
+                            return InterpResult(False, f"operand of op {op.name} has the wrong type")
+                self.matching_env[operand_constraint] = op.operands[idx]
+                return InterpResult(True)
+            case match.AnyInRange() as any_in_range_op:
+                # for now just assume that this is the range of results of an op
+                range = self. any_in_range_op.range
+                
+                pass
+            case _:
+                return InterpResult(False, f"Could not resolve constraint")
+    
+    def _interpret_lhs_region_op(self, op_constr: pdl.OperationOp, region_owner: IOp) -> InterpResult:
+        match op_constr:
+            case IRUtils.GetIndex() as get_index_op:
+                if get_index_op.value not in self.matching_env:
+                    raise Exception(f"GetIndexOp: {get_index_op.value} not found in matching env!")
+                value = self.matching_env[get_index_op.value]
+                if isinstance(value, IResult):
+                    self.matching_env[get_index_op.results[0]] = value.result_index
+                elif isinstance(value, IBlockArg):
+                    self.matching_env[get_index_op.results[0]] = value.index
+                else:
+                    raise Exception(f"GetIndexOp: {get_index_op.value} is not a result or block arg!")
+                return InterpResult(True)
+            case match.Equal() as equal_op:
+                pass
+
+            case _:
+                return InterpResult(False, f"Could not resolve constraint {op_constr.name}")
+
+
+
 
 
 
@@ -195,8 +277,9 @@ class ElevateInterpreter():
                 return InterpResult(False, f"name does not match: {name_attr} vs {op.name}")
 
         # General checks
-        if len(operand_constraints) > 0 and len(op.operands) != len(operand_constraints):
-            return InterpResult(False, f"wrong num of operands for op {op.name}")
+        if "operands_ordered" in op_constr.attributes and op_constr.attributes["operands_ordered"].data.value == 1:
+            if len(operand_constraints) > 0 and len(op.operands) != len(operand_constraints):
+                return InterpResult(False, f"wrong num of operands for op {op.name}")
         if len(result_constraints) > 0 and len(op.results) != len(result_constraints):
             return InterpResult(False, f"wrong num of results for op {op.name}")
         # check result constraints:
@@ -230,48 +313,34 @@ class ElevateInterpreter():
                     return InterpResult(False, f"Attr with name {attr_name} has the wrong value for op {op.name}")
             self.matching_env[attr_constraint] = op.attributes[attr_op.attributes["name"].data]
 
+        # Attr constraints expressed as attributes of pdl.operation:
+        for attr_str in op_constr.attributes:
+            if attr_str == "name" or attr_str == "operands_ordered":
+                continue
+            if not attr_str in op.attributes:
+                return InterpResult(False, f"Attr with name {attr_str} not found for op {op.name}")
+            if op.attributes[attr_str] != op_constr.attributes[attr_str]:
+                return InterpResult(False, f"Attr with name {attr_str} has the wrong value for op {op.name}")
+
         # check operand constraints:
         for idx, operand_constraint in enumerate(operand_constraints):
-            match operand_constraint.op:
-                case IRUtils.GetResults() as get_res_op:
-                    if not isinstance((op.operands[idx]), IResult):
-                        return InterpResult(False, f"GetResultOp malformed")
-                    if not get_res_op.idx.value.data == op.operands[idx].result_index: 
-                        return InterpResult(False, f"GetResultOp malformed")
-                    if not self._match_for_op(
-                            op=op.operands[idx].op,
-                            op_constr=get_res_op.operands[0].op):
-                        return InterpResult(False, f"GetResultOp: Could not find match for op: {op.operands[idx].op.name}")
-                    self.matching_env[operand_constraint] = op.operands[idx]
-                case pdl.OperationOp() | rewrite.ReplaceOperationOp() as op_match_op:
-                    if not isinstance((op.operands[idx]), IResult):
-                        return InterpResult(False, f"")
-                    if not op_match_op.results.index(operand_constraint)-1 == op.operands[idx].result_index: 
-                        return InterpResult(False, f"")
-                    if not self._match_for_op(
-                            op=op.operands[idx].op,
-                            op_constr=op_match_op):
-                        return InterpResult(False, f"")
-                    self.matching_env[operand_constraint] = op.operands[idx]
-                case pdl.OperandOp() as operand_op:
-                    if len(operand_op.operands) == 1:
-                        assert isinstance((type_constr := operand_op.operands[0].op), pdl.TypeOp)
-                        if "type" in type_constr.attributes:
-                            enforced_type = type_constr.attributes["type"]
-                            if op.operands[idx].typ == enforced_type:
-                                self.matching_env[type_constr.results[0]] = op.operands[idx].typ
-                            else:
-                                return InterpResult(False, f"operand of op {op.name} has the wrong type")
-                        else:
-                            if type_constr.results[0] not in self.matching_env:
-                                self.matching_env[type_constr.results[0]] = op.operands[idx].typ
-                            elif self.matching_env[type_constr.results[0]] == op.operands[idx].typ:
-                                pass
-                            else:
-                                return InterpResult(False, f"operand of op {op.name} has the wrong type")
-                    self.matching_env[operand_constraint] = op.operands[idx]
-                case _:
-                    return InterpResult(False, f"Could not resolve constraint")
+            if ((interp_res := self.evaluate_operand_constraint(op, idx, operand_constraint)).success != True):
+                return interp_res
+
+        # check constraints about regions of this op
+        for op_constr_region in op_constr.regions:
+
+            if len(args := op_constr_region.blocks[0].args) == 1 and isinstance(args[0].typ, RangeType):
+                self.matching_env[args[0]] = op.regions[0].blocks[0].args
+            elif len(args) > 0:
+                for idx, arg in enumerate(op_constr_region.blocks[0].args):
+                    self.matching_env[arg] = op.regions[0].blocks[0].args[idx]
+                
+
+            for nested_constr in op_constr_region.ops:
+                self._interpret_lhs_region_op(nested_constr, op)
+        
+        
 
         
         if isinstance(op_constr, rewrite.ReplaceOperationOp):
@@ -297,6 +366,24 @@ class ElevateInterpreter():
 
         return InterpResult(True)
 
+    # def _interpret_lhs(self, lhs_op: Operation) -> InterpResult:
+    #     match lhs_op:
+    #         case pdl.Operation() as pdl_operation:
+                
+
+    #             return InterpResult(True)
+    #         case _:
+    #             return InterpResult(False, f"Unknown lhs op {lhs_op.name} found in pattern")
+
+    # def _interpret_pattern(self, pattern: match.Pattern) -> InterpResult:
+    #     """
+    #     Interprets a match.Pattern line by line and records matches in the matching environment.
+    #     """
+    #     for lhs_op in pattern.body.ops:
+    #         if (interp_res := self._interpret_lhs(lhs_op)).success != True:
+    #             return interp_res
+
+    #     return InterpResult(True)
 
     def _interpret_rhs(self, rhs_op: Operation) -> InterpResult:
         match rhs_op:
@@ -334,6 +421,14 @@ class ElevateInterpreter():
                             new_regions.append(self.matching_env[operand])
                         case _:
                             attribute_operands.append(operand)
+
+                # Special casing for some specific ops so we don't have to e.g. provide a type that is easily inferrable
+                if "name" in rhs_op.attributes and rhs_op.attributes["name"].data == "onnx.ONNXCastOp":
+                    if len(rhs_op.operands) == 1 and "to" in rhs_op.attributes:
+                        # i.e. no result type provided, so just infer it from the input and the "to" cast type
+                        input_type = self.matching_env[rhs_op.operands[0]].typ
+                        new_type = TensorType.from_type_and_list(rhs_op.attributes["to"], input_type.shape)
+                        new_result_types.append(new_type)
 
                 # Attributes are either specified as an operand when the attribute was computed in the rewrite
                 # or as an attribute of the new op
@@ -373,6 +468,13 @@ class ElevateInterpreter():
                 if len(rhs_op.results) > 1:
                     for idx, rhs_result in enumerate(rhs_op.results[1:]):
                         self.matching_env[rhs_result] = result
+
+                # TODO: This is what we ideally would like to do here
+                # if len(rhs_op.results) == 2 and isinstance(rhs_op.results[1].typ, RangeType):
+                #     self.matching_env[rhs_op.results[1]] = result[-1].results
+                # if len(rhs_op.results) > 1:
+                #     for idx, rhs_result in enumerate(rhs_op.results[1:]):
+                #         self.matching_env[rhs_result] = result[-1].results[idx]
 
                 return InterpResult(True)
             case IRUtils.NewBlock() | IRUtils.FromBlock() as block_op:
@@ -608,7 +710,11 @@ class ElevateInterpreter():
                 if isinstance(get_type_op.operands[0].typ, RangeType) and isinstance(get_type_op.operands[0].typ.type, ValueType):
                     self.matching_env[get_type_op.results[0]] = [value.typ for value in self.matching_env[get_type_op.operands[0]]]
                 elif isinstance(get_type_op.operands[0].typ, ValueType):
-                    self.matching_env[get_type_op.results[0]] = self.matching_env[get_type_op.operands[0]].typ
+                    env_operand = self.matching_env[get_type_op.operands[0]]
+                    # This is a workaround for the issue related to the mapping to results on the rhs
+                    if isinstance(env_operand, list):
+                        env_operand = env_operand[0].results[0]
+                    self.matching_env[get_type_op.results[0]] = env_operand.typ
                 else:
                     raise Exception("Malformed GetTypeOp")
                 return InterpResult(True)
@@ -695,6 +801,38 @@ class ElevateInterpreter():
 
                 self.remapping_env[old_use] = new_use
                 return InterpResult(True)
+            case IRUtils.ConcatTensors() as concat_tensors_op:
+                if not all((operand in self.matching_env) for operand in concat_tensors_op.operands):
+                    raise Exception("Malformed ConcatTensorsOp")
+                values: list[list[float]] = []
+                for operand in concat_tensors_op.operands:
+                    tensor = self.matching_env[operand]
+                    # for now assume that the tensor stems from an op which has a `value` attribute
+                    value_attr_list = tensor.op.attributes["value"].data.data
+                    value_list = [float_attr.value.data for float_attr in value_attr_list]
+                    values.append(value_list)
+                
+
+                if all((len(value) == 1 and value[0] == 1.0) for value in values) and all(len(value) == len(values[0]) for value in values):
+                    new_shape = tensor.typ.shape.get_as_data_array()
+                    new_shape[-1] = new_shape[-1] * len(values)
+
+                    type = TensorType.from_type_and_list(tensor.typ.element_type, new_shape)
+
+                    # new_shape = ArrayAttr(IntegerAttr.from_index_int_value(new_shape[1].value.data * len(values))
+                    self.matching_env[concat_tensors_op.results[0]] = DenseIntOrFPElementsAttr.from_float_list(
+                        type, [1.0])
+                    if len(concat_tensors_op.results) == 2 and isinstance(concat_tensors_op.results[1].typ, TypeType):
+                        self.matching_env[concat_tensors_op.results[1]] = type
+
+
+                else:
+                    raise Exception("ConcatTensorsOp: Not implemented")
+
+
+
+                return InterpResult(True)
+
             case _:
                 raise Exception(f"Op: {rhs_op.name} unsupported by interpreter")
 
