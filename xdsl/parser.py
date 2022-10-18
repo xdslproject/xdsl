@@ -972,6 +972,8 @@ class Parser:
                 return None
 
             value = self.parse_optional_nested_list(parse_num)
+            if not value:
+                value = [parse_num()]
             self.parse_char(">")
             self.parse_char(":")
 
