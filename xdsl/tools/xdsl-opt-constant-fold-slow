@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+from typing import cast
+from tests.composable_rewriting.immutabiliy_experiments_simple_add_4 import arith
+from xdsl.elevate import RewriteResult, Strategy, allOpsTopToBottom, bottomToTop, failure, success, topToBottom
+from xdsl.immutable_ir import IOp, IResult, ISSAValue, from_op, get_immutable_copy
 from xdsl.xdsl_opt_main import xDSLOptMain
 from xdsl.pattern_rewriter import RewriteOnceWalker, RewritePattern, PatternRewriter, GreedyRewritePatternApplier, PatternRewriteWalker
 
@@ -88,6 +92,36 @@ def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
     return
 
 
+@dataclass(frozen=True)
+class FoldConstantAdd(Strategy):
+
+    def impl(self, op: IOp) -> RewriteResult:
+        match op:
+            case IOp(
+                op_type=arith.Addi,
+                operands=[IResult(op=IOp(op_type=arith.Constant,
+                                        attributes={"value": IntegerAttr() as attr1}) as c1),
+                          IResult(op=IOp(op_type=arith.Constant,
+                                        attributes={"value": IntegerAttr() as attr2}))]):
+                result = from_op(c1,
+                        attributes={
+                            "value":
+                            IntegerAttr.from_params(
+                                attr1.value.data + attr2.value.data,
+                                attr1.typ)
+                        })
+                return success(result)
+            case _:
+                return failure(self)
+
+
+def constant_folding_composable(ctx: MLContext, module: ModuleOp) -> None:
+    imodule: IOp = get_immutable_copy(module)
+    new_imodule = bottomToTop(FoldConstantAdd()).apply(imodule).result_op
+    new_module = new_imodule.get_mutable_copy()
+    assign_module_and_delete(module, cast(ModuleOp, new_module))
+
+
 class OptMain(xDSLOptMain):
 
     def register_all_dialects(self):
@@ -96,6 +130,8 @@ class OptMain(xDSLOptMain):
     def register_all_passes(self):
         super().available_passes['constant-fold'] = constant_folding
         super().available_passes['constant-fold-fast'] = constant_folding_fast
+        super().available_passes[
+            'constant-fold-composable'] = constant_folding_composable
         super().register_all_passes()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
