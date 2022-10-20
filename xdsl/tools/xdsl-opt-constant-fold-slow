@@ -3,7 +3,7 @@
 import argparse
 from typing import cast
 from tests.composable_rewriting.immutabiliy_experiments_simple_add_4 import arith
-from xdsl.elevate import RewriteResult, Strategy, allOpsTopToBottom, bottomToTop, failure, success, topToBottom
+from xdsl.elevate import RewriteResult, Strategy, allOpsTopToBottom, bottomToTop, everywhere, failure, success, topToBottom
 from xdsl.immutable_ir import IOp, IResult, ISSAValue, from_op, get_immutable_copy
 from xdsl.xdsl_opt_main import xDSLOptMain
 from xdsl.pattern_rewriter import RewriteOnceWalker, RewritePattern, PatternRewriter, GreedyRewritePatternApplier, PatternRewriteWalker
@@ -117,7 +117,7 @@ class FoldConstantAdd(Strategy):
 
 def constant_folding_composable(ctx: MLContext, module: ModuleOp) -> None:
     imodule: IOp = get_immutable_copy(module)
-    new_imodule = bottomToTop(FoldConstantAdd()).apply(imodule).result_op
+    new_imodule = everywhere(FoldConstantAdd()).apply(imodule).result_op
     new_module = new_imodule.get_mutable_copy()
     assign_module_and_delete(module, cast(ModuleOp, new_module))
 
