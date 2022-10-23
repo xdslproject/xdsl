@@ -8,7 +8,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 # from xdsl.dialects.scf import Scf
-# from xdsl.dialects.arith import Arith
+from xdsl.dialects.arith import Arith
 # from xdsl.dialects.affine import Affine
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.builtin import ModuleOp, Builtin
@@ -161,7 +161,7 @@ class xDSLOptMain:
         """
         _ = Builtin(self.ctx)
         _ = Func(self.ctx)
-        # _ = Arith(self.ctx)
+        _ = Arith(self.ctx)
         _ = MemRef(self.ctx)
         # _ = Affine(self.ctx)
         # _ = Scf(self.ctx)

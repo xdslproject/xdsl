@@ -554,30 +554,10 @@ class Cmpi(Operation):
     @staticmethod
     def from_mnemonic(operand1: Union[Operation, SSAValue],
                       operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
-        match mnemonic:
-            case "eq":
-                arg: int = 0
-            case "ne":
-                arg: int = 1
-            case "slt":
-                arg: int = 2
-            case "sle":
-                arg: int = 3
-            case "sgt":
-                arg: int = 4
-            case "sge":
-                arg: int = 5
-            case "ult":
-                arg: int = 6
-            case "ule":
-                arg: int = 7
-            case "ugt":
-                arg: int = 8
-            case "uge":
-                arg: int = 9
-            case _:
-                raise VerifyException(f"unknown cmpi mnemonic: {mnemonic}")
-        return Cmpi.get(operand1, operand2, arg)
+        mnemonics = {"eq": 0, "ne": 1, "slt": 2, "sle": 3, "sgt": 4, "sge": 5, "ult": 6, "ule": 7, "ugt": 8, "uge": 9}
+        if mnemonic in mnemonics:
+            return Cmpi.get(operand1, operand2, mnemonics[mnemonic])
+        raise VerifyException(f"unknown cmpi mnemonic: {mnemonic}")
 
 
 @irdl_op_definition
