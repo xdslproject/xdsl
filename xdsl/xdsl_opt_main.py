@@ -7,17 +7,16 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.affine import Affine
+# from xdsl.dialects.scf import Scf
+# from xdsl.dialects.arith import Arith
+# from xdsl.dialects.affine import Affine
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.dialects.cmath import CMath
-from xdsl.dialects.cf import Cf
+# from xdsl.dialects.cmath import CMath
+# from xdsl.dialects.cf import Cf
 from xdsl.diagnostic import DiagnosticException
-from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.irdl import IRDL
-from xdsl.irdl_mlir_printer import IRDLPrinter
+# from xdsl.dialects.llvm import LLVM
+# from xdsl.dialects.irdl import IRDL
 
 from typing import Dict, Callable, List
 
@@ -162,14 +161,14 @@ class xDSLOptMain:
         """
         _ = Builtin(self.ctx)
         _ = Func(self.ctx)
-        _ = Arith(self.ctx)
+        # _ = Arith(self.ctx)
         _ = MemRef(self.ctx)
-        _ = Affine(self.ctx)
-        _ = Scf(self.ctx)
-        _ = Cf(self.ctx)
-        _ = CMath(self.ctx)
-        _ = IRDL(self.ctx)
-        _ = LLVM(self.ctx)
+        # _ = Affine(self.ctx)
+        # _ = Scf(self.ctx)
+        # _ = Cf(self.ctx)
+        # _ = CMath(self.ctx)
+        # _ = IRDL(self.ctx)
+        # _ = LLVM(self.ctx)
 
     def register_all_frontends(self):
         """
@@ -235,12 +234,7 @@ class xDSLOptMain:
                 printer = Printer(stream=output, target=Printer.Target.MLIR)
                 printer.print_op(prog)
 
-        def _output_irdl(prog: ModuleOp, output: IOBase):
-            irdl_to_mlir = IRDLPrinter(stream=output)
-            irdl_to_mlir.print_module(prog)
-
         self.available_targets['xdsl'] = _output_xdsl
-        self.available_targets['irdl'] = _output_irdl
         self.available_targets['mlir'] = _output_mlir
 
     def setup_pipeline(self):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
+from typing import List, Union, cast, Type, Sequence, Optional
 
 from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
                      ParametrizedAttribute, Operation, SSAValue)
@@ -196,7 +196,7 @@ class IndexType(ParametrizedAttribute):
 
 
 _IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
-                          bound=IntegerType | IndexType,
+                          bound=Union[IntegerType, IndexType],
                           covariant=True)
 
 
@@ -221,15 +221,16 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     @staticmethod
     @builder
     def from_params(
-            value: int | IntAttr,
-            typ: int | Attribute) -> IntegerAttr[IntegerType | IndexType]:
+        value: Union[int, IntAttr],
+        typ: Union[int,
+                   Attribute]) -> IntegerAttr[Union[IntegerType, IndexType]]:
         value = IntAttr.build(value)
         if not isinstance(typ, IndexType):
             typ = IntegerType.build(typ)
         return IntegerAttr([value, typ])
 
 
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttr = IntegerAttr[Union[IntegerType, IndexType]]
 
 
 class Float16Type(ParametrizedAttribute, MLIRType):
@@ -253,7 +254,7 @@ class Float64Type(ParametrizedAttribute, MLIRType):
 
 f64 = Float64Type()
 
-AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+AnyFloat = Union[Float16Type, Float32Type, Float64Type]
 
 
 @irdl_attr_definition
@@ -305,7 +306,7 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
         raise ValueError(f"Invalid bitwidth: {width}")
 
 
-AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+AnyFloatAttr = FloatAttr[AnyFloat]
 
 
 @dataclass
@@ -316,7 +317,8 @@ class ArrayOfConstraint(AttrConstraint):
     """
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+    def __init__(self, constr: Union[Attribute, Type[Attribute],
+                                     AttrConstraint]):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute) -> None:
@@ -375,7 +377,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
         return ArrayAttr(data)
 
 
-AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
+AnyArrayAttr = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
@@ -410,7 +412,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
     @builder
     def from_type_and_list(
         referenced_type: _VectorTypeElems,
-        shape: Optional[List[int | IntegerAttr[IndexType]]] = None
+        shape: Optional[List[Union[int, IntegerAttr[IndexType]]]] = None
     ) -> VectorType[_VectorTypeElems]:
         if shape is None:
             shape = [1]
@@ -430,7 +432,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
         return VectorType([shape, referenced_type])
 
 
-AnyVectorType: TypeAlias = VectorType[Attribute]
+AnyVectorType = VectorType[Attribute]
 
 _TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
 
@@ -452,7 +454,7 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
     @builder
     def from_type_and_list(
         referenced_type: _TensorTypeElems,
-        shape: Optional[Sequence[int | IntegerAttr[IndexType]]] = None
+        shape: Optional[Sequence[Union[int, IntegerAttr[IndexType]]]] = None
     ) -> TensorType[_TensorTypeElems]:
         if shape is None:
             shape = [1]
@@ -472,7 +474,7 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
         return TensorType([shape, referenced_type])
 
 
-AnyTensorType: TypeAlias = TensorType[Attribute]
+AnyTensorType = TensorType[Attribute]
 
 _UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
                                    bound=Attribute,
@@ -494,7 +496,7 @@ class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
         return UnrankedTensorType([referenced_type])
 
 
-AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
+AnyUnrankedTensorType = UnrankedTensorType[Attribute]
 
 
 @dataclass(init=False)
@@ -503,8 +505,8 @@ class ContainerOf(AttrConstraint):
     elem_constr: AttrConstraint
 
     def __init__(
-            self,
-            elem_constr: Attribute | type[Attribute] | AttrConstraint) -> None:
+        self, elem_constr: Union[Attribute, type[Attribute],
+                                 AttrConstraint]) -> None:
         self.elem_constr = attr_constr_coercion(elem_constr)
 
     def verify(self, attr: Attribute) -> None:
@@ -516,18 +518,19 @@ class ContainerOf(AttrConstraint):
 
 _VectorOrTensorElem = TypeVar("_VectorOrTensorElem", bound=Attribute)
 
-VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
-                               | TensorType[_VectorOrTensorElem]
-                               | UnrankedTensorType[_VectorOrTensorElem])
+VectorOrTensorOf = (Union[VectorType[_VectorOrTensorElem],
+                          TensorType[_VectorOrTensorElem],
+                          UnrankedTensorType[_VectorOrTensorElem]])
 
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    type: ParameterDef[VectorOrTensorOf[IntegerType]
-                       | VectorOrTensorOf[IndexType]
-                       | VectorOrTensorOf[AnyFloat]]
-    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+    type: ParameterDef[Union[VectorOrTensorOf[IntegerType],
+                             VectorOrTensorOf[IndexType],
+                             VectorOrTensorOf[AnyFloat]]]
+    data: ParameterDef[Union[ArrayAttr[AnyIntegerAttr],
+                             ArrayAttr[AnyFloatAttr]]]
 
     # The type stores the shape data
     @property
@@ -553,8 +556,8 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def from_index_list(
-            type: VectorOrTensorOf[IndexType],
-            data: List[int | IntegerAttr[IndexType]]
+        type: VectorOrTensorOf[IndexType],
+        data: List[Union[int, IntegerAttr[IndexType]]]
     ) -> DenseIntOrFPElementsAttr:
         attr_list = [
             IntegerAttr.from_index_int_value(d) if isinstance(d, int) else d
@@ -566,7 +569,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def from_int_list(
         type: VectorOrTensorOf[IntegerType],
-        data: List[int | IntegerAttr[IntegerType]]
+        data: List[Union[int, IntegerAttr[IntegerType]]]
     ) -> DenseIntOrFPElementsAttr:
         attr_list = [
             IntegerAttr.from_params(d, type.element_type) if isinstance(
@@ -578,7 +581,8 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def from_float_list(
             type: VectorOrTensorOf[AnyFloat],
-            data: List[float | AnyFloatAttr]) -> DenseIntOrFPElementsAttr:
+            data: List[Union[float,
+                             AnyFloatAttr]]) -> DenseIntOrFPElementsAttr:
         data_attr = [
             FloatAttr.from_value(d, type.element_type)
             if isinstance(d, float) else d for d in data
@@ -589,8 +593,9 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @builder
     def from_list(
         type: VectorOrTensorOf[Attribute],
-        data: List[int | IntegerAttr[IntegerType]]
-        | List[int | IntegerAttr[IndexType]] | List[float | AnyFloatAttr]
+        data: Union[List[Union[int, IntegerAttr[IntegerType]]],
+                    List[Union[int, IntegerAttr[IndexType]]],
+                    List[Union[float, AnyFloatAttr]]]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
             return DenseIntOrFPElementsAttr.from_int_list(type, data)
@@ -604,16 +609,16 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     @builder
     def vector_from_list(
-            data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat
-    ) -> DenseIntOrFPElementsAttr:
+        data: Union[List[int], List[float]],
+        typ: Union[IntegerType, IndexType,
+                   AnyFloat]) -> DenseIntOrFPElementsAttr:
         t = AnyVectorType.from_type_and_list(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
     @builder
-    def tensor_from_list(data: List[int] | List[float],
-                         typ: IntegerType | IndexType | AnyFloat,
+    def tensor_from_list(data: Union[List[int], List[float]],
+                         typ: Union[IntegerType, IndexType, AnyFloat],
                          shape: List[int] = []) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(
             typ, shape if len(shape) else [len(data)])
@@ -685,8 +690,8 @@ class UnregisteredOp(Operation):
         return self.op_name__  # type: ignore
 
     @staticmethod
-    def from_name(name: str | StringAttr,
-                  args: list[SSAValue | Operation] = [],
+    def from_name(name: Union[str, StringAttr],
+                  args: list[Union[SSAValue, Operation]] = [],
                   res: list[Attribute] = [],
                   regs: list[Region] = [],
                   attrs: dict[str, Attribute] = {}) -> UnregisteredOp:
@@ -711,7 +716,7 @@ class ModuleOp(Operation):
         return self.regions[0].blocks[0].ops
 
     @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
+    def from_region_or_ops(ops: Union[List[Operation], Region]) -> ModuleOp:
         if isinstance(ops, list):
             region = Region.from_operation_list(ops)
         elif isinstance(ops, Region):

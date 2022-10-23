@@ -1,11 +1,10 @@
 from inspect import isclass
-from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
-                    get_origin)
+from typing import (Annotated, Any, TypeVar, Union, cast, get_args, get_origin)
 
 _T = TypeVar("_T")
 
 
-def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+def is_satisfying_hint(arg: Any, hint: type[_T]) -> Any:
     """
     Check if `arg` is of the type described by `hint`.
     For now, only lists, tuples, sets, dictionaries, unions,

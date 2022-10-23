@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar, Optional, List, TypeAlias
+from typing import TypeVar, Optional, List, Union
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
@@ -32,7 +32,7 @@ class MemRef:
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttr = IntegerAttr[Union[IntegerType, IndexType]]
 
 
 @irdl_attr_definition
@@ -52,7 +52,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
     @builder
     def from_type_and_list(
         referenced_type: _MemRefTypeElement,
-        shape: Optional[List[int | AnyIntegerAttr]] = None
+        shape: Optional[List[Union[int, AnyIntegerAttr]]] = None
     ) -> MemRefType[_MemRefTypeElement]:
         if shape is None:
             shape = [1]
@@ -91,8 +91,8 @@ class Load(Operation):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
-    def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+    def get(ref: Union[SSAValue, Operation],
+            indices: List[Union[SSAValue, Operation]]) -> Load:
         return Load.build(operands=[ref, indices],
                           result_types=[SSAValue.get(ref).typ.element_type])
 
@@ -113,8 +113,8 @@ class Store(Operation):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
-    def get(value: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+    def get(value: Union[Operation, SSAValue], ref: Union[Operation, SSAValue],
+            indices: List[Union[Operation, SSAValue]]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
@@ -135,7 +135,7 @@ class Alloc(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
+            shape: Optional[List[Union[int, AnyIntegerAttr]]] = None) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
@@ -163,7 +163,8 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[Union[int,
+                                       AnyIntegerAttr]]] = None) -> Alloca:
         if shape is None:
             shape = [1]
         return Alloca.build(
@@ -180,7 +181,7 @@ class Dealloc(Operation):
     memref = OperandDef(MemRefType)
 
     @staticmethod
-    def get(operand: Operation | SSAValue) -> Dealloc:
+    def get(operand: Union[Operation, SSAValue]) -> Dealloc:
         return Dealloc.build(operands=[operand])
 
 
@@ -233,7 +234,7 @@ class Global(Operation):
             )
 
     @staticmethod
-    def get(sym_name: str | StringAttr,
+    def get(sym_name: Union[str, StringAttr],
             typ: Attribute,
             initial_value: Optional[Attribute],
             sym_visibility: str = "private") -> Global:

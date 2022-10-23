@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Callable, Generic, Sequence, TypeVar,
+                    Union, cast, get_args, get_origin, get_type_hints)
 
 from frozenlist import FrozenList
 
@@ -278,7 +278,7 @@ def irdl_to_attr_constraint(
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if origin == types.UnionType or origin == Union:
+    if origin == Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
@@ -444,10 +444,10 @@ class OptAttributeDef(AttributeDef):
         super().__init__(typ)
 
 
-@dataclass(kw_only=True)
+@dataclass
 class OpDef:
     """The internal IRDL definition of an operation."""
-    name: str = field(kw_only=False)
+    name: str = field()
     operands: list[tuple[str, OperandDef]] = field(default_factory=list)
     results: list[tuple[str, ResultDef]] = field(default_factory=list)
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
@@ -955,7 +955,7 @@ _AttrT = TypeVar('_AttrT', bound=Attribute)
 
 _BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
 
-BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
+BuilderTy = Callable[..., _BuilderTyT]
 
 IRDL_IS_BUILDER = '__irdl_is_builder'
 
@@ -1075,7 +1075,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
 
 _A = TypeVar("_A", bound=Attribute)
 
-ParameterDef: TypeAlias = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
+ParameterDef = Annotated[_A, IRDLAnnotations.ParamDefAnnot]
 
 
 def irdl_param_attr_get_param_type_hints(

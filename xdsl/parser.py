@@ -102,10 +102,10 @@ class Parser:
     str: str
     """The current file/input to parse."""
 
-    source: Source = field(default=Source.XDSL, kw_only=True)
+    source: Source = field(default=Source.XDSL)
     """The source language to parse."""
 
-    allow_unregistered_ops: bool = field(default=False, kw_only=True)
+    allow_unregistered_ops: bool = field(default=False)
     """Allow the parsing of unregistered ops."""
 
     _pos: Position | None = field(init=False)
