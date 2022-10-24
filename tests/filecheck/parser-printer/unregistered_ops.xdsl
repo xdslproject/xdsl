@@ -6,7 +6,7 @@ builtin.module() {
   %0 : !i32 = "region_op"() [testattr = "foo"] {
 // CHECK: %{{.*}} : !i32 = "region_op"() ["testattr" = "foo"] {
 
-    (%x : !i32, %y : !f32) = "op_with_res"() [otherattr = 3 : !i32]
+    %x : !i32, %y : !f32 = "op_with_res"() [otherattr = 3 : !i32]
 // CHECK: (%{{.*}} : !i32, %{{.*}} : !f32) = "op_with_res"() ["otherattr" = 3 : !i32]
 
     "op_with_operands"(%x: !i32, %y : !f32, %x : !i32)

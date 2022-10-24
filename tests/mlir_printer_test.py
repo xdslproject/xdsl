@@ -177,7 +177,7 @@ def test_op_with_results():
 
     print_as_mlir_and_compare(
         """(%0 : !param_attr, %1 : !param_type) = any()""",
-        """(%0, %1) = "any"() : () -> (#param_attr, !param_type)""",
+        """%0, %1 = "any"() : () -> (#param_attr, !param_type)""",
     )
 
 
