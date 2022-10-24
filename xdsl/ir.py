@@ -10,7 +10,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
-    from xdsl.irdl import OpDef, ParamAttrDef
+    from xdsl.irdl import OpDef, ParamAttrDef, VerifyException
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -277,13 +277,19 @@ class ParametrizedAttribute(Attribute):
 class Node(object):
     pass
 
-    def is_ancestor(child: Node, op: Node) -> bool:
+    def is_ancestor(cls: Node, op: Node) -> bool:
         "Returns true if the Node is an ancestor of another Node."
-        if op is child:
+        if op is cls:
             return True
         if op.parent is None:
             return False
-        return child.is_ancestor(op.parent)
+        return cls.is_ancestor(op.parent)
+
+    def get_toplevel_object(cls: Node) -> Operation | Block | Region:
+        """Get the operation, block, or region ancestor that has no parents."""
+        if cls.parent is None:
+            return cls
+        return cls.parent.get_toplevel_object()
 
 
 @dataclass
@@ -514,12 +520,6 @@ class Operation(Node):
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -744,12 +744,6 @@ class Block(Node):
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -957,9 +951,3 @@ class Region(Node):
         self.blocks = []
         for block in region.blocks:
             block.parent = region
-
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
