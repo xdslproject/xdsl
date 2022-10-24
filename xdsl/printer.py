@@ -175,12 +175,16 @@ class Printer:
             return
 
         # Multiple results
-        self.print("(")
+        if self.target != self.Target.MLIR:
+            self.print("(")
         self._print_result_value(op, 0)
         for idx in range(1, len(results)):
             self.print(", ")
             self._print_result_value(op, idx)
-        self.print(") = ")
+        if self.target == self.Target.MLIR:
+            self.print(" = ")
+        else:
+            self.print(") = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
         if ssa_val := self._ssa_values.get(value):
