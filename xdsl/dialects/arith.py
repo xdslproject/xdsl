@@ -20,6 +20,7 @@ class Arith:
     def __post_init__(self):
         self.ctx.register_op(Constant)
 
+        # Integer-like
         self.ctx.register_op(Addi)
         self.ctx.register_op(Muli)
         self.ctx.register_op(Subi)
@@ -35,20 +36,27 @@ class Arith:
         self.ctx.register_op(MinUI)
         self.ctx.register_op(MaxUI)
 
+        # Float-like
         self.ctx.register_op(Addf)
         self.ctx.register_op(Subf)
         self.ctx.register_op(Mulf)
         self.ctx.register_op(Divf)
 
+        # Comparison/Condition
         self.ctx.register_op(Cmpi)
         self.ctx.register_op(Select)
 
+        # Logical
         self.ctx.register_op(AndI)
         self.ctx.register_op(OrI)
         self.ctx.register_op(XOrI)
+
+        # Shift
         self.ctx.register_op(ShLI)
         self.ctx.register_op(ShRUI)
         self.ctx.register_op(ShRSI)
+
+        # Min/Max
         self.ctx.register_op(Minf)
         self.ctx.register_op(Maxf)
 
@@ -58,8 +66,6 @@ class Constant(Operation):
     name: str = "arith.constant"
     result = ResultDef(AnyAttr())
     value = AttributeDef(AnyAttr())
-
-    # TODO verify that the result and value type are equal
 
     @staticmethod
     def from_attr(attr: Attribute, typ: Attribute) -> Constant:
@@ -82,12 +88,6 @@ class Addi(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Addi:
@@ -103,12 +103,6 @@ class Muli(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Muli:
@@ -123,12 +117,6 @@ class Subi(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -149,12 +137,6 @@ class DivUI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -195,12 +177,6 @@ class FloorDivSI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> FloorDivSI:
@@ -215,12 +191,6 @@ class CeilDivSI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -237,12 +207,6 @@ class CeilDivUI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> CeilDivUI:
@@ -257,12 +221,6 @@ class RemUI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -279,12 +237,6 @@ class RemSI(Operation):
     rhs = OperandDef(IntegerType)
     result = ResultDef(IntegerType)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> RemSI:
@@ -299,12 +251,6 @@ class MinUI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -321,12 +267,6 @@ class MaxUI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> MaxUI:
@@ -341,12 +281,6 @@ class MinSI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -363,12 +297,6 @@ class MaxSI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> MaxSI:
@@ -383,12 +311,6 @@ class AndI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -405,12 +327,6 @@ class OrI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> OrI:
@@ -425,12 +341,6 @@ class XOrI(Operation):
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -618,12 +528,6 @@ class Addf(Operation):
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Addf:
@@ -638,12 +542,6 @@ class Subf(Operation):
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -660,12 +558,6 @@ class Mulf(Operation):
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Mulf:
@@ -680,12 +572,6 @@ class Divf(Operation):
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -702,12 +588,6 @@ class Maxf(Operation):
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> Maxf:
@@ -722,12 +602,6 @@ class Minf(Operation):
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
     result = ResultDef(floatingPointLike)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
