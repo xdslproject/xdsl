@@ -528,15 +528,15 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
+    """The basic block arguments."""
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
                                              init=False)
-    """The basic block arguments."""
 
-    ops: list[Operation] = field(default_factory=list, init=False)
     """Ordered operations contained in the block."""
+    ops: list[Operation] = field(default_factory=list, init=False)
 
-    parent: Region | None = field(default=None, init=False, repr=False)
     """Parent region containing the block."""
+    parent: Region | None = field(default=None, init=False, repr=False)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None

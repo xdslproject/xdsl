@@ -19,7 +19,7 @@ def test_no_builder_default():
 
 
 def test_no_builder_exception():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError) as e:  # noqa
         NoBuilderAttr.build(3)
 
 
@@ -52,7 +52,7 @@ def test_one_builder_builder():
 
 
 def test_one_builder_exception():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError) as e:  # noqa
         OneBuilderAttr.build("1")
 
 
@@ -95,7 +95,7 @@ def test_two_builders_second_builder():
 
 
 def test_two_builders_bad_args():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError) as e:  # noqa
         TwoBuildersAttr.build([])
 
 
@@ -158,5 +158,5 @@ def builder_union_arg_second():
 
 
 def builder_union_arg_bad_argument():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError) as e:  # noqa
         BuilderUnionArgAttr.build([])

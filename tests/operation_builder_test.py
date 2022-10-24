@@ -310,7 +310,7 @@ class OptionalAttrOp(Operation):
 def test_optional_attr_op_empty():
     op = OptionalAttrOp.build()
     op.verify()
-    assert op.opt_attr == None
+    assert op.opt_attr is None
 
 
 #  ____            _

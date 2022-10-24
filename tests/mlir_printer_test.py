@@ -73,7 +73,7 @@ class ParamAttrWithCustomFormat(ParametrizedAttribute):
     param1: ParameterDef[ParamAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"~~")
+        printer.print(f'{"~~"}')
 
 
 def print_as_mlir_and_compare(test_prog: str, expected: str):
@@ -97,7 +97,7 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
 
     # Remove all whitespace from the expected string.
     regex = re.compile(r'[^\S]+')
-    assert (regex.sub("", res.getvalue()).strip() == \
+    assert (regex.sub("", res.getvalue()).strip() ==
             regex.sub("", expected).strip())
 
 
