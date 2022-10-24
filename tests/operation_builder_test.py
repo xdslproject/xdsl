@@ -440,11 +440,11 @@ def test_var_sbregion_one_block():
 
 def test_parent_pointers():
     op = ResultOp.build(result_types=[0])
-    block = Block.from_ops([op])
+    block = Block(ops=[op])
     reg = Region.from_block_list([block])
     reg_op = RegionOp.build(regions=[reg])
 
-    block_2 = Block.from_ops([reg_op])
+    block_2 = Block(ops=[reg_op])
     reg_2 = Region.from_block_list([block_2])
     reg_op_2 = RegionOp.build(regions=[reg_2])
 

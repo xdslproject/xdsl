@@ -528,15 +528,22 @@ class Operation:
 class Block:
     """A sequence of operations"""
 
-    _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
-                                             init=False)
-    """The basic block arguments."""
+    def __init__(self, ops=None, arg_types=None, parent=None):
 
-    ops: list[Operation] = field(default_factory=list, init=False)
-    """Ordered operations contained in the block."""
+        if arg_types:
+            self._args = FrozenList([
+                    BlockArgument(typ, self, index)
+                    for index, typ in enumerate(arg_types)
+                         ])
+        else:
+            self._args = field(default=None, init=False, repr=False)
+        """The basic block arguments."""
 
-    parent: Region | None = field(default=None, init=False, repr=False)
-    """Parent region containing the block."""
+        self.ops = self.add_ops(ops) if ops else field(default_factory=list, init=False)
+        """Ordered operations contained in the block."""
+
+        self.parent = parent or field(default=None, init=False, repr=False)
+        """Parent region containing the block."""
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -555,28 +562,6 @@ class Block:
         """Returns the block arguments."""
         return self._args
 
-    @staticmethod
-    def from_arg_types(arg_types: list[Attribute]) -> Block:
-        b = Block()
-        b._args = FrozenList([
-            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
-        ])
-        b._args.freeze()
-        return b
-
-    @staticmethod
-    def from_ops(ops: list[Operation],
-                 arg_types: list[Attribute] | None = None):
-        b = Block()
-        if arg_types is not None:
-            b._args = FrozenList([
-                BlockArgument(typ, b, index)
-                for index, typ in enumerate(arg_types)
-            ])
-            b._args.freeze()
-        b.add_ops(ops)
-        return b
-
     class BlockCallback(Protocol):
 
         def __call__(self, *args: BlockArgument) -> list[Operation]:
@@ -584,7 +569,8 @@ class Block:
 
     @staticmethod
     def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
-        b = Block.from_arg_types(block_arg_types)
+        import pdb;pdb.set_trace()
+        b = Block(block_arg_types)
         b.add_ops(f(*b.args))
         return b
 
@@ -780,7 +766,7 @@ class Region:
 
     @staticmethod
     def from_operation_list(ops: list[Operation]) -> Region:
-        block = Block.from_ops(ops)
+        block = Block(ops)
         region = Region()
         region.add_block(block)
         return region
