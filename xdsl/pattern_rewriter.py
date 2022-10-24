@@ -492,3 +492,38 @@ class PatternRewriteWalker:
                     idx = len(block.ops) - 1
                     while idx >= 0:
                         idx += self._rewrite_op(block.ops[idx])
+
+
+@dataclass(eq=False, repr=False)
+class RewriteOnceWalker:
+    """
+    Rewrite using a rewrite pattern on the first matched pattern.
+    """
+
+    pattern: RewritePattern
+    """Pattern to apply during the walk."""
+
+    def rewrite_module(self, op: ModuleOp) -> bool:
+        """Rewrite an entire module operation."""
+        return self._rewrite_op(op)
+
+    def _rewrite_op(self, op: Operation) -> bool:
+        """
+        Rewrite an operation, along with its regions.
+        Returns a boolean if an operation was rewritten.
+        """
+
+        rewriter = PatternRewriter(op)
+        self.pattern.match_and_rewrite(op, rewriter)
+        if rewriter.has_done_action:
+            return True
+        return self._rewrite_op_regions(op)
+
+    def _rewrite_op_regions(self, op: Operation) -> bool:
+        """Rewrite the regions of an operation, and update the operation with the new regions."""
+        for region in op.regions:
+            for block in region.blocks:
+                for op in block.ops:
+                    if self._rewrite_op(op):
+                        return True
+        return False

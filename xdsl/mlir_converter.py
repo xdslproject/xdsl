@@ -1,6 +1,9 @@
-from typing import Dict
+from xdsl import ensure_mlir_module_loaded
+
+ensure_mlir_module_loaded()
 
 from xdsl import _mlir_module as mlir
+
 from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
                      BlockArgument, Attribute)
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
@@ -10,10 +13,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    Float32Type, SymbolNameAttr, UnitAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.llvm import LLVMStructType
-
-from xdsl import ensure_mlir_module_loaded
-
-ensure_mlir_module_loaded()
+from typing import Dict
 
 
 class MLIRConverter:

@@ -514,7 +514,7 @@ def test_inline_and_fold():
 """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
   ^0():
-    %0 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %0 : !i1 = arith.constant() ["value" = true]
     %1 : !i32 = scf.if(%0 : !i1) {
       %2 : !i32 = arith.constant() ["value" = 1 : !i32]
       %3 : !i32 = arith.constant() ["value" = 2 : !i32]
@@ -705,7 +705,7 @@ def test_deeper_nested_block_args_commute():
 """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
-    %2 : !i1 = arith.constant() ["value" = 1 : !i1]
+    %2 : !i1 = arith.constant() ["value" = true]
     %3 : !i32 = scf.if(%2 : !i1) {
       %4 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
       scf.yield(%4 : !i32)
