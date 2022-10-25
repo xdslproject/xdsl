@@ -12,9 +12,9 @@ from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
 from frozenlist import FrozenList
 
 from xdsl import util
-from xdsl.diagnostic import Diagnostic, DiagnosticException
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
-                     ParametrizedAttribute, Region, SSAValue)
+                     ParametrizedAttribute, Region, SSAValue,
+                     Diagnostic, VerifyException)
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -23,10 +23,6 @@ def error(op: Operation, msg: str):
     diag = Diagnostic()
     diag.add_message(op, msg)
     diag.raise_exception(f"{op.name} operation does not verify", op)
-
-
-class VerifyException(DiagnosticException):
-    ...
 
 
 class IRDLAnnotations(Enum):

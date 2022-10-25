@@ -5,14 +5,14 @@ from enum import Enum
 from typing import TypeAlias, List, cast, Type, Sequence, Optional
 
 from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
-                     ParametrizedAttribute, Operation, SSAValue)
+                     ParametrizedAttribute, Operation, SSAValue,
+                     VerifyException)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
                        SingleBlockRegionDef, TypeVar, Generic, GenericData,
-                       AttrConstraint, Any, Attribute, Region, VerifyException,
-                       AnyAttr)
+                       AttrConstraint, Any, Attribute, Region, AnyAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser, ParserError

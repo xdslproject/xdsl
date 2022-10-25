@@ -10,7 +10,7 @@ from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
-    from xdsl.irdl import OpDef, ParamAttrDef, VerifyException
+    from xdsl.irdl import OpDef, ParamAttrDef
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -450,17 +450,13 @@ class Operation(Node):
     def verify_(self) -> None:
         try:
             assert self.lhs
+            assert self.rhs
+            assert self.result
         except AttributeError:
             return
 
         if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
-    def verify_types(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
+            raise VerifyException("expect all input and result types to be equal")
 
     _OperationType = TypeVar('_OperationType', bound='Operation')
 
@@ -964,3 +960,41 @@ class Region(Node):
         self.blocks = []
         for block in region.blocks:
             block.parent = region
+
+
+class DiagnosticException(Exception):
+    ...
+
+
+@dataclass
+class Diagnostic:
+    op_messages: dict[Operation, list[str]] = field(default_factory=dict)
+
+    def add_message(self, op: Operation, message: str) -> None:
+        """Add a message to an operation."""
+        self.op_messages.setdefault(op, []).append(message)
+
+    def raise_exception(
+            self,
+            message: str,
+            ir: Operation | Block | Region,
+            exception_type: type[Exception] = DiagnosticException) -> None:
+        """Raise an exception, that will also print all messages in the IR."""
+        from xdsl.printer import Printer
+        f = StringIO()
+        p = Printer(stream=f, diagnostic=self)
+        toplevel = ir.get_toplevel_object()
+        if isinstance(toplevel, Operation):
+            p.print_op(toplevel)
+        elif isinstance(toplevel, Block):
+            p._print_named_block(toplevel)  # type: ignore
+        elif isinstance(toplevel, Region):
+            p._print_region(toplevel)  # type: ignore
+        else:
+            assert "xDSL internal error: get_toplevel_object returned unknown construct"
+
+        raise exception_type(message + "\n\n" + f.getvalue())
+
+
+class VerifyException(DiagnosticException):
+    ...

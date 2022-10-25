@@ -5,9 +5,9 @@ from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import MLContext, Operation, SSAValue, VerifyException
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
-                       ResultDef, OperandDef, VerifyException, Attribute)
+                       ResultDef, OperandDef, Attribute)
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
@@ -460,6 +460,9 @@ class Cmpi(Operation):
             operands=[operand1, operand2],
             result_types=[IntegerType.from_width(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
+
+    def verify_(self) -> None:
+        pass
 
     @staticmethod
     def from_mnemonic(operand1: Union[Operation, SSAValue],
