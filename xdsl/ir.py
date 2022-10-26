@@ -446,17 +446,8 @@ class Operation(Node):
             for region in self.regions:
                 region.verify()
 
-    # TODO replace with trait
     def verify_(self) -> None:
-        try:
-            assert self.lhs
-            assert self.rhs
-            assert self.result
-        except AttributeError:
-            return
-
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException("expect all input and result types to be equal")
+        pass
 
     _OperationType = TypeVar('_OperationType', bound='Operation')
 
@@ -540,6 +531,27 @@ class Operation(Node):
     def irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
+
+
+@dataclass
+class BinaryOperation(Operation):
+    """A generic operation. Operation definitions inherit this class."""
+
+    # TODO replace with trait
+    def verify_(self) -> None:
+        try:
+            assert self.lhs
+            assert self.rhs
+            assert self.result
+        except AttributeError:
+            return
+
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
+
+    def __hash__(self) -> int:
+        return id(self)
 
 
 @dataclass()

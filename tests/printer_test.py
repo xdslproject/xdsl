@@ -7,8 +7,8 @@ from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitA
 from xdsl.dialects.arith import Arith, Addi, Constant
 
 from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Diagnostic
-from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition, Operation,
-                       OperandDef, ResultDef, OptAttributeDef)
+from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
+                       Operation, OperandDef, ResultDef, OptAttributeDef)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 

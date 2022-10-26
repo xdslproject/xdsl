@@ -5,7 +5,7 @@ from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, SSAValue, VerifyException
+from xdsl.ir import MLContext, Operation, BinaryOperation, SSAValue, VerifyException
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, Attribute)
 
@@ -82,7 +82,7 @@ class Constant(Operation):
 
 
 @irdl_op_definition
-class Addi(Operation):
+class Addi(BinaryOperation):
     name: str = "arith.addi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -97,7 +97,7 @@ class Addi(Operation):
 
 
 @irdl_op_definition
-class Muli(Operation):
+class Muli(BinaryOperation):
     name: str = "arith.muli"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -112,7 +112,7 @@ class Muli(Operation):
 
 
 @irdl_op_definition
-class Subi(Operation):
+class Subi(BinaryOperation):
     name: str = "arith.subi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -147,7 +147,7 @@ class DivUI(Operation):
 
 
 @irdl_op_definition
-class DivSI(Operation):
+class DivSI(BinaryOperation):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -157,12 +157,6 @@ class DivSI(Operation):
     rhs = OperandDef(signlessIntegerLike)
     result = ResultDef(signlessIntegerLike)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and output types to be equal")
-
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> DivSI:
@@ -171,7 +165,7 @@ class DivSI(Operation):
 
 
 @irdl_op_definition
-class FloorDivSI(Operation):
+class FloorDivSI(BinaryOperation):
     name: str = "arith.floordivsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -186,7 +180,7 @@ class FloorDivSI(Operation):
 
 
 @irdl_op_definition
-class CeilDivSI(Operation):
+class CeilDivSI(BinaryOperation):
     name: str = "arith.ceildivsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -201,7 +195,7 @@ class CeilDivSI(Operation):
 
 
 @irdl_op_definition
-class CeilDivUI(Operation):
+class CeilDivUI(BinaryOperation):
     name: str = "arith.ceildivui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -216,7 +210,7 @@ class CeilDivUI(Operation):
 
 
 @irdl_op_definition
-class RemUI(Operation):
+class RemUI(BinaryOperation):
     name: str = "arith.remui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -231,7 +225,7 @@ class RemUI(Operation):
 
 
 @irdl_op_definition
-class RemSI(Operation):
+class RemSI(BinaryOperation):
     name: str = "arith.remsi"
     lhs = OperandDef(IntegerType)
     rhs = OperandDef(IntegerType)
@@ -246,7 +240,7 @@ class RemSI(Operation):
 
 
 @irdl_op_definition
-class MinUI(Operation):
+class MinUI(BinaryOperation):
     name: str = "arith.minui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -261,7 +255,7 @@ class MinUI(Operation):
 
 
 @irdl_op_definition
-class MaxUI(Operation):
+class MaxUI(BinaryOperation):
     name: str = "arith.maxui"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -276,7 +270,7 @@ class MaxUI(Operation):
 
 
 @irdl_op_definition
-class MinSI(Operation):
+class MinSI(BinaryOperation):
     name: str = "arith.minsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -291,7 +285,7 @@ class MinSI(Operation):
 
 
 @irdl_op_definition
-class MaxSI(Operation):
+class MaxSI(BinaryOperation):
     name: str = "arith.maxsi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -306,7 +300,7 @@ class MaxSI(Operation):
 
 
 @irdl_op_definition
-class AndI(Operation):
+class AndI(BinaryOperation):
     name: str = "arith.andi"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -321,7 +315,7 @@ class AndI(Operation):
 
 
 @irdl_op_definition
-class OrI(Operation):
+class OrI(BinaryOperation):
     name: str = "arith.ori"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -336,7 +330,7 @@ class OrI(Operation):
 
 
 @irdl_op_definition
-class XOrI(Operation):
+class XOrI(BinaryOperation):
     name: str = "arith.xori"
     lhs = OperandDef(signlessIntegerLike)
     rhs = OperandDef(signlessIntegerLike)
@@ -525,7 +519,7 @@ class Select(Operation):
 
 
 @irdl_op_definition
-class Addf(Operation):
+class Addf(BinaryOperation):
     name: str = "arith.addf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
@@ -540,7 +534,7 @@ class Addf(Operation):
 
 
 @irdl_op_definition
-class Subf(Operation):
+class Subf(BinaryOperation):
     name: str = "arith.subf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
@@ -555,7 +549,7 @@ class Subf(Operation):
 
 
 @irdl_op_definition
-class Mulf(Operation):
+class Mulf(BinaryOperation):
     name: str = "arith.mulf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
@@ -570,7 +564,7 @@ class Mulf(Operation):
 
 
 @irdl_op_definition
-class Divf(Operation):
+class Divf(BinaryOperation):
     name: str = "arith.divf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
@@ -585,7 +579,7 @@ class Divf(Operation):
 
 
 @irdl_op_definition
-class Maxf(Operation):
+class Maxf(BinaryOperation):
     name: str = "arith.maxf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
@@ -600,7 +594,7 @@ class Maxf(Operation):
 
 
 @irdl_op_definition
-class Minf(Operation):
+class Minf(BinaryOperation):
     name: str = "arith.minf"
     lhs = OperandDef(floatingPointLike)
     rhs = OperandDef(floatingPointLike)
