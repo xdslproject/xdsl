@@ -574,23 +574,15 @@ class Parser:
     def parse_optional_typed_results(
             self,
             skip_white_space: bool = True
-    ) -> list[tuple[str, Attribute]] | None:
-        # One argument
-        res = self.parse_optional_typed_result(
-            skip_white_space=skip_white_space)
-        if res is not None:
-            self.parse_char("=")
-            return [res]
-
-        # No arguments
-        if self.parse_optional_char("(") is None:
-            return None
-
-        # Multiple arguments
-        res = self.parse_list(lambda: self.parse_optional_typed_result())
-        self.parse_char(")")
-        self.parse_char("=")
-        return res
+    ) -> list[tuple[str, Attribute]] | None:        
+        res = self.parse_list(lambda: self.parse_optional_typed_result(skip_white_space=skip_white_space))
+        if len(res) == 0: 
+          return None
+        elif len(res) == 1 and res[0] is None:
+          return None
+        else:
+          self.parse_char("=")
+          return res
 
     def parse_optional_operand(self,
                                skip_white_space: bool = True
