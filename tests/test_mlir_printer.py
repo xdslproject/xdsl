@@ -1,5 +1,8 @@
 from io import StringIO
 from typing import Annotated
+from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.memref import MemRef
+from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
 from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition)
@@ -20,6 +23,14 @@ class ModuleOp(Operation):
 class AnyOp(Operation):
     """Operation only used for testing."""
     name = "any"
+    op: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
+
+
+@irdl_op_definition
+class TestOpCrash(Operation):
+    """Operation only used for testing."""
+    name = "test.op_crash"
     op: Annotated[VarOperand, AnyAttr()]
     res: Annotated[VarOpResult, AnyAttr()]
 
@@ -223,3 +234,44 @@ def test_param_custom_format():
         """any() [ "attr" = !param_custom_format<!param_attr> ]""",
         """"any"() {attr = #param_custom_format~~} : () -> ()""",
     )
+
+
+def test_parse_memref():
+    """Test parsing and printing of memref works"""
+
+    test_prog = """\
+    "builtin.module"() ({
+      "func.func"() ({}) {function_type = () -> (), sym_name = "dead_private_function", sym_visibility = "private"} : () -> ()
+      "func.func"() ({}) {function_type = () -> (), sym_name = "dead_nested_function", sym_visibility = "nested"} : () -> ()
+      "func.func"() ({
+        ^0(%0 : i1, %1 : memref<2xf32>, %2 : memref<2xf32>):
+          "func.return"() : () -> ()
+        }) {function_type = (i1, memref<2xf32>, memref<2xf32>) -> (), sym_name = "simple1"} : () -> ()
+    }) : () -> ()
+    """
+
+    ctx = MLContext()
+
+    _ = Builtin(ctx)
+    _ = MemRef(ctx)
+    _ = Func(ctx)
+
+    parser = Parser(ctx, test_prog, source=Parser.Source.MLIR)
+    module = parser.parse_op()
+
+    res = StringIO()
+    printer = Printer(target=Printer.Target.MLIR, stream=res)
+    printer.print_op(module)
+
+    print(res.getvalue())
+    print(test_prog)
+
+    for a, b in zip(res.getvalue().split('\n'), test_prog.split('\n')):
+        print(a.strip())
+        print(b.strip())
+        print()
+
+    # Remove all whitespace from the expected string.
+    regex = re.compile(r'[^\S]+')
+    assert (regex.sub("", res.getvalue()).strip() == \
+            regex.sub("", test_prog).strip())
