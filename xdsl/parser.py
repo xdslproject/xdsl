@@ -4,7 +4,7 @@ from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    FunctionType, IndexType, IntegerType, OpaqueAttr, StringAttr,
+    FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
@@ -122,6 +122,10 @@ class Parser:
             self._pos = None
         else:
             self._pos = Position(self.str)
+
+    def get_pos(self) -> Position | None:
+        """Return the current position."""
+        return self._pos
 
     def get_char(self,
                  n: int = 1,
@@ -680,9 +684,8 @@ class Parser:
 
         def parse_integer_type():
             self.parse_char("!", skip_white_space=skip_white_space)
-            self.parse_char("i", skip_white_space=False)
-            val = self.parse_int_literal(skip_white_space=False)
-            return IntegerType.from_width(val)
+            return self.parse_mlir_integer_type(
+                skip_white_space=skip_white_space)
 
         if int_type := self.try_parse(parse_integer_type):
             return int_type
@@ -852,18 +855,21 @@ class Parser:
         raise ParserError(self._pos, "index type expected")
 
     def parse_mlir_integer_type(self,
-                                skip_white_space: bool = True
-                                ) -> IntegerType | None:
-        if (self.parse_optional_string("i", skip_white_space=skip_white_space)
-                or self.parse_optional_string(
-                    "si", skip_white_space=skip_white_space)
-                or self.parse_optional_string(
-                    "ui", skip_white_space=skip_white_space)):
-            width = self.parse_optional_int_literal()
-            if width is not None:
-                return IntegerType.from_width(width)
-            raise ParserError(self._pos, "integer type width expected")
-        raise ParserError(self._pos, "integer type expected")
+                                skip_white_space: bool = True) -> IntegerType:
+        # Parse the optional signedness semantics
+        if self.parse_optional_string("si", skip_white_space=skip_white_space):
+            signedness = Signedness.SIGNED
+        elif self.parse_optional_string("ui",
+                                        skip_white_space=skip_white_space):
+            signedness = Signedness.UNSIGNED
+        elif self.parse_optional_string("i",
+                                        skip_white_space=skip_white_space):
+            signedness = Signedness.SIGNLESS
+        else:
+            raise ParserError(self._pos, "integer type expected")
+
+        val = self.parse_int_literal(skip_white_space=False)
+        return IntegerType.from_width(val, signedness)
 
     def parse_optional_mlir_integer_type(self,
                                          skip_white_space: bool = True
@@ -937,7 +943,7 @@ class Parser:
 
         # Array attribute
         if self.parse_optional_char("["):
-            contents = self.parse_list(self.parse_optional_mlir_attribute)
+            contents = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
             return ArrayAttr.from_list(contents)
 
@@ -1125,7 +1131,8 @@ class Parser:
         result_types = [typ for (_, typ) in results]
         op_type = self.ctx.get_optional_op(op_name)
 
-        # If the operation is not registered, we create an UnregisteredOp instead, or fail.
+        # If the operation is not registered, we create an UnregisteredOp instead,
+        # or fail.
         if op_type is None:
             if not self.allow_unregistered_ops:
                 raise ParserError(start_pos, f"unknown operation '{op_name}'")
@@ -1221,8 +1228,16 @@ class Parser:
         else:
             op_name = self.parse_str_literal()
 
-        op_type = self.ctx.get_op(op_name)
-        op = self.parse_mlir_op_with_default_format(op_type, len(results))
+        op_type = self.ctx.get_optional_op(op_name)
+        if op_type is None:
+            if not self.allow_unregistered_ops:
+                raise ParserError(start_pos, f"unknown operation '{op_name}'")
+
+            op_type = UnregisteredOp
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
+            op.attributes["op_name__"] = StringAttr.from_str(op_name)
+        else:
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
 
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):

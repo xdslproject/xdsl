@@ -2,9 +2,9 @@ from xdsl import ensure_mlir_module_loaded
 
 ensure_mlir_module_loaded()
 
-from xdsl import _mlir_module as mlir
+from xdsl import _mlir_module as mlir  # type: ignore
 
-from xdsl.ir import (SSAValue, OpResult, Block, Operation, Region,
+from xdsl.ir import (MLContext, SSAValue, OpResult, Block, Operation, Region,
                      BlockArgument, Attribute)
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    VectorType, IntegerType, IndexType,
@@ -18,7 +18,7 @@ from typing import Dict
 
 class MLIRConverter:
 
-    def __init__(self, ctx):
+    def __init__(self, ctx: MLContext):
         self.ctx = ctx
         self.op_to_mlir_ops: Dict[Operation, mlir.ir.Operation] = dict()
         self.block_to_mlir_blocks: Dict[Block, mlir.ir.Block] = dict()
@@ -99,8 +99,8 @@ class MLIRConverter:
             typ = "vector" if isinstance(attr.type, VectorType) else "tensor"
 
             return mlir.ir.DenseIntElementsAttr.parse(
-                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : {typ}<{len(attr.data.data)}x{element_type}>"
-            )
+                f"dense<{[d.parameters[0].data for d in attr.data.data]}> : "
+                f"{typ}<{len(attr.data.data)}x{element_type}>")
         if isinstance(attr, FlatSymbolRefAttr):
             return mlir.ir.FlatSymbolRefAttr.get(attr.parameters[0].data)
         if isinstance(attr, UnitAttr):

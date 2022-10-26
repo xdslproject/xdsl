@@ -33,11 +33,12 @@ class FuncOp(Operation):
                       return_types: List[Attribute],
                       func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(attributes={
+        attributes = {
             "sym_name": name,
             "function_type": type_attr,
             "sym_visibility": "private"
-        },
+        }
+        op = FuncOp.build(attributes=attributes,
                           regions=[
                               Region.from_block_list(
                                   [Block.from_callable(input_types, func)])
@@ -48,12 +49,12 @@ class FuncOp(Operation):
     def from_region(name: str, input_types: List[Attribute],
                     return_types: List[Attribute], region: Region) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        op = FuncOp.build(attributes={
+        attributes = {
             "sym_name": name,
             "function_type": type_attr,
             "sym_visibility": "private"
-        },
-                          regions=[region])
+        }
+        op = FuncOp.build(attributes=attributes, regions=[region])
         return op
 
 

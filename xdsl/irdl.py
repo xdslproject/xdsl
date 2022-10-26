@@ -16,6 +16,8 @@ from xdsl.diagnostic import Diagnostic, DiagnosticException
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 
+# pyright: reportMissingParameterType=false, reportUnknownParameterType=false
+
 
 def error(op: Operation, msg: str):
     diag = Diagnostic()
@@ -169,8 +171,8 @@ class ParamAttrConstraint(AttrConstraint):
             )
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
-                f"{len(self.param_constrs)} parameters expected, but got {len(attr.parameters)}"
-            )
+                f"{len(self.param_constrs)} parameters expected, "
+                f"but got {len(attr.parameters)}")
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx])
 
@@ -266,14 +268,12 @@ def irdl_to_attr_constraint(
         }
 
         origin_parameters = irdl_param_attr_get_param_type_hints(origin)
-        origin_constraints: list[Attribute | type[Attribute]
-                                 | AttrConstraint] = [
-                                     irdl_to_attr_constraint(
-                                         param,
-                                         allow_type_var=True,
-                                         type_var_mapping=type_var_mapping)
-                                     for _, param in origin_parameters
-                                 ]
+        origin_constraints = [
+            irdl_to_attr_constraint(param,
+                                    allow_type_var=True,
+                                    type_var_mapping=type_var_mapping)
+            for _, param in origin_parameters
+        ]
         return ParamAttrConstraint(origin, origin_constraints)
 
     # Union case
@@ -471,15 +471,15 @@ class OpDef:
 
         op_def = OpDef(clsdict["name"])
 
-        for field_name, field in clsdict.items():
-            if isinstance(field, OperandDef):
-                op_def.operands.append((field_name, field))
-            elif isinstance(field, ResultDef):
-                op_def.results.append((field_name, field))
-            elif isinstance(field, RegionDef):
-                op_def.regions.append((field_name, field))
-            elif isinstance(field, AttributeDef):
-                op_def.attributes[field_name] = field
+        for field_name, field_value in clsdict.items():
+            if isinstance(field_value, OperandDef):
+                op_def.operands.append((field_name, field_value))
+            elif isinstance(field_value, ResultDef):
+                op_def.results.append((field_name, field_value))
+            elif isinstance(field_value, RegionDef):
+                op_def.regions.append((field_name, field_value))
+            elif isinstance(field_value, AttributeDef):
+                op_def.attributes[field_name] = field_value
 
         op_def.options = clsdict.get("irdl_options", [])
 
@@ -858,10 +858,14 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     previous_variadics = 0
     defs = get_construct_defs(op_def, construct)
     for arg_idx, (arg_name, arg_def) in enumerate(defs):
-        new_attrs[arg_name] = property(
-            lambda self, idx=arg_idx, previous_vars=
-            previous_variadics: get_operand_result_or_region(
-                self, op_def, idx, previous_vars, construct))
+
+        def fun(self: Any,
+                idx: int = arg_idx,
+                previous_vars: int = previous_variadics):
+            return get_operand_result_or_region(self, op_def, idx,
+                                                previous_vars, construct)
+
+        new_attrs[arg_name] = property(fun)
         if isinstance(arg_def, VariadicDef):
             previous_variadics += 1
 
@@ -870,10 +874,14 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (arg_size_option is None
                                    or arg_size_option not in op_def.options):
+        if arg_size_option is None:
+            arg_size_option_name = 'unknown'
+        else:
+            arg_size_option_name = arg_size_option.__name__  # type: ignore
         raise Exception(
             "Operation defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
-            f"{arg_size_option.__name__} PyRDL option.")
+            f"{arg_size_option_name} PyRDL option.")
 
 
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
@@ -949,13 +957,15 @@ _BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
 
 BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
 
+IRDL_IS_BUILDER = '__irdl_is_builder'
+
 
 def builder(f: BuilderTy[_AttrT]) -> BuilderTy[_AttrT]:
     """
     Annotate a function and mark it as an IRDL builder.
     This should only be used as decorator in classes decorated by irdl_attr_builder.
     """
-    f.__irdl_is_builder = True
+    setattr(f, IRDL_IS_BUILDER, True)
     return f
 
 
@@ -964,9 +974,10 @@ def irdl_get_builders(cls: type[_AttrT]) -> list[BuilderTy[_AttrT]]:
     builders = list[BuilderTy[_AttrT]]()
     for field_name in cls.__dict__:
         field_ = cls.__dict__[field_name]
-        # Builders are staticmethods, so we need to get back the original function with __func__
+        # Builders are staticmethods, so we need to get back the original function
+        # with __func__
         if hasattr(field_, "__func__") and hasattr(field_.__func__,
-                                                   "__irdl_is_builder"):
+                                                   IRDL_IS_BUILDER):
             builders.append(field_.__func__)
     return builders
 
@@ -1018,8 +1029,8 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
     # Build method is added for all definitions.
     if "build" in cls.__dict__:
         raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
-        )
+            f'"build" method for {cls.__name__} is reserved for IRDL, '
+            f'and should not be defined.')
     builders = irdl_get_builders(cls)
     new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
 
@@ -1199,8 +1210,8 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     builders = irdl_get_builders(cls)
     if "build" in cls.__dict__:
         raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, and should not be defined.'
-        )
+            f'"build" method for {cls.__name__} is reserved for IRDL, ' +
+            'and should not be defined.')
     new_fields["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
 
     new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
@@ -1217,5 +1228,5 @@ def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
     if issubclass(cls, Data):
         return irdl_data_definition(cls)
     raise Exception(
-        f"Class {cls.__name__} should either be a subclass of 'Data' or 'ParametrizedAttribute'"
-    )
+        f"Class {cls.__name__} should either be a subclass of 'Data' or "
+        "'ParametrizedAttribute'")

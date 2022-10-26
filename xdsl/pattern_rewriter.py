@@ -2,7 +2,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, OpResult, Region, Block, BlockArgument,
@@ -188,8 +188,8 @@ class PatternRewriter:
             return self.replace_matched_op(new_ops, new_results, safe_erase)
         if not self._can_modify_op(op):
             raise Exception(
-                "PatternRewriter can only replace operations that are the matched operation"
-                ", or that are contained in the matched operation.")
+                "PatternRewriter can only replace operations that are the matched "
+                "operation, or that are contained in the matched operation.")
         Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
 
     def modify_block_argument_type(self, arg: BlockArgument,
@@ -224,8 +224,8 @@ class PatternRewriter:
         """
         Erase a new block argument.
         The block should be contained in the matched operation.
-        If safe_erase is true, then raise an exception if the block argument has still uses,
-        otherwise, replace it with an ErasedSSAValue.
+        If safe_erase is true, then raise an exception if the block argument has still
+        uses, otherwise, replace it with an ErasedSSAValue.
         """
         if not self._can_modify_block(arg.block):
             raise Exception(
@@ -251,7 +251,8 @@ class PatternRewriter:
     def inline_block_before_matched_op(self, block: Block):
         """
         Move the block operations before the matched operation.
-        The block should not be a parent of the operation, and should be a child of the matched operation.
+        The block should not be a parent of the operation, and should be a child of the
+        matched operation.
         """
         self.has_done_action = True
         if not self._can_modify_block(block):
@@ -264,7 +265,8 @@ class PatternRewriter:
     def inline_block_before(self, block: Block, op: Operation):
         """
         Move the block operations before the given operation.
-        The block should not be a parent of the operation, and should be a child of the matched operation.
+        The block should not be a parent of the operation, and should be a child of the
+        matched operation.
         The operation should also be a child of the matched operation.
         """
         self.has_done_action = True
@@ -283,7 +285,8 @@ class PatternRewriter:
     def inline_block_after(self, block: Block, op: Operation):
         """
         Move the block operations after the given operation.
-        The block should not be a parent of the operation, and should be a child of the matched operation.
+        The block should not be a parent of the operation, and should be a child of the
+        matched operation.
         The operation should also be a child of the matched operation.
         """
         self.has_done_action = True
@@ -334,10 +337,13 @@ class AnonymousRewritePattern(RewritePattern):
         self.func(op, rewriter)
 
 
-def op_type_rewrite_pattern(func):
+def op_type_rewrite_pattern(
+    func: Callable[..., None]
+) -> Callable[[Any, Any], None] | Callable[[Any, Any, Any], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter method.
-    It uses type hints to match on a specific operation type before calling the decorated function.
+    It uses type hints to match on a specific operation type before calling the decorated
+    function.
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
@@ -373,17 +379,22 @@ def op_type_rewrite_pattern(func):
         return op_type_rewrite_pattern_static_wrapper
 
     def op_type_rewrite_pattern_method_wrapper(
-            self, op: Operation, rewriter: PatternRewriter) -> None:
+            self,  # type: ignore
+            op: Operation,
+            rewriter: PatternRewriter) -> None:
         if not isinstance(op, expected_type):
             return None
         func(self, op, rewriter)
 
-    return op_type_rewrite_pattern_method_wrapper
+    return op_type_rewrite_pattern_method_wrapper  # type: ignore
 
 
 @dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
-    """Apply a list of patterns in order until one pattern matches, and then use this rewrite."""
+    """
+    Apply a list of patterns in order until one pattern matches,
+    and then use this rewrite.
+    """
 
     rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
@@ -410,13 +421,19 @@ class PatternRewriteWalker:
     """Pattern to apply during the walk."""
 
     walk_regions_first: bool = field(default=False)
-    """Choose if the walker should first walk the operation regions first, or the operation itself."""
+    """
+    Choose if the walker should first walk the operation regions first,
+    or the operation itself.
+    """
 
     apply_recursively: bool = field(default=True)
     """Apply recursively rewrites on new operations."""
 
     walk_reverse: bool = field(default=False)
-    """Walk the regions and blocks in reverse order. That way, all uses are replaced before the definitions."""
+    """
+    Walk the regions and blocks in reverse order.
+    That way, all uses are replaced before the definitions.
+    """
 
     def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
@@ -438,11 +455,12 @@ class PatternRewriteWalker:
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                return len(rewriter.added_operations_before) + len(
-                    rewriter.added_operations_after) - int(
-                        rewriter.has_erased_matched_operation
-                    ) if self.walk_reverse else 0
-            # Else, we rewrite only their regions if they are supposed to be rewritten after
+                return (len(rewriter.added_operations_before) +
+                        len(rewriter.added_operations_after) -
+                        int(rewriter.has_erased_matched_operation)
+                        if self.walk_reverse else 0)
+            # Else, we rewrite only their regions if they are supposed to be
+            # rewritten after
             else:
                 if not self.walk_regions_first:
                     for new_op in rewriter.added_operations_before:
@@ -462,7 +480,10 @@ class PatternRewriteWalker:
         return -1 if self.walk_reverse else 1
 
     def _rewrite_op_regions(self, op: Operation):
-        """Rewrite the regions of an operation, and update the operation with the new regions."""
+        """
+        Rewrite the regions of an operation, and update the operation with the
+        new regions.
+        """
         if not self.walk_reverse:
             for region in op.regions:
                 for block in region.blocks:
