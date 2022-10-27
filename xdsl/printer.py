@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
     FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
-    DictionaryAttr, SymbolNameAttr)
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -476,10 +476,6 @@ class Printer:
                 self.print(" : ", attribute.type)
             return
 
-        if isinstance(attribute, SymbolNameAttr):
-            self.print(f'"{attribute.data.data}"')
-            return
-
         if self.target == self.Target.MLIR:
             # For the MLIR target, we may print differently some attributes
             self.print("!" if isinstance(attribute, MLIRType) else "#")
@@ -526,16 +522,10 @@ class Printer:
         self.print(")" if self.target == self.Target.XDSL else "]")
 
     def _print_attr_string(self, attr_tuple: tuple[str, Attribute]) -> None:
-        if self.target == Printer.Target.XDSL:
-            self.print('"')
-
-        self.print(f"{attr_tuple[0]}")
-
-        if self.target == Printer.Target.XDSL:
-            self.print('"')
-
-        if not isinstance(attr_tuple[1], UnitAttr):
-            self.print(" = ")
+        if isinstance(attr_tuple[1], UnitAttr):
+            self.print(f"\"{attr_tuple[0]}\"")
+        else:
+            self.print(f"\"{attr_tuple[0]}\" = ")
             self.print_attribute(attr_tuple[1])
 
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:

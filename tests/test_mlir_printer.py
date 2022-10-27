@@ -125,7 +125,7 @@ def test_data_attr():
     """Test printing an operation with a data attribute."""
     print_as_mlir_and_compare(
         """any() [ "attr" = !data_attr<42> ]""",
-        """"any"() {attr = #data_attr<42>} : () -> ()""",
+        """"any"() {"attr" = #data_attr<42>} : () -> ()""",
     )
 
 
@@ -141,7 +141,7 @@ def test_param_attr():
     """Test printing an operation with a parametrized attribute."""
     print_as_mlir_and_compare(
         """any() [ "attr" = !param_attr ]""",
-        """"any"() {attr = #param_attr } : () -> ()""",
+        """"any"() {"attr" = #param_attr } : () -> ()""",
     )
 
 
@@ -159,13 +159,13 @@ def test_param_attr_with_param():
     """
     print_as_mlir_and_compare(
         """any() [ "attr" = !param_attr_with_param<!param_attr> ]""",
-        """"any"() {attr = #param_attr_with_param<#param_attr> }
+        """"any"() {"attr" = #param_attr_with_param<#param_attr> }
           : () -> ()""",
     )
 
     print_as_mlir_and_compare(
         """any() [ "attr" = !param_attr_with_param<!param_type> ]""",
-        """"any"() {attr = #param_attr_with_param<!param_type> }
+        """"any"() {"attr" = #param_attr_with_param<!param_type> }
           : () -> ()""",
     )
 
@@ -224,7 +224,7 @@ def test_op_with_attributes():
     """Test printing an operation with attributes."""
     print_as_mlir_and_compare(
         """any() [ "attr" = !data_attr<42> ]""",
-        """"any"() {attr = #data_attr<42>} : () -> ()""",
+        """"any"() {"attr" = #data_attr<42>} : () -> ()""",
     )
 
 
@@ -232,7 +232,7 @@ def test_param_custom_format():
     """Test printing an operation with a param attribute with custom format."""
     print_as_mlir_and_compare(
         """any() [ "attr" = !param_custom_format<!param_attr> ]""",
-        """"any"() {attr = #param_custom_format~~} : () -> ()""",
+        """"any"() {"attr" = #param_custom_format~~} : () -> ()""",
     )
 
 
@@ -241,12 +241,12 @@ def test_parse_memref():
 
     test_prog = """\
     "builtin.module"() ({
-      "func.func"() ({}) {function_type = () -> (), sym_name = "dead_private_function", sym_visibility = "private"} : () -> ()
-      "func.func"() ({}) {function_type = () -> (), sym_name = "dead_nested_function", sym_visibility = "nested"} : () -> ()
+      "func.func"() ({}) {"function_type" = () -> (), "sym_name" = "dead_private_function", "sym_visibility" = "private"} : () -> ()
+      "func.func"() ({}) {"function_type" = () -> (), "sym_name" = "dead_nested_function", "sym_visibility" = "nested"} : () -> ()
       "func.func"() ({
         ^0(%0 : i1, %1 : memref<2xf32>, %2 : memref<2xf32>):
           "func.return"() : () -> ()
-        }) {function_type = (i1, memref<2xf32>, memref<2xf32>) -> (), sym_name = "simple1"} : () -> ()
+        }) {"function_type" = (i1, memref<2xf32>, memref<2xf32>) -> (), "sym_name" = "simple1"} : () -> ()
     }) : () -> ()
     """
 

@@ -637,7 +637,7 @@ def test_parse_dense_mlir():
     """
 
     expected = """
-    %0 = "arith.constant"() {value = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
     """
 
     ctx = MLContext()
