@@ -241,8 +241,6 @@ def test_parse_memref():
 
     test_prog = """\
     "builtin.module"() ({
-      "func.func"() ({}) {"function_type" = () -> (), "sym_name" = "dead_private_function", "sym_visibility" = "private"} : () -> ()
-      "func.func"() ({}) {"function_type" = () -> (), "sym_name" = "dead_nested_function", "sym_visibility" = "nested"} : () -> ()
       "func.func"() ({
         ^0(%0 : i1, %1 : memref<2xf32>, %2 : memref<2xf32>):
           "func.return"() : () -> ()
@@ -262,14 +260,6 @@ def test_parse_memref():
     res = StringIO()
     printer = Printer(target=Printer.Target.MLIR, stream=res)
     printer.print_op(module)
-
-    print(res.getvalue())
-    print(test_prog)
-
-    for a, b in zip(res.getvalue().split('\n'), test_prog.split('\n')):
-        print(a.strip())
-        print(b.strip())
-        print()
 
     # Remove all whitespace from the expected string.
     regex = re.compile(r'[^\S]+')
