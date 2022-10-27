@@ -21,6 +21,12 @@ from memory_profiler import profile
 import sys
 import matplotlib
 
+to_keep_in_memory = list[Any]()
+
+def flush_memory(): 
+    global to_keep_in_memory
+    to_keep_in_memory = list[Any]()
+
 @dataclass
 class ConstantFoldAddRewriter(RewritePattern):
 
@@ -96,15 +102,18 @@ class RemoveUnusedRewriter(RewritePattern):
 
 
 # Assign rvalue to lvalue, and delete rvalue contents.
-def assign_module_and_delete(lvalue: ModuleOp, rvalue: ModuleOp):
+def assign_module_and_delete(lvalue: ModuleOp, rvalue: ModuleOp, keep_in_memory: bool=False):
     lregion = lvalue.regions[0]
     rregion = rvalue.regions[0]
     lvalue.regions[0] = rregion
     rregion.parent = lvalue
     lregion.parent = None
+    if keep_in_memory:
+        global to_keep_in_memory
+        to_keep_in_memory = lregion
 
 # @profile(precision=4)
-def constant_folding_clone(ctx: MLContext, module: ModuleOp) -> None:
+def constant_folding_clone(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
     rewriter = ConstantFoldAddRewriter()
     walker = RewriteOnceWalker(rewriter)
     cleanup_walker = RewriteOnceWalker(RemoveUnusedRewriter())
@@ -113,11 +122,11 @@ def constant_folding_clone(ctx: MLContext, module: ModuleOp) -> None:
     if not walker.rewrite_module(module_copy):
         return
 
-    assign_module_and_delete(module, module_copy)
+    assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
     module_copy = module.clone()
 
     while walker.rewrite_module(module_copy):
-        assign_module_and_delete(module, module_copy)
+        assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
         module_copy = module.clone()
         cleanup_walker.rewrite_module(module)
         cleanup_walker.rewrite_module(module)
@@ -134,7 +143,7 @@ def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
         pass
 
 @profile
-def bool_nest_cloning(ctx: MLContext, module: ModuleOp) -> None:
+def bool_nest_cloning(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
     fold_and_rewriter = ConstantFoldAndIRewriter()
     fold_and_once = RewriteOnceWalker(fold_and_rewriter)
     inline_if_rewriter = InlineIfRewriter()
@@ -145,25 +154,25 @@ def bool_nest_cloning(ctx: MLContext, module: ModuleOp) -> None:
     if not fold_and_once.rewrite_module(module_copy):
         return
 
-    assign_module_and_delete(module, module_copy)
+    assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
     module_copy = module.clone()
 
     # currently we don't clone before doing cleanup!
     old_versions: list[ModuleOp] = [module]
     while fold_and_once.rewrite_module(module_copy):
-        assign_module_and_delete(module, module_copy)
+        assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
         module_copy = module.clone()
         old_versions.append(module)
         cleanup_walker.rewrite_module(module_copy)
-        assign_module_and_delete(module, module_copy)
+        assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
 
     while inline_if_once.rewrite_module(module_copy):
-        assign_module_and_delete(module, module_copy)
+        assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
         module_copy = module.clone()
         old_versions.append(module)
         cleanup_walker.rewrite_module(module_copy)
 
-    assign_module_and_delete(module, module_copy)
+    assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
 
 
 @dataclass(frozen=True)
@@ -287,8 +296,8 @@ class OptMain(xDSLOptMain):
         super().register_all_dialects()
 
     def register_all_passes(self):
-        super().available_passes['constant-fold-clone'] = constant_folding_clone
-        super().available_passes['bool-nest-clone'] = bool_nest_cloning
+        super().available_passes['constant-fold-clone'] = lambda ctx module, constant_folding_clone(ctx, module, self.args.keep_in_memory)
+        super().available_passes['bool-nest-clone'] = lambda ctx module, bool_nest_cloning(ctx, module, self.args.keep_in_memory)
         super().available_passes['constant-fold-fast'] = constant_folding_fast
         super().available_passes[
             'constant-fold-composable'] = constant_folding_composable
@@ -300,6 +309,10 @@ class OptMain(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
+        arg_parser.add_argument("--keep-copied-module",
+                        default=False,
+                        action='store_true')
+
 
 
 def __main__(args: Optional[argparse.Namespace] = None):
