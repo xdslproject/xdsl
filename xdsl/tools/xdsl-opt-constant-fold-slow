@@ -296,8 +296,8 @@ class OptMain(xDSLOptMain):
         super().register_all_dialects()
 
     def register_all_passes(self):
-        super().available_passes['constant-fold-clone'] = lambda ctx module, constant_folding_clone(ctx, module, self.args.keep_in_memory)
-        super().available_passes['bool-nest-clone'] = lambda ctx module, bool_nest_cloning(ctx, module, self.args.keep_in_memory)
+        super().available_passes['constant-fold-clone'] = lambda ctx, module: constant_folding_clone(ctx, module, self.args.keep_copied_module)
+        super().available_passes['bool-nest-clone'] = lambda ctx, module: bool_nest_cloning(ctx, module, self.args.keep_copied_module)
         super().available_passes['constant-fold-fast'] = constant_folding_fast
         super().available_passes[
             'constant-fold-composable'] = constant_folding_composable
