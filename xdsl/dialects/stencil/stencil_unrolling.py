@@ -46,7 +46,7 @@ class UnrollApplyOp(Strategy):
 
                 # Create new block args for the region of the apply op and add them to the env
                 # The block field will be set by the IBlock when it is created
-                new_block_args: List[IBlockArg] = [IBlockArg(typ=operand.typ, block=None, index=idx) for idx, operand in enumerate(block_args)]
+                new_block_args: List[IBlockArg] = [IBlockArg(typ=operand.typ, users=IList([]), block=None, index=idx) for idx, operand in enumerate(block_args)]
                 for idx in range(len(new_block_args)):
                     env[block_args[idx]] = new_block_args[idx]
 

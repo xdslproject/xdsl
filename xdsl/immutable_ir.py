@@ -17,6 +17,9 @@ class IList(List[_T]):
     def freeze(self):
         self._frozen = True
 
+    def _unfreeze(self):
+        self._frozen = False
+
     def append(self, __object: _T) -> None:
         if self._frozen:
             raise Exception("frozen list can not be modified")
@@ -51,6 +54,21 @@ class IList(List[_T]):
 @dataclass(frozen=True)
 class ISSAValue(ABC):
     typ: Attribute
+    users: IList[IOp]
+
+    def _add_user(self, op: IOp):
+        self.users._unfreeze()
+        self.users.append(op)
+        self.users.freeze()
+
+    def _remove_user(self, op: IOp):
+        if op in self.users:
+            self.users._unfreeze()
+            self.users.remove(op)
+            self.users.freeze()
+        else:
+            pass
+            # print(f"illegal removal of use by (non-)user {op.name}")
 
 
 @dataclass(frozen=True)
@@ -218,7 +236,7 @@ class IBlock:
 
         if is_type_seq(args):
             block_args: List[IBlockArg] = [
-                IBlockArg(type, self, idx) for idx, type in enumerate(args)
+                IBlockArg(type, IList([]), self, idx) for idx, type in enumerate(args)
             ]
         elif is_iblock_arg_seq(args):
             block_args: List[IBlockArg] = args
@@ -255,6 +273,7 @@ class IBlock:
             # After construction the block field will be set by the IBlock.
             block_args.append(new_block_arg := IBlockArg(
                 old_arg.typ,
+                IList([]),
                 None,  # type: ignore
                 idx))
             env[old_arg] = new_block_arg
@@ -338,12 +357,12 @@ class IBlock:
         for arg in block.args:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
-            immutable_arg = IBlockArg(arg.typ, None, arg.index)  # type: ignore
+            immutable_arg = IBlockArg(arg.typ, IList([]), None, arg.index)  # type: ignore
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
 
         immutable_ops = [
-            IOp.from_mutable(op, value_map=value_map, block_map=block_map)
+            IOp.from_mutable(op, value_map=value_map, block_map=block_map, existing_operands=None)
             for op in block.ops
         ]
 
@@ -412,10 +431,12 @@ class IOp:
                  regions: Sequence[IRegion]) -> None:
         object.__setattr__(self, "_op_data", op_data)
         object.__setattr__(self, "operands", IList(operands))
+        for operand in operands:
+            operand._add_user(self)
         object.__setattr__(
             self, "results",
             IList([
-                IResult(type, self, idx)
+                IResult(type, IList([]), self, idx)
                 for idx, type in enumerate(result_types)
             ]))
         object.__setattr__(self, "successors", IList(successors))
@@ -538,13 +559,25 @@ class IOp:
             for operand in op.operands:
                 match operand:
                     case OpResult():
-                        operands.append(
-                            IResult(
-                                operand.typ,
-                                value_map[operand].op  # type: ignore
-                                if operand in value_map else IOp.from_mutable(
-                                    operand.op),
-                                operand.result_index))
+                        if operand in value_map:
+                            operands.append(value_map[operand])
+                        else:
+                            raise Exception("Operand used before definition")
+
+                            # IResult(
+                            #     operand.typ, IList([]),
+                            #     value_map[operand].op))  # type: ignore
+                            # else:
+                            #     IOp.from_mutable(operand.op), operand.result_index))
+
+                        # operands.append(
+                        #     # Problem is
+                        #     IResult(
+                        #         operand.typ, IList([]),
+                        #         value_map[operand].op  # type: ignore
+                        #         if operand in value_map else IOp.from_mutable(
+                        #             operand.op),
+                        #         operand.result_index))
                     case BlockArgument():
                         if operand not in value_map:
                             raise Exception(
@@ -632,7 +665,7 @@ def new_op(op_type: type[Operation],
     rewritten_ops.append(op)
     return rewritten_ops
 
-
+# @profile
 def from_op(old_op: IOp,
             operands: Optional[Sequence[ISSAValue | IOp
                                         | Sequence[IOp]]] = None,

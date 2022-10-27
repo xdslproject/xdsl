@@ -56,7 +56,64 @@ builtin.module() {
   %inline_simplified : !strategy = elevate.strategy() {
     ^strategy(%op : !operation):
     %pattern : !pattern = match.pattern() {
-      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
+
+
+
+      // (%producer_apply : !operation, %producer_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
+      
+      // %producer_val : !value = match.any_in_range(%producer_vals : !range<!value>) []
+      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"] {
+        ^b1(%cons_block_args : !value):
+        
+          // To continue meaningfully I have to have an implementation stub for any_in_range
+          // or implement it actually
+
+            // %idx1 : !index = irutils.get_index(%producer_val : !value)
+            // %producer_arg : !value = irutils.get_elem(%cons_block_args : !value, %idx1 : !index)
+
+
+        //     %cmp = arith.cmpi(%idx1, %idx2, "eq")
+        //     match.assert(%cmp)
+            
+        //     %emptystore =  pdl.operation_with_region "stencil.store"()
+        //     match.region.does_not_contain(%emptystore)
+
+        //     //option1
+        //     %dynaccess = pdl.operation "stencil.dynaccess"(%producer_arg : !value)
+        //     match.region.does_not_contain(%dynaccess)
+
+        //     // option2
+        //     %dynaccess_pattern = match.pattern {
+        //         pdl.operation "stencil.dynaccess"(%producer_arg : !value)
+        //     }
+        //     match.region.does_not_contain(%dynaccess_pattern)
+
+        //     //option3 <- this 
+        //     match.region.does_not_contain {
+        //         pdl.operation "stencil.dynaccess"(%producer_arg : !value)
+        //     }
+
+        //     %dynaccess = pdl.operation "stencil.dynaccess"(%producer_arg : !value)
+        //     match.region.does_not_contain() {
+        //       return %dynaccess
+        //     }
+
+
+
+
+
+        //     %matched_access_op_to_inline_at = pdl.operation "stencil.access"(%producer_arg : !value)
+        //     match.capture(%matched_access_op_to_inline_at)
+        // }
+
+      }
+
+
+      // first implement the region stuff
+
+
+
+
       match.capture(%cons_apply_vals : !range<!value>)
     }
     // TODO: implement support for the following IR so we can perform the matching with the dialect 

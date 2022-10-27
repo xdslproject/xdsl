@@ -600,4 +600,5 @@ builtin.module() {
   %598 : !i32 = arith.addi(%597 : !i32, %596 : !i32)
   %599 : !i32 = arith.constant() ["value" = 1 : !i32]
   %600 : !i32 = arith.addi(%599 : !i32, %598 : !i32)
+  func.return(%600 : !i32)
 }

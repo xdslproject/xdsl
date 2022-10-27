@@ -278,7 +278,7 @@ class RerouteUse_decomp(Strategy):
                 assert self.fst_consumer.region.block is not None
 
                 fst_consumer_new_operands: list[ISSAValue | IResult] = self.fst_consumer.operands + self.producer.results
-                fst_consumer_new_block_args: list[IBlockArg] = self.fst_consumer.region.block.args + [IBlockArg(typ=result.typ, block=None, index=len(self.fst_consumer.operands) + idx) for idx, result in enumerate(self.producer.results)]
+                fst_consumer_new_block_args: list[IBlockArg] = self.fst_consumer.region.block.args + [IBlockArg(typ=result.typ, users=IList([]), block=None, index=len(self.fst_consumer.operands) + idx) for idx, result in enumerate(self.producer.results)]
 
                 # Compute new bounds:
                 new_fst_consumer_attr = self.fst_consumer.attributes.copy()

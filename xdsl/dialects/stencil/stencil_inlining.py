@@ -70,7 +70,7 @@ class InlineProducer(Strategy):
                     new_apply_operands.append(operand)
 
                     # the block will set the block attribute here when it is created
-                    new_apply_block_args.append(IBlockArg(typ=operand.typ, block=None, index=len(new_apply_block_args)))
+                    new_apply_block_args.append(IBlockArg(typ=operand.typ, users=IList([]), block=None, index=len(new_apply_block_args)))
                     add_mapping(idx, new_apply_block_args[-1])
 
 
@@ -234,7 +234,7 @@ class RerouteUse(Strategy):
                 # Add mapping from old blockArgs to new blockArgs
                 for operand in fst_consumer_new_operands:
                     # the block will set the block attribute here when it is created
-                    fst_consumer_new_block_args.append(IBlockArg(typ=operand.typ, block=None, index=len(fst_consumer_new_block_args)))
+                    fst_consumer_new_block_args.append(IBlockArg(typ=operand.typ, users=IList([]), block=None, index=len(fst_consumer_new_block_args)))
                     env[self.fst_consumer.region.block.args[len(fst_consumer_new_block_args)-1]] = fst_consumer_new_block_args[-1]
 
                 reroute_count = 0
@@ -243,7 +243,7 @@ class RerouteUse(Strategy):
                     fst_consumer_new_operands.append(result)
                     fst_consumer_new_result_count += 1 
                     # for the new operands also add the corresponding blockArgs
-                    fst_consumer_new_block_args.append(IBlockArg(typ=result.typ, block=None, index=len(fst_consumer_new_block_args)))
+                    fst_consumer_new_block_args.append(IBlockArg(typ=result.typ, users=IList([]), block=None, index=len(fst_consumer_new_block_args)))
                     # env[] = fst_consumer_new_block_args[-1]
                     reroute_count += 1
 

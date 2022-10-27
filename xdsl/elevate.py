@@ -6,11 +6,13 @@ from functools import partial
 from typing import List, Callable, MutableSequence, TypeAlias
 from xdsl.immutable_ir import *
 from xdsl.printer import Printer
+from memory_profiler import profile
 
 
 @dataclass(frozen=True)
 class Strategy:
 
+    # @profile
     def apply(self, op: IOp) -> RewriteResult:
         assert isinstance(op, IOp)
 
@@ -37,8 +39,13 @@ class Strategy:
 
                 result_op.walk(uses_matched_op)
 
+        
             if matched_op_used and op not in replacement:
                 replacement.insert(0, op)
+            # Keeping track of uses
+            if not matched_op_used:
+                for operand in op.operands:
+                    operand._remove_user(op)
 
         return rr
 
@@ -180,11 +187,11 @@ class leftChoice(Strategy):
     def impl(self, op: IOp) -> RewriteResult:
         return self.s1.apply(op).flatMapFailure(lambda: self.s2.apply(op))
 
-
 @dataclass(frozen=True)
 class try_(Strategy):
     s: Strategy
 
+    # @profile
     def impl(self, op: IOp) -> RewriteResult:
         return leftChoice(self.s, id()).apply(op)
 
@@ -351,6 +358,7 @@ class OpsTraversal(ABC):
     """
     s: Strategy
 
+    # @profile
     def apply(self, block: IBlock) -> Optional[IBlock]:
         return self.impl(block)
 
@@ -369,7 +377,7 @@ class regionN(RegionsTraversal):
     """
     block_trav: BlocksTraversal
     n: int
-
+    # @profile
     def impl(self, op: IOp) -> RewriteResult:
         if len(op.regions) <= self.n:
             return failure(self)
@@ -407,7 +415,7 @@ class regionsTopToBottom(RegionsTraversal):
     an updated region.
     """
     block_trav: BlocksTraversal
-
+    
     def impl(self, op: IOp) -> RewriteResult:
         for region_idx in range(0, len(op.regions)):
             rr = regionN(self.block_trav, region_idx).apply(op)
@@ -446,7 +454,7 @@ class blockN(BlocksTraversal):
     """
     op_trav: OpsTraversal
     n: int
-
+    # @profile
     def impl(self, region: IRegion) -> Optional[IRegion]:
         if len(region.blocks) <= self.n:
             return None
@@ -477,7 +485,7 @@ class blocksTopToBottom(BlocksTraversal):
     an updated block.
     """
     op_trav: OpsTraversal
-
+    
     def impl(self, region: IRegion) -> Optional[IRegion]:
         for block_idx in range(0, len(region.blocks)):
             new_block = blockN(self.op_trav, block_idx).apply(region)
@@ -550,6 +558,8 @@ class opN(OpsTraversal):
     s: Strategy
     n: int
 
+
+    # @profile
     def impl(self, block: IBlock) -> Optional[IBlock]:
         if len(block.ops) <= self.n:
             return None
@@ -560,30 +570,65 @@ class opN(OpsTraversal):
 
             completed_replacements: List[IOpReplacement] = []
             for repl_idx, replacement in enumerate(rr.replacements):
-                if replacement.matched_op in nested_ops:
-                    # walk all operations of the new block and
-                    # add replacements for the uses of the op we are replacing
-                    if len(replacement.replacement_ops) > 0:
-                        add_replacements: Callable[[IOp], None] = partial(
-                            self._add_replacements_for_uses_of_matched_op,
-                            rr.replacements, repl_idx)
-                        for op in nested_ops:
-                            op.walk(add_replacements)
+                # This is a safety check that we can remove, I think
+                # if replacement.matched_op in nested_ops:
+                # assert replacement.matched_op in nested_ops
+                # walk all operations of the new block and
+                # add replacements for the uses of the op we are replacing
+                if len(replacement.replacement_ops) > 0:
+                    for res_idx, result in enumerate(replacement.matched_op.results):
+                        if len(result.users) > 0:
+                            for user in result.users:
+                                # this one should be important, but if we keep all uses perfectly in check it should be removable
+                                # assert user in nested_ops
+                                if user in nested_ops:
+                                    rr.replacements.insert(
+                                        repl_idx + 1,
+                                        IOpReplacement(
+                                            user,
+                                            from_op(
+                                                user,
+                                                env={
+                                                    result:
+                                                    (replacement.replacement_ops[-1].results[res_idx]
+                                                        if not replacement.replacement_ops[-1].op_type
+                                                        == RewriteId else
+                                                        replacement.replacement_ops[-1].operands[0])
+                                                })))
 
-                        # We never want to materialize rewrite.id operations
-                        replacement.replacement_ops = [
-                            op for op in replacement.replacement_ops
-                            if op.op_type != RewriteId
-                        ]
+                    # add_replacements: Callable[[IOp], None] = partial(
+                    #     self._add_replacements_for_uses_of_matched_op,
+                    #     rr.replacements, repl_idx)
+                    
+                    # for op in nested_ops:
+                    #     op.walk(add_replacements)
 
-                    # Actually replacing the matched op with replacement ops
-                    i = nested_ops.index(replacement.matched_op)
-                    nested_ops[i:i + 1] = replacement.replacement_ops
+                    # We never want to materialize rewrite.id operations
+                    replacement.replacement_ops = [
+                        op for op in replacement.replacement_ops
+                        if op.op_type != RewriteId
+                    ]
 
-                    completed_replacements.append(replacement)
-                else:
-                    raise Exception(
-                        "replacement out of scope, could not be applied")
+                # Actually replacing the matched op with replacement ops
+                i = nested_ops.index(replacement.matched_op)
+                nested_ops[i:i + 1] = replacement.replacement_ops
+                # TODO:
+                # check whether the operands of the replacement ops have any other uses
+
+                if replacement.matched_op not in replacement.replacement_ops:
+                    for operand in replacement.matched_op.operands:
+                        # TODO: should be an if
+                        if replacement.matched_op in operand.users:
+                            operand._remove_user(replacement.matched_op)
+                        # TODO: this is bad when regions are big
+                        if isinstance(operand, IResult) and len(operand.users) == 0 and operand.op in nested_ops:
+                            nested_ops.remove(operand.op)
+                            pass
+
+                completed_replacements.append(replacement)
+                # else:
+                #     raise Exception(
+                #         "replacement out of scope, could not be applied")
 
             for replacement in completed_replacements:
                 rr.replacements.remove(replacement)
@@ -592,9 +637,11 @@ class opN(OpsTraversal):
         return None
 
     @staticmethod
+    # @profile
     def _add_replacements_for_uses_of_matched_op(
             replacements: MutableSequence[IOpReplacement], repl_idx: int,
             user_op: IOp):
+
         replacement = replacements[repl_idx]
         for idx, matched_op_value in enumerate(replacement.matched_op.results):
             if matched_op_value in user_op.operands:
@@ -649,6 +696,7 @@ class opsTopToBottom(OpsTraversal):
     start_index: int = 0
     skips: int = 0
 
+    # @profile
     def impl(self, block: IBlock) -> Optional[IBlock]:
         for op_idx in range(0, len(block.ops)):
             if op_idx < self.start_index:
@@ -681,6 +729,7 @@ class allOpsTopToBottom(OpsTraversal):
         # i.e. we skip newly created ops and avoid skipping an op if the matched op was deleted
         ops_added = len(new_block.ops) - len(block.ops)
         return allOpsTopToBottom(self.s, start_index=self.start_index+1+ops_added).apply(new_block)
+
 
 @dataclass(frozen=True)
 class opsBottomToTop(OpsTraversal):
@@ -715,6 +764,7 @@ class topToBottom(Strategy):
     s: Strategy
     skips: int = 0
 
+    
     def impl(self, op: IOp) -> RewriteResult:
         if (rr := self.s.apply(op)).isSuccess():
             return rr

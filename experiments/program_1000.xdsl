@@ -2000,4 +2000,5 @@ builtin.module() {
   %1998 : !i32 = arith.addi(%1997 : !i32, %1996 : !i32)
   %1999 : !i32 = arith.constant() ["value" = 1 : !i32]
   %2000 : !i32 = arith.addi(%1999 : !i32, %1998 : !i32)
+  func.return(%2000 : !i32)
 }

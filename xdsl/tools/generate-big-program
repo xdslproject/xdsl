@@ -1,29 +1,84 @@
+from xdsl.dialects.elevate.dialect import ReturnOp
 from xdsl.ir import MLContext
-from xdsl.dialects.arith import Addi, Arith, Constant
-from xdsl.dialects.builtin import Builtin, ModuleOp
+from xdsl.dialects.arith import Addi, Arith, Constant, AndI
+from xdsl.dialects.func import *
+from xdsl.dialects.scf import If, Yield
+from xdsl.dialects.builtin import Builtin, IntegerType, ModuleOp
 from xdsl.printer import Printer
 
 
-def main():
-    ctx = MLContext()
-    Builtin(ctx)
-    Arith(ctx)
-
-    depth = 100
-    module = ModuleOp.from_region_or_ops([])
-    block = module.body.blocks[0]
-    op = Constant.from_int_constant(1, 32)
-    block.add_op(op)
+def generate_additions(depth: int) -> list[Operation]:
+    result: list[Operation] = [Constant.from_int_constant(1, 32)]
 
     for _ in range(depth):
         cons = Constant.from_int_constant(1, 32)
-        block.add_op(cons)
-        add = Addi.get(cons, op)
-        block.add_op(add)
-        op = add
+        add = Addi.get(cons, result[-1])
+        result.append(cons)
+        result.append(add)
+    return result
+
+
+def generate_and_nest(depth: int) -> list[Operation]:
+    result: list[Operation] = [Constant.from_int_constant(1, 1)]
+
+    for _ in range(depth):
+        cons = Constant.from_int_constant(1, 1)
+        and_op = AndI.get(cons, result[-1])
+        result.append(cons)
+        result.append(and_op)
+    return result
+
+
+def emit_additions():
+    depth = 100
+    module = ModuleOp.from_region_or_ops([])
+    block = module.body.blocks[0]
+    block.add_ops(generate_additions(depth))
+    # TODO: we need a return or the whole thing is dead code.
 
     printer = Printer()
     printer.print_op(module)
+
+
+def emit_if_program():
+    ctx = MLContext()
+    Builtin(ctx)
+    Arith(ctx)
+    Func(ctx)
+
+    if_count = 20
+    and_depth = 50
+
+    module = ModuleOp.from_region_or_ops([])
+    func = FuncOp.from_region(
+        "main", [], [IntegerType.from_width(1) for _ in range(if_count)],
+        Region.from_operation_list([]))
+    module.body.blocks[0].add_op(func)
+
+    cond = Constant.from_int_constant(1, 1)
+    func.body.blocks[0].add_op(cond)
+
+    if_ops: list[If] = []
+
+    for _ in range(if_count):
+        true_region = Region.from_operation_list(generate_and_nest(and_depth))
+        true_region.blocks[0].add_op(Yield.get(true_region.blocks[0].ops[-1]))
+        false_region = Region.from_operation_list(
+            [false := Constant.from_int_constant(0, 1),
+             Yield.get(false)])
+
+        if_op = If.get(cond, [IntegerType.from_width(1)], true_region,
+                       false_region)
+        if_ops.append(if_op)
+        func.body.blocks[0].add_op(if_op)
+    func.body.blocks[0].add_op(Return.get(*if_ops))
+    printer = Printer()
+    printer.print_op(module)
+
+
+def main():
+    # emit_additions()
+    emit_if_program()
 
 
 if __name__ == "__main__":
