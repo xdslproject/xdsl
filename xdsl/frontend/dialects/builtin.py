@@ -111,7 +111,7 @@ class IntAttr(Attribute):
     """name: int"""
     value: int
 
-_Shape = TypeVar("_Shape", bound=Sequence[Literal[Any]], covariant=True)
+_Shape = TypeVar("_Shape", bound=Sequence[Any], covariant=True)
 _TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
 
 
