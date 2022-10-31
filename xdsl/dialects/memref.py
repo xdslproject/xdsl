@@ -6,9 +6,9 @@ from typing import TypeVar, Optional, List, TypeAlias
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, MLContext
+from xdsl.ir import MLIRType, Operation, SSAValue, MLContext, ParametrizedAttribute
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, ParametrizedAttribute,
+                       ParameterDef, Generic, Attribute,
                        AnyAttr, OperandDef, VarOperandDef, ResultDef,
                        AttributeDef, AttrSizedOperandSegments, OptAttributeDef)
 

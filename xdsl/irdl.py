@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-import types
+from types import UnionType, GenericAlias
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -278,7 +278,7 @@ def irdl_to_attr_constraint(
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if origin == types.UnionType or origin == Union:
+    if origin == UnionType or origin == Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
@@ -763,7 +763,7 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 
     if len(args) != len(arg_defs):
         raise ValueError(
-            f"expected {len(arg_defs)} {get_construct_name(construct)}, "
+            f"Expected {len(arg_defs)} {get_construct_name(construct)}, "
             f"but got {len(args)}")
 
     res = list[Any]()
@@ -1047,7 +1047,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data is '
                                 f'not a class.')
-            if isinstance(expected_type, types.GenericAlias):
+            if isinstance(expected_type, GenericAlias):
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data has '
                                 f'type GenericAlias.')
