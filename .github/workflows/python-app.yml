@@ -39,3 +39,7 @@ jobs:
       run: |
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/ 
+    - name: Run examples/tutorials
+      run: |
+        pytest --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
+        pytest --nbval docs/tutorial.ipynb --maxfail 1 -vv
