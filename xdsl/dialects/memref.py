@@ -8,9 +8,9 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    DenseIntOrFPElementsAttr)
 from xdsl.ir import MLIRType, Operation, SSAValue, MLContext, ParametrizedAttribute
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute,
-                       AnyAttr, OperandDef, VarOperandDef, ResultDef,
-                       AttributeDef, AttrSizedOperandSegments, OptAttributeDef)
+                       ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
+                       VarOperandDef, ResultDef, AttributeDef,
+                       AttrSizedOperandSegments, OptAttributeDef)
 
 
 @dataclass

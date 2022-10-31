@@ -13,9 +13,8 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr,
-    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
-    VectorType)
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
+    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
 from enum import Enum
 

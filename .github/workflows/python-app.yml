@@ -41,5 +41,6 @@ jobs:
         lit -v tests/filecheck/ 
     - name: Run examples/tutorials
       run: |
+        pip install nbval
         pytest --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
         pytest --nbval docs/tutorial.ipynb --maxfail 1 -vv
