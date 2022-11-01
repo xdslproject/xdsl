@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
+from typing import (TypeAlias, List, cast, Type, Sequence, Optional,
+                    TYPE_CHECKING, Any, TypeVar)
 
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
-                     ParametrizedAttribute, Operation, SSAValue,
-                     VerifyException)
+from xdsl.ir import (MLContext, Data, MLIRType, ParametrizedAttribute,
+                     Operation, SSAValue, VerifyException, Region)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
-                       SingleBlockRegionDef, TypeVar, Generic, GenericData,
-                       AttrConstraint, Any, Attribute, Region, AnyAttr)
+                       SingleBlockRegionDef, Generic, GenericData,
+                       AttrConstraint, Attribute, AnyAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser, ParserError
@@ -70,6 +70,11 @@ class StringAttr(Data[str]):
     @builder
     def from_str(data: str) -> StringAttr:
         return StringAttr(data)
+
+    @staticmethod
+    @builder
+    def from_int(i: int) -> StringAttr:
+        return StringAttr(str(i))
 
 
 @irdl_attr_definition

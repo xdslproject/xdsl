@@ -3,19 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from frozenlist import FrozenList
-
 from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
+from dataclasses import dataclass, field
+from enum import Enum
 
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
-                     Attribute, Region, Operation, Diagnostic)
+                     Attribute, Region, Operation, Diagnostic, Data,
+                     ParametrizedAttribute)
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
     FunctionType, UnrankedTensorType, UnregisteredOp, VectorType)
-from xdsl.irdl import Data
 
 indentNumSpaces = 2
 
