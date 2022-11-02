@@ -29,7 +29,7 @@ class ASTToXDSL(ast.NodeVisitor):
         # Initialize type hint converter. We pass imports to get map the type hint name
         # to actual instance.
         self.hint_converter = TypeHintToXDSL(imports)
-        self.symbol_table = Dict[str, Attribute]
+        self.symbol_table: Dict[str, Attribute] = dict()
         
         # Set logging.
         if not logger:
@@ -155,6 +155,33 @@ class ASTToXDSL(ast.NodeVisitor):
                 # TODO: support more operators!
                 raise VisitorException(f"binary operator {node.op.__class__.__name__} is not supported")
         self.program.insert_op(op)
+    
+    def visit_Compare(self, node: ast.Compare):
+        # First, opt for a single comparison.
+        if len(node.comparators) != 1 and len(node.ops) != 1:
+            raise VisitorException(f"require a single comparator and op, found {len(node.comparators)} and {len(node.ops)}")
+
+        op = node.ops[0]
+        comp = node.comparators[0]
+
+        # Get the values we compare.
+        self.visit(comp)
+        rhs = self.program.stack.pop()
+        self.visit(node.left)
+        lhs = self.program.stack.pop()
+
+        # TODO: fix type inference since we infer i1 here and this is wrong!
+        if lhs.typ != rhs.typ:
+            raise VisitorException(f"types of lhs ({lhs.typ}) and rhs ({rhs.typ}) do not match for compare operator {op.__class__.__name__} and cannot be inferred")
+
+        match op.__class__.__name__:
+            case "Eq":
+                cmp_op = arith.Cmpi.from_mnemonic(lhs, rhs, "eq")
+            case _:
+                # TODO: support more comparators!
+                raise VisitorException(f"compare operator {op.__class__.__name__} is not supported")
+
+        self.program.insert_op(cmp_op)
 
     def visit_Constant(self, node: ast.Constant):
         """
@@ -282,5 +309,5 @@ class ASTToXDSL(ast.NodeVisitor):
         self.program.insertion_point_from_op(module_op.parent_op())
     
     def visit_Pass(self, node: ast.Pass):
-        # Region is empty!
+        # Do nothing.
         pass

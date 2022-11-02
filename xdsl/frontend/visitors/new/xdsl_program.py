@@ -22,8 +22,8 @@ class XDSLProgram:
     the Python AST.
     """
 
-    modules: List[ModuleOp] = field(default_factory=list)
-    """Modules defined in the current program."""
+    container: List[Operation] = field(default_factory=list)
+    """Container for top-level operations which can be printed."""
 
     insertion_point: Block | None = field(default=None)
     """Block into which we insert operations."""
@@ -37,14 +37,17 @@ class XDSLProgram:
         """Inserts an operation."""
         if self.insertion_point is None:
             # This is a top-level operation, i.e. module! No insertion needed.
-            self.modules.append(op)
-            self.insertion_point = op.regions[-1].blocks[-1]
+            self.container.append(op)
+            if len(op.regions) != 0 and len(op.regions[-1].blocks) != 0:
+                self.insertion_point = op.regions[-1].blocks[-1]
         else:
             self.insertion_point.add_op(op)
-            if len(op.results) > 1:
-                raise ProgramException(f"expected {op} to return a single result, but got {len(op.results)}")
-            for result in op.results:
-                self.stack.append(result)
+        
+        # Make sure that we push result on the stack.
+        if len(op.results) > 1:
+            raise ProgramException(f"expected {op} to return a single result, but got {len(op.results)}")
+        for result in op.results:
+            self.stack.append(result)
 
     def insertion_point_from_op(self, op: Operation | None):
         # Special case: no top-level operation means it is a module.

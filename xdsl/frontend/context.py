@@ -58,7 +58,7 @@ class CodeContext(AbstractContextManager):
                     visitor.visit(node)
 
                 printer = Printer()
-                for module in program.modules:
+                for module in program.container:
                     printer.print_op(module)
 
     def __exit__(self, *args):
