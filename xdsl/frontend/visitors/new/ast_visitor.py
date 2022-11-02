@@ -203,6 +203,55 @@ class ASTToXDSL(ast.NodeVisitor):
         self.program.insert_op(constant_op)
         return
 
+    def visit_For(self, node: ast.For):
+        if len(node.orelse) > 0:
+            raise VisitorException("orelse in for loops is not supported")
+        
+        if not isinstance(node.target, ast.Name):
+            raise VisitorException("multiple induction variables in for loops is not supported")
+        
+        if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range":
+            # Assume all range loops are affine, which in general should be the case?
+
+            # First, proces range arguments.
+            args = node.iter.args
+            match len(args):
+                case 1:
+                    self.program.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
+                    #self.visit(args[0])
+                    self.program.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
+                    self.program.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
+                case 2:
+                    self.visit(args[0])
+                    self.visit(args[1])
+                    self.program.insert_op(arith.Constant.from_attr(1, builtin.IndexType()))
+                case 3:
+                    self.visit(args[0])
+                    self.visit(args[1])
+                    self.visit(args[2])
+                case _:
+                    raise VisitorException(f"expecting 1, 2, or 3 arguments to range function, got {len(args)}")
+            step = self.program.stack.pop()
+            end = self.program.stack.pop()
+            start = self.program.stack.pop()
+
+            # Save previous insertion point.
+            prev_insertion_point = self.program.insertion_point
+
+            # Visit for loop body.
+            for_body_region = Region.from_block_list([Block()])
+            self.program.insertion_point_from_region(for_body_region)
+            for stmt in node.body:
+                self.visit(stmt)
+
+            op = affine.For.from_region([], 0, 10, for_body_region, 1)
+            self.program.insertion_point_from_block(prev_insertion_point)
+            self.program.insert_op(op)
+            return
+
+        raise VisitorException(f"for loop on line {node.lineno} is not supported")
+        
+
     def _check_function_signature(self, node: ast.FunctionDef):
         """Throws an exception if this function cannot be lowered to xDSL."""
         # Don't support vararg and its friends.
@@ -359,6 +408,11 @@ class ASTToXDSL(ast.NodeVisitor):
         for stmt in node.body:
             self.visit(stmt)
         self.program.insertion_point_from_op(module_op.parent_op())
+
+    # def visit_While(self, node: ast.While):
+    #     print(node.body)
+    #     print(node.test)
+    #     print(node.orelse)
     
     def visit_Pass(self, node: ast.Pass):
         # Do nothing.

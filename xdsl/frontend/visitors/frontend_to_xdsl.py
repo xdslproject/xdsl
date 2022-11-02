@@ -4,8 +4,8 @@ import logging
 from typing import Iterable, Type, Optional, List, Any, Dict
 
 from dataclasses import dataclass
-from heco.dialects.fhe import SecretType
-from heco.frontend.dialects.fhe import Constant
+# from heco.dialects.fhe import SecretType
+# from heco.frontend.dialects.fhe import Constant
 from xdsl.dialects import builtin, cf, func, symref, arith, affine
 from xdsl.dialects.irdl import Attribute
 from xdsl.frontend.block import block
