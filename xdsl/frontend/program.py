@@ -1,53 +1,61 @@
-import logging
-import os
+import ast
 
-from inspect import getsource, getmodule
-from ast import parse
+from dataclasses import dataclass, field
+from io import StringIO
+from typing import Any, Dict, List
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.func import FuncOp
+from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
+from xdsl.passes.desymref import DesymrefPass
+from xdsl.printer import Printer
 
 
+@dataclass
 class FrontendProgram:
     """
     Class to store the Python AST of a program written in the frontend. This
-    program can be compiled, which performs the translation to MLIR.
+    program can be compiled and translated to xDSL.
     """
 
-    def __init__(self, log_level=logging.INFO):
-        """
-        :param log_level: set verbosity of the logging.
-        """
-        logging.basicConfig(level=log_level)
-        self.logger = logging.getLogger("frontend_program_logger")
-        self.logger.setLevel(log_level)
+    stmts: List[ast.stmt] = field(init=False)
+    """AST nodes stored for compilation to xDSL."""
 
-    def compile(self) -> None:
-        """
-        Compile the function to MLIR (but not yet specify input/output values).
-        The compiled main function is stored internally in `self.cpp_program`.
-        """
+    globals: Dict[str, Any] = field(init=False)
+    """Global information for this prgram, including all the imports."""
 
-        try:
-            raise NotImplementedError("Compilation is not yet implemented.")
-        except Exception as e:
-            self.logger.error(e)
-            exit(1)
+    xdsl_program: ModuleOp = field(init=False)
+    """Generated xDSL program when AST is compiled."""
 
-    def set_src(self, parent_frame):
-        """
-        Stores the source information. 
+    def compile(self):
+        """Generates xDSL from the source program."""
 
-        self.src_context:   stores the code of the functions on the call stack
-        self.src_code_ast:  stores the src code stores the source code of the 
-                            entire file from which the CodeContext was called from.
+        # Run code generation.
+        visitor = CodegenVisitor(self.globals)
+        for stmt in self.stmts:
+            visitor.visit(stmt)
+        ops = visitor.inserter.op_container
 
-        :param parent_frame:    code frame of the CodeContext With block that contains
-                                the frontend code.
-        """
+        # Ensure that the code is encapsulated in a single module.
+        if len(ops) == 1 and isinstance(ops[0], ModuleOp):
+            self.xdsl_program = ops[0]
+        else:
+            self.xdsl_program = ModuleOp.from_region_or_ops(ops)
 
-        self.src_module = getmodule(parent_frame)
-        self.src_context = getsource(parent_frame)
-        self.src_call_stack_ast = parse(self.src_context)
+        # Verify the generated code.
+        self.xdsl_program.verify()
 
-        self.src_file_path = os.path.realpath(self.src_module.__file__)
-        with open(self.src_file_path, "r") as src_fp:
-            self.src_code = src_fp.read()
-        self.src_code_ast = parse(self.src_code)
+    def optimize(self):
+        """Optimized the generated xDSL."""
+
+        # TODO: for now this only runs desymrefication.
+        for op in self.xdsl_program.body.ops:
+            # TODO: desymref runs on function at the moment.
+            if isinstance(op, FuncOp):
+                DesymrefPass.run(op)
+
+    def __str__(self):
+        """Printing support of generated xDSL."""
+        file = StringIO("")
+        printer = Printer(stream=file)
+        printer.print_op(self.xdsl_program)
+        return file.getvalue().strip()
