@@ -4,7 +4,7 @@ import logging
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
-from xdsl.dialects import builtin, cf, func, symref, arith, affine
+from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine
 from xdsl.frontend.visitors.new.type_hints import TypeHintToXDSL
 from xdsl.frontend.visitors.new.xdsl_program import XDSLProgram
 from xdsl.ir import Attribute, Data, Operation, Block, SSAValue, Region
@@ -278,6 +278,58 @@ class ASTToXDSL(ast.NodeVisitor):
 
         self.program.insertion_point_from_op(func_op.parent_op())
 
+
+    def visit_If(self, node: ast.If):
+        # Get the condition.
+        self.visit(node.test)
+        cond = self.program.stack.pop()
+        prev_insertion_point = self.program.insertion_point
+
+        # Process true region
+        true_region = Region.from_block_list([Block()])
+        self.program.insertion_point_from_region(true_region)
+        for stmt in node.body:
+            self.visit(stmt)
+
+        # Process false region
+        false_region = Region.from_block_list([Block()])
+        self.program.insertion_point_from_region(false_region)
+        for stmt in node.orelse:
+            self.visit(stmt)
+        
+        # Reset insertion point to add scf.if
+        self.program.insertion_point_from_block(prev_insertion_point)
+        op = scf.If.get(cond, [], true_region, false_region)
+        self.program.insert_op(op)
+
+    def visit_IfExp(self, node: ast.IfExp) -> Any:
+        # Get the condition.
+        self.visit(node.test)
+        cond = self.program.stack.pop()
+        prev_insertion_point = self.program.insertion_point
+
+        # Process true region
+        true_region = Region.from_block_list([Block()])
+        self.program.insertion_point_from_region(true_region)
+        self.visit(node.body)
+        true_result = self.program.stack.pop()
+        self.program.insert_op(scf.Yield.get(true_result))
+
+        # Process false region
+        false_region = Region.from_block_list([Block()])
+        self.program.insertion_point_from_region(false_region)
+        self.visit(node.orelse)
+        false_result = self.program.stack.pop()
+        self.program.insert_op(scf.Yield.get(false_result))
+
+        if true_result.typ != false_result.typ:
+            raise VisitorException(f"yield types of true region ({true_result.typ}) and false region ({false_result.typ}) do not match for and cannot be inferred")
+
+        # Reset insertion point to add scf.if
+        self.program.insertion_point_from_block(prev_insertion_point)
+        op = scf.If.get(cond, [true_result.typ], true_region, false_region)
+        self.program.insert_op(op)
+        self.program.insertion_point_from_op(op.parent_op())
 
     def visit_Name(self, node: ast.Name):
         """

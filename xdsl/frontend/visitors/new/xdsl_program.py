@@ -36,7 +36,7 @@ class XDSLProgram:
     def insert_op(self, op: Operation):
         """Inserts an operation."""
         if self.insertion_point is None:
-            # This is a top-level operation, i.e. module! No insertion needed.
+            # This is a top-level operation, i.e. in container! No insertion needed.
             self.container.append(op)
             if len(op.regions) != 0 and len(op.regions[-1].blocks) != 0:
                 self.insertion_point = op.regions[-1].blocks[-1]
@@ -50,7 +50,7 @@ class XDSLProgram:
             self.stack.append(result)
 
     def insertion_point_from_op(self, op: Operation | None):
-        # Special case: no top-level operation means it is a module.
+        # Special case: no top-level operation means it is in container.
         if op is None:
             self.insertion_point = None
             return
