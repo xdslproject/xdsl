@@ -5,14 +5,11 @@ import ast
 from contextlib import AbstractContextManager
 from inspect import getsource
 from sys import _getframe
-from xdsl.frontend.visitors.new.ast_visitor import ASTToXDSL
-from xdsl.frontend.visitors.new.xdsl_program import XDSLProgram
+from xdsl.frontend.codegen.ast_visitor import ASTToXDSL
+from xdsl.frontend.codegen.xdsl_program import XDSLProgram
 
 from xdsl.printer import Printer
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.visitors.scoping import ScopingVisitor
-from xdsl.frontend.visitors.frontend_to_xdsl import FrontendToXDSL
-
 
 class CodeContext(AbstractContextManager):
     """

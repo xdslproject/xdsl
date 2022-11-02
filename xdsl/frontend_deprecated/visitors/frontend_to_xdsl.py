@@ -8,10 +8,10 @@ from dataclasses import dataclass
 # from heco.frontend.dialects.fhe import Constant
 from xdsl.dialects import builtin, cf, func, symref, arith, affine
 from xdsl.dialects.irdl import Attribute
-from xdsl.frontend.block import block
+from xdsl.frontend_deprecated.block import block
 
-from xdsl.frontend.visitors.state import ProgramState
-from xdsl.frontend.visitors.utils import (
+from xdsl.frontend_deprecated.visitors.state import ProgramState
+from xdsl.frontend_deprecated.visitors.utils import (
     get_xdsl_obj, has_type_of_python_type, is_frontend_obj, is_module,
     is_region, node_is_frontend_obj, py_hint_to_xdsl_type, VisitorException,
     get_xdsl_op

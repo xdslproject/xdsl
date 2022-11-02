@@ -5,8 +5,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine
-from xdsl.frontend.visitors.new.type_hints import TypeHintToXDSL
-from xdsl.frontend.visitors.new.xdsl_program import XDSLProgram
+from xdsl.frontend.codegen.type_hints import TypeHintToXDSL
+from xdsl.frontend.codegen.xdsl_program import XDSLProgram
 from xdsl.ir import Attribute, Data, Operation, Block, SSAValue, Region
 from xdsl.printer import Printer
 

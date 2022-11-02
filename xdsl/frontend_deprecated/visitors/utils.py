@@ -8,11 +8,11 @@ from xdsl.dialects.builtin import FloatData, IntAttr, StringAttr
 
 from xdsl.ir import Attribute
 from xdsl.irdl import VerifyException
-import xdsl.frontend
-import xdsl.frontend.region
-import xdsl.frontend.dialects.builtin
-from xdsl.frontend.internal_utils import is_frontend_obj, frontend_module_name_to_xdsl_name
-from xdsl.frontend.visitors.type_to_literal import TypeToLiteralVisitor
+import xdsl.frontend_deprecated
+import xdsl.frontend_deprecated.region
+import xdsl.frontend_deprecated.dialects.builtin
+from xdsl.frontend_deprecated.internal_utils import is_frontend_obj, frontend_module_name_to_xdsl_name
+from xdsl.frontend_deprecated.visitors.type_to_literal import TypeToLiteralVisitor
 
 
 @dataclass
@@ -195,11 +195,11 @@ def is_special_with_block(node: ast.With, glob: Dict[str, Any], special_class: o
 
 
 def is_region(node: ast.With, glob: Dict[str, Any]) -> bool:
-    return is_special_with_block(node, glob, xdsl.frontend.region.Region)
+    return is_special_with_block(node, glob, xdsl.frontend_deprecated.region.Region)
 
 
 def is_module(node: ast.With, glob: Dict[str, Any]) -> bool:
-    return is_special_with_block(node, glob, xdsl.frontend.dialects.builtin.Module)
+    return is_special_with_block(node, glob, xdsl.frontend_deprecated.dialects.builtin.Module)
 
 
 def has_type_of_python_type(node: ast.Subscript | ast.Name | _GenericAlias):
