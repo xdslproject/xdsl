@@ -84,4 +84,5 @@ class Return(Operation):
 
     @staticmethod
     def get(*ops: Union[Operation, SSAValue]) -> Return:
-        return Return.build(operands=[[op for op in ops]])
+        ops = [op for op in ops] if ops != () else []
+        return Return.build(operands=[ops])
