@@ -5,6 +5,8 @@ import ast
 from contextlib import AbstractContextManager
 from inspect import getsource
 from sys import _getframe
+from xdsl.frontend.visitors.new.ast_visitor import ASTToXDSL
+from xdsl.frontend.visitors.new.xdsl_program import XDSLProgram
 
 from xdsl.printer import Printer
 from xdsl.frontend.program import FrontendProgram
@@ -47,35 +49,17 @@ class CodeContext(AbstractContextManager):
         # Find the current 'with' block in the source code
         for item in ast.walk(python_ast):
             if isinstance(item, ast.With) and item.lineno == parent_frame.f_lineno - parent_frame.f_code.co_firstlineno + 1:
-                self.logger.debug(
-                    f"Start parsing With block at line {item.lineno}")
+                # self.logger.debug(f"Parsing the program from line {item.lineno + 1}")
 
-                # First pass: gather block labels
-                # XXX: attention, block labels are global in the frontend.
-                self.logger.info("Start first pass over pyAST.")
-                block_label_visitor = ScopingVisitor(
-                    parent_globals, self.logger)
-                for line in item.body:
-                    block_label_visitor.visit(line)
-                program_state = block_label_visitor.state
-                program_state.reset()
-
-                # Second pass: translate frontend pyast to xDSL
-                visitor = FrontendToXDSL(
-                    parent_globals, program_state, self.logger)
-                stmts = []
-                self.logger.info("Start second pass over pyAST.")
-                for line in item.body:
-                    self.logger.debug(
-                        f"Parsing the following Python AST:\n{ast.dump(line)}")
-                    stmts.append(visitor.visit(line))
-
-                visitor.state.finalize_region(stmts)
-                visitor.state.finalize_module()
+                program = XDSLProgram()
+                visitor = ASTToXDSL(parent_globals, program, self.logger)
+                # self.logger.info("Start Avisiting the AST...")
+                for node in item.body:
+                    visitor.visit(node)
 
                 printer = Printer()
-                for module_metadata in program_state.module_metadata_stack:
-                    printer.print_op(module_metadata.module)
+                for module in program.modules:
+                    printer.print_op(module)
 
     def __exit__(self, *args):
-        self.logger.debug("Exit with block.")
+        pass
