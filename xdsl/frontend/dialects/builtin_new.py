@@ -26,6 +26,15 @@ ui32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.UNSIGNED]]
 ui64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.UNSIGNED]]
 
 
+class IndexType():
+    """Represents an index type in the frontend."""
+
+    def to_xdsl():
+        return xdsl_builtin.IndexType
+
+index: TypeAlias = IndexType
+
+
 class Module:
     """Represents a module."""
     def __enter__(self):
