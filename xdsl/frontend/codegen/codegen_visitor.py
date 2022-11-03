@@ -2,6 +2,7 @@ import ast
 
 from dataclasses import dataclass, field
 from typing import Any, Dict
+from xdsl.frontend.codegen.utils.codegen_for import check_for_loop_valid, codegen_affine_for_loop, codegen_scf_for_loop, is_affine_for_loop
 
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, func, scf, symref, arith, affine, unimplemented
@@ -191,52 +192,17 @@ class CodegenVisitor(ast.NodeVisitor):
         return
 
     def visit_For(self, node: ast.For):
-        if len(node.orelse) > 0:
-            raise CodegenException("orelse in for loops is not supported")
+        """Visits a for loop and creates scf.for or affine.for operation."""
 
-        if not isinstance(node.target, ast.Name):
-            raise CodegenException("multiple induction variables in for loops is not supported")
+        # First, check if this loop can be lowered to xDSL.
+        check_for_loop_valid(node)
 
-        if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range":
-            # Assume all range loops are affine, which in general should be the case?
-
-            # First, proces range arguments.
-            args = node.iter.args
-            match len(args):
-                case 1:
-                    self.inserter.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
-                    # self.visit(args[0])
-                    self.inserter.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
-                    self.inserter.insert_op(arith.Constant.from_attr(builtin.IntegerAttr.from_index_int_value(0), builtin.IndexType()))
-                case 2:
-                    self.visit(args[0])
-                    self.visit(args[1])
-                    self.inserter.insert_op(arith.Constant.from_attr(1, builtin.IndexType()))
-                case 3:
-                    self.visit(args[0])
-                    self.visit(args[1])
-                    self.visit(args[2])
-                case _:
-                    raise CodegenException(f"expecting 1, 2, or 3 arguments to range function, got {len(args)}")
-            # step = self.inserter.get_operand()
-            # end = self.inserter.get_operand()
-            # start = self.inserter.get_operand()
-
-            # Save previous insertion points.
-            prev_insertion_point = self.inserter.ip
-
-            # Visit for loop body.
-            for_body_region = Region.from_block_list([Block()])
-            self.inserter.set_insertion_point_from_region(for_body_region)
-            for stmt in node.body:
-                self.visit(stmt)
-
-            op = affine.For.from_region([], 0, 10, for_body_region, 1)
-            self.inserter.set_insertion_point_from_block(prev_insertion_point)
-            self.inserter.insert_op(op)
-            return
-
-        raise CodegenException(f"for loop on line {node.lineno} is not supported")
+        # Next, we have to check if the loop is affine: for now we simply
+        # check if all range arguments are constants. If not, we have to generate scf.for
+        if is_affine_for_loop(node):
+            codegen_affine_for_loop(self.inserter, node, self.visit)
+        else:
+            codegen_scf_for_loop(self.inserter, node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
