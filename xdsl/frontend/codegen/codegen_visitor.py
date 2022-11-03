@@ -132,6 +132,10 @@ class CodegenVisitor(ast.NodeVisitor):
                 op = arith.Subi.get(lhs, rhs)
             case "Mult":
                 op = arith.Muli.get(lhs, rhs)
+            case "BitAnd":
+                op = arith.AndI.get(lhs, rhs)
+            case "RShift":
+                op = arith.ShRSI.get(lhs, rhs)
             case _:
                 # TODO: support more operators!
                 raise CodegenException(f"binary operator {node.op.__class__.__name__} is not supported")

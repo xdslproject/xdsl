@@ -40,5 +40,5 @@ with CodeContext(p):
         pass
 
 p.compile()
-p.optimize()
+p.desymref()
 print(p)

@@ -44,10 +44,9 @@ class FrontendProgram:
         # Verify the generated code.
         self.xdsl_program.verify()
 
-    def optimize(self):
-        """Optimized the generated xDSL."""
+    def desymref(self):
+        """Desymref the generated xDSL."""
 
-        # TODO: for now this only runs desymrefication.
         for op in self.xdsl_program.body.ops:
             # TODO: desymref runs on function at the moment.
             if isinstance(op, FuncOp):
