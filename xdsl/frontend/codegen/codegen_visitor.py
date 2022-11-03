@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, func, scf, symref, arith, affine, unimplemented
-from xdsl.frontend.codegen.exception import CodegenException
+from xdsl.frontend.codegen.exception import CodegenException, prettify
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeHintConverter
 from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
@@ -273,6 +273,23 @@ class CodegenVisitor(ast.NodeVisitor):
         for stmt in node.body:
             self.visit(stmt)
 
+        # Check that return statement has been inserted. If not, do that. This way we
+        # handle cases like:
+        #
+        # def foo():
+        #   do_something()
+        #   # No return statement here!
+        #
+        ops = self.inserter.ip.ops
+        if len(ops) == 0 or not isinstance(ops[-1], func.Return):
+            return_types = func_op.function_type.outputs.data
+            assert len(return_types) <= 1
+
+            if len(return_types) != 0:
+                func_name = func_op.attributes["sym_name"].data
+                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+            self.inserter.insert_op(func.Return.get())
+
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
         self.inserter.set_declare_insertion_point(prev_declare_insertion_point)
 
@@ -320,7 +337,7 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.insert_op(scf.Yield.get(false_result))
 
         if true_result.typ != false_result.typ:
-            raise CodegenException(f"yield types of true region ({true_result.typ}) and false region ({false_result.typ}) do not match for and cannot be inferred")
+            raise CodegenException(f"yield types of true region ({prettify(true_result.typ)}) and false region ({prettify(false_result.typ)}) do not match for and cannot be inferred")
 
         # Reset insertion point to add scf.if
         self.inserter.set_insertion_point_from_block(prev_insertion_point)
@@ -341,10 +358,44 @@ class CodegenVisitor(ast.NodeVisitor):
         """
         Visits a return statement in the function.
         """
-        if node.value is not None:
-            raise CodegenException("returning values from functions is not supported")
+
+        # First of all, we should only be able to return if the statement is directly
+        # in the function. Cases like:
+        #
+        # def foo(cond: i1):
+        # if cond:
+        #   return 1
+        # else:
+        #   return 0
+        #
+        # are not allowed!
+        parent_op = self.inserter.ip.parent_op()
+        if not isinstance(self.inserter.ip.parent_op(), func.FuncOp):
+            raise CodegenException("return statement should be placed only at the end of the function body")
+
+        # We have to check return matches the function signature.
+        return_types = parent_op.function_type.outputs.data
+        func_name = parent_op.attributes["sym_name"].data
+        assert len(return_types) <= 1
+
+        # Get the return operation.
+        if node.value is None:
+            if len(return_types) != 0:
+                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+            return_op = func.Return.get()
         else:
-            self.inserter.insert_op(func.Return.get())
+            self.visit(node.value)
+            operand = self.inserter.get_operand()
+
+            if len(return_types) == 0:
+                raise CodegenException(f"expected 0 return types, got 1 in function {func_name}")
+            if return_types[0] != operand.typ:
+                raise CodegenException(f"expected {prettify(return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
+
+            return_op = func.Return.get(operand)
+
+        # All checks passed, insert return operation.
+        self.inserter.insert_op(return_op)
 
     def visit_With(self, node: ast.With):
         """
@@ -366,5 +417,18 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.set_declare_insertion_point(prev_declare_insertion_point)
 
     def visit_Pass(self, node: ast.Pass):
-        # Do nothing.
-        pass
+        # Special case: function can return nothing and be implemented using pass, e.g.
+        #  def foo():
+        #    pass
+        # Therefore, we have to explicitly add func.return unless type sugnature
+        # says otherwise.
+        parent_op = self.inserter.ip.parent_op()
+        if isinstance(parent_op, func.FuncOp):
+            func_name = parent_op.attributes["sym_name"].data
+            return_types = parent_op.function_type.outputs.data
+            assert len(return_types) <= 1
+
+            if len(return_types) != 0:
+                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+
+            self.inserter.insert_op(func.Return.get())
