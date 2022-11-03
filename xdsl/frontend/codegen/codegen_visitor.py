@@ -2,6 +2,8 @@ import ast
 
 from dataclasses import dataclass, field
 from typing import Any, Dict
+
+from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, func, scf, symref, arith, affine, unimplemented
 from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.codegen.inserter import OpInserter
@@ -232,43 +234,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
         raise CodegenException(f"for loop on line {node.lineno} is not supported")
 
-    def _check_function_signature(self, node: ast.FunctionDef):
-        """Throws an exception if this function cannot be lowered to xDSL."""
-        # Don't support vararg and its friends.
-        if getattr(node.args, "vararg") is not None:
-            raise CodegenException("`vararg` arguments are not supported")
-        if getattr(node.args, "kwarg") is not None:
-            raise CodegenException("`kwarg` arguments are not supported")
-        if getattr(node.args, "kwonlyargs"):
-            raise CodegenException("`kwonlyargs` are not supported")
-        if getattr(node.args, "kw_defaults"):
-            raise CodegenException("`kw_defaults` are not supported")
-        if getattr(node.args, "defaults"):
-            raise CodegenException("`defaults` are not supported")
-
-        # Explicitly require type annotations on function arguments.
-        args = node.args.args
-        for i, arg in enumerate(args):
-            annotation = arg.annotation
-            if annotation is None:
-                # TODO: Compiler should complain about all arguments which miss type annotations, and not just the first one.
-                raise CodegenException(f"missing a type hint on argument {i} in function {node.name}, line {annotation.lineno}.")
-
-    def _get_argument_types(self, node: ast.FunctionDef):
-        args = node.args.args
-        arg_types = []
-        for arg in args:
-            arg_type = self.hint_converter.convert_hint(arg.annotation)
-            arg_types.append(arg_type)
-        return arg_types
-
-    def _get_return_types(self, node: ast.FunctionDef):
-        return_type = self.hint_converter.convert_hint(node.returns)
-        return_types = []
-        if return_type is not None:
-            return_types.append(return_type)
-        return return_types
-
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
         Visits a function definition, e.g.
@@ -277,11 +242,11 @@ class CodegenVisitor(ast.NodeVisitor):
             ...
         """
         # First, check if function signature is valid.
-        self._check_function_signature(node)
+        check_function_signature(node)
 
         # Then, convert type in the function signature.
-        arg_types = self._get_argument_types(node)
-        return_types = self._get_return_types(node)
+        arg_types = get_argument_types(node, self.hint_converter)
+        return_types = get_return_types(node, self.hint_converter)
 
         # Save previous insertion point for declarations.
         prev_declare_insertion_point = self.inserter.declare_ip
