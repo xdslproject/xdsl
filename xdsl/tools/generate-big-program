@@ -1,3 +1,4 @@
+from math import ceil
 from xdsl.dialects.elevate.dialect import ReturnOp
 from xdsl.ir import MLContext
 from xdsl.dialects.arith import Addi, Arith, Constant, AndI
@@ -5,7 +6,7 @@ from xdsl.dialects.func import *
 from xdsl.dialects.scf import If, Yield
 from xdsl.dialects.builtin import Builtin, IntegerType, ModuleOp
 from xdsl.printer import Printer
-
+import argparse
 
 def generate_additions(depth: int) -> list[Operation]:
     result: list[Operation] = [Constant.from_int_constant(1, 32)]
@@ -29,29 +30,33 @@ def generate_and_nest(depth: int) -> list[Operation]:
     return result
 
 
-def emit_additions():
-    depth = 100
+def emit_additions(count: int = 100):
     module = ModuleOp.from_region_or_ops([])
     block = module.body.blocks[0]
-    block.add_ops(generate_additions(depth))
+    block.add_ops(generate_additions(count))
     # TODO: we need a return or the whole thing is dead code.
 
     printer = Printer()
     printer.print_op(module)
 
 
-def emit_if_program():
+def emit_if_program(total_count: int = 100, ratio_nesting: float = 0.2):
+    ops_generated: int = 0
+
+    num_ifs = max(int(total_count * ratio_nesting), 1)
+
+
+    # an if generates 3 ops: the if, the yield, and we also count the first constant
+    num_nested_ops = int((total_count - num_ifs * 3) / num_ifs)
+
     ctx = MLContext()
     Builtin(ctx)
     Arith(ctx)
     Func(ctx)
 
-    if_count = 20
-    and_depth = 50
-
     module = ModuleOp.from_region_or_ops([])
     func = FuncOp.from_region(
-        "main", [], [IntegerType.from_width(1) for _ in range(if_count)],
+        "main", [], [IntegerType.from_width(1) for _ in range(num_ifs)],
         Region.from_operation_list([]))
     module.body.blocks[0].add_op(func)
 
@@ -60,25 +65,47 @@ def emit_if_program():
 
     if_ops: list[If] = []
 
-    for _ in range(if_count):
-        true_region = Region.from_operation_list(generate_and_nest(and_depth))
+    while ops_generated <= total_count - (total_count*0.02):
+        true_region = Region.from_operation_list(generate_and_nest(int(num_nested_ops/2)))
         true_region.blocks[0].add_op(Yield.get(true_region.blocks[0].ops[-1]))
-        false_region = Region.from_operation_list(
-            [false := Constant.from_int_constant(0, 1),
-             Yield.get(false)])
+        # false_region = Region.from_operation_list(
+        #     [false := Constant.from_int_constant(0, 1),
+        #      Yield.get(false)])
 
         if_op = If.get(cond, [IntegerType.from_width(1)], true_region,
-                       false_region)
+                       None)
         if_ops.append(if_op)
+        # cond = if_op
         func.body.blocks[0].add_op(if_op)
+        # count the if and all ops nested under it
+        ops_generated += len(true_region.ops) + 1
+
     func.body.blocks[0].add_op(Return.get(*if_ops))
     printer = Printer()
     printer.print_op(module)
-
+    print(f"// Generated {ops_generated} ops")
 
 def main():
-    # emit_additions()
-    emit_if_program()
+    parser = argparse.ArgumentParser(
+        prog='',
+        description='')
+    parser.add_argument('-e', '--experiment', default="bool_nest", help='which experiment to generate. Choose from: [additions, bool_nest]')
+    parser.add_argument('-c', '--count', type=int, default=10, help='total number of ops to generate')
+    parser.add_argument('-n', '--nesting', type=float, default=1, help='ratio of ops that nest other ops under it (0.0 - 1.0)')
+
+    args = parser.parse_args()
+
+
+
+
+    match args.experiment:
+        case "additions":
+            emit_additions(int(args.count / 2))
+        case "bool_nest":
+            # scale the nesting down to 0.0-0.2
+            nesting_ratio = args.nesting * 0.21
+            emit_if_program(args.count, nesting_ratio)
+            # print(f"//if_ops: {if_ops}, and_ops: {and_ops}")
 
 
 if __name__ == "__main__":

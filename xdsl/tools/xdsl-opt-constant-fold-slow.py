@@ -17,11 +17,11 @@ from xdsl.pattern_rewriter import (GreedyRewritePatternApplier,
                                    PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, op_type_rewrite_pattern)
 from dataclasses import dataclass
-from memory_profiler import profile
+# from memory_profiler import profile
 import sys
-import matplotlib
 
 to_keep_in_memory = list[Any]()
+
 
 def flush_memory(): 
     global to_keep_in_memory
@@ -64,13 +64,18 @@ class ConstantFoldAndIRewriter(RewritePattern):
             self, expr: AndI, rewriter: PatternRewriter) -> None:
         if self.is_integer_literal(expr.lhs.op) and self.is_integer_literal(
                 expr.rhs.op):
-            lhs_value = expr.lhs.op.value.parameters[0].data
-            rhs_value = expr.rhs.op.value.parameters[0].data
+            lhs_value: OpResult = expr.lhs.op.value.parameters[0].data
+            rhs_value: OpResult = expr.rhs.op.value.parameters[0].data
             result_value = lhs_value & rhs_value
 
             new_constant = Constant.from_int_constant(result_value,
                                                       expr.results[0].typ)
+            # also erases expr
             rewriter.replace_op(expr, [new_constant])
+            if len(expr.lhs.uses) == 0:
+                rewriter.erase_op(expr.lhs.op)
+            if len(expr.rhs.uses) == 0:
+                rewriter.erase_op(expr.rhs.op)
             self.num_changed_values += 1
         return
 
@@ -110,9 +115,13 @@ def assign_module_and_delete(lvalue: ModuleOp, rvalue: ModuleOp, keep_in_memory:
     lregion.parent = None
     if keep_in_memory:
         global to_keep_in_memory
-        to_keep_in_memory = lregion
+        to_keep_in_memory.append(lregion)
 
-# @profile(precision=4)
+def save_module_for_backtracking(module: IOp):
+    global to_keep_in_memory
+    to_keep_in_memory.append(module)
+
+
 def constant_folding_clone(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
     rewriter = ConstantFoldAddRewriter()
     walker = RewriteOnceWalker(rewriter)
@@ -131,6 +140,7 @@ def constant_folding_clone(ctx: MLContext, module: ModuleOp, keep_in_memory: boo
         cleanup_walker.rewrite_module(module)
         cleanup_walker.rewrite_module(module)
 
+    # flush_memory()
 
 
 def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
@@ -141,8 +151,6 @@ def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
         cleanup_walker.rewrite_module(module)
         cleanup_walker.rewrite_module(module)
         pass
-
-@profile
 def bool_nest_cloning(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
     fold_and_rewriter = ConstantFoldAndIRewriter()
     fold_and_once = RewriteOnceWalker(fold_and_rewriter)
@@ -151,11 +159,6 @@ def bool_nest_cloning(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) ->
     cleanup_walker = PatternRewriteWalker(RemoveUnusedRewriter())
 
     module_copy = module.clone()
-    if not fold_and_once.rewrite_module(module_copy):
-        return
-
-    assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
-    module_copy = module.clone()
 
     # currently we don't clone before doing cleanup!
     old_versions: list[ModuleOp] = [module]
@@ -163,17 +166,19 @@ def bool_nest_cloning(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) ->
         assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
         module_copy = module.clone()
         old_versions.append(module)
-        cleanup_walker.rewrite_module(module_copy)
-        assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
+        # cleanup_walker.rewrite_module(module_copy)
+        # assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
 
     while inline_if_once.rewrite_module(module_copy):
         assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
         module_copy = module.clone()
         old_versions.append(module)
-        cleanup_walker.rewrite_module(module_copy)
+        # cleanup_walker.rewrite_module(module_copy)
 
     assign_module_and_delete(module, module_copy, keep_in_memory=keep_in_memory)
-
+    # global to_keep_in_memory
+    # print("Keeping in memory: ", len(to_keep_in_memory))
+    flush_memory()
 
 @dataclass(frozen=True)
 class FoldConstantAdd(Strategy):
@@ -237,7 +242,7 @@ class InlineIf(Strategy):
 
 @dataclass(frozen=True)
 class FakeDCE(Strategy):
-    # @profile
+
     def impl(self, op: IOp) -> RewriteResult:
         match op:
             case IOp(op_type=ModuleOp):
@@ -247,7 +252,7 @@ class FakeDCE(Strategy):
             case _:
                 return failure(self)
 
-# @profile
+
 def constant_folding_composable2(ctx: MLContext, module: ModuleOp) -> None:
     sys.setrecursionlimit(1000000)
     imodule: IOp = get_immutable_copy(module)
@@ -267,9 +272,10 @@ def constant_folding_composable2(ctx: MLContext, module: ModuleOp) -> None:
 
     new_imodule = strategy.apply(imodule).result_op
     
-
-
     new_module = new_imodule.get_mutable_copy()
+
+    # TODO: find a way to not free the memory of the intermediate modules we might need for backtracking
+
     assign_module_and_delete(module, cast(ModuleOp, new_module))
 
 def constant_folding_composable(ctx: MLContext, module: ModuleOp) -> None:
@@ -281,14 +287,31 @@ def constant_folding_composable(ctx: MLContext, module: ModuleOp) -> None:
     new_module = new_imodule.get_mutable_copy()
     assign_module_and_delete(module, cast(ModuleOp, new_module))
 
-def bool_nest_composable(ctx: MLContext, module: ModuleOp) -> None:
+def bool_nest_composable(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
     sys.setrecursionlimit(1000000)
     imodule: IOp = get_immutable_copy(module)
-    strategy = everywhere(FoldConstantAnd()) ^ everywhere(InlineIf())
-    new_imodule = strategy.apply(imodule).result_op
+    # Individual applications of small strategies
+    if keep_in_memory:
+            save_module_for_backtracking(imodule)
+    new_imodule = imodule
+    while (rr := topToBottom(FoldConstantAnd()).apply(new_imodule)).isSuccess():
+        new_imodule = rr.result_op
+        if keep_in_memory:
+            save_module_for_backtracking(new_imodule)
+    while (rr := topToBottom(InlineIf()).apply(new_imodule)).isSuccess():
+        new_imodule = rr.result_op
+        if keep_in_memory:
+            save_module_for_backtracking(new_imodule)
+
+    # Build a large strategy and apply it once
+    # strategy = everywhere(FoldConstantAnd()) ^ everywhere(InlineIf())
+    # new_imodule = strategy.apply(imodule).result_op
     
     new_module = new_imodule.get_mutable_copy()
+    # global to_keep_in_memory
+    # print("Keeping in memory: ", len(to_keep_in_memory))
     assign_module_and_delete(module, cast(ModuleOp, new_module))
+    flush_memory()
 
 class OptMain(xDSLOptMain):
 
@@ -304,19 +327,17 @@ class OptMain(xDSLOptMain):
         super().available_passes[
             'constant-fold-composable2'] = constant_folding_composable2
         super().available_passes[
-            'bool-nest-composable'] = bool_nest_composable
+            'bool-nest-composable'] = lambda ctx, module: bool_nest_composable(ctx, module, self.args.keep_copied_module)
         super().register_all_passes()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
         arg_parser.add_argument("--keep-copied-module",
-                        default=False,
+                        default=True,
                         action='store_true')
 
 
-
 def __main__(args: Optional[argparse.Namespace] = None):
-    matplotlib.use('GTK4Agg')
     xdsl_main = OptMain()
     if args:
         xdsl_main.args = args

@@ -156,8 +156,8 @@ class Cast(Operation):
     """
     name: str = "stencil.cast"
     field = OperandDef(FieldType)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    lb = OptAttributeDef(ArrayAttr)
+    ub = OptAttributeDef(ArrayAttr)
     result = ResultDef(FieldType)
 
 
@@ -188,8 +188,8 @@ class Access(Operation):
     """
     name: str = "stencil.access"
     temp = OperandDef(TempType)
-    offset = AttributeDef(Stencil_Index)
-    res = ResultDef(Stencil_Element)
+    offset = AttributeDef(ArrayAttr)
+    res = ResultDef(Attribute)
 
 
 @irdl_op_definition
@@ -205,9 +205,9 @@ class DynAccess(Operation):
     """
     name: str = "stencil.dyn_access"
     temp = OperandDef(TempType)
-    offset = AttributeDef(Stencil_Index)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    offset = AttributeDef(ArrayAttr)
+    lb = AttributeDef(ArrayAttr)
+    ub = AttributeDef(ArrayAttr)
     res = ResultDef(Stencil_Element)
 
 
@@ -221,8 +221,8 @@ class Load(Operation):
     """
     name: str = "stencil.load"
     field = OperandDef(FieldType)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    lb = OptAttributeDef(ArrayAttr)
+    ub = OptAttributeDef(ArrayAttr)
     res = ResultDef(TempType)
 
 
@@ -236,8 +236,8 @@ class Buffer(Operation):
     """
     name: str = "stencil.buffer"
     temp = OperandDef(TempType)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    lb = OptAttributeDef(ArrayAttr)
+    ub = OptAttributeDef(ArrayAttr)
     res = ResultDef(TempType)
 
 
@@ -252,8 +252,8 @@ class Store(Operation):
     name: str = "stencil.store"
     temp = OperandDef(TempType)
     field = OperandDef(FieldType)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    lb = AttributeDef(ArrayAttr)
+    ub = AttributeDef(ArrayAttr)
 
 
 @irdl_op_definition
@@ -270,8 +270,8 @@ class Apply(Operation):
     """
     name: str = "stencil.apply"
     args = VarOperandDef(Attribute)
-    lb = AttributeDef(Stencil_Index)
-    ub = AttributeDef(Stencil_Index)
+    lb = OptAttributeDef(ArrayAttr)
+    ub = OptAttributeDef(ArrayAttr)
     region = RegionDef()
     res = VarResultDef(Attribute)
 
@@ -286,7 +286,7 @@ class StoreResult(Operation):
       stencil.store_result : !stencil.result<f64>   
     """
     name: str = "stencil.store_result"
-    args = VarOperandDef(Stencil_Element)
+    args = VarOperandDef(Attribute)
     res = ResultDef(ResultType)
 
 

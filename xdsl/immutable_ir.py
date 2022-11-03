@@ -665,7 +665,6 @@ def new_op(op_type: type[Operation],
     rewritten_ops.append(op)
     return rewritten_ops
 
-# @profile
 def from_op(old_op: IOp,
             operands: Optional[Sequence[ISSAValue | IOp
                                         | Sequence[IOp]]] = None,

@@ -3,6 +3,7 @@
 import argparse
 from xdsl.xdsl_opt_main import xDSLOptMain
 from xdsl.dialects.onnx.dialect import Onnx
+from xdsl.dialects.stencil.stencil import Stencil
 # passes
 from xdsl.passes.arith_expansion import arith_expansion_pass
 from xdsl.passes.onnx_opt import onnx_opt_pass
@@ -13,6 +14,7 @@ class OptMain(xDSLOptMain):
     def register_all_dialects(self):
         super().register_all_dialects()
         onnx = Onnx(self.ctx)
+        stencil = Stencil(self.ctx)
 
     def register_all_passes(self):
         super().register_all_passes()

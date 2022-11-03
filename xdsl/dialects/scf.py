@@ -1,8 +1,8 @@
 from __future__ import annotations
 from xdsl.ir import MLContext
-from xdsl.irdl import (VarOperandDef, irdl_op_definition, Attribute,
-                       VarResultDef, OperandDef, SSAValue, Operation,
-                       RegionDef, Region, Block, AnyAttr)
+from xdsl.irdl import (OptRegionDef, VarOperandDef, irdl_op_definition,
+                       Attribute, VarResultDef, OperandDef, SSAValue,
+                       Operation, RegionDef, Region, Block, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 from dataclasses import dataclass
 from typing import List
@@ -27,12 +27,16 @@ class If(Operation):
 
     true_region = RegionDef()
     # TODO this should be optional under certain conditions
-    false_region = RegionDef()
+    false_region = OptRegionDef()
 
     @staticmethod
     def get(cond: SSAValue | Operation, return_types: List[Attribute],
             true_region: Region | List[Block] | List[Operation],
             false_region: Region | List[Block] | List[Operation]):
+        if not false_region:
+            return If.build(operands=[cond],
+                            result_types=[return_types],
+                            regions=[true_region, []])
         return If.build(operands=[cond],
                         result_types=[return_types],
                         regions=[true_region, false_region])

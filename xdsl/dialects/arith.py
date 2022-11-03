@@ -54,6 +54,8 @@ class Arith:
         self.ctx.register_op(Minf)
         self.ctx.register_op(Maxf)
 
+        self.ctx.register_op(NegF)
+
 
 @irdl_op_definition
 class Constant(Operation):
@@ -75,6 +77,21 @@ class Constant(Operation):
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
+
+
+@irdl_op_definition
+class NegF(Operation):
+    name: str = "arith.negf"
+
+    lhs = OperandDef(signlessIntegerLike)
+    # rhs = OperandDef(signlessIntegerLike)
+    result = ResultDef(signlessIntegerLike)
+
+    # # TODO replace with trait
+    # def verify_(self) -> None:
+    #     if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+    #         raise VerifyException(
+    #             "expect all input and result types to be equal")
 
 
 @irdl_op_definition

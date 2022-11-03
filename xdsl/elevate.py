@@ -6,13 +6,11 @@ from functools import partial
 from typing import List, Callable, MutableSequence, TypeAlias
 from xdsl.immutable_ir import *
 from xdsl.printer import Printer
-from memory_profiler import profile
 
 
 @dataclass(frozen=True)
 class Strategy:
 
-    # @profile
     def apply(self, op: IOp) -> RewriteResult:
         assert isinstance(op, IOp)
 
@@ -191,7 +189,6 @@ class leftChoice(Strategy):
 class try_(Strategy):
     s: Strategy
 
-    # @profile
     def impl(self, op: IOp) -> RewriteResult:
         return leftChoice(self.s, id()).apply(op)
 
@@ -358,7 +355,6 @@ class OpsTraversal(ABC):
     """
     s: Strategy
 
-    # @profile
     def apply(self, block: IBlock) -> Optional[IBlock]:
         return self.impl(block)
 
@@ -377,7 +373,6 @@ class regionN(RegionsTraversal):
     """
     block_trav: BlocksTraversal
     n: int
-    # @profile
     def impl(self, op: IOp) -> RewriteResult:
         if len(op.regions) <= self.n:
             return failure(self)
@@ -454,7 +449,6 @@ class blockN(BlocksTraversal):
     """
     op_trav: OpsTraversal
     n: int
-    # @profile
     def impl(self, region: IRegion) -> Optional[IRegion]:
         if len(region.blocks) <= self.n:
             return None
@@ -559,7 +553,6 @@ class opN(OpsTraversal):
     n: int
 
 
-    # @profile
     def impl(self, block: IBlock) -> Optional[IBlock]:
         if len(block.ops) <= self.n:
             return None
@@ -637,7 +630,6 @@ class opN(OpsTraversal):
         return None
 
     @staticmethod
-    # @profile
     def _add_replacements_for_uses_of_matched_op(
             replacements: MutableSequence[IOpReplacement], repl_idx: int,
             user_op: IOp):
@@ -696,7 +688,6 @@ class opsTopToBottom(OpsTraversal):
     start_index: int = 0
     skips: int = 0
 
-    # @profile
     def impl(self, block: IBlock) -> Optional[IBlock]:
         for op_idx in range(0, len(block.ops)):
             if op_idx < self.start_index:
