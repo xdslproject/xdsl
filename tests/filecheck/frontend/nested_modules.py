@@ -16,7 +16,16 @@ with CodeContext(p):
     with Module():
         pass
 
+#      CHECK: builtin.module() {
+# CHECK-NEXT:   builtin.module() {
+# CHECK-NEXT:     builtin.module() {}
+# CHECK-NEXT:   }
+# CHECK-NEXT:   builtin.module() {
+# CHECK-NEXT:     builtin.module() {
+# CHECK-NEXT:       builtin.module() {}
+# CHECK-NEXT:     }
+# CHECK-NEXT:   }
+# CHECK-NEXT:   builtin.module() {}
+# CHECK-NEXT: }
 p.compile()
-
-# CHECK: builtin.module()
 print(p)

@@ -60,10 +60,14 @@ class TypeHintConverter:
             msg = f"expected a sublcass of FrontendType, got {ty.__origin__.__name__}"
             raise TypeHintConversionException(msg)
 
+        # Otherwise, it can be a class from the frontend.
+        if issubclass(ty, FrontendType):
+            return ty.to_xdsl()()
+
         # Otherwise, abort.
-        # TODO: while thi is enough to support simple integer types, we should
+        # TODO: while this is enough to support simple integer types, we should
         # support other corner cases as well.
-        raise TypeHintConversionException(f"unsupported hint of type {type(ty)}")
+        raise TypeHintConversionException(f"unsupported hint of type {ty}")
 
     def convert_hint(self, hint: Type) -> Optional[Attribute]:
         """handles all type hint conversions."""
