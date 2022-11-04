@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
-from xdsl.passes.desymref import DesymrefPass
+from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
 
 
@@ -46,11 +46,7 @@ class FrontendProgram:
 
     def desymref(self):
         """Desymref the generated xDSL."""
-
-        for op in self.xdsl_program.body.ops:
-            # TODO: desymref runs on function at the moment.
-            if isinstance(op, FuncOp):
-                DesymrefPass.run(op)
+        DesymrefyPass.run(self.xdsl_program)
 
     def __str__(self):
         """Printing support of generated xDSL."""

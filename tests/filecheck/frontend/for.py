@@ -38,7 +38,5 @@ with CodeContext(p):
                 for k in range(30, 1000, 10):
                     pass
 
-
 p.compile()
-p.desymref()
 print(p)
