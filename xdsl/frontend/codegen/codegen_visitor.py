@@ -218,15 +218,12 @@ class CodegenVisitor(ast.NodeVisitor):
         arg_types = get_argument_types(node, self.hint_converter)
         return_types = get_return_types(node, self.hint_converter)
 
-        # Save previous insertion point for declarations.
-        prev_declare_insertion_point = self.inserter.declare_ip
-
         # Create a region for the function body and entry block.
         entry_block = Block()
         body_region = Region.from_block_list([entry_block])
         func_op = func.FuncOp.from_region(node.name, arg_types, return_types, body_region)
         self.inserter.insert_op(func_op)
-        self.inserter.set_insertion_point_from_op(func_op)
+        self.inserter.set_insertion_point_from_block(entry_block)
 
         # What about globals?
         self.symbol_table = dict()
@@ -261,7 +258,6 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(func.Return.get())
 
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
-        self.inserter.set_declare_insertion_point(prev_declare_insertion_point)
 
     def visit_If(self, node: ast.If):
         # Get the condition.
@@ -373,9 +369,6 @@ class CodegenVisitor(ast.NodeVisitor):
         """
         module_op = builtin.ModuleOp.from_region_or_ops([])
 
-        # Save previous insertion point for declarations.
-        prev_declare_insertion_point = self.inserter.declare_ip
-
         # Proceed with visitng the module.
         self.inserter.insert_op(module_op)
         self.inserter.set_insertion_point_from_op(module_op)
@@ -384,7 +377,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Reset insertion points back.
         self.inserter.set_insertion_point_from_op(module_op.parent_op())
-        self.inserter.set_declare_insertion_point(prev_declare_insertion_point)
 
     def visit_Pass(self, node: ast.Pass):
         # Special case: function can return nothing and be implemented using pass, e.g.

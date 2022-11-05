@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Dict, List
-from xdsl.dialects import symref
+from xdsl.dialects import scf, symref
+from xdsl.frontend.codegen.exception import prettify
 from xdsl.ir import Block, Operation, Region
 
 from xdsl.rewriter import Rewriter
 
-# Desymrefication pass
-# ====================
+# Background
+# ==========
 #
 # We want to allow users to write non-SSA code. For example, the frontend should
 # allow functions like this:
@@ -14,58 +15,85 @@ from xdsl.rewriter import Rewriter
 #   def foo() -> i32:
 #     a: i32 = 0
 #     for i in range(100):
-#       a = use(a)
+#       a = a + 2
 #     return a
 #
 # Our solution is to have a symref dialect: it uses declare, fetch and store
-# operations which mimic LLVM' alloca, load and store but based on symbols
-# defined by the programmer. This way, the example from above would become:
+# operations (for those familiar with LLVM, these correspond to alloca, load and
+# store but based on symbols instead of memory locations). Each symref operation
+# is defined by the programmer with a simple mapping: 
+# 
+# 1. variable declaration, e.g. a: i32 = 0 maps to declare @a
+# 2. variable use, e.g. ... = a maps to ... = fetch @a
+# 3. variable assignement, e.g. a = ... maps to update @a ...
 #
-#   func.foo(){
-#     symref.declare @a
-#     symref.update @a with 0
-#     affine.for 0 to 100 {
-#       t1 = symref.fetch from @a
-#       t2 = use(t1)
-#       symref.update @a with t2
+# With these, it is relatively straightforward to lower any Python program to xDSL.
+# For example, the code above would become (in a slightly abused xDSL syntax):
+#
+#   func foo() -> i32 {
+#     declare @a
+#     update @a with 0
+#     for 0 to 100 {
+#       t1 = fetch @a
+#       t2 = add t1 2
+#       update @a t2
 #     }
-#     t3 = symref.fetch from @a
-#     func.return t3
+#     t3 = fetch @a
+#     return t3
 #   }
 #
-# Now, with desymrefication pass we can remove calls to symref and make everything
-# look like normal SSA again.
+# Note that while insertion of symref operations is easy, the generated xDSL is not
+# fully in SSA form. For example, blocks in region should pass values between each
+# other via block arguments, instead of symref calls. Similarly, some operations like
+# scf.if or affine.for should yield a value.
+# 
+# 
+# Desymrefication pass
+# ====================
+# 
+# In this file, we implement desymrefication pass - it goes over generated xDSL and
+# removes all symref operations. To describe how the pass works, first recall that in
+# xDSL an operation can contain regions which in turn contain CFGs of basic blocks.
+# An operation pass control flow to a region and on exit from the region the control
+# flow returns to the operation. Then the operation can transfer control flo to another
+# region, etc.
 #
-# To describe how the pass works, first recall that in xDSL an operation can contain
-# regions which in turn contain CFGs of basic blocks. Operation pass control flow to
-# a region and on exit from the region the control flow returns to the operation. Then
-# the operation can transfer control flo to another region, etc.
+# Desymrefication can be applied to regions and operations. First, consider a simple
+# case when all operations in the region do not have any nested regions. This means
+# that the region is simply a CFG. Otherwise, there are some operations that contain
+# regions. However, we can apply desymrefy them first, reducing the problem to the
+# the first case. In pseudocode, that would look like:
 #
-# An important observation here, is that for each region one the following holds:
-#   1. The region defines the value using symref.declare. This implies that the value
-#      never leaves the region.
-#   2. The region uses the value defined in the parent region containing the parent
-#      operation. Then the value is always first obtained using symref.fetch and
-#      maybe updated in the end using symref.update.
-# Now consider these cases in part.
+# desymref_region(region):
+#   for block in region.blocks:
+#     for op in block.ops:
+#       desymref_op(op)
+#   // at this point no op contains a symref operation
+#   // in the nested region.
 #
-# Case 1:
-# {
-#   t = symref.fetch @a
-# }
+# Next, we describe how desymrefication actually works, on a high level. Every region
+# either declares a symbol or uses it from the parent region. Let's consider each case
+# separately.
+# 
+#   Case 1: Symbol is declared in this region.
+#   This is an easy case. We already know that symbol is only used in this region and no
+#   nested region uses it. Therefore a running any SSA-construction algorithm on the CFG
+#   is enough.
 #
-# TODO: finish documentation.
+#   Case 2: Symbol is not declared in this region.
+#   # TODO: support this!
+#
 
 
 @dataclass
-class DesymrefException(Exception):
+class DesymrefyException(Exception):
     """
     Exception type if something goes terribly wrong when running `desymref` pass.
     """
     msg: str
 
     def __str__(self) -> str:
-        return f"Exception in desymref pass: {self.msg}."
+        return f"Exception in desymrefy: {self.msg}."
 
 
 @dataclass
@@ -108,11 +136,13 @@ class SymbolInfo:
 
 @dataclass
 class Desymrefier:
+    """Class responsible for rewriting xDSL and removing symref operations."""
+
     rewriter: Rewriter
     """Rewriter to replace and erase operations."""
 
     def run_on_operation(self, op: Operation):
-        """Returns true if operation was successfully desymrefied."""
+        """Desymrefies an operation."""
 
         # For operation with no regions we don't have to do any work.
         if len(op.regions) == 0:
@@ -122,110 +152,98 @@ class Desymrefier:
         for region in op.regions:
             self.run_on_region(region)
 
-        # TODO: some regions were not desymrefied!
+        # Some regions were not fully desymrefied, so use the definition of the
+        # operation to decide what to do.
+        # TODO: do something here.
 
     def run_on_region(self, region: Region):
-        # First, remove symref from regions within other operations. At the same
-        # time, gather all symbols local to this region.
-        info_map: Dict[str, SymbolInfo] = dict()
-        for block in region.blocks:
-            for op in block.ops:
-                self.run_on_operation(op)
+        """Desymrefies a region."""
 
-                # If this symbol is declared in this region, add it to the
-                # information map.
+        num_blocks = len(region.blocks)
+        if num_blocks == 1:
+            # If there is only one block, desymrefication is significantly easier.
+            self.run_on_single_block(region.blocks[0])
+        else:
+            # TODO: support regions with multiple blocks.
+            raise DesymrefyException(f"running desymrefier on region with {num_blocks} blocks is not supported")
+
+    def run_on_single_block(self, block: Block):
+        """Desymrefies a single block inside a region."""
+
+        # First, we desymrefy nested regions.
+        for op in block.ops:
+            self.run_on_operation(op)
+
+        while True:
+            # We want to get rid of all local symref declarations, First, find them.
+            declare_ops: List[symref.Declare] = []
+            for i, op in enumerate(block.ops):
                 if isinstance(op, symref.Declare):
-                    symbol = op.attributes["sym_name"].data
-                    info_map[symbol] = SymbolInfo.from_declare(op)
+                    declare_ops.append(op)
 
-                # Otherwise, the symbol can be fetched or updated.
-                if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
-                    symbol = op.attributes["symbol"].data.data
-                    if symbol not in info_map:
-                        info_map[symbol] = SymbolInfo.from_fetch_or_update(op)
-                    else:
-                        info_map[symbol].add_user(op)
+            # If the list of declares is empty, we are done.
+            if len(declare_ops) == 0:
+                break
 
-        # At this point only this region has desymref operations so we
-        # do not have to worry about uses in regions defined by ops.
-
-        # Now, process each symbol in part.
-        for symbol, info in info_map.items():
-
-            # First, is symbol is declared in this region it can simply be
-            # never used.
-            if info.declare is not None and len(info.users) == 0:
-                self.rewriter.erase_op(info.declare)
-                continue
-
-            # Second, symbol can be never fetched. Here we consider only the case
-            # when symbol declared in this region. Otherwise, updates can be performed
-            # in different basic blocks so it is not clear which value would stored in
-            # the end.
-            if info.never_fetched and info.declare is not None:
-                for user in info.users:
-                    self.rewriter.erase_op(user)
-                self.rewriter.erase_op(info.declare)
-                continue
-
-            # Next, symbol can be updated only once. This means that if this symbol is
-            # declared in this regions, its update dominates all users because in Python
-            # we always initialize variables, so update immediately follows a declare.
-            if info.declare is not None and len(info.def_blocks) == 1:
-                for user in info.users:
-                    if isinstance(user, symref.Fetch):
-                        self.rewriter.replace_op(user, [], [info.update.operands[0]])
-                self.rewriter.erase_op(info.update)
-                self.rewriter.erase_op(info.declare)
-                continue
-
-            # Lastly, symbol can be used within a single basic block.
-            if info.used_in_single_block:
-                # First, split fetch and update operations, recording operation
-                # indices.
+            # Otherwise, there is still work to do.
+            for declare_op in declare_ops:
+                symbol = declare_op.attributes["sym_name"].data
+                
+                # Find all fetches and updates inside this block.
+                # TODO: we can compute this once beforehand.
                 fetch_ops: List[(int, symref.Fetch)] = []
-                update_ops: List[(int, symref.Update)] = []
-                for index, use in enumerate(info.users):
-                    if isinstance(use, symref.Fetch):
-                        fetch_ops.append((index, use))
-                    if isinstance(use, symref.Update):
-                        update_ops.append((index, use))
+                update_ops: List[(int, symref.Fetch)] = []
+                for i, op in enumerate(block.ops):
+                    if isinstance(op, symref.Fetch):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            fetch_ops.append((i, op))
+                    elif isinstance(op, symref.Update):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            update_ops.append((i, op))
 
-                # For each fetch operation, find the closest preceding update.
-                # TODO: use binary search.
+                # First, if declare is not used, remove it..
+                if len(fetch_ops) == 0:
+                    for _, update_op in update_ops:
+                        self.rewriter.erase_op(update_op)
+                    self.rewriter.erase_op(declare_op)
+                    continue
+
+                # If symbol is updated only once, replace all users with the updated
+                # value. It is safe because in Python variables are intitialized.
+                if len(update_ops) == 1: 
+                    value = update_ops[0][1].operands[0]
+                    for _, user in fetch_ops:
+                        self.rewriter.replace_op(user, [], [value])
+                    self.rewriter.erase_op(declare_op)
+                    self.rewriter.erase_op(update_ops[0][1])
+                    continue
+
+                # Otherwise there are multiple fetches and updates. Each fetch can be
+                # replaced with a preceeding update.
                 for i, fetch_op in fetch_ops:
                     preceding_update_op = None
+                    # TODO: use binary search here.
                     for j, update_op in update_ops:
                         if i < j:
                             break
                         preceding_update_op = update_op
 
-                # Replace the result of the fetch with update's operand.
-                if preceding_update_op is not None:
-                    self.rewriter.replace_op(fetch_op, [], [update_op.operands[0]])
+                    # Replace the result of the fetch with update's operand.
+                    if preceding_update_op is not None:
+                        self.rewriter.replace_op(fetch_op, [], [update_op.operands[0]])
+        
 
-                # Optionally remove declaration if it exists.
-                if info.declare is not None:
-                    self.rewriter.erase_op(info.declare)
-
-                # All updates are dead. Remove them.
-                if len(update_ops) > 0:
-                    if info.declare is None:
-                        # Note that actually if symbol is dclared outside of this
-                        # region, last update must be kept.
-                        update_ops = update_ops[:-1]
-                    for _, update_op in update_ops:
-                        self.rewriter.erase_op(update_op)
-                continue
-
-            # Otherwise, we have to run an actual SSA-construction algorithm.
-            # TODO: copy algorithm from old implementation here and make it work
-            # in this new setting.
+        # At this point all declarations are removed, but there can still be some symref
+        # operations which use symbols defined in the parent regions.
 
 
 @dataclass
 class DesymrefyPass:
+    """Pass which is called by the client to desymrefy xDSL code."""
 
     @staticmethod
     def run(op: Operation) -> bool:
-        Desymrefier(Rewriter()).run_on_operation(op)
+        rewriter = Rewriter()
+        Desymrefier(rewriter).run_on_operation(op)
