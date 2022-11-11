@@ -238,11 +238,9 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+@irdl_attr_definition
 class Float16Type(ParametrizedAttribute, MLIRType):
     name = "f16"
-
-
-f16 = Float16Type()
 
 
 @irdl_attr_definition
@@ -250,14 +248,9 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name = "f32"
 
 
-f32 = Float32Type()
-
-
 class Float64Type(ParametrizedAttribute, MLIRType):
     name = "f64"
 
-
-f64 = Float64Type()
 
 AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
 
@@ -624,13 +617,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         t = AnyTensorType.from_type_and_list(
             typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
-
-
-class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
-
-
-f16 = Float16Type()
 
 
 @irdl_attr_definition
