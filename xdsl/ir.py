@@ -211,6 +211,8 @@ class Attribute(ABC):
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
     """
+    is_Parametrized = False
+    is_Data = False
 
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
@@ -237,7 +239,7 @@ DataElement = TypeVar("DataElement")
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
-
+    is_Data = True
     data: DataElement
 
     @staticmethod
@@ -254,7 +256,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
-
+    is_Parametrized = True
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
