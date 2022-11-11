@@ -276,18 +276,18 @@ class ParametrizedAttribute(Attribute):
 
 
 @dataclass
-class Node(object):
+class IRNode(object):
     pass
 
-    def is_ancestor(cls: Node, op: Node) -> bool:
-        "Returns true if the Node is an ancestor of another Node."
+    def is_ancestor(cls: IRNode, op: IRNode) -> bool:
+        "Returns true if the IRNode is an ancestor of another IRNode."
         if op is cls:
             return True
         if op.parent is None:
             return False
         return cls.is_ancestor(op.parent)
 
-    def get_toplevel_object(cls: Node) -> Node:
+    def get_toplevel_object(cls: IRNode) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
         if cls.parent is None:
             return cls
@@ -295,7 +295,7 @@ class Node(object):
 
 
 @dataclass
-class Operation(Node):
+class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: str = field(default="", init=False)
@@ -547,7 +547,7 @@ class BinaryOperation(Operation):
 
 
 @dataclass()
-class Block(Node):
+class Block(IRNode):
     """A sequence of operations"""
 
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
@@ -765,7 +765,7 @@ class Block(Node):
 
 
 @dataclass
-class Region(Node):
+class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     blocks: list[Block] = field(default_factory=list, init=False)
