@@ -9,12 +9,13 @@ from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
 
-from xdsl.ir import Attribute, Data, ParametrizedAttribute, VerifyException
+from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
                        irdl_attr_definition, builder, irdl_to_attr_constraint,
                        AnyAttr, BaseAttr, ParamAttrDef)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 #  ____        _
 # |  _ \  __ _| |_ __ _

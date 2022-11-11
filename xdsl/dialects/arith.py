@@ -5,9 +5,10 @@ from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, BinaryOperation, SSAValue, VerifyException
+from xdsl.ir import MLContext, Operation, BinaryOperation, SSAValue
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, Attribute)
+from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))

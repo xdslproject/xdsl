@@ -6,11 +6,12 @@ from typing import List
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Diagnostic
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
                        Operation, OperandDef, ResultDef, OptAttributeDef)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
+from xdsl.utils.diagnostic import Diagnostic
 
 
 def test_simple_forgotten_op():

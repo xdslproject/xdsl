@@ -13,8 +13,9 @@ from frozenlist import FrozenList
 
 from xdsl import util
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
-                     ParametrizedAttribute, Region, SSAValue, Diagnostic,
-                     VerifyException)
+                     ParametrizedAttribute, Region, SSAValue)
+from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.exceptions import VerifyException
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 

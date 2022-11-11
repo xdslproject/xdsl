@@ -9,8 +9,8 @@ from enum import Enum
 
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
-                     Attribute, Region, Operation, Diagnostic, Data,
-                     ParametrizedAttribute)
+                     Attribute, Region, Operation, Data, ParametrizedAttribute)
+from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,

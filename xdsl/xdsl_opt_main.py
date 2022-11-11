@@ -3,7 +3,7 @@ import sys
 import os
 from io import IOBase, StringIO
 
-from xdsl.ir import MLContext, DiagnosticException
+from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
@@ -14,11 +14,11 @@ from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.memref import MemRef
-from xdsl.exceptions import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
+from xdsl.utils.diagnostic import DiagnosticException
 
 from typing import Dict, Callable, List
 
