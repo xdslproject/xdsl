@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import IRNode, Block, Operation, Region
 from xdsl.utils.exceptions import DiagnosticException
 from io import StringIO
 
@@ -17,7 +17,7 @@ class Diagnostic:
     def raise_exception(
             self,
             message: str,
-            ir: Operation | Block | Region,
+            ir: IRNode,
             exception_type: type[Exception] = DiagnosticException) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer

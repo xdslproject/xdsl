@@ -19,7 +19,7 @@ def test_no_builder_default():
 
 
 def test_no_builder_exception():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError):
         NoBuilderAttr.build(3)
 
 
@@ -29,8 +29,8 @@ class OneBuilderAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: int) -> OneBuilderAttr:
-        return OneBuilderAttr(str(i))
+    def from_int(data: int) -> OneBuilderAttr:
+        return OneBuilderAttr(str(data))
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
@@ -52,7 +52,7 @@ def test_one_builder_builder():
 
 
 def test_one_builder_exception():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError):
         OneBuilderAttr.build("1")
 
 
@@ -62,8 +62,8 @@ class TwoBuildersAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: int) -> TwoBuildersAttr:
-        return TwoBuildersAttr(str(i))
+    def from_int(data: int) -> TwoBuildersAttr:
+        return TwoBuildersAttr(str(data))
 
     @staticmethod
     @builder
@@ -106,8 +106,8 @@ class BuilderDefaultArgAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: int, j: int = 0) -> BuilderDefaultArgAttr:
-        return BuilderDefaultArgAttr(str(i))
+    def from_int(data: int) -> BuilderDefaultArgAttr:
+        return BuilderDefaultArgAttr(str(data))
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
@@ -135,8 +135,8 @@ class BuilderUnionArgAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: str | int) -> BuilderUnionArgAttr:
-        return BuilderUnionArgAttr(str(i))
+    def from_int(data: str | int) -> BuilderUnionArgAttr:
+        return BuilderUnionArgAttr(str(data))
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:

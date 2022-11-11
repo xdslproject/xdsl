@@ -74,8 +74,8 @@ class StringAttr(Data[str]):
 
     @staticmethod
     @builder
-    def from_int(i: int) -> StringAttr:
-        return StringAttr(str(i))
+    def from_int(data: int) -> StringAttr:
+        return StringAttr(str(data))
 
 
 @irdl_attr_definition
