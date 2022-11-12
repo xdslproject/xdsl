@@ -158,14 +158,190 @@ class Desymrefier:
 
     def run_on_region(self, region: Region):
         """Desymrefies a region."""
-
         num_blocks = len(region.blocks)
         if num_blocks == 1:
             # If there is only one block, desymrefication is significantly easier.
             self.run_on_single_block(region.blocks[0])
         else:
-            # TODO: support regions with multiple blocks.
+            # TODO: support regions with multiple blocks. This is not trivial, particularly
+            # when the symbol is declared in one of the parent regions.
             raise DesymrefyException(f"running desymrefier on region with {num_blocks} blocks is not supported")
+
+    def remove_declared_symbols(self, block: Block):
+        """Removes all symbol declarations in a single block."""
+        while True:
+            # Get all symbol declarations in this block.
+            declare_ops: List[symref.Declare] = []
+            for op in block.ops:
+                if isinstance(op, symref.Declare):
+                    declare_ops.append(op)
+            
+            # No declarations - we are done.
+            if len(declare_ops) == 0:
+                return
+            
+            # Otherwise, some declarations are still alive and
+            # there is still some work to do.
+            for declare_op in declare_ops:
+                symbol = declare_op.attributes["sym_name"].data
+
+                # Find all fetches and updates of this symbol. Keep
+                # track of their indices to 
+                fetch_ops: List[symref.Fetch] = []
+                update_ops: List[symref.Update] = []
+                for op in block.ops:
+                    if isinstance(op, symref.Fetch):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            fetch_ops.append(op)
+                    elif isinstance(op, symref.Update):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            update_ops.append(op)
+                
+                # Declared symbol can be never read, and so all updates
+                # are dead.
+                if len(fetch_ops) == 0:
+                    for update_op in update_ops:
+                        self.rewriter.erase_op(update_op)
+                    self.rewriter.erase_op(declare_op)
+                    continue
+
+                # Otherwise, symbol is read and used. We can first check
+                # if it was updated once, sunce then we can replace every
+                # symbol fetch trwith updated value trivially (recall that
+                # we are in the same block, so no CFG and the dominance
+                # relations do not matter)!
+                if len(update_ops) == 1: 
+                    for fetch_op in fetch_ops:
+                        self.rewriter.replace_op(fetch_op, [], [update_ops[0].operands[0]])
+                    self.rewriter.erase_op(declare_op)
+                    self.rewriter.erase_op(update_ops[0])
+                    continue
+
+                # If there are multiple fetches and updates, we repalce every
+                # fetch with the closest preceding update. This is easy and can
+                # be done with a binary search.
+                for fetch_op in fetch_ops:
+                    fetch_idx = block.get_operation_index(fetch_op)
+
+                    # TODO: use binary search.
+                    prev_update_op = None
+                    for update_op in update_ops:
+                        update_idx = block.get_operation_index(update_op)
+                        if fetch_idx < update_idx:
+                            break
+                        prev_update_op = update_op
+
+                    # Replace the result of the fetch with update's operand.
+                    if prev_update_op is not None:
+                        self.rewriter.replace_op(fetch_op, [], [prev_update_op.operands[0]])
+
+    def remove_used_symbols(self, block: Block):
+        """Removes all possible symbol uses in a single block."""
+
+        # List of symbols we successfully simplified.
+        ignore_symols = set()
+
+        while True:
+            # Immediately remove all unused fetches.
+            for op in block.ops:
+                if isinstance(op, symref.Fetch):
+                    if len(op.results[0].uses) == 0:
+                        self.rewriter.erase_op(op)
+
+            # Find all symbols that are still in use in this block.
+            symbols = set()
+            for op in block.ops:
+                if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+                    symbol = op.attributes["symbol"].data.data
+                    if symbol not in ignore_symols:
+                        symbols.add(symbol)
+
+            if len(symbols) == 0:
+                return
+
+            for symbol in symbols:
+                # First, get a list of fetces and updates.
+                fetch_ops: List[symref.Fetch] = []
+                update_ops: List[symref.Update] = []
+                for op in block.ops:
+                    if isinstance(op, symref.Fetch):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            fetch_ops.append(op)
+                    elif isinstance(op, symref.Update):
+                        op_symbol = op.attributes["symbol"].data.data
+                        if symbol == op_symbol:
+                            update_ops.append(op)
+ 
+                # There is no fetches of this symbol. Then we can only
+                # keep the last update to that symbol!
+                if len(fetch_ops) == 0:
+                    for update_op in update_ops[:-1]:
+                        self.rewriter.erase_op(update_op)
+                    ignore_symols.add(symbol)
+                    continue
+
+                # There are no updates to this symbol. We can replace
+                # all fetches with this symbol
+                if len(update_ops) == 0:
+                    for fetch_op in fetch_ops[1:]:
+                        self.rewriter.replace_op(fetch_op, [], [fetch_ops[0].results[0]])
+                    ignore_symols.add(symbol)
+                    continue
+
+
+                # Otherwise, in general we are done if all fetches preceed all updates.
+                last_fetch_idx = block.get_operation_index(fetch_ops[-1])
+                first_update_idx = block.get_operation_index(update_ops[0])
+                if last_fetch_idx < first_update_idx:
+                    # Get rid of all but one fetches, and keep only the
+                    # last update.
+                    for fetch_op in fetch_ops[1:]:
+                        self.rewriter.replace_op(fetch_op, [], [fetch_ops[0].results[0]])
+                    for update_op in update_ops[:-1]:
+                        self.rewriter.erase_op(update_op)
+                    ignore_symols.add(symbol)
+                    continue
+
+                # This symbol should still be processed then, and has a micture of
+                # fetches and updates. We can use the same strategy as with declared
+                # symbols and replace all fetches with updated value.
+                for fetch_op in fetch_ops:
+                    fetch_idx = block.get_operation_index(fetch_op)
+
+                    # TODO: use binary search.
+                    prev_update_op = None
+                    for update_op in update_ops:
+                        update_idx = block.get_operation_index(update_op)
+                        if fetch_idx < update_idx:
+                            break
+                        prev_update_op = update_op
+
+                    # Replace the result of the fetch with update's operand.
+                    if prev_update_op is not None:
+                        self.rewriter.replace_op(fetch_op, [], [prev_update_op.operands[0]])
+
+    def check_single_block_for_promotion(self, block: Block):
+        symbols = set()
+        for op in block.ops:
+            if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+                symbols.add(op.attributes["symbol"].data.data)
+        
+        # Every symbol should be fetched and updated at most once!
+        for symbol in symbols:
+            fetch_cnt = 0
+            update_cnt = 0
+            for op in block.ops:
+                if isinstance(op, symref.Fetch):
+                    fetch_cnt += 1
+                elif isinstance(op, symref.Update):
+                    update_cnt += 1
+            
+            if fetch_cnt > 1 or update_cnt > 1:
+                raise DesymrefyException(f"Block {prettify(block)} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates") 
+
 
     def run_on_single_block(self, block: Block):
         """Desymrefies a single block inside a region."""
@@ -173,71 +349,17 @@ class Desymrefier:
         # First, we desymrefy nested regions.
         for op in block.ops:
             self.run_on_operation(op)
-
-        while True:
-            # We want to get rid of all local symref declarations, First, find them.
-            declare_ops: List[symref.Declare] = []
-            for i, op in enumerate(block.ops):
-                if isinstance(op, symref.Declare):
-                    declare_ops.append(op)
-
-            # If the list of declares is empty, we are done.
-            if len(declare_ops) == 0:
-                break
-
-            # Otherwise, there is still work to do.
-            for declare_op in declare_ops:
-                symbol = declare_op.attributes["sym_name"].data
-                
-                # Find all fetches and updates inside this block.
-                # TODO: we can compute this once beforehand.
-                fetch_ops: List[(int, symref.Fetch)] = []
-                update_ops: List[(int, symref.Fetch)] = []
-                for i, op in enumerate(block.ops):
-                    if isinstance(op, symref.Fetch):
-                        op_symbol = op.attributes["symbol"].data.data
-                        if symbol == op_symbol:
-                            fetch_ops.append((i, op))
-                    elif isinstance(op, symref.Update):
-                        op_symbol = op.attributes["symbol"].data.data
-                        if symbol == op_symbol:
-                            update_ops.append((i, op))
-
-                # First, if declare is not used, remove it..
-                if len(fetch_ops) == 0:
-                    for _, update_op in update_ops:
-                        self.rewriter.erase_op(update_op)
-                    self.rewriter.erase_op(declare_op)
-                    continue
-
-                # If symbol is updated only once, replace all users with the updated
-                # value. It is safe because in Python variables are intitialized.
-                if len(update_ops) == 1: 
-                    value = update_ops[0][1].operands[0]
-                    for _, user in fetch_ops:
-                        self.rewriter.replace_op(user, [], [value])
-                    self.rewriter.erase_op(declare_op)
-                    self.rewriter.erase_op(update_ops[0][1])
-                    continue
-
-                # Otherwise there are multiple fetches and updates. Each fetch can be
-                # replaced with a preceeding update.
-                for i, fetch_op in fetch_ops:
-                    preceding_update_op = None
-                    # TODO: use binary search here.
-                    for j, update_op in update_ops:
-                        if i < j:
-                            break
-                        preceding_update_op = update_op
-
-                    # Replace the result of the fetch with update's operand.
-                    if preceding_update_op is not None:
-                        self.rewriter.replace_op(fetch_op, [], [update_op.operands[0]])
         
+        # Case 1: symbol is declared in this region. Then,
+        # iterate until all symbols are destroyed.
+        self.remove_declared_symbols(block)
 
-        # At this point all declarations are removed, but there can still be some symref
-        # operations which use symbols defined in the parent regions.
+        # Case 2: some symbols are not declared in this region.
+        # For a single block, it is not that different!
+        self.remove_used_symbols(block)
 
+        # Sanity check.
+        self.check_single_block_for_promotion(block)
 
 @dataclass
 class DesymrefyPass:
