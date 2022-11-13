@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, List
-from xdsl.dialects import scf, symref
+from typing import Dict, List, Set
+from xdsl.dialects import builtin, func, scf, symref
 from xdsl.frontend.codegen.exception import prettify
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.passes.promoters import ScfIfPromoter
 
 from xdsl.rewriter import Rewriter
 
@@ -154,7 +155,28 @@ class Desymrefier:
 
         # Some regions were not fully desymrefied, so use the definition of the
         # operation to decide what to do.
-        # TODO: do something here.
+
+        # We don't really support global variables yet, so it is safe
+        # to promote modules and functions immediately.
+        if isinstance(op, builtin.ModuleOp) or isinstance(op, func.FuncOp):
+            return
+        
+        # Other operations need extra treatment.
+        symbols = self.symbols_to_promote(op)
+        if isinstance(op, scf.If):
+            ScfIfPromoter(self.rewriter, op).promote(symbols)
+        else:
+            raise DesymrefyException(f"Promotion of '{op.name}' is not supported") 
+
+    def symbols_to_promote(self, op: Operation) -> Set[str]:
+        """Returns a set of all unpromoted symbols."""
+        symbols = set() 
+        for region in op.regions:
+            for block in region.blocks:
+                for op in block.ops:
+                    if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+                        symbols.add(op.attributes["symbol"].data.data)
+        return symbols
 
     def run_on_region(self, region: Region):
         """Desymrefies a region."""
@@ -335,10 +357,14 @@ class Desymrefier:
             update_cnt = 0
             for op in block.ops:
                 if isinstance(op, symref.Fetch):
-                    fetch_cnt += 1
+                    op_symbol = op.attributes["symbol"].data.data
+                    if op_symbol == symbol:
+                        fetch_cnt += 1
                 elif isinstance(op, symref.Update):
-                    update_cnt += 1
-            
+                    op_symbol = op.attributes["symbol"].data.data
+                    if op_symbol == symbol:
+                        update_cnt += 1
+
             if fetch_cnt > 1 or update_cnt > 1:
                 raise DesymrefyException(f"Block {prettify(block)} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates") 
 

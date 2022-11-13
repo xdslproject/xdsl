@@ -276,6 +276,10 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_region(false_region)
         for stmt in node.orelse:
             self.visit(stmt)
+        
+        # Add yield operations.
+        true_region.blocks[-1].add_op(scf.Yield.get())
+        false_region.blocks[-1].add_op(scf.Yield.get())
 
         # Reset insertion point to add scf.if
         self.inserter.set_insertion_point_from_block(prev_insertion_point)
