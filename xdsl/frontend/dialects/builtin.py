@@ -1,6 +1,6 @@
 import xdsl.dialects.builtin as xdsl
 
-from typing import Generic, TypeAlias, TypeVar, Literal
+from typing import Generic, Tuple, TypeAlias, TypeVar, Literal
 from xdsl.dialects.builtin import Signedness
 
 
@@ -11,11 +11,11 @@ class FrontendType:
         pass
 
 
-W = TypeVar("W", bound=int, covariant=True)
-S = TypeVar("S", bound=xdsl.Signedness, covariant=True)
+_Width = TypeVar("_Width", bound=int, covariant=True)
+_Signedness = TypeVar("_Signedness", bound=xdsl.Signedness, covariant=True)
 
 
-class IntegerType(Generic[W, S], FrontendType):
+class IntegerType(Generic[_Width, _Signedness], FrontendType):
     """Represents an integer type in the frontend."""
 
     def to_xdsl():
@@ -72,6 +72,17 @@ class Float64Type(FrontendType):
 f16: TypeAlias = Float16Type
 f32: TypeAlias = Float32Type
 f64: TypeAlias = Float64Type
+
+
+_Shape = TypeVar("_Shape", bound=Tuple[int, ...], covariant=True)
+_TensorElementType = TypeVar("_TensorElementType", bound=FrontendType, covariant=True)
+
+
+class TensorType(Generic[_TensorElementType, _Shape], FrontendType):
+    """Represents a tensor type in the frontend."""
+
+    def to_xdsl():
+        return xdsl.TensorType.from_type_and_list
 
 
 class Module:

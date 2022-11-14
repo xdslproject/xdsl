@@ -30,6 +30,41 @@ class TypeHintConverter:
     type_cache: Dict[str, Attribute] = field(default_factory=dict)
     """Cache for xDSL types created so far to avoid repeated conversions."""
 
+    def _convert_subscript(self, hint: ast.Subscript) -> Attribute:
+        ty_name = hint.value.id
+        ty = self.globals[ty_name]
+
+        # Any type hint must be a frontend type.
+        if issubclass(ty, FrontendType):
+            if isinstance(hint.slice, ast.Tuple):
+                args = []
+                for ty_arg in hint.slice.elts:
+                    if isinstance(ty_arg, ast.Name):
+                        xdsl_ty = self._convert_name(ty_arg)
+                        args.append(xdsl_ty)
+                    elif isinstance(ty_arg, ast.Subscript):
+                        
+                        # TODO: fix this porperly, but it should be shape!
+                        ty_args = ty_arg.slice
+                        res = []
+                        if isinstance(ty_args, ast.Tuple):
+                            for ty_arg in ty_args.elts:
+                                v = int(ty_arg.slice.value)
+                                res.append(v)
+                        args.append(res)
+                    else:
+                        msg = f"expected 'Name' or 'Subscript', got {ty_arg.__name__}"
+                        raise TypeHintConversionException(msg)
+                
+                return ty.to_xdsl()(*args)
+            else:
+                msg = f"expected 'Tuple', got {hint.slice.__name__}"
+                raise TypeHintConversionException(msg)
+
+        # Otherwise abort.
+        msg = f"expected a sublcass of FrontendType, got {hint.slice}"
+        raise TypeHintConversionException(msg)
+
     def _convert_name(self, hint: ast.Name) -> Attribute:
         # First, check if we have already converted this type hint.
         ty_name: str = hint.id
@@ -41,7 +76,9 @@ class TypeHintConverter:
         ty = self.globals[ty_name]
 
         # If the type is a generic type, go through the type arguments and
-        # materialize them.
+        # materialize them. For example, it can be
+        # 
+        #   class IntType(Generic[W], FrontendType)
         if isinstance(ty, _GenericAlias):
             args = []
             for ty_arg in ty.__args__:
@@ -60,7 +97,7 @@ class TypeHintConverter:
             msg = f"expected a sublcass of FrontendType, got {ty.__origin__.__name__}"
             raise TypeHintConversionException(msg)
 
-        # Otherwise, it can be a class from the frontend.
+        # Otherwise, it can be a class from the frontend, e.g class IndexType(FrontendType).
         if issubclass(ty, FrontendType):
             return ty.to_xdsl()()
 
@@ -79,13 +116,9 @@ class TypeHintConverter:
             return None
 
         # In general, any type hint is a Subscript AST node, for example
-        # Foo[Literal[2]]. For now, we do not support it and instead ask user
-        # to define a TypeAlias.
-        # TODO: support this (see deprecated frontend).
+        # Foo[Literal[2]].
         if isinstance(hint, ast.Subscript):
-            msg = f"hints as subscripts are not supported, try to convert to  \
-                    type alias instead, e.g. using x: TypeAlias = {type(hint)}"
-            raise TypeHintConversionException(msg)
+            return self._convert_subscript(hint)
 
         # Type hint can also be a TypeAlias, which we support. For example, one
         # can define foo = Foo[Literal[2]].
