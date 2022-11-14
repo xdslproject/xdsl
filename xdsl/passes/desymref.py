@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set
-from xdsl.dialects import builtin, func, scf, symref
+from typing import List
+from xdsl.dialects import symref
 from xdsl.frontend.codegen.exception import prettify
-from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.passes.promoters import ScfIfPromoter
-
+from xdsl.ir import Block, Operation, Region
+from xdsl.passes.promoters import Promoter
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -22,8 +21,8 @@ from xdsl.rewriter import Rewriter
 # Our solution is to have a symref dialect: it uses declare, fetch and store
 # operations (for those familiar with LLVM, these correspond to alloca, load and
 # store but based on symbols instead of memory locations). Each symref operation
-# is defined by the programmer with a simple mapping: 
-# 
+# is defined by the programmer with a simple mapping:
+#
 # 1. variable declaration, e.g. a: i32 = 0 maps to declare @a
 # 2. variable use, e.g. ... = a maps to ... = fetch @a
 # 3. variable assignement, e.g. a = ... maps to update @a ...
@@ -47,11 +46,11 @@ from xdsl.rewriter import Rewriter
 # fully in SSA form. For example, blocks in region should pass values between each
 # other via block arguments, instead of symref calls. Similarly, some operations like
 # scf.if or affine.for should yield a value.
-# 
-# 
+#
+#
 # Desymrefication pass
 # ====================
-# 
+#
 # In this file, we implement desymrefication pass - it goes over generated xDSL and
 # removes all symref operations. To describe how the pass works, first recall that in
 # xDSL an operation can contain regions which in turn contain CFGs of basic blocks.
@@ -75,15 +74,18 @@ from xdsl.rewriter import Rewriter
 # Next, we describe how desymrefication actually works, on a high level. Every region
 # either declares a symbol or uses it from the parent region. Let's consider each case
 # separately.
-# 
-#   Case 1: Symbol is declared in this region.
-#   This is an easy case. We already know that symbol is only used in this region and no
-#   nested region uses it. Therefore a running any SSA-construction algorithm on the CFG
-#   is enough.
 #
-#   Case 2: Symbol is not declared in this region.
-#   # TODO: support this!
+# Case 1: Symbol is declared in this region.
+# This is an easy case. We already know that symbol is only used in this region and no
+# nested region uses it. Therefore a running any SSA-construction algorithm on the CFG
+# is enough.
 #
+# Case 2: Symbol is not declared in this region.
+# In this case, we only support non-CFGs at the moment (i.e. single block regions). We
+# observe that in general every symbol can be simplified within a block to have at most
+# one fetch (start of the block) at most one update (end of the block). This means that
+# using specification of an operation we can promote these symbols outside. How we do the
+# promotion, is discussed in detail in promoter.py.
 
 
 @dataclass
@@ -155,28 +157,7 @@ class Desymrefier:
 
         # Some regions were not fully desymrefied, so use the definition of the
         # operation to decide what to do.
-
-        # We don't really support global variables yet, so it is safe
-        # to promote modules and functions immediately.
-        if isinstance(op, builtin.ModuleOp) or isinstance(op, func.FuncOp):
-            return
-        
-        # Other operations need extra treatment.
-        symbols = self.symbols_to_promote(op)
-        if isinstance(op, scf.If):
-            ScfIfPromoter(self.rewriter, op).promote(symbols)
-        else:
-            raise DesymrefyException(f"Promotion of '{op.name}' is not supported") 
-
-    def symbols_to_promote(self, op: Operation) -> Set[str]:
-        """Returns a set of all unpromoted symbols."""
-        symbols = set() 
-        for region in op.regions:
-            for block in region.blocks:
-                for op in block.ops:
-                    if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
-                        symbols.add(op.attributes["symbol"].data.data)
-        return symbols
+        Promoter(op).promote()
 
     def run_on_region(self, region: Region):
         """Desymrefies a region."""
@@ -197,18 +178,17 @@ class Desymrefier:
             for op in block.ops:
                 if isinstance(op, symref.Declare):
                     declare_ops.append(op)
-            
+
             # No declarations - we are done.
             if len(declare_ops) == 0:
                 return
-            
+
             # Otherwise, some declarations are still alive and
             # there is still some work to do.
             for declare_op in declare_ops:
                 symbol = declare_op.attributes["sym_name"].data
 
-                # Find all fetches and updates of this symbol. Keep
-                # track of their indices to 
+                # Find all fetches and updates of this symbol.
                 fetch_ops: List[symref.Fetch] = []
                 update_ops: List[symref.Update] = []
                 for op in block.ops:
@@ -220,7 +200,7 @@ class Desymrefier:
                         op_symbol = op.attributes["symbol"].data.data
                         if symbol == op_symbol:
                             update_ops.append(op)
-                
+
                 # Declared symbol can be never read, and so all updates
                 # are dead.
                 if len(fetch_ops) == 0:
@@ -234,7 +214,7 @@ class Desymrefier:
                 # symbol fetch trwith updated value trivially (recall that
                 # we are in the same block, so no CFG and the dominance
                 # relations do not matter)!
-                if len(update_ops) == 1: 
+                if len(update_ops) == 1:
                     for fetch_op in fetch_ops:
                         self.rewriter.replace_op(fetch_op, [], [update_ops[0].operands[0]])
                     self.rewriter.erase_op(declare_op)
@@ -296,7 +276,7 @@ class Desymrefier:
                         op_symbol = op.attributes["symbol"].data.data
                         if symbol == op_symbol:
                             update_ops.append(op)
- 
+
                 # There is no fetches of this symbol. Then we can only
                 # keep the last update to that symbol!
                 if len(fetch_ops) == 0:
@@ -312,7 +292,6 @@ class Desymrefier:
                         self.rewriter.replace_op(fetch_op, [], [fetch_ops[0].results[0]])
                     ignore_symols.add(symbol)
                     continue
-
 
                 # Otherwise, in general we are done if all fetches preceed all updates.
                 last_fetch_idx = block.get_operation_index(fetch_ops[-1])
@@ -350,7 +329,7 @@ class Desymrefier:
         for op in block.ops:
             if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
                 symbols.add(op.attributes["symbol"].data.data)
-        
+
         # Every symbol should be fetched and updated at most once!
         for symbol in symbols:
             fetch_cnt = 0
@@ -366,8 +345,7 @@ class Desymrefier:
                         update_cnt += 1
 
             if fetch_cnt > 1 or update_cnt > 1:
-                raise DesymrefyException(f"Block {prettify(block)} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates") 
-
+                raise DesymrefyException(f"Block {prettify(block)} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates")
 
     def run_on_single_block(self, block: Block):
         """Desymrefies a single block inside a region."""
@@ -375,7 +353,7 @@ class Desymrefier:
         # First, we desymrefy nested regions.
         for op in block.ops:
             self.run_on_operation(op)
-        
+
         # Case 1: symbol is declared in this region. Then,
         # iterate until all symbols are destroyed.
         self.remove_declared_symbols(block)
@@ -386,6 +364,7 @@ class Desymrefier:
 
         # Sanity check.
         self.check_single_block_for_promotion(block)
+
 
 @dataclass
 class DesymrefyPass:
