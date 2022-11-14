@@ -64,6 +64,18 @@ def read_release_version():
         return None
 
 
+def is_dirty():
+    try:
+        p = Popen(["git", "diff-index", "--name-only", "HEAD"],
+                  stdout=PIPE, stderr=PIPE)
+        p.stderr.close()
+        lines = p.stdout.readlines()
+        import pdb;pdb.set_trace()
+        return len(lines) > 0
+    except:
+        return False
+
+
 def write_release_version(version):
     f = open("RELEASE-VERSION", "w")
     f.write("%s\n" % version)
@@ -79,8 +91,8 @@ def get_git_version(abbrev=0):
 
     version = call_git_describe(abbrev)
     # TOFIX: TEMPORARILY AVOID DIRTY VERSION
-    # if is_dirty():
-    #     version += "-dirty"
+    if is_dirty():
+        version = str(version) + "-dirty"
 
     # If that doesn't work, fall back on the value that's in
     # RELEASE-VERSION.
@@ -100,7 +112,6 @@ def get_git_version(abbrev=0):
         write_release_version(version)
 
     # Finally, return the current version.
-
     return version
 
 
