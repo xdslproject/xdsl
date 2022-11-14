@@ -47,6 +47,33 @@ class IndexType(FrontendType):
 index: TypeAlias = IndexType
 
 
+class Float16Type(FrontendType):
+    """Represents a 16-bit floating-point type in the frontend."""
+
+    def to_xdsl():
+        return xdsl.Float16Type
+
+
+class Float32Type(FrontendType):
+    """Represents a 32-bit floating-point type in the frontend."""
+
+    def to_xdsl():
+        return xdsl.Float32Type
+
+
+class Float64Type(FrontendType):
+    """Represents a 64-bit floating-point type in the frontend."""
+
+    def to_xdsl():
+        return xdsl.Float64Type
+
+
+# Type alias for floating-point types.
+f16: TypeAlias = Float16Type
+f32: TypeAlias = Float32Type
+f64: TypeAlias = Float64Type
+
+
 class Module:
     """Represents a builtin.module."""
     def __enter__(self):
