@@ -297,14 +297,14 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_region(true_region)
         self.visit(node.body)
         true_result = self.inserter.get_operand()
-        self.inserter.insert_op(scf.Yield.get(true_result))
+        self.inserter.insert_op(scf.Yield.get())
 
         # Process false region
         false_region = Region.from_block_list([Block()])
         self.inserter.set_insertion_point_from_region(false_region)
         self.visit(node.orelse)
         false_result = self.inserter.get_operand()
-        self.inserter.insert_op(scf.Yield.get(false_result))
+        self.inserter.insert_op(scf.Yield.get())
 
         if true_result.typ != false_result.typ:
             raise CodegenException(f"yield types of true region ({prettify(true_result.typ)}) and false region ({prettify(false_result.typ)}) do not match for and cannot be inferred")

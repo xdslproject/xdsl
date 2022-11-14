@@ -47,6 +47,7 @@ class FrontendProgram:
     def desymref(self):
         """Desymref the generated xDSL."""
         DesymrefyPass.run(self.xdsl_program)
+        self.xdsl_program.verify()
 
     def __str__(self):
         """Printing support of generated xDSL."""

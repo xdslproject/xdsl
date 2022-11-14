@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Set
-from xdsl.dialects import scf, symref
+from xdsl.dialects import affine, scf, symref
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.rewriter import Rewriter
 
@@ -90,15 +90,93 @@ class Promoter:
         promote = getattr(self.__class__, method_name)
         promote(self.rewriter, self.op, symbols)
 
+    @staticmethod
+    def _check_promotion(op: Operation):
+        for region in op.regions:
+            if len(region.blocks) > 1:
+                raise PromoteException(op, "Only single-block promotion is supported")
+
+    def promote_affine_for(rewriter: Rewriter, for_op: affine.For, symbols: Set[str]):
+        """Promotes a single affine.for operation."""
+
+        Promoter._check_promotion(for_op)
+        body_block = for_op.body.blocks[0]
+
+        def is_read_only(symbol: str, block: Block) -> bool:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+                    return False
+            return True
+
+        def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Fetch) and op.attributes["symbol"].data.data == symbol:
+                    return op
+            return None
+
+        def get_update_op(symbol: str, block: Block) -> None | symref.Update:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+                    return op
+            return None
+
+        yield_operands: List[SSAValue] = []
+        for_operands: List[SSAValue] = []
+        promoted_symbols: List[str] = []
+
+        for symbol in symbols:
+            if is_read_only(symbol, body_block):
+                # Read-only symbols can be hoisted outside of the loop.
+                fetch_op = get_fetch_op(symbol, body_block)
+                new_fetch_op = fetch_op.clone()
+                insert_before(for_op, new_fetch_op)
+                rewriter.replace_op(fetch_op, [], [new_fetch_op.results[0]])
+            else:
+                # Otherwise symbol is updated. The update becomes the yielded value
+                # and must be recorded as a block argument.
+                fetch_op = get_fetch_op(symbol, body_block)
+                update_op = get_update_op(symbol, body_block)
+
+                yield_value = update_op.operands[0]
+                yield_operands.append(yield_value)
+                update_as_arg = body_block.insert_arg(yield_value.typ, len(body_block.args))
+                rewriter.erase_op(update_op)
+
+                # Check if the symbol was also fetched. If not, we have to create
+                # a fetch operation.
+                if fetch_op is None:
+                    new_fetch_op = symref.Fetch.get(symbol, yield_value.typ)
+                    insert_before(for_op, new_fetch_op)
+                else:
+                    new_fetch_op = fetch_op.clone()
+                    insert_before(for_op, new_fetch_op)
+                    rewriter.replace_op(fetch_op, [], [update_as_arg])
+
+                # Record the symbol value before the loop to pass it as an operand.
+                for_operands.append(new_fetch_op.results[0])
+                promoted_symbols.append(symbol)
+
+        # Add affine.yield operation and construct a new affine.for.
+        rewriter.replace_op(body_block.ops[-1], affine.Yield.get(*yield_operands))
+
+        new_body = Region()
+        for_op.body.clone_into(new_body)
+        new_for_op = affine.For.from_region(for_operands, for_op.lower_bound, for_op.upper_bound, new_body, for_op.step)
+        insert_after(for_op, new_for_op)
+        rewriter.erase_op(for_op)
+
+        # Lastly, make sure the symbol is updated with the results of affine.for.
+        for i, symbol in enumerate(promoted_symbols):
+            update_op = symref.Update.get(symbol, new_for_op.results[i])
+            insert_after(new_for_op, update_op)
+
     def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: Set[str]):
-        """Promotes a sngle scf.if operation."""
+        """Promotes a single scf.if operation."""
 
-        # First, check if we can do the promotion.
-        num_true_blocks = len(if_op.true_region.blocks)
-        num_false_blocks = len(if_op.false_region.blocks)
-        if num_true_blocks > 1 or num_false_blocks > 1:
-            raise PromoteException(if_op, f"found {num_true_blocks} true and {num_false_blocks} blocks, but expected 0 or 1 only")
-
+        Promoter._check_promotion(if_op)
         true_block = if_op.true_region.blocks[0]
         false_block = if_op.false_region.blocks[0]
 

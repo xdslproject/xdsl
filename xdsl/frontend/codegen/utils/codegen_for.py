@@ -68,6 +68,7 @@ def codegen_affine_for_loop(inserter: OpInserter, node: ast.For, visit_callback)
     # Generate xDSL for the loop body.
     for stmt in node.body:
         visit_callback(stmt)
+    inserter.insert_op(affine.Yield.get())
 
     # Reset insertion point back. 
     inserter.set_insertion_point_from_block(prev_insertion_point)
