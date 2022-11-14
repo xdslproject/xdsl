@@ -1,63 +1,33 @@
-import versioneer
+from setuptools import setup, find_packages
+from version import get_git_version
 
-from setuptools import find_packages, setup
+with open("README.md", "r", encoding = "utf-8") as fh:
+    long_description = fh.read()
 
-with open("requirements.txt") as f:
+with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-with open("requirements-optional.txt") as f:
-    optionals = f.read().splitlines()
-
-reqs = []
-for ir in required:
-    if ir[0:3] == "git":
-        name = ir.split("/")[-1]
-        reqs += ["%s @ %s@master" % (name, ir)]
-    else:
-        reqs += [ir]
-
-extras_require = {}
-for mreqs, mode in zip(
-    [
-        optionals,
-    ],
-    [
-        "extras",
-    ],
-):
-    opt_reqs = []
-    for ir in mreqs:
-        # For conditionals like pytest=2.1; python == 3.6
-        if ";" in ir:
-            entries = ir.split(";")
-            extras_require[entries[1]] = entries[0]
-        # Git repos, install master
-        if ir[0:3] == "git":
-            name = ir.split("/")[-1]
-            opt_reqs += ["%s @ %s@master" % (name, ir)]
-        else:
-            opt_reqs += [ir]
-    extras_require[mode] = opt_reqs
-
 setup(
-    name="xdsl",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    description="xDSL.",
-    long_description="""
-      Add long description here.""",
+    name = "xdsl",
+    version = get_git_version(),
+    author = "Mathieu Fehr",
+    author_email = "mathieu.fehr@gmail.com",
+    description = "xDSL",
+    long_description = long_description,
+    long_description_content_type = "text/markdown",
+    url = "https://xdsl.dev/",
     project_urls={
-        "Documentation": "https://www....html",
-        "Source Code": "https://github.com/xdslproject/xdsl",
-        "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
+        'Source Code': 'https://github.com/xdslproject/xdsl',
+        'Issue Tracker': 'https://github.com/xdslproject/xdsl/issues',
     },
-    url="https://xdsl.dev/",
+    classifiers = [
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
     platforms=["Linux", "Mac OS-X", "Unix"],
-    test_suite="pytest",
-    author="-",
-    author_email="-",
-    license="MIT",
-    packages=find_packages(),
-    install_requires=reqs,
-    extras_require=extras_require,
+    license='MIT',
+    install_requires=required,
+    packages = find_packages(),
+    python_requires = ">=3.10"
 )
