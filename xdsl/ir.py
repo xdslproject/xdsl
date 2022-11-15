@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from frozenlist import FrozenList
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast)
-from frozenlist import FrozenList
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -339,21 +339,21 @@ class Operation:
             regions: Sequence[Region] | None = None) -> Operation:
 
         operation = op()
-        if operands is not None:
+        if operands:
             for operand in operands:
                 assert isinstance(
                     operand, SSAValue), "Operands must be of type SSAValue"
             operation.operands = operands
-        if result_types is not None:
+        if result_types:
             operation.results = [
                 OpResult(typ, operation, idx)
                 for (idx, typ) in enumerate(result_types)
             ]
-        if attributes is not None:
+        if attributes:
             operation.attributes = attributes
-        if successors is not None:
+        if successors:
             operation.successors = successors
-        if regions is not None:
+        if regions:
             for region in regions:
                 operation.add_region(region)
         return operation
@@ -387,7 +387,7 @@ class Operation:
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
-        if region.parent is not None:
+        if region.parent:
             raise Exception(
                 "Cannot add region that is already attached on an operation.")
         self.regions.append(region)
@@ -568,7 +568,7 @@ class Block:
     def from_ops(ops: list[Operation],
                  arg_types: list[Attribute] | None = None):
         b = Block()
-        if arg_types is not None:
+        if arg_types:
             b._args = FrozenList([
                 BlockArgument(typ, b, index)
                 for index, typ in enumerate(arg_types)
@@ -628,7 +628,7 @@ class Block:
 
     def _attach_op(self, operation: Operation) -> None:
         """Attach an operation to the block, and check that it has no parents."""
-        if operation.parent is not None:
+        if operation.parent:
             raise ValueError(
                 "Can't add to a block an operation already attached to a block."
             )
@@ -830,7 +830,7 @@ class Region:
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
-        if block.parent is not None:
+        if block.parent:
             raise ValueError(
                 "Can't add to a region a block already attached to a region.")
         if block.is_ancestor(self):
@@ -899,8 +899,7 @@ class Region:
         """
         Clone all block of this region into `dest` to position `insert_index`
         """
-        assert (dest is not None)
-        assert (dest != self)
+        assert dest and dest != self
         if insert_index is None:
             insert_index = len(dest.blocks)
         if value_mapper is None:
@@ -945,8 +944,8 @@ class Region:
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent is not None, "Regions with parents should first be " + \
-                                        "detached before erasure."
+        assert self.parent, "Regions with parents should first be " + \
+                            "detached before erasure."
         self.drop_all_references()
 
     def move_blocks(self, region: Region) -> None:

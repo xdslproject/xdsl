@@ -8,15 +8,16 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
-from xdsl.dialects.arith import Arith
 from xdsl.dialects.affine import Affine
-from xdsl.dialects.memref import MemRef
+from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
+from xdsl.dialects.memref import MemRef
 from xdsl.diagnostic import DiagnosticException
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+
 from xdsl.irdl_mlir_printer import IRDLPrinter
 
 from typing import Dict, Callable, List
@@ -280,7 +281,7 @@ class xDSLOptMain:
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
-        if self.args.frontend is not None:
+        if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:

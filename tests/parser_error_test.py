@@ -21,7 +21,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     with raises(ParserError) as e:
         parser.parse_op()
 
-    assert e.value.pos is not None
+    assert e.value.pos
     assert e.value.pos.line is line
     assert e.value.pos.column is column
     assert e.value.message == message
