@@ -30,6 +30,9 @@ class TypeHintConverter:
     type_cache: Dict[str, Attribute] = field(default_factory=dict)
     """Cache for xDSL types created so far to avoid repeated conversions."""
 
+    type_backward_map: Dict[Attribute, FrontendType] = field(default_factory=dict)
+    """backward map to get frontend types from xDSL type."""
+
     def _convert_subscript(self, hint: ast.Subscript) -> Attribute:
         ty_name = hint.value.id
         ty = self.globals[ty_name]
@@ -56,9 +59,18 @@ class TypeHintConverter:
                         msg = f"expected 'Name' or 'Subscript', got {ty_arg.__name__}"
                         raise TypeHintConversionException(msg)
                 
-                return ty.to_xdsl()(*args)
+                xdsl_ty = ty.to_xdsl()(*args)
+                if xdsl_ty.__class__ not in self.type_backward_map:
+                    self.type_backward_map[xdsl_ty.__class__] = ty
+                return xdsl_ty
+
+            elif isinstance(hint.slice, ast.Name):
+                xdsl_ty = ty.to_xdsl()(self._convert_name(hint.slice))
+                if xdsl_ty.__class__ not in self.type_backward_map:
+                    self.type_backward_map[xdsl_ty.__class__] = ty
+                return xdsl_ty
             else:
-                msg = f"expected 'Tuple', got {hint.slice.__name__}"
+                msg = f"expected 'Tuple', got {hint.slice}"
                 raise TypeHintConversionException(msg)
 
         # Otherwise abort.
@@ -93,13 +105,20 @@ class TypeHintConverter:
             # Finally, get the constructor of this type and build an xDSL type.
             if issubclass(ty.__origin__, FrontendType):
                 constructor = ty.to_xdsl()
-                return constructor(*args)
+                xdsl_ty = constructor(*args)
+                if xdsl_ty.__class__ not in self.type_backward_map:
+                    self.type_backward_map[xdsl_ty.__class__] = ty.__origin__
+                return xdsl_ty
+
             msg = f"expected a sublcass of FrontendType, got {ty.__origin__.__name__}"
             raise TypeHintConversionException(msg)
 
         # Otherwise, it can be a class from the frontend, e.g class IndexType(FrontendType).
         if issubclass(ty, FrontendType):
-            return ty.to_xdsl()()
+            xdsl_ty = ty.to_xdsl()()
+            if xdsl_ty.__class__ not in self.type_backward_map:
+                self.type_backward_map[xdsl_ty.__class__] = ty
+            return xdsl_ty
 
         # Otherwise, abort.
         # TODO: while this is enough to support simple integer types, we should

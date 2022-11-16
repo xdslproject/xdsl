@@ -72,8 +72,8 @@ class Call(Operation):
     def get(callee: Union[str, FlatSymbolRefAttr],
             operands: List[Union[SSAValue, Operation]],
             return_types: List[Attribute]) -> Call:
-        return Call.build(operands=operands,
-                          result_types=return_types,
+        return Call.build(operands=[operands],
+                          result_types=[return_types],
                           attributes={"callee": callee})
 
 

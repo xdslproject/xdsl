@@ -1,4 +1,4 @@
-import xdsl.dialects.builtin as xdsl
+import xdsl.dialects.builtin as builtin
 
 from typing import Generic, Tuple, TypeAlias, TypeVar, Literal
 from xdsl.dialects.builtin import Signedness
@@ -11,15 +11,60 @@ class FrontendType:
         pass
 
 
+# Type parameters for integers.
 _Width = TypeVar("_Width", bound=int, covariant=True)
-_Signedness = TypeVar("_Signedness", bound=xdsl.Signedness, covariant=True)
+_Signedness = TypeVar("_Signedness", bound=Signedness, covariant=True)
 
 
 class IntegerType(Generic[_Width, _Signedness], FrontendType):
     """Represents an integer type in the frontend."""
 
     def to_xdsl():
-        return xdsl.IntegerType.from_width
+        return builtin.IntegerType.from_width
+    
+    def __add__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import addi
+        return addi(self, other)
+    
+    def __sub__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import subi
+        return subi(self, other)
+    
+    def __mul__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import muli
+        return muli(self, other)
+    
+    def __and__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import andi
+        return andi(self, other)
+
+    def __rshift__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import shrsi
+        return shrsi(self, other)
+
+    def __eq__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "eq")
+    
+    def __ne__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "ne")
+    
+    def __le__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sle")
+    
+    def __lt__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "slt")
+    
+    def __ge__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sge")
+    
+    def __gt__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sgt")
 
 
 # Type aliases for signless integers.
@@ -40,7 +85,7 @@ class IndexType(FrontendType):
     """Represents an index type in the frontend."""
 
     def to_xdsl():
-        return xdsl.IndexType
+        return builtin.IndexType
 
 
 # Type alias for index type.
@@ -51,21 +96,57 @@ class Float16Type(FrontendType):
     """Represents a 16-bit floating-point type in the frontend."""
 
     def to_xdsl():
-        return xdsl.Float16Type
+        return builtin.Float16Type
+
+    def __add__(self, other: 'f16') -> 'f16':
+        from xdsl.frontend.dialects.arith import addf
+        return addf(self, other)
+    
+    def __sub__(self, other: 'f16') -> 'f16':
+        from xdsl.frontend.dialects.arith import subf
+        return subf(self, other)
+    
+    def __mul__(self, other: 'f16') -> 'f16':
+        from xdsl.frontend.dialects.arith import mulf
+        return mulf(self, other)
 
 
 class Float32Type(FrontendType):
     """Represents a 32-bit floating-point type in the frontend."""
 
     def to_xdsl():
-        return xdsl.Float32Type
+        return builtin.Float32Type
+    
+    def __add__(self, other: 'f32') -> 'f32':
+        from xdsl.frontend.dialects.arith import addf
+        return addf(self, other)
+    
+    def __sub__(self, other: 'f32') -> 'f32':
+        from xdsl.frontend.dialects.arith import subf
+        return subf(self, other)
+    
+    def __mul__(self, other: 'f32') -> 'f32':
+        from xdsl.frontend.dialects.arith import mulf
+        return mulf(self, other)
 
 
 class Float64Type(FrontendType):
     """Represents a 64-bit floating-point type in the frontend."""
 
     def to_xdsl():
-        return xdsl.Float64Type
+        return builtin.Float64Type
+    
+    def __add__(self, other: 'f64') -> 'f64':
+        from xdsl.frontend.dialects.arith import addf
+        return addf(self, other)
+    
+    def __sub__(self, other: 'f64') -> 'f64':
+        from xdsl.frontend.dialects.arith import subf
+        return subf(self, other)
+    
+    def __mul__(self, other: 'f64') -> 'f64':
+        from xdsl.frontend.dialects.arith import mulf
+        return mulf(self, other)
 
 
 # Type alias for floating-point types.
@@ -74,15 +155,43 @@ f32: TypeAlias = Float32Type
 f64: TypeAlias = Float64Type
 
 
-_Shape = TypeVar("_Shape", bound=Tuple[int, ...], covariant=True)
+# Type parameters for vectors.
+_VectorShape = TypeVar("_VectorShape", bound=Tuple[int, ...], covariant=True)
+_VectorElementType = TypeVar("_VectorElementType", bound=FrontendType, covariant=True)
+
+
+class VectorType(Generic[_VectorElementType, _VectorShape], FrontendType):
+    """Represents a vector type with in the frontend."""
+
+    def to_xdsl():
+        return builtin.VectorType.from_type_and_list
+
+
+# Type parameters for ranked tensors.
+_TensorShape = TypeVar("_TensorShape", bound=Tuple[int, ...], covariant=True)
 _TensorElementType = TypeVar("_TensorElementType", bound=FrontendType, covariant=True)
 
 
-class TensorType(Generic[_TensorElementType, _Shape], FrontendType):
-    """Represents a tensor type in the frontend."""
+class TensorType(Generic[_TensorElementType, _TensorShape], FrontendType):
+    """Represents a tensor type with a known rank in the frontend."""
 
     def to_xdsl():
-        return xdsl.TensorType.from_type_and_list
+        return builtin.TensorType.from_type_and_list
+    
+    def __getitem__(self, *indices: index) -> _TensorElementType:
+        from xdsl.frontend.dialects.tensor import extract
+        return extract(self, indices)
+
+
+# Type parameter for unranked tensors.
+_UnrankedTensorElementType = TypeVar("_UnrankedTensorElementType", bound=FrontendType, covariant=True)
+
+
+class UnrankedTensorType(Generic[_UnrankedTensorElementType], FrontendType):
+    """Represents a tensor type with unknown rank in the frontend."""
+
+    def to_xdsl():
+        return builtin.UnrankedTensorType.from_type
 
 
 class Module:
