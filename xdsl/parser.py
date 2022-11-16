@@ -5,13 +5,15 @@ from typing import Any, TypeVar
 from enum import Enum
 
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
-                     BlockArgument, MLContext)
+                     BlockArgument, MLContext, ParametrizedAttribute)
+
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
+from xdsl.irdl import Data
 
 indentNumSpaces = 2
 
@@ -728,21 +730,16 @@ class Parser:
 
         # Attribute with default format
         if parse_with_default_format:
-            if not attr_def.is_Parametrized:
-                raise ParserError(
-                    self._pos,
-                    f"{attr_def_name} is not a parameterized attribute, and "
-                    "thus cannot be parsed with a generic format.")
             params = self.parse_paramattr_parameters()
             return attr_def(params)  # type: ignore
 
-        if attr_def.is_Data:
+        if issubclass(attr_def, Data):
             self.parse_char("<")
             attr: Any = attr_def.parse_parameter(self)
             self.parse_char(">")
             return attr_def(attr)  # type: ignore
 
-        assert attr_def.is_Parametrized
+        assert issubclass(attr_def, ParametrizedAttribute)
         param_list = attr_def.parse_parameters(self)
         return attr_def(param_list)  # type: ignore
 

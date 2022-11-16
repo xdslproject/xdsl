@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from frozenlist import FrozenList
 from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
-from dataclasses import dataclass, field
-from enum import Enum
 
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,

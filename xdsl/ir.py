@@ -211,9 +211,6 @@ class Attribute(ABC):
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
     """
-    is_Parametrized = False
-    is_Data = False
-
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
 
@@ -239,7 +236,6 @@ DataElement = TypeVar("DataElement")
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
-    is_Data = True
     data: DataElement
 
     @staticmethod
@@ -256,7 +252,6 @@ class Data(Generic[DataElement], Attribute, ABC):
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
-    is_Parametrized = True
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
@@ -277,7 +272,6 @@ class ParametrizedAttribute(Attribute):
 
 @dataclass
 class IRNode(object):
-    pass
 
     def is_ancestor(cls: IRNode, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
@@ -530,20 +524,6 @@ class Operation(IRNode):
     def irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
-
-
-@dataclass
-class BinaryOperation(Operation):
-    """A generic operation. Operation definitions inherit this class."""
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
-            raise VerifyException(
-                "expect all input and result types to be equal")
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @dataclass()
