@@ -75,4 +75,4 @@ def codegen_affine_for_loop(inserter: OpInserter, node: ast.For, visit_callback)
 
 
 def codegen_scf_for_loop(inserter: OpInserter, node: ast.For):
-    pass
+    raise CodegenException("conversion to scf.for is not implemented")

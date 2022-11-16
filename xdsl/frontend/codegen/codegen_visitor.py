@@ -1,7 +1,9 @@
 import ast
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, List
+from xdsl.frontend.codegen.resolver import OpResolver
+from xdsl.frontend.codegen.type_manager import TypeManager
 from xdsl.frontend.codegen.utils.codegen_for import check_for_loop_valid, codegen_affine_for_loop, codegen_scf_for_loop, is_affine_for_loop
 
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
@@ -16,19 +18,37 @@ from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
 class CodegenVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the frontend AST."""
 
+    globals: Dict[str, Any]
+    """Imports and other global information from the module usefule for looking up classes."""
+
+    type_manager: TypeManager
+    """Casts types."""
+
     hint_converter: TypeHintConverter = field(init=False)
     """Class responsible for type hint conversion to xDSL types."""
 
+    # TODO: fix symbol table to allow cross-module scoping.
     symbol_table: Dict[str, Attribute] = field(init=False)
-    """Symbol table used to query types for symref symbols."""
+    """Symbol table used to query types for symref symbols per function."""
+
+    # TODO: fix function table to allow cross-module scoping.
+    # TODO: change this design to allow arbitrary function orderings per 
+    # module.
+    function_table: Dict[str, func.FuncOp] = field(init=False)
+    """Function table used to query built functions per module."""
 
     inserter: OpInserter = field(init=False)
     """Class responsible for inserting new xDSL ops at the right place."""
 
     def __init__(self, globals: Dict[str, Any]):
+        inserter = OpInserter()
+        
+        self.globals = globals
+        self.type_manager = TypeManager(inserter)
         self.hint_converter = TypeHintConverter(globals)
         self.symbol_table = dict()
-        self.inserter = OpInserter()
+        self.function_table = dict()
+        self.inserter = inserter
 
     def visit(self, node: ast.AST):
         return super().visit(node)
@@ -66,15 +86,15 @@ class CodegenVisitor(ast.NodeVisitor):
         # Next visit RHS and get the value of that expression and its type.
         self.visit(node.value)
         rhs = self.inserter.get_operand()
-        rhs_ty = rhs.typ
 
         # Now, it can be that RHS already used the LHS type, e.g. when visiting
         # a: i32 = 0, constant visitor used the type inferred from the type hint
         # to create 0 constant. ALternatively, it can happen that the type of LHS was
         # not used! For example, if we have x: i32 = 0; y: i64 = x, the type of x
         # is i32 instead of i64, so we must do the type cobersion.
-        if lhs_ty != rhs_ty:
-            rhs = self._cast(lhs_ty, rhs_ty, rhs)
+    
+        # TODO: check types and add implicit casts if necessary.
+        rhs = self.type_manager.match(lhs_ty, rhs)
 
         update_op = symref.Update.get(node.target.id, rhs)
         self.inserter.insert_op(update_op)
@@ -94,8 +114,8 @@ class CodegenVisitor(ast.NodeVisitor):
         rhs = self.inserter.get_operand()
         rhs_ty = rhs.typ
 
-        if lhs_ty != rhs_ty:
-            rhs = self._cast(lhs_ty, rhs_ty, rhs)
+        # TODO: check types and add implicit casts if necessary.
+        rhs = self.type_manager.match(lhs_ty, rhs)
 
         update_op = symref.Update.get(node.targets[0].id, rhs)
         self.inserter.insert_op(update_op)
@@ -110,41 +130,26 @@ class CodegenVisitor(ast.NodeVisitor):
         self.visit(node.left)
         lhs = self.inserter.get_operand()
 
-        # Check if types match.
-        if lhs.typ != rhs.typ:
-            # If not, it can happen that we should cast either LHS or RHS types. For
-            # that, try to reuse the inferred type.
-            # if self.state.inferred_type is None:
-            #     raise CodegenException(f"types of lhs ({lhs.typ}) and rhs ({rhs.typ}) do not match for binary operator {node.op.__class__.__name__} and cannot be inferred")
-            # if self.state.inferred_type == lhs.typ:
-            #     rhs = self._cast(lhs.typ, rhs.typ, rhs)
-            # elif self.state.inferred_type == rhs.typ:
-            #     lhs = self._cast(rhs.typ, lhs.typ, lhs)
-            # else:
-            raise CodegenException(f"types of lhs ({lhs.typ}) and rhs ({rhs.typ}) do not match for binary operator {node.op.__class__.__name__} and cannot be inferred")
+        # TODO: check types and add implicit casts if necessary.
+        rhs = self.type_manager.match(lhs.typ, rhs)
 
-        # TODO: fix this later!
-        assert isinstance(lhs.typ, builtin.IntegerType)
-
-        match node.op.__class__.__name__:
-            case "Add":
-                op = arith.Addi.get(lhs, rhs)
-            case "Sub":
-                op = arith.Subi.get(lhs, rhs)
-            case "Mult":
-                op = arith.Muli.get(lhs, rhs)
-            case "BitAnd":
-                op = arith.AndI.get(lhs, rhs)
-            case "RShift":
-                op = arith.ShRSI.get(lhs, rhs)
-            case _:
-                # TODO: support more operators!
-                raise CodegenException(f"binary operator {node.op.__class__.__name__} is not supported")
+        # Try to resolve thi sbinary operator.
+        op_name: str = node.op.__class__.__name__
+        frontend_type = self.hint_converter.type_backward_map[lhs.typ.__class__]
+        resolver = OpResolver.resolve_op_overload(op_name, frontend_type)
+        if resolver is None:
+            raise CodegenException(f"binary operator {op_name} is not supported")
+        
+        # If resolved, we should get a binary op.
+        op = resolver()(lhs, rhs)
         self.inserter.insert_op(op)
 
     def visit_Compare(self, node: ast.Compare):
-        # First, opt for a single comparison.
-        if len(node.comparators) != 1 and len(node.ops) != 1:
+        """
+        Visits a comparison operation.
+        """
+        # First, allow a single comparison only.
+        if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodegenException(f"require a single comparator and op, found {len(node.comparators)} and {len(node.ops)}")
 
         op = node.ops[0]
@@ -156,40 +161,114 @@ class CodegenVisitor(ast.NodeVisitor):
         self.visit(node.left)
         lhs = self.inserter.get_operand()
 
-        # TODO: fix type inference since we infer i1 here and this is wrong!
-        if lhs.typ != rhs.typ:
-            raise CodegenException(f"types of lhs ({lhs.typ}) and rhs ({rhs.typ}) do not match for compare operator {op.__class__.__name__} and cannot be inferred")
+        # TODO: chech types and add implicit casts if necessary.
+        rhs = self.type_manager.match(lhs.typ, rhs)
 
-        match op.__class__.__name__:
-            case "Eq":
-                cmp_op = arith.Cmpi.from_mnemonic(lhs, rhs, "eq")
-            case _:
-                # TODO: support more comparators!
-                raise CodegenException(f"compare operator {op.__class__.__name__} is not supported")
+        op_name: str = op.__class__.__name__
+        frontend_type = self.hint_converter.type_backward_map[lhs.typ.__class__]
+        resolver = OpResolver.resolve_op_overload(op_name, frontend_type)
+        if resolver is None:
+            raise CodegenException(f"comparison operator {op_name} is not supported")
 
-        self.inserter.insert_op(cmp_op)
+        # Map from comparison operation to mnemonics.
+        # TODO: what about unsigned mnemonics like 'ugt'?
+        cmp_op_to_mnemonic = {
+            "Eq": "eq",
+            "NotEq": "ne",
+            "LtE": "sle",
+            "Lt": "slt",
+            "Gt": "sgt",
+            "GtE": "sge",
+        }
+
+        if op_name not in cmp_op_to_mnemonic:
+            raise CodegenException(f"comparison operator {op_name} is not supported")
+        
+        # If resolved, we should get a binary op.
+        op = resolver()(lhs, rhs, cmp_op_to_mnemonic[op_name])
+        self.inserter.insert_op(op)
+
+    def visit_Call(self, node: ast.Call):
+        """
+        Visits a function call, which can be a library function, dialect
+        operation or user defined function.
+        """
+
+        # Process the arguments first.
+        num_args = len(node.args)
+        for arg in reversed(node.args):
+            self.visit(arg)
+        
+        # Collect the operand list and the type information.
+        # TODO: here we allow operands to be python types, which seems not that great. maybe
+        # we should fix this later (al because of strings!)
+        operand_types: List[Attribute] = []
+        operands: List[SSAValue] = []
+        for i in range(num_args):
+            operand = self.inserter.get_operand()
+            operands.append(operand)
+            if isinstance(operand, str):
+                operand_types.append(type(operand))
+            else:
+                operand_types.append(operand.typ)
+
+        # Call can be made to a user-defined function, process this case first.
+        if isinstance(node.func, ast.Name) and node.func.id in self.function_table:
+            callee = self.function_table[node.func.id]
+            callee_operand_types = callee.function_type.inputs.data
+
+            # Check operand types.
+            for i in range(num_args):
+                actual_ty = operand_types[i]
+                expected_ty = callee_operand_types[i]
+                if actual_ty != expected_ty:
+                    # TODO: implicit cast
+                    operands[i] = self.type_manager.match(expected_ty, operands[i])
+                    # raise CodegenException(f"wrong argument type at position {i} when calling '{node.func.id}', expected {prettify(expected_ty)}, got {prettify(actual_ty)}")
+
+            # Operand types match, so we can create a call operation and insert
+            # it in the current block.
+            call_op = func.Call.get(node.func.id, operands, callee.function_type.outputs.data) 
+            self.inserter.insert_op(call_op)
+            return
+
+        # Otherwise, get the module and the function names.
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+            module_name = self.globals[func_name].__module__
+        elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            func_name = node.func.attr
+            module_name = self.globals[node.func.value.id].__name__
+        else:
+            raise CodegenException("function calls are supported only in the form M.F() or F()")
+
+        resolver = OpResolver.resolve_method(module_name, func_name)
+        if resolver is None:
+            # TODO: what about other standard libraries, max, sum, etc? They should be
+            # handled here.
+            raise CodegenException(f"unknown function {func_name} from {module_name}")
+        
+        op = resolver()(*operands)
+        self.inserter.insert_op(op)
 
     def visit_Constant(self, node: ast.Constant):
         """
         Visits a constant value.
         """
-        # target_ty = self.state.inferred_type
-        # if target_ty is None:
-        #     raise CodegenException(f"unable to infer the type of {node.value} on line {node.lineno}")
-
-        # if isinstance(target_ty, builtin.IntegerType):
-        #     value_attr = builtin.IntegerAttr.from_int_and_width(node.value, target_ty.width.data)
-        # elif isinstance(node.value, builtin.Float32Type):
-        #     value_attr = builtin.FloatAttr.from_float_and_width(node.value, 32)
-        # elif isinstance(node.value, builtin.Float64Type):
-        #     value_attr = builtin.FloatAttr.from_float_and_width(node.value, 64)
-        # else:
-        #     raise CodegenException(f"trying to infer an unknown type {target_ty} on lin {node.lineno}")
-        target_ty = builtin.IntegerType.from_width(32)
-        value_attr = builtin.IntegerAttr.from_int_and_width(node.value, target_ty.width.data)
-        constant_op = arith.Constant.from_attr(value_attr, target_ty)
-        self.inserter.insert_op(constant_op)
-        return
+        if isinstance(node.value, str):
+            self.inserter.stack.append(node.value)
+        elif isinstance(node.value, int):
+            target_ty = self.type_manager.default_type(type(node.value))
+            value_attr = builtin.IntegerAttr.from_int_and_width(node.value, target_ty.width.data)
+            constant_op = arith.Constant.from_attr(value_attr, target_ty)
+            self.inserter.insert_op(constant_op)
+        elif isinstance(node.value, float):
+            target_ty = self.type_manager.default_type(type(node.value))
+            value_attr = builtin.FloatAttr.from_float_and_width(node.value, target_ty.width.data)
+            constant_op = arith.Constant.from_attr(value_attr, target_ty)
+            self.inserter.insert_op(constant_op)
+        else:
+            raise CodegenException(f"unknown constant {node.value} of type {type(node.value)}")
 
     def visit_For(self, node: ast.For):
         """Visits a for loop and creates scf.for or affine.for operation."""
@@ -225,7 +304,8 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
 
-        # What about globals?
+        # Reset the symbol table.
+        # TODO: this doesn't handle global variables at the moment.
         self.symbol_table = dict()
 
         # All arguments are declared using symref.
@@ -244,8 +324,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # handle cases like:
         #
         # def foo():
-        #   do_something()
-        #   # No return statement here!
+        #   # some code without 'return' at the end
         #
         ops = self.inserter.ip.ops
         if len(ops) == 0 or not isinstance(ops[-1], func.Return):
@@ -257,6 +336,9 @@ class CodegenVisitor(ast.NodeVisitor):
                 raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
             self.inserter.insert_op(func.Return.get())
 
+        # Move on with code generation for the next operation and record
+        # the function to allow calls to it.
+        self.function_table[func_op.attributes["sym_name"].data] = func_op
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
 
     def visit_If(self, node: ast.If):
@@ -297,17 +379,16 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_region(true_region)
         self.visit(node.body)
         true_result = self.inserter.get_operand()
-        self.inserter.insert_op(scf.Yield.get())
+        self.inserter.insert_op(scf.Yield.get(true_result))
 
         # Process false region
         false_region = Region.from_block_list([Block()])
         self.inserter.set_insertion_point_from_region(false_region)
         self.visit(node.orelse)
         false_result = self.inserter.get_operand()
-        self.inserter.insert_op(scf.Yield.get())
+        self.inserter.insert_op(scf.Yield.get(false_result))
 
-        if true_result.typ != false_result.typ:
-            raise CodegenException(f"yield types of true region ({prettify(true_result.typ)}) and false region ({prettify(false_result.typ)}) do not match for and cannot be inferred")
+        # TODO: check types are the same or add an implicit cast.
 
         # Reset insertion point to add scf.if
         self.inserter.set_insertion_point_from_block(prev_insertion_point)
@@ -317,9 +398,11 @@ class CodegenVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node: ast.Name):
         """
-        Visits a named variable - can be stack-allocated or an argument.
+        Visits a named variable - it is a stack-allocated variable or an argument.
         """
-        # TODO: we should have a proper symbol table!
+
+        # TODO: this assumes variable is local and no global variables exist. When
+        # the sysmbol table is changed so that we can use globals, this can change.
         ty = self.symbol_table[node.id]
         fetch_op = symref.Fetch.get(node.id, ty)
         self.inserter.insert_op(fetch_op)
@@ -333,45 +416,58 @@ class CodegenVisitor(ast.NodeVisitor):
         # in the function. Cases like:
         #
         # def foo(cond: i1):
-        # if cond:
-        #   return 1
-        # else:
-        #   return 0
+        #   if cond:
+        #     return 1
+        #   else:
+        #     return 0
         #
-        # are not allowed!
+        # are not allowed at the moment.
+        # TODO: support cases like mentioned above with multiple terminators.
         parent_op = self.inserter.ip.parent_op()
         if not isinstance(self.inserter.ip.parent_op(), func.FuncOp):
             raise CodegenException("return statement should be placed only at the end of the function body")
 
-        # We have to check return matches the function signature.
-        return_types = parent_op.function_type.outputs.data
         func_name = parent_op.attributes["sym_name"].data
-        assert len(return_types) <= 1
+        func_return_types = parent_op.function_type.outputs.data
 
-        # Get the return operation.
         if node.value is None:
-            if len(return_types) != 0:
-                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+            # Return nothing, check function signature matches.
+            if len(func_return_types) != 0:
+                raise CodegenException(f"expected non-zero return types, got 0 in function '{func_name}'")
             return_op = func.Return.get()
+            self.inserter.insert_op(return_op)
         else:
+            # Return some type, check function signature matches as well.
             self.visit(node.value)
             operand = self.inserter.get_operand()
 
-            if len(return_types) == 0:
+            # TODO: this can be dropped when function is allowed to return more
+            # than one type.
+            if len(func_return_types) > 1:
+                raise CodegenException(f"expected less than 2 return types, got {len(func_return_types)} in function '{func_name}'")
+
+            if len(func_return_types) == 0:
                 raise CodegenException(f"expected 0 return types, got 1 in function {func_name}")
-            if return_types[0] != operand.typ:
-                raise CodegenException(f"expected {prettify(return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
+            if func_return_types[0] != operand.typ:
+                # TODO: implicit cast
+                operand = self.type_manager.match(func_return_types[0], operand)
+                # raise CodegenException(f"expected {prettify(func_return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
 
             return_op = func.Return.get(operand)
-
-        # All checks passed, insert return operation.
-        self.inserter.insert_op(return_op)
+            self.inserter.insert_op(return_op)
 
     def visit_With(self, node: ast.With):
         """
         Visits a with block which represents a new module.
         """
+        # In the future, with can also be used for regions. But let's
+        # not worry about that at the moment.
+        # TODO: support with Region():
         module_op = builtin.ModuleOp.from_region_or_ops([])
+
+        # TODO: we have per module function table. Instead it would be
+        # nice to call functions from other modules.
+        self.function_table = dict()
 
         # Proceed with visitng the module.
         self.inserter.insert_op(module_op)
@@ -386,15 +482,42 @@ class CodegenVisitor(ast.NodeVisitor):
         # Special case: function can return nothing and be implemented using pass, e.g.
         #  def foo():
         #    pass
-        # Therefore, we have to explicitly add func.return unless type sugnature
+        # Therefore, we have to explicitly add func.return unless type signature
         # says otherwise.
         parent_op = self.inserter.ip.parent_op()
         if isinstance(parent_op, func.FuncOp):
             func_name = parent_op.attributes["sym_name"].data
             return_types = parent_op.function_type.outputs.data
-            assert len(return_types) <= 1
 
+            # Technically this is not fully correct because 'pass' in Python just
+            # means "do nothing". So we should only produce a function declaration
+            # instead.
+            # TODO: fix this.
             if len(return_types) != 0:
-                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+                raise CodegenException(f"expected non-zero return types, got 0 in function '{func_name}'")
 
             self.inserter.insert_op(func.Return.get())
+
+    def visit_Subscript(self, node: ast.Subscript):
+        """
+        Visits subscript expressions like x[i][j][k]
+        """
+        indices: List[SSAValue] = []
+        while isinstance(node, ast.Subscript):
+            self.visit(node.slice)
+            index = self.inserter.get_operand()
+            indices.append(index)
+            node = node.value
+        
+        indices = list(reversed(indices))
+        self.visit(node)
+        indexed_value = self.inserter.get_operand()
+
+        frontend_type = self.hint_converter.type_backward_map[indexed_value.typ.__class__]
+
+        resolver = OpResolver.resolve_op_overload("__getitem__", frontend_type)
+        if resolver is None:
+            raise CodegenException("operator __getitem__() is not supported")
+
+        op = resolver()(indexed_value, *indices)
+        self.inserter.insert_op(op)

@@ -1,9 +1,9 @@
-# RUN: python %s | filecheck %s
+tests/filecheck/frontend/builtin.py# RUN: python %s | filecheck %s
 
 from typing import Literal, Tuple
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import TensorType, UnrankedTensorType, VectorType, i1, i32, i64, ui32, ui64, si32, si64, index, f16, f32, f64
+from xdsl.frontend.dialects.builtin import Module, TensorType, UnrankedTensorType, VectorType, i1, i32, i64, ui32, ui64, si32, si64, index, f16, f32, f64
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -56,6 +56,25 @@ with CodeContext(p):
     # CHECK-NEXT: ^{{.*}}(%{{.*}} : !unranked_tensor<!i32>):
     def unranked_tensor(x: UnrankedTensorType[i32]):
         return
+
+    # CHECK-NEXT: builtin.module() {
+    # CHECK-NEXT:   builtin.module() {}
+    # CHECK-NEXT: }
+    # CHECK-NEXT: builtin.module() {
+    # CHECK-NEXT:   builtin.module() {
+    # CHECK-NEXT:     builtin.module() {}
+    # CHECK-NEXT:   }
+    # CHECK-NEXT: }
+    # CHECK-NEXT: builtin.module() {}
+    with Module():
+        with Module():
+            pass
+    with Module():
+        with Module():
+            with Module():
+                pass
+    with Module():
+        pass
 
 p.compile()
 print(p)
