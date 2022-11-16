@@ -1,6 +1,8 @@
 # xDSL: A common ecosystem for DSL development
 
-[xDSL](http://www.xdsl.dev) is.....WIP WIP WIP
+[xDSL](http://www.xdsl.dev) is a compiler toolkit natively developed in Python. It applies the Multi-Level Rewrite Strategy, a compilation strategy that lowers programs through several, distinctly designed levels of abstraction. This allows the implementation of abstraction-specific optimization passes, similar to the structure of common DSL-compilers (such as Devito, Psyclone, an Firedrake). In xDSL, all data structures are SSA-based in order to simplify analysis and optimization passes within xDSL.
+
+An inherent advantage of a design close to MLIR is the easy interaction among the two frameworks making it possible to translate abstractions back and forth. This results in one big SSA-based abstraction ecosystem that can be worked with through Python, making analysis through simple scripting languages possible. Additionally, xDSL can leverage MLIR's code generation and low-level optimization capabilities.
 
 ## Prerequisites
 
