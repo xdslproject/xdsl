@@ -73,6 +73,18 @@ with CodeContext(p):
                 a = c
                 c = a
             return a
+        
+        #      CHECK: ^{{.*}}(%{{.*}} : !i1, %21 : !i32, %22 : !i32):
+        # CHECK-NEXT:   %23 : !i32 = scf.if(%{{.*}} : !i1) {
+        # CHECK-NEXT:     scf.yield(%21 : !i32)
+        # CHECK-NEXT:   } {
+        # CHECK-NEXT:     scf.yield(%22 : !i32)
+        # CHECK-NEXT:   }
+        # CHECK-NEXT:   func.return(%23 : !i32)
+        # CHECK-NEXT: }
+        def test_if_expr(cond: i1, b: i32, c: i32) -> i32:
+            a: i32 = b if cond else c
+            return a
 
 p.compile()
 p.desymref()

@@ -258,6 +258,9 @@ class Promoter:
             promote_update(false_block_update_op, false_block_yield_operands)
 
         # Next, actually construct a new scf.if operation.
+        true_block_yield_operands = list(true_block.ops[-1].operands) + true_block_yield_operands
+        false_block_yield_operands = list(false_block.ops[-1].operands) + false_block_yield_operands
+
         rewriter.replace_op(true_block.ops[-1], scf.Yield.get(*true_block_yield_operands))
         rewriter.replace_op(false_block.ops[-1], scf.Yield.get(*false_block_yield_operands))
         return_types = list(map(lambda op: op.typ, true_block_yield_operands))
@@ -269,6 +272,8 @@ class Promoter:
 
         new_if_op = scf.If.get(if_op.cond, return_types, new_true_region, new_false_region)
         insert_after(if_op, new_if_op)
+        for i, r in enumerate(if_op.results):
+            r.replace_by(new_if_op.results[i])
         rewriter.erase_op(if_op)
 
         # Lastly, ensure that symbols are updated with the results from scf.if.
