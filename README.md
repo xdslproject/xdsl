@@ -1,12 +1,25 @@
 # xDSL: A common ecosystem for DSL development
 
-[xDSL](http://www.xdsl.dev) is a compiler toolkit natively developed in Python. It applies the Multi-Level Rewrite Strategy, a compilation strategy that lowers programs through several, distinctly designed levels of abstraction. This allows the implementation of abstraction-specific optimization passes, similar to the structure of common DSL-compilers (such as Devito, Psyclone, an Firedrake). In xDSL, all data structures are SSA-based in order to simplify analysis and optimization passes within xDSL.
+[xDSL](http://www.xdsl.dev) is a compiler toolkit natively developed in Python.
+It allows users to reuse existing domain-specific intermediate representations
+(IRs), or to define their own custom IRs. xDSL uses multi-level IRs, meaning
+that during the compilation process, a program will be lowered through several
+of these IRs. This allows the implementation of abstraction-specific
+optimization passes, similar to the structure of common DSL compilers (such as
+Devito, Psyclone, and Firedrake). To simplify the writing of these passes, xDSL
+uses a uniform data structure based on SSA, basic blocks, and regions, which
+additionally enables the writing of generic passes.
 
-An inherent advantage of a design close to MLIR is the easy interaction among the two frameworks making it possible to translate abstractions back and forth. This results in one big SSA-based abstraction ecosystem that can be worked with through Python, making analysis through simple scripting languages possible. Additionally, xDSL can leverage MLIR's code generation and low-level optimization capabilities.
+An inherent advantage of a design close to [MLIR](https://mlir.llvm.org/) is
+the easy interaction between the two frameworks, making it possible to
+translate abstractions and programs back and forth. This results in one big
+SSA-based abstraction ecosystem that can be worked with through Python, making
+analysis through simple scripting languages possible. Additionally, xDSL can
+leverage MLIR's code generation and low-level optimization capabilities.
 
 ## Prerequisites
 
-To install XDSL you can either clone the Github repository and install the requirements by following:
+To install XDSL you can either clone the GitHub repository and install the requirements by following:
 
 ### Clone and install
 ```bash
