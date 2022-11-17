@@ -181,6 +181,10 @@ class TensorType(Generic[_TensorElementType, _TensorShape], FrontendType):
     def __getitem__(self, *indices: index) -> _TensorElementType:
         from xdsl.frontend.dialects.tensor import extract
         return extract(self, indices)
+    
+    def __setitem__(self, *indices: index, v: _TensorElementType):
+        from xdsl.frontend.dialects.tensor import insert
+        return insert(v, self, indices)
 
 
 # Type parameter for unranked tensors.

@@ -16,3 +16,11 @@ def extract(tensor: TensorType[_TensorElementType, _TensorShape], *indices: inde
 
 def resolve_extract() -> Operation:
     return tensor.Extract.get
+
+
+def insert(value: _TensorElementType, tensor: TensorType[_TensorElementType, _TensorShape], *indices: index):
+    pass
+
+
+def resolve_insert() -> Operation:
+    return tensor.Insert.get

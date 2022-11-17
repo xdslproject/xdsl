@@ -25,7 +25,8 @@ op_to_python = {
     "GtE": "__ge__",
 
     # These do not really have a name.
-    "__getitem__": "__getitem__"
+    "__getitem__": "__getitem__",
+    "__setitem__": "__setitem__",
 }
 
 

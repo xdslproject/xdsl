@@ -56,6 +56,9 @@ class CodegenVisitor(ast.NodeVisitor):
     def generic_visit(self, node: ast.AST):
         raise CodegenException(f"visitor for node {node} does not exist")
 
+    def visit_Expr(self, node: ast.Expr):
+        self.visit(node.value)
+
     def _cast(self, dst_ty: Attribute, value_ty: Attribute, value: SSAValue | Operation):
         # There are a lot of different casts, for now just put a placeholder op instead
         # of arith.trunci and friends.
@@ -106,20 +109,46 @@ class CodegenVisitor(ast.NodeVisitor):
 
         a = 3
         """
-        lhs_ty = self.symbol_table[node.targets[0].id]
-        # self.state.inferred_type = lhs_ty
-
         # Get the rhs first.
         self.visit(node.value)
         rhs = self.inserter.get_operand()
-        rhs_ty = rhs.typ
 
-        # TODO: check types and add implicit casts if necessary.
-        rhs = self.type_manager.match(lhs_ty, rhs)
+        if isinstance(node.targets[0], ast.Name):
+            lhs_ty = self.symbol_table[node.targets[0].id]
+            # self.state.inferred_type = lhs_ty
 
-        update_op = symref.Update.get(node.targets[0].id, rhs)
-        self.inserter.insert_op(update_op)
-        # self.state.inferred_type = None
+            # TODO: check types and add implicit casts if necessary.
+            rhs = self.type_manager.match(lhs_ty, rhs)
+
+            update_op = symref.Update.get(node.targets[0].id, rhs)
+            self.inserter.insert_op(update_op)
+            return
+        
+        if isinstance(node.targets[0], ast.Subscript):
+            node = node.targets[0]
+            indices: List[SSAValue] = []
+            while isinstance(node, ast.Subscript):
+                self.visit(node.slice)
+                index = self.inserter.get_operand()
+                indices.append(index)
+                node = node.value
+        
+            indices = list(reversed(indices))
+            self.visit(node)
+            indexed_value = self.inserter.get_operand()
+
+            frontend_type = self.hint_converter.type_backward_map[indexed_value.typ.__class__]
+
+            # TODO: check types and add implicit casts if necessary.
+            # we have to check the element type here.
+
+            resolver = OpResolver.resolve_op_overload("__setitem__", frontend_type)
+            if resolver is None:
+                raise CodegenException("operator __setitem__() is not supported")
+
+            op = resolver()(rhs, indexed_value, *indices)
+            self.inserter.insert_op(op)
+
 
     def visit_BinOp(self, node: ast.BinOp):
         """

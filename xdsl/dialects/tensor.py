@@ -11,6 +11,7 @@ class Tensor:
 
     def __post_init__(self):
         self.ctx.register_op(Generate)
+        self.ctx.register_op(Insert)
         self.ctx.register_op(Extract)
         self.ctx.register_op(Yield)
 
@@ -57,8 +58,31 @@ class Extract(Operation):
     @staticmethod
     def get(tensor: SSAValue | Operation,
             *indices: SSAValue | Operation) -> 'Extract':
-        operands=[tensor] + [SSAValue.get(operand) for operand in indices]
+        operands = [tensor] + [SSAValue.get(i) for i in indices]
         return Extract.create(operands, result_types=[SSAValue.get(tensor).typ.element_type])
+
+
+@irdl_op_definition
+class Insert(Operation):
+    name = "tensor.insert"
+    value = OperandDef(AnyAttr())
+    tensor = OperandDef(TensorType)
+    indices = VarOperandDef(IndexType)
+
+    def verify_(self):
+        if self.tensor.typ.element_type != self.value.typ:
+            raise Exception(
+                "expected value type to match the tensor element type")
+
+        if self.tensor.typ.get_num_dims() != len(self.indices):
+            raise Exception("expected an index for each dimension")
+
+    @staticmethod
+    def get(value: Operation | SSAValue, tensor: Operation | SSAValue,
+            *indices: Operation | SSAValue) -> 'Insert':
+        operands = [value, tensor] + [SSAValue.get(i) for i in indices]
+        return Insert.create(operands)
+
 
 @irdl_op_definition
 class Yield(Operation):
