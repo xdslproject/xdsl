@@ -1,9 +1,10 @@
 import ast
+from typing import Dict
 from xdsl.dialects import affine, builtin
 
 from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.codegen.inserter import OpInserter
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Region, SSAValue
 
 
 def check_for_loop_valid(node: ast.For):
@@ -27,14 +28,13 @@ def check_for_loop_valid(node: ast.For):
 
 def is_affine_for_loop(node: ast.For) -> bool:
     """Returns true if this for loop is affine."""
-    args = node.iter.args
     for arg in node.iter.args:
         if not isinstance(arg, ast.Constant):
             return False
     return True
 
 
-def codegen_affine_for_loop(inserter: OpInserter, node: ast.For, visit_callback):
+def codegen_affine_for_loop(induction_vars: Dict[str, SSAValue], inserter: OpInserter, node: ast.For, visit_callback):
     """Gnereates xDSL for affine for loops."""
 
     # First, proces range arguments which should simply constants.
@@ -50,13 +50,15 @@ def codegen_affine_for_loop(inserter: OpInserter, node: ast.For, visit_callback)
     else:
         start = int(args[0].value)
         end = int(args[1].value)
-        step = int(args[2].value)      
+        step = int(args[2].value)
 
     # Save previous insertion point.
     prev_insertion_point = inserter.ip
 
     entry_block = Block()
     entry_block.insert_arg(builtin.IndexType(), 0)
+    induction_vars[node.target.id] = entry_block.args[0]
+
     body_region = Region.from_block_list([entry_block])
 
     # Create affine.for operation and insert it.
@@ -72,6 +74,7 @@ def codegen_affine_for_loop(inserter: OpInserter, node: ast.For, visit_callback)
 
     # Reset insertion point back. 
     inserter.set_insertion_point_from_block(prev_insertion_point)
+    induction_vars.pop(node.target.id)
 
 
 def codegen_scf_for_loop(inserter: OpInserter, node: ast.For):

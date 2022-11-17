@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import List, Union
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
+from xdsl.irdl import (AttributeDef, irdl_op_definition, VarOperandDef, AnyAttr, Block,
                        Operation, OperandDef, AttrSizedOperandSegments)
 
 
@@ -13,8 +13,21 @@ class Cf:
     ctx: MLContext
 
     def __post_init__(self):
+        self.ctx.register_op(Assert)
         self.ctx.register_op(Branch)
         self.ctx.register_op(ConditionalBranch)
+
+
+
+@irdl_op_definition
+class Assert(Operation):
+    name: str = "cf.assert"
+    arg = OperandDef(IntegerType.from_width(1))
+    msg = AttributeDef(StringAttr)
+
+    @staticmethod
+    def get(arg: Operation | SSAValue, msg: StringAttr) -> Assert:
+        return Assert.build(operands=[arg], attributes={"msg": msg})
 
 
 @irdl_op_definition

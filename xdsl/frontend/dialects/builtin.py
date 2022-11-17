@@ -41,6 +41,10 @@ class IntegerType(Generic[_Width, _Signedness], FrontendType):
     def __rshift__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
         from xdsl.frontend.dialects.arith import shrsi
         return shrsi(self, other)
+    
+    def __lshift__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+        from xdsl.frontend.dialects.arith import shli
+        return shli(self, other)
 
     def __eq__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
         from xdsl.frontend.dialects.arith import cmpi

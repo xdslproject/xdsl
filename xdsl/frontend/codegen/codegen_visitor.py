@@ -7,7 +7,7 @@ from xdsl.frontend.codegen.type_manager import TypeManager
 from xdsl.frontend.codegen.utils.codegen_for import check_for_loop_valid, codegen_affine_for_loop, codegen_scf_for_loop, is_affine_for_loop
 
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
-from xdsl.dialects import builtin, func, scf, symref, arith, affine, unimplemented
+from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, unimplemented
 from xdsl.frontend.codegen.exception import CodegenException, prettify
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeHintConverter
@@ -21,8 +21,10 @@ class CodegenVisitor(ast.NodeVisitor):
     globals: Dict[str, Any]
     """Imports and other global information from the module usefule for looking up classes."""
 
-    type_manager: TypeManager
+    type_manager: TypeManager = field(init=False)
     """Casts types."""
+
+    induction_vars: Dict[str, SSAValue] = field(init=False)
 
     hint_converter: TypeHintConverter = field(init=False)
     """Class responsible for type hint conversion to xDSL types."""
@@ -45,6 +47,7 @@ class CodegenVisitor(ast.NodeVisitor):
         
         self.globals = globals
         self.type_manager = TypeManager(inserter)
+        self.induction_vars = dict()
         self.hint_converter = TypeHintConverter(globals)
         self.symbol_table = dict()
         self.function_table = dict()
@@ -65,6 +68,12 @@ class CodegenVisitor(ast.NodeVisitor):
         # TODO: implement casts.
         self.inserter.insert_op(unimplemented.Cast.get(value, dst_ty))
         return self.inserter.get_operand()
+    
+    def visit_Assert(self, node: ast.Assert):
+        self.visit(node.test)
+        msg = node.msg if node.msg is not None else ""
+        op = cf.Assert.get(self.inserter.get_operand(), msg)
+        self.inserter.insert_op(op)
 
     def visit_AnnAssign(self, node: ast.AnnAssign):
         """
@@ -140,7 +149,8 @@ class CodegenVisitor(ast.NodeVisitor):
             frontend_type = self.hint_converter.type_backward_map[indexed_value.typ.__class__]
 
             # TODO: check types and add implicit casts if necessary.
-            # we have to check the element type here.
+            if isinstance(indexed_value.typ, builtin.TensorType):
+                rhs = self.type_manager.match(indexed_value.typ.element_type, rhs) 
 
             resolver = OpResolver.resolve_op_overload("__setitem__", frontend_type)
             if resolver is None:
@@ -305,10 +315,12 @@ class CodegenVisitor(ast.NodeVisitor):
         # First, check if this loop can be lowered to xDSL.
         check_for_loop_valid(node)
 
+        assert isinstance(node.target, ast.Name)
+
         # Next, we have to check if the loop is affine: for now we simply
         # check if all range arguments are constants. If not, we have to generate scf.for
         if is_affine_for_loop(node):
-            codegen_affine_for_loop(self.inserter, node, self.visit)
+            codegen_affine_for_loop(self.induction_vars, self.inserter, node, self.visit)
         else:
             codegen_scf_for_loop(self.inserter, node)
 
@@ -432,6 +444,10 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # TODO: this assumes variable is local and no global variables exist. When
         # the sysmbol table is changed so that we can use globals, this can change.
+        if node.id in self.induction_vars:
+            self.inserter.stack.append(self.induction_vars[node.id])
+            return 
+
         ty = self.symbol_table[node.id]
         fetch_op = symref.Fetch.get(node.id, ty)
         self.inserter.insert_op(fetch_op)

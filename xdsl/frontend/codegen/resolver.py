@@ -16,6 +16,7 @@ op_to_python = {
     "BitAnd": "__and__",
     "Mult": "__mul__",
     "RShift": "__rshift__",
+    "LShift": "__lshift__",
     "Sub": "__sub__",
     "Eq": "__eq__",
     "NotEq": "__ne__",

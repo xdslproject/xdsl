@@ -51,6 +51,14 @@ def resolve_shrsi() -> Operation:
     return arith.ShRSI.get
 
 
+def shli(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+    pass
+
+
+def resolve_shli() -> Operation:
+    return arith.ShLI.get
+
+
 def cmpi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness], mnemonic: str) -> i1:
     pass
 
