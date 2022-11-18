@@ -1,6 +1,12 @@
 from __future__ import annotations
-from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
-                     Attribute, Operation, Region, BlockArgument, MLContext)
+
+from dataclasses import dataclass, field
+from typing import Any, TypeVar
+from enum import Enum
+
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
+                     BlockArgument, MLContext, ParametrizedAttribute)
+
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
@@ -8,9 +14,6 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
     UnrankedTensorType, UnregisteredOp, VectorType)
 from xdsl.irdl import Data
-from dataclasses import dataclass, field
-from typing import Any, TypeVar
-from enum import Enum
 
 indentNumSpaces = 2
 

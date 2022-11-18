@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from io import StringIO
+from typing import List
 
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.diagnostic import Diagnostic
+
 from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition, irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
+from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
+                       Operation, OperandDef, ResultDef, OptAttributeDef)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
+from xdsl.utils.diagnostic import Diagnostic
 
 
 def test_simple_forgotten_op():
@@ -331,7 +334,7 @@ def test_diagnostic():
 #
 
 
-def test_print_costum_name():
+def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
@@ -452,7 +455,7 @@ builtin.module() {
     assert file.getvalue().strip() == expected.strip()
 
 
-def test_custom_format():
+def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
@@ -569,7 +572,7 @@ builtin.module() {
     assert file.getvalue().strip() == expected.strip()
 
 
-def test_parse_generic_format_attr():
+def test_parse_generic_format_attr_II():
     """
     Test that we can parse attributes using generic formats.
     """
@@ -647,3 +650,25 @@ def test_parse_dense_mlir():
     printer = Printer(stream=file, target=Printer.Target.MLIR)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+
+
+def test_foo_string():
+    """
+    Fail attribute in purpose.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !"string"<"foo">]
+    }"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    try:
+        parser.parse_op()
+        assert False
+    except:
+        pass

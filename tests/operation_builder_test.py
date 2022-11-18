@@ -2,36 +2,15 @@ from __future__ import annotations
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
-                                   IntegerType, Operation, builder)
-from xdsl.ir import Data, Block
+                                   IntegerType, Operation, StringAttr)
+from xdsl.ir import Block
 from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
                        OptSingleBlockRegionDef, SingleBlockRegionDef,
                        VarRegionDef, VarSingleBlockRegionDef,
-                       irdl_attr_definition, irdl_op_definition, ResultDef,
-                       VarResultDef, AttrSizedResultSegments, OperandDef,
-                       VarOperandDef, AttrSizedOperandSegments, AttributeDef,
-                       RegionDef, OptAttributeDef, Region)
-from xdsl.parser import Parser
-from xdsl.printer import Printer
-
-
-@irdl_attr_definition
-class StringAttr(Data[str]):
-    name = "test.string_attr"
-
-    @staticmethod
-    @builder
-    def from_int(i: int) -> StringAttr:
-        return StringAttr(str(i))
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> str:
-        assert False
-
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        pass
-
+                       irdl_op_definition, ResultDef, VarResultDef,
+                       AttrSizedResultSegments, OperandDef, VarOperandDef,
+                       AttrSizedOperandSegments, AttributeDef, RegionDef,
+                       OptAttributeDef, Region)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -280,7 +259,6 @@ def test_two_var_operand_builder2():
 @irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
-
     attr = AttributeDef(StringAttr)
 
 

@@ -1,0 +1,6 @@
+class DiagnosticException(Exception):
+    ...
+
+
+class VerifyException(DiagnosticException):
+    ...

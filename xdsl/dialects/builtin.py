@@ -2,17 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
+from typing import (TypeAlias, List, cast, Type, Sequence, Optional,
+                    TYPE_CHECKING, Any, TypeVar)
 
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
-                     ParametrizedAttribute, Operation, SSAValue)
+from xdsl.ir import (MLContext, Data, MLIRType, ParametrizedAttribute,
+                     Operation, SSAValue, Region)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
-                       SingleBlockRegionDef, TypeVar, Generic, GenericData,
-                       AttrConstraint, Any, Attribute, Region, VerifyException,
-                       AnyAttr)
+                       SingleBlockRegionDef, Generic, GenericData,
+                       AttrConstraint, Attribute, AnyAttr)
+from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser, ParserError
@@ -70,6 +71,11 @@ class StringAttr(Data[str]):
     @builder
     def from_str(data: str) -> StringAttr:
         return StringAttr(data)
+
+    @staticmethod
+    @builder
+    def from_int(data: int) -> StringAttr:
+        return StringAttr(str(data))
 
 
 @irdl_attr_definition
@@ -232,11 +238,9 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+@irdl_attr_definition
 class Float16Type(ParametrizedAttribute, MLIRType):
     name = "f16"
-
-
-f16 = Float16Type()
 
 
 @irdl_attr_definition
@@ -244,14 +248,9 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name = "f32"
 
 
-f32 = Float32Type()
-
-
 class Float64Type(ParametrizedAttribute, MLIRType):
     name = "f64"
 
-
-f64 = Float64Type()
 
 AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
 
@@ -620,13 +619,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
-class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
-
-
-f16 = Float16Type()
-
-
 @irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
@@ -722,3 +714,9 @@ class ModuleOp(Operation):
             )
         op = ModuleOp.create([], [], regions=[region])
         return op
+
+
+# Type shortcuts
+f16 = Float16Type()
+f32 = Float32Type()
+f64 = Float64Type()
