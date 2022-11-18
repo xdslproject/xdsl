@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast)
+from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -439,8 +440,18 @@ class Operation(IRNode):
             for region in self.regions:
                 region.verify()
 
+    # TODO replace with trait
     def verify_(self) -> None:
-        pass
+        try:
+            assert self.lhs
+            assert self.rhs
+            assert self.result
+        except AttributeError:
+            return
+
+        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+            raise VerifyException(
+                "expect all input and result types to be equal")
 
     _OperationType = TypeVar('_OperationType', bound='Operation')
 

@@ -2,11 +2,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
+                     Operation)
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_attr_definition,
                        AttributeDef, OperandDef, ResultDef, irdl_op_definition,
                        builder)
-from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
-                     Operation)
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:

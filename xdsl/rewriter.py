@@ -1,6 +1,6 @@
-from xdsl.ir import BlockArgument
 from typing import List, Optional
-from xdsl.irdl import SSAValue, Operation, Region, Block
+from xdsl.ir import SSAValue
+from xdsl.irdl import Operation, Region, Block
 
 
 class Rewriter:

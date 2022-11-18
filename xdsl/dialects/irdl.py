@@ -3,11 +3,10 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-
+from xdsl.ir import ParametrizedAttribute, Operation, MLContext, Attribute
 from xdsl.irdl import (ParameterDef, VarOperandDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, VarResultDef, irdl_op_definition,
                        irdl_attr_definition)
-from xdsl.ir import ParametrizedAttribute, Operation, MLContext, Attribute
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
