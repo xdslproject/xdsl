@@ -714,3 +714,9 @@ class ModuleOp(Operation):
             )
         op = ModuleOp.create([], [], regions=[region])
         return op
+
+
+# Type shortcuts
+f16 = Float16Type()
+f32 = Float32Type()
+f64 = Float64Type()

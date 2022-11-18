@@ -730,6 +730,11 @@ class Parser:
 
         # Attribute with default format
         if parse_with_default_format:
+            if not issubclass(attr_def, ParametrizedAttribute):
+                raise ParserError(
+                    self._pos,
+                    f"{attr_def_name} is not a parameterized attribute, and "
+                    "thus cannot be parsed with a generic format.")
             params = self.parse_paramattr_parameters()
             return attr_def(params)  # type: ignore
 

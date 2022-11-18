@@ -334,7 +334,7 @@ def test_diagnostic():
 #
 
 
-def test_print_costum_name():
+def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
@@ -455,7 +455,7 @@ builtin.module() {
     assert file.getvalue().strip() == expected.strip()
 
 
-def test_custom_format():
+def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
@@ -650,3 +650,25 @@ def test_parse_dense_mlir():
     printer = Printer(stream=file, target=Printer.Target.MLIR)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+
+
+def test_foo_string():
+    """
+    Fail attribute in purpose.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !"string"<"foo">]
+    }"""
+
+    ctx = MLContext()
+    Builtin(ctx)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    try:
+        parser.parse_op()
+        assert False
+    except:
+        pass
