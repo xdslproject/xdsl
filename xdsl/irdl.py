@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import inspect
-from types import UnionType, GenericAlias
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
+from frozenlist import FrozenList
 from inspect import isclass
 from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
                     TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from types import UnionType, GenericAlias
 
-from frozenlist import FrozenList
-
-from xdsl import util
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import is_satisfying_hint
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -184,7 +183,7 @@ def irdl_to_attr_constraint(
         return irdl
 
     # Annotated case
-    # Each argument of the Annotated type correspond to a constraint to satisfy.
+    # Each argument of the Annotated type corresponds to a constraint to satisfy.
     if get_origin(irdl) == Annotated:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
@@ -1155,7 +1154,7 @@ def irdl_attr_try_builder(
     if num_non_defaults > len(args):
         return None
     for arg, param in zip(args, params[:num_non_defaults]):
-        if not util.is_satisfying_hint(arg, param):
+        if not is_satisfying_hint(arg, param):
             return None
     return builder(*args, *defaults[len(args):])
 

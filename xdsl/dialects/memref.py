@@ -107,10 +107,10 @@ class Store(Operation):
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
             raise Exception(
-                "expected value type to match the MemRef element type")
+                "Expected value type to match the MemRef element type")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
-            raise Exception("expected an index for each dimension")
+            raise Exception("Expected an index for each dimension")
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
