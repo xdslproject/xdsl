@@ -13,8 +13,8 @@ builtin.module() {
 
 def test_main():
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    arith = Arith(ctx)
+    builtin = Builtin(ctx)  # noqa
+    arith = Arith(ctx)  # noqa
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()

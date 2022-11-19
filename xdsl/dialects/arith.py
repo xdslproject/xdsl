@@ -23,8 +23,8 @@ class Arith:
 
         # Integer-like
         self.ctx.register_op(Addi)
-        self.ctx.register_op(Muli)
         self.ctx.register_op(Subi)
+        self.ctx.register_op(Muli)
         self.ctx.register_op(DivUI)
         self.ctx.register_op(DivSI)
         self.ctx.register_op(FloorDivSI)
