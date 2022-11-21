@@ -14,10 +14,10 @@ from xdsl.rewriter import Rewriter
 def rewrite_and_compare(prog: str, expected_prog: str,
                         transformation: Callable[[ModuleOp, Rewriter], None]):
     ctx = MLContext()
-    builtin = Builtin(ctx)  # noqa
-    arith = Arith(ctx)  # noqa
-    scf = Scf(ctx)  # noqa
-    func = Func(ctx)  # noqa
+    _ = Builtin(ctx)  # noqa
+    _ = Arith(ctx)  # noqa
+    _ = Scf(ctx)  # noqa
+    _ = Func(ctx)  # noqa
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
