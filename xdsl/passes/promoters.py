@@ -63,14 +63,16 @@ class Promoter:
     rewriter: Rewriter = field(default_factory=Rewriter)
     """IR rewriter used to erase or replace ops."""
 
-    def _find_symbols(self) -> Set[str]:
+    def _find_symbols(self) -> List[str]:
         """Returns a set of all unpromoted symbols."""
-        symbols = set()
+        symbols = []
         for region in self.op.regions:
             for block in region.blocks:
                 for op in block.ops:
                     if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
-                        symbols.add(op.attributes["symbol"].data.data)
+                        symbol = op.attributes["symbol"].data.data
+                        if symbol not in symbols:
+                            symbols.append(symbol)
         return symbols
 
     def promote(self):
@@ -96,7 +98,7 @@ class Promoter:
             if len(region.blocks) > 1:
                 raise PromoteException(op, "Only single-block promotion is supported")
 
-    def promote_affine_for(rewriter: Rewriter, for_op: affine.For, symbols: Set[str]):
+    def promote_affine_for(rewriter: Rewriter, for_op: affine.For, symbols: List[str]):
         """Promotes a single affine.for operation."""
 
         Promoter._check_promotion(for_op)
@@ -173,7 +175,7 @@ class Promoter:
             update_op = symref.Update.get(symbol, new_for_op.results[i])
             insert_after(new_for_op, update_op)
 
-    def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: Set[str]):
+    def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
         """Promotes a single scf.if operation."""
 
         Promoter._check_promotion(if_op)

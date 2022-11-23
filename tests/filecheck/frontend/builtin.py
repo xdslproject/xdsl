@@ -1,4 +1,4 @@
-tests/filecheck/frontend/builtin.py# RUN: python %s | filecheck %s
+# RUN: python %s | filecheck %s
 
 from typing import Literal, Tuple
 from xdsl.frontend.program import FrontendProgram
@@ -57,7 +57,7 @@ with CodeContext(p):
     def unranked_tensor(x: UnrankedTensorType[i32]):
         return
 
-    # CHECK-NEXT: builtin.module() {
+    #      CHECK: builtin.module() {
     # CHECK-NEXT:   builtin.module() {}
     # CHECK-NEXT: }
     # CHECK-NEXT: builtin.module() {
