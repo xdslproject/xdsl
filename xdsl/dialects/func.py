@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
 from xdsl.ir import MLContext, SSAValue, Operation, Block, Region, Attribute
 from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
                        AnyAttr, RegionDef, AttributeDef, VarResultDef)
+from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass
@@ -26,6 +27,15 @@ class FuncOp(Operation):
     sym_name = AttributeDef(StringAttr)
     function_type = AttributeDef(FunctionType)
     sym_visibility = OptAttributeDef(StringAttr)
+
+    def verify_(self) -> None:
+        # TODO: how to verify that there is a terminator?
+        entry_block: Block = self.body.blocks[0]
+        block_arg_types = [arg.typ for arg in entry_block.args]
+        if self.function_type.inputs.data != block_arg_types:
+            raise VerifyException(
+                "Expected entry block arguments to have the same types as the function input types"
+            )
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],
@@ -80,6 +90,17 @@ class Call(Operation):
 class Return(Operation):
     name: str = "func.return"
     arguments = VarOperandDef(AnyAttr())
+
+    def verify_(self) -> None:
+        func_op = self.parent_op()
+        assert isinstance(func_op, FuncOp)
+
+        function_return_types = func_op.function_type.outputs.data
+        return_types = [arg.typ for arg in self.arguments]
+        if function_return_types != return_types:
+            raise VerifyException(
+                "Expected arguments to have the same types as the function output types"
+            )
 
     @staticmethod
     def get(*ops: Union[Operation, SSAValue]) -> Return:

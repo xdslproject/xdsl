@@ -18,7 +18,7 @@ builtin.module() {
     // CHECK-NEXT: func.return(%{{.*}} : !f32)
     // CHECK-NEXT: }
 
-    func.func() ["sym_name" = "conorm2", "function_type" = !fun<[!cmath.complex<!f32>], [!f32]>, "sym_visibility" = "private"] {
+    func.func() ["sym_name" = "conorm2", "function_type" = !fun<[!cmath.complex<!f32>, !cmath.complex<!f32>], [!f32]>, "sym_visibility" = "private"] {
       ^1(%a: !cmath.complex<!f32>, %b: !cmath.complex<!f32>):
         %ab : !cmath.complex<!f32> = cmath.mul(%a : !cmath.complex<!f32>, %b : !cmath.complex<!f32>)
         %conorm : !f32 = cmath.norm(%ab : !cmath.complex<!f32>)

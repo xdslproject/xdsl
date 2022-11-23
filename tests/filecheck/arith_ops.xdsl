@@ -224,22 +224,22 @@ func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "divf"] 
 // CHECK:   %{{.*}} : !f32 = arith.divf(%{{.*}} : !f32, %{{.*}} : !f32)
 
 
-func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "select_int"] {
+func.func() ["function_type" = !fun<[!i1, !i32, !i32], [!i32]>, "sym_name" = "select_int"] {
 ^6(%0 : !i1, %18 : !i32, %19 : !i32):
   %8 : !i32 = arith.select(%0 : !i1, %18 : !i32, %19 : !i32)
   func.return(%8 : !i32)
 }
 
-// CHECK:   %{{.*}} : !i32 = arith.select(%{{.*}} : !i32, %{{.*}} : !i32)
+// CHECK:   %{{.*}} : !i32 = arith.select(%{{.*}} : !i1, %{{.*}} : !i32, %{{.*}} : !i32)
 
 
-func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "select_float"] {
+func.func() ["function_type" = !fun<[!i1, !f32, !f32], [!f32]>, "sym_name" = "select_float"] {
 ^6(%0 : !i1, %18 : !f32, %19 : !f32):
   %8 : !f32 = arith.select(%0 : !i1, %18 : !f32, %19 : !f32)
   func.return(%8 : !f32)
 }
 
-// CHECK:   %{{.*}} : !f32 = arith.select(%{{.*}} : !f32, %{{.*}} : !f32)
+// CHECK:   %{{.*}} : !f32 = arith.select(%{{.*}} : !i1, %{{.*}} : !f32, %{{.*}} : !f32)
 
 
 func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shli"] {

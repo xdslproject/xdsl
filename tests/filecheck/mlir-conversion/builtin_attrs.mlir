@@ -24,7 +24,7 @@
   // CHECK: (si32, si64, si1)
 
   "func.func"() ({
-    ^bb0(%arg0: ui32, %arg1: ui64, %arg2: si1):
+    ^bb0(%arg0: ui32, %arg1: ui64, %arg2: ui1):
     "func.return"() : () -> ()
   }) {function_type = (ui32, ui64, ui1) -> (), sym_name = "unsigned_int_type"} : () -> ()
 
