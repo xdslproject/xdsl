@@ -20,7 +20,6 @@ class Arith:
 
     def __post_init__(self):
         self.ctx.register_op(Constant)
-        self.ctx.register_op(F32Constant)
 
         # Integer-like
         self.ctx.register_op(Addi)
@@ -82,23 +81,12 @@ class Constant(Operation):
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
 
-
-@irdl_op_definition
-class F32Constant(Operation):
-    name: str = "arith.f32constant"
-    result = ResultDef(AnyAttr())
-    value = AttributeDef(AnyAttr())
-
     @staticmethod
-    def from_attr(attr: Attribute, typ: Attribute) -> F32Constant:
-        return F32Constant.create(result_types=[typ], attributes={"value": attr})
-
-    @staticmethod
-    def from_float_constant(val: Union[float, Attribute],
-                            typ: Float32Type) -> F32Constant:
-        return F32Constant.create(
+    def from_float32_constant(val: Union[float, Attribute],
+                            typ: Float32Type) -> Constant:
+        return Constant.create(
             result_types=[typ],
-            attributes={"value": FloatAttr.from_float_and_width(val, 32)})
+            attributes={"value": FloatAttr.from_value(val)})
 
 
 @dataclass

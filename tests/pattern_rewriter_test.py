@@ -4,8 +4,7 @@ from xdsl.printer import Printer
 from xdsl.dialects.builtin import (Builtin, IntegerAttr, FloatAttr, i32, i64,
                                    f32, ModuleOp)
 from xdsl.parser import Parser
-from xdsl.dialects.arith import (Arith, Constant, Addi, Addf, Muli,
-                                 F32Constant)
+from xdsl.dialects.arith import (Arith, Constant, Addi, Addf, Muli)
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
@@ -39,16 +38,12 @@ def test_non_recursive_rewrite():
 """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
 %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-%2 : !f32 = arith.f32constant() ["value" = 40.4 : !f32]
-%3 : !f32 = arith.addi(%2 : !f32, %2 : !f32)
 }"""
 
     expected = \
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-  %2 : !f32 = arith.f32constant() ["value" = 43.4 : !f32]
-  %3 : !f32 = arith.addi(%2 : !f32, %2 : !f32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -58,8 +53,31 @@ def test_non_recursive_rewrite():
                 new_constant = Constant.from_int_constant(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
-            if isinstance(op, F32Constant):
-                new_fconstant = F32Constant.from_float_constant(43.4, f32)
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(RewriteConst(), apply_recursively=False))
+
+    
+def test_non_recursive_rewrite_f32():
+    """Test a simple non-recursive rewrite"""
+
+    prog = \
+"""builtin.module() {
+%0 : !f32 = arith.constant() ["value" = 40.4 : !f32]
+%1 : !f32 = arith.addf(%0 : !f32, %0 : !f32)
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !f32 = arith.constant() ["value" = 43.4 : !f32]
+  %1 : !f32 = arith.addf(%0 : !f32, %0 : !f32)
+}"""
+
+    class RewriteConst(RewritePattern):
+
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if isinstance(op, Constant):
+                new_fconstant = Constant.from_float32_constant(43.4, f32)
                 rewriter.replace_matched_op([new_fconstant])
 
     rewrite_and_compare(
