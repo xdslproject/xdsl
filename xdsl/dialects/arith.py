@@ -10,7 +10,7 @@ from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef, Attribute)
 from xdsl.utils.exceptions import VerifyException
 
-signlessIntegerLike = ContainerOf(IntegerType)
+signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 
@@ -627,39 +627,39 @@ class Minf(BinaryOperation):
 @irdl_op_definition
 class ExtSI(Operation):
     name: str = "arith.extsi"
-    value = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    value = OperandDef(AnyAttr())
+    result = ResultDef(AnyAttr())
 
-    def verify_(self) -> None:
-        if self.value.typ.width.data >= self.result.typ.width.data:
-            raise VerifyException("Result type must have bigger bitwidth")
+    # def verify_(self) -> None:
+    #     if self.value.typ.width.data >= self.result.typ.width.data:
+    #         raise VerifyException("Result type must have bigger bitwidth")
 
     @staticmethod
-    def get(value: Union[Operation, SSAValue], dst_type: IntegerType) -> ExtSI:
+    def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> ExtSI:
         return ExtSI.build(operands=[SSAValue.get(value)], result_types=[dst_type])
 
 
 @irdl_op_definition
 class IndexCast(Operation):
     name: str = "arith.index_cast"
-    value = OperandDef(IndexType)
-    result = ResultDef(signlessIntegerLike)
+    value = OperandDef(AnyAttr())
+    result = ResultDef(AnyAttr())
 
     @staticmethod
-    def get(value: Union[Operation, SSAValue], dst_type: IntegerType) -> IndexCast:
+    def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> IndexCast:
         return IndexCast.build(operands=[SSAValue.get(value)], result_types=[dst_type])
 
 
 @irdl_op_definition
 class TruncI(Operation):
     name: str = "arith.trunci"
-    value = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    value = OperandDef(AnyAttr())
+    result = ResultDef(AnyAttr())
 
-    def verify_(self) -> None:
-        if self.value.typ.width.data <= self.result.typ.width.data:
-            raise VerifyException("Result type must have smaller bitwidth")
+    # def verify_(self) -> None:
+    #     if self.value.typ.width.data <= self.result.typ.width.data:
+    #         raise VerifyException("Result type must have smaller bitwidth")
 
     @staticmethod
-    def get(value: Union[Operation, SSAValue], dst_type: IntegerType) -> TruncI:
+    def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> TruncI:
         return TruncI.build(operands=[SSAValue.get(value)], result_types=[dst_type])

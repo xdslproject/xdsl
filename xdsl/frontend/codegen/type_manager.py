@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from xdsl.dialects import arith, unimplemented
+from xdsl.dialects import arith, tensor, unimplemented
 
-from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, f32, i32
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, TensorType, f32, i32
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.ir import Attribute, Operation, SSAValue
 
@@ -51,6 +51,22 @@ class TypeManager:
             else:
                 # TODO: support type inference and more casts.
                 cast_op = unimplemented.Cast.get(rhs, lhs_ty)
+        elif isinstance(lhs_ty, TensorType) and isinstance(rhs.typ, TensorType) and lhs_ty.element_type == rhs.typ.element_type:
+            cast_op = tensor.Cast.get(rhs, lhs_ty)
+        elif isinstance(lhs_ty, TensorType) and isinstance(rhs.typ, TensorType):
+            if isinstance(lhs_ty.element_type, IntegerType):
+                if isinstance(rhs.typ.element_type, IndexType):
+                    cast_op = arith.IndexCast.get(rhs, lhs_ty)
+                elif isinstance(rhs.typ.element_type, IntegerType):
+                    lhs_width = lhs_ty.element_type.width.data
+                    rhs_width = rhs.typ.element_type.width.data
+                    if lhs_width < rhs_width:
+                        cast_op = arith.TruncI.get(rhs, lhs_ty)
+                    else:
+                        cast_op = arith.ExtSI.get(rhs, lhs_ty)
+                else:
+                    # TODO: support type inference and more casts.
+                    cast_op = unimplemented.Cast.get(rhs, lhs_ty)
         else:
             # TODO: support type inference and more casts.
             cast_op = unimplemented.Cast.get(rhs, lhs_ty)
