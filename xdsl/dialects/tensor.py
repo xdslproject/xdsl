@@ -1,9 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Sequence
-from xdsl.dialects.builtin import ArrayAttr, ContainerOf, IndexType, IntegerAttr, TensorType, UnrankedTensorType
+from xdsl.dialects.builtin import AnyIntegerAttr, ArrayAttr, ContainerOf, IndexType, IntegerAttr, IntegerType, TensorType, UnrankedTensorType
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue
-from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, OperandDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
+from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, OperandDef, ParameterDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -16,6 +16,7 @@ class Tensor:
         self.ctx.register_op(Empty)
         self.ctx.register_op(Extract)
         self.ctx.register_op(Insert)
+        self.ctx.register_op(Splat)
         self.ctx.register_op(Yield)
 
 
@@ -47,16 +48,27 @@ class Cast(Operation):
 class Empty(Operation):
     # TODO: fix naming and support dynamic tensors.
     name: str = "linalg.init_tensor"
-    res = ResultDef(TensorType)
+    result = ResultDef(TensorType)
     static_sizes = AttributeDef(ArrayAttr)
 
     @staticmethod
-    def get(static_sizes: List[int], ty: Attribute) -> 'Empty':
+    def get(static_sizes: List[int], el_ty: Attribute) -> Empty:
         return Empty.create(
-            result_types=[TensorType.from_type_and_list(ty, static_sizes)],
+            result_types=[TensorType.from_type_and_list(el_ty, static_sizes)],
             attributes={
                 "static_sizes": ArrayAttr.from_list([IntegerAttr.from_int_and_width(s, 64) for s in static_sizes])
             })
+
+
+@irdl_op_definition
+class Splat(Operation):
+    name: str = "tensor.splat"
+    value = OperandDef(IntegerType)
+    result = ResultDef(TensorType)
+
+    @staticmethod
+    def get(op: Operation | SSAValue, dims: List[int]) -> Splat:
+        return Splat.build(operands=[op], result_types=[TensorType.from_type_and_list(op.typ, dims)])
 
 
 @irdl_op_definition

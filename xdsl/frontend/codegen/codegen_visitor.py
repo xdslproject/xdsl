@@ -170,19 +170,11 @@ class CodegenVisitor(ast.NodeVisitor):
         print(node.iter)
 
     def visit_ListComp(self, node: ast.ListComp):
-        # Assume this is tensor generate for now!
-        
-        # Save previous insertion point.
-        # prev_insertion_point = self.inserter.ip
-
-        # Create a block and region that would contain generated code.
-        # block = Block()
-        # body_region = Region.from_block_list([block])
-        # local_ind_vars = []
+        # Assume that target of generation is always a tensor.
         tensor_dims = []
 
         # Gather all necessary information from comprehension.
-        for i, generator in enumerate(node.generators):
+        for generator in node.generators:
             if not isinstance(generator, ast.comprehension):
                 raise CodegenException("every generator must be ast.comprehension class")
             
@@ -194,25 +186,21 @@ class CodegenVisitor(ast.NodeVisitor):
             if not isinstance(generator.iter, ast.Call) or not isinstance(generator.iter.func, ast.Name) or generator.iter.func.id != "range" or len(generator.iter.args) != 1:
                 raise CodegenException("this list comprehension is not supported")
         
+            if not isinstance(generator.iter.args[0], ast.Constant):
+                raise CodegenException("list comprehension with a constant number of iterations is supported")
+
             dim = int(generator.iter.args[0].value)
             tensor_dims.append(dim)
 
-        #print(tensor_dims)
-        # Process the generation.
-        # self.inserter.set_insertion_point_from_block(block)
-        # self.visit(node.elt)
-        # op = self.inserter.get_operand()
-
+        # TODO: for now we only support contants/
+        if not isinstance(node.elt, ast.Constant):
+            raise CodegenException("list comprehension must return a constant only!")
         
-        # self.inserter.insert_op(affine.Yield.get(op))
+        self.visit(node.elt)
+        constant = self.inserter.get_operand()
 
-        # self.inserter.set_insertion_point_from_block(prev_insertion_point)
-        # TODO: change this hardcoded type!
-        generate_op = tensor.Empty.get(tensor_dims, builtin.IntegerType.from_width(64))
-        self.inserter.insert_op(generate_op)
-
-        # for local_ind_var in local_ind_vars:
-        #     self.induction_vars.pop(local_ind_var)
+        splat_op = tensor.Splat.get(constant, tensor_dims)
+        self.inserter.insert_op(splat_op)
 
     def visit_BinOp(self, node: ast.BinOp):
         """

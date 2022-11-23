@@ -501,7 +501,7 @@ class Printer:
         else:
             self.print(f"\"{attr_tuple[0]}\" = ")
             # TODO: this is a temorary hack to get affine maps.
-            if attr_tuple[0] == "lower_bound" or attr_tuple[0] == "upper_bound":
+            if self.target == Printer.Target.MLIR and (attr_tuple[0] == "lower_bound" or attr_tuple[0] == "upper_bound"):
                 self.print("affine_map<() -> (")
                 self.print(attr_tuple[1].value.data)
                 self.print(")>")
