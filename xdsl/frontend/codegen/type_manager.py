@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from xdsl.dialects import unimplemented
+from xdsl.dialects import arith, unimplemented
 
-from xdsl.dialects.builtin import f32, i32
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, f32, i32
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.ir import Attribute, Operation, SSAValue
 
@@ -38,8 +38,22 @@ class TypeManager:
         if lhs_ty == rhs.typ:
             return rhs
         
-        # TODO: support type inference and more casts.
-        cast_op = unimplemented.Cast.get(rhs, lhs_ty)
+        if isinstance(lhs_ty, IntegerType):
+            if isinstance(rhs.typ, IndexType):
+                cast_op = arith.IndexCast.get(rhs, lhs_ty)
+            elif isinstance(rhs.typ, IntegerType):
+                lhs_width = lhs_ty.width.data
+                rhs_width = rhs.typ.width.data
+                if lhs_width < rhs_width:
+                    cast_op = arith.TruncI.get(rhs, lhs_ty)
+                else:
+                    cast_op = arith.ExtSI.get(rhs, lhs_ty)
+            else:
+                # TODO: support type inference and more casts.
+                cast_op = unimplemented.Cast.get(rhs, lhs_ty)
+        else:
+            # TODO: support type inference and more casts.
+            cast_op = unimplemented.Cast.get(rhs, lhs_ty)
         self.inserter.insert_op(cast_op)
         return self.inserter.get_operand()
     
