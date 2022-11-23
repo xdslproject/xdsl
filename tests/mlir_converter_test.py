@@ -3,12 +3,25 @@ import pytest
 docutils = pytest.importorskip("mlir")
 
 from xdsl.mlir_converter import MLIRConverter, mlir
+from xdsl.dialects.scf import Scf
+from xdsl.dialects.func import Func
+from xdsl.dialects.memref import MemRef
+from xdsl.dialects.affine import Affine
+from xdsl.dialects.arith import Arith
+
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import MLContext
+from xdsl.dialects.builtin import Builtin, MLContext
 
 
 def convert_and_verify(test_prog: str):
     ctx = MLContext()
+    _ = Builtin(ctx)
+    _ = Func(ctx)
+    _ = Affine(ctx)
+    _ = Arith(ctx)
+    _ = Scf(ctx)
+    _ = MemRef(ctx)
+
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()
     module.verify()
