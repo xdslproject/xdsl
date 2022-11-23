@@ -1,8 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Sequence
-from xdsl.dialects.builtin import ContainerOf, IndexType, IntegerAttr, TensorType, UnrankedTensorType
+from xdsl.dialects.builtin import ArrayAttr, ContainerOf, IndexType, IntegerAttr, TensorType, UnrankedTensorType
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue
-from xdsl.irdl import AnyAttr, AnyOf, OperandDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
+from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, OperandDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
+from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass
@@ -10,9 +12,51 @@ class Tensor:
     ctx: MLContext
 
     def __post_init__(self):
+        self.ctx.register_op(Cast)
+        self.ctx.register_op(Empty)
         self.ctx.register_op(Extract)
         self.ctx.register_op(Insert)
         self.ctx.register_op(Yield)
+
+
+@irdl_op_definition
+class Cast(Operation):
+    name: str = "tensor.cast"
+    value = OperandDef(TensorType)
+    result = ResultDef(TensorType)
+
+    def verify_(self) -> None:
+        if self.value.typ.element_type != self.result.typ.element_type:
+            raise VerifyException("Result and input types must match")
+        if self.value.typ.get_num_dims() != self.result.typ.get_num_dims():
+            raise VerifyException("Result and input tensors must have the same number of dimensions")
+
+        num_dims = self.value.typ.get_num_dims()
+        input_shape = self.value.typ.get_shape()
+        output_shape = self.value.typ.get_shape()
+        for i in range(num_dims):
+            if input_shape[i] != -1 and output_shape[i] != -1 and input_shape[i] != output_shape[i]:
+                raise VerifyException("Result and input tensors must have the same static dimensions")
+
+    @staticmethod
+    def get(value: SSAValue | Operation, dst_type: TensorType) -> Cast:
+        return Cast.build(operands=[SSAValue.get(value)], result_types=[dst_type])
+
+
+@irdl_op_definition
+class Empty(Operation):
+    # TODO: fix naming and support dynamic tensors.
+    name: str = "linalg.init_tensor"
+    res = ResultDef(TensorType)
+    static_sizes = AttributeDef(ArrayAttr)
+
+    @staticmethod
+    def get(static_sizes: List[int], ty: Attribute) -> 'Empty':
+        return Empty.create(
+            result_types=[TensorType.from_type_and_list(ty, static_sizes)],
+            attributes={
+                "static_sizes": ArrayAttr.from_list([IntegerAttr.from_int_and_width(s, 64) for s in static_sizes])
+            })
 
 
 @irdl_op_definition
@@ -32,7 +76,7 @@ class Extract(Operation):
 
     @staticmethod
     def get(tensor: SSAValue | Operation,
-            *indices: SSAValue | Operation) -> 'Extract':
+            *indices: SSAValue | Operation) -> Extract:
         operands = [tensor] + [SSAValue.get(i) for i in indices]
         return Extract.create(operands, result_types=[SSAValue.get(tensor).typ.element_type])
 
@@ -67,6 +111,6 @@ class Yield(Operation):
     arguments = VarOperandDef(AnyAttr())
 
     @staticmethod
-    def get(*operands: SSAValue | Operation) -> 'Yield':
+    def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(
             operands=[SSAValue.get(operand) for operand in operands])

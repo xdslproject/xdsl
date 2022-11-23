@@ -197,16 +197,18 @@ class CodegenVisitor(ast.NodeVisitor):
             dim = int(generator.iter.args[0].value)
             tensor_dims.append(dim)
 
-        print(tensor_dims)
+        #print(tensor_dims)
         # Process the generation.
         # self.inserter.set_insertion_point_from_block(block)
         # self.visit(node.elt)
         # op = self.inserter.get_operand()
-        tensor_ty = builtin.TensorType.from_type_and_list(builtin.IndexType(), tensor_dims)
+
+        
         # self.inserter.insert_op(affine.Yield.get(op))
 
         # self.inserter.set_insertion_point_from_block(prev_insertion_point)
-        generate_op = unimplemented.TensorGenerate.get(tensor_ty)
+        # TODO: change this hardcoded type!
+        generate_op = tensor.Empty.get(tensor_dims, builtin.IntegerType.from_width(64))
         self.inserter.insert_op(generate_op)
 
         # for local_ind_var in local_ind_vars:
