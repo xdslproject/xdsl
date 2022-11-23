@@ -211,7 +211,6 @@ class Attribute(ABC):
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
     """
-
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
 
@@ -237,7 +236,6 @@ DataElement = TypeVar("DataElement")
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
-
     data: DataElement
 
     @staticmethod
@@ -254,7 +252,6 @@ class Data(Generic[DataElement], Attribute, ABC):
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
-
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
@@ -274,7 +271,25 @@ class ParametrizedAttribute(Attribute):
 
 
 @dataclass
-class Operation:
+class IRNode(object):
+
+    def is_ancestor(cls: IRNode, op: IRNode) -> bool:
+        "Returns true if the IRNode is an ancestor of another IRNode."
+        if op is cls:
+            return True
+        if op.parent is None:
+            return False
+        return cls.is_ancestor(op.parent)
+
+    def get_toplevel_object(cls: IRNode) -> IRNode:
+        """Get the operation, block, or region ancestor that has no parents."""
+        if cls.parent is None:
+            return cls
+        return cls.parent.get_toplevel_object()
+
+
+@dataclass
+class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: str = field(default="", init=False)
@@ -301,14 +316,20 @@ class Operation:
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
-    def parent_block(self) -> Block | None:
-        return self.parent
-
     def parent_op(self) -> Operation | None:
-        return self.parent.parent.parent if self.parent and self.parent.parent else None
+        try:
+            return self.parent_region().parent
+        except AttributeError:
+            None
 
     def parent_region(self) -> Region | None:
-        return self.parent.parent if self.parent else None
+        try:
+            return self.parent_block().parent
+        except AttributeError:
+            None
+
+    def parent_block(self) -> Block | None:
+        return self.parent
 
     @property
     def operands(self) -> FrozenList[SSAValue]:
@@ -339,10 +360,7 @@ class Operation:
             regions: Sequence[Region] | None = None) -> Operation:
 
         operation = op()
-        if operands:
-            for operand in operands:
-                assert isinstance(
-                    operand, SSAValue), "Operands must be of type SSAValue"
+        if operands is not None:
             operation.operands = operands
         if result_types:
             operation.results = [
@@ -495,22 +513,6 @@ class Operation:
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """
-        Returns true if the operation is an ancestor of the operation, block, or region.
-        """
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)
-
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -524,8 +526,8 @@ class Operation:
         ...
 
 
-@dataclass(eq=False)
-class Block:
+@dataclass()
+class Block(IRNode):
     """A sequence of operations"""
 
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
@@ -587,14 +589,6 @@ class Block:
         b = Block.from_arg_types(block_arg_types)
         b.add_ops(f(*b.args))
         return b
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """Returns true if the block is an ancestor of the operation, block, or region."""
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)
 
     def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
         """
@@ -743,12 +737,6 @@ class Block:
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -757,7 +745,7 @@ class Block:
 
 
 @dataclass
-class Region:
+class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     blocks: list[Block] = field(default_factory=list, init=False)
@@ -956,17 +944,3 @@ class Region:
         self.blocks = []
         for block in region.blocks:
             block.parent = region
-
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        "Returns true if the region is an ancestor of the operation, block, or region."
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)

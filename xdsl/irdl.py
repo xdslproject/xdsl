@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-import types
+from types import UnionType, GenericAlias
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -12,9 +12,10 @@ from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
 from frozenlist import FrozenList
 
 from xdsl import util
-from xdsl.diagnostic import Diagnostic, DiagnosticException
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
+from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.exceptions import VerifyException
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -23,10 +24,6 @@ def error(op: Operation, msg: str):
     diag = Diagnostic()
     diag.add_message(op, msg)
     diag.raise_exception(f"{op.name} operation does not verify", op)
-
-
-class VerifyException(DiagnosticException):
-    ...
 
 
 class IRDLAnnotations(Enum):
@@ -278,7 +275,7 @@ def irdl_to_attr_constraint(
 
     # Union case
     # This is a coercion for an `AnyOf` constraint.
-    if origin == types.UnionType or origin == Union:
+    if origin == UnionType or origin == Union:
         constraints: list[AttrConstraint] = []
         for arg in get_args(irdl):
             # We should not try to convert IRDL annotations, which do not
@@ -763,7 +760,7 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 
     if len(args) != len(arg_defs):
         raise ValueError(
-            f"expected {len(arg_defs)} {get_construct_name(construct)}, "
+            f"Expected {len(arg_defs)} {get_construct_name(construct)}, "
             f"but got {len(args)}")
 
     res = list[Any]()
@@ -1047,7 +1044,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data is '
                                 f'not a class.')
-            if isinstance(expected_type, types.GenericAlias):
+            if isinstance(expected_type, GenericAlias):
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data has '
                                 f'type GenericAlias.')
