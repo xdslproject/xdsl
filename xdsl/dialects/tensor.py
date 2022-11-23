@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import List
-from xdsl.dialects.builtin import ContainerOf, IndexType, TensorType, UnrankedTensorType
-from xdsl.ir import Block, MLContext, Operation, SSAValue
+from typing import List, Optional, Sequence
+from xdsl.dialects.builtin import ContainerOf, IndexType, IntegerAttr, TensorType, UnrankedTensorType
+from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import AnyAttr, AnyOf, OperandDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
 
 
@@ -10,34 +10,9 @@ class Tensor:
     ctx: MLContext
 
     def __post_init__(self):
-        self.ctx.register_op(Generate)
-        self.ctx.register_op(Insert)
         self.ctx.register_op(Extract)
+        self.ctx.register_op(Insert)
         self.ctx.register_op(Yield)
-
-
-@irdl_op_definition
-class Generate(Operation):
-    name: str = "tensor.generate"
-
-    indices = VarOperandDef(IndexType)
-    res = ResultDef(TensorType)
-
-    body = RegionDef()
-
-    def verify_(self) -> None:
-        if self.res.get_num_dims() != len(self.indices):
-            raise Exception("Expected the same amount of indices and tensor dimensions")
-
-        # TODO: all operands must be IndexType. Also, anything else missing here?
-        operand_types = [SSAValue.get(op).typ for op in self.operands]
-
-        entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.typ for arg in entry_block.args]
-        if block_arg_types != operand_types:
-            raise Exception(
-                "Expected BlockArguments to have the same types as the operands"
-            )
 
 
 @irdl_op_definition
@@ -69,6 +44,8 @@ class Insert(Operation):
     tensor = OperandDef(TensorType)
     indices = VarOperandDef(IndexType)
 
+    res = ResultDef(TensorType)
+
     def verify_(self):
         if self.tensor.typ.element_type != self.value.typ:
             raise Exception(
@@ -81,7 +58,7 @@ class Insert(Operation):
     def get(value: Operation | SSAValue, tensor: Operation | SSAValue,
             *indices: Operation | SSAValue) -> 'Insert':
         operands = [value, tensor] + [SSAValue.get(i) for i in indices]
-        return Insert.create(operands)
+        return Insert.create(operands, result_types=[tensor.typ])
 
 
 @irdl_op_definition

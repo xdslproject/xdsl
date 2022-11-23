@@ -7,7 +7,7 @@ from xdsl.frontend.codegen.type_manager import TypeManager
 from xdsl.frontend.codegen.utils.codegen_for import check_for_loop_valid, codegen_affine_for_loop, codegen_scf_for_loop, is_affine_for_loop
 
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
-from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, unimplemented
+from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
 from xdsl.frontend.codegen.exception import CodegenException, prettify
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeHintConverter
@@ -159,6 +159,58 @@ class CodegenVisitor(ast.NodeVisitor):
             op = resolver()(rhs, indexed_value, *indices)
             self.inserter.insert_op(op)
 
+            new_tensor = self.inserter.get_operand()
+            update_op = symref.Update.get(node.id, new_tensor)
+            self.inserter.insert_op(update_op)
+
+    def visit_comprehension(self, node: ast.comprehension):
+        if len(node.ifs) > 0:
+            raise CodegenException("comprehension with if statement is not supported")
+        print(node.target.id)
+        print(node.iter)
+
+    def visit_ListComp(self, node: ast.ListComp):
+        # Assume this is tensor generate for now!
+        
+        # Save previous insertion point.
+        # prev_insertion_point = self.inserter.ip
+
+        # Create a block and region that would contain generated code.
+        # block = Block()
+        # body_region = Region.from_block_list([block])
+        # local_ind_vars = []
+        tensor_dims = []
+
+        # Gather all necessary information from comprehension.
+        for i, generator in enumerate(node.generators):
+            if not isinstance(generator, ast.comprehension):
+                raise CodegenException("every generator must be ast.comprehension class")
+            
+            # Every target id is induction variable used in generation.
+            # block.insert_arg(builtin.IndexType(), i)
+            # local_ind_vars.append(generator.target.id)
+            # self.induction_vars[generator.target.id] = block.args[0]
+
+            if not isinstance(generator.iter, ast.Call) or not isinstance(generator.iter.func, ast.Name) or generator.iter.func.id != "range" or len(generator.iter.args) != 1:
+                raise CodegenException("this list comprehension is not supported")
+        
+            dim = int(generator.iter.args[0].value)
+            tensor_dims.append(dim)
+
+        print(tensor_dims)
+        # Process the generation.
+        # self.inserter.set_insertion_point_from_block(block)
+        # self.visit(node.elt)
+        # op = self.inserter.get_operand()
+        tensor_ty = builtin.TensorType.from_type_and_list(builtin.IndexType(), tensor_dims)
+        # self.inserter.insert_op(affine.Yield.get(op))
+
+        # self.inserter.set_insertion_point_from_block(prev_insertion_point)
+        generate_op = unimplemented.TensorGenerate.get(tensor_ty)
+        self.inserter.insert_op(generate_op)
+
+        # for local_ind_var in local_ind_vars:
+        #     self.induction_vars.pop(local_ind_var)
 
     def visit_BinOp(self, node: ast.BinOp):
         """

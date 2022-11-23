@@ -9,6 +9,17 @@ class Arith:
 
     def __post_init__(self):
         self.ctx.register_op(Cast)
+        self.ctx.register_op(TensorGenerate)
+
+
+@irdl_op_definition
+class TensorGenerate(Operation):
+    name: str = "unimplemented.tensor.generate"
+    result = ResultDef(AnyAttr())
+
+    @staticmethod
+    def get(result_type: Attribute) -> 'TensorGenerate':
+        return TensorGenerate.create(result_types=[result_type])
 
 
 @irdl_op_definition
