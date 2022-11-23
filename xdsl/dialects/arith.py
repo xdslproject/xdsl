@@ -82,11 +82,11 @@ class Constant(Operation):
             attributes={"value": IntegerAttr.from_params(val, typ)})
 
     @staticmethod
-    def from_float32_constant(val: Union[float, Attribute],
-                            typ: Float32Type) -> Constant:
+    def from_anyfloat_constant(val: Union[float, Attribute],
+                               typ: AnyFloat) -> Constant:
         return Constant.create(
             result_types=[typ],
-            attributes={"value": FloatAttr.from_value(val)})
+            attributes={"value": FloatAttr.from_value(val, typ)})
 
 
 @dataclass

@@ -1,10 +1,10 @@
 from xdsl.dialects.scf import Scf, If
 
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (Builtin, IntegerAttr, FloatAttr, i32, i64,
-                                   f32, ModuleOp)
+from xdsl.dialects.builtin import (Builtin, IntegerAttr, i32, i64, f32, f64,
+                                   ModuleOp)
 from xdsl.parser import Parser
-from xdsl.dialects.arith import (Arith, Constant, Addi, Addf, Muli)
+from xdsl.dialects.arith import (Arith, Constant, Addi, Muli)
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
@@ -57,7 +57,7 @@ def test_non_recursive_rewrite():
         prog, expected,
         PatternRewriteWalker(RewriteConst(), apply_recursively=False))
 
-    
+
 def test_non_recursive_rewrite_f32():
     """Test a simple non-recursive rewrite"""
 
@@ -77,7 +77,34 @@ def test_non_recursive_rewrite_f32():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_fconstant = Constant.from_float32_constant(43.4, f32)
+                new_fconstant = Constant.from_anyfloat_constant(43.4, f32)
+                rewriter.replace_matched_op([new_fconstant])
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(RewriteConst(), apply_recursively=False))
+
+
+def test_non_recursive_rewrite_f64():
+    """Test a simple non-recursive rewrite"""
+
+    prog = \
+"""builtin.module() {
+%0 : !f64 = arith.constant() ["value" = 40.4 : !f64]
+%1 : !f64 = arith.addf(%0 : !f64, %0 : !f64)
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !f64 = arith.constant() ["value" = 43.4 : !f64]
+  %1 : !f64 = arith.addf(%0 : !f64, %0 : !f64)
+}"""
+
+    class RewriteConst(RewritePattern):
+
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if isinstance(op, Constant):
+                new_fconstant = Constant.from_anyfloat_constant(43.4, f64)
                 rewriter.replace_matched_op([new_fconstant])
 
     rewrite_and_compare(
@@ -497,7 +524,7 @@ def test_operation_deletion_failure():
     try:
         walker.rewrite_module(module)
         assert False
-    except Exception as e:
+    except Exception:
         pass
 
 
@@ -508,7 +535,6 @@ def test_delete_inner_op():
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
-
 
     expected = \
 """builtin.module() {}"""
@@ -529,7 +555,6 @@ def test_replace_inner_op():
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
-
 
     expected = \
 """builtin.module() {
