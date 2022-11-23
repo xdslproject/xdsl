@@ -55,14 +55,14 @@ class FrontendProgram:
         printer.print_op(self.xdsl_program)
         return file.getvalue().strip()
 
-    def print_mlir(self):
-        print(self.print(Printer.Target.MLIR))
+    def mlir(self):
+        return self.print(Printer.Target.MLIR)
 
-    def print_xdsl(self):
-        print(self.print(Printer.Target.XDSL))
+    def xdsl(self):
+        return self.print(Printer.Target.XDSL)
 
-    def mlir_roundtrip(self, mlir_opt_path):
-        cmd = [mlir_opt_path, "--verify-each"]
+    def mlir_roundtrip(self, mlir_opt_path, args=[]):
+        cmd = [mlir_opt_path] + args
         ip = self.print(Printer.Target.MLIR).encode("utf-8")
         result = subprocess.run(cmd, stdout=subprocess.PIPE, input=ip)
-        print(result.stdout.decode("utf-8").strip())
+        return result.stdout.decode("utf-8").strip()

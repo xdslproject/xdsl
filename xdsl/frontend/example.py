@@ -14,9 +14,11 @@ with CodeContext(p):
         return out
 
 p.compile()
-p.print_xdsl()
+# print(p.xdsl())
 p.desymref()
-p.print_xdsl()
-p.print_mlir()
+# print(p.xdsl())
+# print(p.mlir())
 
-p.mlir_roundtrip(mlir_opt_path="../llvm-project/build/bin/mlir-opt")
+MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"
+mlir_output = p.mlir_roundtrip(MLIR_OPT_PATH, args=["--verify-each"])
+print(mlir_output)
