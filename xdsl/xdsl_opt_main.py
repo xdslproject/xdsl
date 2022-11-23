@@ -16,6 +16,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.tensor import Tensor
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.diagnostic import DiagnosticException
@@ -171,6 +172,7 @@ class xDSLOptMain:
         _ = CMath(self.ctx)
         _ = IRDL(self.ctx)
         _ = LLVM(self.ctx)
+        _ = Tensor(self.ctx)
 
     def register_all_frontends(self):
         """

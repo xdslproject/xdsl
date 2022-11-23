@@ -35,7 +35,7 @@ class CodeContext(AbstractContextManager):
             if isinstance(node, ast.With) and \
                node.lineno == frame.f_lineno - frame.f_code.co_firstlineno + 1:
 
-                # Found the program AST. Store it for later complation.
+                # Found the program AST. Store it for later compilation.
                 self.program.stmts = node.body
 
     def __exit__(self, *args):

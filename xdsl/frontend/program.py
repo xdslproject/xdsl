@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.func import FuncOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
@@ -45,7 +44,7 @@ class FrontendProgram:
         self.xdsl_program.verify()
 
     def desymref(self):
-        """Desymref the generated xDSL."""
+        """Desymrefy the generated xDSL."""
         DesymrefyPass.run(self.xdsl_program)
         self.xdsl_program.verify()
 
