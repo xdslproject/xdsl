@@ -1,4 +1,5 @@
 import ast
+import subprocess
 
 from dataclasses import dataclass, field
 from io import StringIO
@@ -48,9 +49,20 @@ class FrontendProgram:
         DesymrefyPass.run(self.xdsl_program)
         self.xdsl_program.verify()
 
-    def __str__(self):
-        """Printing support of generated xDSL."""
+    def print(self, target):
         file = StringIO("")
-        printer = Printer(stream=file)
+        printer = Printer(stream=file, target=target)
         printer.print_op(self.xdsl_program)
         return file.getvalue().strip()
+
+    def print_mlir(self):
+        print(self.print(Printer.Target.MLIR))
+
+    def print_xdsl(self):
+        print(self.print(Printer.Target.XDSL))
+
+    def mlir_roundtrip(self, mlir_opt_path):
+        cmd = [mlir_opt_path, "--verify-each"]
+        ip = self.print(Printer.Target.MLIR).encode("utf-8")
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, input=ip)
+        print(result.stdout.decode("utf-8").strip())

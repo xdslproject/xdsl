@@ -14,5 +14,9 @@ with CodeContext(p):
         return out
 
 p.compile()
+p.print_xdsl()
 p.desymref()
-print(p)
+p.print_xdsl()
+p.print_mlir()
+
+p.mlir_roundtrip(mlir_opt_path="../llvm-project/build/bin/mlir-opt")
