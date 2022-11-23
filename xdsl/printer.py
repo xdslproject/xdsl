@@ -500,7 +500,13 @@ class Printer:
             self.print(f"\"{attr_tuple[0]}\"")
         else:
             self.print(f"\"{attr_tuple[0]}\" = ")
-            self.print_attribute(attr_tuple[1])
+            # TODO: this is a temorary hack to get affine maps.
+            if attr_tuple[0] == "lower_bound" or attr_tuple[0] == "upper_bound":
+                self.print("affine_map<() -> (")
+                self.print(attr_tuple[1].value.data)
+                self.print(")>")
+            else:
+                self.print_attribute(attr_tuple[1])
 
     def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
         if len(attributes) == 0:
