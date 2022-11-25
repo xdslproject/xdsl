@@ -77,4 +77,4 @@ with CodeContext(p):
         a: i32 = 1 if cond else 2
 
 p.compile()
-print(p)
+print(p.xdsl())

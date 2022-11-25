@@ -88,4 +88,4 @@ with CodeContext(p):
 
 p.compile()
 p.desymref()
-print(p)
+print(p.xdsl())

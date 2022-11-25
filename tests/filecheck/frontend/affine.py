@@ -44,4 +44,4 @@ with CodeContext(p):
                     pass
 
 p.compile()
-print(p)
+print(p.xdsl())
