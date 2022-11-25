@@ -175,6 +175,86 @@ class Promoter:
             update_op = symref.Update.get(symbol, new_for_op.results[i])
             insert_after(new_for_op, update_op)
 
+    def promote_scf_for(rewriter: Rewriter, for_op: scf.For, symbols: List[str]):
+        """Promotes a single scf.for operation."""
+
+        Promoter._check_promotion(for_op)
+        body_block = for_op.body.blocks[0]
+
+        def is_read_only(symbol: str, block: Block) -> bool:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+                    return False
+            return True
+
+        def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Fetch) and op.attributes["symbol"].data.data == symbol:
+                    return op
+            return None
+
+        def get_update_op(symbol: str, block: Block) -> None | symref.Update:
+            # Pre-condition: symbol is used in the block.
+            for op in block.ops:
+                if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+                    return op
+            return None
+
+        yield_operands: List[SSAValue] = []
+        for_operands: List[SSAValue] = []
+        promoted_symbols: List[str] = []
+
+        for symbol in symbols:
+            if is_read_only(symbol, body_block):
+                # Read-only symbols can be hoisted outside of the loop.
+                fetch_op = get_fetch_op(symbol, body_block)
+                new_fetch_op = fetch_op.clone()
+                insert_before(for_op, new_fetch_op)
+                rewriter.replace_op(fetch_op, [], [new_fetch_op.results[0]])
+            else:
+                # Otherwise symbol is updated. The update becomes the yielded value
+                # and must be recorded as a block argument.
+                fetch_op = get_fetch_op(symbol, body_block)
+                update_op = get_update_op(symbol, body_block)
+
+                yield_value = update_op.operands[0]
+                yield_operands.append(yield_value)
+                update_as_arg = body_block.insert_arg(yield_value.typ, len(body_block.args))
+                rewriter.erase_op(update_op)
+
+                # Check if the symbol was also fetched. If not, we have to create
+                # a fetch operation.
+                if fetch_op is None:
+                    new_fetch_op = symref.Fetch.get(symbol, yield_value.typ)
+                    insert_before(for_op, new_fetch_op)
+                else:
+                    new_fetch_op = fetch_op.clone()
+                    insert_before(for_op, new_fetch_op)
+                    rewriter.replace_op(fetch_op, [], [update_as_arg])
+
+                # Record the symbol value before the loop to pass it as an operand.
+                for_operands.append(new_fetch_op.results[0])
+                promoted_symbols.append(symbol)
+
+        # Add affine.yield operation and construct a new affine.for.
+        rewriter.replace_op(body_block.ops[-1], scf.Yield.get(*yield_operands))
+
+        new_body = Region()
+        for_op.body.clone_into(new_body)
+        # TODO: fix this terrible code!
+        new_for_op = scf.For.from_region(for_op.arguments[0], for_op.arguments[1], for_op.arguments[2], for_operands, new_body)
+        insert_after(for_op, new_for_op)
+        print(for_op.results)
+        rewriter.erase_op(for_op)
+
+        # Lastly, make sure the symbol is updated with the results of affine.for.
+        print(new_for_op.results)
+        for i, symbol in enumerate(promoted_symbols):
+            update_op = symref.Update.get(symbol, new_for_op.results[i])
+            insert_after(new_for_op, update_op)
+
     def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
         """Promotes a single scf.if operation."""
 

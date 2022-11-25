@@ -94,7 +94,7 @@ class For(Operation):
     def from_region(lower_bound: Operation | SSAValue, upper_bound: Operation | SSAValue, step: Operation | SSAValue, operands: list[Operation | SSAValue], region: Region) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
         return For.build(operands=[[lower_bound, upper_bound, step] + [operand for operand in operands]],
-                         result_types=[[]],
+                         result_types=[result_types],
                          regions=[region])
 
 
