@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_manager import TypeManager
-from xdsl.frontend.codegen.utils.codegen_for import check_for_loop_valid, codegen_affine_for_loop, codegen_scf_for_loop, is_affine_for_loop
-
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
 from xdsl.frontend.codegen.exception import CodegenException, prettify
@@ -351,20 +349,137 @@ class CodegenVisitor(ast.NodeVisitor):
         else:
             raise CodegenException(f"unknown constant {node.value} of type {type(node.value)}")
 
+    def check_for_loop_valid(self, node: ast.For):
+        """Aborts if this loop cannot be lowered to xDSL or MLIR."""
+
+        # Make sure we do not support Python hackery like:
+        # for x in xs:      for x1, x2, x3 in xs:
+        #   ...         or    ...
+        # else:
+        #   ...
+        if len(node.orelse) > 0:
+            raise CodegenException(f"unexpected else clause in for loop on line {node.lineno}")
+        if not isinstance(node.target, ast.Name):
+            raise CodegenException(f"expected a single induction target variable, found multiple in for loop on line {node.lineno}")
+
+        # In xDSL/MLIR we can only have range-based loops as there is no concept of iterator.
+        if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range" and 1 <= len(node.iter.args) <= 3:
+            return
+        raise CodegenException(f"not a range-based loop on line {node.lineno}")
+
+
+    def is_affine_for_loop(self, node: ast.For) -> bool:
+        """Returns true if this for loop is affine."""
+        for arg in node.iter.args:
+            if not isinstance(arg, ast.Constant):
+                return False
+        return True
+
+
+    def codegen_affine_for_loop(self, node: ast.For):
+        """Gnereates xDSL for affine for loops."""
+
+        # First, proces range arguments which should simply constants.
+        args = node.iter.args
+        start = 0
+        end = 0
+        step = 1
+        if len(args) == 1:
+            end = int(args[0].value)
+        elif len(args) == 2:
+            start = int(args[0].value)
+            end = int(args[1].value)
+        else:
+            start = int(args[0].value)
+            end = int(args[1].value)
+            step = int(args[2].value)
+
+        # Save previous insertion point.
+        prev_insertion_point = self.inserter.ip
+
+        entry_block = Block()
+        entry_block.insert_arg(builtin.IndexType(), 0)
+        self.induction_vars[node.target.id] = entry_block.args[0]
+
+        body_region = Region.from_block_list([entry_block])
+
+        # Create affine.for operation and insert it.
+        op = affine.For.from_region([], start, end, body_region, step)
+        self.inserter.set_insertion_point_from_block(prev_insertion_point)
+        self.inserter.insert_op(op)
+        self.inserter.set_insertion_point_from_block(entry_block)
+
+        # Generate xDSL for the loop body.
+        for stmt in node.body:
+            self.visit(stmt)
+        self.inserter.insert_op(affine.Yield.get())
+
+        # Reset insertion point back. 
+        self.inserter.set_insertion_point_from_block(prev_insertion_point)
+        self.induction_vars.pop(node.target.id)
+
+
+    def codegen_scf_for_loop(self, node: ast.For):
+        args = node.iter.args
+        if len(args) == 1:
+            start_op = arith.Constant.from_int_constant(0, builtin.IndexType())
+            self.inserter.insert_op(start_op)
+            self.visit(args[0])
+            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            step_op = arith.Constant.from_int_constant(1, builtin.IndexType())
+            self.inserter.insert_op(step_op)
+        elif len(args) == 2:
+            self.visit(args[0])
+            start_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            self.visit(args[1])
+            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            step_op = arith.Constant.from_int_constant(1, builtin.IndexType())
+            self.inserter.insert_op(step_op)
+        else:
+            self.visit(args[0])
+            start_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            self.visit(args[1])
+            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            self.visit(args[2])
+            step_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+        
+        # Save previous insertion point.
+        prev_insertion_point = self.inserter.ip
+
+        entry_block = Block()
+        entry_block.insert_arg(builtin.IndexType(), 0)
+        self.induction_vars[node.target.id] = entry_block.args[0]
+        body_region = Region.from_block_list([entry_block])
+
+        # Create scf.for operation and insert it.
+        op = scf.For.from_region(start_op, end_op, step_op, [], body_region)
+        self.inserter.set_insertion_point_from_block(prev_insertion_point)
+        self.inserter.insert_op(op)
+        self.inserter.set_insertion_point_from_block(entry_block)
+
+        # Generate xDSL for the loop body.
+        for stmt in node.body:
+            self.visit(stmt)
+        self.inserter.insert_op(scf.Yield.get())
+
+        # Reset insertion point back. 
+        self.inserter.set_insertion_point_from_block(prev_insertion_point)
+        self.induction_vars.pop(node.target.id)
+
     def visit_For(self, node: ast.For):
         """Visits a for loop and creates scf.for or affine.for operation."""
 
         # First, check if this loop can be lowered to xDSL.
-        check_for_loop_valid(node)
+        self.check_for_loop_valid(node)
 
         assert isinstance(node.target, ast.Name)
 
         # Next, we have to check if the loop is affine: for now we simply
         # check if all range arguments are constants. If not, we have to generate scf.for
-        if is_affine_for_loop(node):
-            codegen_affine_for_loop(self.induction_vars, self.inserter, node, self.visit)
+        if self.is_affine_for_loop(node):
+            self.codegen_affine_for_loop(node)
         else:
-            codegen_scf_for_loop(self.inserter, node)
+            self.codegen_scf_for_loop(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """

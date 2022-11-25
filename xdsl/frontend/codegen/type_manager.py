@@ -38,7 +38,12 @@ class TypeManager:
         if lhs_ty == rhs.typ:
             return rhs
         
-        if isinstance(lhs_ty, IntegerType):
+        if isinstance(lhs_ty, IndexType):
+            if isinstance(rhs.typ, IntegerType):
+                cast_op = arith.IndexCast.get(rhs, lhs_ty)
+            else:
+                cast_op = unimplemented.Cast.get(rhs, lhs_ty)
+        elif isinstance(lhs_ty, IntegerType):
             if isinstance(rhs.typ, IndexType):
                 cast_op = arith.IndexCast.get(rhs, lhs_ty)
             elif isinstance(rhs.typ, IntegerType):

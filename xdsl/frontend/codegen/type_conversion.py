@@ -52,7 +52,14 @@ class TypeHintConverter:
                         res = []
                         if isinstance(ty_args, ast.Tuple):
                             for ty_arg in ty_args.elts:
-                                v = int(ty_arg.slice.value)
+                                if isinstance(ty_arg.slice, ast.UnaryOp):
+                                    op_name = ty_arg.slice.op.__class__.__name__
+                                    if op_name == "USub":
+                                        # TODO: This is a dynamic shape! But we should implement this properly.
+                                        assert int(ty_arg.slice.operand.value) == 1
+                                        v = -int(ty_arg.slice.operand.value)
+                                else:
+                                    v = int(ty_arg.slice.value)
                                 res.append(v)
                         args.append(res)
                     else:
