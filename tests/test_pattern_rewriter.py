@@ -16,9 +16,9 @@ from xdsl.printer import Printer
 def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
     ctx = MLContext()
-    _ = Builtin(ctx)
-    _ = Arith(ctx)
-    _ = Scf(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Scf)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -448,8 +448,8 @@ def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    arith = Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     prog = \
 """builtin.module() {

@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast)
+                    TypeVar, cast, Iterator)
+import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -16,10 +17,45 @@ OpT = TypeVar('OpT', bound='Operation')
 
 
 @dataclass
+class Dialect:
+    """Contains the operations and attributes of a specific dialect"""
+    _operations: list[Operation] = field(default_factory=list,
+                                         init=True,
+                                         repr=True)
+    _attributes: list[Attribute] = field(default_factory=list,
+                                         init=True,
+                                         repr=True)
+
+    @property
+    def operations(self) -> Iterator[Operation]:
+        return iter(self._operations)
+
+    @property
+    def attributes(self) -> Iterator[Attribute]:
+        return iter(self._attributes)
+
+    def __call__(self, ctx: MLContext) -> None:
+        print(
+            "Calling a dialect in order to register it is deprecated and will soon be removed.",
+            file=sys.stderr)
+        # TODO; Remove this function in a future release.
+        assert isinstance(ctx, MLContext)
+        ctx.register_dialect(self)
+
+
+@dataclass
 class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+
+    def register_dialect(self, dialect: Dialect):
+        """Register a dialect. Operation and Attribute names should be unique"""
+        for op in dialect.operations:
+            self.register_op(op)
+
+        for attr in dialect.attributes:
+            self.register_attr(attr)
 
     def register_op(self, op: type[Operation]) -> None:
         """Register an operation definition. Operation names should be unique."""

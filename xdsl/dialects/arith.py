@@ -6,7 +6,7 @@ from typing import Union
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
                                    Attribute, AnyFloat)
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue, Dialect
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef)
 from xdsl.utils.exceptions import VerifyException
@@ -14,53 +14,6 @@ from xdsl.utils.exceptions import VerifyException
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-
-@dataclass
-class Arith:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(Constant)
-
-        # Integer-like
-        self.ctx.register_op(Addi)
-        self.ctx.register_op(Subi)
-        self.ctx.register_op(Muli)
-        self.ctx.register_op(DivUI)
-        self.ctx.register_op(DivSI)
-        self.ctx.register_op(FloorDivSI)
-        self.ctx.register_op(CeilDivSI)
-        self.ctx.register_op(CeilDivUI)
-        self.ctx.register_op(RemUI)
-        self.ctx.register_op(RemSI)
-        self.ctx.register_op(MinSI)
-        self.ctx.register_op(MaxSI)
-        self.ctx.register_op(MinUI)
-        self.ctx.register_op(MaxUI)
-
-        # Float-like
-        self.ctx.register_op(Addf)
-        self.ctx.register_op(Subf)
-        self.ctx.register_op(Mulf)
-        self.ctx.register_op(Divf)
-
-        # Comparison/Condition
-        self.ctx.register_op(Cmpi)
-        self.ctx.register_op(Select)
-
-        # Logical
-        self.ctx.register_op(AndI)
-        self.ctx.register_op(OrI)
-        self.ctx.register_op(XOrI)
-
-        # Shift
-        self.ctx.register_op(ShLI)
-        self.ctx.register_op(ShRUI)
-        self.ctx.register_op(ShRSI)
-
-        # Min/Max
-        self.ctx.register_op(Minf)
-        self.ctx.register_op(Maxf)
 
 
 @irdl_op_definition
@@ -627,3 +580,47 @@ class Minf(BinaryOperation):
         operand1 = SSAValue.get(operand1)
         return Minf.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
+
+Arith = Dialect([
+        Constant,
+
+        # Integer-like
+        Addi,
+        Subi,
+        Muli,
+        DivUI,
+        DivSI,
+        FloorDivSI,
+        CeilDivSI,
+        CeilDivUI,
+        RemUI,
+        RemSI,
+        MinSI,
+        MaxSI,
+        MinUI,
+        MaxUI,
+
+        # Float-like
+        Addf,
+        Subf,
+        Mulf,
+        Divf,
+
+        # Comparison/Condition
+        Cmpi,
+        Select,
+
+        # Logical
+        AndI,
+        OrI,
+        XOrI,
+
+        # Shift
+        ShLI,
+        ShRUI,
+        ShRSI,
+
+        # Min/Max
+        Minf,
+        Maxf],
+        [])
