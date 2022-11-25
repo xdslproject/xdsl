@@ -716,7 +716,7 @@ class ModuleOp(Operation):
         return op
 
 
-# Type shortcuts
+# FloatXXType shortcuts
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()

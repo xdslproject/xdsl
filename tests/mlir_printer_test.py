@@ -73,7 +73,7 @@ class ParamAttrWithCustomFormat(ParametrizedAttribute):
     param1: ParameterDef[ParamAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"~~")
+        printer.print("~~")
 
 
 def print_as_mlir_and_compare(test_prog: str, expected: str):

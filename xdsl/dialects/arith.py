@@ -470,9 +470,6 @@ class Cmpi(Operation):
             result_types=[IntegerType.from_width(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
-    def verify_(self) -> None:
-        pass
-
     @staticmethod
     def from_mnemonic(operand1: Union[Operation, SSAValue],
                       operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
