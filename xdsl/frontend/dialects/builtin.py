@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import xdsl.dialects.builtin as builtin
 
 from typing import Generic, Tuple, TypeAlias, TypeVar, Literal
@@ -22,51 +24,51 @@ class IntegerType(Generic[_Width, _Signedness], FrontendType):
     def to_xdsl():
         return builtin.IntegerType.from_width
     
-    def __add__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __add__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import addi
         return addi(self, other)
     
-    def __sub__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __sub__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import subi
         return subi(self, other)
     
-    def __mul__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __mul__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import muli
         return muli(self, other)
     
-    def __and__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __and__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import andi
         return andi(self, other)
 
-    def __rshift__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __rshift__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shrsi
         return shrsi(self, other)
     
-    def __lshift__(self, other: 'IntegerType[_Width, _Signedness]') -> 'IntegerType[_Width, _Signedness]':
+    def __lshift__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shli
         return shli(self, other)
 
-    def __eq__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __eq__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "eq")
     
-    def __ne__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __ne__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "ne")
     
-    def __le__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __le__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "sle")
     
-    def __lt__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __lt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "slt")
     
-    def __ge__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __ge__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "sge")
     
-    def __gt__(self, other: 'IntegerType[_Width, _Signedness]') -> 'i1':
+    def __gt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "sgt")
 
@@ -91,6 +93,54 @@ class IndexType(FrontendType):
     def to_xdsl():
         return builtin.IndexType
 
+    def __add__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import addi
+        return addi(self, other)
+    
+    def __sub__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import subi
+        return subi(self, other)
+    
+    def __mul__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import muli
+        return muli(self, other)
+    
+    def __and__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import andi
+        return andi(self, other)
+
+    def __rshift__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import shrsi
+        return shrsi(self, other)
+    
+    def __lshift__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.arith import shli
+        return shli(self, other)
+
+    def __eq__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "eq")
+    
+    def __ne__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "ne")
+    
+    def __le__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sle")
+    
+    def __lt__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "slt")
+    
+    def __ge__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sge")
+    
+    def __gt__(self, other: IndexType) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+        return cmpi(self, other, "sgt")
+
 
 # Type alias for index type.
 index: TypeAlias = IndexType
@@ -102,15 +152,15 @@ class Float16Type(FrontendType):
     def to_xdsl():
         return builtin.Float16Type
 
-    def __add__(self, other: 'f16') -> 'f16':
+    def __add__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import addf
         return addf(self, other)
     
-    def __sub__(self, other: 'f16') -> 'f16':
+    def __sub__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import subf
         return subf(self, other)
     
-    def __mul__(self, other: 'f16') -> 'f16':
+    def __mul__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import mulf
         return mulf(self, other)
 
@@ -121,15 +171,15 @@ class Float32Type(FrontendType):
     def to_xdsl():
         return builtin.Float32Type
     
-    def __add__(self, other: 'f32') -> 'f32':
+    def __add__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import addf
         return addf(self, other)
     
-    def __sub__(self, other: 'f32') -> 'f32':
+    def __sub__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import subf
         return subf(self, other)
     
-    def __mul__(self, other: 'f32') -> 'f32':
+    def __mul__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import mulf
         return mulf(self, other)
 
@@ -140,15 +190,15 @@ class Float64Type(FrontendType):
     def to_xdsl():
         return builtin.Float64Type
     
-    def __add__(self, other: 'f64') -> 'f64':
+    def __add__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import addf
         return addf(self, other)
     
-    def __sub__(self, other: 'f64') -> 'f64':
+    def __sub__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import subf
         return subf(self, other)
     
-    def __mul__(self, other: 'f64') -> 'f64':
+    def __mul__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import mulf
         return mulf(self, other)
 

@@ -137,6 +137,7 @@ class CodegenVisitor(ast.NodeVisitor):
             while isinstance(node, ast.Subscript):
                 self.visit(node.slice)
                 index = self.inserter.get_operand()
+                index = self.type_manager.match(builtin.IndexType(), index)
                 indices.append(index)
                 node = node.value
         
@@ -164,41 +165,87 @@ class CodegenVisitor(ast.NodeVisitor):
     def visit_comprehension(self, node: ast.comprehension):
         if len(node.ifs) > 0:
             raise CodegenException("comprehension with if statement is not supported")
-        print(node.target.id)
-        print(node.iter)
 
     def visit_ListComp(self, node: ast.ListComp):
         # Assume that target of generation is always a tensor.
         tensor_dims = []
 
         # Gather all necessary information from comprehension.
+        local_ind_vars = []
+        bounds = []
         for generator in node.generators:
             if not isinstance(generator, ast.comprehension):
                 raise CodegenException("every generator must be ast.comprehension class")
+
+            if len(generator.ifs) > 0:
+                raise CodegenException("ni ifs in generator are supported")
             
             # Every target id is induction variable used in generation.
-            # block.insert_arg(builtin.IndexType(), i)
-            # local_ind_vars.append(generator.target.id)
-            # self.induction_vars[generator.target.id] = block.args[0]
+            if generator.target.id != "_":
+                local_ind_vars.append(generator.target.id)
 
             if not isinstance(generator.iter, ast.Call) or not isinstance(generator.iter.func, ast.Name) or generator.iter.func.id != "range" or len(generator.iter.args) != 1:
                 raise CodegenException("this list comprehension is not supported")
         
-            if not isinstance(generator.iter.args[0], ast.Constant):
-                raise CodegenException("list comprehension with a constant number of iterations is supported")
-
-            dim = int(generator.iter.args[0].value)
+            if isinstance(generator.iter.args[0], ast.Constant):
+                dim = int(generator.iter.args[0].value)
+            else:
+                # Dynamically shaped tensor!
+                dim = -1
+                self.visit(generator.iter.args[0])
+                op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+                bounds.append(op)
             tensor_dims.append(dim)
-
-        # TODO: for now we only support contants/
-        if not isinstance(node.elt, ast.Constant):
-            raise CodegenException("list comprehension must return a constant only!")
         
-        self.visit(node.elt)
-        constant = self.inserter.get_operand()
+        has_static_shape = len(list(filter(lambda d: d == -1, tensor_dims))) == 0
 
-        splat_op = tensor.Splat.get(constant, tensor_dims)
-        self.inserter.insert_op(splat_op)
+        # Static shape is just a tensor splat.
+        if has_static_shape:
+            try:
+                self.visit(node.elt)
+                constant = self.inserter.get_operand()
+                splat_op = tensor.Splat.get(constant, tensor_dims)
+                self.inserter.insert_op(splat_op)
+            except:
+                # TODO: in this case we have something like this:
+                # = [i + 2 for i in range(3)]
+                # Ideally, we eant to convert it to tensor.from_elements
+                # as the list comprehension is just [2, 3, 4]. One idea would
+                # be to execute list comptehension to get the list and simply
+                # process that AST :)
+                raise CodegenException("Unsupported list comprehension!")
+        else:
+            # Otherwise it is a tensor generate.
+            prev_insertion_point = self.inserter.ip
+
+            # Record induction variables.
+            block = Block()
+            for i, var in enumerate(local_ind_vars):
+                block.insert_arg(builtin.IndexType(), i)
+                self.induction_vars[var] = block.args[i]
+            self.inserter.set_insertion_point_from_block(block)
+
+            # Make sure we register the index type conversion.
+            import xdsl.frontend.dialects.builtin as frontend_builtin
+            if builtin.IndexType().__class__ not in self.hint_converter.type_backward_map:
+                self.hint_converter.type_backward_map[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
+
+            # Visit the actual generated value.
+            self.visit(node.elt)
+            result = self.inserter.get_operand()
+            el_ty = result.typ
+            self.inserter.insert_op(tensor.Yield.get(result))
+
+            # Create tensor.generate operation and insert it.
+            body_region = Region.from_block_list([block])
+            self.inserter.set_insertion_point_from_block(prev_insertion_point)
+
+            op = tensor.Generate.from_region(bounds, body_region, tensor_dims, el_ty)
+            self.inserter.insert_op(op)
+
+            for var in local_ind_vars:
+                self.induction_vars.pop(var)
+
 
     def visit_BinOp(self, node: ast.BinOp):
         """
@@ -212,7 +259,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # TODO: check types and add implicit casts if necessary.
         rhs = self.type_manager.match(lhs.typ, rhs)
 
-        # Try to resolve thi sbinary operator.
+        # Try to resolve this binary operator.
         op_name: str = node.op.__class__.__name__
         frontend_type = self.hint_converter.type_backward_map[lhs.typ.__class__]
         resolver = OpResolver.resolve_op_overload(op_name, frontend_type)
@@ -474,6 +521,10 @@ class CodegenVisitor(ast.NodeVisitor):
 
         assert isinstance(node.target, ast.Name)
 
+        import xdsl.frontend.dialects.builtin as frontend_builtin
+        if builtin.IndexType().__class__ not in self.hint_converter.type_backward_map:
+            self.hint_converter.type_backward_map[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
+
         # Next, we have to check if the loop is affine: for now we simply
         # check if all range arguments are constants. If not, we have to generate scf.for
         if self.is_affine_for_loop(node):
@@ -708,6 +759,7 @@ class CodegenVisitor(ast.NodeVisitor):
         while isinstance(node, ast.Subscript):
             self.visit(node.slice)
             index = self.inserter.get_operand()
+            index = self.type_manager.match(builtin.IndexType(), index)
             indices.append(index)
             node = node.value
         

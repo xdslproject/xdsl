@@ -2,16 +2,18 @@ import xdsl.dialects.arith as arith
 
 from typing import TypeVar, Union
 from xdsl.dialects.builtin import Signedness
-from xdsl.frontend.dialects.builtin import IntegerType, i1, f16, f32, f64
+from xdsl.frontend.dialects.builtin import IndexType, i1, i32, i64, f16, f32, f64
 from xdsl.ir import Operation
 
 
-# Type parameters for integers.
-_Width = TypeVar("_Width", bound=int, covariant=True)
-_Signedness = TypeVar("_Signedness", bound=Signedness, covariant=True)
+_IntType = TypeVar("_IntType", bound=Union[IndexType, i1, i32, i64], covariant=True)
 
 
-def addi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def addi(lhs: _IntType, rhs: _IntType) -> _IntType:
+    pass
+
+
+def addi(lhs: IndexType, rhs:IndexType) -> IndexType:
     pass
 
 
@@ -19,7 +21,7 @@ def resolve_addi() -> Operation:
     return arith.Addi.get
 
 
-def subi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def subi(lhs: _IntType, rhs: _IntType) -> _IntType:
     pass
 
 
@@ -27,7 +29,7 @@ def resolve_subi() -> Operation:
     return arith.Subi.get
 
 
-def muli(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def muli(lhs: _IntType, rhs: _IntType) -> _IntType:
     pass
 
 
@@ -35,7 +37,7 @@ def resolve_muli() -> Operation:
     return arith.Muli.get
 
 
-def andi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def andi(lhs: _IntType, rhs: _IntType) -> _IntType:
     pass
 
 
@@ -43,7 +45,7 @@ def resolve_andi() -> Operation:
     return arith.AndI.get
 
 
-def shrsi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def shrsi(lhs: _IntType, rhs: _IntType) -> _IntType:
     pass
 
 
@@ -51,7 +53,7 @@ def resolve_shrsi() -> Operation:
     return arith.ShRSI.get
 
 
-def shli(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+def shli(lhs: _IntType, rhs: _IntType) -> _IntType:
     pass
 
 
@@ -59,7 +61,7 @@ def resolve_shli() -> Operation:
     return arith.ShLI.get
 
 
-def cmpi(lhs: IntegerType[_Width, _Signedness], rhs: IntegerType[_Width, _Signedness], mnemonic: str) -> i1:
+def cmpi(lhs: _IntType, rhs: _IntType, mnemonic: str) -> i1:
     pass
 
 

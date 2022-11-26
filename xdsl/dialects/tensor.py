@@ -14,6 +14,7 @@ class Tensor:
     def __post_init__(self):
         self.ctx.register_op(Cast)
         self.ctx.register_op(Empty)
+        self.ctx.register_op(Generate)
         self.ctx.register_op(Extract)
         self.ctx.register_op(Insert)
         self.ctx.register_op(Splat)
@@ -61,9 +62,27 @@ class Empty(Operation):
 
 
 @irdl_op_definition
+class Generate(Operation):
+    name: str = "tensor.generate"
+    arguments = VarOperandDef(AnyAttr())
+    res = ResultDef(TensorType)
+
+    body = RegionDef()
+
+    def verify_(self) -> None:
+        pass
+
+    @staticmethod
+    def from_region(bounds: list[Operation | SSAValue], region: Region, dims: List[int], el_ty: Attribute) -> Generate:
+        return Generate.build(operands=[bounds],
+                         result_types=[TensorType.from_type_and_list(el_ty, dims)],
+                         regions=[region])
+
+
+@irdl_op_definition
 class Splat(Operation):
     name: str = "tensor.splat"
-    value = OperandDef(IntegerType)
+    value = OperandDef(AnyAttr())
     result = ResultDef(TensorType)
 
     @staticmethod
