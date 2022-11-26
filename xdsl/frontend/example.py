@@ -6,10 +6,10 @@ from xdsl.frontend.dialects.builtin import i1, i64, TensorType
 p = FrontendProgram()
 with CodeContext(p):
 
-    def num2bits(inp: i64) -> TensorType[i1, Tuple[Literal[64],]]:
+    def num2bits(inp: i64, n: i64) -> TensorType[i1, Tuple[Literal[-1],]]:
         assert inp < (1 << 64)
-        out: TensorType[i1, Tuple[Literal[64],]] = [0 for i in range(64)]
-        for i in range(64):
+        out: TensorType[i1, Tuple[Literal[-1],]] = [0 for i in range(n)]
+        for i in range(n):
             out[i] = ((inp >> i) & 1)
         return out
 

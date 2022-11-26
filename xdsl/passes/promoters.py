@@ -246,11 +246,9 @@ class Promoter:
         # TODO: fix this terrible code!
         new_for_op = scf.For.from_region(for_op.arguments[0], for_op.arguments[1], for_op.arguments[2], for_operands, new_body)
         insert_after(for_op, new_for_op)
-        print(for_op.results)
         rewriter.erase_op(for_op)
 
         # Lastly, make sure the symbol is updated with the results of affine.for.
-        print(new_for_op.results)
         for i, symbol in enumerate(promoted_symbols):
             update_op = symref.Update.get(symbol, new_for_op.results[i])
             insert_after(new_for_op, update_op)
