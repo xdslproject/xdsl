@@ -72,6 +72,10 @@ class IntegerType(Generic[_Width, _Signedness], FrontendType):
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "sgt")
 
+    def __pow__(self, other: IntegerType[_Width, _Signedness]) -> IntegerType[_Width, _Signedness]:
+        from xdsl.frontend.dialects.math import ipowi
+        return ipowi(self, other)
+
 
 # Type aliases for signless integers.
 i1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
@@ -140,6 +144,10 @@ class IndexType(FrontendType):
     def __gt__(self, other: IndexType) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
         return cmpi(self, other, "sgt")
+    
+    def __pow__(self, other: IndexType) -> IndexType:
+        from xdsl.frontend.dialects.math import ipowi
+        return ipowi(self, other)
 
 
 # Type alias for index type.

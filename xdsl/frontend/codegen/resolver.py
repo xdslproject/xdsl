@@ -24,6 +24,7 @@ op_to_python = {
     "Lt": "__lt__",
     "Gt": "__gt__",
     "GtE": "__ge__",
+    "Pow": "__pow__",
 
     # These do not really have a name.
     "__getitem__": "__getitem__",

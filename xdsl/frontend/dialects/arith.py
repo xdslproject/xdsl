@@ -1,7 +1,6 @@
 import xdsl.dialects.arith as arith
 
 from typing import TypeVar, Union
-from xdsl.dialects.builtin import Signedness
 from xdsl.frontend.dialects.builtin import IndexType, i1, i32, i64, f16, f32, f64
 from xdsl.ir import Operation
 
@@ -10,10 +9,6 @@ _IntType = TypeVar("_IntType", bound=Union[IndexType, i1, i32, i64], covariant=T
 
 
 def addi(lhs: _IntType, rhs: _IntType) -> _IntType:
-    pass
-
-
-def addi(lhs: IndexType, rhs:IndexType) -> IndexType:
     pass
 
 
