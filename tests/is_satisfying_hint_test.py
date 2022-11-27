@@ -1,4 +1,4 @@
-from xdsl.util import is_satisfying_hint
+from xdsl.utils.hints import is_satisfying_hint
 from typing import Any, TypeAlias
 
 

@@ -6,13 +6,13 @@ from typing import (TypeAlias, List, cast, Type, Sequence, Optional,
                     TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (MLContext, Data, MLIRType, ParametrizedAttribute,
-                     Operation, SSAValue, Region)
+                     Operation, SSAValue, Region, Attribute)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
                        SingleBlockRegionDef, Generic, GenericData,
-                       AttrConstraint, Attribute, AnyAttr)
+                       AttrConstraint, AnyAttr)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -716,7 +716,7 @@ class ModuleOp(Operation):
         return op
 
 
-# Type shortcuts
+# FloatXXType shortcuts
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()

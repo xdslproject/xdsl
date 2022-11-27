@@ -18,7 +18,7 @@ from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
-from xdsl.utils.diagnostic import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException
 
 from typing import Dict, Callable, List
 

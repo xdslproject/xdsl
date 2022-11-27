@@ -1,4 +1,6 @@
 from io import IOBase
+from dataclasses import dataclass
+
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
 from xdsl.irdl import AttrConstraint
@@ -9,7 +11,6 @@ from xdsl.dialects.irdl import (
     AnyOfTypeConstraintAttr, DynTypeBaseConstraintAttr,
     DynTypeParamsConstraintAttr, TypeParamsConstraintAttr,
     NamedTypeConstraintAttr)
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True, eq=False)
