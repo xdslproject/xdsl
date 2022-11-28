@@ -1,9 +1,11 @@
 from xdsl.dialects.scf import Scf, If
 
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64, ModuleOp
+from xdsl.dialects.builtin import (Builtin, IntegerAttr, FloatAttr, i32, i64,
+                                   f32, ModuleOp)
 from xdsl.parser import Parser
-from xdsl.dialects.arith import Arith, Constant, Addi, Muli
+from xdsl.dialects.arith import (Arith, Constant, Addi, Addf, Muli,
+                                 F32Constant)
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
@@ -37,12 +39,16 @@ def test_non_recursive_rewrite():
 """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 42 : !i32]
 %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+%2 : !f32 = arith.f32constant() ["value" = 40.4 : !f32]
+%3 : !f32 = arith.addi(%2 : !f32, %2 : !f32)
 }"""
 
     expected = \
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 43 : !i32]
   %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+  %2 : !f32 = arith.f32constant() ["value" = 43.4 : !f32]
+  %3 : !f32 = arith.addi(%2 : !f32, %2 : !f32)
 }"""
 
     class RewriteConst(RewritePattern):
@@ -51,6 +57,10 @@ def test_non_recursive_rewrite():
             if isinstance(op, Constant):
                 new_constant = Constant.from_int_constant(43, i32)
                 rewriter.replace_matched_op([new_constant])
+
+            if isinstance(op, F32Constant):
+                new_fconstant = F32Constant.from_float_constant(43.4, f32)
+                rewriter.replace_matched_op([new_fconstant])
 
     rewrite_and_compare(
         prog, expected,

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
-                                   IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, SSAValue, Attribute
+                                   IntegerType, Float32Type, IntegerAttr, FloatAttr)
+from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef)
 from xdsl.utils.exceptions import VerifyException
@@ -20,6 +20,7 @@ class Arith:
 
     def __post_init__(self):
         self.ctx.register_op(Constant)
+        self.ctx.register_op(F32Constant)
 
         # Integer-like
         self.ctx.register_op(Addi)
@@ -80,6 +81,24 @@ class Constant(Operation):
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
+
+
+@irdl_op_definition
+class F32Constant(Operation):
+    name: str = "arith.f32constant"
+    result = ResultDef(AnyAttr())
+    value = AttributeDef(AnyAttr())
+
+    @staticmethod
+    def from_attr(attr: Attribute, typ: Attribute) -> F32Constant:
+        return F32Constant.create(result_types=[typ], attributes={"value": attr})
+
+    @staticmethod
+    def from_float_constant(val: Union[float, Attribute],
+                            typ: Float32Type) -> F32Constant:
+        return F32Constant.create(
+            result_types=[typ],
+            attributes={"value": FloatAttr.from_float_and_width(val, 32)})
 
 
 @dataclass
