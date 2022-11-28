@@ -31,11 +31,15 @@ jobs:
       run: |
         pip install --upgrade pip
     - name: Install the package locally
-      run: pip install -e .
-    - name: Test with pytest
+      run: pip install -e .[extras]
+    - name: Test with pytest and check code coverage
       run: |
-        pytest tests/
+        pytest --cov --cov-config=.coveragerc --cov-report=xml tests/
     - name: Execute lit tests
       run: |
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/ 
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
