@@ -29,7 +29,8 @@ def test_func():
             a := Constant.from_int_constant(1, i32),
             b := Constant.from_int_constant(2, i32),
             Addi.get(a, b)
-        ]))
+        ]))   # yapf: disable
+    # yapf disabled for structured look of this test
 
     assert len(func0.regions[0].ops) == 3
     assert len(func1.regions[0].ops) == 3
