@@ -61,4 +61,5 @@ setup(
     package_data={"xdsl": ["py.typed"]},
     install_requires=reqs,
     extras_require=extras_require,
+    zip_safe=False,
 )
