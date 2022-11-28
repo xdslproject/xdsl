@@ -20,7 +20,7 @@ from xdsl.dialects.tensor import Tensor
 from xdsl.dialects.math import Math
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
-from xdsl.utils.diagnostic import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException
 
 from typing import Dict, Callable, List
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
-from xdsl.ir import MLContext
-from xdsl.irdl import (VarOperandDef, irdl_op_definition, Attribute,
-                       VarResultDef, OperandDef, SSAValue, Operation,
-                       RegionDef, Region, Block, AnyAttr)
-from xdsl.dialects.builtin import IndexType, IntegerType
 from dataclasses import dataclass
 from typing import List
+
+from xdsl.ir import MLContext, SSAValue, Block, Region, Operation, Attribute
+from xdsl.irdl import (VarOperandDef, irdl_op_definition, VarResultDef,
+                       OperandDef, RegionDef, AnyAttr)
+from xdsl.dialects.builtin import IntegerType
 
 
 @dataclass
@@ -70,25 +70,6 @@ class For(Operation):
     res = VarResultDef(AnyAttr())
 
     body = RegionDef()
-
-    def verify_(self) -> None:
-        pass
-        # if len(self.operands) != len(self.results):
-        #     raise Exception("Expected the same amount of operands and results")
-
-        # operand_types = [SSAValue.get(op).typ for op in self.operands]
-        # if (operand_types != [res.typ for res in self.results]):
-        #     raise Exception(
-        #         "Expected all operands and result pairs to have matching types"
-        #     )
-
-        # entry_block: Block = self.body.blocks[0]
-        # block_arg_types = [IndexType(), IndexType(), IndexType(), IndexType()] + operand_types
-        # arg_types = [arg.typ for arg in entry_block.args]
-        # if block_arg_types != arg_types:
-        #     raise Exception(
-        #         "Expected BlockArguments to have the same types as the operands"
-        #     )
 
     @staticmethod
     def from_region(lower_bound: Operation | SSAValue, upper_bound: Operation | SSAValue, step: Operation | SSAValue, operands: list[Operation | SSAValue], region: Region) -> For:

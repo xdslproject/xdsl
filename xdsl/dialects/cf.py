@@ -3,9 +3,9 @@ from typing import List, Union
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
-from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (AttributeDef, irdl_op_definition, VarOperandDef, AnyAttr, Block,
-                       Operation, OperandDef, AttrSizedOperandSegments)
+from xdsl.ir import MLContext, SSAValue, Operation, Block
+from xdsl.irdl import (AttributeDef, irdl_op_definition, VarOperandDef, AnyAttr, OperandDef,
+                       AttrSizedOperandSegments)
 
 
 @dataclass
