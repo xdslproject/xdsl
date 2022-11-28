@@ -33,7 +33,7 @@ class OneBuilderAttr(Data[str]):
         return OneBuilderAttr(str(data))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: Parser) -> None:
         pass
 
     @staticmethod
@@ -95,7 +95,7 @@ def test_two_builders_second_builder():
 
 
 def test_two_builders_bad_args():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError):
         TwoBuildersAttr.build([])
 
 
@@ -110,7 +110,7 @@ class BuilderDefaultArgAttr(Data[str]):
         return BuilderDefaultArgAttr(str(data))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: Parser) -> None:
         pass
 
     @staticmethod
@@ -139,7 +139,7 @@ class BuilderUnionArgAttr(Data[str]):
         return BuilderUnionArgAttr(str(data))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: Parser) -> None:
         pass
 
     @staticmethod
@@ -158,5 +158,5 @@ def builder_union_arg_second():
 
 
 def builder_union_arg_bad_argument():
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(TypeError):
         BuilderUnionArgAttr.build([])

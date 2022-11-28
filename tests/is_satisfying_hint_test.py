@@ -185,7 +185,7 @@ def test_dict_hint_failure():
     """
     assert not is_satisfying_hint({"": ""}, dict[int, str])
     assert not is_satisfying_hint({0: 0}, dict[int, str])
-    assert not is_satisfying_hint({0: "0", 2: "1", 2: 2}, dict[int, str])
+    assert not is_satisfying_hint({0: "0", 2: 2}, dict[int, str])
     assert not is_satisfying_hint({0: "0", 2: "1", "2": "2"}, dict[int, str])
 
 

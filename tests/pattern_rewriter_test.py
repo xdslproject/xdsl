@@ -16,9 +16,9 @@ from io import StringIO
 def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
+    _ = Builtin(ctx)
+    _ = Arith(ctx)
+    _ = Scf(ctx)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
