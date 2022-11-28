@@ -1,17 +1,16 @@
-from xdsl.dialects.scf import Scf, If
+from io import StringIO
 
-from xdsl.printer import Printer
+from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import (Builtin, IntegerAttr, i32, i64, f32, f64,
                                    ModuleOp)
-from xdsl.parser import Parser
-from xdsl.dialects.arith import (Arith, Constant, Addi, Muli)
+from xdsl.dialects.scf import Scf, If
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
                                    PatternRewriter, AnonymousRewritePattern,
                                    GreedyRewritePatternApplier)
-
-from io import StringIO
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 def rewrite_and_compare(prog: str, expected_prog: str,
@@ -50,62 +49,8 @@ def test_non_recursive_rewrite():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int_constant(43, i32)
+                new_constant = Constant.from_int(43, i32)
                 rewriter.replace_matched_op([new_constant])
-
-    rewrite_and_compare(
-        prog, expected,
-        PatternRewriteWalker(RewriteConst(), apply_recursively=False))
-
-
-def test_non_recursive_rewrite_f32():
-    """Test a simple non-recursive rewrite"""
-
-    prog = \
-"""builtin.module() {
-%0 : !f32 = arith.constant() ["value" = 40.4 : !f32]
-%1 : !f32 = arith.addf(%0 : !f32, %0 : !f32)
-}"""
-
-    expected = \
-"""builtin.module() {
-  %0 : !f32 = arith.constant() ["value" = 43.4 : !f32]
-  %1 : !f32 = arith.addf(%0 : !f32, %0 : !f32)
-}"""
-
-    class RewriteConst(RewritePattern):
-
-        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            if isinstance(op, Constant):
-                new_fconstant = Constant.from_anyfloat_constant(43.4, f32)
-                rewriter.replace_matched_op([new_fconstant])
-
-    rewrite_and_compare(
-        prog, expected,
-        PatternRewriteWalker(RewriteConst(), apply_recursively=False))
-
-
-def test_non_recursive_rewrite_f64():
-    """Test a simple non-recursive rewrite"""
-
-    prog = \
-"""builtin.module() {
-%0 : !f64 = arith.constant() ["value" = 40.4 : !f64]
-%1 : !f64 = arith.addf(%0 : !f64, %0 : !f64)
-}"""
-
-    expected = \
-"""builtin.module() {
-  %0 : !f64 = arith.constant() ["value" = 43.4 : !f64]
-  %1 : !f64 = arith.addf(%0 : !f64, %0 : !f64)
-}"""
-
-    class RewriteConst(RewritePattern):
-
-        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-            if isinstance(op, Constant):
-                new_fconstant = Constant.from_anyfloat_constant(43.4, f64)
-                rewriter.replace_matched_op([new_fconstant])
 
     rewrite_and_compare(
         prog, expected,
@@ -131,7 +76,7 @@ def test_non_recursive_rewrite_reversed():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int_constant(43, i32)
+                new_constant = Constant.from_int(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -160,7 +105,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
+            rewriter.replace_matched_op(Constant.from_int(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -184,7 +129,7 @@ def test_op_type_rewrite_pattern_static_decorator():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
+        rewriter.replace_matched_op(Constant.from_int(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -288,7 +233,7 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def constant_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Constant.from_int_constant(43, i32)])
+        rewriter.replace_matched_op([Constant.from_int(43, i32)])
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
@@ -319,7 +264,7 @@ def test_insert_op_before_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_before_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -344,7 +289,7 @@ def test_insert_op_at_pos():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
 
     rewrite_and_compare(
@@ -369,7 +314,7 @@ def test_insert_op_before():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_before(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -394,7 +339,7 @@ def test_insert_op_after():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_after(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -419,7 +364,7 @@ def test_insert_op_after_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -444,7 +389,7 @@ def test_insert_op_after_matched_op_reversed():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -563,7 +508,7 @@ def test_replace_inner_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        rewriter.replace_op(op.ops[0], [Constant.from_int_constant(42, i32)])
+        rewriter.replace_op(op.ops[0], [Constant.from_int(42, i32)])
 
     rewrite_and_compare(
         prog, expected,

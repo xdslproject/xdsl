@@ -435,7 +435,7 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    def rewrite_module(self, op: (ModuleOp | Operation)):
+    def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
         self._rewrite_op(op)
 
