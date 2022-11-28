@@ -5,6 +5,8 @@ from xdsl.dialects.builtin import IntegerAttr, i32
 
 
 def test_func():
+    # This test creates two FuncOps with different approaches that
+    # represent the same code and checks their structure
     # Create two constants and add them, add them in a region and
     # create a function
     a = Constant.from_int_constant(1, i32)
@@ -18,9 +20,23 @@ def test_func():
     # Use this region to create a func0
     func0 = FuncOp.from_region("func0", [], [], region)
 
+    # Alternative generation of func0
+    func1 = FuncOp.from_region(
+        "func1",
+        [],
+        [],
+        Region.from_operation_list([
+            a := Constant.from_int_constant(1, i32),
+            b := Constant.from_int_constant(2, i32),
+            Addi.get(a, b)
+        ]))
+
     assert len(func0.regions[0].ops) == 3
+    assert len(func1.regions[0].ops) == 3
     assert type(func0.regions[0].ops[0]) is Constant
+    assert type(func1.regions[0].ops[0]) is Constant
     assert type(func0.regions[0].ops[1]) is Constant
+    assert type(func1.regions[0].ops[1]) is Constant
     assert type(func0.regions[0].ops[2]) is Addi
 
 
