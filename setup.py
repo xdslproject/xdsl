@@ -58,6 +58,8 @@ setup(
     author_email="mathieu.fehr@ed.ac.uk",
     license="MIT",
     packages=find_packages(),
+    package_data={"xdsl": ["py.typed"]},
     install_requires=reqs,
     extras_require=extras_require,
+    zip_safe=False,
 )
