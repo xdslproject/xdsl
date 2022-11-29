@@ -19,7 +19,7 @@ def test_simple_forgotten_op():
     ctx = MLContext()
     _ = Arith(ctx)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
 
     add.verify()
@@ -47,7 +47,7 @@ def test_forgotten_op_non_fail():
     ctx = MLContext()
     _ = Arith(ctx)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
     add2 = Addi.get(add, add)
     mod = ModuleOp.from_region_or_ops([add, add2])

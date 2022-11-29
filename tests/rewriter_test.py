@@ -64,7 +64,7 @@ def test_replace_op_one_op():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
-        new_constant_op = Constant.from_int_constant(43, i32)
+        new_constant_op = Constant.from_int_and_width(43, i32)
         rewriter.replace_op(constant_op, new_constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
@@ -87,7 +87,7 @@ def test_replace_op_multiple_op():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
-        new_constant = Constant.from_int_constant(1, i32)
+        new_constant = Constant.from_int_and_width(1, i32)
         new_add = Addi.get(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
@@ -294,7 +294,7 @@ def test_preserve_naming_single_op():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
-        new_constant = Constant.from_int_constant(1, i32)
+        new_constant = Constant.from_int_and_width(1, i32)
 
         rewriter.replace_op(constant_op, [new_constant])
 
@@ -318,7 +318,7 @@ def test_preserve_naming_multiple_ops():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
-        new_constant = Constant.from_int_constant(1, i32)
+        new_constant = Constant.from_int_and_width(1, i32)
         new_add = Addi.get(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
