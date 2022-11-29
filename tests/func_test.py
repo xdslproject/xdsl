@@ -9,8 +9,8 @@ def test_func():
     # represent the same code and checks their structure
     # Create two constants and add them, add them in a region and
     # create a function
-    a = Constant.from_int_constant(1, i32)
-    b = Constant.from_int_constant(2, i32)
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
     c = Addi.get(a, b)
 
@@ -26,8 +26,8 @@ def test_func():
         [],
         [],
         Region.from_operation_list([
-            a := Constant.from_int_constant(1, i32),
-            b := Constant.from_int_constant(2, i32),
+            a := Constant.from_int_and_width(1, i32),
+            b := Constant.from_int_and_width(2, i32),
             Addi.get(a, b)
         ]))   # yapf: disable
     # yapf disabled for structured look of this test
@@ -73,9 +73,9 @@ def test_func_II():
 
 def test_return():
     # Create two constants and add them, then return
-    a = Constant.from_int_constant(1, i32)
-    b = Constant.from_int_constant(2, i32)
-    c = Constant.from_int_constant(3, i32)
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
+    c = Constant.from_int_and_width(3, i32)
 
     # Use these region to create a func0
     ret0 = Return.get(a, b, c)
