@@ -5,7 +5,7 @@ from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute)
+                                   Attribute, AnyFloat)
 from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef)
@@ -74,17 +74,18 @@ class Constant(Operation):
         return Constant.create(result_types=[typ], attributes={"value": attr})
 
     @staticmethod
-    def from_int(val: Union[int, Attribute],
-                 typ: Union[int, Attribute]) -> Constant:
+    def from_int_and_width(val: Union[int, Attribute],
+                           typ: Union[int, Attribute]) -> Constant:
         if isinstance(typ, int):
             typ = IntegerType.from_width(typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
 
+    # To add tests for this constructor
     @staticmethod
-    def from_float(val: Union[float, Attribute],
-                   typ: AnyFloat) -> Constant:
+    def from_float_and_width(val: Union[float, Attribute],
+                             typ: AnyFloat) -> Constant:
         return Constant.create(
             result_types=[typ],
             attributes={"value": FloatAttr.from_value(val, typ)})

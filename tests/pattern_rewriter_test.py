@@ -49,7 +49,7 @@ def test_non_recursive_rewrite():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int(43, i32)
+                new_constant = Constant.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -76,7 +76,7 @@ def test_non_recursive_rewrite_reversed():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int(43, i32)
+                new_constant = Constant.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -105,7 +105,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(Constant.from_int(43, i32))
+            rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -129,7 +129,7 @@ def test_op_type_rewrite_pattern_static_decorator():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(Constant.from_int(43, i32))
+        rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -233,7 +233,7 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def constant_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Constant.from_int(43, i32)])
+        rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
@@ -264,7 +264,7 @@ def test_insert_op_before_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -289,7 +289,7 @@ def test_insert_op_at_pos():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
 
     rewrite_and_compare(
@@ -314,7 +314,7 @@ def test_insert_op_before():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -339,7 +339,7 @@ def test_insert_op_after():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -364,7 +364,7 @@ def test_insert_op_after_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -389,7 +389,7 @@ def test_insert_op_after_matched_op_reversed():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -508,7 +508,7 @@ def test_replace_inner_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        rewriter.replace_op(op.ops[0], [Constant.from_int(42, i32)])
+        rewriter.replace_op(op.ops[0], [Constant.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
         prog, expected,
