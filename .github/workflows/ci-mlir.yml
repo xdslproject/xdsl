@@ -9,7 +9,7 @@ on:
     branches:
       - main
       - mlir_based_ci
-      - mlir_based_ci4
+      - mlir-based-ci5
   pull_request:
     branches:
       - main
