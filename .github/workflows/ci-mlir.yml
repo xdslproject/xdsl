@@ -41,6 +41,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2.5
       with:
         key: ${{ runner.os }}-${{ env.MLIR-Version }}
+        ref: refs/heads/main
         # LLVM needs serious cache size
         max-size: 6G
 
