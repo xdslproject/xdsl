@@ -9,9 +9,11 @@ on:
     branches:
       - main
       - mlir_based_ci
+      - mlir_based_ci4
   pull_request:
     branches:
       - main
+      - mlir_based_ci
   workflow_dispatch:
 
 jobs:
@@ -42,6 +44,7 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2.5
       with:
         key: ${{ runner.os }}-${{ env.MLIR-Version }}
+        restore-keys: ${{ runner.os }}-${{ env.MLIR-Version }}
         # LLVM needs serious cache size
         max-size: 6G
 
