@@ -629,7 +629,7 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     @staticmethod
     @builder
     def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> Attribute:
+                   outputs: List[Attribute]) -> FunctionType:
         return FunctionType(
             [ArrayAttr.from_list(inputs),
              ArrayAttr.from_list(outputs)])
@@ -637,7 +637,7 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     @staticmethod
     @builder
     def from_attrs(inputs: ArrayAttr[Attribute],
-                   outputs: ArrayAttr[Attribute]) -> Attribute:
+                   outputs: ArrayAttr[Attribute]) -> FunctionType:
         return FunctionType([inputs, outputs])
 
 

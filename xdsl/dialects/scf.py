@@ -33,7 +33,7 @@ class If(Operation):
     @staticmethod
     def get(cond: SSAValue | Operation, return_types: List[Attribute],
             true_region: Region | List[Block] | List[Operation],
-            false_region: Region | List[Block] | List[Operation]):
+            false_region: Region | List[Block] | List[Operation]) -> If:
         return If.build(operands=[cond],
                         result_types=[return_types],
                         regions=[true_region, false_region])
