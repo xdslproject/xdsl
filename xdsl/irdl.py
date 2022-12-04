@@ -360,6 +360,9 @@ class OperandDef(OperandOrResultDef):
         self.constr = attr_constr_coercion(typ)
 
 
+Operand = Annotated[SSAValue, OperandDef]
+
+
 @dataclass(init=False)
 class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
@@ -472,6 +475,11 @@ class OpDef:
             if origin != Annotated:
                 continue
             args = get_args(field_type)
+
+            if len(args) == 3:
+                if args[1] is OperandDef:
+                    op_def.operands.append((field_name, OperandDef(args[-1])))
+                    continue
 
             if isinstance(args[-1], OperandDef):
                 op_def.operands.append((field_name, args[-1]))

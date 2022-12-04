@@ -6,10 +6,10 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr)
 from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
-                       OptSingleBlockRegionDef, SingleBlockRegionDef,
+                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
                        VarRegionDef, VarSingleBlockRegionDef,
                        irdl_op_definition, ResultDef, VarResultDef,
-                       AttrSizedResultSegments, OperandDef, VarOperandDef,
+                       AttrSizedResultSegments, VarOperandDef,
                        AttrSizedOperandSegments, AttributeDef, RegionDef,
                        OptAttributeDef, Region)
 
@@ -156,7 +156,7 @@ def test_var_mixed_builder():
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
-    res: Annotated[SSAValue, OperandDef(StringAttr)]
+    res: Annotated[Operand, StringAttr]
 
 
 def test_operand_builder_operation():
