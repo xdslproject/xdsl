@@ -1,8 +1,9 @@
 import ast
+import xdsl.dialects.builtin as builtin
 
 from dataclasses import dataclass, field
-from typing import _GenericAlias, Any, Dict, Optional, Type
-from xdsl.frontend.dialects.builtin import FrontendType
+from typing import _GenericAlias, Any, Dict, List, Optional, Type
+from xdsl.frontend.dialects.builtin import FrontendType, TensorType, IntegerType
 from xdsl.ir import Attribute
 
 
@@ -36,6 +37,23 @@ class TypeHintConverter:
     def _convert_subscript(self, hint: ast.Subscript) -> Attribute:
         ty_name = hint.value.id
         ty = self.globals[ty_name]
+
+        # TODO: this should also be defined by the frontend program.
+        if ty_name == "List":
+            # This is a dynamically sized tensor!
+            num_dims = 1
+            node = hint.slice
+            while isinstance(node, ast.Subscript):
+                num_dims += 1
+                node = node.slice
+
+            assert isinstance(node, ast.Name)
+            el_ty = self._convert_name(node)
+            xdsl_ty = builtin.TensorType.from_type_and_list(el_ty, [-1 for d in range(num_dims)])
+            if xdsl_ty.__class__ not in self.type_backward_map:
+                    self.type_backward_map[xdsl_ty.__class__] = TensorType
+            return xdsl_ty
+
 
         # Any type hint must be a frontend type.
         if issubclass(ty, FrontendType):
@@ -89,6 +107,19 @@ class TypeHintConverter:
         ty_name: str = hint.id
         if ty_name in self.type_cache:
             return self.type_cache[ty_name]
+
+        # TODO: move this to frontend program so that we can associate types and have them in cache already!
+        # TODO: index can be builtin as well?
+        if ty_name == "int":
+            xdsl_ty = builtin.IntegerType.from_width(64)
+            if xdsl_ty.__class__ not in self.type_backward_map:
+                self.type_backward_map[xdsl_ty.__class__] = IntegerType
+            return xdsl_ty
+        if ty_name == "bool":
+            xdsl_ty = builtin.IntegerType.from_width(1)
+            if xdsl_ty.__class__ not in self.type_backward_map:
+                self.type_backward_map[xdsl_ty.__class__] = IntegerType
+            return xdsl_ty
 
         # Otherwise, we should get the class from imports based on the type
         # name.

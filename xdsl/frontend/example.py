@@ -1,4 +1,4 @@
-from typing import Literal, Tuple
+from typing import List, Literal, Tuple
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.builtin import i1, i64, TensorType
@@ -6,9 +6,9 @@ from xdsl.frontend.dialects.builtin import i1, i64, TensorType
 p = FrontendProgram()
 with CodeContext(p):
 
-    def num2bits(inp: i64, n: i64) -> TensorType[i1, Tuple[Literal[-1],]]:
+    def num2bits(inp: int, n: int) -> List[bool]:
         assert inp < 2 ** 64
-        out: TensorType[i1, Tuple[Literal[-1],]] = [0 for i in range(n)]
+        out: List[bool] = [False for i in range(n)]
         for i in range(n):
             out[i] = ((inp >> i) & 1)
         return out
