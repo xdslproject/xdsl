@@ -6,6 +6,7 @@ from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
+from xdsl.frontend.codegen.functions import FunctionVisitor
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
 
@@ -29,8 +30,14 @@ class FrontendProgram:
     def compile(self):
         """Generates xDSL from the source program."""
 
+        # TODO: what about cross-module functions? Support them later. For now,
+        # let's store all of them.
+        func_visitor = FunctionVisitor(self.globals)
+        for stmt in self.stmts:
+            func_visitor.visit(stmt)
+
         # Run code generation.
-        visitor = CodegenVisitor(self.globals)
+        visitor = CodegenVisitor(self.globals, func_visitor.functions)
         for stmt in self.stmts:
             visitor.visit(stmt)
         ops = visitor.inserter.op_container

@@ -1,8 +1,10 @@
 import ast
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
+from xdsl.frontend.codegen.functions import FunctionVisitor
 from xdsl.frontend.codegen.resolver import OpResolver
+from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.frontend.codegen.type_manager import TypeManager
 from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
@@ -29,6 +31,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
     # TODO: fix symbol table to allow cross-module scoping.
     symbol_table: Dict[str, Attribute] = field(init=False)
+    symbol_idx: Dict[str, int] = field(init=False)
     """Symbol table used to query types for symref symbols per function."""
 
     # TODO: fix function table to allow cross-module scoping.
@@ -40,7 +43,9 @@ class CodegenVisitor(ast.NodeVisitor):
     inserter: OpInserter = field(init=False)
     """Class responsible for inserting new xDSL ops at the right place."""
 
-    def __init__(self, globals: Dict[str, Any]):
+    functions:  Dict[str, Tuple[List[Attribute], List[Attribute]]]
+
+    def __init__(self, globals: Dict[str, Any], functions:  Dict[str, Tuple[List[Attribute], List[Attribute]]]):
         inserter = OpInserter()
         
         self.globals = globals
@@ -48,8 +53,10 @@ class CodegenVisitor(ast.NodeVisitor):
         self.induction_vars = dict()
         self.hint_converter = TypeHintConverter(globals)
         self.symbol_table = dict()
+        self.symbol_idx = dict()
         self.function_table = dict()
         self.inserter = inserter
+        self.functions = functions
 
     def visit(self, node: ast.AST):
         return super().visit(node)
@@ -79,16 +86,30 @@ class CodegenVisitor(ast.NodeVisitor):
 
         a: i32 = 3
         """
-        # First, find the type of the LHS based on the type hint and create a new
-        # symref declaration.
-        lhs_ty = self.hint_converter.convert_hint(node.annotation)
-        declare_op = symref.Declare.get(node.target.id)
-        self.inserter.insert_op(declare_op)
-
         # Make sure the symbol table knows the type information. For now we only allow
         # referring to the symbols within the function, but in future that should change!
         # TODO: fix symbol table.
-        self.symbol_table[node.target.id] = lhs_ty
+        # self.symbol_table[node.target.id] = lhs_ty
+
+        line, ty = self.symbol_table[node.target.id][0]
+        if node.lineno == line:
+            lhs_ty = ty
+        elif node.lineno > line:
+            self.symbol_table[node.target.id].pop(0)
+            line, ty = self.symbol_table[node.target.id][0]
+            assert line == node.lineno
+            self.symbol_idx[node.target.id] += 1
+            lhs_ty = ty
+        else:
+            raise Exception("something went wrong with inference!")
+
+        # First, find the type of the LHS based on the type hint and create a new
+        # symref declaration.
+        # lhs_ty = self.hint_converter.convert_hint(node.annotation)
+
+        symbol_name = "{}{}".format(node.target.id, self.symbol_idx[node.target.id])
+        declare_op = symref.Declare.get(symbol_name)
+        self.inserter.insert_op(declare_op)
 
         # Also, smake sure that we know what type the RHS expression should have.
         # self.state.inferred_type = lhs_ty
@@ -106,7 +127,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # TODO: check types and add implicit casts if necessary.
         rhs = self.type_manager.match(lhs_ty, rhs)
 
-        update_op = symref.Update.get(node.target.id, rhs)
+        update_op = symref.Update.get(symbol_name, rhs)
         self.inserter.insert_op(update_op)
         # self.state.inferred_type = None
 
@@ -121,13 +142,35 @@ class CodegenVisitor(ast.NodeVisitor):
         rhs = self.inserter.get_operand()
 
         if isinstance(node.targets[0], ast.Name):
-            lhs_ty = self.symbol_table[node.targets[0].id]
+            # Check if this is an assignemnt.
+            #line, ty = self.symbol_table[node.targets[0].id][0]
+            if node.lineno == self.symbol_table[node.targets[0].id][0][0]:
+                ty = self.symbol_table[node.targets[0].id][0][1]
+                symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
+                declare_op = symref.Declare.get(symbol_name)
+                self.inserter.insert_op(declare_op)
+                lhs_ty = ty
+
+            elif len(self.symbol_table[node.targets[0].id]) > 1 and node.lineno == self.symbol_table[node.targets[0].id][1][0]:
+                # This means this is an assignemt!
+                self.symbol_table[node.targets[0].id].pop(0)
+                ty = self.symbol_table[node.targets[0].id][0][1]
+                self.symbol_idx[node.targets[0].id] += 1
+
+                symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
+                declare_op = symref.Declare.get(symbol_name)
+                self.inserter.insert_op(declare_op)
+                lhs_ty = ty
+
+            else:
+                lhs_ty = self.symbol_table[node.targets[0].id][0][1]
             # self.state.inferred_type = lhs_ty
 
             # TODO: check types and add implicit casts if necessary.
             rhs = self.type_manager.match(lhs_ty, rhs)
 
-            update_op = symref.Update.get(node.targets[0].id, rhs)
+            symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
+            update_op = symref.Update.get(symbol_name, rhs)
             self.inserter.insert_op(update_op)
             return
         
@@ -159,7 +202,7 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(op)
 
             new_tensor = self.inserter.get_operand()
-            update_op = symref.Update.get(node.id, new_tensor)
+            update_op = symref.Update.get("{}{}".format(node.id, self.symbol_idx[node.id]), new_tensor)
             self.inserter.insert_op(update_op)
 
     def visit_comprehension(self, node: ast.comprehension):
@@ -540,7 +583,14 @@ class CodegenVisitor(ast.NodeVisitor):
             ...
         """
         # First, check if function signature is valid.
+        # TODO: given that we know function signature, some things can be dropped here.
         check_function_signature(node)
+
+        # Type inference!
+        self.symbol_table = TypeInference(self.globals, self.functions).run_on_function(node)
+        self.symbol_idx = dict()
+        for k, v in self.symbol_table.items():
+            self.symbol_idx[k] = 0
 
         # Then, convert type in the function signature.
         arg_types = get_argument_types(node, self.hint_converter)
@@ -555,14 +605,14 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Reset the symbol table.
         # TODO: this doesn't handle global variables at the moment.
-        self.symbol_table = dict()
+        # self.symbol_table = dict()
 
         # All arguments are declared using symref.
         for i, arg in enumerate(node.args.args):
-            symbol_name = arg.arg
+            symbol_name = "{}{}".format(arg.arg, self.symbol_idx[arg.arg])
             arg = entry_block.insert_arg(arg_types[i], i)
             entry_block.add_op(symref.Declare.get(symbol_name))
-            self.symbol_table[symbol_name] = arg_types[i]
+            # self.symbol_table[symbol_name] = arg_types[i]
             entry_block.add_op(symref.Update.get(symbol_name, arg))
 
         # Parse function body.
@@ -656,8 +706,11 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.stack.append(self.induction_vars[node.id])
             return 
 
-        ty = self.symbol_table[node.id]
-        fetch_op = symref.Fetch.get(node.id, ty)
+        # TODO: make this look nicer, but name always uses the first!
+        ty = self.symbol_table[node.id][0][1]
+
+        symbol_name = "{}{}".format(node.id, self.symbol_idx[node.id])
+        fetch_op = symref.Fetch.get(symbol_name, ty)
         self.inserter.insert_op(fetch_op)
 
     def visit_Return(self, node: ast.Return):

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from xdsl.dialects import arith, tensor, unimplemented
 
-from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, TensorType, f32, i32, i1
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, TensorType, f32, i64, i1
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.ir import Attribute, Operation, SSAValue
 
@@ -20,7 +20,7 @@ class TypeManagerException(Exception):
 # TODO: This should be defined by the frontend program.
 default_type_map = {
     bool: i1,
-    int: i32,
+    int: i64,
     float: f32,
     str: str,
 }
