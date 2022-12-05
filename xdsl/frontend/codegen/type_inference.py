@@ -214,7 +214,9 @@ class TypeInferenceVisitor(ast.NodeVisitor):
                     dims.append(-1)                
             
             # Infer type of the element.
+            self.recurse = True
             element_type = self.visit(expr.elt)
+            self.recurse = False
             expr_type = TensorType.from_type_and_list(element_type, dims)
 
         elif isinstance(expr, ast.UnaryOp):
