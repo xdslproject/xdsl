@@ -376,6 +376,9 @@ class OptOperandDef(VarOperandDef, OptionalDef):
     """An IRDL optional operand definition."""
 
 
+OptOperand = Annotated[SSAValue | None, OptOperandDef]
+
+
 @dataclass(init=False)
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
@@ -487,10 +490,12 @@ class OpDef:
                     op_def.operands.append(
                         (field_name, VarOperandDef(args[-1])))
                     continue
+                elif args[1] is OptOperandDef:
+                    op_def.operands.append(
+                        (field_name, OptOperandDef(args[-1])))
+                    continue
 
-            if isinstance(args[-1], OperandDef):
-                op_def.operands.append((field_name, args[-1]))
-            elif isinstance(args[-1], ResultDef):
+            if isinstance(args[-1], ResultDef):
                 op_def.results.append((field_name, args[-1]))
             else:
                 raise ValueError(f'''
