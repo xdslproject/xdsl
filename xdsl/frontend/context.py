@@ -11,16 +11,16 @@ from xdsl.frontend.program import FrontendProgram
 @dataclass
 class CodeContext(AbstractContextManager):
     """
-    The CodeContext with block marks the scope in which code in the custom DSL
-    can be written. This code will be translated to xDSL.
+    The CodeContext with block marks the scope in which the code in the custom DSL
+    can be written. This code will be translated to xDSL/MLIR.
     """
 
     program: FrontendProgram
     """
-    Underlying fronted program which can be compiled and transalted to xDSL.
+    Underlying front-end program which can be compiled and translated to xDSL/MLIR.
     """
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         # First, get the Python AST from the code.
         frame = _getframe(1)
         src = getsource(frame)

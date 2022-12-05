@@ -1,17 +1,19 @@
 import ast
 
-from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple, Type
-from xdsl.dialects.builtin import i1, i64, f32, IndexType, IntegerType, TensorType
-from xdsl.frontend.codegen.exception import prettify
-from xdsl.frontend.codegen.type_conversion import TypeHintConverter
-from xdsl.frontend.codegen.utils.codegen_function import get_argument_types, get_return_types
+from xdsl.dialects.builtin import FunctionType, i1, i64, f32, IndexType, IntegerType, TensorType
+from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute
 
 
 @dataclass
 class TypeInference():
+    """
+    Type inference engine which:
+      1) infers the right type of expressions.
+      3)
+    """
 
     globals: Dict[str, Any]
 
@@ -28,16 +30,16 @@ class TypeInferenceVisitor(ast.NodeVisitor):
 
     functions: Dict[str, Tuple[List[Attribute], Attribute]] = field(init=False)
 
-    type_converter: TypeHintConverter = field(init=False)
+    type_converter: TypeConverter = field(init=False)
 
     types: Dict[str, List[Tuple[int, Type]]] = field(init=False)
 
     recurse: bool = False
 
-    def __init__(self, globals: Dict[str, Any], functions: Dict[str, Tuple[List[Attribute], Attribute]], node: ast.FunctionDef):
-        self.type_converter = TypeHintConverter(globals)
+    def __init__(self, globals: Dict[str, Any], functions: Dict[str, FunctionType], node: ast.FunctionDef):
+        self.type_converter = TypeConverter(globals)
         self.functions = functions
-        arg_types = get_argument_types(node, self.type_converter)
+        arg_types = functions[node.name].inputs.data
 
         self.types = dict()
         for i, arg in enumerate(node.args.args):
@@ -49,7 +51,7 @@ class TypeInferenceVisitor(ast.NodeVisitor):
         for v, ts in self.types.items():
             for i, info in enumerate(ts):
                 line, t = info
-                print('line {:2}: {:6} |  {}'.format(line, "{}{}".format(v, i), prettify(t)))
+                # print('line {:2}: {:6} |  {}'.format(line, "{}{}".format(v, i), prettify(t)))
     
     def kills_definition(self, src_ty: Attribute, dst_ty: Attribute) -> bool:
         if src_ty == dst_ty:
@@ -143,7 +145,7 @@ class TypeInferenceVisitor(ast.NodeVisitor):
         assert isinstance(node.target, ast.Name)
         
         var_name = node.target.id
-        type = self.type_converter.convert_hint(node.annotation)
+        type = self.type_converter.convert_type_hint(node.annotation)
 
         if var_name not in self.types:
             self.types[var_name] = [(node.lineno, type)]

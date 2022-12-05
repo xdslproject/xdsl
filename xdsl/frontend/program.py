@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
 from xdsl.frontend.codegen.functions import FunctionVisitor
+from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
 
@@ -15,29 +16,34 @@ from xdsl.printer import Printer
 class FrontendProgram:
     """
     Class to store the Python AST of a program written in the frontend. This
-    program can be compiled and translated to xDSL.
+    program can be compiled and translated to xDSL/MLIR.
     """
 
     stmts: List[ast.stmt] = field(init=False)
     """AST nodes stored for compilation to xDSL."""
 
     globals: Dict[str, Any] = field(init=False)
-    """Global information for this prgram, including all the imports."""
+    """Global information for this program, including all the imports."""
 
     xdsl_program: ModuleOp = field(init=False)
     """Generated xDSL program when AST is compiled."""
 
-    def compile(self, desymref=True):
+    def compile(self, desymref=True) -> None:
         """Generates xDSL from the source program."""
+        type_converter = TypeConverter(self.globals)
 
-        # TODO: what about cross-module functions? Support them later. For now,
-        # let's store all of them.
-        func_visitor = FunctionVisitor(self.globals)
+        # TODO: at the moment, compilation focuses on a nicely formed programs, i.e. a single
+        # module with a number of functions. Technically, in xDSL/MLIR we can have nested
+        # modules with nested functions. But for the purpose of the front-end, these are not
+        # too important so we focus on more commion scenario.
+
+        # Find all functions first and convert their types.
+        func_visitor = FunctionVisitor(type_converter)
         for stmt in self.stmts:
             func_visitor.visit(stmt)
 
         # Run code generation.
-        visitor = CodegenVisitor(self.globals, func_visitor.functions)
+        visitor = CodegenVisitor(type_converter, func_visitor.functions)
         for stmt in self.stmts:
             visitor.visit(stmt)
         ops = visitor.inserter.op_container
@@ -55,25 +61,28 @@ class FrontendProgram:
         if desymref:
             self.desymref()
 
-    def desymref(self):
+    def desymref(self) -> None:
         """Desymrefy the generated xDSL."""
         DesymrefyPass.run(self.xdsl_program)
         self.xdsl_program.verify()
 
-    def print(self, target):
+    def _print(self, target) -> str:
         file = StringIO("")
         printer = Printer(stream=file, target=target)
         printer.print_op(self.xdsl_program)
         return file.getvalue().strip()
 
-    def mlir(self):
-        return self.print(Printer.Target.MLIR)
+    def mlir(self) -> str:
+        return self._print(Printer.Target.MLIR)
 
-    def xdsl(self):
-        return self.print(Printer.Target.XDSL)
+    def xdsl(self) -> str:
+        return self._print(Printer.Target.XDSL)
 
-    def mlir_roundtrip(self, mlir_opt_path, args=[]):
-        cmd = [mlir_opt_path] + args
-        ip = self.print(Printer.Target.MLIR).encode("utf-8")
+    def mlir_roundtrip(self, mlir_opt_path, mlir_opt_args=[]) -> str:
+        """
+        Runs 'mlir-opt' on the generated IR with specified arguments and returns the output as a string.
+        """
+        cmd = [mlir_opt_path] + mlir_opt_args
+        ip = self._print(Printer.Target.MLIR).encode("utf-8")
         result = subprocess.run(cmd, stdout=subprocess.PIPE, input=ip)
         return result.stdout.decode("utf-8").strip()

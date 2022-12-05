@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List
 from xdsl.dialects import symref
-from xdsl.frontend.codegen.exception import prettify
 from xdsl.ir import Block, Operation, Region
 from xdsl.passes.promoters import Promoter
 from xdsl.rewriter import Rewriter
@@ -345,7 +344,7 @@ class Desymrefier:
                         update_cnt += 1
 
             if fetch_cnt > 1 or update_cnt > 1:
-                raise DesymrefyException(f"Block {prettify(block)} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates")
+                raise DesymrefyException(f"Block {block} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates")
 
     def run_on_single_block(self, block: Block):
         """Desymrefies a single block inside a region."""

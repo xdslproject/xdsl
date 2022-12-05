@@ -1,16 +1,14 @@
 import ast
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Tuple
-from xdsl.frontend.codegen.functions import FunctionVisitor
+from typing import Any, Dict, List
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.frontend.codegen.type_manager import TypeManager
-from xdsl.frontend.codegen.utils.codegen_function import check_function_signature, get_argument_types, get_return_types
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
-from xdsl.frontend.codegen.exception import CodegenException, prettify
+from xdsl.frontend.codegen.exception import CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
-from xdsl.frontend.codegen.type_conversion import TypeHintConverter
+from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
 
 
@@ -19,15 +17,12 @@ class CodegenVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the frontend AST."""
 
     globals: Dict[str, Any]
-    """Imports and other global information from the module usefule for looking up classes."""
+    """Imports and other global information from the module useful for looking up classes, etc."""
 
     type_manager: TypeManager = field(init=False)
     """Casts types."""
 
     induction_vars: Dict[str, SSAValue] = field(init=False)
-
-    hint_converter: TypeHintConverter = field(init=False)
-    """Class responsible for type hint conversion to xDSL types."""
 
     # TODO: fix symbol table to allow cross-module scoping.
     symbol_table: Dict[str, Attribute] = field(init=False)
@@ -43,15 +38,15 @@ class CodegenVisitor(ast.NodeVisitor):
     inserter: OpInserter = field(init=False)
     """Class responsible for inserting new xDSL ops at the right place."""
 
-    functions:  Dict[str, Tuple[List[Attribute], List[Attribute]]]
+    functions:  Dict[str, builtin.FunctionType]
 
-    def __init__(self, globals: Dict[str, Any], functions:  Dict[str, Tuple[List[Attribute], List[Attribute]]]):
+    def __init__(self, hint_converter: Dict[str, Any], functions:  Dict[str, builtin.FunctionType]):
         inserter = OpInserter()
         
-        self.globals = globals
+        self.globals = hint_converter.globals
         self.type_manager = TypeManager(inserter)
         self.induction_vars = dict()
-        self.hint_converter = TypeHintConverter(globals)
+        self.hint_converter = hint_converter
         self.symbol_table = dict()
         self.symbol_idx = dict()
         self.function_table = dict()
@@ -62,7 +57,7 @@ class CodegenVisitor(ast.NodeVisitor):
         return super().visit(node)
 
     def generic_visit(self, node: ast.AST):
-        raise CodegenException(f"visitor for node {node} does not exist")
+        raise CodegenInternalException(f"visitor for node {node} does not exist")
 
     def visit_Expr(self, node: ast.Expr):
         self.visit(node.value)
@@ -188,7 +183,7 @@ class CodegenVisitor(ast.NodeVisitor):
             self.visit(node)
             indexed_value = self.inserter.get_operand()
 
-            frontend_type = self.hint_converter.type_backward_map[indexed_value.typ.__class__]
+            frontend_type = self.hint_converter.frontend_type_cache[indexed_value.typ.__class__]
 
             # TODO: check types and add implicit casts if necessary.
             if isinstance(indexed_value.typ, builtin.TensorType):
@@ -196,7 +191,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
             resolver = OpResolver.resolve_op_overload("__setitem__", frontend_type)
             if resolver is None:
-                raise CodegenException("operator __setitem__() is not supported")
+                raise CodegenInternalException("operator __setitem__() is not supported")
 
             op = resolver()(rhs, indexed_value, *indices)
             self.inserter.insert_op(op)
@@ -207,7 +202,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
     def visit_comprehension(self, node: ast.comprehension):
         if len(node.ifs) > 0:
-            raise CodegenException("comprehension with if statement is not supported")
+            raise CodegenInternalException("comprehension with if statement is not supported")
 
     def visit_ListComp(self, node: ast.ListComp):
         # Assume that target of generation is always a tensor.
@@ -218,17 +213,17 @@ class CodegenVisitor(ast.NodeVisitor):
         bounds = []
         for generator in node.generators:
             if not isinstance(generator, ast.comprehension):
-                raise CodegenException("every generator must be ast.comprehension class")
+                raise CodegenInternalException("every generator must be ast.comprehension class")
 
             if len(generator.ifs) > 0:
-                raise CodegenException("ni ifs in generator are supported")
+                raise CodegenInternalException("ni ifs in generator are supported")
             
             # Every target id is induction variable used in generation.
             if generator.target.id != "_":
                 local_ind_vars.append(generator.target.id)
 
             if not isinstance(generator.iter, ast.Call) or not isinstance(generator.iter.func, ast.Name) or generator.iter.func.id != "range" or len(generator.iter.args) != 1:
-                raise CodegenException("this list comprehension is not supported")
+                raise CodegenInternalException("this list comprehension is not supported")
         
             if isinstance(generator.iter.args[0], ast.Constant):
                 dim = int(generator.iter.args[0].value)
@@ -256,7 +251,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 # as the list comprehension is just [2, 3, 4]. One idea would
                 # be to execute list comptehension to get the list and simply
                 # process that AST :)
-                raise CodegenException("Unsupported list comprehension!")
+                raise CodegenInternalException("Unsupported list comprehension!")
         else:
             # Otherwise it is a tensor generate.
             prev_insertion_point = self.inserter.ip
@@ -270,8 +265,8 @@ class CodegenVisitor(ast.NodeVisitor):
 
             # Make sure we register the index type conversion.
             import xdsl.frontend.dialects.builtin as frontend_builtin
-            if builtin.IndexType().__class__ not in self.hint_converter.type_backward_map:
-                self.hint_converter.type_backward_map[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
+            if builtin.IndexType().__class__ not in self.hint_converter.frontend_type_cache:
+                self.hint_converter.frontend_type_cache[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
 
             # Visit the actual generated value.
             self.visit(node.elt)
@@ -304,10 +299,10 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Try to resolve this binary operator.
         op_name: str = node.op.__class__.__name__
-        frontend_type = self.hint_converter.type_backward_map[lhs.typ.__class__]
+        frontend_type = self.hint_converter.frontend_type_cache[lhs.typ.__class__]
         resolver = OpResolver.resolve_op_overload(op_name, frontend_type)
         if resolver is None:
-            raise CodegenException(f"binary operator {op_name} is not supported")
+            raise CodegenInternalException(f"binary operator {op_name} is not supported")
         
         # If resolved, we should get a binary op.
         op = resolver()(lhs, rhs)
@@ -319,7 +314,7 @@ class CodegenVisitor(ast.NodeVisitor):
         """
         # First, allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
-            raise CodegenException(f"require a single comparator and op, found {len(node.comparators)} and {len(node.ops)}")
+            raise CodegenInternalException(f"require a single comparator and op, found {len(node.comparators)} and {len(node.ops)}")
 
         op = node.ops[0]
         comp = node.comparators[0]
@@ -334,10 +329,10 @@ class CodegenVisitor(ast.NodeVisitor):
         rhs = self.type_manager.match(lhs.typ, rhs)
 
         op_name: str = op.__class__.__name__
-        frontend_type = self.hint_converter.type_backward_map[lhs.typ.__class__]
+        frontend_type = self.hint_converter.frontend_type_cache[lhs.typ.__class__]
         resolver = OpResolver.resolve_op_overload(op_name, frontend_type)
         if resolver is None:
-            raise CodegenException(f"comparison operator {op_name} is not supported")
+            raise CodegenInternalException(f"comparison operator {op_name} is not supported")
 
         # Map from comparison operation to mnemonics.
         # TODO: what about unsigned mnemonics like 'ugt'?
@@ -351,7 +346,7 @@ class CodegenVisitor(ast.NodeVisitor):
         }
 
         if op_name not in cmp_op_to_mnemonic:
-            raise CodegenException(f"comparison operator {op_name} is not supported")
+            raise CodegenInternalException(f"comparison operator {op_name} is not supported")
         
         # If resolved, we should get a binary op.
         op = resolver()(lhs, rhs, cmp_op_to_mnemonic[op_name])
@@ -394,7 +389,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 if actual_ty != expected_ty:
                     # TODO: implicit cast
                     operands[i] = self.type_manager.match(expected_ty, operands[i])
-                    # raise CodegenException(f"wrong argument type at position {i} when calling '{node.func.id}', expected {prettify(expected_ty)}, got {prettify(actual_ty)}")
+                    # raise CodegenInternalException(f"wrong argument type at position {i} when calling '{node.func.id}', expected {prettify(expected_ty)}, got {prettify(actual_ty)}")
 
             # Operand types match, so we can create a call operation and insert
             # it in the current block.
@@ -410,13 +405,13 @@ class CodegenVisitor(ast.NodeVisitor):
             func_name = node.func.attr
             module_name = self.globals[node.func.value.id].__name__
         else:
-            raise CodegenException("function calls are supported only in the form M.F() or F()")
+            raise CodegenInternalException("function calls are supported only in the form M.F() or F()")
 
         resolver = OpResolver.resolve_method(module_name, func_name)
         if resolver is None:
             # TODO: what about other standard libraries, max, sum, etc? They should be
             # handled here.
-            raise CodegenException(f"unknown function {func_name} from {module_name}")
+            raise CodegenInternalException(f"unknown function {func_name} from {module_name}")
         
         op = resolver()(*operands)
         self.inserter.insert_op(op)
@@ -438,7 +433,7 @@ class CodegenVisitor(ast.NodeVisitor):
             constant_op = arith.Constant.from_attr(value_attr, target_ty)
             self.inserter.insert_op(constant_op)
         else:
-            raise CodegenException(f"unknown constant {node.value} of type {type(node.value)}")
+            raise CodegenInternalException(f"unknown constant {node.value} of type {type(node.value)}")
 
     def check_for_loop_valid(self, node: ast.For):
         """Aborts if this loop cannot be lowered to xDSL or MLIR."""
@@ -449,14 +444,14 @@ class CodegenVisitor(ast.NodeVisitor):
         # else:
         #   ...
         if len(node.orelse) > 0:
-            raise CodegenException(f"unexpected else clause in for loop on line {node.lineno}")
+            raise CodegenInternalException(f"unexpected else clause in for loop on line {node.lineno}")
         if not isinstance(node.target, ast.Name):
-            raise CodegenException(f"expected a single induction target variable, found multiple in for loop on line {node.lineno}")
+            raise CodegenInternalException(f"expected a single induction target variable, found multiple in for loop on line {node.lineno}")
 
         # In xDSL/MLIR we can only have range-based loops as there is no concept of iterator.
         if isinstance(node.iter, ast.Call) and isinstance(node.iter.func, ast.Name) and node.iter.func.id == "range" and 1 <= len(node.iter.args) <= 3:
             return
-        raise CodegenException(f"not a range-based loop on line {node.lineno}")
+        raise CodegenInternalException(f"not a range-based loop on line {node.lineno}")
 
 
     def is_affine_for_loop(self, node: ast.For) -> bool:
@@ -566,8 +561,8 @@ class CodegenVisitor(ast.NodeVisitor):
         assert isinstance(node.target, ast.Name)
 
         import xdsl.frontend.dialects.builtin as frontend_builtin
-        if builtin.IndexType().__class__ not in self.hint_converter.type_backward_map:
-            self.hint_converter.type_backward_map[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
+        if builtin.IndexType().__class__ not in self.hint_converter.frontend_type_cache:
+            self.hint_converter.frontend_type_cache[builtin.IndexType().__class__] = frontend_builtin.IndexType().__class__
 
         # Next, we have to check if the loop is affine: for now we simply
         # check if all range arguments are constants. If not, we have to generate scf.for
@@ -585,7 +580,7 @@ class CodegenVisitor(ast.NodeVisitor):
         """
         # First, check if function signature is valid.
         # TODO: given that we know function signature, some things can be dropped here.
-        check_function_signature(node)
+        
 
         # Type inference!
         self.symbol_table = TypeInference(self.globals, self.functions).run_on_function(node)
@@ -594,8 +589,8 @@ class CodegenVisitor(ast.NodeVisitor):
             self.symbol_idx[k] = 0
 
         # Then, convert type in the function signature.
-        arg_types = get_argument_types(node, self.hint_converter)
-        return_types = get_return_types(node, self.hint_converter)
+        arg_types = self.functions[node.name].inputs.data
+        return_types = self.functions[node.name].outputs.data
 
         # Create a region for the function body and entry block.
         entry_block = Block()
@@ -633,7 +628,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
             if len(return_types) != 0:
                 func_name = func_op.attributes["sym_name"].data
-                raise CodegenException(f"expected 1 return type, got 0 in function {func_name}")
+                raise CodegenInternalException(f"expected 1 return type, got 0 in function {func_name}")
             self.inserter.insert_op(func.Return.get())
 
         # Move on with code generation for the next operation and record
@@ -732,7 +727,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # TODO: support cases like mentioned above with multiple terminators.
         parent_op = self.inserter.ip.parent_op()
         if not isinstance(self.inserter.ip.parent_op(), func.FuncOp):
-            raise CodegenException("return statement should be placed only at the end of the function body")
+            raise CodegenInternalException("return statement should be placed only at the end of the function body")
 
         func_name = parent_op.attributes["sym_name"].data
         func_return_types = parent_op.function_type.outputs.data
@@ -740,7 +735,7 @@ class CodegenVisitor(ast.NodeVisitor):
         if node.value is None:
             # Return nothing, check function signature matches.
             if len(func_return_types) != 0:
-                raise CodegenException(f"expected non-zero return types, got 0 in function '{func_name}'")
+                raise CodegenInternalException(f"expected non-zero return types, got 0 in function '{func_name}'")
             return_op = func.Return.get()
             self.inserter.insert_op(return_op)
         else:
@@ -751,10 +746,10 @@ class CodegenVisitor(ast.NodeVisitor):
             # TODO: this can be dropped when function is allowed to return more
             # than one type.
             if len(func_return_types) > 1:
-                raise CodegenException(f"expected less than 2 return types, got {len(func_return_types)} in function '{func_name}'")
+                raise CodegenInternalException(f"expected less than 2 return types, got {len(func_return_types)} in function '{func_name}'")
 
             if len(func_return_types) == 0:
-                raise CodegenException(f"expected 0 return types, got 1 in function {func_name}")
+                raise CodegenInternalException(f"expected 0 return types, got 1 in function {func_name}")
             if func_return_types[0] != operand.typ:
                 
                 if isinstance(operand.typ, builtin.TensorType) and operand.typ.element_type == func_return_types[0].element_type and len(list(filter(lambda d: d == -1, operand.typ.shape.data))) == 0:
@@ -767,7 +762,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 else:
                     # TODO: implicit cast
                     operand = self.type_manager.match(func_return_types[0], operand)
-                # raise CodegenException(f"expected {prettify(func_return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
+                # raise CodegenInternalException(f"expected {prettify(func_return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
 
             return_op = func.Return.get(operand)
             self.inserter.insert_op(return_op)
@@ -810,7 +805,7 @@ class CodegenVisitor(ast.NodeVisitor):
             # instead.
             # TODO: fix this.
             if len(return_types) != 0:
-                raise CodegenException(f"expected non-zero return types, got 0 in function '{func_name}'")
+                raise CodegenInternalException(f"expected non-zero return types, got 0 in function '{func_name}'")
 
             self.inserter.insert_op(func.Return.get())
 
@@ -830,11 +825,11 @@ class CodegenVisitor(ast.NodeVisitor):
         self.visit(node)
         indexed_value = self.inserter.get_operand()
 
-        frontend_type = self.hint_converter.type_backward_map[indexed_value.typ.__class__]
+        frontend_type = self.hint_converter.frontend_type_cache[indexed_value.typ.__class__]
 
         resolver = OpResolver.resolve_op_overload("__getitem__", frontend_type)
         if resolver is None:
-            raise CodegenException("operator __getitem__() is not supported")
+            raise CodegenInternalException("operator __getitem__() is not supported")
 
         op = resolver()(indexed_value, *indices)
         self.inserter.insert_op(op)

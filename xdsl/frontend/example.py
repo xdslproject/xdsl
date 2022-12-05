@@ -17,5 +17,5 @@ p.compile()
 # print(p.mlir())
 
 MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"
-mlir_output = p.mlir_roundtrip(MLIR_OPT_PATH, args=["--verify-each"])
+mlir_output = p.mlir_roundtrip(MLIR_OPT_PATH, mlir_opt_args=["--verify-each"])
 print(mlir_output)

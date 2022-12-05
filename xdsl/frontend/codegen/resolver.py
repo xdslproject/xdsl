@@ -3,10 +3,7 @@ import importlib
 import inspect
 
 from dataclasses import dataclass
-import xdsl.frontend.dialects.arith as src_arith
-import xdsl.dialects.arith as dst_arith
 from xdsl.frontend.dialects.builtin import FrontendType
-
 from xdsl.ir import Operation
 
 
