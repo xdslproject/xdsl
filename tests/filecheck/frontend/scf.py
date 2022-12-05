@@ -76,5 +76,5 @@ with CodeContext(p):
     def test_if_4(cond: i1):
         a: i32 = 1 if cond else 2
 
-p.compile()
+p.compile(desymref=False)
 print(p.xdsl())

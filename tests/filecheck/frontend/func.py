@@ -40,5 +40,4 @@ with CodeContext(p):
         pass
 
 p.compile()
-p.desymref()
 print(p.xdsl())

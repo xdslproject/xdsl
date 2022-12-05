@@ -43,5 +43,5 @@ with CodeContext(p):
                 for k in range(30, 1000, 10):
                     pass
 
-p.compile()
+p.compile(desymref=False)
 print(p.xdsl())

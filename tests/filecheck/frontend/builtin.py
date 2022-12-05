@@ -76,5 +76,5 @@ with CodeContext(p):
     with Module():
         pass
 
-p.compile()
+p.compile(desymref=False)
 print(p.xdsl())

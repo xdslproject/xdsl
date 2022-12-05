@@ -178,5 +178,4 @@ with CodeContext(p):
         return a * b
 
 p.compile()
-p.desymref()
 print(p.xdsl())

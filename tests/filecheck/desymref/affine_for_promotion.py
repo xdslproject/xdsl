@@ -46,5 +46,4 @@ with CodeContext(p):
             return c
 
 p.compile()
-p.desymref()
 print(p.xdsl())

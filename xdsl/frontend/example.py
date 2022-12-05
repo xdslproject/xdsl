@@ -14,8 +14,6 @@ with CodeContext(p):
 
 p.compile()
 # print(p.xdsl())
-p.desymref()
-# print(p.xdsl())
 # print(p.mlir())
 
 MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"

@@ -29,5 +29,4 @@ with CodeContext(p):
                 b = c + d
 
 p.compile()
-p.desymref()
 print(p.xdsl())

@@ -87,5 +87,4 @@ with CodeContext(p):
             return a
 
 p.compile()
-p.desymref()
 print(p.xdsl())

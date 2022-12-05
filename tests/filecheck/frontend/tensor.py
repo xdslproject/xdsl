@@ -29,6 +29,5 @@ with CodeContext(p):
         x[i][j] = v
 
 p.compile()
-p.desymref()
 print(p.xdsl())
 

@@ -27,7 +27,7 @@ class FrontendProgram:
     xdsl_program: ModuleOp = field(init=False)
     """Generated xDSL program when AST is compiled."""
 
-    def compile(self):
+    def compile(self, desymref=True):
         """Generates xDSL from the source program."""
 
         # TODO: what about cross-module functions? Support them later. For now,
@@ -50,6 +50,10 @@ class FrontendProgram:
 
         # Verify the generated code.
         self.xdsl_program.verify()
+
+        # Optionally run desymrefication pass to produce actual SSA.
+        if desymref:
+            self.desymref()
 
     def desymref(self):
         """Desymrefy the generated xDSL."""
