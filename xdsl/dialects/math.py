@@ -5,7 +5,7 @@ from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type)
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Dialect, MLContext, Operation, SSAValue
 from xdsl.irdl import AnyOf, irdl_op_definition, ResultDef, OperandDef
 from xdsl.utils.exceptions import VerifyException
 
@@ -46,3 +46,5 @@ class IPowI(BinaryOperation):
         operand1 = SSAValue.get(operand1)
         return IPowI.build(operands=[operand1, operand2],
                            result_types=[operand1.typ])
+
+Math = Dialect([IPowI], [])

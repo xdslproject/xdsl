@@ -2,23 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Sequence
 from xdsl.dialects.builtin import AnyIntegerAttr, ArrayAttr, ContainerOf, IndexType, IntegerAttr, IntegerType, TensorType, UnrankedTensorType
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, OperandDef, ParameterDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
-
-
-@dataclass
-class Tensor:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(Cast)
-        self.ctx.register_op(Empty)
-        self.ctx.register_op(Generate)
-        self.ctx.register_op(Extract)
-        self.ctx.register_op(Insert)
-        self.ctx.register_op(Splat)
-        self.ctx.register_op(Yield)
 
 
 @irdl_op_definition
@@ -145,3 +131,5 @@ class Yield(Operation):
     def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(
             operands=[SSAValue.get(operand) for operand in operands])
+
+Tensor = Dialect([Cast, Empty, Generate, Extract, Insert, Splat, Yield], [])

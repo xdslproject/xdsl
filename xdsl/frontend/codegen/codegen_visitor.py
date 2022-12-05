@@ -512,18 +512,18 @@ class CodegenVisitor(ast.NodeVisitor):
     def codegen_scf_for_loop(self, node: ast.For):
         args = node.iter.args
         if len(args) == 1:
-            start_op = arith.Constant.from_int_constant(0, builtin.IndexType())
+            start_op = arith.Constant.from_int_and_width(0, builtin.IndexType())
             self.inserter.insert_op(start_op)
             self.visit(args[0])
             end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
-            step_op = arith.Constant.from_int_constant(1, builtin.IndexType())
+            step_op = arith.Constant.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step_op)
         elif len(args) == 2:
             self.visit(args[0])
             start_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
             self.visit(args[1])
             end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
-            step_op = arith.Constant.from_int_constant(1, builtin.IndexType())
+            step_op = arith.Constant.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step_op)
         else:
             self.visit(args[0])
