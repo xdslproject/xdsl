@@ -9,7 +9,7 @@ from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
                        OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
                        VarRegionDef, VarSingleBlockRegionDef,
                        irdl_op_definition, ResultDef, VarResultDef,
-                       AttrSizedResultSegments, VarOperandDef,
+                       AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, AttributeDef, RegionDef,
                        OptAttributeDef, Region)
 
@@ -205,7 +205,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
-    res: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
+    res: Annotated[VarOperand, StringAttr]
 
 
 def test_var_operand_builder():
@@ -219,8 +219,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
-    res1: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
-    res2: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
+    res1: Annotated[VarOperand, StringAttr]
+    res2: Annotated[VarOperand, StringAttr]
     irdl_options = [AttrSizedOperandSegments()]
 
 

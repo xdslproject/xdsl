@@ -9,7 +9,7 @@ from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperandDef, ResultDef, AttributeDef,
+                       VarOperand, ResultDef, AttributeDef,
                        AttrSizedOperandSegments, OptAttributeDef)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -57,7 +57,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 class Load(Operation):
     name = "memref.load"
     memref: Annotated[Operand, MemRefType]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    indices: Annotated[VarOperand, IndexType]
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -84,7 +84,7 @@ class Store(Operation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
     memref: Annotated[Operand, MemRefType]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
@@ -104,8 +104,8 @@ class Store(Operation):
 class Alloc(Operation):
     name = "memref.alloc"
 
-    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
     memref: Annotated[OpResult, ResultDef(MemRefType)]
 
@@ -132,8 +132,8 @@ class Alloc(Operation):
 class Alloca(Operation):
     name = "memref.alloca"
 
-    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
     memref: Annotated[OpResult, ResultDef(MemRefType)]
 

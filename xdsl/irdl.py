@@ -368,6 +368,9 @@ class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
 
 
+VarOperand = Annotated[list[SSAValue], VarOperandDef]
+
+
 @dataclass(init=False)
 class OptOperandDef(VarOperandDef, OptionalDef):
     """An IRDL optional operand definition."""
@@ -479,6 +482,10 @@ class OpDef:
             if len(args) == 3:
                 if args[1] is OperandDef:
                     op_def.operands.append((field_name, OperandDef(args[-1])))
+                    continue
+                elif args[1] is VarOperandDef:
+                    op_def.operands.append(
+                        (field_name, VarOperandDef(args[-1])))
                     continue
 
             if isinstance(args[-1], OperandDef):

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Annotated, List
 
 from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect, OpResult
-from xdsl.irdl import (VarOperandDef, irdl_op_definition, VarResultDef,
+from xdsl.irdl import (VarOperand, irdl_op_definition, VarResultDef,
                        Operand, RegionDef, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 
@@ -31,7 +31,7 @@ class If(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
-    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -43,7 +43,7 @@ class Yield(Operation):
 class Condition(Operation):
     name: str = "scf.condition"
     cond: Annotated[Operand, IntegerType.from_width(1)]
-    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(cond: SSAValue | Operation,
@@ -55,7 +55,7 @@ class Condition(Operation):
 @irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
-    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     before_region = RegionDef()
