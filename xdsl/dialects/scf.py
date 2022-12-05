@@ -5,7 +5,7 @@ from typing import Annotated, List
 
 from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect, OpResult
 from xdsl.irdl import (VarOperandDef, irdl_op_definition, VarResultDef,
-                       OperandDef, RegionDef, AnyAttr)
+                       Operand, RegionDef, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 
 
@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import IntegerType
 class If(Operation):
     name: str = "scf.if"
     output: Annotated[list[OpResult], VarResultDef(AnyAttr())]
-    cond: Annotated[SSAValue, OperandDef(IntegerType.from_width(1))]
+    cond: Annotated[Operand, IntegerType.from_width(1)]
 
     true_region = RegionDef()
     # TODO this should be optional under certain conditions
@@ -42,7 +42,7 @@ class Yield(Operation):
 @irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
-    cond: Annotated[SSAValue, OperandDef(IntegerType.from_width(1))]
+    cond: Annotated[Operand, IntegerType.from_width(1)]
     arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     @staticmethod

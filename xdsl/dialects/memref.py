@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
+                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
                        VarOperandDef, ResultDef, AttributeDef,
                        AttrSizedOperandSegments, OptAttributeDef)
 
@@ -56,7 +56,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    memref: Annotated[Operand, MemRefType]
     indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
     res: Annotated[OpResult, ResultDef(AnyAttr())]
 
@@ -82,8 +82,8 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "memref.store"
-    value: Annotated[SSAValue, OperandDef(AnyAttr())]
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    value: Annotated[Operand, AnyAttr()]
+    memref: Annotated[Operand, MemRefType]
     indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
 
     def verify_(self):
@@ -159,7 +159,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    memref: Annotated[Operand, MemRefType]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
