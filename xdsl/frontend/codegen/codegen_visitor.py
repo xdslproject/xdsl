@@ -756,8 +756,17 @@ class CodegenVisitor(ast.NodeVisitor):
             if len(func_return_types) == 0:
                 raise CodegenException(f"expected 0 return types, got 1 in function {func_name}")
             if func_return_types[0] != operand.typ:
-                # TODO: implicit cast
-                operand = self.type_manager.match(func_return_types[0], operand)
+                
+                if isinstance(operand.typ, builtin.TensorType) and operand.typ.element_type == func_return_types[0].element_type and len(list(filter(lambda d: d == -1, operand.typ.shape.data))) == 0:
+                    # TODO: make this nicer. Basically, we better change the return type instead of adding cast if this
+                    # is a dynamically sized tensor.
+                    # HACK!
+                    object.__setattr__(parent_op.function_type.outputs, "data", [operand.typ])
+                    # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
+                    # self.functions[enclosing_func][1][0] = operand.typ
+                else:
+                    # TODO: implicit cast
+                    operand = self.type_manager.match(func_return_types[0], operand)
                 # raise CodegenException(f"expected {prettify(func_return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
 
             return_op = func.Return.get(operand)

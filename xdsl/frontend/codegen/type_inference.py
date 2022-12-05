@@ -65,7 +65,9 @@ class TypeInferenceVisitor(ast.NodeVisitor):
 
         if isinstance(src_ty, TensorType):
             if isinstance(dst_ty, TensorType):
-                return False
+                # tensor.cast
+                if src_ty.element_type == dst_ty.element_type and src_ty.shape == dst_ty.shape:
+                    return False
 
         return True
 
