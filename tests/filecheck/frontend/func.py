@@ -19,18 +19,18 @@ with CodeContext(p):
         pass
 
     #      CHECK: func.func() ["sym_name" = "f3", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    # CHECK-NEXT:   %{{.*}} : !i32 =
+    # CHECK-NEXT:   %{{.*}} : !i64 =
     # CHECK-NEXT:   func.return()
     # CHECK-NEXT: }
     def f3():
-        a: i32 = 0
+        a: i64 = 0
 
-    #      CHECK: func.func() ["sym_name" = "f4", "function_type" = !fun<[], [!i32]>, "sym_visibility" = "private"] {
-    # CHECK-NEXT:   %{{.*}} : !i32 =
-    # CHECK-NEXT:   func.return(%{{.*}} : !i32)
+    #      CHECK: func.func() ["sym_name" = "f4", "function_type" = !fun<[], [!i64]>, "sym_visibility" = "private"] {
+    # CHECK-NEXT:   %{{.*}} : !i64 =
+    # CHECK-NEXT:   func.return(%{{.*}} : !i64)
     # CHECK-NEXT: }
-    def f4() -> i32:
-        a: i32 = 0
+    def f4() -> i64:
+        a: i64 = 0
         return a
 
     #      CHECK: func.func() ["sym_name" = "f5", "function_type" = !fun<[!i32, !i64], []>, "sym_visibility" = "private"] {

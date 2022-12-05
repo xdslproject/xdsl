@@ -32,6 +32,8 @@ class TypeInferenceVisitor(ast.NodeVisitor):
 
     types: Dict[str, List[Tuple[int, Type]]] = field(init=False)
 
+    recurse: bool = False
+
     def __init__(self, globals: Dict[str, Any], functions: Dict[str, Tuple[List[Attribute], Attribute]], node: ast.FunctionDef):
         self.type_converter = TypeHintConverter(globals)
         self.functions = functions
@@ -150,21 +152,23 @@ class TypeInferenceVisitor(ast.NodeVisitor):
             self.types[var_name].append((node.lineno, type))
     
     def visit_Name(self, node: ast.Name):
-        assert node.lineno >= self.types[node.id][-1][0]
-        return self.types[node.id][-1][1] 
+        if self.recurse:
+            assert node.lineno >= self.types[node.id][-1][0]
+            return self.types[node.id][-1][1] 
 
     def visit_Constant(self, node: ast.Constant):
-        # TODO: this is a copy from TypeManager, and has to be defined by the frontend
-        # program ideally.
-        default_types = {
-            bool: i1,
-            int: i64,
-            float: f32,
-            str: str, # TODO: what is this? Use for arith.cmp mnemonic, not sure if we want to support this.
-        }
+        if self.recurse:
+            # TODO: this is a copy from TypeManager, and has to be defined by the frontend
+            # program ideally.
+            default_types = {
+                bool: i1,
+                int: i64,
+                float: f32,
+                str: str, # TODO: what is this? Use for arith.cmp mnemonic, not sure if we want to support this.
+            }
 
-        expr_type = default_types[type(node.value)]
-        return expr_type
+            expr_type = default_types[type(node.value)]
+            return expr_type
 
     def visit_Assign(self, node: ast.Assign):
         if len(node.targets) != 1:
@@ -192,7 +196,9 @@ class TypeInferenceVisitor(ast.NodeVisitor):
 
         # Now let's infer the type of the expression. There are quite a bit of cases to consider.
         if isinstance(expr, ast.Constant) or isinstance(expr, ast.Name):
+            self.recurse = True
             expr_type = self.visit(expr)
+            self.recurse = False
 
         elif isinstance(expr, ast.ListComp):
             # TODO: we assume that list commprehension always generates a tensor.
@@ -214,13 +220,17 @@ class TypeInferenceVisitor(ast.NodeVisitor):
         elif isinstance(expr, ast.UnaryOp):
             # TODO: unary expressions do not change the type, in general. But if they do,
             # we should probaby teke some spec into account.
+            self.recurse = True
             expr_type = self.visit(expr.operand)
+            self.recurse = False
 
         elif isinstance(expr, ast.BinOp):
             # In MLIR/xDSL, binary operations usually take same type operands.
             # Assume this is the case, or at least that they can be casted to one another.
+            self.recurse = True
             lhs_type = self.visit(expr.left)
             rhs_type = self.visit(expr.right)
+            self.recurse = False
             
             # TODO: we should have a spec: op, lhs, rhs --> type, but for now we can just use
             # lhs, I think. In general, we want to support:
@@ -249,8 +259,10 @@ class TypeInferenceVisitor(ast.NodeVisitor):
                 raise Exception("cannot infer type from unknown function")
 
         elif isinstance(expr, ast.IfExp):
+            self.recurse = True
             true_expr_type = self.visit(expr.body)
             false_expr_type = self.visit(expr.orelse)
+            self.recurse = False
 
             # TODO: again, we need some kind of spec. What do we do when
             # we have '4 if condition else 0.33', is it int or float?

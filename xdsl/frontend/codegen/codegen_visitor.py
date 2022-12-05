@@ -382,6 +382,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 operand_types.append(operand.typ)
 
         # Call can be made to a user-defined function, process this case first.
+        # TODO: drop function table since we have self.functions now.
         if isinstance(node.func, ast.Name) and node.func.id in self.function_table:
             callee = self.function_table[node.func.id]
             callee_operand_types = callee.function_type.inputs.data
