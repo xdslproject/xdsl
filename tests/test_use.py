@@ -13,8 +13,8 @@ builtin.module() {
 
 def test_main():
     ctx = MLContext()
-    _ = Builtin(ctx)
-    _ = Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()

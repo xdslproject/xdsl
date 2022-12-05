@@ -10,17 +10,18 @@ from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin, MLContext
+from xdsl.ir import MLContext
+from xdsl.dialects.builtin import Builtin
 
 
 def convert_and_verify(test_prog: str):
     ctx = MLContext()
-    _ = Builtin(ctx)
-    _ = Func(ctx)
-    _ = Affine(ctx)
-    _ = Arith(ctx)
-    _ = Scf(ctx)
-    _ = MemRef(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Affine)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Scf)
+    ctx.register_dialect(MemRef)
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()

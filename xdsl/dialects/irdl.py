@@ -3,35 +3,12 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-from xdsl.ir import ParametrizedAttribute, Operation, MLContext, Attribute
+from xdsl.ir import ParametrizedAttribute, Operation, Attribute, Dialect
 from xdsl.irdl import (ParameterDef, VarOperandDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, VarResultDef, irdl_op_definition,
                        irdl_attr_definition)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-
-
-@dataclass
-class IRDL:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(EqTypeConstraintAttr)
-        self.ctx.register_attr(AnyTypeConstraintAttr)
-        self.ctx.register_attr(AnyOfTypeConstraintAttr)
-        self.ctx.register_attr(VarTypeConstraintAttr)
-        self.ctx.register_attr(DynTypeBaseConstraintAttr)
-        self.ctx.register_attr(DynTypeParamsConstraintAttr)
-        self.ctx.register_attr(TypeParamsConstraintAttr)
-        self.ctx.register_attr(NamedTypeConstraintAttr)
-
-        self.ctx.register_op(DialectOp)
-        self.ctx.register_op(ParametersOp)
-        self.ctx.register_op(TypeOp)
-        self.ctx.register_op(ConstraintVarsOp)
-        self.ctx.register_op(OperandsOp)
-        self.ctx.register_op(ResultsOp)
-        self.ctx.register_op(OperationOp)
 
 
 @irdl_attr_definition
@@ -192,3 +169,25 @@ class OperationOp(Operation):
             raise ValueError("name attribute is required")
         if not isinstance(self.attributes["name"], StringAttr):
             raise ValueError("name attribute must be a string attribute")
+
+
+IRDL = Dialect(
+    [
+        DialectOp,
+        ParametersOp,
+        TypeOp,
+        ConstraintVarsOp,
+        OperandsOp,
+        ResultsOp,
+        OperationOp,
+    ],
+    [
+        AnyTypeConstraintAttr,
+        AnyOfTypeConstraintAttr,  #
+        EqTypeConstraintAttr,
+        VarTypeConstraintAttr,
+        TypeParamsConstraintAttr,
+        NamedTypeConstraintAttr,
+        DynTypeBaseConstraintAttr,
+        DynTypeParamsConstraintAttr
+    ])

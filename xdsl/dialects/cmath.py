@@ -2,21 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
-from xdsl.ir import MLContext, MLIRType, ParametrizedAttribute, Operation
+from xdsl.ir import MLIRType, ParametrizedAttribute, Operation, Dialect
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, OperandDef,
                        ParameterDef, ParamAttrConstraint, AnyOf, ResultDef,
                        VerifyException)
-
-
-@dataclass
-class CMath:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(ComplexType)
-
-        self.ctx.register_op(Norm)
-        self.ctx.register_op(Mul)
 
 
 @irdl_attr_definition
@@ -56,3 +45,6 @@ class Mul(Operation):
         if self.lhs != self.rhs.typ and self.rhs.typ != self.res.typ:
             raise VerifyException(
                 "expect all input and output types to be equal")
+
+
+CMath = Dialect([Norm, Mul], [ComplexType])

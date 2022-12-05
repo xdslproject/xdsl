@@ -5,8 +5,8 @@ from enum import Enum
 from typing import (TypeAlias, List, cast, Type, Sequence, Optional,
                     TYPE_CHECKING, Any, TypeVar)
 
-from xdsl.ir import (MLContext, Data, MLIRType, ParametrizedAttribute,
-                     Operation, SSAValue, Region, Attribute)
+from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
+                     SSAValue, Region, Attribute, Dialect)
 from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -18,40 +18,6 @@ from xdsl.utils.exceptions import VerifyException
 if TYPE_CHECKING:
     from xdsl.parser import Parser, ParserError
     from xdsl.printer import Printer
-
-
-@dataclass
-class Builtin:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(StringAttr)
-        self.ctx.register_attr(FlatSymbolRefAttr)
-        self.ctx.register_attr(SymbolNameAttr)
-        self.ctx.register_attr(IntAttr)
-        self.ctx.register_attr(IntegerAttr)
-        self.ctx.register_attr(ArrayAttr)
-        self.ctx.register_attr(VectorType)
-        self.ctx.register_attr(TensorType)
-        self.ctx.register_attr(UnrankedTensorType)
-        self.ctx.register_attr(DenseIntOrFPElementsAttr)
-        self.ctx.register_attr(UnitAttr)
-        self.ctx.register_attr(TupleType)
-
-        self.ctx.register_attr(FunctionType)
-        self.ctx.register_attr(Float16Type)
-        self.ctx.register_attr(Float32Type)
-        self.ctx.register_attr(Float64Type)
-        self.ctx.register_attr(FloatData)
-        self.ctx.register_attr(FloatAttr)
-        self.ctx.register_attr(IntegerType)
-        self.ctx.register_attr(IndexType)
-
-        self.ctx.register_attr(NoneAttr)
-        self.ctx.register_attr(OpaqueAttr)
-
-        self.ctx.register_op(ModuleOp)
-        self.ctx.register_op(UnregisteredOp)
 
 
 @irdl_attr_definition
@@ -720,3 +686,32 @@ class ModuleOp(Operation):
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
+
+Builtin = Dialect(
+    [ModuleOp, UnregisteredOp],
+    [
+        StringAttr,
+        FlatSymbolRefAttr,
+        SymbolNameAttr,
+        IntAttr,
+        IntegerAttr,
+        ArrayAttr,
+        DenseIntOrFPElementsAttr,
+        UnitAttr,
+        FloatData,
+        NoneAttr,
+        OpaqueAttr,
+
+        # Types
+        FunctionType,
+        Float16Type,
+        Float32Type,
+        Float64Type,
+        FloatAttr,
+        TupleType,
+        IntegerType,
+        IndexType,
+        VectorType,
+        TensorType,
+        UnrankedTensorType
+    ])

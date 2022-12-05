@@ -3,19 +3,9 @@ from dataclasses import dataclass
 from typing import List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
-from xdsl.ir import MLContext, SSAValue, Operation, Block, Region, Attribute
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
 from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
                        AnyAttr, RegionDef, AttributeDef, VarResultDef)
-
-
-@dataclass
-class Func:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(FuncOp)
-        self.ctx.register_op(Call)
-        self.ctx.register_op(Return)
 
 
 @irdl_op_definition
@@ -85,3 +75,6 @@ class Return(Operation):
     def get(*ops: Union[Operation, SSAValue]) -> Return:
         ops = [op for op in ops] if ops != () else []
         return Return.build(operands=[ops])
+
+
+Func = Dialect([FuncOp, Call, Return], [])
