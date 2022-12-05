@@ -3,7 +3,7 @@ import xdsl.dialects.builtin as builtin
 
 from dataclasses import dataclass, field
 from typing import _GenericAlias, Any, Dict, List, Optional, Type
-from xdsl.frontend.dialects.builtin import FrontendType, TensorType, IntegerType
+from xdsl.frontend.dialects.builtin import Float32Type, FrontendType, TensorType, IntegerType
 from xdsl.ir import Attribute
 
 
@@ -114,6 +114,11 @@ class TypeHintConverter:
             xdsl_ty = builtin.IntegerType.from_width(64)
             if xdsl_ty.__class__ not in self.type_backward_map:
                 self.type_backward_map[xdsl_ty.__class__] = IntegerType
+            return xdsl_ty
+        if ty_name == "float":
+            xdsl_ty = builtin.Float32Type()
+            if xdsl_ty.__class__ not in self.type_backward_map:
+                self.type_backward_map[xdsl_ty.__class__] = Float32Type
             return xdsl_ty
         if ty_name == "bool":
             xdsl_ty = builtin.IntegerType.from_width(1)
