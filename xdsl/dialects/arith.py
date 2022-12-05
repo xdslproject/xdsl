@@ -19,7 +19,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 @irdl_op_definition
 class Constant(Operation):
     name: str = "arith.constant"
-    result: Annotated[OpResult, ResultDef(AnyAttr())]
+    result: Annotated[OpResult, AnyAttr()]
     value = AttributeDef(AnyAttr())
 
     @staticmethod
@@ -63,7 +63,7 @@ class Addi(BinaryOperation):
     name: str = "arith.addi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -78,7 +78,7 @@ class Muli(BinaryOperation):
     name: str = "arith.muli"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -93,7 +93,7 @@ class Subi(BinaryOperation):
     name: str = "arith.subi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -113,7 +113,7 @@ class DivUI(Operation):
     name: str = "arith.divui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -132,7 +132,7 @@ class DivSI(BinaryOperation):
     name: str = "arith.divsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -146,7 +146,7 @@ class FloorDivSI(BinaryOperation):
     name: str = "arith.floordivsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -161,7 +161,7 @@ class CeilDivSI(BinaryOperation):
     name: str = "arith.ceildivsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -176,7 +176,7 @@ class CeilDivUI(BinaryOperation):
     name: str = "arith.ceildivui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -191,7 +191,7 @@ class RemUI(BinaryOperation):
     name: str = "arith.remui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -206,7 +206,7 @@ class RemSI(BinaryOperation):
     name: str = "arith.remsi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, ResultDef(IntegerType)]
+    result: Annotated[OpResult, IntegerType]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -221,7 +221,7 @@ class MinUI(BinaryOperation):
     name: str = "arith.minui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -236,7 +236,7 @@ class MaxUI(BinaryOperation):
     name: str = "arith.maxui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -251,7 +251,7 @@ class MinSI(BinaryOperation):
     name: str = "arith.minsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -266,7 +266,7 @@ class MaxSI(BinaryOperation):
     name: str = "arith.maxsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -281,7 +281,7 @@ class AndI(BinaryOperation):
     name: str = "arith.andi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -296,7 +296,7 @@ class OrI(BinaryOperation):
     name: str = "arith.ori"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -311,7 +311,7 @@ class XOrI(BinaryOperation):
     name: str = "arith.xori"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -330,7 +330,7 @@ class ShLI(Operation):
     name: str = "arith.shli"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, ResultDef(IntegerType)]
+    result: Annotated[OpResult, IntegerType]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -356,7 +356,7 @@ class ShRUI(Operation):
     name: str = "arith.shrui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
-    result: Annotated[OpResult, ResultDef(signlessIntegerLike)]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -383,7 +383,7 @@ class ShRSI(Operation):
     name: str = "arith.shrsi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, ResultDef(IntegerType)]
+    result: Annotated[OpResult, IntegerType]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -422,7 +422,7 @@ class Cmpi(Operation):
     predicate = AttributeDef(IntegerAttr)
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, ResultDef(IntegerType.from_width(1))]
+    result: Annotated[OpResult, IntegerType.from_width(1)]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -473,7 +473,7 @@ class Select(Operation):
     cond: Annotated[Operand, IntegerType.from_width(1)]  # should be unsigned
     lhs: Annotated[Operand, Attribute]
     rhs: Annotated[Operand, Attribute]
-    result: Annotated[OpResult, ResultDef(Attribute)]
+    result: Annotated[OpResult, Attribute]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -497,7 +497,7 @@ class Addf(BinaryOperation):
     name: str = "arith.addf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -512,7 +512,7 @@ class Subf(BinaryOperation):
     name: str = "arith.subf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -527,7 +527,7 @@ class Mulf(BinaryOperation):
     name: str = "arith.mulf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -542,7 +542,7 @@ class Divf(BinaryOperation):
     name: str = "arith.divf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -557,7 +557,7 @@ class Maxf(BinaryOperation):
     name: str = "arith.maxf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
@@ -572,7 +572,7 @@ class Minf(BinaryOperation):
     name: str = "arith.minf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, ResultDef(floatingPointLike)]
+    result: Annotated[OpResult, floatingPointLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],

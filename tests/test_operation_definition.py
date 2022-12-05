@@ -18,7 +18,7 @@ class OpDefTestOp(Operation):
     name = "test.op_def_test"
 
     operand: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, ResultDef(AnyAttr())]
+    result: Annotated[OpResult, AnyAttr()]
     attr = AttributeDef(AnyAttr())
     region = RegionDef()
 

@@ -5,13 +5,11 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr)
 from xdsl.ir import Block, OpResult
-from xdsl.irdl import (OptOperand, OptRegionDef, OptResultDef,
-                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
-                       VarRegionDef, VarSingleBlockRegionDef,
-                       irdl_op_definition, ResultDef, VarResultDef,
-                       AttrSizedResultSegments, VarOperand,
-                       AttrSizedOperandSegments, AttributeDef, RegionDef,
-                       OptAttributeDef, Region)
+from xdsl.irdl import (
+    OptOperand, OptRegionDef, OptResultDef, OptSingleBlockRegionDef, Operand,
+    SingleBlockRegionDef, VarRegionDef, VarSingleBlockRegionDef,
+    irdl_op_definition, VarResultDef, AttrSizedResultSegments, VarOperand,
+    AttrSizedOperandSegments, AttributeDef, RegionDef, OptAttributeDef, Region)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -25,7 +23,7 @@ from xdsl.irdl import (OptOperand, OptRegionDef, OptResultDef,
 class ResultOp(Operation):
     name: str = "test.result_op"
 
-    res: Annotated[OpResult, ResultDef(StringAttr)]
+    res: Annotated[OpResult, StringAttr]
 
 
 def test_result_builder():
@@ -121,7 +119,7 @@ class MixedResultOp(Operation):
     name: str = "test.mixed"
 
     res1: Annotated[list[OpResult], VarResultDef(StringAttr)]
-    res2: Annotated[OpResult, ResultDef(StringAttr)]
+    res2: Annotated[OpResult, StringAttr]
     res3: Annotated[list[OpResult], VarResultDef(StringAttr)]
     irdl_options = [AttrSizedResultSegments()]
 

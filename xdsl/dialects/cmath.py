@@ -4,8 +4,7 @@ from typing import Annotated
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import MLIRType, ParametrizedAttribute, Operation, Dialect, OpResult
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
-                       ParameterDef, ParamAttrConstraint, AnyOf, ResultDef,
-                       VerifyException)
+                       ParameterDef, ParamAttrConstraint, AnyOf, VerifyException)
 
 
 @irdl_attr_definition
@@ -21,7 +20,7 @@ class Norm(Operation):
     op: Annotated[
         Operand,
         ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
-    res: Annotated[OpResult, ResultDef(AnyOf([Float32Type, Float64Type]))]
+    res: Annotated[OpResult, AnyOf([Float32Type, Float64Type])]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -40,10 +39,9 @@ class Mul(Operation):
     rhs: Annotated[
         Operand,
         ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
-    res: Annotated[OpResult,
-                   ResultDef(
-                       ParamAttrConstraint(
-                           ComplexType, [AnyOf([Float32Type, Float64Type])]))]
+    res: Annotated[
+        OpResult,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
 
     # TODO replace with trait
     def verify_(self) -> None:

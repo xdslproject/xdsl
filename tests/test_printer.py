@@ -8,7 +8,7 @@ from xdsl.dialects.arith import Arith, Addi, Constant
 
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
-                       Operation, Operand, ResultDef, OptAttributeDef)
+                       Operation, Operand, OptAttributeDef)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.utils.diagnostic import Diagnostic
@@ -377,7 +377,7 @@ class PlusCustomFormatOp(Operation):
     name = "test.add"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    res: Annotated[OpResult, ResultDef(IntegerType)]
+    res: Annotated[OpResult, IntegerType]
 
     @classmethod
     def parse(cls, result_types: List[Attribute],

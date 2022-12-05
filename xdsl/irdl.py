@@ -497,6 +497,8 @@ class OpDef:
 
             if isinstance(args[-1], ResultDef):
                 op_def.results.append((field_name, args[-1]))
+            elif args[0] is OpResult:
+                op_def.results.append((field_name, ResultDef(args[-1])))
             else:
                 raise ValueError(f'''
                     Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.

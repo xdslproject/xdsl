@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      Operation)
 from xdsl.irdl import (Operand, ParameterDef, AnyAttr, irdl_attr_definition,
-                       AttributeDef, ResultDef, irdl_op_definition, builder)
+                       AttributeDef, irdl_op_definition, builder)
 from xdsl.ir import OpResult, Attribute
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
@@ -53,7 +53,7 @@ class LLVMExtractValue(Operation):
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
     container: Annotated[Operand, AnyAttr()]
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 @irdl_op_definition
@@ -64,14 +64,14 @@ class LLVMInsertValue(Operation):
     container: Annotated[Operand, AnyAttr()]
     value: Annotated[Operand, AnyAttr()]
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 @irdl_op_definition
 class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 LLVM = Dialect([LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef],

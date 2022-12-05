@@ -9,7 +9,7 @@ from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperand, ResultDef, AttributeDef,
+                       VarOperand, AttributeDef,
                        AttrSizedOperandSegments, OptAttributeDef)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -58,7 +58,7 @@ class Load(Operation):
     name = "memref.load"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -107,7 +107,7 @@ class Alloc(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -135,7 +135,7 @@ class Alloca(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -181,7 +181,7 @@ class GetGlobal(Operation):
     name = "memref.get_global"
     # name = AttributeDef(FlatSymbolRefAttr)
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
