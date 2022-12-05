@@ -3,20 +3,9 @@ from typing import List, Union
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
-from xdsl.ir import MLContext, SSAValue, Operation, Block
+from xdsl.ir import SSAValue, Operation, Block, Dialect
 from xdsl.irdl import (AttributeDef, irdl_op_definition, VarOperandDef, AnyAttr, OperandDef,
                        AttrSizedOperandSegments)
-
-
-@dataclass
-class Cf:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(Assert)
-        self.ctx.register_op(Branch)
-        self.ctx.register_op(ConditionalBranch)
-
 
 
 @irdl_op_definition
@@ -57,3 +46,6 @@ class ConditionalBranch(Operation):
             else_ops: List[Union[Operation, SSAValue]]) -> ConditionalBranch:
         return ConditionalBranch.build(operands=[cond, then_ops, else_ops],
                                        successors=[then_block, else_block])
+
+
+Cf = Dialect([Assert, Branch, ConditionalBranch], [])

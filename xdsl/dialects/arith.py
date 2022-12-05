@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
-                                   IntegerType, Float32Type, IntegerAttr)
-from xdsl.ir import MLContext, Operation, SSAValue, Attribute
+                                   IntegerType, Float32Type, IntegerAttr, FloatAttr,
+                                   Attribute, AnyFloat)
+from xdsl.ir import Operation, SSAValue, Dialect
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
                        ResultDef, OperandDef)
 from xdsl.utils.exceptions import VerifyException
@@ -13,58 +14,6 @@ from xdsl.utils.exceptions import VerifyException
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-
-@dataclass
-class Arith:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(Constant)
-
-        # Integer-like
-        self.ctx.register_op(Addi)
-        self.ctx.register_op(Subi)
-        self.ctx.register_op(Muli)
-        self.ctx.register_op(DivUI)
-        self.ctx.register_op(DivSI)
-        self.ctx.register_op(FloorDivSI)
-        self.ctx.register_op(CeilDivSI)
-        self.ctx.register_op(CeilDivUI)
-        self.ctx.register_op(RemUI)
-        self.ctx.register_op(RemSI)
-        self.ctx.register_op(MinSI)
-        self.ctx.register_op(MaxSI)
-        self.ctx.register_op(MinUI)
-        self.ctx.register_op(MaxUI)
-
-        # Float-like
-        self.ctx.register_op(Addf)
-        self.ctx.register_op(Subf)
-        self.ctx.register_op(Mulf)
-        self.ctx.register_op(Divf)
-
-        # Comparison/Condition
-        self.ctx.register_op(Cmpi)
-        self.ctx.register_op(Select)
-
-        # Logical
-        self.ctx.register_op(AndI)
-        self.ctx.register_op(OrI)
-        self.ctx.register_op(XOrI)
-
-        # Shift
-        self.ctx.register_op(ShLI)
-        self.ctx.register_op(ShRUI)
-        self.ctx.register_op(ShRSI)
-
-        # Min/Max
-        self.ctx.register_op(Minf)
-        self.ctx.register_op(Maxf)
-
-        # Cast
-        self.ctx.register_op(ExtSI)
-        self.ctx.register_op(IndexCast)
-        self.ctx.register_op(TruncI)
 
 @irdl_op_definition
 class Constant(Operation):
@@ -77,13 +26,21 @@ class Constant(Operation):
         return Constant.create(result_types=[typ], attributes={"value": attr})
 
     @staticmethod
-    def from_int_constant(val: Union[int, Attribute],
-                          typ: Union[int, Attribute]) -> Constant:
+    def from_int_and_width(val: Union[int, Attribute],
+                           typ: Union[int, Attribute]) -> Constant:
         if isinstance(typ, int):
             typ = IntegerType.from_width(typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
+
+    # To add tests for this constructor
+    @staticmethod
+    def from_float_and_width(val: Union[float, Attribute],
+                             typ: AnyFloat) -> Constant:
+        return Constant.create(
+            result_types=[typ],
+            attributes={"value": FloatAttr.from_value(val, typ)})
 
 
 @dataclass
@@ -624,15 +581,12 @@ class Minf(BinaryOperation):
                           result_types=[operand1.typ])
 
 
+
 @irdl_op_definition
 class ExtSI(Operation):
     name: str = "arith.extsi"
     value = OperandDef(AnyAttr())
     result = ResultDef(AnyAttr())
-
-    # def verify_(self) -> None:
-    #     if self.value.typ.width.data >= self.result.typ.width.data:
-    #         raise VerifyException("Result type must have bigger bitwidth")
 
     @staticmethod
     def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> ExtSI:
@@ -656,10 +610,55 @@ class TruncI(Operation):
     value = OperandDef(AnyAttr())
     result = ResultDef(AnyAttr())
 
-    # def verify_(self) -> None:
-    #     if self.value.typ.width.data <= self.result.typ.width.data:
-    #         raise VerifyException("Result type must have smaller bitwidth")
-
     @staticmethod
     def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> TruncI:
         return TruncI.build(operands=[SSAValue.get(value)], result_types=[dst_type])
+
+Arith = Dialect([
+        Constant,
+
+        # Integer-like
+        Addi,
+        Subi,
+        Muli,
+        DivUI,
+        DivSI,
+        FloorDivSI,
+        CeilDivSI,
+        CeilDivUI,
+        RemUI,
+        RemSI,
+        MinSI,
+        MaxSI,
+        MinUI,
+        MaxUI,
+
+        # Float-like
+        Addf,
+        Subf,
+        Mulf,
+        Divf,
+
+        # Comparison/Condition
+        Cmpi,
+        Select,
+
+        # Logical
+        AndI,
+        OrI,
+        XOrI,
+
+        # Shift
+        ShLI,
+        ShRUI,
+        ShRSI,
+
+        # Min/Max
+        Minf,
+        Maxf,
+        
+        # Casts
+        ExtSI,
+        IndexCast,
+        TruncI,],
+        [])

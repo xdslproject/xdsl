@@ -17,9 +17,9 @@ from xdsl.utils.diagnostic import Diagnostic
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    _ = Arith(ctx)
+    ctx.register_dialect(Arith)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
 
     add.verify()
@@ -45,9 +45,9 @@ def test_simple_forgotten_op():
 def test_forgotten_op_non_fail():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    _ = Arith(ctx)
+    ctx.register_dialect(Arith)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
     add2 = Addi.get(add, add)
     mod = ModuleOp.from_region_or_ops([add, add2])
@@ -145,8 +145,8 @@ builtin.module() {
 """
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -180,8 +180,8 @@ def test_two_different_op_messages():
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -216,8 +216,8 @@ def test_two_same_op_messages():
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -250,8 +250,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -286,8 +286,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -312,8 +312,8 @@ def test_diagnostic():
     }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -352,8 +352,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -411,8 +411,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -442,8 +442,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -473,8 +473,8 @@ def test_custom_format_II():
 }"""
 
     ctx = MLContext()
-    _ = Arith(ctx)
-    _ = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -530,7 +530,7 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -559,7 +559,7 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -588,7 +588,7 @@ def test_parse_generic_format_attr_II():
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -615,8 +615,8 @@ def test_parse_dense_xdsl():
     """
 
     ctx = MLContext()
-    Builtin(ctx)
-    Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -640,8 +640,8 @@ def test_parse_dense_mlir():
     """
 
     ctx = MLContext()
-    Builtin(ctx)
-    Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     parser = Parser(ctx, prog, source=Parser.Source.MLIR)
     module = parser.parse_op()
@@ -662,7 +662,7 @@ def test_foo_string():
     }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 

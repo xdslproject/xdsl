@@ -6,29 +6,11 @@ from typing import TypeVar, Optional, List, TypeAlias
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, MLContext, ParametrizedAttribute
+from xdsl.ir import MLIRType, Operation, SSAValue, ParametrizedAttribute, Dialect
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
                        VarOperandDef, ResultDef, AttributeDef,
                        AttrSizedOperandSegments, OptAttributeDef)
-
-
-@dataclass
-class MemRef:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(MemRefType)
-
-        self.ctx.register_op(Load)
-        self.ctx.register_op(Store)
-        self.ctx.register_op(Alloc)
-        self.ctx.register_op(Alloca)
-        self.ctx.register_op(Dealloc)
-
-        self.ctx.register_op(GetGlobal)
-        self.ctx.register_op(Global)
-
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -244,3 +226,7 @@ class Global(Operation):
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility
             })
+
+
+MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
+                 [MemRefType])

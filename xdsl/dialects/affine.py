@@ -3,18 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
-from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
+from xdsl.ir import Operation, SSAValue, Block, Region, Dialect
 from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
                        VarResultDef, VarOperandDef, AnyAttr)
-
-
-@dataclass
-class Affine:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(For)
-        self.ctx.register_op(Yield)
 
 
 @irdl_op_definition
@@ -89,3 +80,6 @@ class Yield(Operation):
     def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(
             operands=[SSAValue.get(operand) for operand in operands])
+
+
+Affine = Dialect([For, Yield], [])

@@ -2,22 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-from xdsl.ir import MLContext, SSAValue, Block, Region, Operation, Attribute
+from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect
 from xdsl.irdl import (VarOperandDef, irdl_op_definition, VarResultDef,
                        OperandDef, RegionDef, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
-
-
-@dataclass
-class Scf:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(If)
-        self.ctx.register_op(Yield)
-        self.ctx.register_op(For)
-        self.ctx.register_op(Condition)
-        self.ctx.register_op(While)
 
 
 @irdl_op_definition
@@ -33,7 +21,7 @@ class If(Operation):
     @staticmethod
     def get(cond: SSAValue | Operation, return_types: List[Attribute],
             true_region: Region | List[Block] | List[Operation],
-            false_region: Region | List[Block] | List[Operation]):
+            false_region: Region | List[Block] | List[Operation]) -> If:
         return If.build(operands=[cond],
                         result_types=[return_types],
                         regions=[true_region, false_region])
@@ -111,3 +99,6 @@ class While(Operation):
                          result_types=result_types,
                          regions=[before, after])
         return op
+
+
+Scf = Dialect([If, Yield, Condition, While, For], [])

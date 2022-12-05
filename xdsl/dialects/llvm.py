@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from xdsl.ir import (MLContext, MLIRType, ParametrizedAttribute, Attribute,
+from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      Operation)
 from xdsl.irdl import (ParameterDef, AnyAttr, irdl_attr_definition,
                        AttributeDef, OperandDef, ResultDef, irdl_op_definition,
@@ -12,18 +12,6 @@ from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
-
-
-@dataclass
-class LLVM:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(LLVMStructType)
-
-        self.ctx.register_op(LLVMExtractValue)
-        self.ctx.register_op(LLVMInsertValue)
-        self.ctx.register_op(LLVMMLIRUndef)
 
 
 @irdl_attr_definition
@@ -84,3 +72,7 @@ class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 
     res = ResultDef(AnyAttr())
+
+
+LLVM = Dialect([LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef],
+               [LLVMStructType])
