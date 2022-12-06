@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Annotated, List, Union
-from dataclasses import dataclass
 
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import SSAValue, Operation, Block, Dialect

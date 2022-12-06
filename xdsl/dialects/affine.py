@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
 from xdsl.ir import Operation, SSAValue, Block, Region, Dialect, OpResult
-from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
-                       VarResultDef, VarOperand, AnyAttr)
+from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef, VarOperand,
+                       AnyAttr)
 
 
 @irdl_op_definition
@@ -14,7 +13,7 @@ class For(Operation):
     name: str = "affine.for"
 
     arguments: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
+    res: Annotated[list[OpResult], AnyAttr()]
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here

@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexT
                                    Attribute, AnyFloat)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
-                       ResultDef, Operand)
+                       Operand)
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))

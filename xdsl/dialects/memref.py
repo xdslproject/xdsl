@@ -9,8 +9,8 @@ from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperand, AttributeDef,
-                       AttrSizedOperandSegments, OptAttributeDef)
+                       VarOperand, AttributeDef, AttrSizedOperandSegments,
+                       OptAttributeDef)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
