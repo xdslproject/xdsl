@@ -486,33 +486,30 @@ class OpDef:
             if len(args) == 3:
                 if args[1] is OperandDef:
                     op_def.operands.append((field_name, OperandDef(args[-1])))
-                    continue
                 elif args[1] is VarOperandDef:
                     op_def.operands.append(
                         (field_name, VarOperandDef(args[-1])))
-                    continue
                 elif args[1] is OptOperandDef:
                     op_def.operands.append(
                         (field_name, OptOperandDef(args[-1])))
-                    continue
-
             elif args[0] is OpResult:
                 op_def.results.append((field_name, ResultDef(args[-1])))
-            elif get_origin(args[0]) is list and get_args(
-                    args[0])[0] is OpResult:
-                op_def.results.append((field_name, VarResultDef(args[-1])))
-            elif get_origin(args[0]) is Optional and get_args(
-                    args[0])[0] is OpResult:
-                op_def.results.append((field_name, OptResultDef(args[-1])))
-            elif get_origin(args[0]) is UnionType and get_args(
-                    args[0])[0] is OpResult and get_args(
-                        args[0])[1] is NoneType and len(get_args(
-                            args[0])) == 2:
-                op_def.results.append((field_name, OptResultDef(args[-1])))
             else:
-                raise ValueError(f'''
-                    Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
-                    ''')
+                # args[0] is a composite type, need to decompose
+                arg_origin = get_origin(args[0])
+                arg_args = get_args(args[0])
+
+                if arg_origin is list and arg_args == (OpResult, ):
+                    op_def.results.append((field_name, VarResultDef(args[-1])))
+                elif arg_origin is Optional and arg_args == (OpResult, ):
+                    op_def.results.append((field_name, OptResultDef(args[-1])))
+                elif arg_origin is UnionType and arg_args == (OpResult,
+                                                              NoneType):
+                    op_def.results.append((field_name, OptResultDef(args[-1])))
+                else:
+                    raise ValueError(f'''
+                        Unsupported type annotation {args} in {pyrdl_def.__name__}.
+                        ''')
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):
