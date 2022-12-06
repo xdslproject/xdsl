@@ -5,10 +5,10 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr)
 from xdsl.ir import Block, OpResult
-from xdsl.irdl import (OptOperand, OptRegionDef, OptResultDef,
-                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
-                       VarRegionDef, VarSingleBlockRegionDef,
-                       irdl_op_definition, AttrSizedResultSegments, VarOperand,
+from xdsl.irdl import (OptOperand, OptRegionDef, OptSingleBlockRegionDef,
+                       Operand, SingleBlockRegionDef, VarRegionDef,
+                       VarSingleBlockRegionDef, irdl_op_definition,
+                       AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, AttributeDef, RegionDef,
                        OptAttributeDef, Region)
 
@@ -42,7 +42,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res: Annotated[OpResult | None, OptResultDef(StringAttr)]
+    res: Annotated[OpResult | None, StringAttr]
 
 
 def test_opt_result_builder():

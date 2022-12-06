@@ -6,9 +6,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from frozenlist import FrozenList
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
-from types import UnionType, GenericAlias
+from typing import (Annotated, Any, Callable, Generic, Optional, Sequence,
+                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
+                    get_type_hints)
+from types import NoneType, UnionType, GenericAlias
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
@@ -495,13 +496,19 @@ class OpDef:
                         (field_name, OptOperandDef(args[-1])))
                     continue
 
-            if isinstance(args[-1], ResultDef):
-                op_def.results.append((field_name, args[-1]))
             elif args[0] is OpResult:
                 op_def.results.append((field_name, ResultDef(args[-1])))
             elif get_origin(args[0]) is list and get_args(
                     args[0])[0] is OpResult:
                 op_def.results.append((field_name, VarResultDef(args[-1])))
+            elif get_origin(args[0]) is Optional and get_args(
+                    args[0])[0] is OpResult:
+                op_def.results.append((field_name, OptResultDef(args[-1])))
+            elif get_origin(args[0]) is UnionType and get_args(
+                    args[0])[0] is OpResult and get_args(
+                        args[0])[1] is NoneType and len(get_args(
+                            args[0])) == 2:
+                op_def.results.append((field_name, OptResultDef(args[-1])))
             else:
                 raise ValueError(f'''
                     Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
