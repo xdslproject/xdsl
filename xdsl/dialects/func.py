@@ -1,9 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
-from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect, OpResult
 from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
                        AnyAttr, RegionDef, AttributeDef, VarResultDef)
 from xdsl.utils.exceptions import VerifyException
@@ -60,11 +60,11 @@ class FuncOp(Operation):
 @irdl_op_definition
 class Call(Operation):
     name: str = "func.call"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     callee = AttributeDef(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res = VarResultDef(AnyAttr())
+    res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     # TODO how do we verify that the types are correct?
 
     @staticmethod
@@ -79,7 +79,7 @@ class Call(Operation):
 @irdl_op_definition
 class Return(Operation):
     name: str = "func.return"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
 
     def verify_(self) -> None:
         func_op = self.parent_op()

@@ -466,6 +466,21 @@ class OpDef:
                 "adding a 'name' field.")
 
         op_def = OpDef(clsdict["name"])
+        for field_name, field_type in get_type_hints(
+                pyrdl_def, include_extras=True).items():
+            origin = get_origin(field_type)
+            if origin != Annotated:
+                continue
+            args = get_args(field_type)
+
+            if isinstance(args[-1], OperandDef):
+                op_def.operands.append((field_name, args[-1]))
+            elif isinstance(args[-1], ResultDef):
+                op_def.results.append((field_name, args[-1]))
+            else:
+                raise ValueError(f'''
+                    Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
+                    ''')
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):
