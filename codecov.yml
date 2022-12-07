@@ -21,3 +21,7 @@ coverage:
 
 ignore:
   - "**/*.ipynb"
+  # https://about.codecov.io/blog/should-i-include-test-files-in-code-coverage-calculations/
+  - tests
+  - .github
+  - .git
