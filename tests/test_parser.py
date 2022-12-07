@@ -15,15 +15,15 @@ def test_int_list_parser(input, expected):
     assert int_list == expected
 
 
-@pytest.mark.parametrize("input,expected", [("\"A\"=0, \"B\"=1, \"C\"=2", {
+@pytest.mark.parametrize("input,expected", [('"A"=0, "B"=1, "C"=2', {
     "A": 0,
     "B": 1,
     "C": 2
-}), ("\"MA\"=10, \"BR\"=7, \"Z\"=3", {
+}), ('"MA"=10, "BR"=7, "Z"=3', {
     "MA": 10,
     "BR": 7,
     "Z": 3
-}), ("\"Q\"=77, \"VV\"=12, \"AA\"=-8", {
+}), ('"Q"=77, "VV"=12, "AA"=-8', {
     "Q": 77,
     "VV": 12,
     "AA": -8
