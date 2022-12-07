@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
-    UnrankedTensorType, UnregisteredOp, VectorType)
+    UnrankedTensorType, UnregisteredOp, VectorType, DictionaryAttr)
 from xdsl.irdl import Data
 
 indentNumSpaces = 2
@@ -460,6 +460,35 @@ class Parser:
             res.append(one)
         return res
 
+    def parse_dictionary(self,
+                         parse_optional_one: Callable[[], T | None],
+                         delimiter: str = ",",
+                         skip_white_space: bool = True) -> list[T]:
+        if skip_white_space:
+            self.skip_white_space()
+        assert (len(delimiter) <= 1)
+        res = dict[Any]()  # Pyright do not let us use `T` here
+        entry = self.parse_dict_entry(parse_optional_one)
+        if entry is not None:
+            res = res | entry
+        while self.parse_optional_char(delimiter) if len(
+                delimiter) == 1 else True:
+            entry = self.parse_dict_entry(parse_optional_one)
+            if entry is None:
+                return res
+            res = res | entry
+        return res
+
+    def parse_dict_entry(self, parse_optional_one: Callable[[], T | None]):
+        # Limitation currently is that the key is a string
+        key = self.parse_str_literal()
+        if key is not None:
+            if self.parse_optional_char("="):
+                value = parse_optional_one()
+                if value is not None:
+                    return {key: value}
+        return None
+
     def parse_optional_block_argument(
             self,
             skip_white_space: bool = True) -> tuple[str, Attribute] | None:
@@ -671,6 +700,13 @@ class Parser:
             array = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
             return ArrayAttr.from_list(array)
+
+        # Shorthand for DictionaryAttr
+        parse_bracket = self.parse_optional_char("{")
+        if parse_bracket:
+            dictionary = self.parse_dictionary(self.parse_optional_attribute)
+            self.parse_char("}")
+            return DictionaryAttr.from_dict(dictionary)
 
         # Shorthand for FlatSymbolRefAttr
         parse_at = self.parse_optional_char("@")

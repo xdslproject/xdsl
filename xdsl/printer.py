@@ -14,7 +14,8 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType)
+    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -121,6 +122,17 @@ class Printer:
             if i:
                 self.print(delimiter)
             print_fn(elem)
+
+    def print_dictionary(self,
+                         elems: dict,
+                         print_fn: Callable[[T], None],
+                         delimiter: str = ", ") -> None:
+        for i, (key, value) in enumerate(elems.items()):
+            if i:
+                self.print(delimiter)
+            print_fn(key)
+            self.print("=")
+            print_fn(value)
 
     def _print_new_line(self,
                         indent: int | None = None,
@@ -347,6 +359,14 @@ class Printer:
                 attribute.data,  # type: ignore
                 self.print_attribute)
             self.print_string("]")
+            return
+
+        if isinstance(attribute, DictionaryAttr):
+            self.print_string("{")
+            self.print_dictionary(
+                attribute.data,  # type: ignore
+                self.print_attribute)
+            self.print_string("}")
             return
 
         # Function types have an alias in MLIR, but not in xDSL

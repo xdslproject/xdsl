@@ -342,6 +342,65 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
+_DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
+
+
+@irdl_attr_definition
+class DictionaryAttr(GenericData[dict[_DictionaryAttrT]]):
+    name = "dictionary"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> dict[_DictionaryAttrT]:
+        parser.parse_char("{")
+        data = parser.parse_list(parser.parse_optional_attribute)
+        parser.parse_char("}")
+        # the type system can't ensure that the elements are of type A
+        # and not just of type Attribute, therefore, the following cast
+        return cast(dict, data)
+
+    @staticmethod
+    def print_parameter(data: dict, printer: Printer) -> None:
+        printer.print_string("{")
+        printer.print_dictionary(data, printer.print_attribute)
+        printer.print_string("}")
+
+    @staticmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        pass
+
+    def verify(self) -> None:
+        if not isinstance(self.data, dict):
+            raise VerifyException(
+                f"Wrong type given to attribute {self.name}: got"
+                f" {type(self.data)}, but expected dictionary of"
+                " attributes")
+        for idx, val in enumerate(self.data):
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} data expects attribute dictionary, but {idx} "
+                    f"element is of type {type(val)}")
+
+    @staticmethod
+    @builder
+    def from_dict(data: dict) -> DictionaryAttr[_DictionaryAttrT]:
+        to_add_data = {}
+        for k, v in data.items():
+            if not isinstance(k, StringAttr):
+                if isinstance(k, str):
+                    str_attr_k = StringAttr.from_str(k)
+                    to_add_data[str_attr_k] = v
+                else:
+                    raise TypeError(
+                        f"Attribute DictionaryAttr expects keys to"
+                        f" be of type StringAttr or str, but {type(k)} provided"
+                    )
+            else:
+                to_add_data[k] = v
+        return DictionaryAttr(to_add_data)
+
+
+AnyDictionaryAttr: TypeAlias = DictionaryAttr[Attribute]
+
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
@@ -696,6 +755,7 @@ Builtin = Dialect(
         IntAttr,
         IntegerAttr,
         ArrayAttr,
+        DictionaryAttr,
         DenseIntOrFPElementsAttr,
         UnitAttr,
         FloatData,
