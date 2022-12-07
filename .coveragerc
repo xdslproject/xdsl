@@ -5,6 +5,11 @@ omit =
     xdsl/_version.py
 concurrency = multiprocessing
 parallel = True
+source =
+    xdsl/
+    tests/
+
+
 
 [report]
 # Regexes for lines to exclude from consideration
