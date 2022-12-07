@@ -979,6 +979,12 @@ class Parser:
             self.parse_char("]")
             return ArrayAttr.from_list(contents)
 
+        # Shorthand for DictionaryAttr
+        if self.parse_optional_char("{"):
+            contents = self.parse_dictionary(self.parse_optional_attribute)
+            self.parse_char("}")
+            return DictionaryAttr.from_dict(contents)
+
         # tensor type
         if (tensor := self.parse_optional_mlir_tensor()) is not None:
             return tensor
