@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from typing import Annotated, List
 
-from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect, OpResult
-from xdsl.irdl import (VarOperand, irdl_op_definition, Operand, RegionDef,
-                       AnyAttr)
+from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect
+from xdsl.irdl import (VarOpResult, VarOperand, irdl_op_definition, Operand,
+                       RegionDef, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 
 
 @irdl_op_definition
 class If(Operation):
     name: str = "scf.if"
-    output: Annotated[list[OpResult], AnyAttr()]
+    output: Annotated[VarOpResult, AnyAttr()]
     cond: Annotated[Operand, IntegerType.from_width(1)]
 
     true_region = RegionDef()
@@ -56,7 +56,7 @@ class While(Operation):
     name: str = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]
 
-    res: Annotated[list[OpResult], AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
     before_region = RegionDef()
     after_region = RegionDef()
 

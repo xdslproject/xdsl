@@ -6,10 +6,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from frozenlist import FrozenList
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Optional, Sequence,
-                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
-                    get_type_hints)
-from types import NoneType, UnionType, GenericAlias
+from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from types import UnionType, GenericAlias
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
@@ -396,9 +395,15 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
 
+VarOpResult = Annotated[OpResult, VarResultDef]
+
+
 @dataclass(init=False)
 class OptResultDef(VarResultDef, OptionalDef):
     """An IRDL optional result definition."""
+
+
+OptOpResult = Annotated[OpResult | None, OptResultDef]
 
 
 @dataclass
@@ -483,6 +488,7 @@ class OpDef:
                 continue
             args = get_args(field_type)
 
+            fail = False
             if len(args) == 3:
                 if args[1] is OperandDef:
                     op_def.operands.append((field_name, OperandDef(args[-1])))
@@ -492,24 +498,24 @@ class OpDef:
                 elif args[1] is OptOperandDef:
                     op_def.operands.append(
                         (field_name, OptOperandDef(args[-1])))
-            elif args[0] is OpResult:
-                op_def.results.append((field_name, ResultDef(args[-1])))
-            else:
-                # args[0] is a composite type, need to decompose
-                arg_origin = get_origin(args[0])
-                arg_args = get_args(args[0])
-
-                if arg_origin is list and arg_args == (OpResult, ):
+                elif args[1] is VarResultDef:
                     op_def.results.append((field_name, VarResultDef(args[-1])))
-                elif arg_origin is Optional and arg_args == (OpResult, ):
-                    op_def.results.append((field_name, OptResultDef(args[-1])))
-                elif arg_origin is UnionType and arg_args == (OpResult,
-                                                              NoneType):
+                elif args[1] is OptResultDef:
                     op_def.results.append((field_name, OptResultDef(args[-1])))
                 else:
-                    raise ValueError(f'''
-                        Unsupported type annotation {args} in {pyrdl_def.__name__}.
-                        ''')
+                    fail = True
+            elif len(args) == 2:
+                if args[0] is OpResult:
+                    op_def.results.append((field_name, ResultDef(args[-1])))
+                else:
+                    fail = True
+            else:
+                fail = True
+
+            if fail:
+                raise ValueError(f'''
+                    Unsupported type annotation {args} in {pyrdl_def.__name__}.
+                    ''')
 
         for field_name, field_value in clsdict.items():
             if isinstance(field_value, OperandDef):

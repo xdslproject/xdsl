@@ -5,10 +5,10 @@ import pytest
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr)
 from xdsl.ir import Block, OpResult
-from xdsl.irdl import (OptOperand, OptRegionDef, OptSingleBlockRegionDef,
-                       Operand, SingleBlockRegionDef, VarRegionDef,
-                       VarSingleBlockRegionDef, irdl_op_definition,
-                       AttrSizedResultSegments, VarOperand,
+from xdsl.irdl import (OptOpResult, OptOperand, OptRegionDef,
+                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
+                       VarOpResult, VarRegionDef, VarSingleBlockRegionDef,
+                       irdl_op_definition, AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, AttributeDef, RegionDef,
                        OptAttributeDef, Region)
 
@@ -42,7 +42,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res: Annotated[OpResult | None, StringAttr]
+    res: Annotated[OptOpResult, StringAttr]
 
 
 def test_opt_result_builder():
@@ -63,7 +63,7 @@ def test_opt_result_builder_two_args():
 class VarResultOp(Operation):
     name: str = "test.var_result_op"
 
-    res: Annotated[list[OpResult], StringAttr]
+    res: Annotated[VarOpResult, StringAttr]
 
 
 def test_var_result_builder():
@@ -78,8 +78,8 @@ def test_var_result_builder():
 class TwoVarResultOp(Operation):
     name: str = "test.two_var_result_op"
 
-    res1: Annotated[list[OpResult], StringAttr]
-    res2: Annotated[list[OpResult], StringAttr]
+    res1: Annotated[VarOpResult, StringAttr]
+    res2: Annotated[VarOpResult, StringAttr]
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -119,9 +119,9 @@ def test_two_var_result_builder2():
 class MixedResultOp(Operation):
     name: str = "test.mixed"
 
-    res1: Annotated[list[OpResult], StringAttr]
+    res1: Annotated[VarOpResult, StringAttr]
     res2: Annotated[OpResult, StringAttr]
-    res3: Annotated[list[OpResult], StringAttr]
+    res3: Annotated[VarOpResult, StringAttr]
     irdl_options = [AttrSizedResultSegments()]
 
 
