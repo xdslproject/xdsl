@@ -21,7 +21,7 @@ builtin.module() {
     %x5 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 1 : !i1]
 
     // CHECK: "test" = false
-    %x6 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 0 : !i1]        
+    %x6 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 0 : !i1]
 
     func.return()
   }

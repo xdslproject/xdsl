@@ -106,7 +106,7 @@
 
   // CHECK: "value1" = opaque<"test", "contents">, "value2" = opaque<"test", "contents"> : tensor<2xf64>
 
-  
+
   "func.func"() ({}) {function_type = () -> (),
                       value = {"one"=1, "two"=2, "three"="three"},
                       sym_name = "dense_attr"} : () -> ()
