@@ -4,7 +4,8 @@ from typing import Annotated
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import MLIRType, ParametrizedAttribute, Operation, Dialect, OpResult
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
-                       ParameterDef, ParamAttrConstraint, AnyOf, VerifyException)
+                       ParameterDef, ParamAttrConstraint, AnyOf,
+                       VerifyException)
 
 
 @irdl_attr_definition
