@@ -38,7 +38,7 @@ jobs:
         ubuntu-version: 18.04
 
     - name: Ninja Setup
-      uses: lukka/get-cmake@latest
+      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
     - name: CCache Setup (C++ compilation)
       uses: hendrikmuhs/ccache-action@v1.2.5
