@@ -13,7 +13,7 @@ T = typing.TypeVar('T')
 
 
 @dataclass(frozen=True)
-class BNFToken(typing.Generic[T], ABC):
+class BNFToken:
     bind: str | None = field(kw_only=True, init=False)
 
     @abstractmethod
@@ -21,13 +21,14 @@ class BNFToken(typing.Generic[T], ABC):
         raise NotImplemented()
 
     def try_parse(self, parser: MlirParser) -> T | None:
-        with parser.tokenizer.backtracking():
+        with parser.tokenizer.backtracking(repr(self)):
             return self.must_parse(parser)
 
-    def collect(self, value, collection: dict):
+    def collect(self, value, collection: dict) -> dict:
         if self.bind is None:
-            return
+            return collection
         collection[self.bind] = value
+        return collection
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,7 @@ class Regex(BNFToken):
         res = self.try_parse(parser)
         if res is None:
             parser.raise_error('Expected token of form {}!'.format(self))
+        return res
 
     def __repr__(self):
         return 're`{}`'.format(self.pattern.pattern)
@@ -79,12 +81,12 @@ class Nonterminal(BNFToken):
 
     def must_parse(self, parser: MlirParser):
         if hasattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_'))):
-            return getattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_')))(), self.bind
+            return getattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_')))()
         elif hasattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))):
             return parser.expect(
                 getattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))),
                 'Expected to parse {} here!'.format(self.name)
-            ), self.bind
+            )
         else:
             raise NotImplementedError("Parser cannot parse {}".format(self.name))
 
@@ -110,16 +112,15 @@ class Group(BNFToken):
     def __repr__(self):
         return '( {} )'.format(' '.join(repr(t) for t in self.tokens))
 
-    def collect(self, value, collection: dict):
+    def collect(self, value, collection: dict) -> dict:
         for child, value in zip(self.tokens, value):
             child.collect(value, collection)
-        if self.bind is not None:
-            collection[self.bind] = value
+        return super().collect(value, collection)
 
 
 @dataclass(frozen=True)
 class OneOrMoreOf(BNFToken):
-    wraps: BNFToken[T]
+    wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> list[T]:
@@ -138,16 +139,15 @@ class OneOrMoreOf(BNFToken):
     def children(self) -> typing.Iterable[BNFToken]:
         return self.wraps,
 
-    def collect(self, value, collection: dict):
+    def collect(self, value, collection: dict) -> dict:
         for val in value:
             self.wraps.collect(val, collection)
-        if self.bind is not None:
-            collection[self.bind] = value
+        return super().collect(value, collection)
 
 
 @dataclass(frozen=True)
 class ZeroOrMoreOf(BNFToken):
-    wraps: BNFToken[T]
+    wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> list[T]:
@@ -164,11 +164,10 @@ class ZeroOrMoreOf(BNFToken):
     def children(self) -> typing.Iterable[BNFToken]:
         return self.wraps,
 
-    def collect(self, values, collection: dict):
+    def collect(self, values, collection: dict) -> dict:
         for value in values:
             self.wraps.collect(value, collection)
-        if self.bind is not None:
-            collection[self.bind] = values
+        return super().collect(values, collection)
 
 
 @dataclass(frozen=True)
@@ -192,16 +191,15 @@ class ListOf(BNFToken):
             return '( {elm} ( re`{sep}` {elm} )* )?'.format(elm=self.element, sep=self.separator.pattern)
         return '{elm} ( re`{sep}` {elm} )*'.format(elm=self.element, sep=self.separator.pattern)
 
-    def collect(self, values, collection: dict):
+    def collect(self, values, collection: dict) -> dict:
         for value in values:
             self.element.collect(value, collection)
-        if self.bind is not None:
-            collection[self.bind] = values
+        return super().collect(values, collection)
 
 
 @dataclass(frozen=True)
-class Optional(BNFToken[T | None]):
-    wraps: BNFToken[T]
+class Optional(BNFToken):
+    wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> T | None:
@@ -213,11 +211,10 @@ class Optional(BNFToken[T | None]):
     def __repr__(self):
         return '{}?'.format(self.wraps)
 
-    def collect(self, value, collection: dict):
+    def collect(self, value, collection: dict) -> dict:
         if value is not None:
             self.wraps.collect(value, collection)
-        if self.bind is not None:
-            collection[self.bind] = value
+        return super().collect(value, collection)
 
 
 def OptionalGroup(tokens: list[BNFToken], bind: str | None = None) -> Optional:
