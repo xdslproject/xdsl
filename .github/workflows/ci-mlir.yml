@@ -35,7 +35,7 @@ jobs:
       uses: egor-tensin/setup-clang@v1
 
     - name: Ninja Setup
-      uses: llvm/actions/install-ninja@main
+      uses: lukka/get-cmake@latest
 
     - name: CCache Setup (C++ compilation)
       uses: hendrikmuhs/ccache-action@v1.2.5
