@@ -19,19 +19,19 @@ OpT = TypeVar('OpT', bound='Operation')
 @dataclass
 class Dialect:
     """Contains the operations and attributes of a specific dialect"""
-    _operations: list[Operation] = field(default_factory=list,
-                                         init=True,
-                                         repr=True)
-    _attributes: list[Attribute] = field(default_factory=list,
-                                         init=True,
-                                         repr=True)
+    _operations: list[type[Operation]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
+    _attributes: list[type[Attribute]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
 
     @property
-    def operations(self) -> Iterator[Operation]:
+    def operations(self) -> Iterator[type[Operation]]:
         return iter(self._operations)
 
     @property
-    def attributes(self) -> Iterator[Attribute]:
+    def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
 
     def __call__(self, ctx: MLContext) -> None:
