@@ -1,4 +1,5 @@
 from inspect import isclass
+from types import UnionType
 from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
                     get_origin)
 
@@ -35,7 +36,7 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
             and is_satisfying_hint(value, value_hint)
             for key, value in arg_dict.items())
 
-    if get_origin(hint) is Union:
+    if get_origin(hint) is Union or get_origin(hint) is UnionType:
         return any(
             is_satisfying_hint(arg, union_arg) for union_arg in get_args(hint))
 
