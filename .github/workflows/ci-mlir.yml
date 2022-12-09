@@ -15,7 +15,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
         python-version: ['3.10']
@@ -35,7 +35,7 @@ jobs:
       uses: KyleMayes/install-llvm-action@v1
       with:
         version: "15.0"
-        ubuntu-version: 22.04
+        ubuntu-version: 18.04
 
     - name: Ninja Setup
       uses: lukka/get-cmake@latest
