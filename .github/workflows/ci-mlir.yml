@@ -35,6 +35,7 @@ jobs:
       uses: KyleMayes/install-llvm-action@v1
       with:
         version: "15.0"
+        ubuntu-version: 22.04
 
     - name: Ninja Setup
       uses: lukka/get-cmake@latest
