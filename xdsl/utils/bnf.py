@@ -3,7 +3,7 @@ import functools
 import re
 import typing
 from dataclasses import dataclass, field
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Any
 
 if typing.TYPE_CHECKING:
@@ -13,7 +13,7 @@ T = typing.TypeVar('T')
 
 
 @dataclass(frozen=True)
-class BNFToken(typing.Generic[T]):
+class BNFToken(typing.Generic[T], ABC):
     bind: str | None = field(kw_only=True, init=False)
 
     @abstractmethod
@@ -86,7 +86,7 @@ class Nonterminal(BNFToken):
                 'Expected to parse {} here!'.format(self.name)
             ), self.bind
         else:
-            NotImplemented("Parser cannot parse {}".format(self.name))
+            raise NotImplementedError("Parser cannot parse {}".format(self.name))
 
     def try_parse(self, parser: MlirParser) -> T | None:
         if hasattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))):
@@ -179,9 +179,9 @@ class ListOf(BNFToken):
     allow_empty: bool = True
     bind: str | None = field(kw_only=True, default=None)
 
-    def try_parse(self, parser: MlirParser) -> T | None:
+    def must_parse(self, parser: MlirParser) -> T | None:
         return parser.must_parse_list_of(
-            self.element.try_parse,
+            lambda : self.element.try_parse(parser),
             'Expected {}!'.format(self.element),
             separator_pattern=self.separator,
             allow_empty=self.allow_empty

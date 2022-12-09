@@ -4,9 +4,9 @@ import contextlib
 from dataclasses import dataclass, field
 import re
 import ast
+from io import StringIO
 from typing import Any, TypeVar, Iterable, Literal
 from enum import Enum
-
 
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute)
@@ -23,10 +23,19 @@ from xdsl.dialects.builtin import (
 from xdsl.irdl import Data
 
 
-@dataclass
 class ParseError(Exception):
     span: Span
     msg: str
+
+    def __init__(self, span: Span, msg: str):
+        super().__init__(span.print_with_context(msg))
+        self.span = span
+        self.msg = msg
+
+    def print_pretty(self):
+        print(
+            self.span.print_with_context(self.msg)
+        )
 
 
 class BacktrackingAbort(Exception):
@@ -72,11 +81,14 @@ class Span:
     def print_with_context(self, msg: str | None = None):
         info = self.input.get_lines_containing(self)
         assert info is not None
-        lines, offset, line_no = info
+        lines, offset_of_first_line, line_no = info
+        # offset relative to the first line:
+        offset = self.start - offset_of_first_line
         remaining_len = self.len
-        print("In {}:{}".format(self.input.name, line_no))
+        capture = StringIO()
+        print("file: {}:{}".format(self.input.name, line_no), file=capture)
         for line in lines:
-            print(line)
+            print(line, file=capture)
             if offset > len(line):
                 offset -= len(line)
                 continue
@@ -84,11 +96,12 @@ class Span:
                 continue
             len_on_this_line = min(remaining_len, len(line) - offset)
             remaining_len -= len_on_this_line
-            print(("  " * offset) + ("^" * len_on_this_line))
+            print("{}{}".format(" " * offset, "^" * max(len_on_this_line, 1)), file=capture)
             if msg is not None:
-                print("{}{}".format(" " * offset, msg))
+                print("{}{}".format(" " * offset, msg), file=capture)
                 msg = None
             offset = 0
+        return capture.getvalue()
 
     def __repr__(self):
         return "Span[{}:{}](text='{}', input={})".format(self.start, self.end, self.text, self.input)
@@ -139,6 +152,7 @@ class Input:
         return start, self.content.find('\n', start)
 
     def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
+        # A pointer to the start of the first line
         start = 0
         line_no = 0
         source = self.content
@@ -167,6 +181,7 @@ class Input:
 
 save_t = tuple[int, tuple[str, ...], bool]
 parsed_type_t = tuple[Span, tuple[Span]]
+
 
 @dataclass
 class Tokenizer:
@@ -234,9 +249,9 @@ class Tokenizer:
                 self.last_error = ParseError(self.last_token, reason[-1])
             elif isinstance(ex, ParseError):
                 self.last_error = ex
-                print("Warning: ParseError in backtracking: {}".format(ex))
+                print("Warning: ParseError in backtracking:\n{}".format(ex))
             else:
-                print("Warning: Unexpected error in backtracking: {}".format(ex))
+                print("Warning: Unexpected error in backtracking:\n{}".format(ex))
             self.resume_from(save)
 
     def next_token(self, start: int | None = None, skip: int = 0, peek: bool = False,
@@ -395,13 +410,23 @@ class ParserCommons:
             BNF.Literal(')'),
             BNF.OptionalGroup([
                 BNF.Literal('['),
-                BNF.ListOf(BNF.Nonterminal('block-id'), allow_empty=False, bind='blocks'), # TODD: allow for block args here?! (accordin to spec)
+                BNF.ListOf(BNF.Nonterminal('block-id'), allow_empty=False, bind='blocks'),
+                # TODD: allow for block args here?! (accordin to spec)
                 BNF.Literal(']')
             ], bind='blocks_group'),
-            BNF.ListOf(BNF.Nonterminal('region'), bind='regions'),
+            BNF.OptionalGroup([
+                BNF.Literal('('),
+                BNF.ListOf(BNF.Nonterminal('region'), bind='regions', allow_empty=False),
+                BNF.Literal(')')
+            ], bind='region_group'),
             BNF.Nonterminal('attr-dict', bind='attributes'),
             BNF.Literal(':'),
             BNF.Nonterminal('function-type', bind='type_signature')
+        ])
+        region = BNF.Group([
+            BNF.Literal('{'),
+            BNF.ListOf(BNF.Nonterminal('operation'), separator=re.compile('')),
+            BNF.Literal('}'),
         ])
 
 
@@ -444,7 +469,7 @@ class MlirParser:
     of all try_parse functions is T_ | None
     """
 
-    def __int__(self, input: str, name: str, ctx: MLContext, accent: str | Accent = 'xDSL'):
+    def __init__(self, input: str, name: str, ctx: MLContext, accent: str | Accent = Accent.XDSL):
         self.tokenizer = Tokenizer(Input(input, name))
         self.ctx = ctx
         if isinstance(accent, str):
@@ -508,6 +533,20 @@ class MlirParser:
 
     def must_parse_list_of(self, try_parse: Callable[[], T_ | None], error_msg: str,
                            separator_pattern: re.Pattern = ParserCommons.comma, allow_empty: bool = True) -> list[T_]:
+        """
+        This is a greedy list-parser. It accepts input only in these cases:
+
+         - If the separator isn't encountered, which signals the end of the list
+         - If an empty list is allowed, it accepts when the first try_parse fails
+         - If an empty separator is given, it instead sees a failed try_parse as the end of the list.
+
+        This means, that the setup will not accept the input and instead raise an error:
+            try_parse = parse_integer_literal
+            separator = 'x'
+            input = 3x4x4xi32
+        as it will read [3,4,4], then see another separator, and expects the next try_parse call to succeed
+        (which won't as i32 is not a valid integer literal)
+        """
         items = list()
         first_item = try_parse()
         if first_item is None:
@@ -520,6 +559,9 @@ class MlirParser:
         while self.tokenizer.next_token_of_pattern(separator_pattern) is not None:
             next_item = try_parse()
             if next_item is None:
+                # if the separator is emtpy, we are good here
+                if separator_pattern.pattern == '':
+                    return items
                 self.raise_error(error_msg)
             items.append(next_item)
 
@@ -754,20 +796,10 @@ class MlirParser:
 
         raise ParseError(at_position, msg)
 
-    def assert_eq(self, a: Span, b: str, msg: str):
-        if a.text == b:
+    def assert_eq(self, got: Span, want: str, msg: str):
+        if got.text == want:
             return
-        raise AssertionError("Assertion failed ({} == {}): {}".format(a.text, b, msg), a)
-
-    def assert_neq(self, a: Span, b: str, msg: str):
-        if a.text != b:
-            return
-        raise AssertionError("Assertion failed ({} != {}): {}".format(a.text, b, msg), a)
-
-    def assert_in(self, a: Span, b: tuple[str], msg: str):
-        if a.text in b:
-            return
-        raise AssertionError("Assertion failed ({} in {}): {}".format(a.text, b, msg), a)
+        raise AssertionError("Assertion failed (assert `{}` == `{}`): {}".format(got.text, want, msg), got)
 
     def must_parse_characters(self, text: str, msg: str):
         self.assert_eq(self.tokenizer.next_token(), text, msg)
@@ -794,14 +826,16 @@ class MlirParser:
 
             op_type = self.ctx.get_op(name.string_contents)
 
+    def try_parse_region(self):
+        return ParserCommons.BNF.region.try_parse(self)
+
+    def must_parse_region(self):
+        return ParserCommons.BNF.region.must_parse(self)
 
     def try_parse_op_name(self) -> Span | None:
         if (str_lit := self.try_parse_string_literal()) is not None:
             return str_lit
         return self.try_parse_bare_id()
-
-
-
 
 
 """
