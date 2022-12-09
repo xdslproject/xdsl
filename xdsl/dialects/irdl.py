@@ -93,6 +93,14 @@ class DialectOp(Operation):
         if not isinstance(self.attributes["name"], StringAttr):
             raise ValueError("name attribute must be a string attribute")
 
+    def get_op_defs(self) -> list[OperationOp]:
+        """Get the operations defined by the dialect"""
+        return [op for op in self.body.ops if isinstance(op, OperationOp)]
+
+    def get_type_defs(self) -> list[TypeOp]:
+        """Get the types defined by the dialect"""
+        return [op for op in self.body.ops if isinstance(op, TypeOp)]
+
 
 @irdl_op_definition
 class ParametersOp(Operation):
@@ -138,7 +146,6 @@ class OperandsOp(Operation):
     Define the operands of a parent operation
     """
     name = "irdl.operands"
-    op: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
     params = AttributeDef(AnyAttr())
 
 
@@ -148,7 +155,6 @@ class ResultsOp(Operation):
     Define results of parent operation
     """
     name = "irdl.results"
-    res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
     params = AttributeDef(AnyAttr())
 
 
@@ -169,6 +175,20 @@ class OperationOp(Operation):
             raise ValueError("name attribute is required")
         if not isinstance(self.attributes["name"], StringAttr):
             raise ValueError("name attribute must be a string attribute")
+
+    def get_operands(self) -> OperandsOp | None:
+        """Get the operation operands definition"""
+        for op in self.body.ops:
+            if isinstance(op, OperandsOp):
+                return op
+        return None
+
+    def get_results(self) -> ResultsOp | None:
+        """Get the operation results definition"""
+        for op in self.body.ops:
+            if isinstance(op, ResultsOp):
+                return op
+        return None
 
 
 IRDL = Dialect(
