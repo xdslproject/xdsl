@@ -34,7 +34,7 @@ jobs:
     - name: Clang Setup
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "10.0"
+        version: "15.0"
         ubuntu-version: "20.04"
 
     - name: Ninja Setup
