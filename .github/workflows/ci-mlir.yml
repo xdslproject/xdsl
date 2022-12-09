@@ -32,7 +32,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Clang Setup
-      uses: egor-tensin/setup-clang@v1
+      uses: KyleMayes/install-llvm-action@v1
 
     - name: Ninja Setup
       uses: lukka/get-cmake@latest
