@@ -13,7 +13,7 @@ from types import UnionType, GenericAlias
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import BuilderNotFoundException, VerifyException
 from xdsl.utils.hints import is_satisfying_hint
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
@@ -1168,7 +1168,9 @@ def irdl_attr_try_builder(
     num_non_defaults = defaults.count(inspect.Signature.empty)
     if num_non_defaults > len(args):
         return None
-    for arg, param in zip(args, params[:num_non_defaults]):
+    if len(params) < len(args):
+        return None
+    for arg, param in zip(args, params[:len(args)]):
         if not is_satisfying_hint(arg, param):
             return None
     return builder(*args, *defaults[len(args):])
@@ -1184,8 +1186,7 @@ def irdl_attr_builder(cls: type[_PAttrT],
         res = irdl_attr_try_builder(builder, *args)
         if res:
             return res
-    raise TypeError(
-        f"No available {cls.__name__} builders for arguments {args}")
+    raise BuilderNotFoundException(cls, args)
 
 
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
