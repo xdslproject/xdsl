@@ -15,13 +15,14 @@ T = typing.TypeVar('T')
 @dataclass(frozen=True)
 class BNFToken:
     bind: str | None = field(kw_only=True, init=False)
+    debug_name: str | None = field(kw_only=True, init=False)
 
     @abstractmethod
     def must_parse(self, parser: MlirParser) -> T:
         raise NotImplemented()
 
     def try_parse(self, parser: MlirParser) -> T | None:
-        with parser.tokenizer.backtracking(repr(self)):
+        with parser.tokenizer.backtracking(self.debug_name or repr(self)):
             return self.must_parse(parser)
 
     def collect(self, value, collection: dict) -> dict:
@@ -38,6 +39,7 @@ class Literal(BNFToken):
     """
     string: str
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser):
         return parser.must_parse_characters(self.string, 'Expected `{}`'.format(self.string))
@@ -50,6 +52,7 @@ class Literal(BNFToken):
 class Regex(BNFToken):
     pattern: re.Pattern
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def try_parse(self, parser: MlirParser) -> T | None:
         return parser.tokenizer.next_token_of_pattern(self.pattern)
@@ -79,6 +82,8 @@ class Nonterminal(BNFToken):
     """
     bind: str | None = field(kw_only=True, default=None)
 
+    debug_name: str | None = field(kw_only=True, default=None)
+
     def must_parse(self, parser: MlirParser):
         if hasattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_'))):
             return getattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_')))()
@@ -103,6 +108,7 @@ class Nonterminal(BNFToken):
 class Group(BNFToken):
     tokens: list[BNFToken]
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> T:
         return [
@@ -122,6 +128,7 @@ class Group(BNFToken):
 class OneOrMoreOf(BNFToken):
     wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> list[T]:
         res = list()
@@ -149,6 +156,7 @@ class OneOrMoreOf(BNFToken):
 class ZeroOrMoreOf(BNFToken):
     wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> list[T]:
         res = list()
@@ -177,6 +185,7 @@ class ListOf(BNFToken):
 
     allow_empty: bool = True
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> T | None:
         return parser.must_parse_list_of(
@@ -201,6 +210,7 @@ class ListOf(BNFToken):
 class Optional(BNFToken):
     wraps: BNFToken
     bind: str | None = field(kw_only=True, default=None)
+    debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> T | None:
         return self.wraps.try_parse(parser)
@@ -217,5 +227,5 @@ class Optional(BNFToken):
         return super().collect(value, collection)
 
 
-def OptionalGroup(tokens: list[BNFToken], bind: str | None = None) -> Optional:
-    return Optional(Group(tokens), bind=bind)
+def OptionalGroup(tokens: list[BNFToken], bind: str | None = None, debug_name: str | None = None) -> Optional:
+    return Optional(Group(tokens), bind=bind, debug_name=debug_name)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import sys
 from dataclasses import dataclass, field
 import re
 import ast
@@ -26,17 +27,32 @@ from xdsl.irdl import Data
 class ParseError(Exception):
     span: Span
     msg: str
+    history: BacktrackingHistory | None
 
-    def __init__(self, span: Span, msg: str):
+    def __init__(self, span: Span, msg: str, history: BacktrackingHistory | None = None):
         super().__init__(span.print_with_context(msg))
         self.span = span
         self.msg = msg
+        self.history = history
 
-    def print_pretty(self):
-        print(
-            self.span.print_with_context(self.msg)
-        )
+    def print_pretty(self, file=sys.stderr, print_history: bool = True):
+        if self.history and print_history:
+            self.history.print_unroll(file)
+        print(self.span.print_with_context(self.msg), file=file)
 
+
+@dataclass
+class BacktrackingHistory:
+    error: ParseError
+    parent: BacktrackingHistory | None
+    region_name: str | None
+
+    def print_unroll(self, file=sys.stderr):
+        if self.parent:
+            self.parent.print_unroll(file)
+
+        print("Aborted parsing of {} because failure at:".format(self.region_name or '<unknown>'), file=file)
+        self.error.print_pretty(file=file, print_history=False)
 
 class BacktrackingAbort(Exception):
     reason: str | None
@@ -210,7 +226,8 @@ class Tokenizer:
 
     ignore_whitespace: bool = True
 
-    last_error: ParseError | None = field(init=False, default=None)
+    history: BacktrackingHistory | None = field(init=False, default=None)
+
     last_token: Span | None = field(init=False, default=None)
 
     def save(self) -> save_t:
@@ -244,28 +261,48 @@ class Tokenizer:
         """
         save = self.save()
         try:
-            self.last_error = None
             yield
+            # clear error history when something doesn't fail
+            # this is because we are only interested in the last "cascade" of failures.
+            # if a backtracking() completes without failre, something has been parsed (we assume)
+            self.history = None
         except Exception as ex:
-            if region_name is not None:
-                print("Backtracking in region {}".format(region_name))
             if isinstance(ex, BacktrackingAbort):
-                print(ex.reason)
-                self.last_error = ParseError(
-                    self.next_token(peek=True),
-                    'Backtracking aborted: {}'.format(ex.reason or 'unknown reason')
+                self.history = BacktrackingHistory(
+                    ParseError(
+                        self.next_token(peek=True),
+                        'Backtracking aborted: {}'.format(ex.reason or 'unknown reason')
+                    ),
+                    self.history,
+                    region_name
                 )
             elif isinstance(ex, AssertionError):
                 reason = ['Generic assertion failure', *(reason for reason in ex.args if isinstance(reason, str))]
                 # we assume that assertions fail because of the last read-in token
-                self.last_error = ParseError(self.last_token, reason[-1])
-                print(self.last_error.msg)
+                self.history = BacktrackingHistory(
+                    ParseError(self.last_token, reason[-1]),
+                    self.history,
+                    region_name
+                )
             elif isinstance(ex, ParseError):
-                self.last_error = ex
-                print("Warning: ParseError in backtracking: {}".format(ex.msg))
-                ex.print_pretty()
+                self.history = BacktrackingHistory(
+                    ex,
+                    self.history,
+                    region_name
+                )
+            elif isinstance(ex, EOFError):
+                self.history = BacktrackingHistory(
+                    ParseError(self.last_token, "Encountered EOF"),
+                    self.history,
+                    region_name
+                )
             else:
-                print("Warning: Unexpected error in backtracking:\n{}".format(ex))
+                self.history = BacktrackingHistory(
+                    ParseError(self.last_token, "Unexpected exception: {}".format(ex)),
+                    self.history,
+                    region_name
+                )
+                print("Warning: Unexpected error in backtracking: {}".format(repr(ex)))
             self.resume_from(save)
 
     def next_token(self, start: int | None = None, skip: int = 0, peek: bool = False,
@@ -428,26 +465,21 @@ class ParserCommons:
                 BNF.ListOf(BNF.Nonterminal('block-id'), allow_empty=False, bind='blocks'),
                 # TODD: allow for block args here?! (accordin to spec)
                 BNF.Literal(']')
-            ]),
+            ], debug_name="operations optional block id group"),
             BNF.OptionalGroup([
                 BNF.Literal('('),
                 BNF.ListOf(BNF.Nonterminal('region'), bind='regions', allow_empty=False),
                 BNF.Literal(')')
-            ]),
-            BNF.Nonterminal('attr-dict', bind='attributes'),
+            ], debug_name="operation regions"),
+            BNF.Nonterminal('attr-dict', bind='attributes', debug_name="attrbiute dictionary"),
             BNF.Literal(':'),
             BNF.Nonterminal('function-type', bind='type_signature')
-        ])
-        region = BNF.Group([
-            BNF.Literal('{'),
-            BNF.ListOf(BNF.Nonterminal('operation'), separator=re.compile('')),
-            BNF.Literal('}'),
-        ])
+        ], debug_name="generic operation body")
         attr_dict = BNF.Group([
             BNF.Literal('{'),
-            BNF.ListOf(BNF.Nonterminal('attribute-entry'), bind='attributes'),
+            BNF.ListOf(BNF.Nonterminal('attribute-entry', debug_name="attribute entry"), bind='attributes'),
             BNF.Literal('}')
-        ])
+        ], debug_name="attrbute dictionary")
 
 
 class MlirParser:
@@ -497,7 +529,13 @@ class MlirParser:
         self.accent = accent
 
     def begin_parse(self):
-        pass
+        ops = []
+        while (op := self.try_parse_operation()) is not None:
+            ops.append(op)
+        if not self.tokenizer.is_eof():
+            self.raise_error("Unfinished business!")
+        return ops
+
 
     def must_parse_block(self) -> Block | None:
         next_id = self.expect(self.try_parse_block_id, 'Blocks must start with a block id!')
@@ -813,11 +851,7 @@ class MlirParser:
         if at_position is None:
             at_position = self.tokenizer.next_token(peek=True)
 
-        # include backtracking exception if available
-        if self.tokenizer.last_error:
-            raise ParseError(at_position, msg) from self.tokenizer.last_error
-
-        raise ParseError(at_position, msg)
+        raise ParseError(at_position, msg, self.tokenizer.history)
 
     def assert_eq(self, got: Span, want: str, msg: str):
         if got.text == want:
@@ -836,16 +870,19 @@ class MlirParser:
         return self.must_parse_list_of(self.try_parse_value_id, 'Expected op-result here!', allow_empty=False)
 
     def try_parse_operation(self) -> Operation | None:
-        with self.tokenizer.backtracking():
-            result_list = self.must_parse_op_result_list()
-            self.must_parse_characters('=', 'Operation definitions expect an `=` after op-result-list!')
+        with self.tokenizer.backtracking("operation"):
+            if self.tokenizer.next_token(peek=True).text == '%':
+                result_list = self.must_parse_op_result_list()
+                self.must_parse_characters('=', 'Operation definitions expect an `=` after op-result-list!')
+            else:
+                result_list = []
 
             generic_op = ParserCommons.BNF.generic_operation_body.try_parse(self)
             if generic_op is None:
                 self.raise_error("custom operations not supported as of yet!")
 
             values = ParserCommons.BNF.generic_operation_body.collect(generic_op, dict())
-            print("parsed op {} = {}".format(result_list, values))
+
             return result_list, values
 
     def must_parse_region(self):
@@ -908,7 +945,6 @@ class MlirParser:
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
-                print("got attr {}".format(val))
                 return val
 
     def try_parse_builtin_int_attr(self) -> IntegerAttr | None:
@@ -916,7 +952,7 @@ class MlirParser:
         if bool is not None:
             return bool
 
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("built in int attribute"):
             value = self.expect(self.try_parse_integer_literal, 'Integer attribute must start with an integer literal!')
             if self.tokenizer.next_token(peek=True).text != ':':
                 print(self.tokenizer.next_token(peek=True))
