@@ -1045,7 +1045,7 @@ class MlirParser:
         if span is None:
             return None
 
-        int_val = ['true', 'false'].index(span.text)
+        int_val = ['false', 'true'].index(span.text)
         return IntegerAttr.from_params(int_val, IntegerType.from_width(1))
 
     def try_parse_builtin_str_attr(self):
