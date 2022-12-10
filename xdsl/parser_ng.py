@@ -20,7 +20,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
-    UnrankedTensorType, UnregisteredOp, VectorType)
+    UnrankedTensorType, UnregisteredOp, VectorType, DefaultIntegerAttrType)
 
 from xdsl.irdl import Data
 
@@ -735,7 +735,7 @@ class MlirParser:
                 width = int(re_match.group(1))
                 type = {
                     16: Float16Type,
-                    32: Float64Type,
+                    32: Float32Type,
                     64: Float64Type
                 }.get(width, None)
                 if type is None:
@@ -1026,7 +1026,7 @@ class MlirParser:
             value = self.expect(self.try_parse_integer_literal, 'Integer attribute must start with an integer literal!')
             if self.tokenizer.next_token(peek=True).text != ':':
                 print(self.tokenizer.next_token(peek=True))
-                return IntegerAttr.from_index_int_value(int(value.text))
+                return IntegerAttr.from_params(int(value.text), DefaultIntegerAttrType)
             type = self.must_parse_attribute_type()
             return IntegerAttr.from_params(int(value.text), type)
 
@@ -1073,7 +1073,7 @@ class MlirParser:
             return dict()
         return self.attr_dict_from_tuple_list(ParserCommons.BNF.attr_dict.collect(res, dict()).get('attributes', list()))
 
-    def attr_dict_from_tuple_list(self, tuple_list: list[tuple[Span, Attribute]]):
+    def attr_dict_from_tuple_list(self, tuple_list: list[tuple[Span, Attribute]]) -> dict[str, Attribute]:
         return dict(
             (
                 (span.string_contents if isinstance(span, StringLiteral) else span.text),

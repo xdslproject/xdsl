@@ -202,7 +202,7 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
-
+DefaultIntegerAttrType = i64
 
 @irdl_attr_definition
 class Float16Type(ParametrizedAttribute, MLIRType):
