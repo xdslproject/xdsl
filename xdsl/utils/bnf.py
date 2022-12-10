@@ -42,7 +42,8 @@ class Literal(BNFToken):
     debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser):
-        return parser.must_parse_characters(self.string, 'Expected `{}`'.format(self.string))
+        return parser.must_parse_characters(
+            self.string, 'Expected `{}`'.format(self.string))
 
     def __repr__(self):
         return '`{}`'.format(self.string)
@@ -85,19 +86,26 @@ class Nonterminal(BNFToken):
     debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser):
-        if hasattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_'))):
-            return getattr(parser, 'must_parse_{}'.format(self.name.replace('-', '_')))()
-        elif hasattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))):
+        if hasattr(parser, 'must_parse_{}'.format(self.name.replace('-',
+                                                                    '_'))):
+            return getattr(parser,
+                           'must_parse_{}'.format(self.name.replace('-',
+                                                                    '_')))()
+        elif hasattr(parser, 'try_parse_{}'.format(self.name.replace('-',
+                                                                     '_'))):
             return parser.expect(
-                getattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))),
-                'Expected to parse {} here!'.format(self.name)
-            )
+                getattr(parser,
+                        'try_parse_{}'.format(self.name.replace('-', '_'))),
+                'Expected to parse {} here!'.format(self.name))
         else:
-            raise NotImplementedError("Parser cannot parse {}".format(self.name))
+            raise NotImplementedError("Parser cannot parse {}".format(
+                self.name))
 
     def try_parse(self, parser: MlirParser) -> T | None:
         if hasattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))):
-            return getattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_')))()
+            return getattr(parser,
+                           'try_parse_{}'.format(self.name.replace('-',
+                                                                   '_')))()
         return super().try_parse(parser)
 
     def __repr__(self):
@@ -111,9 +119,7 @@ class Group(BNFToken):
     debug_name: str | None = field(kw_only=True, default=None)
 
     def must_parse(self, parser: MlirParser) -> T:
-        return [
-            token.must_parse(parser) for token in self.tokens
-        ]
+        return [token.must_parse(parser) for token in self.tokens]
 
     def __repr__(self):
         return '( {} )'.format(' '.join(repr(t) for t in self.tokens))
@@ -136,7 +142,8 @@ class OneOrMoreOf(BNFToken):
             val = self.wraps.try_parse(parser)
             if val is None:
                 if len(res) == 0:
-                    raise AssertionError("Expected at least one of {}".format(self.wraps))
+                    raise AssertionError("Expected at least one of {}".format(
+                        self.wraps))
                 return res
             res.append(val)
 
@@ -189,16 +196,17 @@ class ListOf(BNFToken):
 
     def must_parse(self, parser: MlirParser) -> T | None:
         return parser.must_parse_list_of(
-            lambda : self.element.try_parse(parser),
+            lambda: self.element.try_parse(parser),
             'Expected {}!'.format(self.element),
             separator_pattern=self.separator,
-            allow_empty=self.allow_empty
-        )
+            allow_empty=self.allow_empty)
 
     def __repr__(self):
         if self.allow_empty:
-            return '( {elm} ( re`{sep}` {elm} )* )?'.format(elm=self.element, sep=self.separator.pattern)
-        return '{elm} ( re`{sep}` {elm} )*'.format(elm=self.element, sep=self.separator.pattern)
+            return '( {elm} ( re`{sep}` {elm} )* )?'.format(
+                elm=self.element, sep=self.separator.pattern)
+        return '{elm} ( re`{sep}` {elm} )*'.format(elm=self.element,
+                                                   sep=self.separator.pattern)
 
     def collect(self, values, collection: dict) -> dict:
         for value in values:
@@ -227,5 +235,7 @@ class Optional(BNFToken):
         return super().collect(value, collection)
 
 
-def OptionalGroup(tokens: list[BNFToken], bind: str | None = None, debug_name: str | None = None) -> Optional:
+def OptionalGroup(tokens: list[BNFToken],
+                  bind: str | None = None,
+                  debug_name: str | None = None) -> Optional:
     return Optional(Group(tokens), bind=bind, debug_name=debug_name)
