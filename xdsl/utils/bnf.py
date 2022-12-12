@@ -22,7 +22,7 @@ class BNFToken:
         raise NotImplemented()
 
     def try_parse(self, parser: MlirParser) -> T | None:
-        with parser.tokenizer.backtracking(self.debug_name or repr(self)):
+        with parser.tokenizer.backtracking(self.debug_name):
             return self.must_parse(parser)
 
     def collect(self, value, collection: dict) -> dict:
@@ -85,17 +85,15 @@ class Nonterminal(BNFToken):
 
     debug_name: str | None = field(kw_only=True, default=None)
 
+    def parser_func_name(self, prefix: str):
+        return prefix + self.name.replace('-', '_')
+
     def must_parse(self, parser: MlirParser):
-        if hasattr(parser, 'must_parse_{}'.format(self.name.replace('-',
-                                                                    '_'))):
-            return getattr(parser,
-                           'must_parse_{}'.format(self.name.replace('-',
-                                                                    '_')))()
-        elif hasattr(parser, 'try_parse_{}'.format(self.name.replace('-',
-                                                                     '_'))):
+        if hasattr(parser, self.parser_func_name('must_parse_')):
+            return getattr(parser, self.parser_func_name('must_parse_'))()
+        elif hasattr(parser, self.parser_func_name('try_parse_')):
             return parser.expect(
-                getattr(parser,
-                        'try_parse_{}'.format(self.name.replace('-', '_'))),
+                getattr(parser, self.parser_func_name('try_parse_')),
                 'Expected to parse {} here!'.format(self.name))
         else:
             raise NotImplementedError("Parser cannot parse {}".format(

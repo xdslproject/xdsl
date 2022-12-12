@@ -10,6 +10,7 @@ from io import StringIO
 from typing import Any, TypeVar, Iterable, Literal, Optional
 from enum import Enum
 
+from .printer import Printer
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute)
 
@@ -50,15 +51,23 @@ class BacktrackingHistory:
     error: ParseError
     parent: BacktrackingHistory | None
     region_name: str | None
+    pos: int
 
     def print_unroll(self, file=sys.stderr):
         if self.parent:
             self.parent.print_unroll(file)
 
-        print("Aborted parsing of {} because failure at:".format(
-            self.region_name or '<unknown>'),
+        print("Parsing of {} failed:".format(self.region_name or '<unknown>'),
               file=file)
         self.error.print_pretty(file=file, print_history=False)
+
+    def get_farthest_point(self) -> int:
+        """
+        Find the farthest this history managed to parse
+        """
+        if self.parent:
+            return max(self.pos, self.parent.get_farthest_point())
+        return self.pos
 
 
 class BacktrackingAbort(Exception):
@@ -261,19 +270,21 @@ class Tokenizer:
     @contextlib.contextmanager
     def backtracking(self, region_name: str | None = None):
         """
-        Used to create backtracking parsers. You can wrap you parse code into
+        This context manager can be used to mark backtracking regions.
 
-        with tokenizer.backtracking():
-            # do some stuff
-            assert x == 'array'
+        When an error is thrown during backtracking, it is recorded and stored together
+        with some meta information in the history attribute.
 
-        All exceptions triggered in the body will abort the parsing attempt, but not escape further.
+        The backtracker accepts the following exceptions:
+         - ParseError: signifies that the region could not be parsed because of (unexpected) syntax errors
+         - BacktrackingAbort: signifies that backtracking was aborted, not necessarily indicating a syntax error
+         - AssertionError: this error should probably be phased out in favour of the two above
+         - EOFError: signals that EOF was reached unexpectedly
 
-        The tokenizer state will not change.
-
-        When backtracking occurred, the backtracker will save the last exception in last_error
+        Any other error will be printed to stderr, but backtracking will continue as normal.
         """
         save = self.save()
+        starting_position = self.pos
         try:
             yield
             # clear error history when something doesn't fail
@@ -281,94 +292,124 @@ class Tokenizer:
             # if a backtracking() completes without failre, something has been parsed (we assume)
             self.history = None
         except Exception as ex:
-            if isinstance(ex, BacktrackingAbort):
-                self.history = BacktrackingHistory(
-                    ParseError(
-                        self.next_token(peek=True),
-                        'Backtracking aborted: {}'.format(
-                            ex.reason or 'unknown reason')), self.history,
-                    region_name)
-            elif isinstance(ex, AssertionError):
-                reason = [
-                    'Generic assertion failure',
-                    *(reason for reason in ex.args if isinstance(reason, str))
-                ]
-                # we assume that assertions fail because of the last read-in token
-                if len(reason) == 1:
-                    tb = StringIO()
-                    traceback.print_exc(file=tb)
-                    reason[0] += '\n' + tb.getvalue()
+            how_far_we_got = self.pos
 
-                self.history = BacktrackingHistory(
-                    ParseError(self.last_token, reason[-1]), self.history,
-                    region_name)
-            elif isinstance(ex, ParseError):
-                self.history = BacktrackingHistory(ex, self.history,
-                                                   region_name)
-            elif isinstance(ex, EOFError):
-                self.history = BacktrackingHistory(
-                    ParseError(self.last_token, "Encountered EOF"),
-                    self.history, region_name)
-            else:
-                self.history = BacktrackingHistory(
-                    ParseError(self.last_token,
-                               "Unexpected exception: {}".format(ex)),
-                    self.history, region_name)
-                print("Warning: Unexpected error in backtracking: {}".format(
-                    repr(ex)))
-                raise ex
+            # AssertionErrors act upon the consumed token, this means we only go to the start of the token
+            if isinstance(ex, BacktrackingAbort):
+                # TODO: skip space as well
+                how_far_we_got -= self.last_token.len
+
+            # if we have no error history, start recording!
+            if not self.history:
+                self.history = self.history_entry_from_exception(
+                    ex, region_name, how_far_we_got)
+
+            # if we got further than on previous attempts
+            elif how_far_we_got > self.history.get_farthest_point():
+                # throw away history
+                self.history = None
+                # generate new history entry,
+                self.history = self.history_entry_from_exception(
+                    ex, region_name, how_far_we_got)
+
+            # otherwise, add to exception, if we are in a named region
+            elif region_name is not None and how_far_we_got - starting_position > 0:
+                self.history = self.history_entry_from_exception(
+                    ex, region_name, how_far_we_got)
+
             self.resume_from(save)
 
-    def next_token(self,
-                   start: int | None = None,
-                   skip: int = 0,
-                   peek: bool = False,
-                   include_comments: bool = False) -> Span:
+    def history_entry_from_exception(self, ex: Exception, region: str,
+                                     pos: int) -> BacktrackingHistory:
         """
-        Best effort guess at what the next token could be
+        Given an exception generated inside a backtracking attempt,
+        generate a BacktrackingHistory object with the relevant information in it.
+
+        If an unexpected exception type is encountered, print a traceback to stderr
+        """
+        if isinstance(ex, ParseError):
+            return BacktrackingHistory(ex, self.history, region, pos)
+        elif isinstance(ex, AssertionError):
+            reason = [
+                'Generic assertion failure',
+                *(reason for reason in ex.args if isinstance(reason, str))
+            ]
+            # we assume that assertions fail because of the last read-in token
+            if len(reason) == 1:
+                tb = StringIO()
+                traceback.print_exc(file=tb)
+                reason[0] += '\n' + tb.getvalue()
+
+            return BacktrackingHistory(ParseError(self.last_token, reason[-1]),
+                                       self.history, region, pos)
+        elif isinstance(ex, BacktrackingAbort):
+            return BacktrackingHistory(
+                ParseError(
+                    self.next_token(peek=True),
+                    'Backtracking aborted: {}'.format(ex.reason
+                                                      or 'unknown reason')),
+                self.history, region, pos)
+        elif isinstance(ex, EOFError):
+            return BacktrackingHistory(
+                ParseError(self.last_token, "Encountered EOF"), self.history,
+                region, pos)
+
+        print("Warning: Unexpected error in backtracking:", file=sys.stderr)
+        traceback.print_exception(ex, file=sys.stderr)
+
+        return BacktrackingHistory(
+            ParseError(self.last_token, "Unexpected exception: {}".format(ex)),
+            self.history, region, pos)
+
+    def next_token(self, start: int | None = None, peek: bool = False) -> Span:
+        """
+        Return a Span of the next token, according to the self.break_on rules.
+
+        Can be modified using:
+
+         - start: don't start at the current tokenizer position, instead start here (useful for skipping comments, etc)
+         - peek: don't advance the position, only "peek" at the input
+
+        This will skip over line comments. Meaning it will skip the entire line if it encounters '//'
         """
         i = self.next_pos(start)
-        while skip > 0:
-            # skip whitespace if able
-            i = self.next_pos(self._find_token_end(i))
-            skip -= 1
-        # advance to the next position
+        # construct the span:
+        span = Span(i, self._find_token_end(i), self.input)
+        # advance pointer if not peeking
         if not peek:
-            self.pos = self._find_token_end(i)
-
-        span = self.span_of(i, self._find_token_end(i))
-        if not include_comments and span.text == '//':
-            while self.input.at(i) != '\n':
-                i += 1
-            return self.next_token(i, 0, peek, include_comments)
+            self.pos = span.end
 
         # save last token
         self.last_token = span
         return span
 
     def next_token_of_pattern(self,
-                              pattern: re.Pattern,
+                              pattern: re.Pattern | str,
                               peek: bool = False) -> Span | None:
         """
         Return a span that matched the pattern, or nothing. You can choose not to consume the span.
         """
         start = self.next_pos()
+
+        # handle search for string literal
+        if isinstance(pattern, str):
+            if self.starts_with(pattern):
+                if not peek:
+                    self.pos = start + len(pattern)
+                return Span(start, start + len(pattern), self.input)
+            return None
+
+        # handle regex logic
         match = pattern.match(self.input.content, start)
         if match is None:
             return None
+
         if not peek:
             self.pos = match.end()
+
         # save last token
-        self.last_token = self.span_of(start, match.end())
+        self.last_token = Span(start, match.end(), self.input)
         return self.last_token
-
-    def jump_back_to(self, span: Span):
-        """
-        This can be used to "rewind" the tokenizer back to the point right before you consumed the token.
-
-        This leaves everything except the position untouched
-        """
-        self.pos = span.start
 
     def consume_peeked(self, peeked_span: Span):
         if peeked_span.start != self.next_pos():
@@ -392,6 +433,8 @@ class Tokenizer:
     def next_pos(self, i: int | None = None) -> int:
         """
         Find the next starting position (optionally starting from i), considering ignore_whitespaces
+
+        This will skip line comments!
         """
         i = self.pos if i is None else i
         # skip whitespaces
@@ -405,22 +448,19 @@ class Tokenizer:
         return i
 
     def is_eof(self):
+        """
+        Check if the end of the input was reached.
+        """
         try:
-            i = self.pos
-            while self.input.at(i).isspace():
-                i += 1
-            return False
+            self.next_pos()
         except EOFError:
             return True
-
-    def span_of(self, start: int, end: int) -> Span:
-        return Span(start, end, self.input)
 
     def consume_opt_whitespace(self) -> Span:
         start = self.pos
         while self.input.at(self.pos).isspace():
             self.pos += 1
-        return self.span_of(start, self.pos)
+        return Span(start, self.pos, self.input)
 
     @contextlib.contextmanager
     def configured(self,
@@ -449,6 +489,12 @@ class Tokenizer:
         finally:
             self.break_on = save[1]
             self.ignore_whitespace = save[2]
+
+    def starts_with(self, text: str | re.Pattern):
+        start = self.next_pos()
+        if isinstance(text, re.Pattern):
+            return text.match(self.input.content, start) is None
+        return self.input.content.startswith(text, start)
 
 
 class ParserCommons:
@@ -506,6 +552,7 @@ class ParserCommons:
                     BNF.Literal('('),
                     BNF.ListOf(BNF.Nonterminal('region'),
                                bind='regions',
+                               debug_name="regions",
                                allow_empty=False),
                     BNF.Literal(')')
                 ],
@@ -543,7 +590,7 @@ class MlirParser:
 
     You can turn a try_ into a must_ by using expect(try_parse_..., error_msg)
 
-    You can turn a must_ into a try_ by wrapping it inside of a tokenizer.backtracking()
+    You can turn a must_ into a try_ by wrapping it in tokenizer.backtracking()
 
     must_ type parsers are preferred because they are explicit about their failure modes.
     """
@@ -584,7 +631,7 @@ class MlirParser:
         while (op := self.try_parse_operation()) is not None:
             ops.append(op)
         if not self.tokenizer.is_eof():
-            self.raise_error("Unfinished business!")
+            self.raise_error("Could not parse entire input!")
         return ops
 
     def must_parse_block(self) -> Block:
@@ -605,40 +652,41 @@ class MlirParser:
 
         return block
 
-    def must_parse_optional_block_label(self):
-        next_id = self.try_parse_block_id()
+    def must_parse_optional_block_label(
+            self) -> tuple[Span, list[int, tuple[Span, Attribute]]]:
+        block_id = self.try_parse_block_id()
         arg_list = list()
 
-        if next_id is not None:
-            assert next_id.text not in self._blocks, "Blocks cannot have the same ID!"
+        if block_id is not None:
+            assert block_id.text not in self._blocks, "Blocks cannot have the same ID!"
 
             if self.tokenizer.next_token(peek=True).text == '(':
-                arg_list = enumerate(self.must_parse_block_arg_list())
+                arg_list = list(enumerate(self.must_parse_block_arg_list()))
 
             self.must_parse_characters(':', 'Block label must end in a `:`!')
 
-        return next_id, arg_list
+        return block_id, arg_list
 
     def must_parse_block_arg_list(self) -> list[tuple[Span, Attribute]]:
-        self.assert_eq(self.tokenizer.next_token(), '(',
-                       'Block arguments must start with `(`')
+        self.must_parse_characters('(', 'Block arguments must start with `(`')
 
         args = self.must_parse_list_of(self.try_parse_value_id_and_type,
                                        "Expected ")
 
-        self.assert_eq(self.tokenizer.next_token(), ')',
-                       'Expected closing of block arguments!')
+        self.must_parse_characters(')',
+                                   'Expected closing of block arguments!',
+                                   is_parse_error=True)
 
         return args
 
     def try_parse_single_reference(self) -> Span | None:
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking('part of a reference'):
             self.must_parse_characters('@', "references must start with `@`")
             if (reference := self.try_parse_string_literal()) is not None:
                 return reference
             if (reference := self.try_parse_suffix_id()) is not None:
                 return reference
-            raise BacktrackingAbort(
+            self.raise_error(
                 "References must conform to `@` (string-literal | suffix-id)")
 
     def must_parse_reference(self) -> list[Span]:
@@ -685,7 +733,7 @@ class MlirParser:
                     return items
                 self.raise_error(error_msg +
                                  ' because was able to match next separator {}'
-                                 .format(match))
+                                 .format(match.text))
             items.append(next_item)
 
         return items
@@ -723,11 +771,11 @@ class MlirParser:
             ParserCommons.boolean_literal)
 
     def try_parse_value_id_and_type(self) -> tuple[Span, Attribute] | None:
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("value id and type"):
             value_id = self.try_parse_value_id()
 
             if value_id is None:
-                raise BacktrackingAbort("Invalid value-id format!")
+                self.raise_error("Invalid value-id format!")
 
             self.must_parse_characters(
                 ':', 'Expected expression (value-id `:` type)')
@@ -735,7 +783,7 @@ class MlirParser:
             type = self.try_parse_type()
 
             if type is None:
-                raise BacktrackingAbort("Expected type of value-id here!")
+                self.raise_error("Expected type of value-id here!")
             return value_id, type
 
     def try_parse_type(self) -> Attribute | None:
@@ -748,7 +796,7 @@ class MlirParser:
 
     def try_parse_dialect_type_or_attribute(
             self, kind: Literal['type', 'attr']) -> Attribute | None:
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("dialect " + kind):
             if kind == 'type':
                 self.must_parse_characters(
                     '!', "Dialect types must start with a `!`")
@@ -760,7 +808,7 @@ class MlirParser:
                 ParserCommons.bare_id)
 
             if type_name is None:
-                raise BacktrackingAbort("Expected a type name")
+                self.raise_error("Expected a type name")
 
             type_def = self.ctx.get_attr(type_name.text)
 
@@ -772,7 +820,7 @@ class MlirParser:
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("builtin type"):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:
@@ -820,11 +868,11 @@ class MlirParser:
         if name.text not in builtin_parsers:
             raise ParseError(name, "Unknown builtin {}".format(name.text))
 
-        self.assert_eq(self.tokenizer.next_token(), '<',
-                       'Expected parameter list here!')
+        self.must_parse_characters('<', 'Expected parameter list here!')
         res = builtin_parsers[name.text]()
-        self.assert_eq(self.tokenizer.next_token(), '>',
-                       'Expected end of parameter list here!')
+        self.must_parse_characters('>',
+                                   'Expected end of parameter list here!',
+                                   is_parse_error=True)
         return res
 
     def must_parse_complex_attrs(self):
@@ -841,8 +889,10 @@ class MlirParser:
             if accept_closing_bracket and self.tokenizer.next_token(
                     peek=True).text == ']':
                 break
-            self.assert_eq(self.tokenizer.next_token(), 'x',
-                           'Unexpected end of dimension parameters!')
+            self.must_parse_characters(
+                'x',
+                'Unexpected end of dimension parameters!',
+                is_parse_error=True)
 
     def must_parse_vector_attrs(self) -> AnyVectorType:
         # also break on 'x' characters as they are separators in dimension parameters
@@ -851,16 +901,17 @@ class MlirParser:
             shape = list[int](self.try_parse_numerical_dims())
             scaling_shape: list[int] | None = None
 
-            if self.tokenizer.next_token(peek=True).text == '[':
-                self.tokenizer.next_token()
+            if self.tokenizer.next_token_of_pattern('[') is not None:
                 # we now need to parse the scalable dimensions
                 scaling_shape = list(self.try_parse_numerical_dims())
-                self.assert_eq(
-                    self.tokenizer.next_token(), ']',
-                    'Expected end of scalable vector dimensions here!')
-                self.assert_eq(
-                    self.tokenizer.next_token(), 'x',
-                    'Expected end of scalable vector dimensions here!')
+                self.must_parse_characters(
+                    ']',
+                    'Expected end of scalable vector dimensions here!',
+                    is_parse_error=True)
+                self.must_parse_characters(
+                    'x',
+                    'Expected end of scalable vector dimensions here!',
+                    is_parse_error=True)
 
             if scaling_shape is not None:
                 # TODO: handle scaling vectors!
@@ -877,13 +928,13 @@ class MlirParser:
     def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
                                        ('x', )):
-            if self.tokenizer.next_token(peek=True).text == '*':
-                # consume `*`
-                self.tokenizer.next_token()
+            # check for unranked-ness
+            if self.tokenizer.next_token_of_pattern('*') is not None:
                 # consume `x`
-                self.assert_eq(
-                    self.tokenizer.next_token(), 'x',
-                    'Unranked tensors must follow format (`<*x` type `>`)')
+                self.must_parse_characters(
+                    'x',
+                    'Unranked tensors must follow format (`<*x` type `>`)',
+                    is_parse_error=True)
             else:
                 # parse rank:
                 return list(self.try_parse_numerical_dims(lower_bound=0))
@@ -965,15 +1016,15 @@ class MlirParser:
 
         raise ParseError(at_position, msg, self.tokenizer.history)
 
-    def assert_eq(self, got: Span, want: str, msg: str):
-        if got.text == want:
-            return
-        raise AssertionError(
-            "Assertion failed (assert `{}` == `{}`): {}".format(
-                got.text, want, msg), got)
-
-    def must_parse_characters(self, text: str, msg: str):
-        self.assert_eq(self.tokenizer.next_token(), text, msg)
+    def must_parse_characters(self,
+                              text: str,
+                              msg: str,
+                              is_parse_error: bool = False) -> Span:
+        if (match := self.tokenizer.next_token_of_pattern(text)) is None:
+            if is_parse_error:
+                self.raise_error(msg)
+            raise AssertionError("Unexpected input: {}".format(msg))
+        return match
 
     def must_parse_op_result_list(
             self) -> list[tuple[Span, Attribute] | Span] | None:
@@ -1088,18 +1139,26 @@ class MlirParser:
         builtin_val = self.try_parse_builtin_attr()
 
         if builtin_val is None:
-            self.raise_error("Unknown attribute!")
+            self.raise_error(
+                "Unknown attribute (neither builtin nor dialect could be parsed)!"
+            )
 
         return builtin_val
 
     def must_parse_attribute_type(self) -> Attribute:
+        """
+        Parses `:` type and returns the type
+        """
         self.must_parse_characters(
-            ':', 'Expected attribute  type definition here ( `:` type )')
+            ':', 'Expected attribute type definition here ( `:` type )')
         return self.expect(
             self.try_parse_type,
-            'Expected attribute  type definition here ( `:` type )')
+            'Expected attribute type definition here ( `:` type )')
 
     def try_parse_builtin_attr(self) -> Attribute:
+        """
+        Tries to parse a bultin attribute, e.g. a string literal, int, array, etc..
+        """
         attrs = (self.try_parse_builtin_float_attr,
                  self.try_parse_builtin_int_attr,
                  self.try_parse_builtin_str_attr,
@@ -1126,10 +1185,11 @@ class MlirParser:
             return IntegerAttr.from_params(int(value.text), type)
 
     def try_parse_builtin_float_attr(self) -> FloatAttr | None:
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("float literal"):
             value = self.expect(
                 self.try_parse_float_literal,
                 'Float attribute must start with a float literal!')
+            # if we don't see a ':' indicating a type signature
             if self.tokenizer.next_token(peek=True).text != ':':
                 return FloatAttr.from_value(float(value.text))
 
@@ -1149,7 +1209,7 @@ class MlirParser:
         if self.tokenizer.next_token(peek=True).text != '"':
             return None
 
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("string literal"):
             literal = self.try_parse_string_literal()
             if self.tokenizer.next_token(peek=True).text != ':':
                 return StringAttr.from_str(literal.string_contents)
@@ -1158,7 +1218,7 @@ class MlirParser:
     def try_parse_builtin_arr_attr(self) -> list[Attribute] | None:
         if self.tokenizer.next_token(peek=True).text != '[':
             return None
-        with self.tokenizer.backtracking():
+        with self.tokenizer.backtracking("array literal"):
             self.must_parse_characters('[',
                                        'Array literals must start with `[`')
             attrs = self.must_parse_list_of(self.try_parse_builtin_attr,
@@ -1191,8 +1251,7 @@ class MlirParser:
             ParserCommons.BNF.attr_dict.collect(res, dict()).get(
                 'attributes', list()))
 
-    def must_parse_function_type(
-            self) -> tuple[list[Attribute], list[Attribute]]:
+    def must_parse_function_type(self) -> FunctionType:
         """
         Parses function-type:
 
@@ -1210,9 +1269,13 @@ class MlirParser:
             '(', 'First group of function args must start with a `(`')
         args: list[Attribute] = self.must_parse_list_of(
             self.try_parse_type, 'Expected type here!')
-        self.must_parse_characters(')', "End of function type arguments")
+        self.must_parse_characters(')',
+                                   "Malformed function type!",
+                                   is_parse_error=True)
 
-        self.must_parse_characters('->', 'Function type!')
+        self.must_parse_characters('->',
+                                   'Malformed function type!',
+                                   is_parse_error=True)
 
         return FunctionType.from_lists(
             args, self.must_parse_type_or_type_list_parens())
@@ -1225,11 +1288,12 @@ class MlirParser:
         type-list-parens         ::= `(` `)` | `(` type-list-no-parens `)`
         type-list-no-parens      ::=  type (`,` type)*
         """
-        if self.tokenizer.next_token(peek=True).text == '(':
-            self.must_parse_characters('(', 'Function type!')
+        if self.tokenizer.next_token_of_pattern('(') is not None:
             args: list[Attribute] = self.must_parse_list_of(
                 self.try_parse_type, 'Expected type here!')
-            self.must_parse_characters(')', "End of function type args")
+            self.must_parse_characters(')',
+                                       "Unclosed function type argument list!",
+                                       is_parse_error=True)
         else:
             args = [self.try_parse_type()]
             if args[0] is None:
@@ -1241,7 +1305,7 @@ class MlirParser:
     def try_parse_function_type(self) -> FunctionType | None:
         if self.tokenizer.next_token(peek=True).text != '(':
             return None
-        with self.tokenizer.backtracking('Function type'):
+        with self.tokenizer.backtracking('function type'):
             return self.must_parse_function_type()
 
 
@@ -1313,3 +1377,38 @@ function-type ::= (type | type-list-parens) `->` (type | type-list-parens)
 type-alias-def ::= '!' alias-name '=' type
 type-alias ::= '!' alias-name
 """
+
+if __name__ == '__main__':
+    infile = sys.argv[-1]
+    from xdsl.dialects.affine import Affine
+    from xdsl.dialects.arith import Arith
+    from xdsl.dialects.builtin import Builtin
+    from xdsl.dialects.cf import Cf
+    from xdsl.dialects.cmath import CMath
+    from xdsl.dialects.func import Func
+    from xdsl.dialects.irdl import IRDL
+    from xdsl.dialects.llvm import LLVM
+    from xdsl.dialects.memref import MemRef
+    from xdsl.dialects.scf import Scf
+    import os
+
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(MemRef)
+    ctx.register_dialect(Affine)
+    ctx.register_dialect(Scf)
+    ctx.register_dialect(Cf)
+    ctx.register_dialect(CMath)
+    ctx.register_dialect(IRDL)
+    ctx.register_dialect(LLVM)
+
+    p = MlirParser(infile, open(infile, 'r').read(), ctx)
+
+    printer = Printer()
+    try:
+        for op in p.begin_parse():
+            printer.print_op(op)
+    except ParseError as pe:
+        pe.print_pretty()
