@@ -75,7 +75,6 @@ jobs:
       run: |
         cd llvm-project/build
         cmake --build . --target mlir-opt MLIRPythonModules
-        # Add the Python Bindings to the pythonpath
 
     - name: Test with pytest and generate code coverage
       run: |
