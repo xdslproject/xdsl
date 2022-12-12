@@ -80,12 +80,12 @@ class OneBuilderTwoArgsAttr(Data[str]):
         raise NotImplementedError()
 
 
-def test_one_builder_2_not_enough_args():
+def test_one_builder_two_args_not_enough_args():
     with pytest.raises(BuilderNotFoundException):
         OneBuilderTwoArgsAttr.build(1)
 
 
-def test_one_builder_2_too_many_args():
+def test_one_builder_two_args_too_many_args():
     with pytest.raises(BuilderNotFoundException):
         OneBuilderTwoArgsAttr.build(1, "a", "b")
 
