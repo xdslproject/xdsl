@@ -62,8 +62,7 @@ jobs:
         pip install --upgrade pip
 
     - name: Install the package locally
-      run: |
-        pip install -e ${GITHUB_WORKSPACE}/xdsl
+      run: pip install -e .[extras]
 
     - name: MLIR Build Setup
       run: |
@@ -77,10 +76,33 @@ jobs:
         cd llvm-project/build
         cmake --build . --target mlir-opt MLIRPythonModules
 
-    - name: Test
+    - name: Test with pytest and generate code coverage
       run: |
-        # Add the Python Bindings to the pythonpath
+        cd xdsl
+        # Add the MLIR Python bindings to the PYTHONPATH
         export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
+        pytest --cov --cov-config=.coveragerc tests
+
+    - name: Execute lit tests
+      run: |
+        cd xdsl
+        export PYTHONPATH=$(pwd)
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v ${GITHUB_WORKSPACE}/xdsl/tests/filecheck/mlir-conversion/with-bindings/
+        # Add the MLIR Python bindings to the PYTHONPATH
+        export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
+        lit -v tests/filecheck/ -DCOVERAGE -DCOVERAGE_CONFIG=$(pwd)/.coveragerc
+
+    - name: Combine coverage data
+      run: |
+        coverage combine --append $(find xdsl/tests/filecheck -type d)
+        coverage report --data-file=xdsl/.coverage
+        coverage xml --data-file=xdsl/.coverage
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true
+        verbose: true
+        directory: ${GITHUB_WORKSPACE}/../
+        files: coverage.xml
