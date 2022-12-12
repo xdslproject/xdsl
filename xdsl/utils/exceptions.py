@@ -19,7 +19,7 @@ class VerifyException(DiagnosticException):
 @dataclass
 class BuilderNotFoundException(Exception):
     """
-    Exception raised when no builders are not found for a given attribute type
+    Exception raised when no builders are found for a given attribute type
     and a given tuple of arguments.
     """
     attribute: type[Attribute]
