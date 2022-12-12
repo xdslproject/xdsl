@@ -57,7 +57,7 @@ def test_one_builder_exception():
         OneBuilderAttr.build("1")
 
 
-def test_one_builder_too_many_params():
+def test_one_builder_extra_params():
     with pytest.raises(BuilderNotFoundException):
         OneBuilderAttr.build(1, 2)
 
@@ -85,7 +85,7 @@ def test_one_builder_two_args_not_enough_args():
         OneBuilderTwoArgsAttr.build(1)
 
 
-def test_one_builder_two_args_too_many_args():
+def test_one_builder_two_args_extra_args():
     with pytest.raises(BuilderNotFoundException):
         OneBuilderTwoArgsAttr.build(1, "a", "b")
 
@@ -153,7 +153,7 @@ class BuilderDefaultArgAttr(Data[str]):
         raise NotImplementedError()
 
 
-def test_builder_default_args_too_few_args():
+def test_builder_default_args_missing_args():
     with pytest.raises(BuilderNotFoundException):
         BuilderDefaultArgAttr.build()
 
@@ -173,7 +173,7 @@ def test_builder_default_args_all_args():
     assert attr == BuilderDefaultArgAttr("4, 5, 6")
 
 
-def test_builder_default_args_too_many_args():
+def test_builder_default_args_extra_args():
     with pytest.raises(BuilderNotFoundException):
         BuilderDefaultArgAttr.build(4, 5, 6, 7)
 
