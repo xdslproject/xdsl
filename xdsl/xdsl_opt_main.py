@@ -73,8 +73,7 @@ class xDSLOptMain:
         if self.args.generate_coverage:
             if self.args.exec_root:
                 os.chdir(self.args.exec_root)
-            cov = coverage.Coverage(check_preimported=True,
-                                    config_file='.coveragerc',
+            cov = coverage.Coverage(config_file='.coveragerc',
                                     auto_data=True,
                                     data_file='.coverage',
                                     data_suffix=True)
