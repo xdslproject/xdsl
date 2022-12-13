@@ -71,7 +71,8 @@ class xDSLOptMain:
         Executes the different steps.
         """
         if self.args.generate_coverage:
-            os.chdir(self.args.exec_root)
+            if self.args.exec_root:
+                os.chdir(self.args.exec_root)
             cov = coverage.Coverage(check_preimported=True,
                                     config_file='.coveragerc',
                                     auto_data=True,
