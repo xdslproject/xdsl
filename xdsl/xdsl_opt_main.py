@@ -71,7 +71,9 @@ class xDSLOptMain:
         Executes the different steps.
         """
         if self.args.generate_coverage:
-            cov = coverage.Coverage(config_file=self.args.coverage_config,
+            os.chdir(self.args.exec_root)
+            cov = coverage.Coverage(check_preimported=True,
+                                    config_file='.coveragerc',
                                     auto_data=True,
                                     data_file='.coverage',
                                     data_suffix=True)
@@ -174,12 +176,12 @@ class xDSLOptMain:
             help="Generate the xDSL code coverage for this run.")
 
         arg_parser.add_argument(
-            "--coverage-config",
+            "--exec-root",
             type=str,
             default=False,
             required=False,
             help=
-            "Link to the coverage config file. This flag only takes effect if `--generate-config` was specified."
+            "Defines the directory xdsl-opt will be run in. This flag only takes effect if `--generate-config` was specified."
         )
 
     def register_all_dialects(self):
