@@ -91,13 +91,14 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         # Add the MLIR Python bindings to the PYTHONPATH
         export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
-        lit -v tests/filecheck/ -DCOVERAGE -DCOVERAGE_CONFIG=$(pwd)/.coveragerc
+        lit -v tests/filecheck/ -DCOVERAGE -DEXEC_DIR=$(pwd)
 
     - name: Combine coverage data
       run: |
-        coverage combine --append $(find xdsl/tests/filecheck -type d)
-        coverage report --data-file=xdsl/.coverage
-        coverage xml --data-file=xdsl/.coverage
+        cd xdsl
+        coverage combine --append
+        coverage report
+        coverage xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
