@@ -43,7 +43,7 @@ class FrontendProgram:
             func_visitor.visit(stmt)
 
         # Run code generation.
-        visitor = CodegenVisitor(type_converter, func_visitor.functions)
+        visitor = CodegenVisitor(type_converter, func_visitor.functions, func_visitor.side_effects)
         for stmt in self.stmts:
             visitor.visit(stmt)
         ops = visitor.inserter.op_container

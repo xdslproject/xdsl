@@ -191,7 +191,7 @@ class TypeInferenceVisitor(ast.NodeVisitor):
         #
         # cannot, because we do not know the type and have to infer based on the element
         # we put inside. But if we put both ints and say floats, it becomes undecidable
-        # and we shoul error.
+        # and we should error.
         if not isinstance(node.targets[0], ast.Name):
             return
         

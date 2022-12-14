@@ -1,7 +1,7 @@
 import ast
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.frontend.codegen.type_manager import TypeManager
@@ -38,9 +38,14 @@ class CodegenVisitor(ast.NodeVisitor):
     inserter: OpInserter = field(init=False)
     """Class responsible for inserting new xDSL ops at the right place."""
 
+    ret_idx: int = field(init=False)
+    curr_func: str = field(init=False)
+
     functions:  Dict[str, builtin.FunctionType]
 
-    def __init__(self, hint_converter: Dict[str, Any], functions:  Dict[str, builtin.FunctionType]):
+    side_effects: Dict[str, List[Tuple[int, Attribute]]]
+
+    def __init__(self, hint_converter: Dict[str, Any], functions:  Dict[str, builtin.FunctionType], side_effects: Dict[str, List[Tuple[int, Attribute]]]):
         inserter = OpInserter()
         
         self.globals = hint_converter.globals
@@ -52,6 +57,9 @@ class CodegenVisitor(ast.NodeVisitor):
         self.function_table = dict()
         self.inserter = inserter
         self.functions = functions
+        self.side_effects = side_effects
+        self.ret_idx = None
+        self.curr_func = None
 
     def visit(self, node: ast.AST):
         return super().visit(node)
@@ -360,9 +368,13 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Process the arguments first.
         num_args = len(node.args)
+        names: List[(int, str)] = []
         for arg in reversed(node.args):
+            # TODO: whet if I pass a list comprehension? How do side-effects work?
+            assert isinstance(arg, ast.Name)
+            names.append(arg.id)
             self.visit(arg)
-        
+
         # Collect the operand list and the type information.
         # TODO: here we allow operands to be python types, which seems not that great. maybe
         # we should fix this later (al because of strings!)
@@ -395,6 +407,17 @@ class CodegenVisitor(ast.NodeVisitor):
             # it in the current block.
             call_op = func.Call.get(node.func.id, operands, callee.function_type.outputs.data) 
             self.inserter.insert_op(call_op)
+
+            # Make sure we update side-effect arguments.
+            # TODO: for nowwe assume these are last:
+            num_side_effects = len(self.side_effects[node.func.id])
+            for i in range(num_side_effects - 1, -1, -1):
+                # TODO: assume all side-effect args are the last ones!
+                name = names.pop()
+                op = list(reversed(call_op.results))[i]
+                symbol_name = "{}{}".format(name, self.symbol_idx[name])
+                update_op = symref.Update.get(symbol_name, op)
+                self.inserter.insert_op(update_op)
             return
 
         # Otherwise, get the module and the function names.
@@ -578,9 +601,8 @@ class CodegenVisitor(ast.NodeVisitor):
         def foo():
             ...
         """
-        # First, check if function signature is valid.
-        # TODO: given that we know function signature, some things can be dropped here.
-        
+        # TODO: this can be nicer!
+        self.curr_func = node.name
 
         # Type inference!
         self.symbol_table = TypeInference(self.globals, self.functions).run_on_function(node)
@@ -635,6 +657,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # the function to allow calls to it.
         self.function_table[func_op.attributes["sym_name"].data] = func_op
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
+        self.curr_func = None
 
     def visit_If(self, node: ast.If):
         # Get the condition.
@@ -703,11 +726,27 @@ class CodegenVisitor(ast.NodeVisitor):
             return 
 
         # TODO: make this look nicer, but name always uses the first!
+        
         ty = self.symbol_table[node.id][0][1]
-
         symbol_name = "{}{}".format(node.id, self.symbol_idx[node.id])
+    
+        if self.ret_idx is not None:
+            # TODO: this is ugly, rework.
+            for j, (i, xdsl_ty) in enumerate(self.side_effects[self.curr_func]):
+                if i == self.ret_idx:
+                    ty = xdsl_ty
+                    symbol_name = "{}{}".format(node.id, 0)
+                    break
         fetch_op = symref.Fetch.get(symbol_name, ty)
         self.inserter.insert_op(fetch_op)
+
+    def visit_Tuple(self, node: ast.Tuple):
+        # TODO: For now it s only needed in the return statement.
+        assert self.ret_idx is not None
+
+        for elt in node.elts:
+            self.visit(elt)
+            self.ret_idx += 1
 
     def visit_Return(self, node: ast.Return):
         """
@@ -740,31 +779,39 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(return_op)
         else:
             # Return some type, check function signature matches as well.
+            self.ret_idx = 0
             self.visit(node.value)
-            operand = self.inserter.get_operand()
-
-            # TODO: this can be dropped when function is allowed to return more
-            # than one type.
-            if len(func_return_types) > 1:
-                raise CodegenInternalException(f"expected less than 2 return types, got {len(func_return_types)} in function '{func_name}'")
+            self.ret_idx = None
+            if isinstance(node.value, ast.Tuple):
+                operands = []
+                for _ in range(len(node.value.elts)):
+                    op = self.inserter.get_operand()
+                    operands.append(op)
+                operands = list(reversed(operands))
+            else:
+                operands = [self.inserter.get_operand()]
 
             if len(func_return_types) == 0:
-                raise CodegenInternalException(f"expected 0 return types, got 1 in function {func_name}")
-            if func_return_types[0] != operand.typ:
-                
-                if isinstance(operand.typ, builtin.TensorType) and operand.typ.element_type == func_return_types[0].element_type and len(list(filter(lambda d: d == -1, operand.typ.shape.data))) == 0:
-                    # TODO: make this nicer. Basically, we better change the return type instead of adding cast if this
-                    # is a dynamically sized tensor.
-                    # HACK!
-                    object.__setattr__(parent_op.function_type.outputs, "data", [operand.typ])
-                    # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
-                    # self.functions[enclosing_func][1][0] = operand.typ
-                else:
-                    # TODO: implicit cast
-                    operand = self.type_manager.match(func_return_types[0], operand)
-                # raise CodegenInternalException(f"expected {prettify(func_return_types[0])} return type, got {prettify(operand.typ)} in function {func_name}")
+                raise CodegenInternalException(f"expected 0 return types, got more in function {func_name}")
 
-            return_op = func.Return.get(operand)
+            for i in range(len(operands)):
+                if func_return_types[i] != operands[i].typ:
+                    
+                    if isinstance(operands[i].typ, builtin.TensorType) and operands[i].typ.element_type == func_return_types[i].element_type and len(list(filter(lambda d: d == -1, operands[i].typ.shape.data))) == 0:
+                        # TODO: make this nicer. Basically, we better change the return type instead of adding cast if this
+                        # is a dynamically sized tensor.
+                        # HACK!
+                        ops_before = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j < i]
+                        ops_after = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j > i]
+                        new_ops = ops_before + [operands[i].typ] + ops_after
+                        object.__setattr__(parent_op.function_type.outputs, "data", new_ops)
+                        # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
+                        # self.functions[enclosing_func][1][0] = operand.typ
+                    else:
+                        # TODO: implicit cast
+                        operands[i] = self.type_manager.match(func_return_types[i], operands[i])
+
+            return_op = func.Return.get(*operands)
             self.inserter.insert_op(return_op)
 
     def visit_With(self, node: ast.With):
