@@ -18,6 +18,7 @@ class PyRDLPrinter:
     """The number of spaces per identation level"""
 
     def _print(self, *args: Any, end: str = '\n') -> None:
+        """Print a sequence of objects to the stream, separated by spaces."""
         print(*args, file=self.stream, end=end)
 
     @staticmethod
