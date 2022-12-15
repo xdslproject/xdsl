@@ -1,9 +1,8 @@
 from io import StringIO
 
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.dialects.builtin import (Builtin, IntegerAttr, i32, i64, f32, f64,
-                                   ModuleOp)
-from xdsl.dialects.scf import Scf, If
+from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.scf import If, Scf
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,

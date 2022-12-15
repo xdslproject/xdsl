@@ -138,7 +138,6 @@ def test_var_mixed_builder():
     ]
 
     dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
-
     assert op.attributes[AttrSizedResultSegments.
                          attribute_name] == DenseIntOrFPElementsAttr.from_list(
                              dense_type, [2, 1, 2])
