@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import IOBase
 from typing import Any, cast
 from keyword import iskeyword
@@ -7,15 +7,15 @@ from xdsl.dialects.irdl import (AnyTypeConstraintAttr, DialectOp,
                                 NamedTypeConstraintAttr, OperationOp)
 from xdsl.ir import Attribute
 
-INDENTATION_SIZE: int = 4
-"""The number of spaces per identation level"""
-
 
 @dataclass
 class PyRDLPrinter:
 
     stream: IOBase
     """The stream where we output the dialect definitions"""
+
+    indent_size: int = field(default=4)
+    """The number of spaces per identation level"""
 
     def _print(self, *args: Any, end: str = '\n') -> None:
         print(*args, file=self.stream, end=end)
@@ -60,13 +60,13 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
         ]
 
         # Print the ctx field
-        self._print(' ' * INDENTATION_SIZE, 'ctx: MLContext')
+        self._print(' ' * self.indent_size, 'ctx: MLContext')
         self._print('')
 
         # Print the op registration
-        self._print(' ' * INDENTATION_SIZE, 'def __post_init__(self):')
+        self._print(' ' * self.indent_size, 'def __post_init__(self):')
         for op_py_name in op_py_names:
-            self._print(' ' * INDENTATION_SIZE * 2,
+            self._print(' ' * self.indent_size * 2,
                         f'self.ctx.register_op({op_py_name})')
         self._print('')
         self._print('')
@@ -82,7 +82,7 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
         op_py_name = self.snake_case_to_pascal_case(op.op_name.data)
         self._print('@irdl_op_definition')
         self._print(f'class {op_py_name}(Operation):')
-        self._print(' ' * INDENTATION_SIZE, 'name = ', f'"{op.op_name.data}"')
+        self._print(' ' * self.indent_size, 'name = ', f'"{op.op_name.data}"')
 
         # Convert the operands
         if (operands := op.get_operands()) is not None:
@@ -95,7 +95,7 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
                         name = f'operand_{idx}'
                     else:
                         name = f'_{name}'
-                self._print(' ' * INDENTATION_SIZE,
+                self._print(' ' * self.indent_size,
                             f'{name} = OperandDef(',
                             end='')
                 self.print_constraint(operand.params_constraints)
@@ -112,14 +112,14 @@ from xdsl.irdl import (OperandDef, ResultDef, AnyAttr,
                         name = f'result_{idx}'
                     else:
                         name = f'_{name}'
-                self._print(' ' * INDENTATION_SIZE,
+                self._print(' ' * self.indent_size,
                             f'{name} = ResultDef(',
                             end='')
                 self.print_constraint(result.params_constraints)
                 self._print(')')
 
         # Add variadic regions, since IRDL does not support yet regions
-        self._print(' ' * INDENTATION_SIZE, 'regs = VarRegionDef()')
+        self._print(' ' * self.indent_size, 'regs = VarRegionDef()')
 
     def print_constraint(self, constraint: Attribute) -> None:
         if isinstance(constraint, AnyTypeConstraintAttr):
