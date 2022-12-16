@@ -1,9 +1,10 @@
 from __future__ import annotations
+from typing import Annotated
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr)
-from xdsl.ir import Block
+from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
                        OptSingleBlockRegionDef, SingleBlockRegionDef,
                        VarRegionDef, VarSingleBlockRegionDef,
@@ -24,7 +25,7 @@ from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
 class ResultOp(Operation):
     name: str = "test.result_op"
 
-    res = ResultDef(StringAttr)
+    res: Annotated[OpResult, ResultDef(StringAttr)]
 
 
 def test_result_builder():
@@ -42,7 +43,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res = OptResultDef(StringAttr)
+    res: Annotated[OpResult | None, OptResultDef(StringAttr)]
 
 
 def test_opt_result_builder():
@@ -63,7 +64,7 @@ def test_opt_result_builder_two_args():
 class VarResultOp(Operation):
     name: str = "test.var_result_op"
 
-    res = VarResultDef(StringAttr)
+    res: Annotated[list[OpResult], VarResultDef(StringAttr)]
 
 
 def test_var_result_builder():
@@ -78,8 +79,8 @@ def test_var_result_builder():
 class TwoVarResultOp(Operation):
     name: str = "test.two_var_result_op"
 
-    res1 = VarResultDef(StringAttr)
-    res2 = VarResultDef(StringAttr)
+    res1: Annotated[list[OpResult], VarResultDef(StringAttr)]
+    res2: Annotated[list[OpResult], VarResultDef(StringAttr)]
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -119,9 +120,9 @@ def test_two_var_result_builder2():
 class MixedResultOp(Operation):
     name: str = "test.mixed"
 
-    res1 = VarResultDef(StringAttr)
-    res2 = ResultDef(StringAttr)
-    res3 = VarResultDef(StringAttr)
+    res1: Annotated[list[OpResult], VarResultDef(StringAttr)]
+    res2: Annotated[OpResult, ResultDef(StringAttr)]
+    res3: Annotated[list[OpResult], VarResultDef(StringAttr)]
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -137,7 +138,6 @@ def test_var_mixed_builder():
     ]
 
     dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
-
     assert op.attributes[AttrSizedResultSegments.
                          attribute_name] == DenseIntOrFPElementsAttr.from_list(
                              dense_type, [2, 1, 2])
@@ -156,7 +156,7 @@ def test_var_mixed_builder():
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
-    res = OperandDef(StringAttr)
+    res: Annotated[SSAValue, OperandDef(StringAttr)]
 
 
 def test_operand_builder_operation():
@@ -182,7 +182,7 @@ def test_operand_builder_exception():
 class OptOperandOp(Operation):
     name: str = "test.opt_operand_op"
 
-    res = OptOperandDef(StringAttr)
+    res: Annotated[SSAValue | None, OptOperandDef(StringAttr)]
 
 
 def test_opt_operand_builder():
@@ -205,7 +205,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
-    res = VarOperandDef(StringAttr)
+    res: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
 
 
 def test_var_operand_builder():
@@ -219,8 +219,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
-    res1 = VarOperandDef(StringAttr)
-    res2 = VarOperandDef(StringAttr)
+    res1: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
+    res2: Annotated[list[SSAValue], VarOperandDef(StringAttr)]
     irdl_options = [AttrSizedOperandSegments()]
 
 

@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 from io import IOBase, StringIO
+import coverage
 
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
@@ -71,6 +72,16 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
+        if self.args.generate_coverage:
+            if self.args.exec_root:
+                os.chdir(self.args.exec_root)
+            cov = coverage.Coverage(config_file='.coveragerc',
+                                    auto_data=True,
+                                    data_file='.coverage',
+                                    data_suffix=True)
+
+            cov.start()
+
         module = self.parse_input()
         if not self.args.verify_diagnostics:
             self.apply_passes(module)
@@ -83,6 +94,9 @@ class xDSLOptMain:
 
         contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
+
+        if self.args.generate_coverage:
+            cov.stop()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -156,6 +170,21 @@ class xDSLOptMain:
             default=False,
             action='store_true',
             help="Allow the parsing of unregistered operations.")
+
+        arg_parser.add_argument(
+            "--generate-coverage",
+            default=False,
+            action='store_true',
+            help="Generate the xDSL code coverage for this run.")
+
+        arg_parser.add_argument(
+            "--exec-root",
+            type=str,
+            default=False,
+            required=False,
+            help=
+            "Defines the directory xdsl-opt will be run in. This flag only takes effect if `--generate-config` was specified."
+        )
 
     def register_all_dialects(self):
         """
