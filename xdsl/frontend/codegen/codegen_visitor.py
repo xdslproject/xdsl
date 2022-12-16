@@ -2,6 +2,7 @@ import ast
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
+from xdsl.frontend.codegen.functions import FunctionInfo
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.frontend.codegen.type_manager import TypeManager
@@ -29,23 +30,16 @@ class CodegenVisitor(ast.NodeVisitor):
     symbol_idx: Dict[str, int] = field(init=False)
     """Symbol table used to query types for symref symbols per function."""
 
-    # TODO: fix function table to allow cross-module scoping.
-    # TODO: change this design to allow arbitrary function orderings per 
-    # module.
-    function_table: Dict[str, func.FuncOp] = field(init=False)
-    """Function table used to query built functions per module."""
-
     inserter: OpInserter = field(init=False)
     """Class responsible for inserting new xDSL ops at the right place."""
 
     ret_idx: int = field(init=False)
+    codegen_template: bool = field(init=False)
     curr_func: str = field(init=False)
 
-    functions:  Dict[str, builtin.FunctionType]
+    function_infos: Dict[str, FunctionInfo]
 
-    side_effects: Dict[str, List[Tuple[int, Attribute]]]
-
-    def __init__(self, hint_converter: Dict[str, Any], functions:  Dict[str, builtin.FunctionType], side_effects: Dict[str, List[Tuple[int, Attribute]]]):
+    def __init__(self, hint_converter: Dict[str, Any], function_infos: Dict[str, FunctionInfo]):
         inserter = OpInserter()
         
         self.globals = hint_converter.globals
@@ -54,12 +48,11 @@ class CodegenVisitor(ast.NodeVisitor):
         self.hint_converter = hint_converter
         self.symbol_table = dict()
         self.symbol_idx = dict()
-        self.function_table = dict()
         self.inserter = inserter
-        self.functions = functions
-        self.side_effects = side_effects
+        self.function_infos = function_infos
         self.ret_idx = None
         self.curr_func = None
+        self.codegen_template = False
 
     def visit(self, node: ast.AST):
         return super().visit(node)
@@ -371,8 +364,8 @@ class CodegenVisitor(ast.NodeVisitor):
         names: List[(int, str)] = []
         for arg in reversed(node.args):
             # TODO: whet if I pass a list comprehension? How do side-effects work?
-            assert isinstance(arg, ast.Name)
-            names.append(arg.id)
+            if isinstance(arg, ast.Name):
+                names.append(arg.id)
             self.visit(arg)
 
         # Collect the operand list and the type information.
@@ -390,9 +383,8 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Call can be made to a user-defined function, process this case first.
         # TODO: drop function table since we have self.functions now.
-        if isinstance(node.func, ast.Name) and node.func.id in self.function_table:
-            callee = self.function_table[node.func.id]
-            callee_operand_types = callee.function_type.inputs.data
+        if isinstance(node.func, ast.Name) and node.func.id in self.function_infos:
+            callee_operand_types = [arg_info.xdsl_type for arg_info in self.function_infos[node.func.id].arg_info]
 
             # Check operand types.
             for i in range(num_args):
@@ -405,19 +397,20 @@ class CodegenVisitor(ast.NodeVisitor):
 
             # Operand types match, so we can create a call operation and insert
             # it in the current block.
-            call_op = func.Call.get(node.func.id, operands, callee.function_type.outputs.data) 
+            outs = [return_info.xdsl_type for return_info in self.function_infos[node.func.id].return_info]
+            call_op = func.Call.get(node.func.id, operands, outs) 
             self.inserter.insert_op(call_op)
 
             # Make sure we update side-effect arguments.
             # TODO: for nowwe assume these are last:
-            num_side_effects = len(self.side_effects[node.func.id])
-            for i in range(num_side_effects - 1, -1, -1):
-                # TODO: assume all side-effect args are the last ones!
-                name = names.pop()
-                op = list(reversed(call_op.results))[i]
-                symbol_name = "{}{}".format(name, self.symbol_idx[name])
-                update_op = symref.Update.get(symbol_name, op)
-                self.inserter.insert_op(update_op)
+            # num_side_effects = len(self.side_effects[node.func.id])
+            # for i in range(num_side_effects - 1, -1, -1):
+            #     # TODO: assume all side-effect args are the last ones!
+            #     name = names.pop()
+            #     op = list(reversed(call_op.results))[i]
+            #     symbol_name = "{}{}".format(name, self.symbol_idx[name])
+            #     update_op = symref.Update.get(symbol_name, op)
+            #     self.inserter.insert_op(update_op)
             return
 
         # Otherwise, get the module and the function names.
@@ -605,14 +598,18 @@ class CodegenVisitor(ast.NodeVisitor):
         self.curr_func = node.name
 
         # Type inference!
-        self.symbol_table = TypeInference(self.globals, self.functions).run_on_function(node)
+        self.symbol_table = TypeInference(self.globals, self.function_infos).run_on_function(node)
         self.symbol_idx = dict()
         for k, v in self.symbol_table.items():
             self.symbol_idx[k] = 0
 
         # Then, convert type in the function signature.
-        arg_types = self.functions[node.name].inputs.data
-        return_types = self.functions[node.name].outputs.data
+        arg_types = [arg_info.xdsl_type for arg_info in self.function_infos[node.name].arg_info]
+        return_types = [return_info.xdsl_type for return_info in self.function_infos[node.name].return_info]
+
+        # TODO: This can be gated by if.
+        side_effects = [arg_info.xdsl_type for arg_info in self.function_infos[node.name].arg_info if arg_info.has_side_effects]
+        #return_types += side_effects
 
         # Create a region for the function body and entry block.
         entry_block = Block()
@@ -655,7 +652,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Move on with code generation for the next operation and record
         # the function to allow calls to it.
-        self.function_table[func_op.attributes["sym_name"].data] = func_op
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
         self.curr_func = None
 
@@ -730,13 +726,15 @@ class CodegenVisitor(ast.NodeVisitor):
         ty = self.symbol_table[node.id][0][1]
         symbol_name = "{}{}".format(node.id, self.symbol_idx[node.id])
     
-        if self.ret_idx is not None:
-            # TODO: this is ugly, rework.
-            for j, (i, xdsl_ty) in enumerate(self.side_effects[self.curr_func]):
-                if i == self.ret_idx:
-                    ty = xdsl_ty
-                    symbol_name = "{}{}".format(node.id, 0)
-                    break
+        # if self.ret_idx is not None:
+        #     # TODO: this is ugly, rework.
+        #     for i, arg_info in enumerate(self.function_infos[self.curr_func].arg_info):
+
+        #     for j, (i, xdsl_ty) in self.side_effects[self.curr_func]:
+        #         if i == self.ret_idx:
+        #             ty = xdsl_ty
+        #             symbol_name = "{}{}".format(node.id, 0)
+        #             break
         fetch_op = symref.Fetch.get(symbol_name, ty)
         self.inserter.insert_op(fetch_op)
 
@@ -825,7 +823,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # TODO: we have per module function table. Instead it would be
         # nice to call functions from other modules.
-        self.function_table = dict()
 
         # Proceed with visitng the module.
         self.inserter.insert_op(module_op)

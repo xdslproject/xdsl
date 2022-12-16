@@ -6,7 +6,7 @@ from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
-from xdsl.frontend.codegen.functions import FunctionVisitor
+from xdsl.frontend.codegen.functions import LocalCallAnalyzer, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
@@ -37,15 +37,30 @@ class FrontendProgram:
         # modules with nested functions. But for the purpose of the front-end, these are not
         # too important so we focus on more commion scenario.
 
-        # Find all functions first and convert their types.
-        func_visitor = FunctionVisitor(type_converter)
+        # First, analyze all functions.
+        lfa = LocalFunctionAnalyzer(type_converter)
         for stmt in self.stmts:
-            func_visitor.visit(stmt)
+            lfa.visit(stmt)
+
+        # Analyze all function calls to make sure templates are instantiated.
+        lca = LocalCallAnalyzer(lfa.function_infos)
+        for stmt in self.stmts:
+            lca.visit(stmt)
+
+        # func_visitor = FunctionVisitor(type_converter)
+        # for stmt in self.stmts:
+        #     func_visitor.visit(stmt)
+
+        # Generate templates.
+        visitor = CodegenVisitor(type_converter, lfa.function_infos)
+        for function_info in lfa.function_infos.values():
+            if function_info.template_instantiation:
+                visitor.visit(function_info.ast_node)
 
         # Run code generation.
-        visitor = CodegenVisitor(type_converter, func_visitor.functions, func_visitor.side_effects)
         for stmt in self.stmts:
             visitor.visit(stmt)
+
         ops = visitor.inserter.op_container
 
         # Ensure that the code is encapsulated in a single module.

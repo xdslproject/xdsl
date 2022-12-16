@@ -3,6 +3,7 @@ import ast
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple, Type
 from xdsl.dialects.builtin import FunctionType, i1, i64, f32, IndexType, IntegerType, TensorType
+from xdsl.frontend.codegen.functions import FunctionInfo
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute
 
@@ -17,10 +18,10 @@ class TypeInference():
 
     globals: Dict[str, Any]
 
-    functions: Dict[str, Tuple[List[Attribute], Attribute]]
+    function_infos: Dict[str, FunctionInfo]
 
     def run_on_function(self, node: ast.FunctionDef):
-        visitor = TypeInferenceVisitor(self.globals, self.functions, node)
+        visitor = TypeInferenceVisitor(self.globals, self.function_infos, node)
         for stmt in node.body:
             visitor.visit(stmt)
         # visitor.info()
@@ -28,7 +29,7 @@ class TypeInference():
 
 class TypeInferenceVisitor(ast.NodeVisitor):
 
-    functions: Dict[str, Tuple[List[Attribute], Attribute]] = field(init=False)
+    function_infos: Dict[str, FunctionInfo] = field(init=False)
 
     type_converter: TypeConverter = field(init=False)
 
@@ -36,15 +37,15 @@ class TypeInferenceVisitor(ast.NodeVisitor):
 
     recurse: bool = False
 
-    def __init__(self, globals: Dict[str, Any], functions: Dict[str, FunctionType], node: ast.FunctionDef):
+    def __init__(self, globals: Dict[str, Any], function_infos: Dict[str, FunctionInfo], node: ast.FunctionDef):
         self.type_converter = TypeConverter(globals)
-        self.functions = functions
-        arg_types = functions[node.name].inputs.data
+        self.function_infos = function_infos
+        arg_info = function_infos[node.name].arg_info
 
         self.types = dict()
         for i, arg in enumerate(node.args.args):
             arg_name = arg.arg
-            arg_type = arg_types[i]
+            arg_type = arg_info[i].xdsl_type
             self.types[arg_name] = [(arg.lineno, arg_type)]
     
     def info(self):
@@ -247,17 +248,17 @@ class TypeInferenceVisitor(ast.NodeVisitor):
         elif isinstance(expr, ast.Call):
 
             # TODO: can we have a call not to ast.Name?
-            if expr.func.id in self.functions:
+            if expr.func.id in self.function_infos:
                 # This is a known function.
-                _, return_types = self.functions[expr.func.id]
+                return_info = self.function_infos[expr.func.id].return_info
 
                 # Technically, here we can also type check arguments, e.g. passing ints as float
                 # arguments, but again, this can be future work.
                 # TODO: type check arguments.
 
                 # We only support a single assignemnt at the moment.
-                assert len(return_types) == 1
-                expr_type = return_types[0]
+                assert len(return_info) == 1
+                expr_type = return_info[0].xdsl_type
 
             else:
                 # Can be a standar library but let's not support this at the moment.
