@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, ParametrizedAttribute, Dialect, OpResult
+from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
+                     Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
                        ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
                        VarOperandDef, ResultDef, AttributeDef,
@@ -164,6 +164,16 @@ class Dealloc(Operation):
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
         return Dealloc.build(operands=[operand])
+
+
+@irdl_op_definition
+class Dealloca(Operation):
+    name = "memref.dealloca"
+    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+
+    @staticmethod
+    def get(operand: Operation | SSAValue) -> Dealloca:
+        return Dealloca.build(operands=[operand])
 
 
 @irdl_op_definition
