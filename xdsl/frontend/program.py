@@ -6,7 +6,7 @@ from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.codegen.codegen_visitor import CodegenVisitor
-from xdsl.frontend.codegen.functions import LocalCallAnalyzer, LocalFunctionAnalyzer
+from xdsl.frontend.codegen.functions import LocalFunctionAnalyzer
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer
@@ -30,40 +30,29 @@ class FrontendProgram:
 
     def compile(self, desymref=True) -> None:
         """Generates xDSL from the source program."""
-        type_converter = TypeConverter(self.globals)
 
         # TODO: at the moment, compilation focuses on a nicely formed programs, i.e. a single
         # module with a number of functions. Technically, in xDSL/MLIR we can have nested
         # modules with nested functions. But for the purpose of the front-end, these are not
         # too important so we focus on more commion scenario.
 
-        # First, analyze all functions.
-        lfa = LocalFunctionAnalyzer(type_converter)
+        tc = TypeConverter(self.globals)
+        function_analysis = LocalFunctionAnalyzer.run_with_type_converter(tc, self.stmts)
+
+        cv = CodegenVisitor(tc, function_analysis)
+
+        # All templates are stored in `function_info`, and not in the Python AST. Therefore, we have to have
+        # a separate loop which generates the code for all template instantiations.
+        for function_info in function_analysis.values():
+            if function_info.is_template_instantiation():
+                cv.visit(function_info.ast_node)
+
+        # Run the code generation.
         for stmt in self.stmts:
-            lfa.visit(stmt)
-
-        # Analyze all function calls to make sure templates are instantiated.
-        lca = LocalCallAnalyzer(lfa.function_infos)
-        for stmt in self.stmts:
-            lca.visit(stmt)
-
-        # func_visitor = FunctionVisitor(type_converter)
-        # for stmt in self.stmts:
-        #     func_visitor.visit(stmt)
-
-        # Generate templates.
-        visitor = CodegenVisitor(type_converter, lfa.function_infos)
-        for function_info in lfa.function_infos.values():
-            if function_info.template_instantiation:
-                visitor.visit(function_info.ast_node)
-
-        # Run code generation.
-        for stmt in self.stmts:
-            visitor.visit(stmt)
-
-        ops = visitor.inserter.op_container
+            cv.visit(stmt)
 
         # Ensure that the code is encapsulated in a single module.
+        ops = cv.inserter.op_container
         if len(ops) == 1 and isinstance(ops[0], ModuleOp):
             self.xdsl_program = ops[0]
         else:

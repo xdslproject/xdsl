@@ -250,7 +250,7 @@ class TypeInferenceVisitor(ast.NodeVisitor):
             # TODO: can we have a call not to ast.Name?
             if expr.func.id in self.function_infos:
                 # This is a known function.
-                return_info = self.function_infos[expr.func.id].return_info
+                return_info = self.function_infos[expr.func.id].ret_info
 
                 # Technically, here we can also type check arguments, e.g. passing ints as float
                 # arguments, but again, this can be future work.

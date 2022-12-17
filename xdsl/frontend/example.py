@@ -1,29 +1,21 @@
 from typing import List
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-
-def template(*params):
-    def decorate(f):
-        pass
-    return decorate
+from xdsl.frontend.template import template
 
 p = FrontendProgram()
 with CodeContext(p):
 
-    @template("n")
-    def num2bits(inp: int, n: int) -> List[bool]:
+    @template("N")
+    def num2bits(inp: int, N: int) -> List[bool]:
         assert inp < 2 ** 64
-        out = [False for i in range(n)]
-        n = n + 1
-        for i in range(n):
-            out[i] = ((inp >> i) & 1) + n
+        out = [False for i in range(N)]
+        for i in range(N):
+            out[i] = ((inp >> i) & 1)
         return out
 
-    def test1():
-        num2bits(123, 128)
-    
-    def test2():
-        num2bits(123, 2 ** 5)
+    def main():
+        num2bits(123, 2 ** 6)
 
     # def test2():
     #     num2bits(123, 32-32)

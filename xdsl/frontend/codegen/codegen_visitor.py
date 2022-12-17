@@ -397,7 +397,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
             # Operand types match, so we can create a call operation and insert
             # it in the current block.
-            outs = [return_info.xdsl_type for return_info in self.function_infos[node.func.id].return_info]
+            outs = [return_info.xdsl_type for return_info in self.function_infos[node.func.id].ret_info]
             call_op = func.Call.get(node.func.id, operands, outs) 
             self.inserter.insert_op(call_op)
 
@@ -594,6 +594,11 @@ class CodegenVisitor(ast.NodeVisitor):
         def foo():
             ...
         """
+
+        # Code for templates is not generated, only for their instantiations.
+        if self.function_infos[node.name].is_template():
+            return
+
         # TODO: this can be nicer!
         self.curr_func = node.name
 
@@ -605,7 +610,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Then, convert type in the function signature.
         arg_types = [arg_info.xdsl_type for arg_info in self.function_infos[node.name].arg_info]
-        return_types = [return_info.xdsl_type for return_info in self.function_infos[node.name].return_info]
+        return_types = [return_info.xdsl_type for return_info in self.function_infos[node.name].ret_info]
 
         # TODO: This can be gated by if.
         side_effects = [arg_info.xdsl_type for arg_info in self.function_infos[node.name].arg_info if arg_info.has_side_effects]
@@ -795,19 +800,18 @@ class CodegenVisitor(ast.NodeVisitor):
             for i in range(len(operands)):
                 if func_return_types[i] != operands[i].typ:
                     
-                    if isinstance(operands[i].typ, builtin.TensorType) and operands[i].typ.element_type == func_return_types[i].element_type and len(list(filter(lambda d: d == -1, operands[i].typ.shape.data))) == 0:
-                        # TODO: make this nicer. Basically, we better change the return type instead of adding cast if this
-                        # is a dynamically sized tensor.
-                        # HACK!
-                        ops_before = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j < i]
-                        ops_after = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j > i]
-                        new_ops = ops_before + [operands[i].typ] + ops_after
-                        object.__setattr__(parent_op.function_type.outputs, "data", new_ops)
-                        # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
-                        # self.functions[enclosing_func][1][0] = operand.typ
-                    else:
-                        # TODO: implicit cast
-                        operands[i] = self.type_manager.match(func_return_types[i], operands[i])
+                    # if isinstance(operands[i].typ, builtin.TensorType) and operands[i].typ.element_type == func_return_types[i].element_type and len(list(filter(lambda d: d == -1, operands[i].typ.shape.data))) == 0:
+                    #     # TODO: make this nicer. Basically, we better change the return type instead of adding cast if this
+                    #     # is a dynamically sized tensor.
+                    #     # HACK!
+                    #     ops_before = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j < i]
+                    #     ops_after = [op for j, op in enumerate(parent_op.function_type.outputs.data) if j > i]
+                    #     new_ops = ops_before + [operands[i].typ] + ops_after
+                    #     object.__setattr__(parent_op.function_type.outputs, "data", new_ops)
+                    #     # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
+                    #     # self.functions[enclosing_func][1][0] = operand.typ
+                    # else:
+                    operands[i] = self.type_manager.match(func_return_types[i], operands[i])
 
             return_op = func.Return.get(*operands)
             self.inserter.insert_op(return_op)
