@@ -6,12 +6,16 @@ from xdsl.frontend.template import template
 p = FrontendProgram()
 with CodeContext(p):
 
-    @template("N")
-    def test(N: int):
-        pass
+    @template("X")
+    def bar(X: int) -> int:
+        return X
 
+    @template("A", "B")
+    def foo(A: int, x: int, B: int) -> int:
+        return A - x + bar(A+B)
+    
     def main():
-        test(2 / 0)
+        a: int = foo(1, 2, 3)
 # with CodeContext(p):
 
 #     @template("N")
@@ -42,7 +46,7 @@ with CodeContext(p):
 #     #     x[0] = 4
 
 p.compile(desymref=True)
-# print(p.xdsl())
+print(p.xdsl())
 # print(p.mlir())
 
 MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"

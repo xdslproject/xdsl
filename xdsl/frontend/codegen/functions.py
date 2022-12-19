@@ -283,6 +283,17 @@ class CallVisitor(ast.NodeVisitor):
                 if arg_info.template:
                     # Try to instantiate the template argument, and raise an exeception if something goes wrong.
                     try:
+                        # TODO: This does not always work. Consider the case when we have:
+                        #   @template("X")
+                        #   def bar(X: int) -> int:
+                        #       return X
+                        #   @template("A", "B")
+                        #   def foo(A: int, x: int, B: int) -> int:
+                        #       return A - x + bar(A+B)
+                        # Here, `bar(B)` is fined because `A+B` is known at compile time. But `A+x` is not. Currently both cases fail
+                        # with `NameError`, but we need to 1) support the first case 2) have a more meaningful error in the second case.
+                        # For (1), it is likely we need a some kind of topological sort to find out how expressions/instantiations depend
+                        # on each other.
                         value = eval(ast.unparse(arg))
                     except Exception as e:
                         raise CodegenException(arg.lineno, arg.col_offset, f"Invalid template instantiation for function '{func_name}'; {type(e).__name__}: {e}")
@@ -292,6 +303,7 @@ class CallVisitor(ast.NodeVisitor):
                     # TODO: it should be relatively easy to support non-primitive type parameters, but for that we have to:
                     #   1. Think about how to mangle the name of the function (e.g. hash the list?)
                     #   2. Instead of ast.Constant create something else, like ast.List?
+                    #   3. Make sure to add tests and remove tests that treat this case as invalid.
                     if not isinstance(value, int) and not isinstance(value, bool) and not isinstance(value, float):
                         raise CodegenException(node.lineno, node.col_offset, f"Call to function '{func_name}' has non-primitive template argument of type '{type(value).__name__}' at position {i}. Only primitive type arguments like int or float are supported at the moment.") 
 

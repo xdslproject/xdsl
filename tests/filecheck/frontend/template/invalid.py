@@ -1,21 +1,13 @@
 # RUN: python %s | filecheck %s
 
 from typing import List
-from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.template import template
+from tests.filecheck.frontend.utils import assert_excepton
 
 
 p = FrontendProgram()
-
-
-def assert_excepton(p: FrontendProgram):
-    try:
-        p.compile()
-        assert False, "should not compile"
-    except CodegenException as e:
-        print(e.msg)
 
 
 def test_template(*params):
@@ -133,5 +125,23 @@ with CodeContext(p):
 
     def main():
         a: int = test(34 / 0)
+
+assert_excepton(p)
+
+
+# TODO: This error shob be more meaningful in the future, hence a todo.
+with CodeContext(p):
+
+    @template("X")
+    def bar(X: int) -> int:
+        return X
+
+    # CHECK: Invalid template instantiation for function 'bar'; NameError: name 'x' is not defined.
+    @template("A", "B")
+    def foo(A: int, x: int, B: int) -> int:
+        return A - x + bar(x)
+    
+    def main():
+        a: int = foo(1, 2, 3)
 
 assert_excepton(p)
