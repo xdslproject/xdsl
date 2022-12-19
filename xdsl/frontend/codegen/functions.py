@@ -177,9 +177,16 @@ class FunctionVisitor(ast.NodeVisitor):
         if num_decorators != 0:
             # All templates must have a well-defined decorator.
             if num_decorators != 1:
-                raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has {num_decorators} but can only have 1.")
+                raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has {num_decorators} decorators but can only have 1 to mark it as a template.")
             if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "template":
-                raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has unknown decorator. For decorating the function as a template, use '@template(..)'.")
+                raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@template(..)'.")
+            
+            if len(node.decorator_list[0].args) == 0:
+                raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' must have at least one template argument.")
+            if len(node.decorator_list[0].args) > len(node.args.args):
+                template_argument_str = "argument" if len(node.decorator_list[0].args) == 1 else "arguments"
+                argument_str = "argument" if len(node.args.args) == 1 else "arguments"
+                raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' has {len(node.decorator_list[0].args)} template {template_argument_str}, but function expects only {len(node.args.args)} {argument_str}.")
 
             template_arguments = set()
             wrong_template_argument_positions: List[int] = []
@@ -214,6 +221,10 @@ class FunctionVisitor(ast.NodeVisitor):
             function_info.arg_info.append(ArgInfo(i, name, xdsl_type, has_side_effects, False))
             if has_side_effects:
                 num_side_effect_args += 1
+        
+        # Make sure the naming was consistent.
+        if num_decorators != 0 and len(node.decorator_list[0].args) != num_template_args:
+            raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' has unused template arguments. All template arguments must be named exactly the same as the corresponding function arguments.")
 
         function_info.has_side_effects = num_side_effect_args > 0
         function_info.template_info = TemplateInfo.TEMPLATE if num_template_args > 0 else TemplateInfo.NONE
@@ -273,8 +284,16 @@ class CallVisitor(ast.NodeVisitor):
                     # Try to instantiate the template argument, and raise an exeception if something goes wrong.
                     try:
                         value = eval(ast.unparse(arg))
-                    except TypeError as e:
-                        raise CodegenException(arg.lineno, arg.col_offset, f"Invalid template instantiation, TypeError: {e}")
+                    except Exception as e:
+                        raise CodegenException(arg.lineno, arg.col_offset, f"Invalid template instantiation for function '{func_name}'; {type(e).__name__}: {e}")
+
+                    parameters[arg_info.name] = ast.Constant(value)
+
+                    # TODO: it should be relatively easy to support non-primitive type parameters, but for that we have to:
+                    #   1. Think about how to mangle the name of the function (e.g. hash the list?)
+                    #   2. Instead of ast.Constant create something else, like ast.List?
+                    if not isinstance(value, int) and not isinstance(value, bool) and not isinstance(value, float):
+                        raise CodegenException(node.lineno, node.col_offset, f"Call to function '{func_name}' has non-primitive template argument of type '{type(value).__name__}' at position {i}. Only primitive type arguments like int or float are supported at the moment.") 
 
                     parameters[arg_info.name] = ast.Constant(value)
                     mangled_func_name += f"_{value}"
@@ -296,7 +315,7 @@ class CallVisitor(ast.NodeVisitor):
 
                 # Replace all template arguments with evaluated expressions.
                 for stmt in template_node.body:
-                    visitor = ReplaceVisitor(parameters)
+                    visitor = ReplaceVisitor(parameters, template_node.name)
                     visitor.visit(stmt)
 
                 # Make sure to change the function info.
@@ -333,6 +352,9 @@ class ReplaceVisitor(ast.NodeVisitor):
     parameters: Dict[str, ast.Constant]
     """Template arguments and their values (evaluated expressions)."""
 
+    current_function_name: str
+    """Used to print a comprehensive error message."""
+
     def check_node(self, node: ast.AST) -> bool:
         """
         Checks if the node uses template arguments correctly. For example, one cannot assign to
@@ -346,7 +368,7 @@ class ReplaceVisitor(ast.NodeVisitor):
             
             if isinstance(target, ast.Name):
                 if target.id in self.parameters:
-                    raise CodegenException(node.lineno, node.col_offset, f"Cannot assign to template parameter '{target.id}'.")
+                    raise CodegenException(node.lineno, node.col_offset, f"Cannot redefine the template parameter '{target.id}' in function '{self.current_function_name}'.")
 
         # No assignments like `N = ...` or `N[i][j] = ...`.
         if isinstance(node, ast.Assign):
@@ -357,7 +379,7 @@ class ReplaceVisitor(ast.NodeVisitor):
                 
                 if isinstance(n, ast.Name):
                     if n.id in self.parameters:
-                        raise CodegenException(node.lineno, node.col_offset, f"Cannot assign to template parameter '{n.id}'.")
+                        raise CodegenException(node.lineno, node.col_offset, f"Cannot assign to template parameter '{n.id}' in function '{self.current_function_name}'.")
 
     def visit(self, node: ast.AST):
         """Visits AST node and its children to replace template argument names with constant expressions."""

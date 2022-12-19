@@ -7,31 +7,39 @@ p = FrontendProgram()
 with CodeContext(p):
 
     @template("N")
-    def num2bits(inp: int, N: int) -> List[bool]:
-        assert inp < 2 ** 64
-        out = [False for i in range(N)]
-        for i in range(N):
-            out[i] = ((inp >> i) & 1)
-        return out
+    def test(N: int):
+        pass
 
     def main():
-        num2bits(123, 2 ** 6)
+        test(2 / 0)
+# with CodeContext(p):
 
-    # def test2():
-    #     num2bits(123, 32-32)
+#     @template("N")
+#     def num2bits(inp: int, N: int) -> List[bool]:
+#         assert inp < 2 ** 64
+#         out = [False for i in range(N)]
+#         for i in range(N):
+#             out[i] = ((inp >> i) & 1)
+#         return out
 
-    # def test3():
-    #     num2bits(123, 64)
+#     def main():
+#         num2bits(123, 2 ** 6)
 
-    # def foo(x: List[int], y: List[int]) -> int:
-    #     a: int = 4
-    #     x[0] = 3
-    #     y[0] = 4
-    #     return a
+#     # def test2():
+#     #     num2bits(123, 32-32)
 
-    # def bar(x: List[int]):
-    #     foo(x, x)
-    #     x[0] = 4
+#     # def test3():
+#     #     num2bits(123, 64)
+
+#     # def foo(x: List[int], y: List[int]) -> int:
+#     #     a: int = 4
+#     #     x[0] = 3
+#     #     y[0] = 4
+#     #     return a
+
+#     # def bar(x: List[int]):
+#     #     foo(x, x)
+#     #     x[0] = 4
 
 p.compile(desymref=True)
 # print(p.xdsl())
