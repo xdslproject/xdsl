@@ -1,0 +1,23 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+    %0 : !index = arith.constant() ["value" = 0 : !index]
+    %1 : !memref<[4 : !index, 4 : !index], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
+    %2 : !vector<[2 : !index], !index> = vector.load(%1 : !memref<[4 : !index, 4 : !index], !index>, %0 : !index, %0 : !index)
+    vector.store(%2 : !vector<[2 : !index], !index>, %1 : !memref<[4 : !index, 4 : !index], !index>, %0 : !index, %0 : !index)
+
+    memref.dealloc(%1 : !memref<[4 : !index, 4 : !index], !index>)
+    func.return()
+  }
+
+// CHECK: func.func() ["sym_name" = "vector_test"
+// CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
+// CHECK-NEXT:  %{{.*}} : !memref<[4 : !index, 4 : !index], !index> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
+// CHECK-NEXT:  %{{.*}} : !vector<[2 : !index], !index> = vector.load(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
+// CHECK-NEXT:  vector.store(%{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
+// CHECK-NEXT:  memref.dealloc(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>)
+// CHECK-NEXT:  func.return()
+
+}
