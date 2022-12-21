@@ -4,6 +4,8 @@
 [![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
 
+[![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
+
 [xDSL](http://www.xdsl.dev) is a compiler toolkit natively developed in Python.
 It allows users to reuse existing domain-specific intermediate representations
 (IRs), or to define their own custom IRs. xDSL uses multi-level IRs, meaning
