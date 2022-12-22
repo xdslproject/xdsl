@@ -215,6 +215,16 @@ def test_param_attr_verify_base_fail():
         f"{bool_true} should be of base attribute {DoubleParamAttr.name}")
 
 
+def test_param_attr_verify_params_num_params_fail():
+    bool_true = BoolData(True)
+    constraint = ParamAttrConstraint(DoubleParamAttr,
+                                     [EqAttrConstraint(bool_true)])
+    attr = DoubleParamAttr([bool_true, IntData(0)])
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(attr)
+    assert e.value.args[0] == (f"1 parameters expected, but got 2")
+
+
 def test_param_attr_verify_params_fail():
     bool_true = BoolData(True)
     bool_false = BoolData(False)
