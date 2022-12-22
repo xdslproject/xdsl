@@ -113,8 +113,6 @@ class AnyOf(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         for attr_constr in self.attr_constrs:
-            if isinstance(attr_constr, Attribute) and attr_constr == attr:
-                return
             try:
                 attr_constr.verify(attr)
                 return
