@@ -140,13 +140,13 @@ class ParamAttrConstraint(AttrConstraint):
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: type[Attribute]
+    base_attr: type[ParametrizedAttribute]
     """The base attribute type."""
 
     param_constrs: list[AttrConstraint]
     """The attribute parameter constraints"""
 
-    def __init__(self, base_attr: type[Attribute],
+    def __init__(self, base_attr: type[ParametrizedAttribute],
                  param_constrs: Sequence[(Attribute | type[Attribute]
                                           | AttrConstraint)]):
         self.base_attr = base_attr
@@ -155,13 +155,9 @@ class ParamAttrConstraint(AttrConstraint):
         ]
 
     def verify(self, attr: Attribute) -> None:
-        assert isinstance(attr, ParametrizedAttribute)
         if not isinstance(attr, self.base_attr):
-            # the type checker concludes that attr has type 'Never', therefore the cast
-            name = cast(Attribute, attr).name
             raise VerifyException(
-                f"Base attribute {self.base_attr.name} expected, but got {name}"
-            )
+                f"{attr} should be of base attribute {self.base_attr.name}")
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
