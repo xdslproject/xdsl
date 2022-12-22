@@ -95,8 +95,7 @@ class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
     def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, Attribute):
-            raise VerifyException(f"Expected attribute, but got {attr}")
+        pass
 
 
 @dataclass(init=False)
