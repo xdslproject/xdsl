@@ -169,7 +169,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    memref: Annotated[Operand, MemRefType]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloca:
