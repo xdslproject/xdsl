@@ -17,13 +17,7 @@ class BoolData(Data[bool]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> bool:
-        val = parser.parse_optional_ident()
-        if val == "True":
-            return True
-        elif val == "False":
-            return False
-        else:
-            raise Exception("Wrong argument passed to BoolAttr.")
+        raise NotImplementedError()
 
     @staticmethod
     def print_parameter(data: bool, printer: Printer):
