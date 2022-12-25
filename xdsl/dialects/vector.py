@@ -4,16 +4,15 @@ from typing import Annotated, List
 from xdsl.dialects.builtin import (IndexType, VectorType)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import (irdl_op_definition, OperandDef, VarOperandDef,
-                       ResultDef)
+from xdsl.irdl import irdl_op_definition, Operand, VarOperand
 
 
 @irdl_op_definition
 class Load(Operation):
     name = "vector.load"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    res: Annotated[OpResult, ResultDef(VectorType)]
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
+    res: Annotated[OpResult, VectorType]
 
     def verify_(self):
         if self.memref.typ.element_type != self.res.typ.element_type:
@@ -33,9 +32,9 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "vector.store"
-    vector: Annotated[SSAValue, OperandDef(VectorType)]
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    vector: Annotated[Operand, VectorType]
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
         if self.memref.typ.element_type != self.vector.typ.element_type:
