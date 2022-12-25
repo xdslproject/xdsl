@@ -113,36 +113,14 @@ def test_any_attr_verify():
     any_constraint.verify(IntData(0))
 
 
-def test_anyof_verify():
-    """
-    Check that an AnyOf constraint verifies if one of the constraints
-    verify.
-    """
-    constraint = AnyOf([BaseAttr(BoolData), EqAttrConstraint(IntData(0))])
-    constraint.verify(BoolData(True))
-    constraint.verify(BoolData(False))
-    constraint.verify(IntData(0))
-
-
-def test_anyof_verify_fail():
-    """
-    Check that an AnyOf constraint fails to verify if none of the constraints
-    verify.
-    """
-    constraint = AnyOf([BaseAttr(BoolData), EqAttrConstraint(IntData(0))])
-    with pytest.raises(VerifyException) as e:
-        constraint.verify(IntData(1))
-    assert e.value.args[0] == f"Unexpected attribute {IntData(1)}"
-
-
 @dataclass
 class LessThan(AttrConstraint):
     bound: int
 
     def verify(self, attr: Attribute) -> None:
-        # This is just an assert because we expect this attribute to be an
-        # IntData.
-        assert isinstance(attr, IntData)
+        if not isinstance(attr, IntData):
+            raise VerifyException(
+                f"{attr} should be of base attribute {IntData.name}")
         if attr.data >= self.bound:
             raise VerifyException(
                 f"{attr} should hold a value less than {self.bound}")
@@ -153,12 +131,43 @@ class GreaterThan(AttrConstraint):
     bound: int
 
     def verify(self, attr: Attribute) -> None:
-        # This is just an assert because we expect this attribute to be an
-        # IntData.
-        assert isinstance(attr, IntData)
+        if not isinstance(attr, IntData):
+            raise VerifyException(
+                f"{attr} should be of base attribute {IntData.name}")
         if attr.data <= self.bound:
             raise VerifyException(
                 f"{attr} should hold a value greater than {self.bound}")
+
+
+def test_anyof_verify():
+    """
+    Check that an AnyOf constraint verifies if one of the constraints
+    verify.
+    """
+    constraint = AnyOf([LessThan(0), GreaterThan(10)])
+    constraint.verify(IntData(-1))
+    constraint.verify(IntData(-10))
+    constraint.verify(IntData(11))
+    constraint.verify(IntData(100))
+
+
+def test_anyof_verify_fail():
+    """
+    Check that an AnyOf constraint fails to verify if none of the constraints
+    verify.
+    """
+    constraint = AnyOf([LessThan(0), GreaterThan(10)])
+
+    zero = IntData(0)
+    ten = IntData(10)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(zero)
+    assert e.value.args[0] == f"Unexpected attribute {zero}"
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(ten)
+    assert e.value.args[0] == f"Unexpected attribute {ten}"
 
 
 def test_allof_verify():
