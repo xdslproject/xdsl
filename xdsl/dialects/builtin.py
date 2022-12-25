@@ -6,8 +6,8 @@ from typing import (Annotated, TypeAlias, List, cast, Type, Sequence, Optional,
                     TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
-                     SSAValue, Region, Attribute, Dialect, OpResult)
-from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
+                     SSAValue, Region, Attribute, Dialect)
+from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
@@ -517,7 +517,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_index_list(
+    def create_dense_index(
             type: VectorOrTensorOf[IndexType],
             data: List[int | IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
@@ -529,7 +529,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_int_list(
+    def create_dense_int(
         type: VectorOrTensorOf[IntegerType],
         data: List[int | IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
@@ -541,28 +541,28 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_float_list(
+    def create_dense_float(
             type: VectorOrTensorOf[AnyFloat],
-            data: List[float | AnyFloatAttr]) -> DenseIntOrFPElementsAttr:
+            data: List[int | float | AnyFloatAttr]
+    ) -> DenseIntOrFPElementsAttr:
         data_attr = [
-            FloatAttr.from_value(d, type.element_type)
-            if isinstance(d, float) else d for d in data
+            FloatAttr.from_value(float(d), type.element_type)
+            if not isinstance(d, FloatAttr) else d for d in data
         ]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
     def from_list(
-        type: VectorOrTensorOf[Attribute],
-        data: List[int | IntegerAttr[IntegerType]]
-        | List[int | IntegerAttr[IndexType]] | List[float | AnyFloatAttr]
+        type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
+        | List[int | float | AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            return DenseIntOrFPElementsAttr.from_int_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_int(type, data)
         elif isinstance(type.element_type, IndexType):
-            return DenseIntOrFPElementsAttr.from_index_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_index(type, data)
         elif isinstance(type.element_type, AnyFloat):
-            return DenseIntOrFPElementsAttr.from_float_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_float(type, data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
@@ -634,8 +634,8 @@ class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
     op_name__ = AttributeDef(StringAttr)
-    args: Annotated[list[SSAValue], VarOperandDef(AnyAttr())]
-    res: Annotated[list[OpResult], VarResultDef(AnyAttr())]
+    args: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
     regs = VarRegionDef()
 
     @property

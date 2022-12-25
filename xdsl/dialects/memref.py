@@ -8,9 +8,9 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, AnyAttr, OperandDef,
-                       VarOperandDef, ResultDef, AttributeDef,
-                       AttrSizedOperandSegments, OptAttributeDef)
+                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
+                       VarOperand, AttributeDef, AttrSizedOperandSegments,
+                       OptAttributeDef)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -56,9 +56,9 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
+    res: Annotated[OpResult, AnyAttr()]
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -82,9 +82,9 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "memref.store"
-    value: Annotated[SSAValue, OperandDef(AnyAttr())]
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
-    indices: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    value: Annotated[Operand, AnyAttr()]
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
@@ -104,10 +104,10 @@ class Store(Operation):
 class Alloc(Operation):
     name = "memref.alloc"
 
-    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -132,10 +132,10 @@ class Alloc(Operation):
 class Alloca(Operation):
     name = "memref.alloca"
 
-    dynamic_sizes: Annotated[list[SSAValue], VarOperandDef(IndexType)]
-    symbol_operands: Annotated[list[SSAValue], VarOperandDef(IndexType)]
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -159,7 +159,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    memref: Annotated[Operand, MemRefType]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -169,7 +169,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
-    memref: Annotated[SSAValue, OperandDef(MemRefType)]
+    memref: Annotated[Operand, MemRefType]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloca:
@@ -181,7 +181,7 @@ class GetGlobal(Operation):
     name = "memref.get_global"
     # name = AttributeDef(FlatSymbolRefAttr)
 
-    memref: Annotated[OpResult, ResultDef(MemRefType)]
+    memref: Annotated[OpResult, MemRefType]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
