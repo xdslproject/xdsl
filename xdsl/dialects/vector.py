@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated, List
 
-from xdsl.dialects.builtin import (IndexType, VectorType)
+from xdsl.dialects.builtin import IndexType, VectorType
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import irdl_op_definition, Operand, VarOperand
@@ -26,7 +26,10 @@ class Load(Operation):
     def get(ref: SSAValue | Operation,
             indices: List[SSAValue | Operation]) -> Load:
         return Load.build(operands=[ref, indices],
-                          result_types=[SSAValue.get(ref).typ.element_type])
+                          result_types=[
+                              VectorType.from_type_and_list(
+                                  SSAValue.get(ref).typ.element_type)
+                          ])
 
 
 @irdl_op_definition

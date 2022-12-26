@@ -1,0 +1,79 @@
+from xdsl.dialects.builtin import i32, IntegerType, IndexType, VectorType
+from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.vector import Load, Store
+from xdsl.ir import SSAValue, OpResult
+
+
+def test_vectorType():
+    vec1 = VectorType.from_type_and_list(i32)
+
+    assert vec1.get_num_dims() == 1
+    assert vec1.get_shape() == [1]
+    assert vec1.element_type is i32
+
+    vec2 = VectorType.from_type_and_list(i32, [3, 3, 3])
+
+    assert vec2.get_num_dims() == 3
+    assert vec2.get_shape() == [3, 3, 3]
+    assert vec2.element_type is i32
+
+    my_i32 = IntegerType.from_width(32)
+    vec3 = VectorType.from_params(my_i32)
+
+    assert vec3.get_num_dims() == 1
+    assert vec3.get_shape() == [1]
+    assert vec3.element_type is my_i32
+
+
+def test_vector_load_i32():
+    i32_memref_type = MemRefType.from_type_and_list(i32)
+    memref_ssa_value = SSAValue(i32_memref_type)
+    load = Load.get(memref_ssa_value, [])
+
+    assert type(load.results[0]) is OpResult
+    assert type(load.results[0].typ) is VectorType
+    assert load.indices == []
+
+
+def test_vector_load_i32_with_dimensions():
+    i32_memref_type = MemRefType.from_type_and_list(i32, [2, 3])
+    memref_ssa_value = SSAValue(i32_memref_type)
+    index1 = SSAValue(IndexType)
+    index2 = SSAValue(IndexType)
+    load = Load.get(memref_ssa_value, [index1, index2])
+
+    assert type(load.results[0]) is OpResult
+    assert type(load.results[0].typ) is VectorType
+    assert load.indices[0] is index1
+    assert load.indices[1] is index2
+
+
+def test_vector_store_i32():
+    i32_vector_type = VectorType.from_type_and_list(i32)
+    vector_ssa_value = SSAValue(i32_vector_type)
+
+    i32_memref_type = MemRefType.from_type_and_list(i32)
+    memref_ssa_value = SSAValue(i32_memref_type)
+
+    store = Store.get(vector_ssa_value, memref_ssa_value, [])
+
+    assert store.memref is memref_ssa_value
+    assert store.vector is vector_ssa_value
+    assert store.indices == []
+
+
+def test_vector_store_i32_with_dimensions():
+    i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    vector_ssa_value = SSAValue(i32_vector_type)
+
+    i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
+    memref_ssa_value = SSAValue(i32_memref_type)
+
+    index1 = SSAValue(IndexType)
+    index2 = SSAValue(IndexType)
+    store = Store.get(vector_ssa_value, memref_ssa_value, [index1, index2])
+
+    assert store.memref is memref_ssa_value
+    assert store.vector is vector_ssa_value
+    assert store.indices[0] is index1
+    assert store.indices[1] is index2
