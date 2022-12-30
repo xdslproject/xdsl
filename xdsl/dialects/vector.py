@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import IndexType, VectorType
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import irdl_op_definition, Operand, VarOperand
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -16,11 +17,11 @@ class Load(Operation):
 
     def verify_(self):
         if self.memref.typ.element_type != self.res.typ.element_type:
-            raise Exception(
+            raise VerifyException(
                 "MemRef element type should match the Vector element type.")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
-            raise Exception("Expected an index for each dimension.")
+            raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
     def get(ref: SSAValue | Operation,
@@ -41,11 +42,11 @@ class Store(Operation):
 
     def verify_(self):
         if self.memref.typ.element_type != self.vector.typ.element_type:
-            raise Exception(
+            raise VerifyException(
                 "MemRef element type should match the Vector element type.")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
-            raise Exception("Expected an index for each dimension.")
+            raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
     def get(vector: Operation | SSAValue, ref: Operation | SSAValue,
