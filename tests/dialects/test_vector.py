@@ -1,4 +1,4 @@
-import pytest
+from pytest import raises
 
 from xdsl.dialects.builtin import i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType
@@ -63,7 +63,7 @@ def test_vector_load_verify_type_matching():
     load = Load.build(operands=[memref_ssa_value, []],
                       result_types=[res_vector_type])
 
-    with pytest.raises(Exception) as exc_info:
+    with raises(Exception) as exc_info:
         load.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the Vector element type."
@@ -75,7 +75,7 @@ def test_vector_load_verify_indexing_exception():
 
     load = Load.get(memref_ssa_value, [])
 
-    with pytest.raises(Exception) as exc_info:
+    with raises(Exception) as exc_info:
         load.verify()
     assert exc_info.value.args[0] == "Expected an index for each dimension."
 
@@ -120,7 +120,7 @@ def test_vector_store_verify_type_matching():
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
-    with pytest.raises(Exception) as exc_info:
+    with raises(Exception) as exc_info:
         store.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the Vector element type."
@@ -135,6 +135,6 @@ def test_vector_store_verify_indexing_exception():
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
-    with pytest.raises(Exception) as exc_info:
+    with raises(Exception) as exc_info:
         store.verify()
     assert exc_info.value.args[0] == "Expected an index for each dimension."
