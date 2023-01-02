@@ -14,6 +14,7 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
+from xdsl.dialects.vector import Vector
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
@@ -200,6 +201,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(CMath)
         self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
+        self.ctx.register_dialect(Vector)
 
     def register_all_frontends(self):
         """
