@@ -71,8 +71,24 @@ def test_ops_accessor_III():
     # Create Blocks and Regions
     block0 = Block.from_ops([a, b, e])
     block1 = Block.from_ops([c, d, f])
+    block2 = Block.from_ops([])
+
     region0 = Region.from_block_list([block0, block1])
+    region1 = Region.from_block_list([block2])
 
     with pytest.raises(ValueError):
         region0.ops
-        pass
+
+    with pytest.raises(ValueError):
+        region0.op
+
+    with pytest.raises(ValueError):
+        region1.op
+
+    with pytest.raises(Exception):
+        region1.detach_block(block0)
+
+    region0.detach_block(block0)
+    region0.detach_block(0)
+    with pytest.raises(IndexError):
+        region0.detach_block(1)
