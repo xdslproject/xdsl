@@ -3,7 +3,9 @@ from typing import Annotated
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
-                                   IntegerType, Operation, StringAttr)
+                                   IntegerType, Operation, StringAttr, i32)
+from xdsl.dialects.arith import Constant
+
 from xdsl.ir import Block, OpResult
 from xdsl.irdl import (OptOpResult, OptOperand, OptRegionDef,
                        OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
@@ -309,6 +311,7 @@ class RegionOp(Operation):
 def test_region_op_region():
     op = RegionOp.build(regions=[Region()])
     op.verify()
+
     assert op.region.blocks == []
 
 
@@ -325,6 +328,17 @@ def test_region_op_ops():
     op.verify()
     assert len(op.region.blocks) == 1
     assert len(op.region.blocks[0].ops) == 2
+
+
+def test_noop_region():
+    region0 = Region.get([])
+    assert len(region0.ops) == 0
+
+
+def test_singleop_region():
+    a = Constant.from_int_and_width(1, i32)
+    region0 = Region.get([a])
+    assert type(region0.op) is Constant
 
 
 @irdl_op_definition
