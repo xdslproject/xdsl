@@ -909,8 +909,6 @@ class Region(IRNode):
         else:
             block_idx = block
             block = self.blocks[block_idx]
-        if block.parent is not self:
-            raise Exception("Cannot detach block from a different region.")
         block.parent = None
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block
