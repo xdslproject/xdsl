@@ -100,10 +100,8 @@ class Nonterminal(BNFToken):
                 self.name))
 
     def try_parse(self, parser: MlirParser) -> T | None:
-        if hasattr(parser, 'try_parse_{}'.format(self.name.replace('-', '_'))):
-            return getattr(parser,
-                           'try_parse_{}'.format(self.name.replace('-',
-                                                                   '_')))()
+        if hasattr(parser, self.parser_func_name('try_parse_')):
+            return getattr(parser,self.parser_func_name('try_parse_'))()
         return super().try_parse(parser)
 
     def __repr__(self):
