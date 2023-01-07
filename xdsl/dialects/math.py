@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Union
+from typing import Annotated, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type)
-from xdsl.ir import Dialect, MLContext, Operation, SSAValue
-from xdsl.irdl import AnyOf, irdl_op_definition, ResultDef, OperandDef
+from xdsl.ir import Dialect, MLContext, OpResult, Operation, SSAValue
+from xdsl.irdl import AnyOf, Operand, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -36,9 +36,9 @@ class BinaryOperation(Operation):
 @irdl_op_definition
 class IPowI(BinaryOperation):
     name: str = "math.ipowi"
-    lhs = OperandDef(signlessIntegerLike)
-    rhs = OperandDef(signlessIntegerLike)
-    result = ResultDef(signlessIntegerLike)
+    lhs: Annotated[Operand, signlessIntegerLike]
+    rhs: Annotated[Operand, signlessIntegerLike]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],

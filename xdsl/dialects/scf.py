@@ -53,8 +53,8 @@ class Condition(Operation):
 @irdl_op_definition
 class For(Operation):
     name: str = "scf.for"
-    arguments = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
 
     body = RegionDef()
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
-from typing import Dict, List, Union
+from typing import Annotated, Dict, List, Union
 from dataclasses import dataclass
 from xdsl.dialects.func import FuncOp
 
-from xdsl.ir import Attribute, MLContext, Region, SSAValue
-from xdsl.irdl import (ResultDef, irdl_op_definition, AttributeDef, AnyAttr,
-                       Operation, OperandDef)
-from xdsl.dialects.builtin import (StringAttr, FlatSymbolRefAttr)
+from xdsl.ir import Attribute, MLContext, OpResult, Region, SSAValue
+from xdsl.irdl import Operand, irdl_op_definition, AttributeDef, AnyAttr, Operation
+from xdsl.dialects.builtin import StringAttr, FlatSymbolRefAttr
 
 
 @dataclass
@@ -56,7 +55,7 @@ class Update(Operation):
     name: str = "symref.update"
 
     symbol = AttributeDef(FlatSymbolRefAttr)
-    value = OperandDef(AnyAttr())
+    value: Annotated[Operand, AnyAttr()]
 
     @staticmethod
     def get(symbol: Union[str, FlatSymbolRefAttr], value: Operation | SSAValue) -> Update:
@@ -68,7 +67,7 @@ class Fetch(Operation):
     name: str = "symref.fetch"
 
     symbol = AttributeDef(FlatSymbolRefAttr)
-    value = ResultDef(AnyAttr())
+    value: Annotated[OpResult, AnyAttr()]
 
     @staticmethod
     def get(symbol: Union[str, FlatSymbolRefAttr], result_type: Attribute) -> Fetch:

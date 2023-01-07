@@ -1,17 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
-from xdsl.dialects.builtin import AnyIntegerAttr, ArrayAttr, ContainerOf, IndexType, IntegerAttr, IntegerType, TensorType, UnrankedTensorType
-from xdsl.ir import Attribute, Block, Dialect, MLContext, Operation, Region, SSAValue
-from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, OperandDef, ParameterDef, RegionDef, ResultDef, VarOperandDef, irdl_op_definition
+from typing import Annotated, List
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntegerAttr, TensorType
+from xdsl.ir import Attribute, Dialect, OpResult, Operation, Region, SSAValue
+from xdsl.irdl import AnyAttr, AttributeDef, Operand, RegionDef, VarOperand, VarOperandDef, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
 class Cast(Operation):
     name: str = "tensor.cast"
-    value = OperandDef(TensorType)
-    result = ResultDef(TensorType)
+    value = Annotated[Operand, TensorType]
+    result = Annotated[OpResult, TensorType]
 
     def verify_(self) -> None:
         if self.value.typ.element_type != self.result.typ.element_type:
@@ -35,7 +35,7 @@ class Cast(Operation):
 class Empty(Operation):
     # TODO: fix naming and support dynamic tensors.
     name: str = "linalg.init_tensor"
-    result = ResultDef(TensorType)
+    result = Annotated[OpResult, TensorType]
     static_sizes = AttributeDef(ArrayAttr)
 
     @staticmethod
@@ -50,8 +50,8 @@ class Empty(Operation):
 @irdl_op_definition
 class Generate(Operation):
     name: str = "tensor.generate"
-    arguments = VarOperandDef(AnyAttr())
-    res = ResultDef(TensorType)
+    arguments = Annotated[VarOperand, Attribute]
+    res = Annotated[OpResult, TensorType]
 
     body = RegionDef()
 
@@ -68,8 +68,8 @@ class Generate(Operation):
 @irdl_op_definition
 class Splat(Operation):
     name: str = "tensor.splat"
-    value = OperandDef(AnyAttr())
-    result = ResultDef(TensorType)
+    value = Annotated[Operand, Attribute]
+    result = Annotated[OpResult, TensorType]
 
     @staticmethod
     def get(op: Operation | SSAValue, dims: List[int]) -> Splat:
@@ -79,9 +79,9 @@ class Splat(Operation):
 @irdl_op_definition
 class Extract(Operation):
     name = "tensor.extract"
-    tensor = OperandDef(TensorType)
-    indices = VarOperandDef(IndexType)
-    res = ResultDef(AnyAttr())
+    tensor = Annotated[Operand, TensorType]
+    indices = Annotated[VarOperand, IndexType]
+    res = Annotated[OpResult, TensorType]
 
     def verify_(self):
         if self.tensor.typ.element_type != self.res.typ:
@@ -101,11 +101,11 @@ class Extract(Operation):
 @irdl_op_definition
 class Insert(Operation):
     name = "tensor.insert"
-    value = OperandDef(AnyAttr())
-    tensor = OperandDef(TensorType)
-    indices = VarOperandDef(IndexType)
+    value = Annotated[Operand, Attribute]
+    tensor = Annotated[Operand, TensorType]
+    indices = Annotated[VarOperand, IndexType]
 
-    res = ResultDef(TensorType)
+    res = Annotated[OpResult, TensorType]
 
     def verify_(self):
         if self.tensor.typ.element_type != self.value.typ:
