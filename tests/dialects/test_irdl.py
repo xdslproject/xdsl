@@ -1,6 +1,5 @@
 from xdsl.dialects.builtin import AnyArrayAttr, StringAttr
-from xdsl.dialects.irdl import (DialectOp, NamedTypeConstraintAttr,
-                                OperationOp, OperandsOp, ResultsOp, TypeOp)
+from xdsl.dialects.irdl import DialectOp, OperationOp, OperandsOp, ResultsOp, TypeOp
 from xdsl.ir import Region
 
 

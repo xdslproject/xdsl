@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
+from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast, Iterator)
 import sys
@@ -264,6 +265,13 @@ class Attribute(ABC):
         Raise an exception otherwise.
         """
         pass
+
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_attribute(self)
+        return res.getvalue()
 
 
 DataElement = TypeVar("DataElement")
@@ -901,8 +909,6 @@ class Region(IRNode):
         else:
             block_idx = block
             block = self.blocks[block_idx]
-        if block.parent is not self:
-            raise Exception("Cannot detach block from a different region.")
         block.parent = None
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block
