@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import Annotated, List
 
-from xdsl.dialects.builtin import IndexType, VectorType
+from xdsl.dialects.builtin import IndexType, VectorType, i1
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import irdl_op_definition, Operand, VarOperand
+from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -54,4 +54,99 @@ class Store(Operation):
         return Store.build(operands=[vector, ref, indices])
 
 
-Vector = Dialect([Load, Store], [])
+@irdl_op_definition
+class Broadcast(Operation):
+    name = "vector.broadcast"
+    source: Annotated[Operand, AnyAttr()]
+    vector: Annotated[OpResult, VectorType]
+
+    def verify_(self):
+        if self.source.typ != self.vector.typ.element_type:
+            raise VerifyException(
+                "Source operand and result vector must have the same element type."
+            )
+
+    @staticmethod
+    def get(source: Operation | SSAValue) -> Broadcast:
+        return Broadcast.build(operands=[source],
+                               result_types=[
+                                   VectorType.from_type_and_list(
+                                       SSAValue.get(source).typ)
+                               ])
+
+
+@irdl_op_definition
+class FMA(Operation):
+    name = "vector.fma"
+    lhs: Annotated[Operand, VectorType]
+    rhs: Annotated[Operand, VectorType]
+    acc: Annotated[Operand, VectorType]
+    res: Annotated[OpResult, VectorType]
+
+    def verify_(self):
+        res_type = self.res.typ.element_type
+        res_shape = self.res.typ.get_shape()
+
+        if res_type != self.lhs.typ.element_type or res_type != self.rhs.typ.element_type or res_type != self.acc.typ.element_type:
+            raise VerifyException(
+                "Result vector type must match with all source vectors.")
+
+        if res_shape != self.lhs.typ.get_shape(
+        ) or res_shape != self.rhs.typ.get_shape(
+        ) or res_shape != self.acc.typ.get_shape():
+            raise VerifyException(
+                "Result vector shape must match with all source vector shapes."
+            )
+
+    @staticmethod
+    def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue,
+            acc: Operation | SSAValue) -> FMA:
+        return FMA.build(operands=[lhs, rhs, acc],
+                         result_types=[
+                             VectorType.from_type_and_list(
+                                 SSAValue.get(lhs).typ.element_type)
+                         ])
+
+
+@irdl_op_definition
+class Maskedload(Operation):
+    name = "vector.maskedload"
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
+    mask: Annotated[Operand, VectorType]
+    passthrough: Annotated[Operand, VectorType]
+    res: Annotated[OpResult, VectorType]
+
+    def verify_(self):
+        memref_type = self.memref.typ.element_type
+
+        if memref_type != self.res.typ.element_type or memref_type != self.passthrough.typ.element_type:
+            raise VerifyException(
+                "MemRef element type should match the result vector and passthrough vector element type."
+            )
+
+        if len(self.res.typ.get_shape()) != 1:
+            raise VerifyException("Expected a rank 1 result vector.")
+
+        if len(self.mask.typ.get_shape()) != 1:
+            raise VerifyException("Expected a rank 1 mask vector.")
+
+        if self.mask.typ.element_type != i1:
+            raise VerifyException("Expected mask element type to be i1.")
+
+        if self.memref.typ.get_num_dims() != len(self.indices):
+            raise VerifyException(
+                "Expected an index for each memref dimension.")
+
+    @staticmethod
+    def get(memref: SSAValue | Operation, indices: List[SSAValue | Operation],
+            mask: SSAValue | Operation,
+            passthrough: SSAValue | Operation) -> Maskedload:
+        return Maskedload.build(operands=[memref, indices, mask, passthrough],
+                                result_types=[
+                                    VectorType.from_type_and_list(
+                                        SSAValue.get(memref).typ.element_type)
+                                ])
+
+
+Vector = Dialect([Load, Store, Broadcast, FMA, Maskedload], [])
