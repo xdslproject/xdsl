@@ -59,6 +59,14 @@ jobs:
           mkdir content
           cp README.md content
           cp docs content -r
+          for f in $(find -path ./content/*.ipynb)
+          do
+          
+          echo appending to $f
+          sed -i 's/# xDSL should be available in the environment\./# xDSL should be available in the environment.\\n%pip install xdsl/g' $f
+          
+          done
+          
           python -m jupyter lite build --contents content --output-dir jupyterlite
 
       - name: Upload artifact
