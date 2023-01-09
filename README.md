@@ -66,5 +66,5 @@ https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
 save.
 
 Please refer to the [MLIR
-Interoperation](https://github.com/xdslproject/xdsl/docs/mlir_interoperation.md)
+Interoperation](https://github.com/xdslproject/xdsl/blob/main/docs/mlir_interoperation.md)
 markdown file for further instructions on that.
