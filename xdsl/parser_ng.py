@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import sys
 import traceback
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import re
 import ast
@@ -35,11 +36,6 @@ class ParseError(Exception):
                  span: Span,
                  msg: str,
                  history: BacktrackingHistory | None = None):
-        if span is None:
-            print(span, msg)
-            print("Huston, we have a problem")
-            super().__init__("None None None FUCK None NONE")
-            return
         super().__init__(span.print_with_context(msg))
         self.span = span
         self.msg = msg
@@ -127,7 +123,8 @@ class Span:
         along these.
         """
         info = self.input.get_lines_containing(self)
-        assert info is not None
+        if info is None:
+            return "Unknown location of span {}. Error: ".format(self, msg)
         lines, offset_of_first_line, line_no = info
         # offset relative to the first line:
         offset = self.start - offset_of_first_line
@@ -215,7 +212,7 @@ class Input:
             next_start = source.find('\n', start)
             line_no += 1
             # handle eof
-            if next_start == -1:
+            if next_start == -1 :
                 return None
             # as long as the next newline comes before the spans start we are good
             if next_start < span.start:
@@ -576,7 +573,7 @@ class ParserCommons:
                                allow_empty=False),
                     BNF.Literal(')')
                 ],
-                                  debug_name="operation regions"),
+                    debug_name="operation regions"),
                 BNF.Nonterminal('optional-attr-dict',
                                 bind='attributes',
                                 debug_name="attrbiute dictionary"),
@@ -591,7 +588,7 @@ class ParserCommons:
                        bind='attributes'),
             BNF.Literal('}')
         ],
-                                   debug_name="attrbute dictionary")
+            debug_name="attrbute dictionary")
 
         attr_dict_xdsl = BNF.Group([
             BNF.Literal('['),
@@ -600,10 +597,10 @@ class ParserCommons:
                        bind='attributes'),
             BNF.Literal(']')
         ],
-                                   debug_name="attrbute dictionary")
+            debug_name="attrbute dictionary")
 
 
-class MlirParser:
+class BaseParser(ABC):
     """
     Basic recursive descent parser.
 
@@ -624,17 +621,11 @@ class MlirParser:
     must_ type parsers are preferred because they are explicit about their failure modes.
     """
 
-    class Accent(Enum):
-        XDSL = 'xDSL'
-        MLIR = 'MLIR'
-
-    accent: Accent
-
     ctx: MLContext
     """xDSL context."""
 
-    _ssaValues: dict[str, SSAValue]
-    _blocks: dict[str, Block]
+    ssaValues: dict[str, SSAValue]
+    blocks: dict[str, Block]
 
     T_ = TypeVar('T_')
     """
@@ -645,15 +636,11 @@ class MlirParser:
     def __init__(self,
                  input: str,
                  name: str,
-                 ctx: MLContext,
-                 accent: str | Accent = Accent.MLIR):
+                 ctx: MLContext, ):
         self.tokenizer = Tokenizer(Input(input, name))
         self.ctx = ctx
-        if isinstance(accent, str):
-            accent = MlirParser.Accent[accent]
-        self.accent = accent
-        self._ssaValues = dict()
-        self._blocks = dict()
+        self.ssaValues = dict()
+        self.blocks = dict()
 
     def begin_parse(self):
         ops = []
@@ -668,12 +655,12 @@ class MlirParser:
 
         block = Block()
         if block_id is not None:
-            assert block_id.text not in self._blocks
-            self._blocks[block_id.text] = block
+            assert block_id.text not in self.blocks
+            self.blocks[block_id.text] = block
 
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
-            self._ssaValues[name.text] = arg
+            self.ssaValues[name.text] = arg
             block.args.append(arg)
 
         while (next_op := self.try_parse_operation()) is not None:
@@ -687,7 +674,7 @@ class MlirParser:
         arg_list = list()
 
         if block_id is not None:
-            assert block_id.text not in self._blocks, "Blocks cannot have the same ID!"
+            assert block_id.text not in self.blocks, "Blocks cannot have the same ID!"
 
             if self.tokenizer.next_token(peek=True).text == '(':
                 arg_list = self.must_parse_block_arg_list()
@@ -754,7 +741,7 @@ class MlirParser:
         items.append(first_item)
 
         while (match := self.tokenizer.next_token_of_pattern(separator_pattern)
-               ) is not None:
+        ) is not None:
             next_item = try_parse()
             if next_item is None:
                 # if the separator is emtpy, we are good here
@@ -819,85 +806,68 @@ class MlirParser:
         if (builtin_type := self.try_parse_builtin_type()) is not None:
             return builtin_type
         if (dialect_type :=
-                self.try_parse_dialect_type_or_attribute('type')) is not None:
+        self.try_parse_dialect_type()) is not None:
             return dialect_type
         return None
 
-    def try_parse_dialect_type_or_attribute(
-            self, kind: Literal['type', 'attr',
-                                'type or attr']) -> Attribute | None:
-        with self.tokenizer.backtracking("dialect " + kind):
-            # check to see if we get the expected qualifiers (! for type, # for attr)
-            detected_kind = None
+    def try_parse_dialect_type_or_attribute(self) -> Attribute | None:
+        """
+        Parse a type or an attribute.
+        """
+        kind = self.tokenizer.next_token_of_pattern(re.compile('[!#]'), peek=True)
 
-            if (match := self.tokenizer.next_token_of_pattern(
-                    re.compile('[!#]'))) is not None:
-                detected_kind = {'!': 'type', '#': 'attr'}[match.text]
+        if kind is None:
+            return None
 
-            if detected_kind is None or detected_kind not in kind:
-                self.raise_error(
-                    "Dialect {} must start with {}!".format(
-                        kind, {
-                            'type': '`!`',
-                            'attr': '`#`',
-                            'type or attr': 'either `!` or `#`'
-                        }[kind]), match)
+        with self.tokenizer.backtracking("dialect attribute or type"):
+            self.tokenizer.consume_peeked(kind)
+            if kind.text == '!':
+                return self.must_parse_dialect_type_or_attribute_inner('type')
+            else:
+                return self.must_parse_dialect_type_or_attribute_inner('attribute')
 
-            type_name = self.tokenizer.next_token_of_pattern(
-                ParserCommons.bare_id)
+    def try_parse_dialect_type(self):
+        """
+        Parse a dialect type (something prefixed by `!`, defined by a dialect)
+        """
+        if self.tokenizer.next_token_of_pattern('!', peek=True) is None:
+            return None
+        with self.tokenizer.backtracking("dialect type"):
+            self.tokenizer.next_token_of_pattern('!')
+            return self.must_parse_dialect_type_or_attribute_inner('type')
 
-            if type_name is None:
-                self.raise_error(
-                    "Expected the name of the {} name".format(detected_kind))
+    def try_parse_dialect_attr(self):
+        """
+        Parse a dialect attribute (something prefixed by `#`, defined by a dialect)
+        """
+        if self.tokenizer.next_token_of_pattern('#', peek=True) is None:
+            return None
+        with self.tokenizer.backtracking("dialect attribute"):
+            self.tokenizer.next_token_of_pattern('#')
+            return self.must_parse_dialect_type_or_attribute_inner('attribute')
 
-            type_def = self.ctx.get_optional_attr(type_name.text)
-            if type_def is None:
-                self.raise_error("'{}' is not a know attribute!".format(type_name.text), type_name)
+    def must_parse_dialect_type_or_attribute_inner(self, kind: str):
+        type_name = self.tokenizer.next_token_of_pattern(
+            ParserCommons.bare_id)
 
-            # pass the task of parsing parameters on to the attribute/type definition
-            param_list = type_def.parse_parameters(self)
-            return type_def(param_list)
+        if type_name is None:
+            self.raise_error(
+                "Expected dialect {} name here!".format(kind))
 
+        type_def = self.ctx.get_optional_attr(type_name.text)
+        if type_def is None:
+            self.raise_error("'{}' is not a know attribute!".format(type_name.text), type_name)
+
+        # pass the task of parsing parameters on to the attribute/type definition
+        param_list = type_def.parse_parameters(self)
+        return type_def(param_list)
+
+    @abstractmethod
     def try_parse_builtin_type(self) -> Attribute | None:
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        with self.tokenizer.backtracking("builtin type"):
-            pattern = ParserCommons.builtin_type
-            if self.accent == MlirParser.Accent.XDSL:
-                pattern = ParserCommons.builtin_type_xdsl
-            name = self.tokenizer.next_token_of_pattern(pattern)
-            if name is None:
-                raise BacktrackingAbort("Expected builtin name!")
-            # if we are parsing xDSL, we have to skip the leading '!'
-            if self.accent == MlirParser.Accent.XDSL:
-                name = Span(start=name.start + 1,
-                            end=name.end,
-                            input=name.input)
-            if name.text == 'index':
-                return IndexType()
-            if (re_match := re.match(r'^[su]?i(\d+)$', name.text)) is not None:
-                signedness = {
-                    's': Signedness.SIGNED,
-                    'u': Signedness.UNSIGNED,
-                    'i': Signedness.SIGNLESS
-                }
-                return IntegerType.from_width(int(re_match.group(1)),
-                                              signedness[name.text[0]])
-
-            if (re_match := re.match(r'^f(\d+)$', name.text)) is not None:
-                width = int(re_match.group(1))
-                type = {
-                    16: Float16Type,
-                    32: Float32Type,
-                    64: Float64Type
-                }.get(width, None)
-                if type is None:
-                    self.raise_error(
-                        "Unsupported floating point width: {}".format(width))
-                return type()
-
-            return self.must_parse_builtin_parametrized_type(name)
+        raise NotImplemented("Subclasses must implement this method!")
 
     def must_parse_builtin_parametrized_type(
             self, name: Span) -> ParametrizedAttribute:
@@ -924,14 +894,13 @@ class MlirParser:
         return res
 
     def must_parse_complex_attrs(self):
-        type = self.try_parse_type()
         self.raise_error("ComplexType is unimplemented!")
 
     def try_parse_numerical_dims(self,
                                  accept_closing_bracket: bool = False,
                                  lower_bound: int = 1) -> Iterable[int]:
         while (shape_arg :=
-               self.try_parse_shape_element(lower_bound)) is not None:
+        self.try_parse_shape_element(lower_bound)) is not None:
             yield shape_arg
             # look out for the closing bracket for scalable vector dims
             if accept_closing_bracket and self.tokenizer.next_token(
@@ -945,7 +914,7 @@ class MlirParser:
     def must_parse_vector_attrs(self) -> AnyVectorType:
         # also break on 'x' characters as they are separators in dimension parameters
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
-                                       ('x', )):
+                                                ('x',)):
             shape = list[int](self.try_parse_numerical_dims())
             scaling_shape: list[int] | None = None
 
@@ -975,7 +944,7 @@ class MlirParser:
 
     def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
-                                       ('x', )):
+                                                ('x',)):
             # check for unranked-ness
             if self.tokenizer.next_token_of_pattern('*') is not None:
                 # consume `x`
@@ -1074,71 +1043,67 @@ class MlirParser:
             raise AssertionError("Unexpected input: {}".format(msg))
         return match
 
+    @abstractmethod
     def must_parse_op_result_list(
-            self) -> list[tuple[Span, Attribute] | Span] | None:
-        inner_parser = (dict(
-            ((MlirParser.Accent.MLIR, self.try_parse_value_id),
-             (MlirParser.Accent.XDSL,
-              self.try_parse_value_id_and_type))))[self.accent]
-
-        return self.must_parse_list_of(inner_parser,
-                                       'Expected op-result here!',
-                                       allow_empty=False)
+            self) -> tuple[list[Span], list[Attribute] | None]:
+        raise NotImplemented()
 
     def try_parse_operation(self) -> Operation | None:
         with self.tokenizer.backtracking("operation"):
-            if self.tokenizer.next_token(peek=True).text == '%':
-                result_list = self.must_parse_op_result_list()
+
+            result_list, ret_types = self.must_parse_op_result_list()
+            if len(result_list) > 0:
                 self.must_parse_characters(
                     '=',
                     'Operation definitions expect an `=` after op-result-list!'
                 )
-            else:
-                result_list = []
 
-            if not self.tokenizer.starts_with('"'):
-                # parse custom op:
-                custom_op_name = self.try_parse_bare_id()
-                if custom_op_name is None:
+            # check for custom op format
+            op_name = self.try_parse_bare_id()
+            if op_name is not None:
+                op_type = self.ctx.get_op(op_name.text)
+                op = op_type.parse(ret_types, self)
+            else:
+                # check for basic op format
+                op_name = self.try_parse_string_literal()
+                if op_name is None:
                     self.raise_error(
                         "Expected an operation name here, either a bare-id, or a string literal!"
                     )
-                op_type = self.ctx.get_op(custom_op_name.text)
-                return op_type.parse([type for _, type in result_list], self)
 
-            generic_op = ParserCommons.BNF.generic_operation_body.must_parse(
-                self)
-            if generic_op is None:
-                self.raise_error("custom operations not supported as of yet!")
+                args, successors, attrs, regions, func_type = self.must_parse_operation_details()
 
-            values = ParserCommons.BNF.generic_operation_body.collect(
-                generic_op, dict())
+                if ret_types is None:
+                    assert func_type is not None
+                    ret_types = func_type.outputs.data
 
-            arg_types, ret_types = ([], [])
-            if 'type_signature' in values:
-                functype: FunctionType = values['type_signature']
-                arg_types, ret_types = functype.inputs.data, functype.outputs.data
+                op_type = self.ctx.get_op(op_name.string_contents)
 
-            if len(ret_types) != len(result_list):
-                raise ParseError(
-                    values['name'],
-                    "Mismatch between type signature and result list for op!")
+                op = op_type.create(
+                    operands=[self.ssaValues[span.text] for span in args],
+                    result_types=ret_types,
+                    attributes=attrs,
+                    successors=[
+                        self.blocks[block_name.text]
+                        for block_name in successors
+                    ],
+                    regions=regions)
 
-            op_type = self.ctx.get_op(values['name'].string_contents)
-            return op_type.create(
-                operands=[self._ssaValues[arg.text] for arg in values['args']],
-                result_types=ret_types,
-                attributes=values['attributes'],
-                successors=[
-                    self._blocks[block_name.text]
-                    for block_name in values.get('blocks', [])
-                ],
-                regions=values.get('regions', []))
+            # Register the result SSA value names in the parser
+            for (idx, res) in enumerate(result_list):
+                ssa_val_name = res.text
+                if ssa_val_name in self.ssaValues:
+                    self.raise_error(f"SSA value {ssa_val_name} is already defined", res)
+                self.ssaValues[ssa_val_name] = op.results[idx]
+                # TODO: check name?
+                self.ssaValues[ssa_val_name].name = ssa_val_name
+
+            return op
 
     def must_parse_region(self) -> Region:
-        oldSSAVals = self._ssaValues.copy()
-        oldBBNames = self._blocks.copy()
-        self._blocks = dict[str, Block]()
+        oldSSAVals = self.ssaValues.copy()
+        oldBBNames = self.blocks.copy()
+        self.blocks = dict[str, Block]()
 
         region = Region()
 
@@ -1157,8 +1122,8 @@ class MlirParser:
 
             return region
         finally:
-            self._ssaValues = oldSSAVals
-            self._blocks = oldBBNames
+            self.ssaValues = oldSSAVals
+            self.blocks = oldBBNames
 
     def try_parse_op_name(self) -> Span | None:
         if (str_lit := self.try_parse_string_literal()) is not None:
@@ -1185,31 +1150,12 @@ class MlirParser:
 
         return name, self.must_parse_attribute()
 
+    @abstractmethod
     def must_parse_attribute(self) -> Attribute:
         """
         Parse attribute (either builtin or dialect)
         """
-        # all dialect attrs must start with '#', so we check for that first (as it's easier)
-        if self.tokenizer.next_token(peek=True).text in '#!':
-            # in MLIR, # and ! are prefixes for dialext types/attrs
-            value = self.try_parse_dialect_type_or_attribute('type or attr')
-            # if we are in MLIR, and we get nothing, that's an error!
-            if not self.is_xdsl() and value is None: # if is_mlir and value is none, raise error
-                self.raise_error(
-                    '`#` or `!` must be followed by a valid dialect attribute or type!'
-                )
-            # otherwise, if we have a value, return it.
-            if value is not None:
-                return value
-
-        builtin_val = self.try_parse_builtin_attr()
-
-        if builtin_val is None:
-            self.raise_error(
-                "Unknown attribute (neither builtin nor dialect could be parsed)!"
-            )
-
-        return builtin_val
+        raise NotImplemented()
 
     def must_parse_attribute_type(self) -> Attribute:
         """
@@ -1224,15 +1170,8 @@ class MlirParser:
     def try_parse_builtin_attr(self) -> Attribute:
         """
         Tries to parse a bultin attribute, e.g. a string literal, int, array, etc..
-
-        If the mode is xDSL, it also allows parsing of builtin types
         """
-        # in xdsl, two things are different here:
-        #  1. types are considered valid attributes
-        #  2. all types, builtins included, are prefixed with !
-        if self.is_xdsl() and self.tokenizer.starts_with('!'):
-            return self.try_parse_builtin_type()
-
+        # order here is important!
         attrs = (self.try_parse_builtin_float_attr,
                  self.try_parse_builtin_int_attr,
                  self.try_parse_builtin_str_attr,
@@ -1301,22 +1240,9 @@ class MlirParser:
                 ']', 'Array literals must be enclosed by square brackets!')
             return ArrayAttr.from_list(attrs)
 
+    @abstractmethod
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
-        tree, prefix = {
-            MlirParser.Accent.MLIR: (ParserCommons.BNF.attr_dict_mlir, '{'),
-            MlirParser.Accent.XDSL: (ParserCommons.BNF.attr_dict_xdsl, '[')
-        }[self.accent]
-
-        if self.tokenizer.next_token_of_pattern(prefix, peek=True) is None:
-            return dict()
-
-        res = tree.must_parse(self)
-
-        return self.attr_dict_from_tuple_list(
-            ParserCommons.BNF.attr_dict_mlir.collect(res, dict()).get(
-                'attributes', list()))
-
-
+        raise NotImplementedError()
 
     def attr_dict_from_tuple_list(
             self, tuple_list: list[tuple[Span,
@@ -1393,9 +1319,6 @@ class MlirParser:
             regions.append(self.must_parse_region())
         return regions
 
-    def is_xdsl(self) -> bool:
-        return self.accent == MlirParser.Accent.XDSL
-
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
     # since we don't want to rewrite all dialects currently, the new emulator needs to expose the same
     # interface to the dialect definitions. Here we implement that interface.
@@ -1414,9 +1337,8 @@ class MlirParser:
         This implicitly assumes XDSL format, and will fail on MLIR style operations
         """
         # TODO: remove this function and restructure custom op / irdl parsing
-        assert self.accent == MlirParser.Accent.XDSL, "Function parse_op_with_default_format requires xDSL format"
 
-        args = self.must_parse_block_arg_list()
+        args = self.must_parse_op_args_list()
         successors: list[Span] = []
         if self.tokenizer.next_token_of_pattern('(') is not None:
             successors = self.must_parse_list_of(self.try_parse_block_id,
@@ -1430,11 +1352,18 @@ class MlirParser:
 
         regions = self.must_parse_region_list()
 
+        for x in args:
+            if x.text not in self.ssaValues:
+                self.raise_error(
+                    "Unknown SSAValue name, known SSA Values are: {}".format(", ".join(self.ssaValues.keys())),
+                    x
+                )
+
         return op_type.create(
-            operands=[self._ssaValues[span.text] for span, _ in args],
+            operands=[self.ssaValues[span.text] for span in args],
             result_types=result_types,
             attributes=attributes,
-            successors=[self._blocks[span.text] for span in successors],
+            successors=[self.blocks[span.text] for span in successors],
             regions=regions)
 
     def parse_paramattr_parameters(
@@ -1455,6 +1384,244 @@ class MlirParser:
             )
 
         return res
+
+    # COMMON xDSL/MLIR code:
+    def must_parse_builtin_type_with_name(self, name: Span):
+        if name.text == 'index':
+            return IndexType()
+        if (re_match := re.match(r'^[su]?i(\d+)$', name.text)) is not None:
+            signedness = {
+                's': Signedness.SIGNED,
+                'u': Signedness.UNSIGNED,
+                'i': Signedness.SIGNLESS
+            }
+            return IntegerType.from_width(int(re_match.group(1)),
+                                          signedness[name.text[0]])
+
+        if (re_match := re.match(r'^f(\d+)$', name.text)) is not None:
+            width = int(re_match.group(1))
+            type = {
+                16: Float16Type,
+                32: Float32Type,
+                64: Float64Type
+            }.get(width, None)
+            if type is None:
+                self.raise_error(
+                    "Unsupported floating point width: {}".format(width))
+            return type()
+
+        return self.must_parse_builtin_parametrized_type(name)
+
+    @abstractmethod
+    def must_parse_operation_details(self) -> tuple[
+        list[Span], list[Span], dict[str, Attribute], list[Region], FunctionType | None]:
+        """
+        Must return a tuple consisting of:
+            - a list of arguments to the operation
+            - a list of successor names
+            - the attributes attached to the OP
+            - the regions of the op
+            - An optional function type. If not supplied, must_parse_op_result_list must return a second value
+              containing the types of the returned SSAValues
+
+        Your implementation should make use of the following functions:
+            - must_parse_op_args_list
+            - must_parse_optional_attr_dict
+            - must_parse_
+        """
+        raise NotImplementedError()
+
+
+    def must_parse_op_args_list(self) -> list[Span]:
+        self.must_parse_characters('(', 'Operation args list must be enclosed by brackets!')
+        args = self.must_parse_list_of(self.try_parse_value_id_and_type, 'Expected another bare-id here')
+        self.must_parse_characters(')', 'Operation args list must be closed by a closing bracket')
+        # TODO: check if type is correct here!
+        return [name for name, _ in args]
+
+    @abstractmethod
+    def must_parse_optional_successor_list(self) -> list[Span]:
+        pass
+
+class MLIRParser(BaseParser):
+
+    def try_parse_builtin_type(self) -> Attribute | None:
+        """
+        parse a builtin-type like i32, index, vector<i32> etc.
+        """
+        with self.tokenizer.backtracking("builtin type"):
+            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
+            if name is None:
+                raise BacktrackingAbort("Expected builtin name!")
+
+            return self.must_parse_builtin_type_with_name(name)
+
+    def must_parse_attribute(self) -> Attribute:
+        """
+        Parse attribute (either builtin or dialect)
+        """
+        # all dialect attrs must start with '#', so we check for that first (as it's easier)
+        if self.tokenizer.next_token(peek=True).text == '#':
+            value = self.try_parse_dialect_attr()
+
+            # no value => error
+            if value is None:
+                self.raise_error(
+                    '`#` must be followed by a valid dialect attribute or type!'
+                )
+
+            return value
+
+        # if it isn't a dialect attr, parse builtin
+        builtin_val = self.try_parse_builtin_attr()
+
+        if builtin_val is None:
+            self.raise_error(
+                "Unknown attribute (neither builtin nor dialect could be parsed)!"
+            )
+
+        return builtin_val
+
+    def must_parse_op_result_list(
+            self) -> tuple[list[Span], list[Attribute] | None]:
+        return self.must_parse_list_of(self.try_parse_value_id,
+                                       'Expected op-result here!',
+                                       allow_empty=True), None
+
+    def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
+        if self.tokenizer.next_token_of_pattern('{', peek=True) is None:
+            return dict()
+
+        res = ParserCommons.BNF.attr_dict_mlir.must_parse(self)
+
+        return self.attr_dict_from_tuple_list(
+            ParserCommons.BNF.attr_dict_mlir.collect(res, dict()).get(
+                'attributes', list()))
+
+    def must_parse_operation_details(self) -> tuple[
+        list[Span], list[Span], dict[str, Attribute], list[Region], FunctionType | None]:
+
+        args = self.must_parse_op_args_list()
+        succ = self.must_parse_optional_successor_list()
+        attrs = self.must_parse_optional_attr_dict()
+
+        regions = []
+        if self.tokenizer.starts_with('('):
+            self.must_parse_characters('(', 'Expected brackets enclosing regions!')
+            regions = self.must_parse_region_list()
+            self.must_parse_characters(')', 'Expected brackets enclosing regions!')
+        self.must_parse_characters(':', 'MLIR Operation defintions must end in a function type signature!')
+
+        func_type = self.must_parse_function_type()
+
+        return args, succ, attrs, regions, func_type
+
+    def must_parse_optional_successor_list(self) -> list[Span]:
+        if not self.tokenizer.starts_with('['):
+            return []
+        self.must_parse_characters('[', 'Successor list is enclosed in square brackets')
+        successors = self.must_parse_list_of(self.try_parse_block_id, 'Expected a block-id', allow_empty=False)
+        self.must_parse_characters(']', 'Successor list is enclosed in square brackets')
+        return successors
+
+
+class XDSLParser(BaseParser):
+
+    def try_parse_builtin_type(self) -> Attribute | None:
+        """
+        parse a builtin-type like i32, index, vector<i32> etc.
+        """
+        with self.tokenizer.backtracking("builtin type"):
+            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type_xdsl)
+            if name is None:
+                raise BacktrackingAbort("Expected builtin name!")
+            # xdsl builtin types have a '!' prefix, we strip that out here
+            name = Span(start=name.start + 1,
+                        end=name.end,
+                        input=name.input)
+
+            return self.must_parse_builtin_type_with_name(name)
+
+    def must_parse_attribute(self) -> Attribute:
+        """
+        Parse attribute (either builtin or dialect)
+
+        xDSL allows types in places of attributes! That's why we parse types here as well
+        """
+        value = self.try_parse_builtin_attr()
+
+        # xDSL: Allow both # and ! prefixes, as we allow both types and attrs
+        if value is None and self.tokenizer.next_token(peek=True).text in '#!':
+            # in MLIR # and ! are prefixes for dialect attrs/types, but in xDSL ! is also used for builtin types
+            value = self.try_parse_dialect_type_or_attribute()
+
+        if value is None:
+            self.raise_error(
+                "Unknown attribute (neither builtin nor dialect could be parsed)!"
+            )
+
+        return value
+
+    def must_parse_op_result_list(
+            self) -> tuple[list[Span], list[Attribute] | None]:
+        results = self.must_parse_list_of(self.try_parse_value_id_and_type,
+                                          'Expected (value-id `:` type) here!',
+                                          allow_empty=True)
+        # TODO: this is hideous, make it cleaner
+        # zip(*results) works, but is barely readable :/
+        return [name for name, _ in results], [type for _, type in results]
+
+    def try_parse_builtin_attr(self) -> Attribute:
+        """
+        Tries to parse a bultin attribute, e.g. a string literal, int, array, etc..
+
+        If the mode is xDSL, it also allows parsing of builtin types
+        """
+        # in xdsl, two things are different here:
+        #  1. types are considered valid attributes
+        #  2. all types, builtins included, are prefixed with !
+        if self.tokenizer.starts_with('!'):
+            return self.try_parse_builtin_type()
+
+        return super().try_parse_builtin_attr()
+
+    def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
+        if self.tokenizer.next_token_of_pattern('[', peek=True) is None:
+            return dict()
+
+        res = ParserCommons.BNF.attr_dict_xdsl.must_parse(self)
+
+        return self.attr_dict_from_tuple_list(
+            ParserCommons.BNF.attr_dict_mlir.collect(res, dict()).get(
+                'attributes', list()))
+
+    def must_parse_operation_details(self) -> tuple[
+        list[Span], list[Span], dict[str, Attribute], list[Region], FunctionType | None]:
+        """
+        Must return a tuple consisting of:
+            - a list of arguments to the operation
+            - a list of successor names
+            - the attributes attached to the OP
+            - the regions of the op
+            - An optional function type. If not supplied, must_parse_op_result_list must return a second value
+              containing the types of the returned SSAValues
+
+        """
+        args = self.must_parse_op_args_list()
+        succ = self.must_parse_optional_successor_list()
+        attrs = self.must_parse_optional_attr_dict()
+        regions = self.must_parse_region_list()
+
+        return args, succ, attrs, regions, None
+
+    def must_parse_optional_successor_list(self) -> list[Span]:
+        if not self.tokenizer.starts_with('['):
+            return []
+        self.must_parse_characters('[', 'Successor list is enclosed in square brackets')
+        successors = self.must_parse_list_of(self.try_parse_block_id, 'Expected a block-id', allow_empty=False)
+        self.must_parse_characters(']', 'Successor list is enclosed in square brackets')
+        return successors
+
 
 
 """
@@ -1522,8 +1689,6 @@ ssa-use-and-type-list ::= ssa-use-and-type (`,` ssa-use-and-type)*
 
 function-type ::= (type | type-list-parens) `->` (type | type-list-parens)
 
-type-alias-def ::= '!' alias-name '=' type
-type-alias ::= '!' alias-name
 """
 
 if __name__ == '__main__':
@@ -1552,12 +1717,13 @@ if __name__ == '__main__':
     ctx.register_dialect(IRDL)
     ctx.register_dialect(LLVM)
 
-    dialect = {'xdsl': MlirParser.Accent.XDSL, 'mlir': MlirParser.Accent.MLIR}
+    parses_by_file_name = {'xdsl': XDSLParser, 'mlir': MLIRParser}
 
-    p = MlirParser(infile,
-                   open(infile, 'r').read(),
-                   ctx,
-                   accent=dialect.get(infile.split('.')[-1]))
+    parser = parses_by_file_name[infile.split('.')[-1]]
+
+    p = parser(infile,
+               open(infile, 'r').read(),
+               ctx)
 
     printer = Printer()
     try:
