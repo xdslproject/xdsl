@@ -8,7 +8,7 @@ from xdsl.printer import Printer
 class CodegenInternalException(Exception):
     """
     Internal exception type during xDSL code generation. Should be used for internal errors,
-    such as trying to pop an operand from epty stack.
+    such as trying to pop an operand from an empty stack.
     """
 
     msg: str

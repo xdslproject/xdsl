@@ -89,6 +89,8 @@ class LocalFunctionAnalyzer:
       - checking which function arguments have side-effects,
       - finding templates,
       - creating new AST nodes for template instantiations.
+
+    TODO: The name is a bit misleading since most of the analysis is done to instantiate the templates.
     """
 
     tc: TypeConverter

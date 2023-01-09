@@ -23,7 +23,7 @@ class OpInserter:
         a: i32 = 23
         ...
 
-    without requiring the top-level operation to be a module with functions.
+    without requiring the top-level operations to be functions.
     """
 
     stack: List[SSAValue] = field(default_factory=list)
