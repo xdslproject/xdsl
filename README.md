@@ -27,7 +27,7 @@ optimization capabilities.
 
 ## Prerequisites
 
-To install XDSL you can either clone the GitHub repository and install the requirements by following:
+To install xDSL you can either clone the GitHub repository and install the requirements by following:
 
 ### Installation for Users
 
@@ -67,4 +67,4 @@ save.
 
 Please refer to the [MLIR
 Interoperation](https://github.com/xdslproject/xdsl/docs/mlir_interoperation.md)
-markdon file for further instructions on that.
+markdown file for further instructions on that.
