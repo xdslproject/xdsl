@@ -5,8 +5,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.codegen.codegen_visitor import CodeGeneration, CodegenVisitor
-from xdsl.frontend.codegen.functions import LocalFunctionAnalyzer
+from xdsl.frontend.codegen.codegen_visitor import CodeGeneration
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.passes.desymref import DesymrefyPass
 from xdsl.printer import Printer

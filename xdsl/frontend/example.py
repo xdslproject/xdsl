@@ -18,7 +18,7 @@ with CodeContext(p):
         num2bits(123, 2 ** 6)
 
 p.compile(desymref=True)
-print(p.xdsl())
+# print(p.xdsl())
 # print(p.mlir())
 
 MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"

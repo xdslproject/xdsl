@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Tuple
 from xdsl.frontend.codegen.functions import FunctionInfo, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
-from xdsl.frontend.codegen.type_manager import TypeManager
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
 from xdsl.frontend.codegen.exception import CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
@@ -18,9 +17,7 @@ class CodeGeneration:
 
     @staticmethod
     def run_with_type_converter(tc: TypeConverter, stmts: List[ast.stmt]) -> builtin.ModuleOp:
-        """
-        Generates xDSL code and returns it encapsulated into a single module.
-        """
+        """Generates xDSL code and returns it encapsulated into a single module."""
         
         # First, obtain and check function signatures. Additionally, this sets up all AST nodes
         # that are needed for the template instantiations.
@@ -47,10 +44,7 @@ class CodegenVisitor(ast.NodeVisitor):
     globals: Dict[str, Any]
     """Imports and other global information from the module useful for looking up classes, etc."""
 
-    type_manager: TypeManager = field(init=False)
-    """Casts types."""
-
-    induction_vars: Dict[str, SSAValue] = field(init=False)
+    induction_variables: Dict[str, SSAValue] = field(init=False)
 
     # TODO: fix symbol table to allow cross-module scoping.
     symbol_table: Dict[str, Attribute] = field(init=False)
@@ -70,8 +64,7 @@ class CodegenVisitor(ast.NodeVisitor):
         inserter = OpInserter()
         
         self.globals = hint_converter.globals
-        self.type_manager = TypeManager(inserter)
-        self.induction_vars = dict()
+        self.induction_variables = dict()
         self.hint_converter = hint_converter
         self.symbol_table = dict()
         self.symbol_idx = dict()
@@ -80,6 +73,55 @@ class CodegenVisitor(ast.NodeVisitor):
         self.ret_idx = None
         self.curr_func = None
         self.codegen_template = False
+    
+    def _maybe_cast(self, dst_type: Attribute, value: SSAValue) -> SSAValue:
+        """
+        Utility to cast values to types. If cast is not possible, exception is raised.
+        """
+
+        # If both types match, return immediately.
+        if dst_type == value.typ:
+            return value
+        
+        if isinstance(dst_type, builtin.IndexType):
+            if isinstance(value.typ, builtin.IntegerType):
+                cast_op = arith.IndexCast.get(value, dst_type)
+            else:
+                cast_op = unimplemented.Cast.get(value, dst_type)
+        elif isinstance(dst_type, builtin.IntegerType):
+            if isinstance(value.typ, builtin.IndexType):
+                cast_op = arith.IndexCast.get(value, dst_type)
+            elif isinstance(value.typ, builtin.IntegerType):
+                lhs_width = dst_type.width.data
+                rhs_width = value.typ.width.data
+                if lhs_width < rhs_width:
+                    cast_op = arith.TruncI.get(value, dst_type)
+                else:
+                    cast_op = arith.ExtSI.get(value, dst_type)
+            else:
+                # TODO: support type inference and more casts.
+                cast_op = unimplemented.Cast.get(value, dst_type)
+        elif isinstance(dst_type, builtin.TensorType) and isinstance(value.typ, builtin.TensorType) and dst_type.element_type == value.typ.element_type:
+            cast_op = tensor.Cast.get(value, dst_type)
+        elif isinstance(dst_type, builtin.TensorType) and isinstance(value.typ, builtin.TensorType):
+            if isinstance(dst_type.element_type, builtin.IntegerType):
+                if isinstance(value.typ.element_type, builtin.IndexType):
+                    cast_op = arith.IndexCast.get(value, dst_type)
+                elif isinstance(value.typ.element_type, builtin.IntegerType):
+                    lhs_width = dst_type.element_type.width.data
+                    rhs_width = value.typ.element_type.width.data
+                    if lhs_width < rhs_width:
+                        cast_op = arith.TruncI.get(value, dst_type)
+                    else:
+                        cast_op = arith.ExtSI.get(value, dst_type)
+                else:
+                    # TODO: support type inference and more casts.
+                    cast_op = unimplemented.Cast.get(value, dst_type)
+        else:
+            # TODO: support type inference and more casts.
+            cast_op = unimplemented.Cast.get(value, dst_type)
+        self.inserter.insert_op(cast_op)
+        return self.inserter.get_operand()
 
     def visit(self, node: ast.AST):
         return super().visit(node)
@@ -148,7 +190,7 @@ class CodegenVisitor(ast.NodeVisitor):
         # is i32 instead of i64, so we must do the type cobersion.
     
         # TODO: check types and add implicit casts if necessary.
-        rhs = self.type_manager.match(lhs_ty, rhs)
+        rhs = self._maybe_cast(lhs_ty, rhs)
 
         update_op = symref.Update.get(symbol_name, rhs)
         self.inserter.insert_op(update_op)
@@ -190,7 +232,7 @@ class CodegenVisitor(ast.NodeVisitor):
             # self.state.inferred_type = lhs_ty
 
             # TODO: check types and add implicit casts if necessary.
-            rhs = self.type_manager.match(lhs_ty, rhs)
+            rhs = self._maybe_cast(lhs_ty, rhs)
 
             symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
             update_op = symref.Update.get(symbol_name, rhs)
@@ -203,7 +245,7 @@ class CodegenVisitor(ast.NodeVisitor):
             while isinstance(node, ast.Subscript):
                 self.visit(node.slice)
                 index = self.inserter.get_operand()
-                index = self.type_manager.match(builtin.IndexType(), index)
+                index = self._maybe_cast(builtin.IndexType(), index)
                 indices.append(index)
                 node = node.value
         
@@ -215,7 +257,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
             # TODO: check types and add implicit casts if necessary.
             if isinstance(indexed_value.typ, builtin.TensorType):
-                rhs = self.type_manager.match(indexed_value.typ.element_type, rhs) 
+                rhs = self._maybe_cast(indexed_value.typ.element_type, rhs) 
 
             resolver = OpResolver.resolve_op_overload("__setitem__", frontend_type)
             if resolver is None:
@@ -259,7 +301,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 # Dynamically shaped tensor!
                 dim = -1
                 self.visit(generator.iter.args[0])
-                op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+                op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
                 bounds.append(op)
             tensor_dims.append(dim)
         
@@ -288,7 +330,7 @@ class CodegenVisitor(ast.NodeVisitor):
             block = Block()
             for i, var in enumerate(local_ind_vars):
                 block.insert_arg(builtin.IndexType(), i)
-                self.induction_vars[var] = block.args[i]
+                self.induction_variables[var] = block.args[i]
             self.inserter.set_insertion_point_from_block(block)
 
             # Make sure we register the index type conversion.
@@ -310,7 +352,7 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(op)
 
             for var in local_ind_vars:
-                self.induction_vars.pop(var)
+                self.induction_variables.pop(var)
 
 
     def visit_BinOp(self, node: ast.BinOp):
@@ -323,7 +365,7 @@ class CodegenVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
 
         # TODO: check types and add implicit casts if necessary.
-        rhs = self.type_manager.match(lhs.typ, rhs)
+        rhs = self._maybe_cast(lhs.typ, rhs)
 
         # Try to resolve this binary operator.
         op_name: str = node.op.__class__.__name__
@@ -354,7 +396,7 @@ class CodegenVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
 
         # TODO: chech types and add implicit casts if necessary.
-        rhs = self.type_manager.match(lhs.typ, rhs)
+        rhs = self._maybe_cast(lhs.typ, rhs)
 
         op_name: str = op.__class__.__name__
         frontend_type = self.hint_converter.frontend_type_cache[lhs.typ.__class__]
@@ -419,7 +461,7 @@ class CodegenVisitor(ast.NodeVisitor):
                 expected_ty = callee_operand_types[i]
                 if actual_ty != expected_ty:
                     # TODO: implicit cast
-                    operands[i] = self.type_manager.match(expected_ty, operands[i])
+                    operands[i] = self._maybe_cast(expected_ty, operands[i])
                     # raise CodegenInternalException(f"wrong argument type at position {i} when calling '{node.func.id}', expected {prettify(expected_ty)}, got {prettify(actual_ty)}")
 
             # Operand types match, so we can create a call operation and insert
@@ -465,13 +507,21 @@ class CodegenVisitor(ast.NodeVisitor):
         """
         if isinstance(node.value, str):
             self.inserter.stack.append(node.value)
+        elif isinstance(node.value, bool):
+            # TODO: do not hardcode this value
+            target_ty = builtin.IntegerType.from_width(1)
+            value_attr = builtin.IntegerAttr.from_int_and_width(node.value, target_ty.width.data)
+            constant_op = arith.Constant.from_attr(value_attr, target_ty)
+            self.inserter.insert_op(constant_op)
         elif isinstance(node.value, int):
-            target_ty = self.type_manager.default_type(type(node.value))
+            # TODO: do not hardcode this value
+            target_ty = builtin.IntegerType.from_width(64)
             value_attr = builtin.IntegerAttr.from_int_and_width(node.value, target_ty.width.data)
             constant_op = arith.Constant.from_attr(value_attr, target_ty)
             self.inserter.insert_op(constant_op)
         elif isinstance(node.value, float):
-            target_ty = self.type_manager.default_type(type(node.value))
+            # TODO: do not hardcode this value
+            target_ty = builtin.Float32Type()
             value_attr = builtin.FloatAttr.from_float_and_width(node.value, target_ty.width.data)
             constant_op = arith.Constant.from_attr(value_attr, target_ty)
             self.inserter.insert_op(constant_op)
@@ -528,7 +578,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
         entry_block = Block()
         entry_block.insert_arg(builtin.IndexType(), 0)
-        self.induction_vars[node.target.id] = entry_block.args[0]
+        self.induction_variables[node.target.id] = entry_block.args[0]
 
         body_region = Region.from_block_list([entry_block])
 
@@ -545,7 +595,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Reset insertion point back. 
         self.inserter.set_insertion_point_from_block(prev_insertion_point)
-        self.induction_vars.pop(node.target.id)
+        self.induction_variables.pop(node.target.id)
 
 
     def codegen_scf_for_loop(self, node: ast.For):
@@ -554,30 +604,30 @@ class CodegenVisitor(ast.NodeVisitor):
             start_op = arith.Constant.from_int_and_width(0, builtin.IndexType())
             self.inserter.insert_op(start_op)
             self.visit(args[0])
-            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            end_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
             step_op = arith.Constant.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step_op)
         elif len(args) == 2:
             self.visit(args[0])
-            start_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            start_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
             self.visit(args[1])
-            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            end_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
             step_op = arith.Constant.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step_op)
         else:
             self.visit(args[0])
-            start_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            start_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
             self.visit(args[1])
-            end_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            end_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
             self.visit(args[2])
-            step_op = self.type_manager.match(builtin.IndexType(), self.inserter.get_operand())
+            step_op = self._maybe_cast(builtin.IndexType(), self.inserter.get_operand())
         
         # Save previous insertion point.
         prev_insertion_point = self.inserter.ip
 
         entry_block = Block()
         entry_block.insert_arg(builtin.IndexType(), 0)
-        self.induction_vars[node.target.id] = entry_block.args[0]
+        self.induction_variables[node.target.id] = entry_block.args[0]
         body_region = Region.from_block_list([entry_block])
 
         # Create scf.for operation and insert it.
@@ -593,7 +643,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Reset insertion point back. 
         self.inserter.set_insertion_point_from_block(prev_insertion_point)
-        self.induction_vars.pop(node.target.id)
+        self.induction_variables.pop(node.target.id)
 
     def visit_For(self, node: ast.For):
         """Visits a for loop and creates scf.for or affine.for operation."""
@@ -749,8 +799,8 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # TODO: this assumes variable is local and no global variables exist. When
         # the sysmbol table is changed so that we can use globals, this can change.
-        if node.id in self.induction_vars:
-            self.inserter.stack.append(self.induction_vars[node.id])
+        if node.id in self.induction_variables:
+            self.inserter.stack.append(self.induction_variables[node.id])
             return 
 
         # TODO: make this look nicer, but name always uses the first!
@@ -838,7 +888,7 @@ class CodegenVisitor(ast.NodeVisitor):
                     #     # TODO: this has an implication on self.functions. It is better to put this into a separate pass.
                     #     # self.functions[enclosing_func][1][0] = operand.typ
                     # else:
-                    operands[i] = self.type_manager.match(func_return_types[i], operands[i])
+                    operands[i] = self._maybe_cast(func_return_types[i], operands[i])
 
             return_op = func.Return.get(*operands)
             self.inserter.insert_op(return_op)
@@ -871,7 +921,7 @@ class CodegenVisitor(ast.NodeVisitor):
         while isinstance(node, ast.Subscript):
             self.visit(node.slice)
             index = self.inserter.get_operand()
-            index = self.type_manager.match(builtin.IndexType(), index)
+            index = self._maybe_cast(builtin.IndexType(), index)
             indices.append(index)
             node = node.value
         
