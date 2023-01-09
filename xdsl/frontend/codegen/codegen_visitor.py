@@ -2,7 +2,7 @@ import ast
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
-from xdsl.frontend.codegen.functions import FunctionInfo
+from xdsl.frontend.codegen.functions import FunctionInfo, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.frontend.codegen.type_manager import TypeManager
@@ -11,6 +11,33 @@ from xdsl.frontend.codegen.exception import CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
+
+
+@dataclass
+class CodeGeneration:
+
+    @staticmethod
+    def run_with_type_converter(tc: TypeConverter, stmts: List[ast.stmt]) -> builtin.ModuleOp:
+        """
+        Generates xDSL code and returns it encapsulated into a single module.
+        """
+        
+        # First, obtain and check function signatures. Additionally, this sets up all AST nodes
+        # that are needed for the template instantiations.
+        function_analysis = LocalFunctionAnalyzer.run_with_type_converter(tc, stmts)
+
+        # All templates are stored in `function_info`, and not in the Python AST. Therefore, we have to have
+        # a separate loop which generates the code for all template instantiations.
+        cv = CodegenVisitor(tc, function_analysis)
+        for function_info in function_analysis.values():
+            if function_info.is_template_instantiation():
+                cv.visit(function_info.ast_node)
+
+        # Run the code generation.
+        for stmt in stmts:
+            cv.visit(stmt)
+        
+        return builtin.ModuleOp.from_region_or_ops(cv.inserter.container)
 
 
 @dataclass
@@ -815,27 +842,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
             return_op = func.Return.get(*operands)
             self.inserter.insert_op(return_op)
-
-    def visit_With(self, node: ast.With):
-        """
-        Visits a with block which represents a new module.
-        """
-        # In the future, with can also be used for regions. But let's
-        # not worry about that at the moment.
-        # TODO: support with Region():
-        module_op = builtin.ModuleOp.from_region_or_ops([])
-
-        # TODO: we have per module function table. Instead it would be
-        # nice to call functions from other modules.
-
-        # Proceed with visitng the module.
-        self.inserter.insert_op(module_op)
-        self.inserter.set_insertion_point_from_op(module_op)
-        for stmt in node.body:
-            self.visit(stmt)
-
-        # Reset insertion points back.
-        self.inserter.set_insertion_point_from_op(module_op.parent_op())
 
     def visit_Pass(self, node: ast.Pass):
         # Special case: function can return nothing and be implemented using pass, e.g.

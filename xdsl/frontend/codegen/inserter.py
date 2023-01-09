@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.codegen.exception import CodegenInternalException
 from xdsl.ir import Block, Operation, Region, SSAValue
 
@@ -11,7 +14,7 @@ class OpInserter:
     or block).
     """
 
-    op_container: List[Operation] = field(default_factory=list)
+    container: List[Operation] = field(default_factory=list)
     """
     Container for top-level operations in the current frontend program. The
     motivation for this is that we would like to have something like:
@@ -44,7 +47,7 @@ class OpInserter:
         # First, check if insertion point is set. If not, it means that this operation
         # is a top-level operation. Therefore, append it to the container.
         if self.ip is None:
-            self.op_container.append(op)
+            self.container.append(op)
 
             # Additionally, if this operation has a nested region/block, insert any future
             # operations there by default by setting the insertion point.
@@ -65,7 +68,7 @@ class OpInserter:
         """
 
         # Special case: if operation is none, it means it is a top-level operation
-        # and therefore insertion point should become none.
+        # and therefore insertion point should become None.
         if op is None:
             self.ip = None
             return

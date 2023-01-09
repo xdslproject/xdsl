@@ -258,12 +258,3 @@ class UnrankedTensorType(Generic[_UnrankedTensorElementType], FrontendType):
 
     def to_xdsl():
         return builtin.UnrankedTensorType.from_type
-
-
-class Module:
-    """Represents a builtin.module."""
-    def __enter__(self):
-        pass
-
-    def __exit__(self, *args):
-        pass

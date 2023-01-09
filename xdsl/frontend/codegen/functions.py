@@ -262,13 +262,6 @@ class FunctionVisitor(ast.NodeVisitor):
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
 
-    def visit_With(self, node: ast.With) -> None:
-        # TODO: We do not really support scoping, for example if we have nested modules. For now, make sure we
-        # abort in these cases.
-        # TODO: This breaks some FileCheck tests. THey can be re-enabled once we have proper scoping support. Anyway,
-        # it is better to be too conservative then just compile wrong code!
-        raise CodegenException(node.lineno, node.col_offset, f"Module-level analysis is not yet supported. Try to put all the functions in 'CodeContext' block.")
-
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         function_info = FunctionInfo(node)
         self._check_function_signature(node)
