@@ -35,11 +35,9 @@ pip install xdsl
 
 ## Using xDSL
 
-- [A simple introduction](https://github.com/xdslproject/xdsl/blob/main/docs/tutorial.ipynb)
-- [A DSL for defining new IRs](https://github.com/xdslproject/xdsl/blob/main/docs/irdl.ipynb)
-
-
-- [Connecting xDSL with MLIR](https://github.com/xdslproject/xdsl/docs/mlir_interoperation.md)
+- [A simple introduction](docs/tutorial.ipynb)
+- [A DSL for defining new IRs](docs/irdl.ipynb)
+- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 
 ## xDSL Developer Setup
