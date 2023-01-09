@@ -585,8 +585,8 @@ class Minf(BinaryOperation):
 @irdl_op_definition
 class ExtSI(Operation):
     name: str = "arith.extsi"
-    value: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType]
+    value: Annotated[Operand, signlessIntegerLike]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> ExtSI:
@@ -596,8 +596,8 @@ class ExtSI(Operation):
 @irdl_op_definition
 class IndexCast(Operation):
     name: str = "arith.index_cast"
-    value: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType]
+    value: Annotated[Operand, signlessIntegerLike]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> IndexCast:
@@ -607,8 +607,8 @@ class IndexCast(Operation):
 @irdl_op_definition
 class TruncI(Operation):
     name: str = "arith.trunci"
-    value: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType]
+    value: Annotated[Operand, signlessIntegerLike]
+    result: Annotated[OpResult, signlessIntegerLike]
 
     @staticmethod
     def get(value: Union[Operation, SSAValue], dst_type: Attribute) -> TruncI:

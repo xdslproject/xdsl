@@ -6,44 +6,16 @@ from xdsl.frontend.template import template
 p = FrontendProgram()
 with CodeContext(p):
 
-    @template("X")
-    def bar(X: int) -> int:
-        return X
+    @template("N")
+    def num2bits(inp: int, N: int) -> List[bool]:
+        assert inp < 2 ** 64
+        out = [False for i in range(N)]
+        for i in range(N):
+            out[i] = ((inp >> i) & 1)
+        return out
 
-    @template("A", "B")
-    def foo(A: int, x: int, B: int) -> int:
-        return A - x + bar(A+B)
-    
     def main():
-        a: int = foo(1, 2, 3)
-# with CodeContext(p):
-
-#     @template("N")
-#     def num2bits(inp: int, N: int) -> List[bool]:
-#         assert inp < 2 ** 64
-#         out = [False for i in range(N)]
-#         for i in range(N):
-#             out[i] = ((inp >> i) & 1)
-#         return out
-
-#     def main():
-#         num2bits(123, 2 ** 6)
-
-#     # def test2():
-#     #     num2bits(123, 32-32)
-
-#     # def test3():
-#     #     num2bits(123, 64)
-
-#     # def foo(x: List[int], y: List[int]) -> int:
-#     #     a: int = 4
-#     #     x[0] = 3
-#     #     y[0] = 4
-#     #     return a
-
-#     # def bar(x: List[int]):
-#     #     foo(x, x)
-#     #     x[0] = 4
+        num2bits(123, 2 ** 6)
 
 p.compile(desymref=True)
 print(p.xdsl())

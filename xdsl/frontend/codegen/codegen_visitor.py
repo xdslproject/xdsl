@@ -275,11 +275,11 @@ class CodegenVisitor(ast.NodeVisitor):
             except:
                 # TODO: in this case we have something like this:
                 # = [i + 2 for i in range(3)]
-                # Ideally, we eant to convert it to tensor.from_elements
+                # Ideally, we want to convert it to tensor.from_elements
                 # as the list comprehension is just [2, 3, 4]. One idea would
                 # be to execute list comptehension to get the list and simply
                 # process that AST :)
-                raise CodegenInternalException("Unsupported list comprehension!")
+                raise CodegenInternalException("Unsupported list comprehension")
         else:
             # Otherwise it is a tensor generate.
             prev_insertion_point = self.inserter.ip

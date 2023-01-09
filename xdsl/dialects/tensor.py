@@ -1,17 +1,18 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Annotated, List
+from typing import Annotated, Container, List
 from xdsl.dialects.builtin import ArrayAttr, IndexType, IntegerAttr, TensorType
+from xdsl.frontend_deprecated.dialects.builtin import IntegerType
 from xdsl.ir import Attribute, Dialect, OpResult, Operation, Region, SSAValue
-from xdsl.irdl import AnyAttr, AttributeDef, Operand, RegionDef, VarOperand, VarOperandDef, irdl_op_definition
+from xdsl.irdl import AnyAttr, AnyOf, AttributeDef, Operand, RegionDef, VarOperand, VarOperandDef, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
 class Cast(Operation):
     name: str = "tensor.cast"
-    value = Annotated[Operand, TensorType]
-    result = Annotated[OpResult, TensorType]
+    value: Annotated[Operand, TensorType]
+    result: Annotated[OpResult, TensorType]
 
     def verify_(self) -> None:
         if self.value.typ.element_type != self.result.typ.element_type:
@@ -35,7 +36,7 @@ class Cast(Operation):
 class Empty(Operation):
     # TODO: fix naming and support dynamic tensors.
     name: str = "linalg.init_tensor"
-    result = Annotated[OpResult, TensorType]
+    result: Annotated[OpResult, TensorType]
     static_sizes = AttributeDef(ArrayAttr)
 
     @staticmethod
@@ -50,13 +51,13 @@ class Empty(Operation):
 @irdl_op_definition
 class Generate(Operation):
     name: str = "tensor.generate"
-    arguments = Annotated[VarOperand, Attribute]
-    res = Annotated[OpResult, TensorType]
+    arguments: Annotated[VarOperand, Attribute]
+    res: Annotated[OpResult, TensorType]
 
     body = RegionDef()
 
-    def verify_(self) -> None:
-        pass
+    # def verify_(self) -> None:
+    #     pass
 
     @staticmethod
     def from_region(bounds: list[Operation | SSAValue], region: Region, dims: List[int], el_ty: Attribute) -> Generate:
@@ -68,8 +69,8 @@ class Generate(Operation):
 @irdl_op_definition
 class Splat(Operation):
     name: str = "tensor.splat"
-    value = Annotated[Operand, Attribute]
-    result = Annotated[OpResult, TensorType]
+    value: Annotated[Operand, Attribute]
+    result: Annotated[OpResult, TensorType]
 
     @staticmethod
     def get(op: Operation | SSAValue, dims: List[int]) -> Splat:
@@ -79,17 +80,17 @@ class Splat(Operation):
 @irdl_op_definition
 class Extract(Operation):
     name = "tensor.extract"
-    tensor = Annotated[Operand, TensorType]
-    indices = Annotated[VarOperand, IndexType]
-    res = Annotated[OpResult, TensorType]
+    tensor: Annotated[Operand, TensorType]
+    indices: Annotated[VarOperand, IndexType]
+    res: Annotated[OpResult, AnyAttr()]
 
-    def verify_(self):
-        if self.tensor.typ.element_type != self.res.typ:
-            raise Exception(
-                "expected return type to match the tensor element type")
+    # def verify_(self):
+    #     if self.tensor.typ.element_type != self.res.typ:
+    #         raise Exception(
+    #             "expected return type to match the tensor element type")
 
-        if self.tensor.typ.get_num_dims() != len(self.indices):
-            raise Exception("expected an index for each dimension")
+    #     if self.tensor.typ.get_num_dims() != len(self.indices):
+    #         raise Exception("expected an index for each dimension")
 
     @staticmethod
     def get(tensor: SSAValue | Operation,
@@ -101,19 +102,19 @@ class Extract(Operation):
 @irdl_op_definition
 class Insert(Operation):
     name = "tensor.insert"
-    value = Annotated[Operand, Attribute]
-    tensor = Annotated[Operand, TensorType]
-    indices = Annotated[VarOperand, IndexType]
+    value: Annotated[Operand, Attribute]
+    tensor: Annotated[Operand, TensorType]
+    indices: Annotated[VarOperand, IndexType]
 
-    res = Annotated[OpResult, TensorType]
+    res: Annotated[OpResult, TensorType]
 
-    def verify_(self):
-        if self.tensor.typ.element_type != self.value.typ:
-            raise Exception(
-                "expected value type to match the tensor element type")
+    # def verify_(self):
+    #     if self.tensor.typ.element_type != self.value.typ:
+    #         raise Exception(
+    #             "expected value type to match the tensor element type")
 
-        if self.tensor.typ.get_num_dims() != len(self.indices):
-            raise Exception("expected an index for each dimension")
+    #     if self.tensor.typ.get_num_dims() != len(self.indices):
+    #         raise Exception("expected an index for each dimension")
 
     @staticmethod
     def get(value: Operation | SSAValue, tensor: Operation | SSAValue,
