@@ -6,7 +6,7 @@ import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Set, Tuple
-from xdsl.dialects.builtin import FunctionType, TensorType, UnrankedTensorType
+from xdsl.dialects.builtin import TensorType, UnrankedTensorType
 from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute
@@ -29,6 +29,7 @@ class ArgInfo:
     """
     True if the argument can have side-effects. For example, values like tensors are side-effect arguments,
     because they can be modified by the function. All primitive types like int, float, etc. have no side-effects.
+    In general, side-effect arguments shou;d be wrapped in to memref or passed by value to the caller.
     """
 
     template: bool
@@ -96,6 +97,26 @@ class LocalFunctionAnalyzer:
     analysis: Dict[str, FunctionInfo] = field(default_factory=dict)
     """Stores all information about visited functions."""
 
+    def _instantiate_templates(self):
+        """
+        Instantiate templates respecting the calling order. Should be called after populating function analysis.
+        """
+
+        # First, populate the worklist.
+        worklist: List[Tuple[str, FunctionInfo]] = []
+        for name, function_info in self.analysis.items():
+            if not function_info.is_template():
+                worklist.append((name, function_info))
+
+        cv = CallVisitor(self.analysis, worklist)
+
+        # Until convergence, instantiate templates in order.
+        # TODO: Guard against very nested templates using some sort of counter.
+        while len(worklist) > 0:
+            name, function_info = worklist.pop()
+            for stmt in function_info.ast_node.body:
+                cv.visit(stmt)
+
     @staticmethod
     def run_with_type_converter(tc: TypeConverter, stmts: List[ast.stmt]) -> Dict[str, FunctionInfo]:
         lfa = LocalFunctionAnalyzer(tc)
@@ -109,10 +130,9 @@ class LocalFunctionAnalyzer:
         # When all the analysis for the local user-defined functions is done, we want to find out
         # which templates are instantiated. For that, we have to check every function call and instantiate
         # the template if necessary.
-        cv = CallVisitor(lfa.analysis)
-        for stmt in stmts:
-            cv.visit(stmt)
+        lfa._instantiate_templates()
 
+        # Return all analyses for code generation pass.
         return lfa.analysis
 
 
@@ -129,22 +149,11 @@ class FunctionVisitor(ast.NodeVisitor):
     analysis: Dict[str, FunctionInfo]
     """Stores all information about the visited functions."""
 
-    def visit(self, node: ast.AST):
-        return super().visit(node)
-
-    def visit_With(self, node: ast.With):
-        # TODO: We do not really support scoping, for example if we have nested modules. For now, make sure we
-        # abort in these cases.
-        # TODO: This breaks some FileCheck tests. THey can be re-enabled once we have proper scoping support. Anyway,
-        # it is better to be too conservative then just compile wrong code!
-        raise CodegenException(node.lineno, node.col_offset, f"Module-level analysis is not yet supported. Try to put all the functions in 'CodeContext' block.")
-
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        function_name = node.name
-        function_info = FunctionInfo(node)
-        self.analysis[function_name] = function_info
-
-        # Don't support vararg and its friends.
+    def _check_function_signature(self, node: ast.FunctionDef) -> None:
+        """
+        Throws an error if the function arguments are not supported. For example, varargs etc.
+        are not supported.
+        """
         if getattr(node.args, "vararg") is not None:
             raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has 'vararg' but is not supposed to.")
         if getattr(node.args, "kwarg") is not None:
@@ -155,15 +164,13 @@ class FunctionVisitor(ast.NodeVisitor):
             raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has 'kw_defaults' but is not supposed to.")
         if getattr(node.args, "defaults"):
             raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has 'defaults' but is not supposed to.")
-
-        # Explicitly require type annotations on all function arguments.
+    
+    def _check_arguments_annotated(self, node: ast.FunctionDef) -> None:
+        """Throws an error if function arguments do not have type annotations."""
         not_annotated_positions: List[int] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
                 not_annotated_positions.append(i)
-
-        # TODO: Note that we do not require type annotation for return type, simply because writing `foo() -> None` does not seem
-        # that great. Maybe we should?
 
         # Check did not pass, raise an error.
         if len(not_annotated_positions) > 0:
@@ -171,59 +178,76 @@ class FunctionVisitor(ast.NodeVisitor):
             positions = ",".join(not_annotated_positions)
             raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has non-annotated arguments at {p}{positions}.")
 
-        # Function can also be a template. Find which arguments are templated. 
-        template_arguments: Set[str] = None
+    def _collect_and_check_template_arguments(self, node: ast.FunctionDef, template_argument_names: Set[str]) -> None:
+        """
+        If function is a template, checks if it is a well-defined template, collects all template arguments,
+        and checks the erguments are also well defined. For example, the name of the template argument must
+        match the name of the function argument.
+        """
         num_decorators = len(node.decorator_list)
-        if num_decorators != 0:
-            # All templates must have a well-defined decorator.
-            if num_decorators != 1:
-                raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has {num_decorators} decorators but can only have 1 to mark it as a template.")
-            if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "template":
-                raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@template(..)'.")
-            
-            if len(node.decorator_list[0].args) == 0:
-                raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' must have at least one template argument.")
-            if len(node.decorator_list[0].args) > len(node.args.args):
-                template_argument_str = "argument" if len(node.decorator_list[0].args) == 1 else "arguments"
-                argument_str = "argument" if len(node.args.args) == 1 else "arguments"
-                raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' has {len(node.decorator_list[0].args)} template {template_argument_str}, but function expects only {len(node.args.args)} {argument_str}.")
+        if num_decorators == 0:
+            return
+    
+        # All templates must have a well-defined decorator.
+        if num_decorators != 1:
+            raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has {num_decorators} decorators but can only have 1 to mark it as a template.")
+        if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "template":
+            raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@template(..)'.")
+        
+        # Templates must have at least 1 template argument and at most the number of function arguments.
+        if len(node.decorator_list[0].args) == 0:
+            raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' must have at least one template argument.")
+        if len(node.decorator_list[0].args) > len(node.args.args):
+            template_argument_str = "argument" if len(node.decorator_list[0].args) == 1 else "arguments"
+            argument_str = "argument" if len(node.args.args) == 1 else "arguments"
+            raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' has {len(node.decorator_list[0].args)} template {template_argument_str}, but function expects only {len(node.args.args)} {argument_str}.")
 
-            template_arguments = set()
-            wrong_template_argument_positions: List[int] = []
-            for i, arg in enumerate(node.decorator_list[0].args):
-                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                    template_arguments.add(arg.value)
-                else:
-                    wrong_template_argument_positions.append(i)
+        # Collect template arguments, or simply the names of the function arguments which are template arguments.
+        wrong_template_argument_positions: List[int] = []
+        for i, arg in enumerate(node.decorator_list[0].args):
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                template_argument_names.add(arg.value)
+            else:
+                wrong_template_argument_positions.append(i)
 
-            # All template arguments are defined as a list of strings passed to the decorator.
-            if len(wrong_template_argument_positions) > 0:
-                p = "position " if len(wrong_template_argument_positions) == 1 else "positions "
-                positions = ",".join(wrong_template_argument_positions)
-                raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has unknown template arguments at {p}{positions}. All template arguments should be string constants, passed to the decorator, e.g. '@template(\"A\", \"B\", \"C\")'.")
+        # All template arguments are defined as a list of strings passed to the decorator.
+        if len(wrong_template_argument_positions) > 0:
+            p = "position " if len(wrong_template_argument_positions) == 1 else "positions "
+            positions = ",".join(wrong_template_argument_positions)
+            raise CodegenException(node.lineno, node.col_offset, f"Function {node.name} has unknown template arguments at {p}{positions}. All template arguments should be string constants, passed to the decorator, e.g. '@template(\"A\", \"B\", \"C\")'.")
 
-        # Go through all arguments one by one, and find out which ones have side-effects, which ones are template arguments.
+    def _populate_function_info(self, function_info: FunctionInfo, template_argument_names: Set[str]) -> None:
+        """
+        Populates the function info, in particular:
+          - Marks function arguments which are templated.
+          - Marks function arguments which are seid-effect.
+          - Marks function as side-effect or/and template.
+        """
+
+        is_template = len(template_argument_names) != 0
+        node = function_info.ast_node
         num_template_args = 0
         num_side_effect_args = 0
+
         for i, arg in enumerate(node.args.args):
+            arg_name = arg.arg
 
             # TODO: Use traits for side-effect types, and also add support types like MemRef here.
             xdsl_type = self.converter.convert_type_hint(arg.annotation)
             has_side_effects = isinstance(xdsl_type, TensorType) or isinstance(xdsl_type, UnrankedTensorType)
 
-            name = arg.arg
-            if template_arguments is not None and name in template_arguments:
+            if is_template and arg_name in template_argument_names:
                 # Templated arguments cannot have side effects, as these are compile-time constants.
                 num_template_args += 1
-                function_info.arg_info.append(ArgInfo(i, name, xdsl_type, False, True))
+                function_info.arg_info.append(ArgInfo(i, arg_name, xdsl_type, False, True))
                 continue
 
-            function_info.arg_info.append(ArgInfo(i, name, xdsl_type, has_side_effects, False))
+            function_info.arg_info.append(ArgInfo(i, arg_name, xdsl_type, has_side_effects, False))
             if has_side_effects:
                 num_side_effect_args += 1
-        
+
         # Make sure the naming was consistent.
-        if num_decorators != 0 and len(node.decorator_list[0].args) != num_template_args:
+        if len(node.decorator_list) != 0 and len(node.decorator_list[0].args) != num_template_args:
             raise CodegenException(node.lineno, node.col_offset, f"Template for function '{node.name}' has unused template arguments. All template arguments must be named exactly the same as the corresponding function arguments.")
 
         function_info.has_side_effects = num_side_effect_args > 0
@@ -235,6 +259,29 @@ class FunctionVisitor(ast.NodeVisitor):
         if xdsl_type is not None:
             function_info.ret_info.append(RetInfo(0, xdsl_type))
 
+    def visit(self, node: ast.AST) -> None:
+        super().visit(node)
+
+    def visit_With(self, node: ast.With) -> None:
+        # TODO: We do not really support scoping, for example if we have nested modules. For now, make sure we
+        # abort in these cases.
+        # TODO: This breaks some FileCheck tests. THey can be re-enabled once we have proper scoping support. Anyway,
+        # it is better to be too conservative then just compile wrong code!
+        raise CodegenException(node.lineno, node.col_offset, f"Module-level analysis is not yet supported. Try to put all the functions in 'CodeContext' block.")
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        function_info = FunctionInfo(node)
+        self._check_function_signature(node)
+        self._check_arguments_annotated(node)
+
+        # Function can also be a template. Find which arguments are templated. 
+        template_argument_names: Set[str] = set()
+        self._collect_and_check_template_arguments(node, template_argument_names)
+
+        # Go through all arguments one by one, and find out which ones have side-effects, which ones are template arguments.
+        self._populate_function_info(function_info, template_argument_names)
+        self.analysis[node.name] = function_info
+
 
 @dataclass
 class CallVisitor(ast.NodeVisitor):
@@ -245,13 +292,18 @@ class CallVisitor(ast.NodeVisitor):
     analysis: Dict[str, FunctionInfo]
     """
     Stores all information about the visited functions. Note that this analysis should be
-    pre-populated by 'FunctionVisitor'.
+    pre-populated by 'FunctionVisitor' and will be changed by CallVisitor upon template instantiations.
     """
 
-    def visit(self, node: ast.AST):
-        return super().visit(node)
+    worklist: List[Tuple[str, FunctionInfo]]
+    """
+    Passed to this class to be populated with the newly instantiated templates.
+    """
 
-    def visit_Call(self, node: ast.Call):
+    def visit(self, node: ast.AST) -> None:
+        super().visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
         func_name = node.func.id
 
         # We only care about local user-defined functions, which should be in analysis.
@@ -270,7 +322,7 @@ class CallVisitor(ast.NodeVisitor):
         if function_info.is_template():
 
             # Stores evaluated paramters for this template.
-            parameters: Dict[str, ast.expr] = dict()
+            evalauted_parameters: Dict[str, ast.expr] = dict()
 
             # The name of the template instantiation is mangled. Here, we opt for appending
             # "_PARAMETER_VALUE" for each template parameter.
@@ -283,22 +335,25 @@ class CallVisitor(ast.NodeVisitor):
                 if arg_info.template:
                     # Try to instantiate the template argument, and raise an exeception if something goes wrong.
                     try:
-                        # TODO: This does not always work. Consider the case when we have:
-                        #   @template("X")
-                        #   def bar(X: int) -> int:
-                        #       return X
-                        #   @template("A", "B")
-                        #   def foo(A: int, x: int, B: int) -> int:
-                        #       return A - x + bar(A+B)
-                        # Here, `bar(B)` is fined because `A+B` is known at compile time. But `A+x` is not. Currently both cases fail
-                        # with `NameError`, but we need to 1) support the first case 2) have a more meaningful error in the second case.
-                        # For (1), it is likely we need a some kind of topological sort to find out how expressions/instantiations depend
-                        # on each other.
+                        # TODO: Currently, this takes closed-form expressions into account. What if we have:
+                        #   x: int = 43
+                        #   eval(x)
+                        # Currently, this would result in an error, but in  general can be a very useful and powerful concept.
                         value = eval(ast.unparse(arg))
                     except Exception as e:
+                        # NameError means we have undefined symbol while evaulating expression. Since we respect the order in
+                        # which templates are instantiated, it must be the case tha variable is not known because it is not a
+                        # template argument. Hence, we can raise a nice-looking error.
+                        if isinstance(e, NameError):
+                            raise CodegenException(arg.lineno, arg.col_offset, f"Non-template argument '{e.name}' in template instantiation for function '{func_name}'")
+                        
+                        # Similarly, some errors can be pretty-printed.
+                        if isinstance(e, ZeroDivisionError):
+                            raise CodegenException(arg.lineno, arg.col_offset, f"Division by zero in template instantiation for function '{func_name}'")
+
                         raise CodegenException(arg.lineno, arg.col_offset, f"Invalid template instantiation for function '{func_name}'; {type(e).__name__}: {e}")
 
-                    parameters[arg_info.name] = ast.Constant(value)
+                    evalauted_parameters[arg_info.name] = ast.Constant(value)
 
                     # TODO: it should be relatively easy to support non-primitive type parameters, but for that we have to:
                     #   1. Think about how to mangle the name of the function (e.g. hash the list?)
@@ -307,7 +362,7 @@ class CallVisitor(ast.NodeVisitor):
                     if not isinstance(value, int) and not isinstance(value, bool) and not isinstance(value, float):
                         raise CodegenException(node.lineno, node.col_offset, f"Call to function '{func_name}' has non-primitive template argument of type '{type(value).__name__}' at position {i}. Only primitive type arguments like int or float are supported at the moment.") 
 
-                    parameters[arg_info.name] = ast.Constant(value)
+                    evalauted_parameters[arg_info.name] = ast.Constant(value)
                     mangled_func_name += f"_{value}"
                 else:
                     non_template_arg_indices.append(i)
@@ -327,7 +382,7 @@ class CallVisitor(ast.NodeVisitor):
 
                 # Replace all template arguments with evaluated expressions.
                 for stmt in template_node.body:
-                    visitor = ReplaceVisitor(parameters, template_node.name)
+                    visitor = ReplaceVisitor(evalauted_parameters, template_node.name)
                     visitor.visit(stmt)
 
                 # Make sure to change the function info.
@@ -347,8 +402,10 @@ class CallVisitor(ast.NodeVisitor):
                 new_function_info.has_side_effects = has_side_effects
                 new_function_info.template_info = TemplateInfo.TEMPLATE_INSTANTIATION
 
+                # Update analysis and the worklist.
                 self.analysis[mangled_func_name] = new_function_info
-            
+                self.worklist.append((mangled_func_name, new_function_info))
+
             # Lastly, replace the call with the call to template instantiation.
             node.func = ast.Name(mangled_func_name)
             node.args = non_template_args
@@ -367,7 +424,7 @@ class ReplaceVisitor(ast.NodeVisitor):
     current_function_name: str
     """Used to print a comprehensive error message."""
 
-    def check_node(self, node: ast.AST) -> bool:
+    def _check_node(self, node: ast.AST) -> bool:
         """
         Checks if the node uses template arguments correctly. For example, one cannot assign to
         a template variable, etc.
@@ -377,7 +434,7 @@ class ReplaceVisitor(ast.NodeVisitor):
             target = node.target
             while isinstance(target, ast.Subscript):
                 target = target.value
-            
+
             if isinstance(target, ast.Name):
                 if target.id in self.parameters:
                     raise CodegenException(node.lineno, node.col_offset, f"Cannot redefine the template parameter '{target.id}' in function '{self.current_function_name}'.")
@@ -388,16 +445,16 @@ class ReplaceVisitor(ast.NodeVisitor):
                 n = target
                 while isinstance(n, ast.Subscript):
                     n = n.value
-                
+
                 if isinstance(n, ast.Name):
                     if n.id in self.parameters:
                         raise CodegenException(node.lineno, node.col_offset, f"Cannot assign to template parameter '{n.id}' in function '{self.current_function_name}'.")
 
-    def visit(self, node: ast.AST):
+    def visit(self, node: ast.AST) -> None:
         """Visits AST node and its children to replace template argument names with constant expressions."""
 
-        # First, check if this node is correct wrt template arguments.
-        self.check_node(node)
+        # First, check if this node is correct with respect to template arguments.
+        self._check_node(node)
 
         for field_name, field_value in ast.iter_fields(node):
             if isinstance(field_value, ast.AST):

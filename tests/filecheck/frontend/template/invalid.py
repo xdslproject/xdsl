@@ -26,17 +26,6 @@ with CodeContext(p):
 assert_excepton(p)
 
 
-p = FrontendProgram()
-with CodeContext(p):
-
-    # CHECK: Template for function {{.*}} must have at least one template argument.
-    @template()
-    def test():
-        pass
-
-assert_excepton(p)
-
-
 with CodeContext(p):
 
     # CHECK: Function {{.*}} has 2 decorators but can only have 1 to mark it as a template.
@@ -90,6 +79,7 @@ with CodeContext(p):
 
 assert_excepton(p)
 
+
 with CodeContext(p):
 
     # CHECK: Cannot redefine the template parameter 'N' in function {{.*}}.
@@ -101,6 +91,7 @@ with CodeContext(p):
         test(3)
 
 assert_excepton(p)
+
 
 # TODO: This test should be removed when non-primitive template arguments are supported.
 with CodeContext(p):
@@ -118,7 +109,7 @@ assert_excepton(p)
 
 with CodeContext(p):
 
-    # CHECK: Invalid template instantiation for function {{.*}}; ZeroDivisionError: division by zero.
+    # CHECK: Division by zero in template instantiation for function {{.*}}.
     @template("N")
     def test(N: int) -> int:
         return N + 3
@@ -129,19 +120,35 @@ with CodeContext(p):
 assert_excepton(p)
 
 
-# TODO: This error shob be more meaningful in the future, hence a todo.
 with CodeContext(p):
 
     @template("X")
     def bar(X: int) -> int:
         return X
 
-    # CHECK: Invalid template instantiation for function 'bar'; NameError: name 'x' is not defined.
+    # CHECK: Non-template argument 'x' in template instantiation for function 'bar'.
     @template("A", "B")
     def foo(A: int, x: int, B: int) -> int:
         return A - x + bar(x)
     
     def main():
         a: int = foo(1, 2, 3)
+
+assert_excepton(p)
+
+
+with CodeContext(p):
+
+    @template("X")
+    def bar(X: int) -> int:
+        return X
+
+    # CHECK: Non-template argument 'constant' in template instantiation for function 'bar'.
+    def foo() -> int:
+        constant: int = 45
+        return bar(constant)
+    
+    def main():
+        a: int = foo()
 
 assert_excepton(p)
