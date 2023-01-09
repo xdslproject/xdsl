@@ -4,7 +4,7 @@ from io import StringIO
 
 
 def test_opt():
-    filename = 'tests/xdsl_opt/substitute_ops.xdsl'
+    filename = 'tests/xdsl_opt/empty_program.xdsl'
     opt = xDSLOptMain(args=[filename])
     assert list(opt.available_frontends.keys()) == ['xdsl', 'mlir']
     assert list(opt.available_targets.keys()) == ['xdsl', 'irdl', 'mlir']
