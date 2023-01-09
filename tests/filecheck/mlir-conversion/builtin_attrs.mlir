@@ -106,4 +106,16 @@
 
   // CHECK: "value1" = opaque<"test", "contents">, "value2" = opaque<"test", "contents"> : tensor<2xf64>
 
+  "func.func"() ({}) {function_type = () -> (),
+                      symbol = @some_symbol,
+                      sym_name = "symbol_attr"} : () -> ()
+
+  // CHECK: "symbol" = @some_symbol
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = tensor<?xi32>,
+                      sym_name = "non_static_shaped_tensor"} : () -> ()
+
+  // CHECK: tensor<?xi32>
+
 }) : () -> ()
