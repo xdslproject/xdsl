@@ -206,15 +206,17 @@ class Input:
                              span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
         start = 0
-        line_no = 0
+        line_no = -1
         source = self.content
         while True:
             next_start = source.find('\n', start)
             line_no += 1
             # handle eof
-            if next_start == -1 :
-                return None
-            # as long as the next newline comes before the spans start we are good
+            if next_start == -1:
+                if span.start > len(source):
+                    return None
+                return source[start:], start, line_no
+            # as long as the next newline comes before the spans start we can continue
             if next_start < span.start:
                 start = next_start + 1
                 continue
@@ -1503,15 +1505,16 @@ class MLIRParser(BaseParser):
 
         args = self.must_parse_op_args_list()
         succ = self.must_parse_optional_successor_list()
-        attrs = self.must_parse_optional_attr_dict()
 
         regions = []
         if self.tokenizer.starts_with('('):
             self.must_parse_characters('(', 'Expected brackets enclosing regions!')
             regions = self.must_parse_region_list()
             self.must_parse_characters(')', 'Expected brackets enclosing regions!')
-        self.must_parse_characters(':', 'MLIR Operation defintions must end in a function type signature!')
 
+        attrs = self.must_parse_optional_attr_dict()
+
+        self.must_parse_characters(':', 'MLIR Operation defintions must end in a function type signature!')
         func_type = self.must_parse_function_type()
 
         return args, succ, attrs, regions, func_type
