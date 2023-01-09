@@ -113,14 +113,8 @@
   // CHECK: "symbol" = @some_symbol
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = dense<[0]> : tensor<?xi32>,
-                      sym_name = "unranked_tensor_type"} : () -> ()
-
-  // CHECK: tensor<?xi32>
-
-  "func.func"() ({}) {function_type = () -> (),
-                      value1 = dense<[0]> : tensor<-1xi32>,
-                      sym_name = "unranked_tensor_type_2"} : () -> ()
+                      value1 = tensor<?xi32>,
+                      sym_name = "non_static_shaped_tensor"} : () -> ()
 
   // CHECK: tensor<?xi32>
 
