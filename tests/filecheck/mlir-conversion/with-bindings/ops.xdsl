@@ -52,5 +52,10 @@ builtin.module() {
   }
 
   memref.global() ["sym_name" = "complex_types", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !i64], !index>, [0 : !index]>, "sym_visibility" = "public"]
+  
+  func.func() ["function_type" = !fun<[], []>, "symbol" = @some_symbol, "sym_name" = "symbol_attr"] {}
 
+  func.func() ["function_type" = !fun<[], []>, "value1" = !dense<!tensor<[-1 : !index], !i32>, [0 : !i32]>, "sym_name" = "unranked_tensor_type"] {}
+  
+  func.func() ["function_type" = !fun<[], []>, "value1" = !dense<!tensor<[-1 : !index], !i32>, [0 : !i32]>, "sym_name" = "unranked_tensor_type_2"] {}
 }
