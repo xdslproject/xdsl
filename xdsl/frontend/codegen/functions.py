@@ -297,11 +297,10 @@ class CallVisitor(ast.NodeVisitor):
         super().visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
-        func_name = node.func.id
-
         # We only care about local user-defined functions, which should be in analysis.
-        if func_name not in self.analysis:
+        if not isinstance(node.func, ast.Name) or node.func.id not in self.analysis:
             return
+        func_name = node.func.id
         function_info = self.analysis[func_name]
 
         # We do actual type checking during code generation, however here we can at least

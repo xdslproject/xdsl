@@ -152,7 +152,6 @@ class TypeConverter:
             # Finally, get the constructor of this type and build an xDSL type.
             if issubclass(type_class.__origin__, FrontendType):
                 xdsl_type = type_class.to_xdsl()(*args)
-                print(type_name)
                 self.cache_type(type_class.__origin__, type_name, xdsl_type)
                 return xdsl_type
 

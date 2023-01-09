@@ -41,7 +41,7 @@ class OpInserter:
             raise CodegenInternalException("Trying to get an operand from empty stack.")
         return self.stack.pop()
 
-    def insert_op(self, op: Operation):
+    def insert_op(self, op: Operation) -> None:
         """Inserts a new operation."""
 
         # First, check if insertion point is set. If not, it means that this operation
@@ -62,7 +62,7 @@ class OpInserter:
         for result in op.results:
             self.stack.append(result)
 
-    def set_insertion_point_from_op(self, op: Operation | None):
+    def set_insertion_point_from_op(self, op: Operation | None) -> None:
         """
         Reset insertion point to the last block in the last region of the operation.
         """
@@ -81,12 +81,12 @@ class OpInserter:
             raise CodegenInternalException("Trying to set insertion point for operation {} with no blocks in the region.", [op])
         self.ip = op.regions[-1].blocks[-1]
 
-    def set_insertion_point_from_region(self, region: Region):
+    def set_insertion_point_from_region(self, region: Region) -> None:
         """Reset insertion point to the last block in this region."""
         if len(region.blocks) == 0:
             raise CodegenInternalException("Trying to set insertion point for the region with no blocks.")
         self.ip = region.blocks[-1]
 
-    def set_insertion_point_from_block(self, block: Block):
+    def set_insertion_point_from_block(self, block: Block) -> None:
         """Reset insertion point to this block."""
         self.ip = block
