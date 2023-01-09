@@ -25,28 +25,38 @@ through Python, making analysis through simple scripting languages possible.
 Additionally, xDSL can leverage MLIR's code generation and low-level
 optimization capabilities.
 
-## Prerequisites
+## Installation
 
-To install xDSL you can either clone the GitHub repository and install the requirements by following:
-
-### Installation for Users
+To use xDSL for developing your own xDSL-based compiler, install xDSL via pip:
 
 ```bash
 pip install xdsl
 ```
 
-### Installation for Developers
+## Using xDSL
+
+- [A simple introduction](docs/tutorial.ipynb)
+- [A DSL for defining new IRs](docs/irdl.ipynb)
+- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
+
+
+## xDSL Developer Setup
+
+To contribute to the development of xDSL follow the subsequent steps.
+
+
+#### Developer Installation
+
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 pip install -e .
 pip install -e .[extras]
 ```
 
-## Testing
+#### Testing
 
-This project includes pytest unit test and LLVM-style filecheck tests. They can
-be executed using to following commands from within the root directory of the
-project:
+The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
+be executed from the root directory:
 
 ```bash
 # Executes pytests which are located in tests/
@@ -56,7 +66,7 @@ pytest
 lit tests/filecheck
 ```
 
-## Formatting
+#### Formatting
 
 All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
 format the code in a uniform manner.
@@ -64,7 +74,3 @@ format the code in a uniform manner.
 To automate the formatting within vim, one can use
 https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
 save.
-
-Please refer to the [MLIR
-Interoperation](https://github.com/xdslproject/xdsl/blob/main/docs/mlir_interoperation.md)
-markdown file for further instructions on that.
