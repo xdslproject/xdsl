@@ -1,5 +1,5 @@
 from typing import List, Optional
-from xdsl.ir import SSAValue
+from xdsl.ir import SSAValue, BlockArgument
 from xdsl.irdl import Operation, Region, Block
 
 

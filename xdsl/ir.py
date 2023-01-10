@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
+from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast, Iterator)
 import sys
@@ -19,19 +20,19 @@ OpT = TypeVar('OpT', bound='Operation')
 @dataclass
 class Dialect:
     """Contains the operations and attributes of a specific dialect"""
-    _operations: list[Operation] = field(default_factory=list,
-                                         init=True,
-                                         repr=True)
-    _attributes: list[Attribute] = field(default_factory=list,
-                                         init=True,
-                                         repr=True)
+    _operations: list[type[Operation]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
+    _attributes: list[type[Attribute]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
 
     @property
-    def operations(self) -> Iterator[Operation]:
+    def operations(self) -> Iterator[type[Operation]]:
         return iter(self._operations)
 
     @property
-    def attributes(self) -> Iterator[Attribute]:
+    def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
 
     def __call__(self, ctx: MLContext) -> None:
@@ -264,6 +265,13 @@ class Attribute(ABC):
         Raise an exception otherwise.
         """
         pass
+
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_attribute(self)
+        return res.getvalue()
 
 
 DataElement = TypeVar("DataElement")
@@ -901,8 +909,6 @@ class Region(IRNode):
         else:
             block_idx = block
             block = self.blocks[block_idx]
-        if block.parent is not self:
-            raise Exception("Cannot detach block from a different region.")
         block.parent = None
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block

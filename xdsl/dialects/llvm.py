@@ -1,13 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated
 
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      Operation)
-from xdsl.irdl import (ParameterDef, AnyAttr, irdl_attr_definition,
-                       AttributeDef, OperandDef, ResultDef, irdl_op_definition,
-                       builder)
-from xdsl.ir import OpResult, Attribute, SSAValue
+from xdsl.irdl import (Operand, ParameterDef, AnyAttr, irdl_attr_definition,
+                       AttributeDef, irdl_op_definition, builder)
+from xdsl.ir import OpResult, Attribute
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
@@ -52,9 +50,9 @@ class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container: Annotated[SSAValue, OperandDef(AnyAttr())]
+    container: Annotated[Operand, AnyAttr()]
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 @irdl_op_definition
@@ -62,17 +60,17 @@ class LLVMInsertValue(Operation):
     name = "llvm.insertvalue"
 
     position = AttributeDef(ArrayOfConstraint(AnyAttr()))
-    container: Annotated[SSAValue, OperandDef(AnyAttr())]
-    value: Annotated[SSAValue, OperandDef(AnyAttr())]
+    container: Annotated[Operand, AnyAttr()]
+    value: Annotated[Operand, AnyAttr()]
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 @irdl_op_definition
 class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 
-    res: Annotated[OpResult, ResultDef(AnyAttr())]
+    res: Annotated[OpResult, AnyAttr()]
 
 
 LLVM = Dialect([LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef],

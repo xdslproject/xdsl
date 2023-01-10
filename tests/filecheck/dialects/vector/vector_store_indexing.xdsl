@@ -1,0 +1,14 @@
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_store_indexing", "function_type" = !fun<[!vector<[2 : !index], !index>, !memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !vector<[2 : !index], !index>, %1 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index):
+    vector.store(%0 : !vector<[2 : !index], !index>, %1 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index)
+
+    func.return()
+  }
+
+// CHECK: Expected an index for each dimension.
+
+}

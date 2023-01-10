@@ -13,7 +13,7 @@ from types import UnionType, GenericAlias
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import BuilderNotFoundException, VerifyException
 from xdsl.utils.hints import is_satisfying_hint
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
@@ -95,8 +95,7 @@ class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
     def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, Attribute):
-            raise VerifyException(f"Expected attribute, but got {attr}")
+        pass
 
 
 @dataclass(init=False)
@@ -114,8 +113,6 @@ class AnyOf(AttrConstraint):
 
     def verify(self, attr: Attribute) -> None:
         for attr_constr in self.attr_constrs:
-            if isinstance(attr_constr, Attribute) and attr_constr == attr:
-                return
             try:
                 attr_constr.verify(attr)
                 return
@@ -143,13 +140,13 @@ class ParamAttrConstraint(AttrConstraint):
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: type[Attribute]
+    base_attr: type[ParametrizedAttribute]
     """The base attribute type."""
 
     param_constrs: list[AttrConstraint]
     """The attribute parameter constraints"""
 
-    def __init__(self, base_attr: type[Attribute],
+    def __init__(self, base_attr: type[ParametrizedAttribute],
                  param_constrs: Sequence[(Attribute | type[Attribute]
                                           | AttrConstraint)]):
         self.base_attr = base_attr
@@ -158,13 +155,9 @@ class ParamAttrConstraint(AttrConstraint):
         ]
 
     def verify(self, attr: Attribute) -> None:
-        assert isinstance(attr, ParametrizedAttribute)
         if not isinstance(attr, self.base_attr):
-            # the type checker concludes that attr has type 'Never', therefore the cast
-            name = cast(Attribute, attr).name
             raise VerifyException(
-                f"Base attribute {self.base_attr.name} expected, but got {name}"
-            )
+                f"{attr} should be of base attribute {self.base_attr.name}")
         if len(self.param_constrs) != len(attr.parameters):
             raise VerifyException(
                 f"{len(self.param_constrs)} parameters expected, "
@@ -360,14 +353,23 @@ class OperandDef(OperandOrResultDef):
         self.constr = attr_constr_coercion(typ)
 
 
+Operand = Annotated[SSAValue, OperandDef]
+
+
 @dataclass(init=False)
 class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
 
 
+VarOperand = Annotated[list[SSAValue], VarOperandDef]
+
+
 @dataclass(init=False)
 class OptOperandDef(VarOperandDef, OptionalDef):
     """An IRDL optional operand definition."""
+
+
+OptOperand = Annotated[SSAValue | None, OptOperandDef]
 
 
 @dataclass(init=False)
@@ -386,9 +388,15 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
 
+VarOpResult = Annotated[OpResult, VarResultDef]
+
+
 @dataclass(init=False)
 class OptResultDef(VarResultDef, OptionalDef):
     """An IRDL optional result definition."""
+
+
+OptOpResult = Annotated[OpResult | None, OptResultDef]
 
 
 @dataclass
@@ -473,13 +481,33 @@ class OpDef:
                 continue
             args = get_args(field_type)
 
-            if isinstance(args[-1], OperandDef):
-                op_def.operands.append((field_name, args[-1]))
-            elif isinstance(args[-1], ResultDef):
-                op_def.results.append((field_name, args[-1]))
+            fail = False
+            if len(args) == 3:
+                if args[1] is OperandDef:
+                    op_def.operands.append((field_name, OperandDef(args[-1])))
+                elif args[1] is VarOperandDef:
+                    op_def.operands.append(
+                        (field_name, VarOperandDef(args[-1])))
+                elif args[1] is OptOperandDef:
+                    op_def.operands.append(
+                        (field_name, OptOperandDef(args[-1])))
+                elif args[1] is VarResultDef:
+                    op_def.results.append((field_name, VarResultDef(args[-1])))
+                elif args[1] is OptResultDef:
+                    op_def.results.append((field_name, OptResultDef(args[-1])))
+                else:
+                    fail = True
+            elif len(args) == 2:
+                if args[0] is OpResult:
+                    op_def.results.append((field_name, ResultDef(args[-1])))
+                else:
+                    fail = True
             else:
+                fail = True
+
+            if fail:
                 raise ValueError(f'''
-                    Unsupported type annotation {args[-1]} in {pyrdl_def.__name__}.
+                    Unsupported type annotation {args} in {pyrdl_def.__name__}.
                     ''')
 
         for field_name, field_value in clsdict.items():
@@ -1168,7 +1196,9 @@ def irdl_attr_try_builder(
     num_non_defaults = defaults.count(inspect.Signature.empty)
     if num_non_defaults > len(args):
         return None
-    for arg, param in zip(args, params[:num_non_defaults]):
+    if len(params) < len(args):
+        return None
+    for arg, param in zip(args, params[:len(args)]):
         if not is_satisfying_hint(arg, param):
             return None
     return builder(*args, *defaults[len(args):])
@@ -1184,8 +1214,7 @@ def irdl_attr_builder(cls: type[_PAttrT],
         res = irdl_attr_try_builder(builder, *args)
         if res:
             return res
-    raise TypeError(
-        f"No available {cls.__name__} builders for arguments {args}")
+    raise BuilderNotFoundException(cls, args)
 
 
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:

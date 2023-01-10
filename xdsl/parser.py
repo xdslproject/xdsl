@@ -985,6 +985,11 @@ class Parser:
             self.parse_char("}")
             return DictionaryAttr.from_dict(contents)
 
+        # FlatSymbolRefAttr
+        if self.parse_optional_char("@"):
+            symbol_name = self.parse_alpha_num(skip_white_space=False)
+            return FlatSymbolRefAttr.from_str(symbol_name)
+
         # tensor type
         if (tensor := self.parse_optional_mlir_tensor()) is not None:
             return tensor
