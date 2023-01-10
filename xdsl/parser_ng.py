@@ -15,8 +15,6 @@ from .printer import Printer
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute)
 
-import xdsl.utils.bnf as BNF
-
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
@@ -532,28 +530,6 @@ class ParserCommons:
     ))))
     double_colon = re.compile('::')
     comma = re.compile(',')
-
-    class BNF:
-        """
-        Collection of BNF trees.
-        """
-        attr_dict_mlir = BNF.Group([
-            BNF.Literal('{'),
-            BNF.ListOf(BNF.Nonterminal('attribute-entry',
-                                       debug_name="attribute entry"),
-                       bind='attributes'),
-            BNF.Literal('}')
-        ],
-            debug_name="attrbute dictionary")
-
-        attr_dict_xdsl = BNF.Group([
-            BNF.Literal('['),
-            BNF.ListOf(BNF.Nonterminal('attribute-entry',
-                                       debug_name="attribute entry"),
-                       bind='attributes'),
-            BNF.Literal(']')
-        ],
-            debug_name="attrbute dictionary")
 
 
 class BaseParser(ABC):
@@ -1203,10 +1179,17 @@ class BaseParser(ABC):
     def attr_dict_from_tuple_list(
             self, tuple_list: list[tuple[Span,
                                          Attribute]]) -> dict[str, Attribute]:
-        return dict(
-            ((span.string_contents if isinstance(span, StringLiteral
-                                                 ) else span.text), attr)
-            for span, attr in tuple_list)
+        """
+        Convert a list of tuples (Span, Attribute) to a dictionary.
+
+        This function converts the span to a string, trimming quotes from string literals
+        """
+        def span_to_str(span: Span) -> str:
+            if isinstance(span, StringLiteral):
+                return span.string_contents
+            return span.text
+
+        return dict((span_to_str(span), attr) for span, attr in tuple_list)
 
     def must_parse_function_type(self) -> FunctionType:
         """
@@ -1228,11 +1211,11 @@ class BaseParser(ABC):
         args: list[Attribute] = self.must_parse_list_of(
             self.try_parse_type, 'Expected type here!')
         self.must_parse_characters(')',
-                                   "Malformed function type!",
+                                   "Malformed function type, expected closing brackets of argument types!",
                                    is_parse_error=True)
 
         self.must_parse_characters('->',
-                                   'Malformed function type!',
+                                   'Malformed function type, expected `->`!',
                                    is_parse_error=True)
 
         return FunctionType.from_lists(
@@ -1395,9 +1378,6 @@ class BaseParser(ABC):
         # TODO: check if type is correct here!
         return [name for name, _ in args]
 
-    @abstractmethod
-    def must_parse_optional_successor_list(self) -> list[Span]:
-        pass
 
 class MLIRParser(BaseParser):
 
@@ -1445,14 +1425,16 @@ class MLIRParser(BaseParser):
                                        allow_empty=True), None
 
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
-        if self.tokenizer.next_token_of_pattern('{', peek=True) is None:
+        if not self.tokenizer.starts_with('{'):
             return dict()
 
-        res = ParserCommons.BNF.attr_dict_mlir.must_parse(self)
+        self.must_parse_characters('{', 'MLIR Attribute dictionary must be enclosed in curly brackets')
 
-        return self.attr_dict_from_tuple_list(
-            ParserCommons.BNF.attr_dict_mlir.collect(res, dict()).get(
-                'attributes', list()))
+        attrs = self.must_parse_list_of(self.must_parse_attribute_entry, "Expected attribute entry")
+
+        self.must_parse_characters('}', 'MLIR Attribute dictionary must be enclosed in curly brackets')
+
+        return self.attr_dict_from_tuple_list(attrs)
 
     def must_parse_operation_details(self) -> tuple[
         list[Span], list[Span], dict[str, Attribute], list[Region], FunctionType | None]:
@@ -1543,14 +1525,16 @@ class XDSLParser(BaseParser):
         return super().try_parse_builtin_attr()
 
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
-        if self.tokenizer.next_token_of_pattern('[', peek=True) is None:
+        if not self.tokenizer.starts_with('['):
             return dict()
 
-        res = ParserCommons.BNF.attr_dict_xdsl.must_parse(self)
+        self.must_parse_characters('[', 'xDSL Attribute dictionary must be enclosed in curly brackets')
 
-        return self.attr_dict_from_tuple_list(
-            ParserCommons.BNF.attr_dict_mlir.collect(res, dict()).get(
-                'attributes', list()))
+        attrs = self.must_parse_list_of(self.must_parse_attribute_entry, "Expected attribute entry")
+
+        self.must_parse_characters(']', 'xDSL Attribute dictionary must be enclosed in curly brackets')
+
+        return self.attr_dict_from_tuple_list(attrs)
 
     def must_parse_operation_details(self) -> tuple[
         list[Span], list[Span], dict[str, Attribute], list[Region], FunctionType | None]:
