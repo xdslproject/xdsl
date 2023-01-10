@@ -34,7 +34,7 @@ jobs:
           ./emsdk install ${PYODIDE_EMSCRIPTEN_VERSION}
           ./emsdk activate ${PYODIDE_EMSCRIPTEN_VERSION}
 
-      - name: Build WASM wheels for frozenlist, coverage, and xDSL
+      - name: Build WASM wheels for frozenlist and coverage
         run: |
           mkdir pypi
           source emsdk/emsdk_env.sh
@@ -51,22 +51,12 @@ jobs:
 
           done
 
-          pyodide build
-          cp $(find -path "./dist/xdsl-*.whl") pypi
-
       - name: Build the JupyterLite site
         run: |
           mkdir content
-          cp README.md content
           cp docs content -r
-          for f in $(find -path ./content/*.ipynb)
-          do
-          
-          echo appending to $f
-          sed -i 's/# xDSL should be available in the environment\./# xDSL should be available in the environment.\\n%pip install xdsl/g' $f
-          
-          done
-          
+          cp xdsl content -r
+          cp requirements.txt content
           python -m jupyter lite build --contents content --output-dir jupyterlite
 
       - name: Upload artifact
