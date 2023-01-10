@@ -1,0 +1,1 @@
+%0 : !i32 = arith.constant() ["value" = 32 : !i32]
