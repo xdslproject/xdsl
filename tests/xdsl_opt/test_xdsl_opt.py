@@ -1,7 +1,7 @@
+import pytest
 from xdsl.xdsl_opt_main import xDSLOptMain
 from contextlib import redirect_stdout
 from io import StringIO
-import pytest
 import os
 
 
@@ -24,40 +24,31 @@ def test_empty_program():
     assert f.getvalue().strip() == expected.strip()
 
 
-def test_not_module_xdsl():
-    filename = 'tests/xdsl_opt/not_module.xdsl'
-    opt = xDSLOptMain(args=[filename])
+@pytest.mark.parametrize("args, expected_error",
+                         [(['tests/xdsl_opt/not_module.xdsl'],
+                           "Expected module or program as toplevel operation"),
+                          (['tests/xdsl_opt/not_module.mlir'],
+                           "Expected module or program as toplevel operation"),
+                          (['tests/xdsl_opt/empty_program.wrong'
+                            ], "Unrecognized file extension 'wrong'")])
+def test_error_on_run(args, expected_error):
+    opt = xDSLOptMain(args=args)
 
     with pytest.raises(Exception) as e:
         opt.run()
 
-    assert e.value.args[
-        0] == "Expected module or program as toplevel operation"
+    assert e.value.args[0] == expected_error
 
 
-def test_not_module_mlir():
-    filename = 'tests/xdsl_opt/not_module.mlir'
-    opt = xDSLOptMain(args=[filename])
-
+@pytest.mark.parametrize(
+    "args, expected_error",
+    [(['tests/xdsl_opt/empty_program.xdsl', '-p', 'wrong'
+       ], "Unrecognized pass: wrong")])
+def test_error_on_construction(args, expected_error):
     with pytest.raises(Exception) as e:
-        opt.run()
+        opt = xDSLOptMain(args=args)
 
-    assert e.value.args[
-        0] == "Expected module or program as toplevel operation"
-
-
-def test_print_to_file():
-    filename_in = 'tests/xdsl_opt/empty_program.xdsl'
-    filename_out = 'tests/xdsl_opt/empty_program_out.xdsl'
-    opt = xDSLOptMain(args=[filename_in, '-o', filename_out])
-
-    inp = open(filename_in, 'r').read()
-    opt.run()
-    expected = open(filename_out, 'r').read()
-
-    assert inp.strip() == expected.strip()
-
-    open(filename_out, 'w').write("")
+    assert e.value.args[0] == expected_error
 
 
 def test_wrong_target():
@@ -71,23 +62,16 @@ def test_wrong_target():
     assert e.value.args[0] == "Unknown target wrong"
 
 
-def test_wrong_pass():
-    filename = 'tests/xdsl_opt/empty_program.xdsl'
-    with pytest.raises(Exception) as e:
-        opt = xDSLOptMain(args=[filename, '-p', 'wrong'])
+def test_print_to_file():
+    filename_in = 'tests/xdsl_opt/empty_program.xdsl'
+    filename_out = 'tests/xdsl_opt/empty_program.out'
+    opt = xDSLOptMain(args=[filename_in, '-o', filename_out])
 
-    assert e.value.args[0] == "Unrecognized pass: wrong"
+    inp = open(filename_in, 'r').read()
+    opt.run()
+    expected = open(filename_out, 'r').read()
 
-
-def test_wrong_file_extension():
-    filename = 'tests/xdsl_opt/empty_program.wrong'
-    opt = xDSLOptMain(args=[filename])
-
-    f = StringIO("")
-    with pytest.raises(Exception) as e:
-        opt.run()
-
-    assert e.value.args[0] == "Unrecognized file extension 'wrong'"
+    assert inp.strip() == expected.strip()
 
 
 def test_coverage():
