@@ -184,6 +184,8 @@ def test_fuse_bert_attention_layer():
 }) : () -> ()
 """
 
+    options.dce_mode = options.DCEMode.RECURSIVE
+
     apply_dyn_strategy_and_compare(
         program=unfused_attention_layer,
         expected_program=fused_attention_layer,

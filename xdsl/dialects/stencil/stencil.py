@@ -39,8 +39,6 @@ class Stencil:
 
 
 # Types
-
-
 @dataclass
 class IntOrUnknown(AttrConstraint):
     length: int = 0

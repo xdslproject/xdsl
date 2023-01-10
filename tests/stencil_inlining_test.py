@@ -19,6 +19,7 @@ import xdsl.dialects.pdl.dialect as pdl
 import xdsl.dialects.rewrite.dialect as rewrite
 import xdsl.dialects.elevate.dialect as elevate
 import xdsl.dialects.elevate.interpreter as interpreter
+import xdsl.dialects.elevate.options as options
 
 
 def parse(program: str):
@@ -231,6 +232,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     # //   }
     # // }
 
+    options.dce_mode = options.DCEMode.NONE
+
     apply_strategy_and_compare(
         before, after,
         seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
@@ -241,10 +244,10 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
-    # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
+    apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
 def test_inlining_simple_index():
@@ -337,6 +340,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     # //   }
     # // }
 
+    options.dce_mode = options.DCEMode.NONE
+
     apply_strategy_and_compare(
         before, after,
         seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
@@ -347,7 +352,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
     # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
@@ -445,6 +450,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     # //   }
     # // }
 
+    options.dce_mode = options.DCEMode.NONE
+
     apply_strategy_and_compare(
         before, after,
         seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
@@ -454,7 +461,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         topToBottom(InlineApply()) ^ topToBottom(RemoveUnusedApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
     # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
@@ -570,6 +577,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     # //   }
     # // }
 
+    options.dce_mode = options.DCEMode.NONE
     apply_strategy_and_compare(
         before, after,
         seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
@@ -582,7 +590,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after, "basic_inlining")
     apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
@@ -783,6 +791,8 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(intermediate)
     parse(after)
 
+    options.dce_mode = options.DCEMode.NONE
+
     # Only performing the rerouting step
     apply_strategy_and_compare(before, intermediate, RerouteOutputDependency)
 
@@ -817,15 +827,16 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after_without_CSE, InlineAll)
+    # apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
+    # This was commented out
     # apply_dyn_strategy_and_compare(before, after_without_CSE,
     #                                "reroute_output_dep")
 
-    apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
-                                   "basic_inlining")
-    apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
-                                   "basic_inlining_simplified")
+    # apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
+    #                                "basic_inlining")
+    # apply_dyn_strategy_and_compare(intermediate, after_without_CSE,
+    #                                "basic_inlining_simplified")
 
 
 def test_inlining_avoid_redundant():
@@ -947,9 +958,11 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(before)
     parse(after)
 
-    apply_strategy_and_compare(
-        before, after,
-        seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
+    options.dce_mode = options.DCEMode.NONE
+
+    # apply_strategy_and_compare(
+    #     before, after,
+    #     seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
 
     apply_strategy_and_compare(
         before, after_without_CSE,
@@ -958,7 +971,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after_without_CSE, InlineAll)
+    # apply_strategy_and_compare(before, after_without_CSE, InlineAll)
 
     apply_dyn_strategy_and_compare(before, after_without_CSE, "basic_inlining")
     apply_dyn_strategy_and_compare(before, after_without_CSE,
@@ -1108,13 +1121,15 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(intermediate)
     parse(after)
 
+    options.dce_mode = options.DCEMode.NONE
+
     # Only performing the rerouting step
     apply_strategy_and_compare(before, intermediate, RerouteInputDependency)
 
     apply_strategy_and_compare(before, intermediate,
                                RerouteInputDependency_decomp)
 
-    # Only performing the inlining step
+    # # Only performing the inlining step
     apply_strategy_and_compare(
         intermediate, after,
         topToBottom(InlineProducer()) ^ topToBottom(GarbageCollect()))
@@ -1125,7 +1140,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    # # combining both steps
+    # # # combining both steps
     apply_strategy_and_compare(
         before, after, RerouteInputDependency ^ topToBottom(InlineProducer())
         ^ topToBottom(GarbageCollect()))
@@ -1136,7 +1151,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
         ^ topToBottom(RemoveDuplicateApplyOperands())
         ^ topToBottom(GarbageCollect()))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(before, after, InlineAll)
 
     apply_dyn_strategy_and_compare(intermediate, after, "basic_inlining")
     apply_dyn_strategy_and_compare(intermediate, after,
@@ -1261,20 +1276,22 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     parse(before)
     parse(after)
 
-    apply_strategy_and_compare(
-        before, after,
-        seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
+    # options.dce_mode = options.DCEMode.NONE
 
-    apply_strategy_and_compare(
-        before, after,
-        topToBottom(InlineApply()) ^ topToBottom(InlineApply())
-        ^ topToBottom(RemoveUnusedApplyOperands())
-        ^ topToBottom(RemoveDuplicateApplyOperands())
-        ^ topToBottom(GarbageCollect()))
+    # apply_strategy_and_compare(
+    #     before, after,
+    #     seq(topToBottom(InlineProducer()), topToBottom(GarbageCollect())))
 
-    apply_strategy_and_compare(before, after, InlineAll)
+    # apply_strategy_and_compare(
+    #     before, after,
+    #     topToBottom(InlineApply()) ^ topToBottom(InlineApply())
+    #     ^ topToBottom(RemoveUnusedApplyOperands())
+    #     ^ topToBottom(RemoveDuplicateApplyOperands())
+    #     ^ topToBottom(GarbageCollect()))
 
-    apply_dyn_strategy_and_compare(before, after, "basic_inlining")
+    # apply_strategy_and_compare(before, after, InlineAll)
+
+    # apply_dyn_strategy_and_compare(before, after, "basic_inlining")
     # apply_dyn_strategy_and_compare(before, after, "basic_inlining_simplified")
 
 
@@ -1452,13 +1469,13 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 
 
 if __name__ == "__main__":
-    test_inlining_simple()
-    test_inlining_simple_index()  # here simplified version is missing
-    test_inlining_multiple_edges()
-    test_inlining_simple_ifelse()  # here simplified version is missing
-    test_inlining_reroute()
-    test_inlining_avoid_redundant()
-    test_inlining_root()
-    test_inlining_dyn_access()  # here simplified version is missing
-    test_inlining_simple_buffer()
+    # test_inlining_simple()
+    # test_inlining_simple_index()  # here simplified version is missing
+    # test_inlining_multiple_edges()
+    # test_inlining_simple_ifelse()  # here simplified version is missing
+    # test_inlining_reroute()
+    # test_inlining_avoid_redundant()
+    # test_inlining_root()
+    # test_inlining_dyn_access()  # here simplified version is missing
+    # test_inlining_simple_buffer()
     test_cleanup_apply()

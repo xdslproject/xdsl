@@ -39,7 +39,7 @@ class If(Operation):
                             regions=[true_region, []])
         return If.build(operands=[cond],
                         result_types=[return_types],
-                        regions=[true_region, false_region])
+                        regions=[true_region, [false_region]])
 
 
 @irdl_op_definition

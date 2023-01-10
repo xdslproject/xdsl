@@ -110,21 +110,21 @@ builtin.module() {
   %mul2shift : !strategy = elevate.strategy() ["strategy_name"="mul2shift"] {
     ^strategy(%op : !operation):
     %pattern : !pattern = match.pattern() {
-      // matching the cst 1
+      // matching the cst 2
       %attr_value : !i32 = pdl.attr() ["name" = "value", "value" = 2 : !i32]
-      (%cst0_ : !operation, %cst0_res : !value) = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
+      (%cst2 : !operation, %cst2_res : !value) = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
       // matching any other operand
       %int_type : !type = pdl.type()
-      %any_operand : !value = pdl.operand(%int_type : !type)
-      %_ : !operation = pdl.operation(%any_operand : !value, %cst0_res : !value) ["name"="arith.muli"]
+      %x : !value = pdl.operand(%int_type : !type)
+      %_ : !operation = pdl.operation(%x : !value, %cst2_res : !value) ["name"="arith.muli"]
 
-      match.capture(%any_operand : !value, %int_type : !type)
+      match.capture(%x : !value, %int_type : !type)
     }
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
-      ^rewrite(%any_operand : !value, %int_type : !type):
+      ^rewrite(%x : !value, %int_type : !type):
       // rewriting
       (%cst1_ : !operation, %cst1_res : !value) = irutils.new_op(%int_type : !type) ["name" = "arith.Constant", "value" = 1 : !i32, "attribute_names"=["value"]]
-      %result : !operation = irutils.new_op(%any_operand : !value, %cst1_res : !value, %int_type : !type) ["name" = "arith.ShLI"]
+      %result : !operation = irutils.new_op(%x : !value, %cst1_res : !value, %int_type : !type) ["name" = "arith.ShLI"]
 
       rewrite.return(%result : !operation)
     }

@@ -143,9 +143,9 @@ builtin.module() {
       elevate.apply(%FuseAttentionLayer : !strategy)
     }
     // executes a strategy 100 times
-    elevate.repeatN() {
-        elevate.apply(%garbage_collect : !strategy)
-    }
+    // elevate.repeatN() {
+    //     elevate.apply(%garbage_collect : !strategy)
+    // }
   }
 
 }

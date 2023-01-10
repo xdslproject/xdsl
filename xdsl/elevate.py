@@ -2,10 +2,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass
-from functools import partial
-from typing import List, Callable, MutableSequence, TypeAlias
+from typing import List, Callable, MutableSequence, Sequence, TypeAlias
 from xdsl.immutable_ir import *
 from xdsl.printer import Printer
+import xdsl.dialects.elevate.options as options
+
 
 
 @dataclass(frozen=True)
@@ -605,17 +606,26 @@ class opN(OpsTraversal):
                 # Actually replacing the matched op with replacement ops
                 i = nested_ops.index(replacement.matched_op)
                 nested_ops[i:i + 1] = replacement.replacement_ops
-                # TODO:
-                # check whether the operands of the replacement ops have any other uses
 
                 if replacement.matched_op not in replacement.replacement_ops:
                     for operand in replacement.matched_op.operands:
-                        # TODO: should be an if
                         if replacement.matched_op in operand.users:
                             operand._remove_user(replacement.matched_op)
                         # TODO: this is bad when regions are big
-                        if isinstance(operand, IResult) and len(operand.users) == 0 and operand.op in nested_ops:
-                            nested_ops.remove(operand.op)
+                        # Think here: when would the operand.op not be in the nested_ops?
+                        # global dce_mode
+                        if options.dce_mode != options.DCEMode.NONE and isinstance(operand, IResult) and len(operand.users) == 0 and operand.op in nested_ops:
+                            # escalate from here, if some op only depends on this op remove it as well
+                            def remove_unused(operand: IResult):
+                                nested_ops.remove(operand.op)
+                                # Check for all values we used, whether they still have other uses
+                                for value in operand.op.operands:
+                                    if isinstance(value, IResult):
+                                        value._remove_user(operand.op)
+                                        # recursively progress if required
+                                        if options.dce_mode == options.DCEMode.RECURSIVE and len(value.users) == 0 and value.op in nested_ops:
+                                            remove_unused(value)
+                            remove_unused(operand)
                             pass
 
                 completed_replacements.append(replacement)
