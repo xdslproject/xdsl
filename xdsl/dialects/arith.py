@@ -104,7 +104,7 @@ class Subi(BinaryOperation):
 
 
 @irdl_op_definition
-class DivUI(Operation):
+class DivUI(BinaryOperation):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -137,12 +137,16 @@ class DivSI(BinaryOperation):
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue]) -> DivSI:
+        operand1 = SSAValue.get(operand1)
         return DivSI.build(operands=[operand1, operand2],
                            result_types=[operand1.typ])
 
 
 @irdl_op_definition
 class FloorDivSI(BinaryOperation):
+    """
+    Signed floor integer division. Rounds towards negative infinity i.e. `5 / -2 = -3`.
+    """
     name: str = "arith.floordivsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
