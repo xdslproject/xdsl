@@ -682,10 +682,6 @@ def test_dictionary_attr():
     func.func() ["sym_name" = "test", "function_type" = !i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : !i64}]
     """
 
-    expected = """
-    func.func() ["sym_name" = "test", "function_type" = !i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : !i64}]
-    """
-
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
@@ -696,4 +692,4 @@ def test_dictionary_attr():
     file = StringIO("")
     printer = Printer(stream=file)
     printer.print_op(parsed)
-    assert file.getvalue().strip() == expected.strip()
+    assert file.getvalue().strip() == prog.strip()
