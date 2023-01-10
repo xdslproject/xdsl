@@ -35,10 +35,6 @@ pip install xdsl
 
 ## Using xDSL
 
-xDSL can be used to teach compilation techniques or build full DSL compilers
-entirely in Python, or used alongside MLIR's capabilities if desired.
-
-
 The following tutorials will respectively present xDSL basic concepts, how to
 use its irdl dialect to define new dialects in a user-friendly way, and how to
 work with both xDSL and MLIR.
