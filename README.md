@@ -35,6 +35,10 @@ pip install xdsl
 
 ## Using xDSL
 
+xDSL can be used to teach compilation techniques, quickly build full DSL compilers by building the frontend and high-level representation before leveraging existing dialects and MLIR's code generation and optimization capabilities. It is also useful to prototype dialects or passes before taking the effort to implement them in MLIR.
+
+The following tutorials will respectively present xDSL basic concepts, how to use its irdl dialect to define new dialects in a user-friendly way, and how to work with both xDSL and MLIR.
+
 - [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/tutorial.ipynb)
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
