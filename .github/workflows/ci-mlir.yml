@@ -107,3 +107,4 @@ jobs:
         verbose: true
         directory: ${GITHUB_WORKSPACE}/../
         files: coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}
