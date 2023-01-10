@@ -77,12 +77,12 @@ class TypeInferenceVisitor(ast.NodeVisitor):
     def visit(self, node: ast.AST):
         return super().visit(node)
 
-    def visit_For(self, node: ast.For):
-        # TODO: not support this traversal.
-        return
+    # def visit_For(self, node: ast.For):
+    #     # TODO: not support this traversal.
+    #     return
     
-    def visit_If(self, node: ast.If):
-        raise Exception("type inference not supported for conditionals!")
+    # def visit_If(self, node: ast.If):
+    #     raise Exception("type inference not supported for conditionals!")
 
         # TODO: this is stupid but it works. Make sure we avoid copies.
         # types = deepcopy(self.types)
