@@ -463,7 +463,7 @@ class Parser:
     def parse_dictionary(self,
                          parse_optional_one: Callable[[], T | None],
                          delimiter: str = ",",
-                         skip_white_space: bool = True) -> list[T]:
+                         skip_white_space: bool = True) -> dict[T]:
         if skip_white_space:
             self.skip_white_space()
         assert (len(delimiter) <= 1)
@@ -479,14 +479,16 @@ class Parser:
             res = res | entry
         return res
 
-    def parse_dict_entry(self, parse_optional_one: Callable[[], T | None]):
+    def parse_dict_entry(
+        self,
+        parse_optional_one: Callable[[],
+                                     T | None]) -> dict[str, Attribute] | None:
         # Limitation currently is that the key is a string
         key = self.parse_str_literal()
-        if key is not None:
-            if self.parse_optional_char("="):
-                value = parse_optional_one()
-                if value is not None:
-                    return {key: value}
+        if self.parse_optional_char("="):
+            value = parse_optional_one()
+            if value is not None:
+                return {key: value}
         return None
 
     def parse_optional_block_argument(

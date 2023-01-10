@@ -346,13 +346,13 @@ _DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[_DictionaryAttrT]]):
+class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
     name = "dictionary"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> dict[_DictionaryAttrT]:
         parser.parse_char("{")
-        data = parser.parse_list(parser.parse_optional_attribute)
+        data = parser.parse_dictionary(parser.parse_optional_attribute)
         parser.parse_char("}")
         # the type system can't ensure that the elements are of type A
         # and not just of type Attribute, therefore, the following cast
@@ -366,7 +366,7 @@ class DictionaryAttr(GenericData[dict[_DictionaryAttrT]]):
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        pass
+        raise Exception(f"Unsupported operation on {self.name}")
 
     def verify(self) -> None:
         if not isinstance(self.data, dict):
@@ -374,10 +374,14 @@ class DictionaryAttr(GenericData[dict[_DictionaryAttrT]]):
                 f"Wrong type given to attribute {self.name}: got"
                 f" {type(self.data)}, but expected dictionary of"
                 " attributes")
-        for idx, val in enumerate(self.data):
+        for key, val in self.data.items():
+            if not isinstance(key, Attribute):
+                raise VerifyException(
+                    f"{self.name} key expects attribute, but {idx} "
+                    f"element is of type {type(val)}")
             if not isinstance(val, Attribute):
                 raise VerifyException(
-                    f"{self.name} data expects attribute dictionary, but {idx} "
+                    f"{self.name} value expects attribute, but {idx} "
                     f"element is of type {type(val)}")
 
     @staticmethod
