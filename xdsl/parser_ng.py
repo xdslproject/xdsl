@@ -1092,13 +1092,13 @@ class BaseParser(ABC):
                     regions=regions)
 
             # Register the result SSA value names in the parser
-            for (idx, res) in enumerate(result_list):
+            for idx, res in enumerate(result_list):
                 ssa_val_name = res.text
                 if ssa_val_name in self.ssaValues:
                     self.raise_error(f"SSA value {ssa_val_name} is already defined", res)
                 self.ssaValues[ssa_val_name] = op.results[idx]
                 # TODO: check name?
-                self.ssaValues[ssa_val_name].name = ssa_val_name
+                self.ssaValues[ssa_val_name].name = ssa_val_name.lstrip('%')
 
             return op
 
@@ -1317,7 +1317,7 @@ class BaseParser(ABC):
         Parses a sequence of regions for as long as there is a `{` in the input.
         """
         regions = []
-        while self.tokenizer.next_token(peek=True).text == '{':
+        while not self.tokenizer.is_eof() and self.tokenizer.next_token(peek=True).text == '{':
             regions.append(self.must_parse_region())
         return regions
 
