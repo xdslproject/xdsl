@@ -2,13 +2,13 @@
 
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.template import template
+from xdsl.frontend.dialects.frontend import meta
 
 
 p = FrontendProgram()
 with CodeContext(p):
 
-    @template("A", "B")
+    @meta("A", "B")
     def foo(x: int, A: int, B: int) -> int:
         return A - x + B
     
@@ -40,15 +40,15 @@ with CodeContext(p):
 
     # CHECK: func.func() ["sym_name" = "foo_14", "function_type" = !fun<[], [!i64]>
 
-    @template("X")
+    @meta("X")
     def foo(X: int) -> int:
         return X
 
-    @template("A", "B")
+    @meta("A", "B")
     def bar(x: int, A: int, B: int) -> int:
         return A - x + foo(A+B)
     
-    @template("A", "B")
+    @meta("A", "B")
     def baz(x: int, A: int, B: int) -> int:
         return x - foo(B) + bar(x, A, 12)
     
@@ -61,7 +61,7 @@ print(p.xdsl())
 
 with CodeContext(p):
 
-    @template("N")
+    @meta("N")
     def factorial(N: int) -> int:
         result: int = 1 if N == 1 else N * factorial(N if N <= 1 else N - 1)
         return result

@@ -1,12 +1,12 @@
 from typing import List
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.template import template
+from xdsl.frontend.dialects.frontend import meta
 
 p = FrontendProgram()
 with CodeContext(p):
 
-    @template("N")
+    @meta("N")
     def num2bits(inp: int, N: int) -> List[bool]:
         assert inp < 2 ** 64
         out = [False for i in range(N)]

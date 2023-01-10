@@ -3,14 +3,14 @@
 from typing import List
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.template import template
+from xdsl.frontend.dialects.frontend import meta
 from tests.filecheck.frontend.utils import assert_excepton
 
 
 p = FrontendProgram()
 
 
-def test_template(*params):
+def test_meta(*params):
     def decorate(f):
         pass
     return decorate
@@ -18,8 +18,8 @@ def test_template(*params):
 
 with CodeContext(p):
 
-    # CHECK: Function {{.*}} has unknown decorator. For decorating the function as a template, use '@template(..)'.
-    @test_template()
+    # CHECK: Function {{.*}} has unknown decorator. For decorating the function as a template, use '@meta(..)'.
+    @test_meta()
     def test():
         pass
 
@@ -29,8 +29,8 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Function {{.*}} has 2 decorators but can only have 1 to mark it as a template.
-    @test_template()
-    @template("N")
+    @test_meta()
+    @meta("N")
     def test(N: int):
         pass
 
@@ -40,7 +40,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Template for function {{.*}} must have at least one template argument.
-    @template()
+    @meta()
     def test():
         pass
 
@@ -50,7 +50,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Template for function {{.*}} has 2 template arguments, but function expects only 1 argument.
-    @template("N", "M")
+    @meta("N", "M")
     def test(N: int):
         pass
 
@@ -60,7 +60,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Template for function {{.*}} has unused template arguments. All template arguments must be named exactly the same as the corresponding function arguments.
-    @template("A")
+    @meta("A")
     def test(N: int):
         pass
 
@@ -70,7 +70,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Cannot assign to template parameter 'N' in function {{.*}}.
-    @template("N")
+    @meta("N")
     def test(N: bool):
         N = True
 
@@ -83,7 +83,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Cannot redefine the template parameter 'N' in function {{.*}}.
-    @template("N")
+    @meta("N")
     def test(N: int):
         N: int = 3
 
@@ -97,7 +97,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Call to function {{.*}} has non-primitive template argument of type 'list' at position 0. Only primitive type arguments like int or float are supported at the moment.
-    @template("L")
+    @meta("L")
     def test(L: List[int]):
         pass
 
@@ -110,7 +110,7 @@ assert_excepton(p)
 with CodeContext(p):
 
     # CHECK: Division by zero in template instantiation for function {{.*}}.
-    @template("N")
+    @meta("N")
     def test(N: int) -> int:
         return N + 3
 
@@ -122,12 +122,12 @@ assert_excepton(p)
 
 with CodeContext(p):
 
-    @template("X")
+    @meta("X")
     def bar(X: int) -> int:
         return X
 
     # CHECK: Non-template argument 'x' in template instantiation for function 'bar'.
-    @template("A", "B")
+    @meta("A", "B")
     def foo(A: int, x: int, B: int) -> int:
         return A - x + bar(x)
     
@@ -139,7 +139,7 @@ assert_excepton(p)
 
 with CodeContext(p):
 
-    @template("X")
+    @meta("X")
     def bar(X: int) -> int:
         return X
 

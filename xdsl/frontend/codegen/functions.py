@@ -193,8 +193,8 @@ class FunctionVisitor(ast.NodeVisitor):
         # All templates must have a well-defined decorator.
         if num_decorators != 1:
             raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has {num_decorators} decorators but can only have 1 to mark it as a template.")
-        if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "template":
-            raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@template(..)'.")
+        if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "meta":
+            raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@meta(..)'.")
         
         # Templates must have at least 1 template argument and at most the number of function arguments.
         if len(node.decorator_list[0].args) == 0:
