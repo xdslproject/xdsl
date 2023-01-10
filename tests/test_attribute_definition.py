@@ -116,10 +116,14 @@ def test_data_with_non_class_param_missing_verifier_failure():
     """
     with pytest.raises(Exception) as e:
         irdl_attr_definition(IntListMissingVerifierData)
-    assert e.value.args[0] == (
+
+    # Python 3.10 and 3.11 have different error messages
+    assert e.value.args[0] in [
         'In IntListMissingVerifierData definition: '
-        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.'
-    )
+        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.',
+        'In IntListMissingVerifierData definition: '
+        'Cannot infer "verify" method. Type parameter of Data is not a class.',
+    ]
 
 
 @irdl_attr_definition
