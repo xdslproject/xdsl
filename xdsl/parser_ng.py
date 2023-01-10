@@ -160,10 +160,8 @@ class StringLiteral(Span):
         if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
             raise ParseError(self, "Invalid string literal!")
 
-    T_ = TypeVar('T_', Span, None)
-
     @classmethod
-    def from_span(cls, span: T_) -> T_:
+    def from_span(cls, span: Span | None) -> StringLiteral | None:
         if span is None:
             return None
         return cls(span.start, span.end, span.input)
@@ -215,7 +213,7 @@ class Input:
             if next_start == -1:
                 if span.start > len(source):
                     return None
-                return source[start:], start, line_no
+                return [source[start:]], start, line_no
             # as long as the next newline comes before the spans start we can continue
             if next_start < span.start:
                 start = next_start + 1
@@ -233,7 +231,7 @@ class Input:
         return self.content[i]
 
 
-save_t = tuple[int, tuple[str, ...], bool]
+save_t = tuple[int, tuple[str, ...]]
 parsed_type_t = tuple[Span, tuple[Span]]
 
 
@@ -253,8 +251,6 @@ class Tokenizer:
     characters the tokenizer should break on
     """
 
-    ignore_whitespace: bool = True
-
     history: BacktrackingHistory | None = field(init=False, default=None)
 
     last_token: Span | None = field(init=False, default=None)
@@ -263,7 +259,7 @@ class Tokenizer:
         """
         Create a checkpoint in the parsing process, useful for backtracking
         """
-        return self.pos, self.break_on, self.ignore_whitespace
+        return self.pos, self.break_on
 
     def resume_from(self, save: save_t):
         """
@@ -271,7 +267,7 @@ class Tokenizer:
 
         Restores the state of the tokenizer to the exact previous position
         """
-        self.pos, self.break_on, self.ignore_whitespace = save
+        self.pos, self.break_on = save
 
     @contextlib.contextmanager
     def backtracking(self, region_name: str | None = None):
@@ -439,19 +435,20 @@ class Tokenizer:
 
     def next_pos(self, i: int | None = None) -> int:
         """
-        Find the next starting position (optionally starting from i), considering ignore_whitespaces
+        Find the next starting position (optionally starting from i)
 
         This will skip line comments!
         """
         i = self.pos if i is None else i
         # skip whitespaces
-        if self.ignore_whitespace:
-            while self.input.at(i).isspace():
-                i += 1
+        while self.input.at(i).isspace():
+            i += 1
+
         # skip comments as well
         if self.input.content.startswith('//', i):
             i = self.input.content.find('\n', i) + 1
             return self.next_pos(i)
+
         return i
 
     def is_eof(self):
@@ -463,22 +460,14 @@ class Tokenizer:
         except EOFError:
             return True
 
-    def consume_opt_whitespace(self) -> Span:
-        start = self.pos
-        while self.input.at(self.pos).isspace():
-            self.pos += 1
-        return Span(start, self.pos, self.input)
-
     @contextlib.contextmanager
-    def configured(self,
-                   break_on: tuple[str, ...] | None = None,
-                   ignore_whitespace: bool | None = None):
+    def configured(self, break_on: tuple[str, ...]):
         """
         This is a helper class to allow expressing a temporary change in config, allowing you to write:
 
         # parsing double-quoted string now
         string_content = ""
-        with tokenizer.configured(break_on=('"', '\\'), ignore_whitespace=False):
+        with tokenizer.configured(break_on=('"', '\\'),):
             # use tokenizer
 
         # now old config is restored automatically
@@ -488,14 +477,11 @@ class Tokenizer:
 
         if break_on is not None:
             self.break_on = break_on
-        if ignore_whitespace is not None:
-            self.ignore_whitespace = ignore_whitespace
 
         try:
             yield self
         finally:
             self.break_on = save[1]
-            self.ignore_whitespace = save[2]
 
     def starts_with(self, text: str | re.Pattern) -> bool:
         start = self.next_pos()
@@ -551,38 +537,6 @@ class ParserCommons:
         """
         Collection of BNF trees.
         """
-        generic_operation_body = BNF.Group(
-            [
-                BNF.Nonterminal('string-literal', bind="name"),
-                BNF.Literal('('),
-                BNF.ListOf(BNF.Nonterminal('value-id'), bind='args'),
-                BNF.Literal(')'),
-                BNF.OptionalGroup(
-                    [
-                        BNF.Literal('['),
-                        BNF.ListOf(BNF.Nonterminal('block-id'),
-                                   allow_empty=False,
-                                   bind='blocks'),
-                        # TODD: allow for block args here?! (according to spec)
-                        BNF.Literal(']')
-                    ],
-                    debug_name="operations optional block id group"),
-                BNF.OptionalGroup([
-                    BNF.Literal('('),
-                    BNF.ListOf(BNF.Nonterminal('region'),
-                               bind='regions',
-                               debug_name="regions",
-                               allow_empty=False),
-                    BNF.Literal(')')
-                ],
-                    debug_name="operation regions"),
-                BNF.Nonterminal('optional-attr-dict',
-                                bind='attributes',
-                                debug_name="attrbiute dictionary"),
-                BNF.Literal(':'),
-                BNF.Nonterminal('function-type', bind='type_signature')
-            ],
-            debug_name="generic operation body")
         attr_dict_mlir = BNF.Group([
             BNF.Literal('{'),
             BNF.ListOf(BNF.Nonterminal('attribute-entry',
