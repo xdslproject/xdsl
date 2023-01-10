@@ -53,6 +53,7 @@ def analyze_locality(program: bytes):
 
 
 def benched_execution(configs: list[tuple[int, float, str]],
+                      repetitions: int = 1,
                       keep_module_refs: bool = True):
 
     @bench
@@ -72,40 +73,47 @@ def benched_execution(configs: list[tuple[int, float, str]],
             'opsize;nesting;pass;time;memory;localityMax;localityMean;localityMedian;localityStdev;len\n'
         )
     for op_size, nesting_ratio, pass_ in configs:
-        global glb_opsize, glb_nesting_ratio, glb_pass_name, glb_statistics
-        glb_opsize = op_size
-        glb_nesting_ratio = nesting_ratio
-        glb_pass_name = pass_
+        for _ in range(repetitions):
+            global glb_opsize, glb_nesting_ratio, glb_pass_name, glb_statistics
+            glb_opsize = op_size
+            glb_nesting_ratio = nesting_ratio
+            glb_pass_name = pass_
 
-        generated_program = get_program('bool_nest', op_size, nesting_ratio)
-        glb_statistics = analyze_locality(generated_program)
-        mean_locality = float(glb_statistics.split(';')[1])
-        print(
-            f"ratio: {mean_locality/op_size} size:{op_size}, nesting:{nesting_ratio},  statistics: {glb_statistics}, pass: {pass_},"
-        )
-        # execute_rewriting(generated_program, pass_)
+            generated_program = get_program('bool_nest', op_size,
+                                            nesting_ratio)
+            glb_statistics = analyze_locality(generated_program)
+            mean_locality = float(glb_statistics.split(';')[1])
+            # print(
+            #     f"ratio: {mean_locality/op_size} size:{op_size}, nesting:{nesting_ratio},  statistics: {glb_statistics}, pass: {pass_},"
+            # )
+            execute_rewriting(generated_program, pass_)
 
 
 def main():
     all_configs = list(
         itertools.product(
-            [10, 30, 100, 300, 1000, 3000],  #, 30000, 100000, 300000],
+            [3000],
+            # [10, 30, 100, 300, 1000, 3000],  #, 30000, 100000, 300000],
             # [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1],
+            # [
+            #     0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1,
+            #     0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+            # ],
+            [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
             [
-                0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1,
-                0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
-            ],
-            ["bool-nest-clone", "bool-nest-composable"]))
-    example_config = list(
-        itertools.product(
-            [1000],  #, 30000, 100000, 300000], 
-            [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1],
-            ["bool-nest-composable"]))
+                "bool-nest-clone", "bool-nest-composable",
+                "bool-nest-no-backtracking"
+            ]))
+    # example_config = list(
+    #     itertools.product(
+    #         [30, 100, 300],  #, 30000, 100000, 300000],
+    #         [0.2],
+    #         ["bool-nest-composable"]))
 
     # rewriting locality should be near: 13
     # mirror_oec_config = list((100, 0.15), (300, 0.21), (1000), (3000))
 
-    benched_execution(all_configs)
+    benched_execution(all_configs, repetitions=15)
 
 
 if __name__ == "__main__":

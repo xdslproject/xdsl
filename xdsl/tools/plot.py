@@ -8,12 +8,14 @@ from IPython.display import display
 import plotly.express as px
 import itertools
 from plotly.subplots import make_subplots
+import math
 
 import dash
 from dash import Dash, dcc, html, Input, Output
 
+timings = pd.read_csv('bench_results_07.11.22.csv', sep=";")
 # Same as below but we have access to the len so we can compute a ratio
-timings = pd.read_csv('bench_results_03.11.22.csv', sep=";")
+# timings = pd.read_csv('bench_results_03.11.22.csv', sep=";")
 # This one has the ifs using each other as operands
 # timings = pd.read_csv('bench_results_02.11.22.csv', sep=";")
 # timings = pd.read_csv('bench_results_31.10.22.csv', sep=";")
@@ -45,6 +47,10 @@ sizes = timings["nesting"].unique()
 #[0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1]
 
 passes = timings["pass"].unique()
+
+# If we have repetitions of experiments with the same config use the median
+timings = timings.groupby(['opsize', 'nesting', 'pass']).median().reset_index()
+
 all_configs = list(itertools.product(sizes, passes))
 DEFAULT_PLOTLY_COLORS = [
     'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
@@ -53,9 +59,10 @@ DEFAULT_PLOTLY_COLORS = [
     'rgb(23, 190, 207)'
 ]
 
-composable_colors = ['#1f78b4', '#a6cee3']  # blue
-clone_colors = ['#33a02c', '#b2df8a']  # green
-no_backtracking_colors = ['#cacaca', '#e3e3e3']  # gray
+clone_colors = ['#1f78b4', '#a6cee3']  # blue
+composable_colors = ['#33a02c', '#b2df8a']  # green
+no_backtracking_colors = ['#636363', '#bdbdbd']  # gray
+marker_symbols = ["circle", "square"]
 rows = 3
 cols = 4
 
@@ -158,9 +165,9 @@ app.layout = html.Div([
 def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
              log_scale_x: bool, log_scale_y: bool):
     if xaxis_mode == "vary op_size":
-        title = f"nesting={nesting}"
+        title = ""#f"nesting={nesting}"
     else:
-        title = f"Program size: {opsize} operations"
+        title = ""#f"Program size: {opsize} operations"
     # title = ""
     fig = make_subplots(rows=1,
                         cols=1,
@@ -173,13 +180,13 @@ def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
         match pass_name:
             case "bool-nest-clone":
                 colors = clone_colors
-                graph_name = "cloning"
+                graph_name = "naive cloning"
             case "bool-nest-composable":
                 colors = composable_colors
-                graph_name = "composable"
+                graph_name = "immutable (ours)"
             case "bool-nest-no-backtracking":
                 colors = no_backtracking_colors
-                graph_name = "no backtracking support"
+                graph_name = "destructive"# rewriting"
 
         if xaxis_mode == "vary op_size":
             data = timings[(timings["nesting"] == nesting)
@@ -197,8 +204,10 @@ def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
         elif xaxis_mode == "vary op locality":
             data = timings[(timings["opsize"] == opsize)
                            & (timings["pass"] == pass_name)]
-            data.sort_values(by="localityMean", inplace=True)
-            x_data = data["localityMean"]
+            # data.sort_values(by="localityMean", inplace=True)
+            data = data.drop_duplicates(subset="localityMean")
+            x_data = data["localityMean"]# / data["len"]
+
 
             # Fixed rewriting localities I extracted from programs:
             # localityMax; localityMean; localityMedian; localityStdev; opcount
@@ -206,7 +215,15 @@ def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
             # Open Earth compiler stuff:
             # see /home/martin/development/phd/projects/papers/xdsl_elevate/evaluation/open_earth_compiler/open-earth-compiler/test/Examples/fvtp2d_generic.mlir
             # 34;14.901907356948229;15;6.701371824499192;367
-
+            fig.add_vline(x=14.901907356948229, line_width=1,
+                          line_color="red")  # bert attention layer locality
+            fig.add_annotation(x=math.log(14.901907356948229, 10), y=math.log(3.5, 10),
+                                text="Climate<br>stencil",
+                                showarrow=False,
+                                arrowhead=1,
+                                # yshift=10,
+                                xshift=-25,
+                                )
             # see /home/martin/development/phd/projects/papers/xdsl_elevate/evaluation/open_earth_compiler/open-earth-compiler/test/Examples/hadvuv5th_generic.mlir
             #46;12.99250936329588;12;7.544849614770229;267
 
@@ -222,25 +239,48 @@ def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
 
             xaxis_title = "Mean operation use dependencies"  #"Mean of how many other ops have to be touched when an op is rewritten (Operation locality?)"
 
-            fig.add_vline(x=12.673076923076923, line_width=1,
-                          line_color="red")  # bert attention layer locality
+            # fig.add_vline(x=12.673076923076923, line_width=1,
+            #               line_color="red")  # bert attention layer locality
+
+            # fig.add_vline(x=47.15243902439025, line_width=1,
+            #               line_color="red")  # bert small complete locality
+
+            # fig.add_vline(x=12.673076923076923, line_width=1,
+            #               line_color="red")  # bert attention layer locality
 
             fig.add_vline(x=47.15243902439025, line_width=1,
                           line_color="red")  # bert small complete locality
+            fig.add_annotation(x=math.log(47.15243902439025, 10), y=math.log(3.5, 10),
+                        text="BERT<br>small",
+                        showarrow=False,
+                        arrowhead=1,
+                        # yshift=10,
+                        xshift=-20,
+                        )
 
             #   annotation_text="bert attention layer op locality",
             #   annotation_position="top left")
+        else:
+            raise ValueError("Unknown xaxis mode")
 
         fig.add_trace(go.Scatter(x=x_data,
-                                 y=data["time"],
-                                 name=f"{graph_name} runtime (s)",
-                                 marker=dict(color=colors[0])),
+                                 y=data["time"]/data["len"]*data["opsize"],
+                                 name=f"{graph_name}",
+                                 marker=dict(color=colors[0]),
+                                 marker_symbol=marker_symbols[0],#marker_line_width=1
+                                #  legendgroup="Runtime",
+                                #  legendgrouptitle_text="Runtime",
+                                 showlegend=True),
                       secondary_y=False)
 
         fig.add_trace(go.Scatter(x=x_data,
-                                 y=data["memory"],
-                                 name=f"{graph_name} memory (MB)",
-                                 marker=dict(color=colors[1])),
+                                 y=data["memory"]/data["len"]*data["opsize"],
+                                 name=f"{graph_name}",
+                                 marker=dict(color=colors[1]),
+                                 marker_symbol=marker_symbols[1],#marker_line_width=0.5
+                                #  legendgroup="Memory",
+                                #  legendgrouptitle_text="Memory",
+                                 showlegend=True),
                       secondary_y=True)
 
         fig.update_layout(title='',
@@ -257,6 +297,29 @@ def get_plot(nesting: float, opsize: int, max_opsize: int, xaxis_mode: str,
         else:
             fig.update_yaxes(type="linear")
 
+        # fig.update_layout(legend=dict(
+        #     yanchor="top",
+        #     y=0.99,
+        #     xanchor="left",
+        #     x=0.01
+        # ))
+        fig.update_layout(legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            # itemwidth=30,
+            xanchor="right",
+            x=0.9,
+            font=dict(
+                # family="Courier",
+                size=16,
+                # color="black"
+            ),
+        ), legend_title_text='Runtime')
+        fig.update_layout(template="plotly_white")
+        fig.update_xaxes(title_font=dict(size=18))#, family='Courier', color='crimson'))
+        fig.update_yaxes(title_font=dict(size=18), title_standoff=0, secondary_y=False)#, family='Courier', color='crimson'))
+        fig.update_yaxes(title_font=dict(size=18), title_standoff=10, secondary_y=True)#, family='Courier', color='crimson'))
     return fig
 
 
@@ -272,12 +335,18 @@ xaxis_mode = "vary op_size"
 # "vary nesting"
 # "vary op locality"
 # "vary op_size"
-# get_plot(0.2, 3000, 3000, "vary op_size", True, True).write_image("fig1.pdf")
-# time.sleep(1)
-# get_plot(0.2, 3000, 3000, "vary op_size", True, True).write_image("fig1.pdf")
+get_plot(0.6, 1000, 1000, "vary op locality", True, True).write_image("fig1.pdf")
+time.sleep(1)
+get_plot(0.6, 1000, 1000, "vary op locality", True, True).write_image("rewriting_use_case_op_use_dep_scaling_log_log.pdf")
+get_plot(0.6, 1000, 1000, "vary op locality", False, False).write_image("rewriting_use_case_op_use_dep_scaling_lin_lin.pdf")
+get_plot(0.6, 3000, 3000, "vary op_size", True, True).write_image("rewriting_use_case_num_ops_scaling.pdf")
 
 
-@app.callback(Output("graph", "figure"), Input("nesting-slider", "value"),
+@app.callback(Output("graph", "figure"), 
+              Output("nesting-slider", "disabled"),
+              Output("opsizes-dropdown", "disabled"),
+              Output("max_opsizes-dropdown", "disabled"),
+              Input("nesting-slider", "value"),
               Input("opsizes-dropdown", "value"),
               Input("max_opsizes-dropdown", "value"),
               Input("xaxis-dropdown", "value"),
@@ -291,6 +360,10 @@ def update_figure(selected_nesting, selected_op_size, selected_max_opsize,
     global opsize
     global xaxis_mode
 
+    slider_disabled = False
+    fixed_opsize_disabled = False
+    max_op_size_disabled = False
+
     if selected_nesting is not None:
         nesting = sizes[selected_nesting]
     if selected_op_size is not None:
@@ -302,10 +375,26 @@ def update_figure(selected_nesting, selected_op_size, selected_max_opsize,
         log_scale_y = 'y in log scale' in log_scale
     if selected_xaxis_mode is not None:
         xaxis_mode = selected_xaxis_mode
+        match xaxis_mode:
+            case "vary nesting":
+                slider_disabled = True
+                fixed_opsize_disabled = False
+                max_op_size_disabled = True
+            case "vary op locality":
+                slider_disabled = True
+                fixed_opsize_disabled = False
+                max_op_size_disabled = True
+            case "vary op_size":
+                slider_disabled = False
+                fixed_opsize_disabled = True
+                max_op_size_disabled = False
+            case _:
+                raise ValueError("Unknown xaxis mode")
+
 
     return get_plot(nesting, opsize, max_opsize, xaxis_mode, log_scale_x,
-                    log_scale_y)
+                    log_scale_y), slider_disabled, fixed_opsize_disabled, max_op_size_disabled
 
 
-app.run_server(host='0.0.0.0', debug=True,
+app.run_server(host='0.0.0.0', port=8060, debug=True,
                use_reloader=False)  # Turn off reloader if inside Jupyter

@@ -151,11 +151,21 @@ def constant_folding_fast(ctx: MLContext, module: ModuleOp) -> None:
         cleanup_walker.rewrite_module(module)
         cleanup_walker.rewrite_module(module)
         pass
+
+
+def bool_nest_no_backtracking(ctx: MLContext, module: ModuleOp) -> None:
+    fold_and_once = RewriteOnceWalker(ConstantFoldAndIRewriter())
+    inline_if_once = RewriteOnceWalker(InlineIfRewriter())
+
+    while fold_and_once.rewrite_module(module):
+        pass
+    while inline_if_once.rewrite_module(module):
+        pass
+
+
 def bool_nest_cloning(ctx: MLContext, module: ModuleOp, keep_in_memory: bool) -> None:
-    fold_and_rewriter = ConstantFoldAndIRewriter()
-    fold_and_once = RewriteOnceWalker(fold_and_rewriter)
-    inline_if_rewriter = InlineIfRewriter()
-    inline_if_once = RewriteOnceWalker(inline_if_rewriter)
+    fold_and_once = RewriteOnceWalker(ConstantFoldAndIRewriter())
+    inline_if_once = RewriteOnceWalker(InlineIfRewriter())
     cleanup_walker = PatternRewriteWalker(RemoveUnusedRewriter())
 
     module_copy = module.clone()
@@ -321,6 +331,7 @@ class OptMain(xDSLOptMain):
     def register_all_passes(self):
         super().available_passes['constant-fold-clone'] = lambda ctx, module: constant_folding_clone(ctx, module, self.args.keep_copied_module)
         super().available_passes['bool-nest-clone'] = lambda ctx, module: bool_nest_cloning(ctx, module, self.args.keep_copied_module)
+        super().available_passes['bool-nest-no-backtracking'] = bool_nest_no_backtracking
         super().available_passes['constant-fold-fast'] = constant_folding_fast
         super().available_passes[
             'constant-fold-composable'] = constant_folding_composable
