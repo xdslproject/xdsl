@@ -30,8 +30,6 @@ jobs:
     - name: Upgrade pip
       run: |
         pip install --upgrade pip
-    - name: Install the package locally
-      run: pip install -e .
     - name: Install nbval
       run: |
         pip install nbval
