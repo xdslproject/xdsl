@@ -35,7 +35,7 @@ pip install xdsl
 
 ## Using xDSL
 
-The following tutorials will respectively present xDSL basic concepts, how to
+The following tutorials will present xDSL basic concepts, how to
 use its irdl dialect to define new dialects in a user-friendly way, and how to
 work with both xDSL and MLIR.
 
