@@ -623,6 +623,8 @@ class Operation(IRNode):
 class Block(IRNode):
     """A sequence of operations"""
 
+    delcared_at: 'Span' | None = None
+
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
                                              init=False)
     """The basic block arguments."""

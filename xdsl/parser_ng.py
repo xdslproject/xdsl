@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import functools
+import itertools
 import re
 import sys
 import traceback
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import TypeVar, Iterable
@@ -40,6 +43,21 @@ class ParseError(Exception):
     def print_with_history(self):
         if self.history is not None:
             self.history.print_unroll()
+
+
+class MultipleSpansParseError(ParseError):
+    ref_text: str | None
+    refs: list[tuple[Span, str]]
+    def __init__(self, span: Span, msg: str, ref_text: str, refs: list[tuple[Span, str | None]], history: BacktrackingHistory | None = None):
+        super(MultipleSpansParseError, self).__init__(span, msg, history)
+        self.refs = refs
+        self.ref_text = ref_text
+
+    def print_pretty(self, file=sys.stderr):
+        super(MultipleSpansParseError, self).print_pretty(file)
+        print(self.ref_text or "With respect to:", file=file)
+        for span, msg in self.refs:
+            print(span.print_with_context(msg), file=file)
 
 
 @dataclass
@@ -542,6 +560,10 @@ class BaseParser(ABC):
 
     ssaValues: dict[str, SSAValue]
     blocks: dict[str, Block]
+    forward_block_references: dict[str, list[Span]]
+    """
+    Blocks we encountered references to before the definition (must be empty after parsing of region completes)
+    """
 
     T_ = TypeVar('T_')
     """
@@ -559,6 +581,7 @@ class BaseParser(ABC):
         self.ctx = ctx
         self.ssaValues = dict()
         self.blocks = dict()
+        self.forward_block_references = set()
 
     def begin_parse(self):
         ops = []
@@ -568,12 +591,36 @@ class BaseParser(ABC):
             self.raise_error("Could not parse entire input!")
         return ops
 
+    def get_block_from_name(self, block_name: Span):
+        """
+        This function takes a span containing a block id (like `^42`) and returns a block.
+
+        If the block defintion was not seen yet, we create a forward declaration.
+        """
+        name = block_name.text
+        if name not in self.blocks:
+            self.forward_block_references[name].append(block_name)
+            self.blocks[name] = Block()
+        return self.blocks[name]
+
     def must_parse_block(self) -> Block:
         block_id, args = self.must_parse_optional_block_label()
 
-        block = Block()
-        if block_id is not None:
-            assert block_id.text not in self.blocks
+        if block_id is None:
+            block = Block(self.tokenizer.last_token)
+        elif self.forward_block_references.pop(block_id.text, None) is not None:
+            block = self.blocks[block_id.text]
+            block.delcared_at = block_id
+        else:
+            if block_id.text in self.blocks:
+                raise MultipleSpansParseError(
+                    block_id,
+                    "Re-declaration of block {}".format(block_id.text),
+                    'Originally declared here:',
+                    [(self.blocks[block_id.text].delcared_at, None)],
+                    self.tokenizer.history
+                )
+            block = Block(block_id)
             self.blocks[block_id.text] = block
 
         for i, (name, type) in enumerate(args):
@@ -592,8 +639,6 @@ class BaseParser(ABC):
         arg_list = list()
 
         if block_id is not None:
-            assert block_id.text not in self.blocks, "two blocks cannot have the same ID!"
-
             if self.tokenizer.starts_with('('):
                 arg_list = self.must_parse_block_arg_list()
 
@@ -1021,8 +1066,10 @@ class BaseParser(ABC):
 
     def must_parse_region(self) -> Region:
         oldSSAVals = self.ssaValues.copy()
-        oldBBNames = self.blocks.copy()
-        self.blocks = dict[str, Block]()
+        oldBBNames = self.blocks
+        oldForwardRefs = self.forward_block_references
+        self.blocks = dict()
+        self.forward_block_references = defaultdict(list)
 
         region = Region()
 
@@ -1036,13 +1083,23 @@ class BaseParser(ABC):
                 while self.tokenizer.starts_with('^'):
                     region.add_block(self.must_parse_block())
 
-            self.must_parse_characters('}',
+            end = self.must_parse_characters('}',
                                        'Reached end of region, expected `}`!')
+
+            if len(self.forward_block_references) > 0:
+                raise MultipleSpansParseError(
+                    end,
+                    "Region ends with missing block declarations for block(s) {}!".format(', '.join(self.forward_block_references.keys())),
+                    'The following block references are dangling:',
+                    [(span, "Reference to block \"{}\" without implementation!".format(span.text)) for span in itertools.chain(*self.forward_block_references.values())],
+                    self.tokenizer.history
+                )
 
             return region
         finally:
             self.ssaValues = oldSSAVals
             self.blocks = oldBBNames
+            self.forward_block_references = oldForwardRefs
 
     def try_parse_op_name(self) -> Span | None:
         if (str_lit := self.try_parse_string_literal()) is not None:
@@ -1299,7 +1356,7 @@ class BaseParser(ABC):
             operands=[self.ssaValues[span.text] for span in args],
             result_types=result_types,
             attributes=attributes,
-            successors=[self.blocks[span.text] for span in successors],
+            successors=[self.get_block_from_name(span) for span in successors],
             regions=regions)
 
     def parse_paramattr_parameters(
