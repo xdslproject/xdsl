@@ -12,23 +12,54 @@ from xdsl.printer import Printer
 
 
 @dataclass
+class FrontendProgramException(Exception):
+    """
+    Exception type used when something goes wrong with `FrontendProgram`.
+    """
+
+    msg: str
+
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = msg
+
+    def __str__(self) -> str:
+        return f"{self.msg}"
+
+
+@dataclass
 class FrontendProgram:
     """
     Class to store the Python AST of a program written in the frontend. This
-    program can be compiled and translated to xDSL/MLIR.
+    program can be compiled and translated to xDSL or MLIR.
     """
 
-    stmts: List[ast.stmt] = field(init=False)
+    stmts: List[ast.stmt] = field(default=None)
     """AST nodes stored for compilation to xDSL."""
 
-    globals: Dict[str, Any] = field(init=False)
+    globals: Dict[str, Any] = field(default=None)
     """Global information for this program, including all the imports."""
 
-    xdsl_program: ModuleOp = field(init=False)
+    xdsl_program: ModuleOp = field(default=None)
     """Generated xDSL program when AST is compiled."""
+
+    def _check_can_compile(self):
+        if self.stmts is None or self.globals is None:
+            msg = \
+"""
+
+Cannot compile program without the code context. Try to use:
+    p = FrontendProgram()
+    with CodeContext(p):
+        # Your code here."""
+            raise FrontendProgramException(msg)
 
     def compile(self, desymref=True) -> None:
         """Generates xDSL from the source program."""
+
+        # Both statements and globals msut be initialized from within the `CodeContext`.
+        self._check_can_compile()
+
         self.xdsl_program = CodeGeneration.run_with_type_converter(TypeConverter(self.globals), self.stmts)
         self.xdsl_program.verify()
 
@@ -41,7 +72,21 @@ class FrontendProgram:
         DesymrefyPass.run(self.xdsl_program)
         self.xdsl_program.verify()
 
+    def _check_can_print(self):
+        if self.xdsl_program is None:
+            msg = \
+"""
+
+Cannot print the program IR without compiling it first. Make sure to use:
+    p = FrontendProgram()
+    with CodeContext(p):
+        # Your code here.
+    p.compile()"""
+            raise FrontendProgramException(msg)  
+
     def _print(self, target) -> str:
+        self._check_can_print()
+
         file = StringIO("")
         printer = Printer(stream=file, target=target)
         printer.print_op(self.xdsl_program)
