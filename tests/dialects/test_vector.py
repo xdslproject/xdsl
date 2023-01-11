@@ -164,28 +164,36 @@ def test_vector_broadcast_verify_type_matching():
 
 def test_vector_fma():
     i32_vector_type = VectorType.from_type_and_list(i32, [])
-    vector_ssa_value = OpResult(i32_vector_type, [], [])
 
-    fma = FMA.get(vector_ssa_value, vector_ssa_value, vector_ssa_value)
+    lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    acc_vector_ssa_value = OpResult(i32_vector_type, [], [])
+
+    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
+                  acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
-    assert fma.lhs is vector_ssa_value
-    assert fma.rhs is vector_ssa_value
-    assert fma.acc is vector_ssa_value
+    assert fma.lhs is lhs_vector_ssa_value
+    assert fma.rhs is rhs_vector_ssa_value
+    assert fma.acc is acc_vector_ssa_value
 
 
 def test_vector_fma_with_dimensions():
     i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    vector_ssa_value = OpResult(i32_vector_type, [], [])
 
-    fma = FMA.get(vector_ssa_value, vector_ssa_value, vector_ssa_value)
+    lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    acc_vector_ssa_value = OpResult(i32_vector_type, [], [])
+
+    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
+                  acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
-    assert fma.lhs is vector_ssa_value
-    assert fma.rhs is vector_ssa_value
-    assert fma.acc is vector_ssa_value
+    assert fma.lhs is lhs_vector_ssa_value
+    assert fma.rhs is rhs_vector_ssa_value
+    assert fma.acc is acc_vector_ssa_value
 
 
 def test_vector_fma_verify_res_lhs_type_matching():
