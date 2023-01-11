@@ -84,18 +84,33 @@ class FMA(Operation):
     res: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        res_type = self.res.typ.element_type
+        res_element_type = self.res.typ.element_type
         res_shape = self.res.typ.get_shape()
 
-        if res_type != self.lhs.typ.element_type or res_type != self.rhs.typ.element_type or res_type != self.acc.typ.element_type:
+        if res_element_type != self.lhs.typ.element_type:
             raise VerifyException(
-                "Result vector type must match with all source vectors.")
+                "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+            )
+        elif res_element_type != self.rhs.typ.element_type:
+            raise VerifyException(
+                "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+            )
+        elif res_element_type != self.acc.typ.element_type:
+            raise VerifyException(
+                "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+            )
 
-        if res_shape != self.lhs.typ.get_shape(
-        ) or res_shape != self.rhs.typ.get_shape(
-        ) or res_shape != self.acc.typ.get_shape():
+        if res_shape != self.lhs.typ.get_shape():
             raise VerifyException(
-                "Result vector shape must match with all source vector shapes."
+                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+            )
+        elif res_shape != self.rhs.typ.get_shape():
+            raise VerifyException(
+                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+            )
+        elif res_shape != self.acc.typ.get_shape():
+            raise VerifyException(
+                "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
             )
 
     @staticmethod
@@ -118,11 +133,15 @@ class Maskedload(Operation):
     res: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        memref_type = self.memref.typ.element_type
+        memref_element_type = self.memref.typ.element_type
 
-        if memref_type != self.res.typ.element_type or memref_type != self.passthrough.typ.element_type:
+        if memref_element_type != self.res.typ.element_type:
             raise VerifyException(
-                "MemRef element type should match the result vector and passthrough vector element type."
+                "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+            )
+        elif memref_element_type != self.passthrough.typ.element_type:
+            raise VerifyException(
+                "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
             )
 
         if len(self.res.typ.get_shape()) != 1:

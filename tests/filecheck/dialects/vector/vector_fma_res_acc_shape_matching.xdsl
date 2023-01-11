@@ -2,13 +2,13 @@
 
 builtin.module() {
 
-func.func() ["sym_name" = "vector_fma_shape_matching", "function_type" = !fun<[!vector<[2 : !index], !index>, !vector<[3 : !index], !index>], []>, "sym_visibility" = "private"] {
+func.func() ["sym_name" = "vector_fma_res_acc_shape_matching", "function_type" = !fun<[!vector<[2 : !index], !index>, !vector<[3 : !index], !index>], []>, "sym_visibility" = "private"] {
   ^0(%0 : !vector<[2 : !index], !index>, %1 : !vector<[3 : !index], !index>):
     %2 : !vector<[2 : !index], !index> = vector.fma(%0 : !vector<[2 : !index], !index>, %0 : !vector<[2 : !index], !index>, %1 : !vector<[3 : !index], !index>)
 
     func.return()
   }
 
-// CHECK: Result vector shape must match with all source vector shapes.
+// CHECK: Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector.
 
 }

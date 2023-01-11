@@ -163,83 +163,134 @@ def test_vector_broadcast_verify_type_matching():
 
 
 def test_vector_fma():
-    i32_lhs_vector_type = VectorType.from_type_and_list(i32, [])
-    i32_rhs_vector_type = VectorType.from_type_and_list(i32, [])
-    i32_acc_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_vector_type = VectorType.from_type_and_list(i32, [])
+    vector_ssa_value = OpResult(i32_vector_type, [], [])
 
-    lhs_vector_ssa_value = OpResult(i32_lhs_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_rhs_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_acc_vector_type, [], [])
-
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
-                  acc_vector_ssa_value)
+    fma = FMA.get(vector_ssa_value, vector_ssa_value, vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
-    assert fma.lhs is lhs_vector_ssa_value
-    assert fma.rhs is rhs_vector_ssa_value
-    assert fma.acc is acc_vector_ssa_value
+    assert fma.lhs is vector_ssa_value
+    assert fma.rhs is vector_ssa_value
+    assert fma.acc is vector_ssa_value
 
 
 def test_vector_fma_with_dimensions():
-    i32_lhs_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    i32_rhs_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    i32_acc_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    vector_ssa_value = OpResult(i32_vector_type, [], [])
 
-    lhs_vector_ssa_value = OpResult(i32_lhs_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_rhs_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_acc_vector_type, [], [])
-
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
-                  acc_vector_ssa_value)
+    fma = FMA.get(vector_ssa_value, vector_ssa_value, vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
-    assert fma.lhs is lhs_vector_ssa_value
-    assert fma.rhs is rhs_vector_ssa_value
-    assert fma.acc is acc_vector_ssa_value
+    assert fma.lhs is vector_ssa_value
+    assert fma.rhs is vector_ssa_value
+    assert fma.acc is vector_ssa_value
 
 
-def test_vector_fma_verify_type_matching():
-    i32_lhs_vector_type = VectorType.from_type_and_list(i32, [])
-    i32_rhs_vector_type = VectorType.from_type_and_list(i32, [])
-    i32_acc_vector_type = VectorType.from_type_and_list(i32, [])
-    i64_res_vector_type = VectorType.from_type_and_list(i64, [])
+def test_vector_fma_verify_res_lhs_type_matching():
+    i32_vector_type = VectorType.from_type_and_list(i32, [])
+    i64_vector_type = VectorType.from_type_and_list(i64, [])
 
-    lhs_vector_ssa_value = OpResult(i32_lhs_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_rhs_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_acc_vector_type, [], [])
+    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
 
     fma = FMA.build(operands=[
-        lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value
+        i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value
     ],
-                    result_types=[i64_res_vector_type])
+                    result_types=[i64_vector_type])
 
     with raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
-        0] == "Result vector type must match with all source vectors."
+        0] == "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
 
 
-def test_vector_fma_verify_shape_matching():
-    i32_lhs_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    i32_rhs_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    i32_acc_vector_type = VectorType.from_type_and_list(i32, [2, 3])
-    i32_res_vector_type = VectorType.from_type_and_list(i32, [4, 5])
+def test_vector_fma_verify_res_rhs_type_matching():
+    i32_vector_type = VectorType.from_type_and_list(i32, [])
+    i64_vector_type = VectorType.from_type_and_list(i64, [])
 
-    lhs_vector_ssa_value = OpResult(i32_lhs_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_rhs_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_acc_vector_type, [], [])
+    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
 
     fma = FMA.build(operands=[
-        lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value
+        i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value
     ],
-                    result_types=[i32_res_vector_type])
+                    result_types=[i64_vector_type])
 
     with raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
-        0] == "Result vector shape must match with all source vector shapes."
+        0] == "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+
+
+def test_vector_fma_verify_res_acc_type_matching():
+    i32_vector_type = VectorType.from_type_and_list(i32, [])
+    i64_vector_type = VectorType.from_type_and_list(i64, [])
+
+    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
+
+    fma = FMA.build(operands=[
+        i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value
+    ],
+                    result_types=[i64_vector_type])
+
+    with raises(Exception) as exc_info:
+        fma.verify()
+    assert exc_info.value.args[
+        0] == "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+
+
+def test_vector_fma_verify_res_lhs_shape_matching():
+    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+
+    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
+    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+
+    fma = FMA.build(
+        operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
+        result_types=[i32_vector_type2])
+
+    with raises(Exception) as exc_info:
+        fma.verify()
+    assert exc_info.value.args[
+        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+
+
+def test_vector_fma_verify_res_rhs_shape_matching():
+    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+
+    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
+    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+
+    fma = FMA.build(
+        operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
+        result_types=[i32_vector_type2])
+
+    with raises(Exception) as exc_info:
+        fma.verify()
+    assert exc_info.value.args[
+        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+
+
+def test_vector_fma_verify_res_acc_shape_matching():
+    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+
+    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
+    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+
+    fma = FMA.build(
+        operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
+        result_types=[i32_vector_type2])
+
+    with raises(Exception) as exc_info:
+        fma.verify()
+    assert exc_info.value.args[
+        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
 
 
 def test_vector_masked_load():
@@ -285,7 +336,7 @@ def test_vector_masked_load_with_dimensions():
     assert maskedload.indices[1] is index2
 
 
-def test_vector_masked_load_verify_type_matching():
+def test_vector_masked_load_verify_memref_res_type_matching():
     i32_memref_type = MemRefType.from_type_and_list(i32)
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
@@ -307,7 +358,32 @@ def test_vector_masked_load_verify_type_matching():
     with raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[
-        0] == "MemRef element type should match the result vector and passthrough vector element type."
+        0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+
+
+def test_vector_masked_load_verify_memref_passthrough_type_matching():
+    i32_memref_type = MemRefType.from_type_and_list(i32)
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_passthrough_vector_type = VectorType.from_type_and_list(i64, [])
+    passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
+                                            [])
+
+    i64_res_vector_type = VectorType.from_type_and_list(i32, [])
+
+    maskedload = Maskedload.build(operands=[
+        memref_ssa_value, [], mask_vector_ssa_value,
+        passthrough_vector_ssa_value
+    ],
+                                  result_types=[i64_res_vector_type])
+
+    with raises(Exception) as exc_info:
+        maskedload.verify()
+    assert exc_info.value.args[
+        0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
 
 
 def test_vector_masked_load_verify_indexing_exception():
