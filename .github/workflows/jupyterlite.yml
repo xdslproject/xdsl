@@ -1,0 +1,92 @@
+name: Deploy JupiterLyte Page
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout xDSL
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: python -m pip install jupyterlite[all] libarchive-c jupyter_server jupyterlab_server build pkginfo pyodide-build
+
+      - name: Setup EmSDK
+        # Doing this in a hacky script because the custom Action is requiring an explicit EmSDK version
+        # Pyodide is requiring a specific version too and it is changing regularly. This install the actual
+        # version required by the latest pyodide.
+
+        # Double initialization of PYODIDE_EMSCRIPTEN_VERSION: see https://github.com/pyodide/pyodide/issues/3430
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          PYODIDE_EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version)
+          PYODIDE_EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version)
+          ./emsdk install ${PYODIDE_EMSCRIPTEN_VERSION}
+          ./emsdk activate ${PYODIDE_EMSCRIPTEN_VERSION}
+
+      - name: Build WASM wheels for frozenlist, coverage, and xDSL
+        run: |
+          mkdir pypi
+          source emsdk/emsdk_env.sh
+          for i in frozenlist coverage
+          do
+
+          python -m pip download --no-binary :all: "$(grep $i requirements.txt)"
+          tar -xf $i-*.tar.gz
+          rm $i_*.tar.gz
+          cd $i-*
+          pyodide build
+          cd ..
+          cp $(find -path "./$i-*/dist/$i-*_wasm32.whl") pypi
+
+          done
+
+          pyodide build
+          cp $(find -path "./dist/xdsl-*.whl") pypi
+
+      - name: Build the JupyterLite site
+        run: |
+          mkdir content
+          cp README.md content
+          cp docs content -r
+          for f in $(find -path ./content/*.ipynb)
+          do
+          
+          echo appending to $f
+          sed -i 's/# xDSL should be available in the environment\./# xDSL should be available in the environment.\\n%pip install xdsl/g' $f
+          
+          done
+          
+          python -m jupyter lite build --contents content --output-dir jupyterlite
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./jupyterlite
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
+

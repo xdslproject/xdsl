@@ -3,6 +3,7 @@ from __future__ import annotations
 from io import StringIO
 from typing import List, Annotated
 
+from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
 
@@ -672,3 +673,23 @@ def test_foo_string():
         assert False
     except:
         pass
+
+
+def test_dictionary_attr():
+    """Test that a DictionaryAttr can be parsed and then printed."""
+
+    prog = """
+    func.func() ["sym_name" = "test", "function_type" = !i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : !i64}]
+    """
+
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(parsed)
+    assert file.getvalue().strip() == prog.strip()
