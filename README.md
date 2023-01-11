@@ -5,6 +5,17 @@
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
 [![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
 
+- [xDSL: A Python-native SSA Compiler Framework](#xdsl-a-python-native-ssa-compiler-framework)
+  - [About xDSL](#about-xdsl)
+  - [Installation](#installation)
+  - [Using xDSL](#using-xdsl)
+  - [xDSL Developer Setup](#xdsl-developer-setup)
+    - [Developer Installation](#developer-installation)
+    - [Testing](#testing)
+    - [Formatting](#formatting)
+
+## About xDSL
+
 [xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around
 SSA-based intermediate representations (IRs). Users of xDSL build a compiler by
 assembling predefined domain-specific IRs and, optionally, defining their own custom IRs. xDSL uses multi-level IRs, meaning
@@ -26,7 +37,8 @@ optimization capabilities.
 
 ## Installation
 
-To use xDSL for developing your own compiler, just install xDSL via pip:
+To use xDSL as part of a larger project for developing your own compiler,
+just install [xDSL via pip](https://pypi.org/project/xdsl/):
 
 ```bash
 pip install xdsl
@@ -34,6 +46,8 @@ pip install xdsl
 
 ## Using xDSL
 
+To use xDSL we recommend following the [xDSL Developer Setup](#xdsl-developer-setup)
+to clone the repository including the notebooks.
 The following tutorials will present xDSL basic concepts, how to
 use its irdl dialect to define new dialects in a user-friendly way, and how to
 work with both xDSL and MLIR.
@@ -46,16 +60,16 @@ work with both xDSL and MLIR.
 
 To contribute to the development of xDSL follow the subsequent steps.
 
-
-#### Developer Installation
+### Developer Installation
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 pip install -e .
-pip install -e .[extras]
+# Optional installation of extra requirements
+# pip install -e .[extras]
 ```
 
-#### Testing
+### Testing
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -68,7 +82,7 @@ pytest
 lit tests/filecheck
 ```
 
-#### Formatting
+### Formatting
 
 All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
 format the code in a uniform manner.
