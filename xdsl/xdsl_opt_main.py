@@ -73,7 +73,6 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-
         if self.args.generate_coverage:
             if self.args.exec_root:
                 os.chdir(self.args.exec_root)
