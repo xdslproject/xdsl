@@ -1,10 +1,11 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
 class Location:
     'Structure definition a location in a file.'
-    file: str
+    file: Path
     line: int
     col: int
 
