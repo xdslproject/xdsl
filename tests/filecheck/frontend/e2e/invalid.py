@@ -43,3 +43,15 @@ with CodeContext(p):
         return
 
 assert_excepton(p)
+
+
+with CodeContext(p):
+
+    def foo():
+        return
+
+    # CHECK: Function 'foo' is already defined in the program.
+    def foo():
+        return
+
+assert_excepton(p)

@@ -10,7 +10,7 @@ from unicodedata import name
 from xdsl.dialects.builtin import TensorType, UnrankedTensorType
 from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.codegen.type_conversion import TypeConverter
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Block
 
 
 @dataclass
@@ -75,6 +75,9 @@ class FunctionInfo:
 
     template_info: TemplateInfo = field(default=TemplateInfo.NONE)
     """Stores information whether this function is a template, template instantiation, etc."""
+
+    blocks: Dict[str, Block] = field(default_factory=dict)
+    """All basic blocks inside the function and their labels."""
 
     def is_template(self) -> bool:
         return self.template_info == TemplateInfo.TEMPLATE
@@ -268,12 +271,28 @@ class FunctionVisitor(ast.NodeVisitor):
         if xdsl_type is not None:
             function_info.ret_info.append(RetInfo(0, xdsl_type))
 
-    def _check_function_body(self, node: ast.FunctionDef):
+    def _check_function_body(self, function_info: FunctionInfo):
+        node = function_info.ast_node
         for stmt in node.body:
             if isinstance(stmt, ast.FunctionDef):
                 # This is a basic block, so its ok to have it. We still have to check all the code inside the basic block though.
                 if len(stmt.decorator_list) == 1 and isinstance(stmt.decorator_list[0], ast.Name) and stmt.decorator_list[0].id == "block":
-                    self._check_function_body(stmt)
+                    # Check block is well-formed.
+                    if stmt.returns is not None:
+                        raise CodegenException(stmt.lineno, stmt.col_offset, f"Block '{stmt.name}' in function '{node.name}' cannot return anything.")
+                    
+                    for inner_stmt in stmt.body:
+                        if isinstance(inner_stmt, ast.FunctionDef):
+                            if len(inner_stmt.decorator_list) == 1 and isinstance(inner_stmt.decorator_list[0], ast.Name) and inner_stmt.decorator_list[0].id == "block":
+                                raise CodegenException(stmt.lineno, stmt.col_offset, f"Found a nested block '{inner_stmt.name}' inside another block '{stmt.name}', nested blocks are not allowed.")
+                            else:
+                                raise CodegenException(stmt.lineno, stmt.col_offset, f"Found an inner function '{inner_stmt.name}' inside the block '{stmt.name}', having functions are not allowed inside blocks.")
+
+                    # This block looks alright, let's add it then.
+                    if stmt.name in function_info.blocks:
+                        raise CodegenException(stmt.lineno, stmt.col_offset, f"Block with label '{stmt.name}' already exists.")
+
+                    function_info.blocks[stmt.name] = Block.from_arg_types([self.converter.convert_type_hint(arg.annotation) for arg in stmt.args.args])
                     continue
 
                 # Otherwise, we have an inner function, so let's simply not allow it.
@@ -284,13 +303,16 @@ class FunctionVisitor(ast.NodeVisitor):
         super().visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        if node.name in self.analysis:
+            raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' is already defined in the program.")
+
         function_info = FunctionInfo(node)
         self._check_function_signature(node)
         self._check_arguments_annotated(node)
 
         # In Python, you can have arbitrarily nested inner functions, which complicate scoping rules and all
         # other analysis. Let's not support them for now.
-        self._check_function_body(node)
+        self._check_function_body(function_info)
 
         # Function can also be a template. Find which arguments are templated. 
         template_argument_names: Set[str] = set()

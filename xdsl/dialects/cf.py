@@ -26,7 +26,7 @@ class Branch(Operation):
 
     @staticmethod
     def get(block: Block, *ops: Union[Operation, SSAValue]) -> Branch:
-        return Branch.build(operands=[[op for op in ops]], successors=[block])
+        return Branch.build(operands=[op for op in ops], successors=[block])
 
 
 @irdl_op_definition

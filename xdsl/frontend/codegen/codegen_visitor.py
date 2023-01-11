@@ -6,7 +6,7 @@ from xdsl.frontend.codegen.functions import FunctionInfo, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor
-from xdsl.frontend.codegen.exception import CodegenInternalException
+from xdsl.frontend.codegen.exception import CodegenException, CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
@@ -56,11 +56,10 @@ class CodegenVisitor(ast.NodeVisitor):
 
     ret_idx: int = field(init=False)
     codegen_template: bool = field(init=False)
-    curr_func: str = field(init=False)
 
     function_infos: Dict[str, FunctionInfo]
 
-    def __init__(self, hint_converter: Dict[str, Any], function_infos: Dict[str, FunctionInfo]):
+    def __init__(self, hint_converter: TypeConverter, function_infos: Dict[str, FunctionInfo]):
         inserter = OpInserter()
         
         self.globals = hint_converter.globals
@@ -71,7 +70,6 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter = inserter
         self.function_infos = function_infos
         self.ret_idx = None
-        self.curr_func = None
         self.codegen_template = False
     
     def _maybe_cast(self, dst_type: Attribute, value: SSAValue) -> SSAValue:
@@ -432,7 +430,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
         # Collect the operand list and the type information.
         # TODO: here we allow operands to be python types, which seems not that great. maybe
-        # we should fix this later (al because of strings!)
+        # we should fix this later (all because of strings!)
         operand_types: List[Attribute] = []
         operands: List[SSAValue] = []
         for i in range(num_args):
@@ -442,6 +440,31 @@ class CodegenVisitor(ast.NodeVisitor):
                 operand_types.append(type(operand))
             else:
                 operand_types.append(operand.typ)
+
+        # Easy check: call is actually a start of a new block.
+        if isinstance(node.func, ast.Name):
+            parent_op = self.inserter.ip.parent_op()
+            assert isinstance(parent_op, func.FuncOp)
+
+            function_name = parent_op.attributes["sym_name"].data
+            if node.func.id in self.function_infos[function_name].blocks:
+
+                # This is indeed a block.
+                block = self.function_infos[function_name].blocks[node.func.id]
+                block_arg_types = [arg.typ for arg in block._args]
+
+                if num_args != len(block_arg_types):
+                    argument_str = "argument" if len(block_arg_types) == 1 else "arguments"
+                    raise CodegenException(node.lineno, node.col_offset, f"Block '{node.func.id}' expected {len(block_arg_types)} {argument_str}, but got {num_args}.")
+
+                for i in range(num_args):
+                    actual_type = operand_types[i]
+                    expected_type = block_arg_types[i]
+                    if actual_type != expected_type:
+                        raise CodegenException(node.lineno, node.col_offset, "Wrong block argument for block '%s' at position %i, expected {}, got {}." % (node.func.id, i), [expected_type, actual_type])
+
+                self.inserter.insert_op(cf.Branch.get(block, operands))
+                return      
 
         # Call can be made to a user-defined function, process this case first.
         # TODO: drop function table since we have self.functions now.
@@ -478,6 +501,8 @@ class CodegenVisitor(ast.NodeVisitor):
         # Otherwise, get the module and the function names.
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
+            if func_name not in self.globals:
+                raise CodegenException(node.lineno, node.col_offset, f"Unresolved symbol function or block called '{func_name}'.")
             module_name = self.globals[func_name].__module__
         elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
             func_name = node.func.attr
@@ -664,13 +689,20 @@ class CodegenVisitor(ast.NodeVisitor):
         def foo():
             ...
         """
+        # This can be a basic block.
+        if len(node.decorator_list) == 1 and isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == "block":
+            # Lookup its parent function
+            parent_op = self.inserter.ip.parent_op()
+            assert isinstance(parent_op, func.FuncOp)
+
+            block = self.function_infos[parent_op.attributes["sym_name"].data].blocks[node.name]
+            self.inserter.ip.parent_region().add_block(block)
+            self.inserter.set_insertion_point_from_block(block)
+            return
 
         # Code for templates is not generated, only for their instantiations.
         if self.function_infos[node.name].is_template():
             return
-
-        # TODO: this can be nicer!
-        self.curr_func = node.name
 
         # Type inference!
         self.symbol_table = TypeInference(self.globals, self.function_infos).run_on_function(node)
@@ -728,7 +760,6 @@ class CodegenVisitor(ast.NodeVisitor):
         # Move on with code generation for the next operation and record
         # the function to allow calls to it.
         self.inserter.set_insertion_point_from_op(func_op.parent_op())
-        self.curr_func = None
 
     def visit_If(self, node: ast.If):
         # Get the condition.
