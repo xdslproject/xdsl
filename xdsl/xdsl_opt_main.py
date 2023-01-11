@@ -33,18 +33,18 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]] = {}
+    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
     """
 
-    available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]] = {}
+    available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]]
     """
     A mapping from pass names to functions that apply the pass to a  ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]] = {}
+    available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
     stream.
@@ -56,6 +56,10 @@ class xDSLOptMain:
     def __init__(self,
                  description: str = 'xDSL modular optimizer driver',
                  args=None):
+        self.available_frontends = {}
+        self.available_passes = {}
+        self.available_targets = {}
+
         self.ctx = MLContext()
         self.register_all_dialects()
         self.register_all_frontends()
