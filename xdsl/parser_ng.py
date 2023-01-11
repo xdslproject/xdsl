@@ -581,7 +581,7 @@ class BaseParser(ABC):
         self.ctx = ctx
         self.ssaValues = dict()
         self.blocks = dict()
-        self.forward_block_references = set()
+        self.forward_block_references = dict()
 
     def begin_parse(self):
         ops = []
@@ -1325,59 +1325,6 @@ class BaseParser(ABC):
             regions.append(self.must_parse_region())
         return regions
 
-    # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
-    # since we don't want to rewrite all dialects currently, the new emulator needs to expose the same
-    # interface to the dialect definitions. Here we implement that interface.
-
-    _OperationType = TypeVar('_OperationType', bound=Operation)
-
-    def parse_op_with_default_format(
-            self,
-            op_type: type[_OperationType],
-            result_types: list[Attribute],
-            skip_white_space: bool = True) -> _OperationType:
-        """
-        Compatibility wrapper so the new parser can be passed instead of the old one. Parses everything after the
-        operation name.
-
-        This implicitly assumes XDSL format, and will fail on MLIR style operations
-        """
-        # TODO: remove this function and restructure custom op / irdl parsing
-        assert isinstance(self, XDSLParser)
-        args, successors, attributes, regions, _ = self.must_parse_operation_details()
-
-        for x in args:
-            if x.text not in self.ssaValues:
-                self.raise_error(
-                    "Unknown SSAValue name, known SSA Values are: {}".format(
-                        ", ".join(self.ssaValues.keys())), x)
-
-        return op_type.create(
-            operands=[self.ssaValues[span.text] for span in args],
-            result_types=result_types,
-            attributes=attributes,
-            successors=[self.get_block_from_name(span) for span in successors],
-            regions=regions)
-
-    def parse_paramattr_parameters(
-            self,
-            expect_brackets: bool = False,
-            skip_white_space: bool = True) -> list[Attribute]:
-        if self.tokenizer.next_token_of_pattern(
-                '<') is None and expect_brackets:
-            self.raise_error("Expected start attribute parameters here (`<`)!")
-
-        res = self.must_parse_list_of(self.try_parse_attribute,
-                                      'Expected another attribute here!')
-
-        if self.tokenizer.next_token_of_pattern(
-                '>') is None and expect_brackets:
-            self.raise_error(
-                "Malformed parameter list, expected either another parameter or `>`!"
-            )
-
-        return res
-
     # COMMON xDSL/MLIR code:
     def must_parse_builtin_type_with_name(self, name: Span):
         if name.text == 'index':
@@ -1436,6 +1383,67 @@ class BaseParser(ABC):
         # TODO: check if type is correct here!
         return [name for name, _ in args]
 
+    # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
+    # since we don't want to rewrite all dialects currently, the new emulator needs to expose the same
+    # interface to the dialect definitions. Here we implement that interface.
+
+    _OperationType = TypeVar('_OperationType', bound=Operation)
+
+    def parse_op_with_default_format(
+            self,
+            op_type: type[_OperationType],
+            result_types: list[Attribute],
+            skip_white_space: bool = True) -> _OperationType:
+        """
+        Compatibility wrapper so the new parser can be passed instead of the old one. Parses everything after the
+        operation name.
+
+        This implicitly assumes XDSL format, and will fail on MLIR style operations
+        """
+        # TODO: remove this function and restructure custom op / irdl parsing
+        assert isinstance(self, XDSLParser)
+        args, successors, attributes, regions, _ = self.must_parse_operation_details()
+
+        for x in args:
+            if x.text not in self.ssaValues:
+                self.raise_error(
+                    "Unknown SSAValue name, known SSA Values are: {}".format(
+                        ", ".join(self.ssaValues.keys())), x)
+
+        return op_type.create(
+            operands=[self.ssaValues[span.text] for span in args],
+            result_types=result_types,
+            attributes=attributes,
+            successors=[self.get_block_from_name(span) for span in successors],
+            regions=regions)
+
+    def parse_paramattr_parameters(
+            self,
+            expect_brackets: bool = False,
+            skip_white_space: bool = True) -> list[Attribute]:
+        if self.tokenizer.next_token_of_pattern(
+                '<') is None and expect_brackets:
+            self.raise_error("Expected start attribute parameters here (`<`)!")
+
+        res = self.must_parse_list_of(self.try_parse_attribute,
+                                      'Expected another attribute here!')
+
+        if self.tokenizer.next_token_of_pattern(
+                '>') is None and expect_brackets:
+            self.raise_error(
+                "Malformed parameter list, expected either another parameter or `>`!"
+            )
+
+        return res
+
+    def parse_char(self, text: str) -> Span:
+        self.must_parse_characters(text, "Expected {} here!".format(text))
+
+    def parse_str_literal(self) -> str:
+        return self.expect(self.try_parse_string_literal, 'Malformed string literal!').string_contents
+
+    def parse_attribute(self) -> Attribute:
+        return self.must_parse_attribute()
 
 class MLIRParser(BaseParser):
 
