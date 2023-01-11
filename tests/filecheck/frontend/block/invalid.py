@@ -5,20 +5,17 @@ from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.frontend import block
 from tests.filecheck.frontend.utils import assert_excepton
 
-
 p = FrontendProgram()
-
-
 with CodeContext(p):
     
     # CHECK: Found a block 'bad_block' which does not belong to any function. All blocks have to be inside functions.
     @block
     def bad_block():
         x = 3
-
+        
 assert_excepton(p)
 
-
+p = FrontendProgram()
 with CodeContext(p):
     
     # CHECK: Block 'bb0' in function 'foo' cannot return anything.
@@ -29,12 +26,12 @@ with CodeContext(p):
 
 assert_excepton(p)
 
-
+p = FrontendProgram()
 with CodeContext(p):
     
     def foo():
         # CHECK: Unresolved symbol function or block called 'bb0'.
-        bb0()
+        bb0() # type: ignore
 
         @block
         def bb1():
@@ -42,6 +39,7 @@ with CodeContext(p):
 
 assert_excepton(p)
 
+p = FrontendProgram()
 with CodeContext(p):
     
     def foo():

@@ -7,30 +7,34 @@ from xdsl.frontend.dialects.frontend import block
 p = FrontendProgram()
 with CodeContext(p):
 
-    def foo1(y: int):
-        bb1(y)
+    #      CHECK: func.func() ["sym_name" = "blocks"
+    # CHECK-NEXT: ^0(%{{.*}} : !i64, %{{.*}} : !i64, %{{.*}} : !i64):
+
+    #      CHECK:   cf.br(%{{.*}} : !i64) (^1)
+    # CHECK-NEXT: ^1(%{{.*}} : !i64):
+
+    #      CHECK:   cf.br(%{{.*}} : !i64, %{{.*}} : !i64) (^2)
+    # CHECK-NEXT: ^2(%{{.*}} : !i64, %{{.*}} : !i64):
+
+    #      CHECK:   cf.br() (^3)
+    # CHECK-NEXT: ^3:
+    # CHECK-NEXT:   func.return()
+    def blocks(a: int, b: int, c: int):
+        bb1(a)
 
         @block
         def bb1(x: int):
-            return
-
-    def foo2(x: int):
-        return
-
-    
-    def foo(x: int):
-        y: int = 2
-        bb1(y)
+            t1: int = x + b
+            t2: int = x + c
+            bb2(t1, t2)
 
         @block
-        def bb1(x: int):
-            return
-
-    def bar(a: int):
-        bb0(a, a)
+        def bb2(x: int, y: int):
+            t3: int = x + y
+            bb3()
 
         @block
-        def bb0(x: int, y: int):
+        def bb3():
             return
 
     # def llvm_loop():
@@ -56,7 +60,3 @@ with CodeContext(p):
 
 p.compile(desymref=False)
 print(p.xdsl())
-
-# MLIR_OPT_PATH = "../llvm-project/build/bin/mlir-opt"
-# mlir_output = p.mlir_roundtrip(MLIR_OPT_PATH, mlir_opt_args=["--verify-each"])
-# print(mlir_output)

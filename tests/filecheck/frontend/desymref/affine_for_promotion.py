@@ -14,8 +14,8 @@ with CodeContext(p):
     # CHECK-NEXT: }
     # CHECK-NEXT: func.return(%2 : !i64)
     def sum() -> int:
-        s = 0
-        inc = 1
+        s: int = 0
+        inc: int = 1
         for i in range(100):
             s = s + inc
         return s
@@ -31,10 +31,10 @@ with CodeContext(p):
     # CHECK-NEXT: }
     # CHECK-NEXT: func.return(%11 : !i64)
     def multiple() -> int:
-        a = 0
-        b = 1
-        c = 2
-        d = 4
+        a: int = 0
+        b: int = 1
+        c: int = 2
+        d: int = 4
         for i in range(100):
             a = 1000000
             a = b

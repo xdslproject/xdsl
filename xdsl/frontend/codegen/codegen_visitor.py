@@ -4,12 +4,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple
 from xdsl.frontend.codegen.functions import FunctionInfo, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.resolver import OpResolver
-from xdsl.frontend.codegen.type_inference import TypeInference
 from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor
 from xdsl.frontend.codegen.exception import CodegenException, CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Operation, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
 @dataclass
@@ -46,9 +45,7 @@ class CodegenVisitor(ast.NodeVisitor):
 
     induction_variables: Dict[str, SSAValue] = field(init=False)
 
-    # TODO: fix symbol table to allow cross-module scoping.
     symbol_table: Dict[str, Attribute] = field(init=False)
-    symbol_idx: Dict[str, int] = field(init=False)
     """Symbol table used to query types for symref symbols per function."""
 
     inserter: OpInserter = field(init=False)
@@ -65,8 +62,6 @@ class CodegenVisitor(ast.NodeVisitor):
         self.globals = hint_converter.globals
         self.induction_variables = dict()
         self.hint_converter = hint_converter
-        self.symbol_table = dict()
-        self.symbol_idx = dict()
         self.inserter = inserter
         self.function_infos = function_infos
         self.ret_idx = None
@@ -142,29 +137,13 @@ class CodegenVisitor(ast.NodeVisitor):
 
         a: i32 = 3
         """
-        # Make sure the symbol table knows the type information. For now we only allow
-        # referring to the symbols within the function, but in future that should change!
-        # TODO: fix symbol table.
-        # self.symbol_table[node.target.id] = lhs_ty
-
-        line, ty = self.symbol_table[node.target.id][0]
-        if node.lineno == line:
-            lhs_ty = ty
-        elif node.lineno > line:
-            self.symbol_table[node.target.id].pop(0)
-            line, ty = self.symbol_table[node.target.id][0]
-            assert line == node.lineno
-            self.symbol_idx[node.target.id] += 1
-            lhs_ty = ty
-        else:
-            raise Exception("something went wrong with inference!")
 
         # First, find the type of the LHS based on the type hint and create a new
         # symref declaration.
-        # lhs_ty = self.hint_converter.convert_hint(node.annotation)
+        type = self.hint_converter.convert_type_hint(node.annotation)
+        self.symbol_table[node.target.id] = type
 
-        symbol_name = "{}{}".format(node.target.id, self.symbol_idx[node.target.id])
-        declare_op = symref.Declare.get(symbol_name)
+        declare_op = symref.Declare.get(node.target.id)
         self.inserter.insert_op(declare_op)
 
         # Also, smake sure that we know what type the RHS expression should have.
@@ -181,11 +160,10 @@ class CodegenVisitor(ast.NodeVisitor):
         # is i32 instead of i64, so we must do the type cobersion.
     
         # TODO: check types and add implicit casts if necessary.
-        rhs = self._maybe_cast(lhs_ty, rhs)
+        rhs = self._maybe_cast(type, rhs)
 
-        update_op = symref.Update.get(symbol_name, rhs)
+        update_op = symref.Update.get(node.target.id, rhs)
         self.inserter.insert_op(update_op)
-        # self.state.inferred_type = None
 
     def visit_Assign(self, node: ast.Assign):
         """
@@ -198,35 +176,12 @@ class CodegenVisitor(ast.NodeVisitor):
         rhs = self.inserter.get_operand()
 
         if isinstance(node.targets[0], ast.Name):
-            # Check if this is an assignemnt.
-            #line, ty = self.symbol_table[node.targets[0].id][0]
-            if node.lineno == self.symbol_table[node.targets[0].id][0][0]:
-                ty = self.symbol_table[node.targets[0].id][0][1]
-                symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
-                declare_op = symref.Declare.get(symbol_name)
-                self.inserter.insert_op(declare_op)
-                lhs_ty = ty
-
-            elif len(self.symbol_table[node.targets[0].id]) > 1 and node.lineno == self.symbol_table[node.targets[0].id][1][0]:
-                # This means this is an assignemt!
-                self.symbol_table[node.targets[0].id].pop(0)
-                ty = self.symbol_table[node.targets[0].id][0][1]
-                self.symbol_idx[node.targets[0].id] += 1
-
-                symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
-                declare_op = symref.Declare.get(symbol_name)
-                self.inserter.insert_op(declare_op)
-                lhs_ty = ty
-
-            else:
-                lhs_ty = self.symbol_table[node.targets[0].id][0][1]
-            # self.state.inferred_type = lhs_ty
+            lhs_ty = self.symbol_table[node.targets[0].id]
 
             # TODO: check types and add implicit casts if necessary.
             rhs = self._maybe_cast(lhs_ty, rhs)
 
-            symbol_name = "{}{}".format(node.targets[0].id, self.symbol_idx[node.targets[0].id])
-            update_op = symref.Update.get(symbol_name, rhs)
+            update_op = symref.Update.get(node.targets[0].id, rhs)
             self.inserter.insert_op(update_op)
             return
         
@@ -258,7 +213,7 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(op)
 
             new_tensor = self.inserter.get_operand()
-            update_op = symref.Update.get("{}{}".format(node.id, self.symbol_idx[node.id]), new_tensor)
+            update_op = symref.Update.get(node.id, new_tensor)
             self.inserter.insert_op(update_op)
 
     def visit_comprehension(self, node: ast.comprehension):
@@ -444,27 +399,26 @@ class CodegenVisitor(ast.NodeVisitor):
         # Easy check: call is actually a start of a new block.
         if isinstance(node.func, ast.Name):
             parent_op = self.inserter.ip.parent_op()
-            assert isinstance(parent_op, func.FuncOp)
+            if isinstance(parent_op, func.FuncOp):
+                function_name = parent_op.attributes["sym_name"].data
+                if node.func.id in self.function_infos[function_name].blocks:
 
-            function_name = parent_op.attributes["sym_name"].data
-            if node.func.id in self.function_infos[function_name].blocks:
+                    # This is indeed a block.
+                    block = self.function_infos[function_name].blocks[node.func.id]
+                    block_arg_types = [arg.typ for arg in block._args]
 
-                # This is indeed a block.
-                block = self.function_infos[function_name].blocks[node.func.id]
-                block_arg_types = [arg.typ for arg in block._args]
+                    if num_args != len(block_arg_types):
+                        argument_str = "argument" if len(block_arg_types) == 1 else "arguments"
+                        raise CodegenException(node.lineno, node.col_offset, f"Block '{node.func.id}' expected {len(block_arg_types)} {argument_str}, but got {num_args}.")
 
-                if num_args != len(block_arg_types):
-                    argument_str = "argument" if len(block_arg_types) == 1 else "arguments"
-                    raise CodegenException(node.lineno, node.col_offset, f"Block '{node.func.id}' expected {len(block_arg_types)} {argument_str}, but got {num_args}.")
+                    for i in range(num_args):
+                        actual_type = operand_types[i]
+                        expected_type = block_arg_types[i]
+                        if actual_type != expected_type:
+                            raise CodegenException(node.lineno, node.col_offset, "Wrong block argument for block '%s' at position %i, expected {}, got {}." % (node.func.id, i), [expected_type, actual_type])
 
-                for i in range(num_args):
-                    actual_type = operand_types[i]
-                    expected_type = block_arg_types[i]
-                    if actual_type != expected_type:
-                        raise CodegenException(node.lineno, node.col_offset, "Wrong block argument for block '%s' at position %i, expected {}, got {}." % (node.func.id, i), [expected_type, actual_type])
-
-                self.inserter.insert_op(cf.Branch.get(block, operands))
-                return      
+                    self.inserter.insert_op(cf.Branch.get(block, operands))
+                    return      
 
         # Call can be made to a user-defined function, process this case first.
         # TODO: drop function table since we have self.functions now.
@@ -485,17 +439,6 @@ class CodegenVisitor(ast.NodeVisitor):
             outs = [return_info.xdsl_type for return_info in self.function_infos[node.func.id].ret_info]
             call_op = func.Call.get(node.func.id, operands, outs) 
             self.inserter.insert_op(call_op)
-
-            # Make sure we update side-effect arguments.
-            # TODO: for nowwe assume these are last:
-            # num_side_effects = len(self.side_effects[node.func.id])
-            # for i in range(num_side_effects - 1, -1, -1):
-            #     # TODO: assume all side-effect args are the last ones!
-            #     name = names.pop()
-            #     op = list(reversed(call_op.results))[i]
-            #     symbol_name = "{}{}".format(name, self.symbol_idx[name])
-            #     update_op = symref.Update.get(symbol_name, op)
-            #     self.inserter.insert_op(update_op)
             return
 
         # Otherwise, get the module and the function names.
@@ -698,17 +641,21 @@ class CodegenVisitor(ast.NodeVisitor):
             block = self.function_infos[parent_op.attributes["sym_name"].data].blocks[node.name]
             self.inserter.ip.parent_region().add_block(block)
             self.inserter.set_insertion_point_from_block(block)
+
+            for i, arg in enumerate(node.args.args):
+                block.add_op(symref.Declare.get(arg.arg))
+                self.symbol_table[arg.arg] = block._args[i].typ
+                block.add_op(symref.Update.get(arg.arg, block._args[i]))
+
+            for stmt in node.body:
+                self.visit(stmt)
             return
 
         # Code for templates is not generated, only for their instantiations.
         if self.function_infos[node.name].is_template():
             return
 
-        # Type inference!
-        self.symbol_table = TypeInference(self.globals, self.function_infos).run_on_function(node)
-        self.symbol_idx = dict()
-        for k, v in self.symbol_table.items():
-            self.symbol_idx[k] = 0
+        self.symbol_table = dict()
 
         # Then, convert type in the function signature.
         arg_types = [arg_info.xdsl_type for arg_info in self.function_infos[node.name].arg_info]
@@ -725,16 +672,12 @@ class CodegenVisitor(ast.NodeVisitor):
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
 
-        # Reset the symbol table.
-        # TODO: this doesn't handle global variables at the moment.
-        # self.symbol_table = dict()
-
         # All arguments are declared using symref.
         for i, arg in enumerate(node.args.args):
-            symbol_name = "{}{}".format(arg.arg, self.symbol_idx[arg.arg])
+            symbol_name = arg.arg
             arg = entry_block.insert_arg(arg_types[i], i)
             entry_block.add_op(symref.Declare.get(symbol_name))
-            # self.symbol_table[symbol_name] = arg_types[i]
+            self.symbol_table[symbol_name] = arg_types[i]
             entry_block.add_op(symref.Update.get(symbol_name, arg))
 
         # Parse function body.
@@ -827,21 +770,7 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.stack.append(self.induction_variables[node.id])
             return 
 
-        # TODO: make this look nicer, but name always uses the first!
-        
-        ty = self.symbol_table[node.id][0][1]
-        symbol_name = "{}{}".format(node.id, self.symbol_idx[node.id])
-    
-        # if self.ret_idx is not None:
-        #     # TODO: this is ugly, rework.
-        #     for i, arg_info in enumerate(self.function_infos[self.curr_func].arg_info):
-
-        #     for j, (i, xdsl_ty) in self.side_effects[self.curr_func]:
-        #         if i == self.ret_idx:
-        #             ty = xdsl_ty
-        #             symbol_name = "{}{}".format(node.id, 0)
-        #             break
-        fetch_op = symref.Fetch.get(symbol_name, ty)
+        fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
         self.inserter.insert_op(fetch_op)
 
     def visit_Tuple(self, node: ast.Tuple):
