@@ -26,4 +26,7 @@ builtin.module() {
     func.return()
   }
 
+  // CHECK: "one"=1 : !i64, "two"=2 : !i64, "three"="three"
+  func.func() [sym_name="abc", "function_type" = !fun<[], []>, value = {"one"=1, "two"=2, "three"="three"}] { }
+
 }

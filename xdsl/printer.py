@@ -14,7 +14,8 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType)
+    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -121,6 +122,17 @@ class Printer:
             if i:
                 self.print(delimiter)
             print_fn(elem)
+
+    def print_dictionary(self,
+                         elems: dict,
+                         print_fn: Callable[[T], None],
+                         delimiter: str = ", ") -> None:
+        for i, (key, value) in enumerate(elems.items()):
+            if i:
+                self.print(delimiter)
+            print_fn(key)
+            self.print("=")
+            print_fn(value)
 
     def _print_new_line(self,
                         indent: int | None = None,
@@ -349,6 +361,14 @@ class Printer:
             self.print_string("]")
             return
 
+        if isinstance(attribute, DictionaryAttr):
+            self.print_string("{")
+            self.print_dictionary(
+                attribute.data,  # type: ignore
+                self.print_attribute)
+            self.print_string("}")
+            return
+
         # Function types have an alias in MLIR, but not in xDSL
         if (isinstance(attribute, FunctionType)
                 and self.target == self.Target.MLIR):
@@ -408,8 +428,9 @@ class Printer:
             attribute = cast(AnyVectorType, attribute)
             self.print(
                 "vector<" if isinstance(attribute, VectorType) else "tensor<")
-            self.print_list(attribute.shape.data,
-                            lambda x: self.print("?") if x.value.data == -1  else self.print(x.value.data), "x")
+            self.print_list(
+                attribute.shape.data, lambda x: self.print(x.value.data)
+                if x.value.data != -1 else self.print("?"), "x")
             if len(attribute.shape.data) != 0:
                 self.print("x")
             self.print(attribute.element_type)
