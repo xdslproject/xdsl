@@ -1,5 +1,5 @@
-from typing import List, Optional
-from xdsl.ir import SSAValue, BlockArgument
+from typing import List, Optional, cast
+from xdsl.ir import SSAValue, BlockArgument, OpResult
 from xdsl.irdl import Operation, Region, Block
 
 
@@ -39,7 +39,7 @@ class Rewriter:
         if not isinstance(new_ops, list):
             new_ops = [new_ops]
         if new_results is None:
-            new_results = [] if len(new_ops) == 0 else new_ops[-1].results
+            new_results = cast(List[SSAValue | None], new_ops[-1].results)
 
         if len(op.results) != len(new_results):
             raise ValueError(

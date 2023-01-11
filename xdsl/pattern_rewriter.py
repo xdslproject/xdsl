@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, OpResult, Region, Block, BlockArgument,
-                     Attribute)
+                     Attribute, SSAValue)
 from xdsl.rewriter import Rewriter
 
 
@@ -153,7 +153,7 @@ class PatternRewriter:
 
     def replace_matched_op(self,
                            new_ops: Operation | list[Operation],
-                           new_results: list[OpResult | None] | None = None,
+                           new_results: list[SSAValue | None] | None = None,
                            safe_erase: bool = True):
         """
         Replace the matched operation with new operations.
@@ -174,7 +174,7 @@ class PatternRewriter:
     def replace_op(self,
                    op: Operation,
                    new_ops: Operation | list[Operation],
-                   new_results: list[OpResult | None] | None = None,
+                   new_results: list[SSAValue | None] | None = None,
                    safe_erase: bool = True):
         """
         Replace an operation with new operations.
@@ -292,8 +292,8 @@ class PatternRewriter:
         self.has_done_action = True
         if op is self.current_operation:
             return self.inline_block_before_matched_op(block)
-        if not self._can_modify_block(block) or not self._can_modify_block(
-                op.parent):
+        if not self._can_modify_block(block) or (
+                op.parent and not self._can_modify_block(op.parent)):
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )

@@ -73,13 +73,13 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
+        cov = coverage.Coverage(config_file='.coveragerc',
+                                auto_data=True,
+                                data_file='.coverage',
+                                data_suffix=True)
         if self.args.generate_coverage:
             if self.args.exec_root:
                 os.chdir(self.args.exec_root)
-            cov = coverage.Coverage(config_file='.coveragerc',
-                                    auto_data=True,
-                                    data_file='.coverage',
-                                    data_suffix=True)
 
             cov.start()
 
