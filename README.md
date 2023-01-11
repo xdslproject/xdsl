@@ -3,8 +3,18 @@
 [![Build Status for the Core backend](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml/badge.svg)](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml?query=workflow%3A%22CI+-+Python+application%22++)
 [![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
-
 [![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
+
+- [xDSL: A Python-native SSA Compiler Framework](#xdsl-a-python-native-ssa-compiler-framework)
+  - [About xDSL](#about-xdsl)
+  - [Installation](#installation)
+  - [Using xDSL](#using-xdsl)
+  - [xDSL Developer Setup](#xdsl-developer-setup)
+    - [Developer Installation](#developer-installation)
+    - [Testing](#testing)
+    - [Formatting](#formatting)
+
+## About xDSL
 
 [xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around
 SSA-based intermediate representations (IRs). Users of xDSL build a compiler by
@@ -27,7 +37,8 @@ optimization capabilities.
 
 ## Installation
 
-To use xDSL for developing your own compiler, just install xDSL via pip:
+To use xDSL as part of a larger project for developing your own compiler,
+just install [xDSL via pip](https://pypi.org/project/xdsl/):
 
 ```bash
 pip install xdsl
@@ -35,26 +46,30 @@ pip install xdsl
 
 ## Using xDSL
 
-- [A simple introduction](docs/tutorial.ipynb)
-- [A DSL for defining new IRs](docs/irdl.ipynb)
-- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
+To use xDSL we recommend following the [xDSL Developer Setup](#xdsl-developer-setup)
+to clone the repository including the notebooks.
+The following tutorials will present xDSL basic concepts, how to
+use its irdl dialect to define new dialects in a user-friendly way, and how to
+work with both xDSL and MLIR.
 
-Some of the above tutorials are also available as [interactive notebooks](https://xdsl.dev/xdsl/lab/index.html).
+- [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/tutorial.ipynb)
+- [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/irdl.ipynb)
+- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 ## xDSL Developer Setup
 
 To contribute to the development of xDSL follow the subsequent steps.
 
-
-#### Developer Installation
+### Developer Installation
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 pip install -e .
-pip install -e .[extras]
+# Optional installation of extra requirements
+# pip install -e .[extras]
 ```
 
-#### Testing
+### Testing
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -67,7 +82,7 @@ pytest
 lit tests/filecheck
 ```
 
-#### Formatting
+### Formatting
 
 All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
 format the code in a uniform manner.

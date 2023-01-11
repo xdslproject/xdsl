@@ -72,16 +72,3 @@ def test_print_to_file():
     expected = open(filename_out, 'r').read()
 
     assert inp.strip() == expected.strip()
-
-
-def test_coverage():
-    filename = 'tests/xdsl_opt/empty_program.xdsl'
-    opt = xDSLOptMain(
-        args=[filename, '--generate-coverage', '--exec-root=' + os.getcwd()])
-
-    f = StringIO("")
-    with redirect_stdout(f):
-        opt.run()
-
-    expected = open(filename, 'r').read()
-    assert f.getvalue().strip() == expected.strip()

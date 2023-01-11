@@ -1,0 +1,14 @@
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_maskedload_mask_type_checking", "function_type" = !fun<[!memref<[2 : !index, 2 : !index], !index>, !vector<[2 : !index], !index>, !vector<[2 : !i32], !i32>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[2 : !index, 2 : !index], !index>, %1 : !vector<[2 : !index], !index>, %2 : !vector<[2 : !i32], !i32>, %3 : !index):
+    %4 : !vector<[2 : !index], !index> = vector.maskedload(%0 : !memref<[2 : !index, 2 : !index], !index>, %3 : !index, %3 : !index, %2 : !vector<[2 : !i32], !i32>, %1 : !vector<[2 : !index], !index>)
+
+    func.return()
+  }
+
+// CHECK: Expected mask element type to be i1.
+
+}
