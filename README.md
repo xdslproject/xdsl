@@ -1,20 +1,9 @@
-# xDSL: A Python-native SSA Compiler Framework
-
 [![Build Status for the Core backend](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml/badge.svg)](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml?query=workflow%3A%22CI+-+Python+application%22++)
 [![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
 [![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
 
-- [xDSL: A Python-native SSA Compiler Framework](#xdsl-a-python-native-ssa-compiler-framework)
-  - [About xDSL](#about-xdsl)
-  - [Installation](#installation)
-  - [Using xDSL](#using-xdsl)
-  - [xDSL Developer Setup](#xdsl-developer-setup)
-    - [Developer Installation](#developer-installation)
-    - [Testing](#testing)
-    - [Formatting](#formatting)
-
-## About xDSL
+# xDSL: A Python-native SSA Compiler Framework
 
 [xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around
 SSA-based intermediate representations (IRs). Users of xDSL build a compiler by
@@ -34,6 +23,13 @@ results in one big SSA-based abstraction ecosystem that can be worked with
 through Python, making analysis through simple scripting languages possible.
 Additionally, xDSL can leverage MLIR's code generation and low-level
 optimization capabilities.
+
+- [Installation](#installation)
+- [Using xDSL](#using-xdsl)
+- [xDSL Developer Setup](#xdsl-developer-setup)
+  - [Developer Installation](#developer-installation)
+  - [Testing](#testing)
+  - [Formatting](#formatting)
 
 ## Installation
 
