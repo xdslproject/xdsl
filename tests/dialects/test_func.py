@@ -84,9 +84,6 @@ def test_wrong_blockarg_types():
         0] == "Expected entry block arguments to have the same types as the function input types"
 
 
-test_wrong_blockarg_types()
-
-
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda: [])
     assert f.sym_name.data == "f"
