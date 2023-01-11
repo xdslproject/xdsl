@@ -6,6 +6,7 @@ import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Set, Tuple
+from unicodedata import name
 from xdsl.dialects.builtin import TensorType, UnrankedTensorType
 from xdsl.frontend.codegen.exception import CodegenException
 from xdsl.frontend.codegen.type_conversion import TypeConverter
@@ -193,6 +194,12 @@ class FunctionVisitor(ast.NodeVisitor):
         # All templates must have a well-defined decorator.
         if num_decorators != 1:
             raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has {num_decorators} decorators but can only have 1 to mark it as a template.")
+
+        # Block, but used outside of the function.
+        if isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == "block":
+            raise CodegenException(node.lineno, node.col_offset, f"Found a block '{node.name}' which does not belong to any function. All blocks have to be inside functions.")
+        
+        # Top-level function, but not properly annotated.
         if not isinstance(node.decorator_list[0], ast.Call) or not isinstance(node.decorator_list[0].func, ast.Name) or node.decorator_list[0].func.id != "meta":
             raise CodegenException(node.lineno, node.col_offset, f"Function '{node.name}' has unknown decorator. For decorating the function as a template, use '@meta(..)'.")
         
@@ -261,6 +268,18 @@ class FunctionVisitor(ast.NodeVisitor):
         if xdsl_type is not None:
             function_info.ret_info.append(RetInfo(0, xdsl_type))
 
+    def _check_function_body(self, node: ast.FunctionDef):
+        for stmt in node.body:
+            if isinstance(stmt, ast.FunctionDef):
+                # This is a basic block, so its ok to have it. We still have to check all the code inside the basic block though.
+                if len(stmt.decorator_list) == 1 and isinstance(stmt.decorator_list[0], ast.Name) and stmt.decorator_list[0].id == "block":
+                    self._check_function_body(stmt)
+                    continue
+
+                # Otherwise, we have an inner function, so let's simply not allow it.
+                raise CodegenException(stmt.lineno, stmt.col_offset, f"Found an inner function '{stmt.name}' inside function '{node.name}', inner functions are not allowed.")
+
+
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
 
@@ -268,6 +287,10 @@ class FunctionVisitor(ast.NodeVisitor):
         function_info = FunctionInfo(node)
         self._check_function_signature(node)
         self._check_arguments_annotated(node)
+
+        # In Python, you can have arbitrarily nested inner functions, which complicate scoping rules and all
+        # other analysis. Let's not support them for now.
+        self._check_function_body(node)
 
         # Function can also be a template. Find which arguments are templated. 
         template_argument_names: Set[str] = set()

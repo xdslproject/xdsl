@@ -57,7 +57,7 @@ def meta(*params):
     return decorate
 
 
-def block():
+def block(*params):
     """
     Decorator used to mark function as a basic block.
 

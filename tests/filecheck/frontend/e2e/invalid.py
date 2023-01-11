@@ -2,6 +2,7 @@
 
 from xdsl.frontend.program import FrontendProgram, FrontendProgramException
 from xdsl.frontend.context import CodeContext
+from tests.filecheck.frontend.utils import assert_excepton
 
 
 p = FrontendProgram()
@@ -26,7 +27,19 @@ with CodeContext(p):
 
     def foo():
         return
+
 try:
     print(p.xdsl())
 except FrontendProgramException as e:
     print(e.msg)
+
+
+with CodeContext(p):
+
+    # CHECK: Found an inner function 'bar' inside function 'foo', inner functions are not allowed.
+    def foo():
+        def bar():
+            return
+        return
+
+assert_excepton(p)
