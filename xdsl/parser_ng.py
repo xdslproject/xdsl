@@ -1,28 +1,23 @@
 from __future__ import annotations
 
+import ast
 import contextlib
+import re
 import sys
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-import re
-import ast
 from io import StringIO
-from typing import Any, TypeVar, Iterable, Literal, Optional
-from enum import Enum
-
-from .printer import Printer
-from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
-                     BlockArgument, MLContext, ParametrizedAttribute)
+from typing import TypeVar, Iterable
 
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
-    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
-    UnrankedTensorType, UnregisteredOp, VectorType, DefaultIntegerAttrType)
-
-from xdsl.irdl import Data
+    AnyTensorType, AnyVectorType,
+    Float16Type, Float32Type, Float64Type, FloatAttr,
+    FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType, DefaultIntegerAttrType, FlatSymbolRefAttr)
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
+                     BlockArgument, MLContext, ParametrizedAttribute)
+from .printer import Printer
 
 
 class ParseError(Exception):
@@ -148,10 +143,10 @@ class Span:
         return capture.getvalue()
 
     def __repr__(self):
-        return "Span[{}:{}](text='{}')".format(self.start, self.end, self.text)
+        return "{}[{}:{}](text='{}')".format(self.__class__.__name__, self.start, self.end, self.text)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class StringLiteral(Span):
 
     def __post_init__(self):
@@ -168,10 +163,6 @@ class StringLiteral(Span):
     def string_contents(self):
         # TODO: is this a hack-job?
         return ast.literal_eval(self.text)
-
-    def __repr__(self):
-        return "StringLiteral[{}:{}](text='{}')".format(
-            self.start, self.end, self.text)
 
 
 @dataclass(frozen=True)
@@ -506,7 +497,8 @@ class ParserCommons:
     type_alias = re.compile(r'![A-Za-z_][\w$.]+')
     attribute_alias = re.compile(r'#[A-Za-z_][\w$.]+')
     boolean_literal = re.compile(r'(true|false)')
-    builtin_type = re.compile('(({}))'.format(')|('.join((
+    # a list of
+    _builtin_type_names = (
         r'[su]?i\d+',
         r'f\d+',
         'tensor',
@@ -517,19 +509,9 @@ class ParserCommons:
         'tuple',
         'index',
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
-    ))))
-    builtin_type_xdsl = re.compile('!(({}))'.format(')|('.join((
-        r'[su]?i\d+',
-        r'f\d+',
-        'tensor',
-        'vector',
-        'memref',
-        'complex',
-        'opaque',
-        'tuple',
-        'index',
-        # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
-    ))))
+    )
+    builtin_type = re.compile('(({}))'.format(')|('.join(_builtin_type_names)))
+    builtin_type_xdsl = re.compile('!(({}))'.format(')|('.join(_builtin_type_names)))
     double_colon = re.compile('::')
     comma = re.compile(',')
 
@@ -610,7 +592,7 @@ class BaseParser(ABC):
         arg_list = list()
 
         if block_id is not None:
-            assert block_id.text not in self.blocks, "Blocks cannot have the same ID!"
+            assert block_id.text not in self.blocks, "two blocks cannot have the same ID!"
 
             if self.tokenizer.starts_with('('):
                 arg_list = self.must_parse_block_arg_list()
@@ -1091,8 +1073,14 @@ class BaseParser(ABC):
     def must_parse_attribute(self) -> Attribute:
         """
         Parse attribute (either builtin or dialect)
+
+        This is different in xDSL and MLIR, so the actuall implementation is provided by the subclass
         """
         raise NotImplemented()
+
+    def try_parse_attribute(self) -> Attribute | None:
+        with self.tokenizer.backtracking('attribute'):
+            return self.must_parse_attribute()
 
     def must_parse_attribute_type(self) -> Attribute:
         """
@@ -1112,11 +1100,24 @@ class BaseParser(ABC):
         attrs = (self.try_parse_builtin_float_attr,
                  self.try_parse_builtin_int_attr,
                  self.try_parse_builtin_str_attr,
-                 self.try_parse_builtin_arr_attr, self.try_parse_function_type)
+                 self.try_parse_builtin_arr_attr,
+                 self.try_parse_function_type,
+                 self.try_parse_ref_attr)
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
+
+    def try_parse_ref_attr(self) -> FlatSymbolRefAttr | None:
+        if not self.tokenizer.starts_with('@'):
+            return None
+
+        ref = self.must_parse_reference()
+
+        if len(ref) > 1:
+            self.raise_error("Nested refs are not supported yet!", ref[1])
+
+        return FlatSymbolRefAttr.from_str(ref[0].text[1:])
 
     def try_parse_builtin_int_attr(self) -> IntegerAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
@@ -1171,7 +1172,7 @@ class BaseParser(ABC):
         with self.tokenizer.backtracking("array literal"):
             self.must_parse_characters('[',
                                        'Array literals must start with `[`')
-            attrs = self.must_parse_list_of(self.must_parse_attribute,
+            attrs = self.must_parse_list_of(self.try_parse_attribute,
                                             'Expected array entry!')
             self.must_parse_characters(
                 ']', 'Array literals must be enclosed by square brackets!')
@@ -1285,20 +1286,8 @@ class BaseParser(ABC):
         This implicitly assumes XDSL format, and will fail on MLIR style operations
         """
         # TODO: remove this function and restructure custom op / irdl parsing
-
-        args = self.must_parse_op_args_list()
-        successors: list[Span] = []
-        if self.tokenizer.next_token_of_pattern('(') is not None:
-            successors = self.must_parse_list_of(self.try_parse_block_id,
-                                                 'Malformed block-id!')
-            self.must_parse_characters(
-                ')',
-                'Expected either a block id or the end of the successor list here'
-            )
-
-        attributes = self.must_parse_optional_attr_dict()
-
-        regions = self.must_parse_region_list()
+        assert isinstance(self, XDSLParser)
+        args, successors, attributes, regions, _ = self.must_parse_operation_details()
 
         for x in args:
             if x.text not in self.ssaValues:
@@ -1321,7 +1310,7 @@ class BaseParser(ABC):
                 '<') is None and expect_brackets:
             self.raise_error("Expected start attribute parameters here (`<`)!")
 
-        res = self.must_parse_list_of(self.must_parse_attribute,
+        res = self.must_parse_list_of(self.try_parse_attribute,
                                       'Expected another attribute here!')
 
         if self.tokenizer.next_token_of_pattern(
@@ -1557,14 +1546,14 @@ class XDSLParser(BaseParser):
 
         self.must_parse_characters(
             '[',
-            'xDSL Attribute dictionary must be enclosed in curly brackets')
+            'xDSL Attribute dictionary must be enclosed in square brackets')
 
         attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
                                         "Expected attribute entry")
 
         self.must_parse_characters(
             ']',
-            'xDSL Attribute dictionary must be enclosed in curly brackets')
+            'xDSL Attribute dictionary must be enclosed in square brackets')
 
         return self.attr_dict_from_tuple_list(attrs)
 
@@ -1590,15 +1579,15 @@ class XDSLParser(BaseParser):
         return args, succ, attrs, regions, None
 
     def must_parse_optional_successor_list(self) -> list[Span]:
-        if not self.tokenizer.starts_with('['):
+        if not self.tokenizer.starts_with('('):
             return []
         self.must_parse_characters(
-            '[', 'Successor list is enclosed in square brackets')
+            '(', 'Successor list is enclosed in round brackets')
         successors = self.must_parse_list_of(self.try_parse_block_id,
                                              'Expected a block-id',
                                              allow_empty=False)
         self.must_parse_characters(
-            ']', 'Successor list is enclosed in square brackets')
+            ')', 'Successor list is enclosed in round brackets')
         return successors
 
 
@@ -1614,7 +1603,6 @@ if __name__ == '__main__':
     from xdsl.dialects.llvm import LLVM
     from xdsl.dialects.memref import MemRef
     from xdsl.dialects.scf import Scf
-    import os
 
     ctx = MLContext()
     ctx.register_dialect(Builtin)
