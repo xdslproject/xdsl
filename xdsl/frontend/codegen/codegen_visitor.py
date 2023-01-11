@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Tuple
 from xdsl.frontend.codegen.functions import FunctionInfo, LocalFunctionAnalyzer
 from xdsl.frontend.codegen.resolver import OpResolver
 from xdsl.frontend.codegen.type_inference import TypeInference
-from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor, unimplemented
+from xdsl.dialects import builtin, cf, func, scf, symref, arith, affine, tensor
 from xdsl.frontend.codegen.exception import CodegenInternalException
 from xdsl.frontend.codegen.inserter import OpInserter
 from xdsl.frontend.codegen.type_conversion import TypeConverter
@@ -87,7 +87,7 @@ class CodegenVisitor(ast.NodeVisitor):
             if isinstance(value.typ, builtin.IntegerType):
                 cast_op = arith.IndexCast.get(value, dst_type)
             else:
-                cast_op = unimplemented.Cast.get(value, dst_type)
+                raise Exception()
         elif isinstance(dst_type, builtin.IntegerType):
             if isinstance(value.typ, builtin.IndexType):
                 cast_op = arith.IndexCast.get(value, dst_type)
@@ -100,7 +100,7 @@ class CodegenVisitor(ast.NodeVisitor):
                     cast_op = arith.ExtSI.get(value, dst_type)
             else:
                 # TODO: support type inference and more casts.
-                cast_op = unimplemented.Cast.get(value, dst_type)
+                raise Exception()
         elif isinstance(dst_type, builtin.TensorType) and isinstance(value.typ, builtin.TensorType) and dst_type.element_type == value.typ.element_type:
             cast_op = tensor.Cast.get(value, dst_type)
         elif isinstance(dst_type, builtin.TensorType) and isinstance(value.typ, builtin.TensorType):
@@ -116,10 +116,10 @@ class CodegenVisitor(ast.NodeVisitor):
                         cast_op = arith.ExtSI.get(value, dst_type)
                 else:
                     # TODO: support type inference and more casts.
-                    cast_op = unimplemented.Cast.get(value, dst_type)
+                    raise Exception()
         else:
             # TODO: support type inference and more casts.
-            cast_op = unimplemented.Cast.get(value, dst_type)
+            raise Exception()
         self.inserter.insert_op(cast_op)
         return self.inserter.get_operand()
 
@@ -131,13 +131,6 @@ class CodegenVisitor(ast.NodeVisitor):
 
     def visit_Expr(self, node: ast.Expr):
         self.visit(node.value)
-
-    def _cast(self, dst_ty: Attribute, value_ty: Attribute, value: SSAValue | Operation):
-        # There are a lot of different casts, for now just put a placeholder op instead
-        # of arith.trunci and friends.
-        # TODO: implement casts.
-        self.inserter.insert_op(unimplemented.Cast.get(value, dst_ty))
-        return self.inserter.get_operand()
     
     def visit_Assert(self, node: ast.Assert):
         self.visit(node.test)
