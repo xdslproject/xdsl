@@ -1,0 +1,14 @@
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_fma_res_lhs_type_matching", "function_type" = !fun<[!vector<[2 : !index], !index>, !vector<[2 : !i32], !i32>], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !vector<[2 : !index], !index>, %1 : !vector<[2 : !i32], !i32>):
+    %2 : !vector<[2 : !i32], !i32> = vector.fma(%0 : !vector<[2 : !index], !index>, %1 : !vector<[2 : !i32], !i32>, %1 : !vector<[2 : !i32], !i32>)
+
+    func.return()
+  }
+
+// CHECK: Result vector type must match with all source vectors. Found different types for result vector and lhs vector.
+
+}

@@ -2,19 +2,25 @@
 
 builtin.module() {
 
-func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
-  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index):
-    %2 : !vector<[2 : !index], !index> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
-    vector.store(%2 : !vector<[2 : !index], !index>, %0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
+func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !vector<[1 : !i1], !i1>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !vector<[1 : !i1], !i1>, %2 : !index):
+    %3 : !vector<[2 : !index], !index> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index)
+    vector.store(%3 : !vector<[2 : !index], !index>, %0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index)
+    %4 : !vector<[1 : !index], !index> = vector.broadcast(%2 : !index)
+    %5 : !vector<[2 : !index], !index> = vector.fma(%3 : !vector<[2 : !index], !index>, %3 : !vector<[2 : !index], !index>, %3 : !vector<[2 : !index], !index>)
+    %6 : !vector<[1 : !index], !index> = vector.maskedload(%0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index, %1 : !vector<[1 : !i1], !i1>, %4 : !vector<[1 : !index], !index>)
 
     func.return()
   }
 
 // CHECK: builtin.module() {
-// CHECK-NEXT: func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
+// CHECK-NEXT: func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !vector<[true], !i1>, !index], []>, "sym_visibility" = "private"] {
 // CHECK-NEXT: ^{{.*}}(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index):
 // CHECK-NEXT: %{{.*}} : !vector<[2 : !index], !index> = vector.load(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
 // CHECK-NEXT: vector.store(%{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
+// CHECK-NEXT: %{{.*}} : !vector<[1 : !index], !index> = vector.broadcast(%{{.*}} : !index)
+// CHECK-NEXT: %{{.*}} : !vector<[2 : !index], !index> = vector.fma(%{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !vector<[2 : !index], !index>)
+// CHECK-NEXT: %{{.*}} : !vector<[1 : !index], !index> = vector.maskedload(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !vector<[true], !i1>, %{{.*}} : !vector<[1 : !index], !index>)
 // CHECK-NEXT: func.return()
 // CHECK-NEXT: }
 // CHECK-NEXT: }

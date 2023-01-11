@@ -2,21 +2,27 @@
 
 builtin.module() {
 
-func.func() ["sym_name" = "vector_test_mlir_conversion", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
-  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index):
-    %2 : !vector<[2 : !index], !index> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
-    vector.store(%2 : !vector<[2 : !index], !index>, %0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
+func.func() ["sym_name" = "vector_test_mlir_conversion", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !vector<[1 : !i1], !i1>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !vector<[1 : !i1], !i1>, %2 : !index):
+    %3 : !vector<[2 : !index], !index> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index)
+    vector.store(%3 : !vector<[2 : !index], !index>, %0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index)
+    %4 : !vector<[1 : !index], !index> = vector.broadcast(%2 : !index)
+    %5 : !vector<[2 : !index], !index> = vector.fma(%3 : !vector<[2 : !index], !index>, %3 : !vector<[2 : !index], !index>, %3 : !vector<[2 : !index], !index>)
+    %6 : !vector<[1 : !index], !index> = vector.maskedload(%0 : !memref<[4 : !index, 4 : !index], !index>, %2 : !index, %2 : !index, %1 : !vector<[1 : !i1], !i1>, %4 : !vector<[1 : !index], !index>)
 
     func.return()
   }
 
 // CHECK: "builtin.module"() ({
 // CHECK-NEXT: "func.func"() ({
-// CHECK-NEXT: ^0(%0 : memref<4x4xindex>, %1 : index):
-// CHECK-NEXT: %2 = "vector.load"(%0, %1, %1) : (memref<4x4xindex>, index, index) -> vector<2xindex>
-// CHECK-NEXT: "vector.store"(%2, %0, %1, %1) : (vector<2xindex>, memref<4x4xindex>, index, index) -> ()
+// CHECK-NEXT: ^0(%0 : memref<4x4xindex>, %1 : vector<1xi1>, %2 : index):
+// CHECK-NEXT: %3 = "vector.load"(%0, %2, %2) : (memref<4x4xindex>, index, index) -> vector<2xindex>
+// CHECK-NEXT: "vector.store"(%3, %0, %2, %2) : (vector<2xindex>, memref<4x4xindex>, index, index) -> ()
+// CHECK-NEXT: %4 = "vector.broadcast"(%2) : (index) -> vector<1xindex>
+// CHECK-NEXT: %5 = "vector.fma"(%3, %3, %3) : (vector<2xindex>, vector<2xindex>, vector<2xindex>) -> vector<2xindex>
+// CHECK-NEXT: %6 = "vector.maskedload"(%0, %2, %2, %1, %4) : (memref<4x4xindex>, index, index, vector<1xi1>, vector<1xindex>) -> vector<1xindex>
 // CHECK-NEXT: "func.return"() : () -> ()
-// CHECK-NEXT: }) {"sym_name" = "vector_test_mlir_conversion", "function_type" = (memref<4x4xindex>, index) -> (), "sym_visibility" = "private"} : () -> ()
+// CHECK-NEXT: }) {"sym_name" = "vector_test_mlir_conversion", "function_type" = (memref<4x4xindex>, vector<1xi1>, index) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
 
 }
