@@ -3,6 +3,9 @@ from xdsl.xdsl_opt_main import xDSLOptMain
 from contextlib import redirect_stdout
 from io import StringIO
 import os
+from xdsl.ir import MLContext
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.rewriter import Rewriter
 
 
 def test_opt():
@@ -72,3 +75,26 @@ def test_print_to_file():
     expected = open(filename_out, 'r').read()
 
     assert inp.strip() == expected.strip()
+
+
+def test_operation_deletion():
+    filename_in = 'tests/xdsl_opt/constant_program.xdsl'
+    filename_out = 'tests/xdsl_opt/empty_program.xdsl'
+
+    class xDSLOptMainPass(xDSLOptMain):
+
+        def register_all_passes(self):
+
+            def remove_constant(ctx: MLContext, module: ModuleOp):
+                module.ops[0].detach()
+
+            self.available_passes['remove-constant'] = remove_constant
+
+    opt = xDSLOptMainPass(args=[filename_in, '-p', 'remove-constant'])
+
+    f = StringIO("")
+    with redirect_stdout(f):
+        opt.run()
+    expected = open(filename_out, 'r').read()
+
+    assert f.getvalue().strip() == expected.strip()
