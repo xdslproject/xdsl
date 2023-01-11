@@ -887,6 +887,10 @@ class CodegenVisitor(ast.NodeVisitor):
             self.inserter.insert_op(return_op)
 
     def visit_Pass(self, node: ast.Pass):
+        # Special case: current code context has no code.
+        if self.inserter.ip is None:
+            return
+
         # Special case: function can return nothing and be implemented using pass, e.g.
         #  def foo():
         #    pass
