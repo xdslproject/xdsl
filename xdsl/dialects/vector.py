@@ -28,8 +28,8 @@ class Load(Operation):
             indices: List[SSAValue | Operation]) -> Load:
         return Load.build(operands=[ref, indices],
                           result_types=[
-                              VectorType.from_type_and_list(
-                                  SSAValue.get(ref).typ.element_type)
+                              VectorType.from_element_type_and_shape(
+                                  SSAValue.get(ref).typ.element_type, [1])
                           ])
 
 
@@ -70,8 +70,8 @@ class Broadcast(Operation):
     def get(source: Operation | SSAValue) -> Broadcast:
         return Broadcast.build(operands=[source],
                                result_types=[
-                                   VectorType.from_type_and_list(
-                                       SSAValue.get(source).typ)
+                                   VectorType.from_element_type_and_shape(
+                                       SSAValue.get(source).typ, [1])
                                ])
 
 
@@ -118,8 +118,8 @@ class FMA(Operation):
             acc: Operation | SSAValue) -> FMA:
         return FMA.build(operands=[lhs, rhs, acc],
                          result_types=[
-                             VectorType.from_type_and_list(
-                                 SSAValue.get(lhs).typ.element_type)
+                             VectorType.from_element_type_and_shape(
+                                 SSAValue.get(lhs).typ.element_type, [1])
                          ])
 
 
@@ -163,8 +163,9 @@ class Maskedload(Operation):
             passthrough: SSAValue | Operation) -> Maskedload:
         return Maskedload.build(operands=[memref, indices, mask, passthrough],
                                 result_types=[
-                                    VectorType.from_type_and_list(
-                                        SSAValue.get(memref).typ.element_type)
+                                    VectorType.from_element_type_and_shape(
+                                        SSAValue.get(memref).typ.element_type,
+                                        [1])
                                 ])
 
 

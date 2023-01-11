@@ -436,12 +436,10 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     @builder
-    def from_type_and_list(
+    def from_element_type_and_shape(
         referenced_type: _VectorTypeElems,
-        shape: Optional[List[int | IntegerAttr[IndexType]]] = None
+        shape: List[int | IntegerAttr[IndexType]]
     ) -> VectorType[_VectorTypeElems]:
-        if shape is None:
-            shape = [1]
         return VectorType([
             ArrayAttr.from_list(
                 [IntegerAttr[IntegerType].build(d) for d in shape]),
@@ -635,7 +633,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             data: List[int] | List[float],
             typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyVectorType.from_type_and_list(typ, [len(data)])
+        t = AnyVectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
