@@ -37,26 +37,5 @@ with CodeContext(p):
         def bb3():
             return
 
-    # def llvm_loop():
-    #     @block
-    #     def entry():
-    #         header()
-    #         # llvm.br("header"))
-
-    #     @block
-    #     def header():
-    #         cond = True
-    #         body() if cond else exit()
-    #         # llvm.br(cond, body(), exit())
-
-    #     @block
-    #     def body():
-    #         header()
-    #         # llvm.br(header())
-
-    #     @block
-    #     def exit():
-    #         return
-
 p.compile(desymref=False)
 print(p.xdsl())
