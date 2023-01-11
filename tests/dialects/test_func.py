@@ -2,6 +2,8 @@ from xdsl.ir import Block, Region
 from xdsl.dialects.func import FuncOp, Return
 from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import IntegerAttr, i32
+import pytest
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_func():
@@ -69,6 +71,26 @@ def test_func_II():
     assert type(func1.regions[0].blocks[1].ops[0]) is Constant
     assert type(func1.regions[0].blocks[1].ops[1]) is Constant
     assert type(func1.regions[0].blocks[1].ops[2]) is Addi
+
+
+def test_wrong_blockarg_types():
+    r = Region.from_block_list(
+        [Block.from_callable([i32], lambda x: [Addi.get(x, x)])])
+    f = FuncOp.from_region("f", [i32, i32], [], r)
+    with pytest.raises(VerifyException) as e:
+        f.verify()
+
+    assert e.value.args[
+        0] == "Expected entry block arguments to have the same types as the function input types"
+
+
+test_wrong_blockarg_types()
+
+
+def test_callable_constructor():
+    f = FuncOp.from_callable("f", [], [], lambda: [])
+    assert f.sym_name.data == "f"
+    assert f.body.ops == []
 
 
 def test_return():
