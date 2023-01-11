@@ -3,6 +3,7 @@ import pytest
 from xdsl.ir import Block, Region
 from xdsl.dialects.arith import Addi, Subi, Constant
 from xdsl.dialects.builtin import i32, IntegerAttr
+from xdsl.dialects.scf import If
 
 
 def test_ops_accessor():
@@ -92,3 +93,27 @@ def test_ops_accessor_III():
     region0.detach_block(0)
     with pytest.raises(IndexError):
         region0.detach_block(1)
+
+
+def test_op_clone():
+    a = Constant.from_int_and_width(1, 32)
+    b = a.clone()
+
+    assert a is not b
+    assert b.value.value.data == 1
+    assert b.value.typ.width.data == 32
+
+
+def test_op_clone_with_regions():
+    cond = Constant.from_int_and_width(1, 1)
+    a = Constant.from_int_and_width(1, 32)
+    if_ = If.get(cond, [], Region.from_operation_list([a]),
+                 Region.from_operation_list([a.clone()]))
+
+    if2 = if_.clone()
+
+    assert if2 is not if_
+    assert len(if2.true_region.ops) == 1
+    assert len(if2.false_region.ops) == 1
+    assert if2.true_region.op is not if_.true_region.op
+    assert if2.false_region.op is not if_.false_region.op
