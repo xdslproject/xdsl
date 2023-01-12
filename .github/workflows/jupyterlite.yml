@@ -28,6 +28,9 @@ jobs:
           cd xdsl
           python setup.py sdist
 
+      # Pyodide is cached, so cloned only if not present in the cache, otherwise
+      # just checked out to whatever desired version and partially rebuilt.
+
       - name: Restore cached Pyodide tree
         id: cache-pyodide
         uses: actions/cache@v3
@@ -39,11 +42,10 @@ jobs:
         if: steps.cache-pyodide.outputs.cache-hit != 'true'
         run: git clone https://github.com/pyodide/pyodide.git
 
+      # Clean the xDSL and FrozenList package folders, generate their skeletons
+      # and do the necessary updates before building.
       - name: Build custom Pyodide distribution
         run: |
-          XDSL_SOURCE_DIST=$(ls xdsl/dist)
-          XDSL_SOURCE_URL=file://$(pwd)/xdsl/dist/$XDSL_SOURCE_DIST
-          XDSL_SHA256=($(sha256sum xdsl/dist/$XDSL_SOURCE_DIST))
           
           cd pyodide
           git fetch --all
@@ -55,7 +57,7 @@ jobs:
           pyodide skeleton pypi xdsl
           pyodide skeleton pypi frozenlist
           
-          python -c 'import yaml; f = open("packages/xdsl/meta.yaml"); y = yaml.safe_load(f); f.close(); y["requirements"] = {"run" : ["frozenlist"]}; y["source"] = {"url" : "'$XDSL_SOURCE_URL'", "sha256" : "'$XDSL_SHA256'"}; f = open("packages/xdsl/meta.yaml", "w"); yaml.dump(y, f)'
+          ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
           
           PYODIDE_PACKAGES="frozenlist,coverage,xdsl" make
 
