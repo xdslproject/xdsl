@@ -337,6 +337,7 @@ class IRNode(ABC):
             self,
             other: IRNode,
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        """Check if two IR nodes are structurally equivalent."""
         ...
 
 
@@ -567,7 +568,11 @@ class Operation(IRNode):
             self,
             other: IRNode,
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
-        """Check if two operations are structurally equivalent."""
+        """
+        Check if two operations are structurally equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
+        This enables checking whether the use dependencies and successors are equivalent.
+        """
         if context is None:
             context = {}
         if not isinstance(other, Operation):
@@ -580,22 +585,24 @@ class Operation(IRNode):
            len(self.successors) != len(other.successors) or \
             self.attributes != other.attributes:
             return False
-        if self.parent and other.parent and context[
-                self.parent] != other.parent:
+        if self.parent and other.parent and context.get(
+                self.parent) != other.parent:
             return False
-        for idx, operand in enumerate(self.operands):
-            if context[operand] != other.operands[idx]:
-                return False
-        for idx, successor in enumerate(self.successors):
-            if context[successor] != other.successors[idx]:
-                return False
-        for idx, region in enumerate(self.regions):
-            if not region.is_structurally_equivalent(other.regions[idx],
-                                                     context):
-                return False
+        if not all(
+                context.get(operand) == other_operand for operand,
+                other_operand in zip(self.operands, other.operands)):
+            return False
+        if not all(
+                context.get(successor) == other_successor for successor,
+                other_successor in zip(self.successors, other.successors)):
+            return False
+        if not all(
+                region.is_structurally_equivalent(other_region, context)
+                for region, other_region in zip(self.regions, other.regions)):
+            return False
         # Add results of this operation to the context
-        for idx, result in enumerate(self.results):
-            context[result] = other.results[idx]
+        for result, other_result in zip(self.results, other.results):
+            context[result] = other_result
 
         return True
 
@@ -827,7 +834,11 @@ class Block(IRNode):
             self,
             other: IRNode,
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
-        """Check if two blocks are structurally equivalent."""
+        """
+        Check if two blocks are structurally equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
+        This enables checking whether the use dependencies and successors are equivalent.
+        """
         if context is None:
             context = {}
         if not isinstance(other, Block):
@@ -1057,13 +1068,19 @@ class Region(IRNode):
             self,
             other: IRNode,
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        """
+        Check if two regions are structurally equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
+        This enables checking whether the use dependencies and successors are equivalent.
+        """
         if context is None:
             context = {}
         if not isinstance(other, Region):
             return False
         if len(self.blocks) != len(other.blocks):
             return False
-        for block, other_block in zip(self.blocks, other.blocks):
-            if not block.is_structurally_equivalent(other_block, context):
-                return False
+        if not all(
+                block.is_structurally_equivalent(other_block, context)
+                for block, other_block in zip(self.blocks, other.blocks)):
+            return False
         return True
