@@ -7,7 +7,7 @@ from xdsl.ir import OpResult
 
 
 def test_vectorType():
-    vec = VectorType.from_type_and_list(i32)
+    vec = VectorType.from_element_type_and_shape(i32, [1])
 
     assert vec.get_num_dims() == 1
     assert vec.get_shape() == [1]
@@ -15,7 +15,7 @@ def test_vectorType():
 
 
 def test_vectorType_with_dimensions():
-    vec = VectorType.from_type_and_list(i32, [3, 3, 3])
+    vec = VectorType.from_element_type_and_shape(i32, [3, 3, 3])
 
     assert vec.get_num_dims() == 3
     assert vec.get_shape() == [3, 3, 3]
@@ -55,7 +55,7 @@ def test_vector_load_i32_with_dimensions():
 
 
 def test_vector_load_verify_type_matching():
-    res_vector_type = VectorType.from_type_and_list(i64)
+    res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
@@ -81,7 +81,7 @@ def test_vector_load_verify_indexing_exception():
 
 
 def test_vector_store_i32():
-    i32_vector_type = VectorType.from_type_and_list(i32)
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
     vector_ssa_value = OpResult(i32_vector_type, [], [])
 
     i32_memref_type = MemRefType.from_type_and_list(i32)
@@ -95,7 +95,7 @@ def test_vector_store_i32():
 
 
 def test_vector_store_i32_with_dimensions():
-    i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
     vector_ssa_value = OpResult(i32_vector_type, [], [])
 
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
@@ -112,7 +112,7 @@ def test_vector_store_i32_with_dimensions():
 
 
 def test_vector_store_verify_type_matching():
-    i64_vector_type = VectorType.from_type_and_list(i64, [2, 3])
+    i64_vector_type = VectorType.from_element_type_and_shape(i64, [2, 3])
     vector_ssa_value = OpResult(i64_vector_type, [], [])
 
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
@@ -127,7 +127,7 @@ def test_vector_store_verify_type_matching():
 
 
 def test_vector_store_verify_indexing_exception():
-    i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
     vector_ssa_value = OpResult(i32_vector_type, [], [])
 
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
@@ -151,7 +151,7 @@ def test_vector_broadcast():
 
 def test_vector_broadcast_verify_type_matching():
     index1 = OpResult(IndexType, [], [])
-    res_vector_type = VectorType.from_type_and_list(i64)
+    res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     broadcast = Broadcast.build(operands=[index1],
                                 result_types=[res_vector_type])
@@ -163,7 +163,7 @@ def test_vector_broadcast_verify_type_matching():
 
 
 def test_vector_fma():
-    i32_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
 
     lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
     rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
@@ -180,7 +180,7 @@ def test_vector_fma():
 
 
 def test_vector_fma_with_dimensions():
-    i32_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
 
     lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
     rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
@@ -197,8 +197,8 @@ def test_vector_fma_with_dimensions():
 
 
 def test_vector_fma_verify_res_lhs_type_matching():
-    i32_vector_type = VectorType.from_type_and_list(i32, [])
-    i64_vector_type = VectorType.from_type_and_list(i64, [])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
     i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
@@ -215,8 +215,8 @@ def test_vector_fma_verify_res_lhs_type_matching():
 
 
 def test_vector_fma_verify_res_rhs_type_matching():
-    i32_vector_type = VectorType.from_type_and_list(i32, [])
-    i64_vector_type = VectorType.from_type_and_list(i64, [])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
     i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
@@ -233,8 +233,8 @@ def test_vector_fma_verify_res_rhs_type_matching():
 
 
 def test_vector_fma_verify_res_acc_type_matching():
-    i32_vector_type = VectorType.from_type_and_list(i32, [])
-    i64_vector_type = VectorType.from_type_and_list(i64, [])
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
     i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
@@ -251,8 +251,8 @@ def test_vector_fma_verify_res_acc_type_matching():
 
 
 def test_vector_fma_verify_res_lhs_shape_matching():
-    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
-    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
     vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
     vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
@@ -268,8 +268,8 @@ def test_vector_fma_verify_res_lhs_shape_matching():
 
 
 def test_vector_fma_verify_res_rhs_shape_matching():
-    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
-    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
     vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
     vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
@@ -285,8 +285,8 @@ def test_vector_fma_verify_res_rhs_shape_matching():
 
 
 def test_vector_fma_verify_res_acc_shape_matching():
-    i32_vector_type1 = VectorType.from_type_and_list(i32, [2, 3])
-    i32_vector_type2 = VectorType.from_type_and_list(i32, [4, 5])
+    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
+    i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
     vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
     vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
@@ -305,10 +305,11 @@ def test_vector_masked_load():
     i32_memref_type = MemRefType.from_type_and_list(i32)
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
@@ -324,10 +325,11 @@ def test_vector_masked_load_with_dimensions():
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
@@ -348,14 +350,15 @@ def test_vector_masked_load_verify_memref_res_type_matching():
     i32_memref_type = MemRefType.from_type_and_list(i32)
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
-    i64_res_vector_type = VectorType.from_type_and_list(i64, [])
+    i64_res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     maskedload = Maskedload.build(operands=[
         memref_ssa_value, [], mask_vector_ssa_value,
@@ -373,14 +376,15 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
     i32_memref_type = MemRefType.from_type_and_list(i32)
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i64, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i64, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
-    i64_res_vector_type = VectorType.from_type_and_list(i32, [])
+    i64_res_vector_type = VectorType.from_element_type_and_shape(i32, [1])
 
     maskedload = Maskedload.build(operands=[
         memref_ssa_value, [], mask_vector_ssa_value,
@@ -398,10 +402,11 @@ def test_vector_masked_load_verify_indexing_exception():
     i32_memref_type = MemRefType.from_type_and_list(i32, [4, 5])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [2])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [2])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
@@ -418,14 +423,15 @@ def test_vector_masked_load_verify_result_vector_rank():
     i32_memref_type = MemRefType.from_type_and_list(i32)
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
-    i32_res_vector_type = VectorType.from_type_and_list(i32, [2, 3])
+    i32_res_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
 
     maskedload = Maskedload.build(operands=[
         memref_ssa_value, [], mask_vector_ssa_value,
@@ -442,10 +448,11 @@ def test_vector_masked_load_verify_mask_vector_rank():
     i32_memref_type = MemRefType.from_type_and_list(i32, [])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i1_mask_vector_type = VectorType.from_type_and_list(i1, [2, 3])
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [2, 3])
     mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 
@@ -461,10 +468,11 @@ def test_vector_masked_load_verify_mask_vector_type():
     i32_memref_type = MemRefType.from_type_and_list(i32, [])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    i32_mask_vector_type = VectorType.from_type_and_list(i32, [2])
+    i32_mask_vector_type = VectorType.from_element_type_and_shape(i32, [2])
     mask_vector_ssa_value = OpResult(i32_mask_vector_type, [], [])
 
-    i32_passthrough_vector_type = VectorType.from_type_and_list(i32, [])
+    i32_passthrough_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
     passthrough_vector_ssa_value = OpResult(i32_passthrough_vector_type, [],
                                             [])
 

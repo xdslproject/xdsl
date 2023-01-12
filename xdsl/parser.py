@@ -869,7 +869,7 @@ class Parser:
             self.parse_optional_char("<")
             dims, typ = self.parse_shape()
             self.parse_char(">")
-            return VectorType.from_type_and_list(typ, dims)
+            return VectorType.from_element_type_and_shape(typ, dims)
         return None
 
     def parse_optional_mlir_index_type(self,
