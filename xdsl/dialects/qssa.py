@@ -67,6 +67,7 @@ from xdsl.dialects.builtin import (
     Annotated,
     StringAttr,
     FloatAttr,
+    TensorType
 )
 from xdsl.dialects.arith import Constant, Subi
 
@@ -273,6 +274,30 @@ class Dag(Operation):
     def apply(input_qubits: Union[Operation, SSAValue]) -> Dag:
         return Dag.build(
             operands=[input_qubits], result_types=[SSAValue.get(input_qubits).typ]
+        )
+
+bit_type = IntegerType.from_width(1)
+
+@irdl_op_definition
+class Measure(Operation):
+    name: str = "qssa.measure"
+
+    # operands
+    qubits_in: Annotated[Operand, Qubits]
+
+    # output
+    results_out: Annotated[OpResult, TensorType]
+
+    @staticmethod
+    def apply(input_qubits: Union[Operation, SSAValue]) -> Measure:
+        input_qubits_typ = SSAValue.get(input_qubits).typ
+        attr_constr_coercion(Qubits).verify(input_qubits_typ)
+
+        # find the dimension of current qubits
+        qubit_dim = input_qubits_typ.n.data
+        bit_measure_type = TensorType.from_type_and_list(bit_type, [qubit_dim])
+        return Measure.build(
+            operands=[input_qubits], result_types=[bit_measure_type]
         )
 
 
@@ -548,11 +573,28 @@ def main() -> None:
     q5_ssa, i32_5_ssa = q5_dim_ssa.results
     _show_indent(printer, "qssa.dim q5", q5_dim_ssa)
 
-    # applying values from dimension
-    i32_5_minus_2_ssa = Subi.get(i32_5_ssa, i64_2)
-    _show_indent(printer, "arith.subi ((qssa.dim q5)[1], arith.constant 2)", i32_5_minus_2_ssa)
-    q3_from_dim, q2_from_dim = Split.apply(q5, i32_5_minus_2_ssa)
-    _show_indent(printer, "qssa")
+    # applying values from dimension (Doesn't work yet without dynamic qubit sizes)
+    # i32_5_minus_2_ssa = Subi.get(i32_5_ssa, i64_2)
+    # _show_indent(printer, "%subi = arith.subi ((qssa.dim q5)[1], arith.constant 2)", i32_5_minus_2_ssa)
+    # q5_dim_split_ssa = Split.apply(q5, i32_5_minus_2_ssa)
+    # _show_indent(printer, "qssa.split (%q5, %subi)", q5_dim_split_ssa)
+
+    # Test 6: measure
+    print("6: Measure operation")
+    q3_measured_ssa = Measure.apply(q3)
+    _show_indent(printer, "qssa.measure q3", q3_measured_ssa)
+
+    # measuring something that's not a qubit
+    try:
+        Measure.apply(i64_2)
+    except DiagnosticException as e:
+        _show_indent(printer, "qssa.measure (arith.constant 2) error caught!", str(e))
+
+    try:
+        Measure.apply(i32_5_ssa)
+    except DiagnosticException as e:
+        _show_indent(printer, "qssa.measure (qssa.dim q5) error caught!", str(e))
+
 
 
 
