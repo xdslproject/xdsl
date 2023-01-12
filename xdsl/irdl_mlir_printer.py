@@ -1,5 +1,9 @@
 from io import IOBase
+from dataclasses import dataclass
+
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import Attribute
+from xdsl.irdl import AttrConstraint
 from xdsl.printer import Printer
 from xdsl.dialects.irdl import (
     ConstraintVarsOp, DialectOp, ParametersOp, TypeOp, OperandsOp, ResultsOp,
@@ -7,7 +11,6 @@ from xdsl.dialects.irdl import (
     AnyOfTypeConstraintAttr, DynTypeBaseConstraintAttr,
     DynTypeParamsConstraintAttr, TypeParamsConstraintAttr,
     NamedTypeConstraintAttr)
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True, eq=False)
@@ -15,17 +18,19 @@ class IRDLPrinter:
 
     stream: IOBase
 
-    def _print(self, s: str, **kw_args):
-        print(s, file=self.stream, **kw_args)
+    def _print(self, s: str, end: str | None = None):
+        print(s, file=self.stream, end=end)
 
-    def print_module(self, module):
+    def print_module(self, module: ModuleOp):
         module.walk(lambda op: self.ensure_op_is_irdl_op(op))
         self._print('module {')
         module.walk(lambda di: IRDLPrinter.print_dialect_definition(self, di)
                     if isinstance(di, DialectOp) else None)
         self._print('}')
 
-    def ensure_op_is_irdl_op(self, op):
+    def ensure_op_is_irdl_op(self, op: OperationOp | ResultsOp | OperandsOp
+                             | ConstraintVarsOp | TypeOp | ParametersOp
+                             | DialectOp | ModuleOp):
         if not isinstance(
                 op, (OperationOp | ResultsOp | OperandsOp, ConstraintVarsOp
                      | TypeOp | ParametersOp | DialectOp | ModuleOp)):
@@ -37,7 +42,7 @@ class IRDLPrinter:
                   if isinstance(param, ParametersOp) else None)
         self._print("    }")
 
-    def print_attr_constraint(self, f):
+    def print_attr_constraint(self, f: AttrConstraint | Attribute):
 
         if isinstance(f, AnyOfTypeConstraintAttr):
             self._print("AnyOf", end="<")
@@ -103,7 +108,7 @@ class IRDLPrinter:
 
         self._print("    }}")
 
-    def print_result_definition(self, res_list=list[ResultsOp]):
+    def print_result_definition(self, res_list: list[ResultsOp]):
         self._print(f"      {ResultsOp.name}", end="(")
 
         for i in range(len(res_list)):
@@ -112,7 +117,7 @@ class IRDLPrinter:
                 self._print(", ", end='') if i != len(res_list) - 1 else None
         self._print(")")
 
-    def print_operand_definition(self, op_list=list[OperandsOp]):
+    def print_operand_definition(self, op_list: list[OperandsOp]):
         self._print(f"      {OperandsOp.name}", end="(")
 
         for i in range(len(op_list)):

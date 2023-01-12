@@ -1,23 +1,12 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from typing import Annotated, Union
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
-from xdsl.ir import MLContext, MLIRType
-from xdsl.irdl import (irdl_op_definition, Operation, OperandDef,
-                       irdl_attr_definition, ParameterDef, ParamAttrConstraint,
-                       AnyOf, ResultDef, ParametrizedAttribute,
+from xdsl.ir import (MLIRType, ParametrizedAttribute, Operation, Dialect,
+                     OpResult, SSAValue)
+from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
+                       ParameterDef, ParamAttrConstraint, AnyOf,
                        VerifyException)
-
-
-@dataclass
-class CMath:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(ComplexType)
-
-        self.ctx.register_op(Norm)
-        self.ctx.register_op(Mul)
 
 
 @irdl_attr_definition
@@ -30,9 +19,10 @@ class ComplexType(ParametrizedAttribute, MLIRType):
 class Norm(Operation):
     name: str = "cmath.norm"
 
-    op = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    res = ResultDef(AnyOf([Float32Type, Float64Type]))
+    op: Annotated[
+        Operand,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
+    res: Annotated[OpResult, AnyOf([Float32Type, Float64Type])]
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -45,15 +35,28 @@ class Norm(Operation):
 class Mul(Operation):
     name: str = "cmath.mul"
 
-    lhs = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    rhs = OperandDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
-    res = ResultDef(
-        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])]))
+    lhs: Annotated[
+        Operand,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
+    rhs: Annotated[
+        Operand,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
+    result: Annotated[
+        OpResult,
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])]
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.lhs != self.rhs.typ and self.rhs.typ != self.res.typ:
+        if self.lhs != self.rhs.typ and self.rhs.typ != self.result.typ:
             raise VerifyException(
                 "expect all input and output types to be equal")
+
+    @staticmethod
+    def get(operand1: Union[Operation, SSAValue],
+            operand2: Union[Operation, SSAValue]) -> Mul:
+        operand1 = SSAValue.get(operand1)
+        return Mul.build(operands=[operand1, operand2],
+                         result_types=[operand1.typ])
+
+
+CMath = Dialect([Norm, Mul], [ComplexType])

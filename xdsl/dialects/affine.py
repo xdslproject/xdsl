@@ -1,28 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import Annotated
 
-from xdsl.dialects.builtin import IntegerAttr, IndexType
-from xdsl.ir import Operation, SSAValue, MLContext, Block, Region
-from xdsl.irdl import (irdl_op_definition, AttributeDef, RegionDef,
-                       VarResultDef, VarOperandDef, AnyAttr)
-
-
-@dataclass
-class Affine:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(For)
-        self.ctx.register_op(Yield)
+from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
+from xdsl.ir import Operation, SSAValue, Block, Region, Dialect
+from xdsl.irdl import (VarOpResult, irdl_op_definition, AttributeDef,
+                       RegionDef, VarOperand, AnyAttr)
 
 
 @irdl_op_definition
 class For(Operation):
     name: str = "affine.for"
 
-    arguments = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
@@ -52,10 +43,10 @@ class For(Operation):
 
     @staticmethod
     def from_region(operands: list[Operation | SSAValue],
-                    lower_bound: int | IntegerAttr,
-                    upper_bound: int | IntegerAttr,
+                    lower_bound: int | AnyIntegerAttr,
+                    upper_bound: int | AnyIntegerAttr,
                     region: Region,
-                    step: int | IntegerAttr = 1) -> For:
+                    step: int | AnyIntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
         attributes = {
             "lower_bound": lower_bound,
@@ -69,10 +60,10 @@ class For(Operation):
 
     @staticmethod
     def from_callable(operands: list[Operation | SSAValue],
-                      lower_bound: int | IntegerAttr,
-                      upper_bound: int | IntegerAttr,
+                      lower_bound: int | AnyIntegerAttr,
+                      upper_bound: int | AnyIntegerAttr,
                       body: Block.BlockCallback,
-                      step: int | IntegerAttr = 1) -> For:
+                      step: int | AnyIntegerAttr = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
         return For.from_region(
             operands, lower_bound, upper_bound,
@@ -83,9 +74,12 @@ class For(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "affine.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(
             operands=[SSAValue.get(operand) for operand in operands])
+
+
+Affine = Dialect([For, Yield], [])

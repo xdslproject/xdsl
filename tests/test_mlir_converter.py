@@ -8,18 +8,20 @@ from xdsl.dialects.func import Func
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
+
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin, MLContext
+from xdsl.ir import MLContext
+from xdsl.dialects.builtin import Builtin
 
 
 def convert_and_verify(test_prog: str):
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    func = Func(ctx)
-    affine = Affine(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
-    memref = MemRef(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Affine)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Scf)
+    ctx.register_dialect(MemRef)
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()
@@ -53,7 +55,7 @@ builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"]{
   ^0(%arg : !i32):
     %0 : !i32 = arith.constant() ["value" = 0 : !i32]
-    %res : !i32 = arith.addi(%arg : !i32, %0 : !i32) 
+    %res : !i32 = arith.addi(%arg : !i32, %0 : !i32)
     func.return(%res : !i32)
   }
 }
@@ -69,7 +71,7 @@ builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %t : !i1 = arith.cmpi(%arg : !i32, %0 : !i32) ["predicate" = 1 : !i64]
     %res : !i32 = scf.if(%t : !i1) {
-        %then : !i32 = arith.addi(%arg : !i32, %0 : !i32) 
+        %then : !i32 = arith.addi(%arg : !i32, %0 : !i32)
         scf.yield(%then : !i32)
     } {
         %else : !i32 = arith.subi(%arg : !i32, %0 : !i32)

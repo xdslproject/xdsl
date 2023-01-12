@@ -11,11 +11,11 @@ builtin.module() {
 
       // match the first constant
       %lhs_cst_val : !i32 = pdl.attr() ["name" = "value"]
-      (%3 : !operation, %4 : !value) = pdl.operation(%lhs_cst_val : !i32, %int_type : !type) ["name"="arith.constant"]
+      %3 : !operation, %4 : !value = pdl.operation(%lhs_cst_val : !i32, %int_type : !type) ["name"="arith.constant"]
 
       // match the second constant
       %rhs_cst_val : !i32 = pdl.attr() ["name" = "value"]
-      (%5 : !operation, %6 : !value) = pdl.operation(%rhs_cst_val : !i32, %int_type : !type) ["name"="arith.constant"]
+      %5 : !operation, %6 : !value = pdl.operation(%rhs_cst_val : !i32, %int_type : !type) ["name"="arith.constant"]
 
       // match the addition of these constants
       %7 : !operation = pdl.operation(%4 : !value, %6 : !value, %int_type : !type) ["name"="arith.addi"]
@@ -56,7 +56,7 @@ builtin.module() {
     %pattern : !pattern = match.pattern() {
       %bool_type : !type = pdl.type() ["type" = !i1]
       %cond_value : !i1 = pdl.attr() ["name" = "value", "value" = 1 : !i1]
-      (%condition : !operation, %condition_res : !value) = pdl.operation(%cond_value : !i1, %bool_type : !type) ["name"="arith.constant"]
+      %condition : !operation, %condition_res : !value = pdl.operation(%cond_value : !i1, %bool_type : !type) ["name"="arith.constant"]
       %if_op : !operation = pdl.operation(%condition_res : !value) ["name"="scf.if"]
     }
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
@@ -72,13 +72,13 @@ builtin.module() {
     %pattern : !pattern = match.pattern() {
       // here is a parser error! If I leave out the "[]", the parser fails
       %int_type : !type = pdl.type() ["type" = !i32]
-      (%any_int_op : !operation, %op_res : !value) = pdl.operation(%int_type : !type)
+      %any_int_op : !operation, %op_res : !value = pdl.operation(%int_type : !type)
       match.capture(%op_res : !value, %int_type : !type)
     }
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%matched_op : !operation, %op_res : !value, %int_type : !type):
       // rewriting
-      (%cst0_ : !operation, %cst0_res : !value) = irutils.new_op(%int_type : !type) ["name" = "arith.Constant", "value" = 0 : !i32, "attribute_names"=["value"]]
+      %cst0_ : !operation, %cst0_res : !value = irutils.new_op(%int_type : !type) ["name" = "arith.Constant", "value" = 0 : !i32, "attribute_names"=["value"]]
       %result : !operation = irutils.new_op(%op_res : !value, %cst0_res : !value, %int_type : !type) ["name" = "arith.Addi"]
 
       rewrite.return(%result : !operation)
@@ -91,7 +91,7 @@ builtin.module() {
     %pattern : !pattern = match.pattern() {
       // matching the cst 0
       %attr_value : !i32 = pdl.attr() ["name" = "value", "value" = 0 : !i32]
-      (%cst0_ : !operation, %cst0_res : !value) = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
+      %cst0_ : !operation, %cst0_res : !value = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
       // matching any other operand
       %int_type : !type = pdl.type()
       %any_operand : !value = pdl.operand(%int_type : !type)
@@ -112,7 +112,7 @@ builtin.module() {
     %pattern : !pattern = match.pattern() {
       // matching the cst 2
       %attr_value : !i32 = pdl.attr() ["name" = "value", "value" = 2 : !i32]
-      (%cst2 : !operation, %cst2_res : !value) = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
+      %cst2 : !operation, %cst2_res : !value = pdl.operation(%attr_value : !i32) ["name"="arith.constant"]
       // matching any other operand
       %int_type : !type = pdl.type()
       %x : !value = pdl.operand(%int_type : !type)
@@ -123,7 +123,7 @@ builtin.module() {
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%x : !value, %int_type : !type):
       // rewriting
-      (%cst1_ : !operation, %cst1_res : !value) = irutils.new_op(%int_type : !type) ["name" = "arith.Constant", "value" = 1 : !i32, "attribute_names"=["value"]]
+      %cst1_ : !operation, %cst1_res : !value = irutils.new_op(%int_type : !type) ["name" = "arith.Constant", "value" = 1 : !i32, "attribute_names"=["value"]]
       %result : !operation = irutils.new_op(%x : !value, %cst1_res : !value, %int_type : !type) ["name" = "arith.ShLI"]
 
       rewrite.return(%result : !operation)

@@ -1,22 +1,26 @@
 from __future__ import annotations
 
 from io import StringIO
+from typing import List, Annotated
 
+from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.diagnostic import Diagnostic
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition, irdl_op_definition, Operation, OperandDef, ResultDef, OptAttributeDef
+
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
+from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
+                       Operation, Operand, OptAttributeDef)
 from xdsl.printer import Printer
 from xdsl.parser import Parser
+from xdsl.utils.diagnostic import Diagnostic
 
 
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    arith = Arith(ctx)
+    ctx.register_dialect(Arith)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
 
     add.verify()
@@ -42,9 +46,9 @@ def test_simple_forgotten_op():
 def test_forgotten_op_non_fail():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
-    arith = Arith(ctx)
+    ctx.register_dialect(Arith)
 
-    lit = Constant.from_int_constant(42, 32)
+    lit = Constant.from_int_and_width(42, 32)
     add = Addi.get(lit, lit)
     add2 = Addi.get(add, add)
     mod = ModuleOp.from_region_or_ops([add, add2])
@@ -142,8 +146,8 @@ builtin.module() {
 """
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -177,8 +181,8 @@ def test_two_different_op_messages():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -213,8 +217,8 @@ def test_two_same_op_messages():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -247,8 +251,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -283,8 +287,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -308,21 +312,9 @@ def test_diagnostic():
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""\
-Exception: test message
-
-builtin.module() {
-^^^^^^^^-------
-| Test message
----------------
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
-
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -343,7 +335,7 @@ builtin.module() {
 #
 
 
-def test_print_costum_name():
+def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
@@ -361,8 +353,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -384,9 +376,9 @@ builtin.module() {
 @irdl_op_definition
 class PlusCustomFormatOp(Operation):
     name = "test.add"
-    lhs = OperandDef(IntegerType)
-    rhs = OperandDef(IntegerType)
-    res = ResultDef(IntegerType)
+    lhs: Annotated[Operand, IntegerType]
+    rhs: Annotated[Operand, IntegerType]
+    res: Annotated[OpResult, IntegerType]
 
     @classmethod
     def parse(cls, result_types: List[Attribute],
@@ -420,8 +412,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -451,8 +443,8 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -464,7 +456,7 @@ builtin.module() {
     assert file.getvalue().strip() == expected.strip()
 
 
-def test_custom_format():
+def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
@@ -482,8 +474,8 @@ def test_custom_format():
 }"""
 
     ctx = MLContext()
-    arith = Arith(ctx)
-    builtin = Builtin(ctx)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
@@ -539,7 +531,7 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -568,7 +560,7 @@ builtin.module() {
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -581,7 +573,7 @@ builtin.module() {
     assert file.getvalue().strip() == expected.strip()
 
 
-def test_parse_generic_format_attr():
+def test_parse_generic_format_attr_II():
     """
     Test that we can parse attributes using generic formats.
     """
@@ -597,7 +589,7 @@ def test_parse_generic_format_attr():
 }"""
 
     ctx = MLContext()
-    Builtin(ctx)
+    ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
@@ -624,8 +616,8 @@ def test_parse_dense_xdsl():
     """
 
     ctx = MLContext()
-    Builtin(ctx)
-    Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -649,8 +641,8 @@ def test_parse_dense_mlir():
     """
 
     ctx = MLContext()
-    Builtin(ctx)
-    Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     parser = Parser(ctx, prog, source=Parser.Source.MLIR)
     module = parser.parse_op()
@@ -659,3 +651,45 @@ def test_parse_dense_mlir():
     printer = Printer(stream=file, target=Printer.Target.MLIR)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+
+
+def test_foo_string():
+    """
+    Fail attribute in purpose.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !"string"<"foo">]
+    }"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    try:
+        parser.parse_op()
+        assert False
+    except:
+        pass
+
+
+def test_dictionary_attr():
+    """Test that a DictionaryAttr can be parsed and then printed."""
+
+    prog = """
+    func.func() ["sym_name" = "test", "function_type" = !i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : !i64}]
+    """
+
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file)
+    printer.print_op(parsed)
+    assert file.getvalue().strip() == prog.strip()

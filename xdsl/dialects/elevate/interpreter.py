@@ -5,7 +5,7 @@ from xdsl.dialects.stencil.stencil_rewrites_decomposed import RerouteUse_decomp
 from xdsl.immutable_utils import new_block
 from xdsl.ir import *
 from xdsl.irdl import *
-from xdsl.util import *
+from xdsl.utils import *
 from xdsl.elevate import *
 import xdsl.dialects.elevate.dialect as elevate_dialect
 from xdsl.dialects.IRUtils.dialect import ValueType, TypeType, OperationType, AnyType, AttributeType, RegionType, BlockType, RangeType, NativeHandleType
@@ -820,7 +820,7 @@ class ElevateInterpreter():
                     type = TensorType.from_type_and_list(tensor.typ.element_type, new_shape)
 
                     # new_shape = ArrayAttr(IntegerAttr.from_index_int_value(new_shape[1].value.data * len(values))
-                    self.matching_env[concat_tensors_op.results[0]] = DenseIntOrFPElementsAttr.from_float_list(
+                    self.matching_env[concat_tensors_op.results[0]] = DenseIntOrFPElementsAttr.from_list(
                         type, [1.0])
                     if len(concat_tensors_op.results) == 2 and isinstance(concat_tensors_op.results[1].typ, TypeType):
                         self.matching_env[concat_tensors_op.results[1]] = type

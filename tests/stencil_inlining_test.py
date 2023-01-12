@@ -473,7 +473,7 @@ def test_inlining_multiple_edges():
   func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
   ^0(%arg0 : !stencil.field<[70, 70, 70]>, %arg1 : !stencil.field<[70, 70, 70]>, %arg2 : !stencil.field<[70, 70, 70]>):
     %0 : !stencil.temp<[66,64,60]> = stencil.load(%arg0 : !stencil.field<[70, 70, 70]>) ["lb" = [-1, 0, 0], "ub" = [65, 64, 60]]
-    (%1 : !stencil.temp<[64,64,60]>, %2 : !stencil.temp<[64,64,60]>)  = stencil.apply(%0 : !stencil.temp<[66,64,60]>) ["lb" = [0, 0, 0], "ub" = [64, 64, 60]] {
+    %1 : !stencil.temp<[64,64,60]>, %2 : !stencil.temp<[64,64,60]>  = stencil.apply(%0 : !stencil.temp<[66,64,60]>) ["lb" = [0, 0, 0], "ub" = [64, 64, 60]] {
         ^0(%arg3 : !stencil.temp<[66,64,60]>): 
           %3 : !f64 = stencil.access(%arg3 : !stencil.temp<[66,64,60]>) ["offset" = [-1, 0, 0]]
           %4 : !f64 = stencil.access(%arg3 : !stencil.temp<[66,64,60]>) ["offset" = [1, 0, 0]]
@@ -637,7 +637,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     %9 : !stencil.result<!f64> = stencil.store_result(%8 : !f64)
     stencil.return(%9 : !stencil.result<!f64>)
   }
-  (%10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) = stencil.apply(%4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  %10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.apply(%4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
   ^2(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %13 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>):
     %14 : !f64 = stencil.access(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [0 : !i64, 0 : !i64, 0 : !i64]]
     %15 : !f64 = stencil.access(%12 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
@@ -658,7 +658,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 ^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
   %3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [-1 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
-  (%4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %5 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) = stencil.apply(%3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %5 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.apply(%3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
   ^1(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>):
     %7 : !f64 = stencil.access(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
     %8 : !f64 = stencil.access(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
@@ -682,7 +682,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 ^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
   %3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [-1 : !i64, 0 : !i64, 0 : !i64], "ub" = [66 : !i64, 66 : !i64, 63 : !i64]]
-  (%4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %5 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) = stencil.apply(%3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
+  %4 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %5 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.apply(%3 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]] {
   ^1(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>):
     %7 : !f64 = stencil.access(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [-1 : !i64, 0 : !i64, 0 : !i64]]
     %8 : !f64 = stencil.access(%6 : !stencil.temp<[67 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 0 : !i64, 0 : !i64]]
@@ -1013,7 +1013,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
     %7 : !stencil.result<!f64> = stencil.store_result(%6 : !f64)
     stencil.return(%7 : !stencil.result<!f64>)
   }
-  (%8 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) = stencil.apply(%3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
+  %8 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %9 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
   ^2(%10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>, %11 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>):
     %12 : !f64 = stencil.access(%10 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
     %13 : !stencil.result<!f64> = stencil.store_result(%12 : !f64)
@@ -1032,7 +1032,7 @@ func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 func.func() ["sym_name" = "test", "type" = !fun<[], []>] {
 ^0(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %1 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>, %2 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>):
   %3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]> = stencil.load(%0 : !stencil.field<[70 : !i64, 70 : !i64, 70 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [65 : !i64, 66 : !i64, 63 : !i64]]
-  (%4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %5 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>) = stencil.apply(%3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
+  %4 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]>, %5 : !stencil.temp<[64 : !i64, 64 : !i64, 60 : !i64]> = stencil.apply(%3 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["lb" = [0 : !i64, 0 : !i64, 0 : !i64], "ub" = [64 : !i64, 64 : !i64, 60 : !i64]] {
   ^1(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>):
     %7 : !f64 = stencil.access(%6 : !stencil.temp<[65 : !i64, 66 : !i64, 63 : !i64]>) ["offset" = [1 : !i64, 2 : !i64, 3 : !i64]]
     %8 : !stencil.result<!f64> = stencil.store_result(%7 : !f64)

@@ -27,7 +27,7 @@ builtin.module() {
 // CHECK-NEXT: }
 
 
-  func.func() ["sym_name" = "affine_mm", "function_type" = !fun<[!memref<[256 : !index, 256 : !index], !f32>, !memref<[256 : !index, 256 : !index], !f32>, !memref<[256 : !index, 256 : !index], !f32>], [!f32]>, "sym_visibility" = "private"] {
+  func.func() ["sym_name" = "affine_mm", "function_type" = !fun<[!memref<[256 : !index, 256 : !index], !f32>, !memref<[256 : !index, 256 : !index], !f32>, !memref<[256 : !index, 256 : !index], !f32>], [!memref<[256 : !index, 256 : !index], !f32>]>, "sym_visibility" = "private"] {
   ^0(%0 : !memref<[256 : !index, 256 : !index], !f32>, %1 : !memref<[256 : !index, 256 : !index], !f32>, %2 : !memref<[256 : !index, 256 : !index], !f32>):
     affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 256 : !index, "step" = 1 : !index] {
     ^1(%3 : !index):

@@ -2,64 +2,7 @@ from __future__ import annotations
 from xdsl.dialects.builtin import *
 from xdsl.ir import *
 from xdsl.irdl import *
-from xdsl.util import *
-
-
-@dataclass
-class IRUtils:
-    ctx: MLContext
-
-    def __post_init__(self):
-        # Types
-        self.ctx.register_attr(TypeType)
-        self.ctx.register_attr(AnyType)
-        self.ctx.register_attr(ValueType)
-        self.ctx.register_attr(OperationType)
-        self.ctx.register_attr(AttributeType)
-        self.ctx.register_attr(RegionType)
-        self.ctx.register_attr(BlockType)
-        self.ctx.register_attr(RangeType)
-        self.ctx.register_attr(NativeHandleType)
-
-        # Core Rewriting interface
-        self.ctx.register_op(NewOp)
-        self.ctx.register_op(FromOp)
-        self.ctx.register_op(NewBlock)
-        self.ctx.register_op(FromBlock)
-        self.ctx.register_op(RegionFromBlocks)
-        self.ctx.register_op(NewBlockArgs)
-        self.ctx.register_op(ReplaceUses)
-        # Ops for rhs
-        self.ctx.register_op(GetOp)
-        self.ctx.register_op(GetResults)
-        self.ctx.register_op(GetType)
-        self.ctx.register_op(GetAttributes)
-        self.ctx.register_op(GetAttribute)
-        self.ctx.register_op(HasAttribute)
-        self.ctx.register_op(NativeMatcher)
-        self.ctx.register_op(GetNestedOps)
-        self.ctx.register_op(GetOperands)
-        self.ctx.register_op(GetOperand)
-
-        self.ctx.register_op(GetBlockArgs)
-        self.ctx.register_op(GetIndex)
-        self.ctx.register_op(GetIndexOfOpInRange)
-        self.ctx.register_op(RemoveElement)
-
-        # Rewriting Utilities
-        self.ctx.register_op(ForEach)
-        self.ctx.register_op(If)
-        self.ctx.register_op(Yield)
-        self.ctx.register_op(Concat)
-        self.ctx.register_op(GetElem)
-        self.ctx.register_op(AttributeRange)
-        self.ctx.register_op(ArrayAttrElementWise)
-        self.ctx.register_op(ApplyNativeRewrite)
-        self.ctx.register_op(ConstructType)
-
-        # Tensor Specific
-        self.ctx.register_op(ConcatTensors)
-
+from xdsl.utils import *
 
 ##############################################################################
 ########################## Core Rewriting interface ##########################
@@ -153,16 +96,16 @@ class RegionFromBlocks(Operation):
 @irdl_op_definition
 class NewBlockArgs(Operation):
     name: str = "irutils.new_block_args"
-    types = OperandDef(RangeType)  # range of types
-    output = ResultDef(RangeType)  # range of BlockArgs
+    types: Annotated[Operand, RangeType]  # range of types
+    output: Annotated[OpResult, RangeType]  # range of BlockArgs
 
 
 @irdl_op_definition
 class ReplaceUses(Operation):
     name: str = "irutils.replace_uses"
-    old_use = OperandDef(ValueType)
-    new_use = OperandDef(ValueType)
-    output = ResultDef(RangeType)
+    old_use: Annotated[Operand, ValueType]
+    new_use: Annotated[Operand, ValueType]
+    output: Annotated[OpResult, RangeType]
 
 
 ##############################################################################
@@ -177,9 +120,9 @@ class ForEach(Operation):
     The body has to return a new element for the result range.
     """
     name: str = "irutils.for_each"
-    range = OperandDef(RangeType)
+    range: Annotated[Operand, RangeType]
     body = RegionDef()
-    output = ResultDef(RangeType)
+    output: Annotated[OpResult, RangeType]
 
 
 @irdl_op_definition
@@ -189,7 +132,7 @@ class If(Operation):
     The body has to return a new element for the result range.
     """
     name: str = "irutils.if"
-    condition = OperandDef(i1)
+    condition: Annotated[Operand, i1]
     then_region = RegionDef()
     else_region = RegionDef()
 
@@ -200,14 +143,14 @@ class Yield(Operation):
     Used to return a value from e.g. ForEach or If
     """
     name: str = "irutils.yield"
-    result = OperandDef(Attribute)
+    result: Annotated[Operand, Attribute]
 
 
 @irdl_op_definition
 class Concat(Operation):
     name: str = "irutils.concat"
     ranges = VarOperandDef(RangeType)
-    output = ResultDef(RangeType)
+    output: Annotated[OpResult, RangeType]
 
 
 @irdl_op_definition
@@ -216,9 +159,9 @@ class GetElem(Operation):
     returns the element at the given index of a range
     """
     name: str = "irutils.get_elem"
-    range = OperandDef(RangeType)
+    range: Annotated[Operand, RangeType]
     index = OptOperandDef(Attribute)
-    output = ResultDef(Attribute)
+    output: Annotated[OpResult, Attribute]
     # index is either an Attribute or an Operand
 
 
@@ -226,15 +169,15 @@ class GetElem(Operation):
 class AttributeRange(Operation):
     name: str = "irutils.attribute_range"
     ranges = VarOperandDef(RangeType)  # or AttrType
-    output = ResultDef(RangeType)
+    output: Annotated[OpResult, RangeType]
 
 
 @irdl_op_definition
 class ArrayAttrElementWise(Operation):
     name: str = "irutils.array_attr_element_wise"
-    array0 = OperandDef(AttributeType)
-    array1 = OperandDef(AttributeType)
-    output = ResultDef(AttributeType)
+    array0: Annotated[Operand, AttributeType]
+    array1: Annotated[Operand, AttributeType]
+    output: Annotated[OpResult, AttributeType]
 
 
 @irdl_op_definition
@@ -242,14 +185,14 @@ class ApplyNativeRewrite(Operation):
     name: str = "irutils.apply_native_rewrite"
     args = VarOperandDef(RangeType)
     rewriter_name = AttributeDef(StringAttr)
-    output = ResultDef(Attribute)
+    output: Annotated[OpResult, Attribute]
 
 
 @irdl_op_definition
 class ConstructType(Operation):
     name: str = "irutils.construct_type"
     args = VarOperandDef(Attribute)
-    output = ResultDef(TypeType)
+    output: Annotated[OpResult, TypeType]
 
 
 @irdl_op_definition
@@ -258,17 +201,17 @@ class GetOp(Operation):
     Returns the op that created the value
     """
     name: str = "irutils.get_op"
-    value = OperandDef(ValueType)
-    output = ResultDef(OperationType)  # or RangeType
+    value: Annotated[Operand, ValueType]
+    output: Annotated[OpResult, OperationType]  # or RangeType
 
 
 @irdl_op_definition
 class GetResults(Operation):
     name: str = "irutils.get_results"
-    op = OperandDef(OperationType)
+    op: Annotated[Operand, OperationType]
     index = OptAttributeDef(
         IntegerAttr)  # if not specified returns all results
-    output = ResultDef(ValueType)  # or RangeType
+    output: Annotated[OpResult, ValueType]  # or RangeType
 
 
 @irdl_op_definition
@@ -277,15 +220,15 @@ class GetType(Operation):
     Used to get the type of a value or attribute or from a range of such.
     """
     name: str = "irutils.get_type"
-    value = OperandDef(Attribute)  # either ValueType or RangeType
-    output = ResultDef(Attribute)  # either TypeType or RangeType
+    value: Annotated[Operand, Attribute]  # either ValueType or RangeType
+    output: Annotated[OpResult, Attribute]  # either TypeType or RangeType
 
 
 @irdl_op_definition
 class NativeMatcher(Operation):
     name: str = "irutils.native_matcher"
     matcher_name = AttributeDef(StringAttr)
-    output = ResultDef(ValueType)
+    output: Annotated[OpResult, ValueType]
 
 
 @irdl_op_definition
@@ -294,7 +237,7 @@ class GetNestedOps(Operation):
     Get the ops of a region excluding the terminator.
     """
     name: str = "irutils.get_nested_ops"
-    input = OperandDef(OperationType)
+    input: Annotated[Operand, OperationType]
     region_idx = OptAttributeDef(IntAttr)
     block_idx = OptAttributeDef(IntAttr)
     lb = OptOperandDef(IntAttr)
@@ -302,7 +245,7 @@ class GetNestedOps(Operation):
     custom_lb = OptAttributeDef(IntAttr)
     custom_ub = OptAttributeDef(IntAttr)
     exclude_terminator = OptAttributeDef(IntAttr)
-    output = ResultDef(RangeType)
+    output: Annotated[OpResult, RangeType]
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -311,9 +254,9 @@ class GetIndexOfOpInRange(Operation):
     """
     """
     name: str = "irutils.get_index_of_op_in_range"
-    op = OperandDef(OperationType)
-    list = OperandDef(RangeType)
-    output = ResultDef(IndexType)
+    op: Annotated[Operand, OperationType]
+    list: Annotated[Operand, RangeType]
+    output: Annotated[OpResult, IndexType]
 
 
 @irdl_op_definition
@@ -322,7 +265,7 @@ class RemoveElement(Operation):
     Remove the element at the given index from the range
     """
     name: str = "irutils.remove_element"
-    range = OperandDef(RangeType)
+    range: Annotated[Operand, RangeType]
     index = AttributeDef(IntAttr)
     # index can also be given as a second operand
 
@@ -330,38 +273,38 @@ class RemoveElement(Operation):
 @irdl_op_definition
 class GetOperands(Operation):
     name: str = "irutils.get_operands"
-    input = OperandDef(OperationType)
-    output = ResultDef(RangeType)
+    input: Annotated[Operand, OperationType]
+    output: Annotated[OpResult, RangeType]
 
 
 @irdl_op_definition
 class GetOperand(Operation):
     name: str = "irutils.get_operand"
-    input = OperandDef(OperationType)
+    input: Annotated[Operand, OperationType]
     index = OptOperandDef(Attribute)
-    output = ResultDef(ValueType)
+    output: Annotated[OpResult, ValueType]
     # index is either specified as an attribute or as an operand
 
 
 @irdl_op_definition
 class GetAttributes(Operation):
     name: str = "irutils.get_attributes"
-    input = OperandDef(OperationType)
-    output = ResultDef(RangeType)
+    input: Annotated[Operand, OperationType]
+    output: Annotated[OpResult, RangeType]
 
 
 @irdl_op_definition
 class GetAttribute(Operation):
     name: str = "irutils.get_attribute"
-    input = OperandDef(OperationType)
-    output = ResultDef(AttributeType)
+    input: Annotated[Operand, OperationType]
+    output: Annotated[OpResult, AttributeType]
 
 
 @irdl_op_definition
 class HasAttribute(Operation):
     name: str = "irutils.has_attribute"
-    input = OperandDef(AttributeType)
-    output = ResultDef(IntegerType)
+    input: Annotated[Operand, AttributeType]
+    output: Annotated[OpResult, IntegerType]
 
 
 @irdl_op_definition
@@ -370,25 +313,76 @@ class GetIndex(Operation):
     Returns the index of a BlockArg or an OpResult
     """
     name: str = "irutils.get_index"
-    value = OperandDef(ValueType)
-    output = ResultDef(IndexType)
+    value: Annotated[Operand, ValueType]
+    output: Annotated[OpResult, IndexType]
 
 
 @irdl_op_definition
 class GetBlockArgs(Operation):
     name: str = "irutils.get_block_args"
-    input = OperandDef(OperationType)
+    input: Annotated[Operand, OperationType]
     region_idx = OptAttributeDef(IntAttr)
     block_idx = OptAttributeDef(IntAttr)
-    output = ResultDef(RangeType)
+    output: Annotated[OpResult, RangeType]
 
 
 # Tensor Specific
-
-
 @irdl_op_definition
 class ConcatTensors(Operation):
     name: str = "irutils.concat_tensors"
     input = VarOperandDef(ValueType)
-    new_tensor = ResultDef(AttributeType)
+    new_tensor: Annotated[OpResult, AttributeType]
     new_tensor_type = OptResultDef(TypeType)
+
+
+IRUtils = Dialect(
+    [
+        # Core Rewriting interface
+        NewOp,
+        FromOp,
+        NewBlock,
+        FromBlock,
+        RegionFromBlocks,
+        NewBlockArgs,
+        ReplaceUses,
+        # Ops for rhs
+        GetOp,
+        GetResults,
+        GetType,
+        GetAttributes,
+        GetAttribute,
+        HasAttribute,
+        NativeMatcher,
+        GetNestedOps,
+        GetOperands,
+        GetOperand,
+        GetBlockArgs,
+        GetIndex,
+        GetIndexOfOpInRange,
+        RemoveElement,
+
+        # Rewriting Utilities
+        ForEach,
+        If,
+        Yield,
+        Concat,
+        GetElem,
+        AttributeRange,
+        ArrayAttrElementWise,
+        ApplyNativeRewrite,
+        ConstructType,
+
+        # Tensor Specific
+        ConcatTensors,
+    ],
+    [
+        TypeType,
+        AnyType,
+        ValueType,
+        OperationType,
+        AttributeType,
+        RegionType,
+        BlockType,
+        RangeType,
+        NativeHandleType,
+    ])

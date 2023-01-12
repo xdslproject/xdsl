@@ -1,16 +1,19 @@
 from __future__ import annotations
-from xdsl.ir import (ParametrizedAttribute, SSAValue, Block, Callable,
-                     Attribute, Operation, Region, BlockArgument, MLContext)
+
+from dataclasses import dataclass, field
+from typing import Any, TypeVar
+from enum import Enum
+
+from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
+                     BlockArgument, MLContext, ParametrizedAttribute)
+
 from xdsl.dialects.builtin import (
     AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     FunctionType, IndexType, IntegerType, OpaqueAttr, Signedness, StringAttr,
     FlatSymbolRefAttr, IntegerAttr, ArrayAttr, TensorType, UnitAttr,
-    UnrankedTensorType, UnregisteredOp, VectorType)
+    UnrankedTensorType, UnregisteredOp, VectorType, DictionaryAttr)
 from xdsl.irdl import Data
-from dataclasses import dataclass, field
-from typing import Any, TypeVar
-from enum import Enum
 
 indentNumSpaces = 2
 
@@ -160,7 +163,7 @@ class Parser:
         return None
 
     def skip_white_space(self) -> None:
-        while (pos := self._pos) is not None:
+        while pos := self._pos:
             char = pos.get_char()
             if char.isspace():
                 self._pos = pos.next_char_pos()
@@ -177,7 +180,7 @@ class Parser:
         start_pos = self._pos
         if start_pos is None:
             return ""
-        while self._pos is not None:
+        while self._pos:
             char = self._pos.get_char()
             if not cond(char):
                 return self.str[start_pos.idx:self._pos.idx]
@@ -223,11 +226,11 @@ class Parser:
         start_pos = self._pos
         if start_pos is None:
             raise ParserError(None, "Unexpected end of file")
-        while self._pos is not None:
+        while self._pos:
             pos = self._pos
             char = pos.get_char()
             if char == '\\':
-                if (next_pos := pos.next_char_pos()) is not None:
+                if next_pos := pos.next_char_pos():
                     escaped = next_pos.get_char()
                     if escaped in ['\\', 'n', 't', 'r', '"']:
                         self._pos = next_pos.next_char_pos()
@@ -263,7 +266,7 @@ class Parser:
         res = self.parse_while(lambda char: char.isnumeric(),
                                skip_white_space=False)
         if len(res) == 0:
-            if is_negative is not None:
+            if is_negative:
                 raise ParserError(self._pos, "int literal expected")
             return None
         return int(res) if is_negative is None else -int(res)
@@ -325,7 +328,7 @@ class Parser:
         if not is_float:
             raise ParserError(
                 self._pos,
-                "float literal expected, but got an integer literal")
+                "float literal expected, but got an integer literal instead")
 
         return float(value)
 
@@ -341,7 +344,7 @@ class Parser:
     def parse_optional_char(self,
                             char: str,
                             skip_white_space: bool = True) -> bool | None:
-        assert (len(char) == 1)
+        assert len(char) == 1
         if skip_white_space:
             self.skip_white_space()
         if self._pos is None:
@@ -365,7 +368,7 @@ class Parser:
             self.skip_white_space()
         chars = self.get_char(len(contents))
         if chars == contents:
-            assert self._pos is not None
+            assert self._pos
             self._pos = self._pos.next_char_pos(len(contents))
             return True
         raise ParserError(self._pos, f"'{contents}' expected")
@@ -456,6 +459,37 @@ class Parser:
                 return res
             res.append(one)
         return res
+
+    def parse_dictionary(self,
+                         parse_optional_one: Callable[[], T | None],
+                         delimiter: str = ",",
+                         skip_white_space: bool = True) -> dict[T]:
+        if skip_white_space:
+            self.skip_white_space()
+        assert (len(delimiter) <= 1)
+        res = dict[Any]()  # Pyright do not let us use `T` here
+        entry = self.parse_dict_entry(parse_optional_one)
+        if entry is not None:
+            res = res | entry
+        while self.parse_optional_char(delimiter) if len(
+                delimiter) == 1 else True:
+            entry = self.parse_dict_entry(parse_optional_one)
+            if entry is None:
+                return res
+            res = res | entry
+        return res
+
+    def parse_dict_entry(
+        self,
+        parse_optional_one: Callable[[],
+                                     T | None]) -> dict[str, Attribute] | None:
+        # Limitation currently is that the key is a string
+        key = self.parse_str_literal()
+        if self.parse_optional_char("="):
+            value = parse_optional_one()
+            if value is not None:
+                return {key: value}
+        return None
 
     def parse_optional_block_argument(
             self,
@@ -575,22 +609,15 @@ class Parser:
             self,
             skip_white_space: bool = True
     ) -> list[tuple[str, Attribute]] | None:
-        # One argument
-        res = self.parse_optional_typed_result(
-            skip_white_space=skip_white_space)
-        if res is not None:
-            self.parse_char("=")
-            return [res]
-
-        # No arguments
-        if self.parse_optional_char("(") is None:
+        res = self.parse_list(lambda: self.parse_optional_typed_result(
+            skip_white_space=skip_white_space))
+        if len(res) == 0:
             return None
-
-        # Multiple arguments
-        res = self.parse_list(lambda: self.parse_optional_typed_result())
-        self.parse_char(")")
-        self.parse_char("=")
-        return res
+        elif len(res) == 1 and res[0] is None:
+            return None
+        else:
+            self.parse_char("=")
+            return res
 
     def parse_optional_operand(self,
                                skip_white_space: bool = True
@@ -675,6 +702,13 @@ class Parser:
             array = self.parse_list(self.parse_optional_attribute)
             self.parse_char("]")
             return ArrayAttr.from_list(array)
+
+        # Shorthand for DictionaryAttr
+        parse_bracket = self.parse_optional_char("{")
+        if parse_bracket:
+            dictionary = self.parse_dictionary(self.parse_optional_attribute)
+            self.parse_char("}")
+            return DictionaryAttr.from_dict(dictionary)
 
         # Shorthand for FlatSymbolRefAttr
         parse_at = self.parse_optional_char("@")
@@ -947,6 +981,12 @@ class Parser:
             self.parse_char("]")
             return ArrayAttr.from_list(contents)
 
+        # Shorthand for DictionaryAttr
+        if self.parse_optional_char("{"):
+            contents = self.parse_dictionary(self.parse_optional_attribute)
+            self.parse_char("}")
+            return DictionaryAttr.from_dict(contents)
+
         # FlatSymbolRefAttr
         if self.parse_optional_char("@"):
             symbol_name = self.parse_alpha_num(skip_white_space=False)
@@ -1106,10 +1146,10 @@ class Parser:
                                 ) -> tuple[str, bool] | None:
         op_name = self.parse_optional_alpha_num(
             skip_white_space=skip_white_space)
-        if op_name is not None:
+        if op_name:
             return op_name, False
         op_name = self.parse_optional_str_literal()
-        if op_name is not None:
+        if op_name:
             return op_name, True
         return None
 
@@ -1239,8 +1279,16 @@ class Parser:
         else:
             op_name = self.parse_str_literal()
 
-        op_type = self.ctx.get_op(op_name)
-        op = self.parse_mlir_op_with_default_format(op_type, len(results))
+        op_type = self.ctx.get_optional_op(op_name)
+        if op_type is None:
+            if not self.allow_unregistered_ops:
+                raise ParserError(start_pos, f"unknown operation '{op_name}'")
+
+            op_type = UnregisteredOp
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
+            op.attributes["op_name__"] = StringAttr.from_str(op_name)
+        else:
+            op = self.parse_mlir_op_with_default_format(op_type, len(results))
 
         # Register the SSA value names in the parser
         for (idx, res) in enumerate(results):

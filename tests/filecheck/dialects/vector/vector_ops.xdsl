@@ -1,0 +1,22 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index):
+    %2 : !vector<[2 : !index], !index> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
+    vector.store(%2 : !vector<[2 : !index], !index>, %0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
+
+    func.return()
+  }
+
+// CHECK: builtin.module() {
+// CHECK-NEXT: func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
+// CHECK-NEXT: ^{{.*}}(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index):
+// CHECK-NEXT: %{{.*}} : !vector<[2 : !index], !index> = vector.load(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
+// CHECK-NEXT: vector.store(%{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
+// CHECK-NEXT: func.return()
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+
+}

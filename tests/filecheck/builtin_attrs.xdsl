@@ -4,8 +4,7 @@
 // CHECK: module
 builtin.module() {
 
-  func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "builtin"] {
-    
+  func.func() ["function_type" = !fun<[], []>, "sym_name" = "builtin"] {
     // CHECK: "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>
     %x1 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>]
 
@@ -24,6 +23,10 @@ builtin.module() {
     // CHECK: "test" = false
     %x6 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = 0 : !i1]
 
+    func.return()
   }
+
+  // CHECK: "one"=1 : !i64, "two"=2 : !i64, "three"="three"
+  func.func() [sym_name="abc", "function_type" = !fun<[], []>, value = {"one"=1, "two"=2, "three"="three"}] { }
 
 }

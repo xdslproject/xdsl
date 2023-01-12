@@ -1,7 +1,8 @@
 from io import StringIO
+from typing import Annotated
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOperandDef,
-                       VarResultDef, irdl_attr_definition, irdl_op_definition)
+from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOpResult,
+                       VarOperand, irdl_attr_definition, irdl_op_definition)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
@@ -19,8 +20,8 @@ class ModuleOp(Operation):
 class AnyOp(Operation):
     """Operation only used for testing."""
     name = "any"
-    op = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    op: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
 
 
 @irdl_attr_definition
@@ -73,7 +74,7 @@ class ParamAttrWithCustomFormat(ParametrizedAttribute):
     param1: ParameterDef[ParamAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"~~")
+        printer.print("~~")
 
 
 def print_as_mlir_and_compare(test_prog: str, expected: str):
@@ -176,8 +177,8 @@ def test_op_with_results():
     )
 
     print_as_mlir_and_compare(
-        """(%0 : !param_attr, %1 : !param_type) = any()""",
-        """(%0, %1) = "any"() : () -> (#param_attr, !param_type)""",
+        """%0 : !param_attr, %1 : !param_type = any()""",
+        """%0, %1 = "any"() : () -> (#param_attr, !param_type)""",
     )
 
 

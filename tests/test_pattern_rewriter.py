@@ -1,24 +1,23 @@
-from xdsl.dialects.scf import Scf, If
+from io import StringIO
 
-from xdsl.printer import Printer
-from xdsl.dialects.builtin import Builtin, IntegerAttr, i32, i64, ModuleOp
-from xdsl.parser import Parser
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
+from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.scf import If, Scf
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
                                    PatternRewriter, AnonymousRewritePattern,
                                    GreedyRewritePatternApplier)
-
-from io import StringIO
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    arith = Arith(ctx)
-    scf = Scf(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Scf)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -49,7 +48,7 @@ def test_non_recursive_rewrite():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int_constant(43, i32)
+                new_constant = Constant.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -76,7 +75,7 @@ def test_non_recursive_rewrite_reversed():
 
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, Constant):
-                new_constant = Constant.from_int_constant(43, i32)
+                new_constant = Constant.from_int_and_width(43, i32)
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
@@ -105,7 +104,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
+            rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -129,7 +128,7 @@ def test_op_type_rewrite_pattern_static_decorator():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(Constant.from_int_constant(43, i32))
+        rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog, expected,
@@ -233,7 +232,7 @@ def test_greedy_rewrite_pattern_applier():
 
     @op_type_rewrite_pattern
     def constant_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Constant.from_int_constant(43, i32)])
+        rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
 
     @op_type_rewrite_pattern
     def addi_rewrite(op: Addi, rewriter: PatternRewriter):
@@ -264,7 +263,7 @@ def test_insert_op_before_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -289,7 +288,7 @@ def test_insert_op_at_pos():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
 
     rewrite_and_compare(
@@ -314,7 +313,7 @@ def test_insert_op_before():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -339,7 +338,7 @@ def test_insert_op_after():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after(new_cst, mod.ops[0])
 
     rewrite_and_compare(
@@ -364,7 +363,7 @@ def test_insert_op_after_matched_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -389,7 +388,7 @@ def test_insert_op_after_matched_op_reversed():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_constant(42, i32)
+        new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
@@ -448,8 +447,8 @@ def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
     ctx = MLContext()
-    builtin = Builtin(ctx)
-    arith = Arith(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
 
     prog = \
 """builtin.module() {
@@ -469,7 +468,7 @@ def test_operation_deletion_failure():
     try:
         walker.rewrite_module(module)
         assert False
-    except Exception as e:
+    except Exception:
         pass
 
 
@@ -480,7 +479,6 @@ def test_delete_inner_op():
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
-
 
     expected = \
 """builtin.module() {}"""
@@ -502,7 +500,6 @@ def test_replace_inner_op():
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
 }"""
 
-
     expected = \
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
@@ -510,7 +507,7 @@ def test_replace_inner_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        rewriter.replace_op(op.ops[0], [Constant.from_int_constant(42, i32)])
+        rewriter.replace_op(op.ops[0], [Constant.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
         prog, expected,

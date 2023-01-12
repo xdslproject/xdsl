@@ -1,6 +1,10 @@
 import versioneer
-
 from setuptools import find_packages, setup
+from pathlib import Path
+
+# Add README.md as long description
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 with open("requirements.txt") as f:
     required = f.read().splitlines()
@@ -12,7 +16,7 @@ reqs = []
 for ir in required:
     if ir[0:3] == "git":
         name = ir.split("/")[-1]
-        reqs += ["%s @ %s@master" % (name, ir)]
+        reqs += ["%s @ %s@main" % (name, ir)]
     else:
         reqs += [ir]
 
@@ -43,21 +47,22 @@ setup(
     name="xdsl",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    description="xDSL.",
-    long_description="""
-      Add long description here.""",
+    description="xDSL",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     project_urls={
-        "Documentation": "https://www....html",
         "Source Code": "https://github.com/xdslproject/xdsl",
         "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
     },
     url="https://xdsl.dev/",
     platforms=["Linux", "Mac OS-X", "Unix"],
     test_suite="pytest",
-    author="-",
-    author_email="-",
+    author="Mathieu Fehr",
+    author_email="mathieu.fehr@ed.ac.uk",
     license="MIT",
     packages=find_packages(),
+    package_data={"xdsl": ["py.typed"]},
     install_requires=reqs,
     extras_require=extras_require,
+    zip_safe=False,
 )

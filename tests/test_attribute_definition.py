@@ -11,11 +11,11 @@ import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
-                       VerifyException, irdl_attr_definition, builder,
-                       irdl_to_attr_constraint, AnyAttr, BaseAttr,
-                       ParamAttrDef)
+                       irdl_attr_definition, builder, irdl_to_attr_constraint,
+                       AnyAttr, BaseAttr, ParamAttrDef)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 #  ____        _
 # |  _ \  __ _| |_ __ _
@@ -116,10 +116,14 @@ def test_data_with_non_class_param_missing_verifier_failure():
     """
     with pytest.raises(Exception) as e:
         irdl_attr_definition(IntListMissingVerifierData)
-    assert e.value.args[0] == (
+
+    # Python 3.10 and 3.11 have different error messages
+    assert e.value.args[0] in [
         'In IntListMissingVerifierData definition: '
-        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.'
-    )
+        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.',
+        'In IntListMissingVerifierData definition: '
+        'Cannot infer "verify" method. Type parameter of Data is not a class.',
+    ]
 
 
 @irdl_attr_definition
@@ -195,8 +199,7 @@ def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolWrapperAttr([StringData("foo")])
-    assert e.value.args[
-        0] == "StringData(data='foo') should be of base attribute bool"
+    assert e.value.args[0] == "!str<foo> should be of base attribute bool"
 
 
 #  _   _       _              ____                _             _       _
@@ -236,7 +239,7 @@ def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolOrIntParamAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute StringData(data='foo')"
+    assert e.value.args[0] == "Unexpected attribute !str<foo>"
 
 
 #     _                      _    ____                _
@@ -320,7 +323,7 @@ def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
     with pytest.raises(Exception) as e:
         ParamWrapperAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute StringData(data='foo')"
+    assert e.value.args[0] == "Unexpected attribute !str<foo>"
 
 
 @irdl_attr_definition
@@ -346,8 +349,7 @@ def test_param_attr_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         ParamConstrAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[
-        0] == "BoolData(data=True) should be of base attribute int"
+    assert e.value.args[0] == "!bool<True> should be of base attribute int"
 
 
 _U = TypeVar("_U", bound=IntData)
@@ -380,8 +382,7 @@ def test_nested_generic_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         NestedParamWrapperAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[
-        0] == "BoolData(data=True) should be of base attribute int"
+    assert e.value.args[0] == "!bool<True> should be of base attribute int"
 
 
 @irdl_attr_definition
@@ -568,7 +569,7 @@ def test_generic_data_wrapper_verifier_failure():
             [ListData([BoolData(True),
                        ListData([BoolData(False)])])])
     assert e.value.args[
-        0] == "ListData(data=[BoolData(data=False)]) should be of base attribute bool"
+        0] == "!list<[!bool<False>]> should be of base attribute bool"
 
 
 @irdl_attr_definition

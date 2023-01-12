@@ -1,6 +1,6 @@
-from xdsl.ir import BlockArgument
 from typing import List, Optional
-from xdsl.irdl import SSAValue, Operation, Region, Block
+from xdsl.ir import SSAValue, BlockArgument
+from xdsl.irdl import Operation, Region, Block
 
 
 class Rewriter:
@@ -13,7 +13,7 @@ class Rewriter:
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        assert op.parent is not None, "Cannot erase an operation that has no parents"
+        assert op.parent, "Cannot erase an operation that has no parents"
 
         block = op.parent
         block.erase_op(op, safe_erase=safe_erase)

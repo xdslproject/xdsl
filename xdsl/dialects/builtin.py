@@ -2,55 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
+from typing import (Annotated, TypeAlias, List, cast, Type, Sequence, Optional,
+                    TYPE_CHECKING, Any, TypeVar)
 
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, MLIRType,
-                     ParametrizedAttribute, Operation, SSAValue)
-from xdsl.irdl import (AttributeDef, VarOperandDef, VarRegionDef, VarResultDef,
+from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
+                     SSAValue, Region, Attribute, Dialect)
+from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
-                       SingleBlockRegionDef, TypeVar, Generic, GenericData,
-                       AttrConstraint, Any, Attribute, Region, VerifyException,
-                       AnyAttr)
+                       SingleBlockRegionDef, Generic, GenericData,
+                       AttrConstraint, AnyAttr)
+from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser, ParserError
     from xdsl.printer import Printer
-
-
-@dataclass
-class Builtin:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(StringAttr)
-        self.ctx.register_attr(FlatSymbolRefAttr)
-        self.ctx.register_attr(SymbolNameAttr)
-        self.ctx.register_attr(IntAttr)
-        self.ctx.register_attr(IntegerAttr)
-        self.ctx.register_attr(ArrayAttr)
-        self.ctx.register_attr(VectorType)
-        self.ctx.register_attr(TensorType)
-        self.ctx.register_attr(UnrankedTensorType)
-        self.ctx.register_attr(DenseIntOrFPElementsAttr)
-        self.ctx.register_attr(UnitAttr)
-        self.ctx.register_attr(TupleType)
-
-        self.ctx.register_attr(FunctionType)
-        self.ctx.register_attr(Float16Type)
-        self.ctx.register_attr(Float32Type)
-        self.ctx.register_attr(Float64Type)
-        self.ctx.register_attr(FloatData)
-        self.ctx.register_attr(FloatAttr)
-        self.ctx.register_attr(IntegerType)
-        self.ctx.register_attr(IndexType)
-
-        self.ctx.register_attr(NoneAttr)
-        self.ctx.register_attr(OpaqueAttr)
-
-        self.ctx.register_op(ModuleOp)
-        self.ctx.register_op(UnregisteredOp)
 
 
 @irdl_attr_definition
@@ -70,6 +37,11 @@ class StringAttr(Data[str]):
     @builder
     def from_str(data: str) -> StringAttr:
         return StringAttr(data)
+
+    @staticmethod
+    @builder
+    def from_int(data: int) -> StringAttr:
+        return StringAttr(str(data))
 
 
 @irdl_attr_definition
@@ -250,11 +222,9 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+@irdl_attr_definition
 class Float16Type(ParametrizedAttribute, MLIRType):
     name = "f16"
-
-
-f16 = Float16Type()
 
 
 @irdl_attr_definition
@@ -262,14 +232,9 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name = "f32"
 
 
-f32 = Float32Type()
-
-
 class Float64Type(ParametrizedAttribute, MLIRType):
     name = "f64"
 
-
-f64 = Float64Type()
 
 AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
 
@@ -408,6 +373,69 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
+
+_DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
+
+
+@irdl_attr_definition
+class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
+    name = "dictionary"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> dict[_DictionaryAttrT]:
+        parser.parse_char("{")
+        data = parser.parse_dictionary(parser.parse_optional_attribute)
+        parser.parse_char("}")
+        # the type system can't ensure that the elements are of type A
+        # and not just of type Attribute, therefore, the following cast
+        return cast(dict, data)
+
+    @staticmethod
+    def print_parameter(data: dict, printer: Printer) -> None:
+        printer.print_string("{")
+        printer.print_dictionary(data, printer.print_attribute)
+        printer.print_string("}")
+
+    @staticmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        raise Exception(f"Unsupported operation on {self.name}")
+
+    def verify(self) -> None:
+        if not isinstance(self.data, dict):
+            raise VerifyException(
+                f"Wrong type given to attribute {self.name}: got"
+                f" {type(self.data)}, but expected dictionary of"
+                " attributes")
+        for key, val in self.data.items():
+            if not isinstance(key, Attribute):
+                raise VerifyException(
+                    f"{self.name} key expects attribute, but {idx} "
+                    f"element is of type {type(val)}")
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} value expects attribute, but {idx} "
+                    f"element is of type {type(val)}")
+
+    @staticmethod
+    @builder
+    def from_dict(data: dict) -> DictionaryAttr[_DictionaryAttrT]:
+        to_add_data = {}
+        for k, v in data.items():
+            if not isinstance(k, StringAttr):
+                if isinstance(k, str):
+                    str_attr_k = StringAttr.from_str(k)
+                    to_add_data[str_attr_k] = v
+                else:
+                    raise TypeError(
+                        f"Attribute DictionaryAttr expects keys to"
+                        f" be of type StringAttr or str, but {type(k)} provided"
+                    )
+            else:
+                to_add_data[k] = v
+        return DictionaryAttr(to_add_data)
+
+
+AnyDictionaryAttr: TypeAlias = DictionaryAttr[Attribute]
 
 
 @irdl_attr_definition
@@ -584,7 +612,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_index_list(
+    def create_dense_index(
             type: VectorOrTensorOf[IndexType],
             data: List[int | IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
@@ -596,7 +624,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_int_list(
+    def create_dense_int(
         type: VectorOrTensorOf[IntegerType],
         data: List[int | IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
@@ -608,28 +636,28 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_float_list(
+    def create_dense_float(
             type: VectorOrTensorOf[AnyFloat],
-            data: List[float | AnyFloatAttr]) -> DenseIntOrFPElementsAttr:
+            data: List[int | float | AnyFloatAttr]
+    ) -> DenseIntOrFPElementsAttr:
         data_attr = [
-            FloatAttr.from_value(d, type.element_type)
-            if isinstance(d, float) else d for d in data
+            FloatAttr.from_value(float(d), type.element_type)
+            if not isinstance(d, FloatAttr) else d for d in data
         ]
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
     @builder
     def from_list(
-        type: VectorOrTensorOf[Attribute],
-        data: List[int | IntegerAttr[IntegerType]]
-        | List[int | IntegerAttr[IndexType]] | List[float | AnyFloatAttr]
+        type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
+        | List[int | float | AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            return DenseIntOrFPElementsAttr.from_int_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_int(type, data)
         elif isinstance(type.element_type, IndexType):
-            return DenseIntOrFPElementsAttr.from_index_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_index(type, data)
         elif isinstance(type.element_type, AnyFloat):
-            return DenseIntOrFPElementsAttr.from_float_list(type, data)
+            return DenseIntOrFPElementsAttr.create_dense_float(type, data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
@@ -652,13 +680,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
-class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
-
-
-f16 = Float16Type()
-
-
 @irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
@@ -669,7 +690,7 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     @staticmethod
     @builder
     def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> Attribute:
+                   outputs: List[Attribute]) -> FunctionType:
         return FunctionType(
             [ArrayAttr.from_list(inputs),
              ArrayAttr.from_list(outputs)])
@@ -677,7 +698,7 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     @staticmethod
     @builder
     def from_attrs(inputs: ArrayAttr[Attribute],
-                   outputs: ArrayAttr[Attribute]) -> Attribute:
+                   outputs: ArrayAttr[Attribute]) -> FunctionType:
         return FunctionType([inputs, outputs])
 
 
@@ -708,8 +729,8 @@ class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
     op_name__ = AttributeDef(StringAttr)
-    args = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    args: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
     regs = VarRegionDef()
 
     @property
@@ -754,3 +775,39 @@ class ModuleOp(Operation):
             )
         op = ModuleOp.create([], [], regions=[region])
         return op
+
+
+# FloatXXType shortcuts
+f16 = Float16Type()
+f32 = Float32Type()
+f64 = Float64Type()
+
+Builtin = Dialect(
+    [ModuleOp, UnregisteredOp],
+    [
+        StringAttr,
+        FlatSymbolRefAttr,
+        SymbolNameAttr,
+        IntAttr,
+        IntegerAttr,
+        ArrayAttr,
+        DictionaryAttr,
+        DenseIntOrFPElementsAttr,
+        UnitAttr,
+        FloatData,
+        NoneAttr,
+        OpaqueAttr,
+
+        # Types
+        FunctionType,
+        Float16Type,
+        Float32Type,
+        Float64Type,
+        FloatAttr,
+        TupleType,
+        IntegerType,
+        IndexType,
+        VectorType,
+        TensorType,
+        UnrankedTensorType
+    ])

@@ -1,23 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from enum import Enum
 from frozenlist import FrozenList
-
-from xdsl.diagnostic import Diagnostic
 from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
 
-from dataclasses import dataclass, field
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
-                     Attribute, Region, Operation)
+                     Attribute, Region, Operation, Data, ParametrizedAttribute)
+from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
     IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, ParametrizedAttribute, IntAttr,
-    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
-    VectorType)
-from xdsl.irdl import Data
-from enum import Enum
+    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
+    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -125,6 +123,17 @@ class Printer:
                 self.print(delimiter)
             print_fn(elem)
 
+    def print_dictionary(self,
+                         elems: dict,
+                         print_fn: Callable[[T], None],
+                         delimiter: str = ", ") -> None:
+        for i, (key, value) in enumerate(elems.items()):
+            if i:
+                self.print(delimiter)
+            print_fn(key)
+            self.print("=")
+            print_fn(value)
+
     def _print_new_line(self,
                         indent: int | None = None,
                         print_message: bool = True) -> None:
@@ -175,12 +184,11 @@ class Printer:
             return
 
         # Multiple results
-        self.print("(")
         self._print_result_value(op, 0)
         for idx in range(1, len(results)):
             self.print(", ")
             self._print_result_value(op, idx)
-        self.print(") = ")
+        self.print(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
         if ssa_val := self._ssa_values.get(value):
@@ -351,6 +359,14 @@ class Printer:
                 attribute.data,  # type: ignore
                 self.print_attribute)
             self.print_string("]")
+            return
+
+        if isinstance(attribute, DictionaryAttr):
+            self.print_string("{")
+            self.print_dictionary(
+                attribute.data,  # type: ignore
+                self.print_attribute)
+            self.print_string("}")
             return
 
         # Function types have an alias in MLIR, but not in xDSL

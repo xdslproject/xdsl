@@ -1,37 +1,18 @@
 from __future__ import annotations
+from typing import Annotated
 import pytest
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
-                                   IntegerType, Operation, builder)
-from xdsl.ir import Data, Block
-from xdsl.irdl import (OptOperandDef, OptRegionDef, OptResultDef,
-                       OptSingleBlockRegionDef, SingleBlockRegionDef,
-                       VarRegionDef, VarSingleBlockRegionDef,
-                       irdl_attr_definition, irdl_op_definition, ResultDef,
-                       VarResultDef, AttrSizedResultSegments, OperandDef,
-                       VarOperandDef, AttrSizedOperandSegments, AttributeDef,
-                       RegionDef, OptAttributeDef, Region)
-from xdsl.parser import Parser
-from xdsl.printer import Printer
+                                   IntegerType, Operation, StringAttr, i32)
+from xdsl.dialects.arith import Constant
 
-
-@irdl_attr_definition
-class StringAttr(Data[str]):
-    name = "test.string_attr"
-
-    @staticmethod
-    @builder
-    def from_int(i: int) -> StringAttr:
-        return StringAttr(str(i))
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> str:
-        pass
-
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        pass
-
+from xdsl.ir import Block, OpResult
+from xdsl.irdl import (OptOpResult, OptOperand, OptRegionDef,
+                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
+                       VarOpResult, VarRegionDef, VarSingleBlockRegionDef,
+                       irdl_op_definition, AttrSizedResultSegments, VarOperand,
+                       AttrSizedOperandSegments, AttributeDef, RegionDef,
+                       OptAttributeDef, Region)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -45,7 +26,7 @@ class StringAttr(Data[str]):
 class ResultOp(Operation):
     name: str = "test.result_op"
 
-    res = ResultDef(StringAttr)
+    res: Annotated[OpResult, StringAttr]
 
 
 def test_result_builder():
@@ -55,7 +36,7 @@ def test_result_builder():
 
 
 def test_result_builder_exception():
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         ResultOp.build()
 
 
@@ -63,7 +44,7 @@ def test_result_builder_exception():
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
-    res = OptResultDef(StringAttr)
+    res: Annotated[OptOpResult, StringAttr]
 
 
 def test_opt_result_builder():
@@ -84,7 +65,7 @@ def test_opt_result_builder_two_args():
 class VarResultOp(Operation):
     name: str = "test.var_result_op"
 
-    res = VarResultDef(StringAttr)
+    res: Annotated[VarOpResult, StringAttr]
 
 
 def test_var_result_builder():
@@ -99,8 +80,8 @@ def test_var_result_builder():
 class TwoVarResultOp(Operation):
     name: str = "test.two_var_result_op"
 
-    res1 = VarResultDef(StringAttr)
-    res2 = VarResultDef(StringAttr)
+    res1: Annotated[VarOpResult, StringAttr]
+    res2: Annotated[VarOpResult, StringAttr]
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -140,9 +121,9 @@ def test_two_var_result_builder2():
 class MixedResultOp(Operation):
     name: str = "test.mixed"
 
-    res1 = VarResultDef(StringAttr)
-    res2 = ResultDef(StringAttr)
-    res3 = VarResultDef(StringAttr)
+    res1: Annotated[VarOpResult, StringAttr]
+    res2: Annotated[OpResult, StringAttr]
+    res3: Annotated[VarOpResult, StringAttr]
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -158,7 +139,6 @@ def test_var_mixed_builder():
     ]
 
     dense_type = VectorType.from_type_and_list(IntegerType.from_width(32), [3])
-
     assert op.attributes[AttrSizedResultSegments.
                          attribute_name] == DenseIntOrFPElementsAttr.from_list(
                              dense_type, [2, 1, 2])
@@ -177,7 +157,7 @@ def test_var_mixed_builder():
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
-    res = OperandDef(StringAttr)
+    res: Annotated[Operand, StringAttr]
 
 
 def test_operand_builder_operation():
@@ -203,7 +183,7 @@ def test_operand_builder_exception():
 class OptOperandOp(Operation):
     name: str = "test.opt_operand_op"
 
-    res = OptOperandDef(StringAttr)
+    res: Annotated[OptOperand, StringAttr]
 
 
 def test_opt_operand_builder():
@@ -226,7 +206,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
-    res = VarOperandDef(StringAttr)
+    res: Annotated[VarOperand, StringAttr]
 
 
 def test_var_operand_builder():
@@ -240,8 +220,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
-    res1 = VarOperandDef(StringAttr)
-    res2 = VarOperandDef(StringAttr)
+    res1: Annotated[VarOperand, StringAttr]
+    res2: Annotated[VarOperand, StringAttr]
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -280,7 +260,6 @@ def test_two_var_operand_builder2():
 @irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
-
     attr = AttributeDef(StringAttr)
 
 
@@ -310,7 +289,7 @@ class OptionalAttrOp(Operation):
 def test_optional_attr_op_empty():
     op = OptionalAttrOp.build()
     op.verify()
-    assert op.opt_attr == None
+    assert op.opt_attr is None
 
 
 #  ____            _
@@ -332,6 +311,7 @@ class RegionOp(Operation):
 def test_region_op_region():
     op = RegionOp.build(regions=[Region()])
     op.verify()
+
     assert op.region.blocks == []
 
 
@@ -348,6 +328,17 @@ def test_region_op_ops():
     op.verify()
     assert len(op.region.blocks) == 1
     assert len(op.region.blocks[0].ops) == 2
+
+
+def test_noop_region():
+    region0 = Region.get([])
+    assert len(region0.ops) == 0
+
+
+def test_singleop_region():
+    a = Constant.from_int_and_width(1, i32)
+    region0 = Region.get([a])
+    assert type(region0.op) is Constant
 
 
 @irdl_op_definition
@@ -419,7 +410,7 @@ class VarSBRegionOp(Operation):
     regs = VarSingleBlockRegionDef()
 
 
-def test_opt_sbregion_one_block():
+def test_var_sbregion_one_block():
     op1 = VarSBRegionOp.build(regions=[[[Block()]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()

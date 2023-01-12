@@ -1,7 +1,8 @@
 from __future__ import annotations
+from typing import Annotated
 
 from xdsl.ir import MLContext
-from xdsl.irdl import AnyAttr, VarOperandDef, VarResultDef, irdl_op_definition, Operation
+from xdsl.irdl import AnyAttr, VarOpResult, VarOperand, irdl_op_definition, Operation
 from xdsl.parser import Parser, ParserError
 from pytest import raises
 
@@ -9,8 +10,8 @@ from pytest import raises
 @irdl_op_definition
 class UnkownOp(Operation):
     name = "unknown"
-    ops = VarOperandDef(AnyAttr())
-    res = VarResultDef(AnyAttr())
+    ops: Annotated[VarOperand, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
 
 
 def check_error(prog: str, line: int, column: int, message: str):
@@ -21,7 +22,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     with raises(ParserError) as e:
         parser.parse_op()
 
-    assert e.value.pos is not None
+    assert e.value.pos
     assert e.value.pos.line is line
     assert e.value.pos.column is column
     assert e.value.message == message

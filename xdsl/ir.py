@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast)
 from frozenlist import FrozenList
+from io import StringIO
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
+                    TypeVar, cast, Iterator)
+import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -16,10 +18,45 @@ OpT = TypeVar('OpT', bound='Operation')
 
 
 @dataclass
+class Dialect:
+    """Contains the operations and attributes of a specific dialect"""
+    _operations: list[type[Operation]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
+    _attributes: list[type[Attribute]] = field(default_factory=list,
+                                               init=True,
+                                               repr=True)
+
+    @property
+    def operations(self) -> Iterator[type[Operation]]:
+        return iter(self._operations)
+
+    @property
+    def attributes(self) -> Iterator[type[Attribute]]:
+        return iter(self._attributes)
+
+    def __call__(self, ctx: MLContext) -> None:
+        print(
+            "Calling a dialect in order to register it is deprecated and will soon be removed.",
+            file=sys.stderr)
+        # TODO; Remove this function in a future release.
+        assert isinstance(ctx, MLContext)
+        ctx.register_dialect(self)
+
+
+@dataclass
 class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+
+    def register_dialect(self, dialect: Dialect):
+        """Register a dialect. Operation and Attribute names should be unique"""
+        for op in dialect.operations:
+            self.register_op(op)
+
+        for attr in dialect.attributes:
+            self.register_attr(attr)
 
     def register_op(self, op: type[Operation]) -> None:
         """Register an operation definition. Operation names should be unique."""
@@ -139,11 +176,11 @@ class OpResult(SSAValue):
                f"op_name={repr(self.op.name)}, " + \
                f"result_index={repr(self.result_index)}, name={repr(self.name)})"
 
-    def __eq__(self, other: OpResult) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     # This might be problematic, as the superclass is not hashable ...
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         return id(self)
 
 
@@ -166,10 +203,10 @@ class BlockArgument(SSAValue):
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
                f", block={block_repr}, index={repr(self.index)}"
 
-    def __eq__(self, other: BlockArgument) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         return id(self)
 
 
@@ -182,7 +219,7 @@ class ErasedSSAValue(SSAValue):
 
     old_value: SSAValue
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # type: ignore
         return hash(id(self))
 
 
@@ -211,7 +248,6 @@ class Attribute(ABC):
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
     """
-
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
 
@@ -230,6 +266,13 @@ class Attribute(ABC):
         """
         pass
 
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_attribute(self)
+        return res.getvalue()
+
 
 DataElement = TypeVar("DataElement")
 
@@ -237,7 +280,6 @@ DataElement = TypeVar("DataElement")
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
-
     data: DataElement
 
     @staticmethod
@@ -254,7 +296,6 @@ class Data(Generic[DataElement], Attribute, ABC):
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
-
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
@@ -274,7 +315,25 @@ class ParametrizedAttribute(Attribute):
 
 
 @dataclass
-class Operation:
+class IRNode(object):
+
+    def is_ancestor(cls: IRNode, op: IRNode) -> bool:
+        "Returns true if the IRNode is an ancestor of another IRNode."
+        if op is cls:
+            return True
+        if op.parent is None:
+            return False
+        return cls.is_ancestor(op.parent)
+
+    def get_toplevel_object(cls: IRNode) -> IRNode:
+        """Get the operation, block, or region ancestor that has no parents."""
+        if cls.parent is None:
+            return cls
+        return cls.parent.get_toplevel_object()
+
+
+@dataclass
+class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: str = field(default="", init=False)
@@ -301,14 +360,20 @@ class Operation:
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
-    def parent_block(self) -> Block | None:
-        return self.parent
-
     def parent_op(self) -> Operation | None:
-        return self.parent.parent.parent if self.parent and self.parent.parent else None
+        try:
+            return self.parent_region().parent
+        except AttributeError:
+            None
 
     def parent_region(self) -> Region | None:
-        return self.parent.parent if self.parent else None
+        try:
+            return self.parent_block().parent
+        except AttributeError:
+            None
+
+    def parent_block(self) -> Block | None:
+        return self.parent
 
     @property
     def operands(self) -> FrozenList[SSAValue]:
@@ -340,20 +405,17 @@ class Operation:
 
         operation = op()
         if operands is not None:
-            for operand in operands:
-                assert isinstance(
-                    operand, SSAValue), "Operands must be of type SSAValue"
             operation.operands = operands
-        if result_types is not None:
+        if result_types:
             operation.results = [
                 OpResult(typ, operation, idx)
                 for (idx, typ) in enumerate(result_types)
             ]
-        if attributes is not None:
+        if attributes:
             operation.attributes = attributes
-        if successors is not None:
+        if successors:
             operation.successors = successors
-        if regions is not None:
+        if regions:
             for region in regions:
                 operation.add_region(region)
         return operation
@@ -387,7 +449,7 @@ class Operation:
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
-        if region.parent is not None:
+        if region.parent:
             raise Exception(
                 "Cannot add region that is already attached on an operation.")
         self.regions.append(region)
@@ -424,9 +486,11 @@ class Operation:
     def verify_(self) -> None:
         pass
 
+    _OperationType = TypeVar('_OperationType', bound='Operation')
+
     @classmethod
-    def parse(cls: type[Parser._OperationType], result_types: list[Attribute],
-              parser: Parser) -> Parser._OperationType:
+    def parse(cls: type[_OperationType], result_types: list[Attribute],
+              parser: Parser) -> _OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):
@@ -493,23 +557,7 @@ class Operation:
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """
-        Returns true if the operation is an ancestor of the operation, block, or region.
-        """
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)
-
-    def __eq__(self, other: Operation) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -522,8 +570,8 @@ class Operation:
         ...
 
 
-@dataclass(eq=False)
-class Block:
+@dataclass()
+class Block(IRNode):
     """A sequence of operations"""
 
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
@@ -566,7 +614,7 @@ class Block:
     def from_ops(ops: list[Operation],
                  arg_types: list[Attribute] | None = None):
         b = Block()
-        if arg_types is not None:
+        if arg_types:
             b._args = FrozenList([
                 BlockArgument(typ, b, index)
                 for index, typ in enumerate(arg_types)
@@ -585,14 +633,6 @@ class Block:
         b = Block.from_arg_types(block_arg_types)
         b.add_ops(f(*b.args))
         return b
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        """Returns true if the block is an ancestor of the operation, block, or region."""
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)
 
     def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
         """
@@ -626,7 +666,7 @@ class Block:
 
     def _attach_op(self, operation: Operation) -> None:
         """Attach an operation to the block, and check that it has no parents."""
-        if operation.parent is not None:
+        if operation.parent:
             raise ValueError(
                 "Can't add to a block an operation already attached to a block."
             )
@@ -741,13 +781,7 @@ class Block:
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def __eq__(self, other: Block) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -755,7 +789,7 @@ class Block:
 
 
 @dataclass
-class Region:
+class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     blocks: list[Block] = field(default_factory=list, init=False)
@@ -828,7 +862,7 @@ class Region:
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
-        if block.parent is not None:
+        if block.parent:
             raise ValueError(
                 "Can't add to a region a block already attached to a region.")
         if block.is_ancestor(self):
@@ -875,8 +909,6 @@ class Region:
         else:
             block_idx = block
             block = self.blocks[block_idx]
-        if block.parent is not self:
-            raise Exception("Cannot detach block from a different region.")
         block.parent = None
         self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
         return block
@@ -897,8 +929,7 @@ class Region:
         """
         Clone all block of this region into `dest` to position `insert_index`
         """
-        assert (dest is not None)
-        assert (dest != self)
+        assert dest and dest != self
         if insert_index is None:
             insert_index = len(dest.blocks)
         if value_mapper is None:
@@ -943,8 +974,8 @@ class Region:
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent is not None, "Regions with parents should first be " + \
-                                        "detached before erasure."
+        assert self.parent, "Regions with parents should first be " + \
+                            "detached before erasure."
         self.drop_all_references()
 
     def move_blocks(self, region: Region) -> None:
@@ -955,17 +986,3 @@ class Region:
         self.blocks = []
         for block in region.blocks:
             block.parent = region
-
-    def get_toplevel_object(self) -> Operation | Block | Region:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def is_ancestor(self, op: Operation | Block | Region) -> bool:
-        "Returns true if the region is an ancestor of the operation, block, or region."
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)

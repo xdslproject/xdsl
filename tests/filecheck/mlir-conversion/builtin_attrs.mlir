@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir | xdsl-opt -f mlir -t mlir | FileCheck %s
+// RUN: xdsl-opt %s -t mlir | xdsl-opt -f mlir -t mlir | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
@@ -24,7 +24,7 @@
   // CHECK: (si32, si64, si1)
 
   "func.func"() ({
-    ^bb0(%arg0: ui32, %arg1: ui64, %arg2: si1):
+    ^bb0(%arg0: ui32, %arg1: ui64, %arg2: ui1):
     "func.return"() : () -> ()
   }) {function_type = (ui32, ui64, ui1) -> (), sym_name = "unsigned_int_type"} : () -> ()
 
@@ -105,5 +105,23 @@
                       sym_name = "dense_attr"} : () -> ()
 
   // CHECK: "value1" = opaque<"test", "contents">, "value2" = opaque<"test", "contents"> : tensor<2xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value = {"one"=1, "two"=2, "three"="three"},
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "one"=1 : i64, "two"=2 : i64, "three"="three"
+
+  "func.func"() ({}) {function_type = () -> (),
+                      symbol = @some_symbol,
+                      sym_name = "symbol_attr"} : () -> ()
+
+  // CHECK: "symbol" = @some_symbol
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = tensor<?xi32>,
+                      sym_name = "non_static_shaped_tensor"} : () -> ()
+
+  // CHECK: tensor<?xi32>
 
 }) : () -> ()

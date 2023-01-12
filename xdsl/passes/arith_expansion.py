@@ -1,5 +1,5 @@
 from __future__ import annotations
-from xdsl.diagnostic import DiagnosticException
+from xdsl.utils.diagnostic import DiagnosticException
 from xdsl.ir import MLContext
 from xdsl.dialects.builtin import ModuleOp
 import xdsl.dialects.arith as arith

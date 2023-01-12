@@ -1,0 +1,14 @@
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_load_type_matching", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index):
+    %2 : !vector<[2 : !i32], !i32> = vector.load(%0 : !memref<[4 : !index, 4 : !index], !index>, %1 : !index, %1 : !index)
+
+    func.return()
+  }
+
+// CHECK: MemRef element type should match the Vector element type.
+
+}

@@ -2,30 +2,20 @@ from __future__ import annotations
 from xdsl.dialects.builtin import *
 from xdsl.ir import *
 from xdsl.irdl import *
-from xdsl.util import *
+from xdsl.utils import *
 from xdsl.dialects.IRUtils.dialect import ValueType, TypeType, OperationType, AttributeType, RangeType
 from xdsl.dialects.pdl.dialect import PatternType
 
-
-# extensions to PDL
-@dataclass
-class Match:
-    ctx: MLContext
-
-    def __post_init__(self):
-        # Ops for matching
-        self.ctx.register_op(MatchAndReplace)
-        self.ctx.register_op(Pattern)
-        self.ctx.register_op(Capture)
-        self.ctx.register_op(AnyInRange)
-        self.ctx.register_op(Equal)
+##############################################################################
+############################# Extensions to PDL ##############################
+##############################################################################
 
 
 @irdl_op_definition
 class MatchAndReplace(Operation):
     name: str = "match.match_and_replace"
-    matched_op = OperandDef(OperationType)
-    pattern = OperandDef(PatternType)
+    matched_op: Annotated[Operand, OperationType]
+    pattern: Annotated[Operand, PatternType]
     body = RegionDef()
 
 
@@ -33,7 +23,7 @@ class MatchAndReplace(Operation):
 class Pattern(Operation):
     name: str = "match.pattern"
     body = RegionDef()
-    result = ResultDef(PatternType)
+    result: Annotated[OpResult, PatternType]
 
 
 @irdl_op_definition
@@ -46,7 +36,7 @@ class Capture(Operation):
 @irdl_op_definition
 class AnyInRange(Operation):
     name: str = "match.any_in_range"
-    range = OperandDef(RangeType)
+    range: Annotated[Operand, RangeType]
 
 
 @irdl_op_definition
@@ -54,3 +44,12 @@ class Equal(Operation):
     name: str = "match.equal"
     values = VarOperandDef(
         AnyOf([ValueType, OperationType, AttributeType, TypeType]))
+
+
+Match = Dialect([
+    MatchAndReplace,
+    Pattern,
+    Capture,
+    AnyInRange,
+    Equal,
+], [])

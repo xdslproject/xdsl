@@ -2,22 +2,25 @@ import argparse
 import sys
 import os
 from io import IOBase, StringIO
+import coverage
 
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
-from xdsl.dialects.arith import Arith
 from xdsl.dialects.affine import Affine
-from xdsl.dialects.memref import MemRef
+from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects.cmath import CMath
 from xdsl.dialects.cf import Cf
-from xdsl.diagnostic import DiagnosticException
+from xdsl.dialects.vector import Vector
+from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+
 from xdsl.irdl_mlir_printer import IRDLPrinter
+from xdsl.utils.exceptions import DiagnosticException
 
 from typing import Dict, Callable, List
 
@@ -50,7 +53,9 @@ class xDSLOptMain:
     pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
     """ The pass-pipeline to be applied. """
 
-    def __init__(self, description='xDSL modular optimizer driver'):
+    def __init__(self,
+                 description: str = 'xDSL modular optimizer driver',
+                 args=None):
         self.ctx = MLContext()
         self.register_all_dialects()
         self.register_all_frontends()
@@ -60,7 +65,7 @@ class xDSLOptMain:
         # arg handling
         arg_parser = argparse.ArgumentParser(description=description)
         self.register_all_arguments(arg_parser)
-        self.args = arg_parser.parse_args()
+        self.args = arg_parser.parse_args(args=args)
 
         self.setup_pipeline()
 
@@ -68,6 +73,16 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
+        if self.args.generate_coverage:
+            if self.args.exec_root:
+                os.chdir(self.args.exec_root)
+            cov = coverage.Coverage(config_file='.coveragerc',
+                                    auto_data=True,
+                                    data_file='.coverage',
+                                    data_suffix=True)
+
+            cov.start()
+
         module = self.parse_input()
         if not self.args.verify_diagnostics:
             self.apply_passes(module)
@@ -80,6 +95,9 @@ class xDSLOptMain:
 
         contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
+
+        if self.args.generate_coverage:
+            cov.stop()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -154,22 +172,38 @@ class xDSLOptMain:
             action='store_true',
             help="Allow the parsing of unregistered operations.")
 
+        arg_parser.add_argument(
+            "--generate-coverage",
+            default=False,
+            action='store_true',
+            help="Generate the xDSL code coverage for this run.")
+
+        arg_parser.add_argument(
+            "--exec-root",
+            type=str,
+            default=False,
+            required=False,
+            help=
+            "Defines the directory xdsl-opt will be run in. This flag only takes effect if `--generate-config` was specified."
+        )
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
 
         Add other/additional dialects by overloading this function.
         """
-        _ = Builtin(self.ctx)
-        _ = Func(self.ctx)
-        _ = Arith(self.ctx)
-        _ = MemRef(self.ctx)
-        _ = Affine(self.ctx)
-        _ = Scf(self.ctx)
-        _ = Cf(self.ctx)
-        _ = CMath(self.ctx)
-        _ = IRDL(self.ctx)
-        _ = LLVM(self.ctx)
+        self.ctx.register_dialect(Builtin)
+        self.ctx.register_dialect(Func)
+        self.ctx.register_dialect(Arith)
+        self.ctx.register_dialect(MemRef)
+        self.ctx.register_dialect(Affine)
+        self.ctx.register_dialect(Scf)
+        self.ctx.register_dialect(Cf)
+        self.ctx.register_dialect(CMath)
+        self.ctx.register_dialect(IRDL)
+        self.ctx.register_dialect(LLVM)
+        self.ctx.register_dialect(Vector)
 
     def register_all_frontends(self):
         """
@@ -274,7 +308,7 @@ class xDSLOptMain:
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
-        if self.args.frontend is not None:
+        if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:

@@ -1,29 +1,18 @@
 from __future__ import annotations
-from xdsl.ir import MLContext
-from xdsl.irdl import (OptRegionDef, VarOperandDef, irdl_op_definition,
-                       Attribute, VarResultDef, OperandDef, SSAValue,
-                       Operation, RegionDef, Region, Block, AnyAttr)
+
+from typing import Annotated, List
+
+from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect
+from xdsl.irdl import (OptRegionDef, VarOpResult, VarOperand,
+                       irdl_op_definition, Operand, RegionDef, AnyAttr)
 from xdsl.dialects.builtin import IntegerType
-from dataclasses import dataclass
-from typing import List
-
-
-@dataclass
-class Scf:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(If)
-        self.ctx.register_op(Yield)
-        self.ctx.register_op(Condition)
-        self.ctx.register_op(While)
 
 
 @irdl_op_definition
 class If(Operation):
     name: str = "scf.if"
-    output = VarResultDef(AnyAttr())
-    cond = OperandDef(IntegerType.from_width(1))
+    output: Annotated[VarOpResult, AnyAttr()]
+    cond: Annotated[Operand, IntegerType.from_width(1)]
 
     true_region = RegionDef()
     # TODO this should be optional under certain conditions
@@ -45,7 +34,7 @@ class If(Operation):
 @irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -56,8 +45,8 @@ class Yield(Operation):
 @irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
-    cond = OperandDef(IntegerType.from_width(1))
-    arguments = VarOperandDef(AnyAttr())
+    cond: Annotated[Operand, IntegerType.from_width(1)]
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(cond: SSAValue | Operation,
@@ -69,9 +58,9 @@ class Condition(Operation):
 @irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
 
-    res = VarResultDef(AnyAttr())
+    res: Annotated[VarOpResult, AnyAttr()]
     before_region = RegionDef()
     after_region = RegionDef()
 
@@ -98,3 +87,6 @@ class While(Operation):
                          result_types=result_types,
                          regions=[before, after])
         return op
+
+
+Scf = Dialect([If, Yield, Condition, While], [])

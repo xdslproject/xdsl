@@ -1,22 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import List, Union
+from typing import Annotated, List, Union
 
-from xdsl.dialects.builtin import StringAttr, FunctionType, Attribute, FlatSymbolRefAttr
-from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (OptAttributeDef, irdl_op_definition, VarOperandDef,
-                       AnyAttr, Block, RegionDef, Region, Operation,
-                       AttributeDef, VarResultDef)
-
-
-@dataclass
-class Func:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(FuncOp)
-        self.ctx.register_op(Call)
-        self.ctx.register_op(Return)
+from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
+from xdsl.irdl import (OptAttributeDef, VarOpResult, irdl_op_definition,
+                       VarOperand, AnyAttr, RegionDef, AttributeDef)
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -27,6 +16,15 @@ class FuncOp(Operation):
     sym_name = AttributeDef(StringAttr)
     function_type = AttributeDef(FunctionType)
     sym_visibility = OptAttributeDef(StringAttr)
+
+    def verify_(self) -> None:
+        # TODO: how to verify that there is a terminator?
+        entry_block: Block = self.body.blocks[0]
+        block_arg_types = [arg.typ for arg in entry_block.args]
+        if self.function_type.inputs.data != block_arg_types:
+            raise VerifyException(
+                "Expected entry block arguments to have the same types as the function input types"
+            )
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],
@@ -61,27 +59,42 @@ class FuncOp(Operation):
 @irdl_op_definition
 class Call(Operation):
     name: str = "func.call"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
     callee = AttributeDef(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res = VarResultDef(AnyAttr())
+    res: Annotated[VarOpResult, AnyAttr()]
     # TODO how do we verify that the types are correct?
 
     @staticmethod
     def get(callee: Union[str, FlatSymbolRefAttr],
             operands: List[Union[SSAValue, Operation]],
             return_types: List[Attribute]) -> Call:
-        return Call.build(operands=operands,
-                          result_types=return_types,
+        return Call.build(operands=[operands],
+                          result_types=[return_types],
                           attributes={"callee": callee})
 
 
 @irdl_op_definition
 class Return(Operation):
     name: str = "func.return"
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
+
+    def verify_(self) -> None:
+        func_op = self.parent_op()
+        assert isinstance(func_op, FuncOp)
+
+        function_return_types = func_op.function_type.outputs.data
+        return_types = [arg.typ for arg in self.arguments]
+        if function_return_types != return_types:
+            raise VerifyException(
+                "Expected arguments to have the same types as the function output types"
+            )
 
     @staticmethod
     def get(*ops: Union[Operation, SSAValue]) -> Return:
-        return Return.build(operands=[[op for op in ops]])
+        ops = [op for op in ops] if ops != () else []
+        return Return.build(operands=[ops])
+
+
+Func = Dialect([FuncOp, Call, Return], [])

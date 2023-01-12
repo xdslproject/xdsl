@@ -22,10 +22,10 @@ import difflib
 def apply_strategy_and_compare(program: str, expected_program: str,
                                strategy: Strategy):
     ctx = MLContext()
-    Builtin(ctx)
-    Func(ctx)
-    Arith(ctx)
-    scf.Scf(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(scf.Scf)
 
     parser = Parser(ctx, program)
     module: Operation = parser.parse_op()
@@ -55,15 +55,15 @@ def apply_strategy_and_compare(program: str, expected_program: str,
 def apply_dyn_strategy_and_compare(program: str, expected_program: str,
                                strategy_name: str):
     ctx = MLContext()
-    Builtin(ctx)
-    Func(ctx)
-    Arith(ctx)
-    scf.Scf(ctx)
-    IRUtils.IRUtils(ctx)
-    pdl.PDL(ctx)
-    match.Match(ctx)
-    rewrite.Rewrite(ctx)
-    elevate.Elevate(ctx)
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(scf.Scf)
+    ctx.register_dialect(IRUtils.IRUtils)
+    ctx.register_dialect(pdl.PDL)
+    ctx.register_dialect(match.Match)
+    ctx.register_dialect(rewrite.Rewrite)
+    ctx.register_dialect(elevate.Elevate)
 
     # fetch strategies.xdsl file
     __location__ = os.path.realpath(

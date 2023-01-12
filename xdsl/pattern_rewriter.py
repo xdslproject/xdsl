@@ -2,7 +2,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, OpResult, Region, Block, BlockArgument,
@@ -337,7 +337,9 @@ class AnonymousRewritePattern(RewritePattern):
         self.func(op, rewriter)
 
 
-def op_type_rewrite_pattern(func):
+def op_type_rewrite_pattern(
+    func: Callable[..., None]
+) -> Callable[[Any, Any], None] | Callable[[Any, Any, Any], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter method.
     It uses type hints to match on a specific operation type before calling the decorated
@@ -377,12 +379,14 @@ def op_type_rewrite_pattern(func):
         return op_type_rewrite_pattern_static_wrapper
 
     def op_type_rewrite_pattern_method_wrapper(
-            self, op: Operation, rewriter: PatternRewriter) -> None:
+            self,  # type: ignore
+            op: Operation,
+            rewriter: PatternRewriter) -> None:
         if not isinstance(op, expected_type):
             return None
         func(self, op, rewriter)
 
-    return op_type_rewrite_pattern_method_wrapper
+    return op_type_rewrite_pattern_method_wrapper  # type: ignore
 
 
 @dataclass(eq=False, repr=False)

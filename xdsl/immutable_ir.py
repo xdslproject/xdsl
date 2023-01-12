@@ -67,8 +67,8 @@ class ISSAValue(ABC):
             self.users.remove(op)
             self.users.freeze()
         else:
-            pass
-            # print(f"illegal removal of use by (non-)user {op.name}")
+            return
+            raise Exception(f"Trying to remove a user ({op.name}) that is not an actual user of this value!")
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from xdsl.ir import *
 from xdsl.irdl import *
-from xdsl.util import *
+from xdsl.utils import *
 from xdsl.dialects.builtin import *
 
 from typing import TypeAlias, List, cast, Type, Sequence, Optional

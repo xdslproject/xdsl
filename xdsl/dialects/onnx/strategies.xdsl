@@ -12,8 +12,8 @@ builtin.module() {
       %matmulLHS : !value = pdl.operand()
       %matmulRHS : !value = pdl.operand()
       %add_operand : !value = pdl.operand() []
-      (%5 : !operation, %matmul : !value) = pdl.operation(%matmulLHS : !value, %matmulRHS : !value) ["name"="onnx.MatMul"]
-      (%add_op : !operation, %add_result : !value) = pdl.operation(%matmul : !value, %add_operand : !value) ["name"="onnx.Add"]
+      %5 : !operation, %matmul : !value = pdl.operation(%matmulLHS : !value, %matmulRHS : !value) ["name"="onnx.MatMul"]
+      %add_op : !operation, %add_result : !value = pdl.operation(%matmul : !value, %add_operand : !value) ["name"="onnx.Add"]
       
       match.capture(%matmulLHS : !value, %matmulRHS : !value, %add_operand : !value, %add_result : !value)
     }
@@ -33,58 +33,58 @@ builtin.module() {
       %layer_norm_cst_weight : !value = pdl.operand()
       %layer_norm_cst_bias : !value = pdl.operand() []
 
-      (%add2 : !operation, %add2_result : !value) = pdl.operation() ["name"="onnx.Add"]
-      (%layer_norm1 : !operation, %layer_norm1_result : !value) = pdl.operation(%add2_result : !value, %layer_norm_cst_weight : !value, %layer_norm_cst_bias : !value) ["name"="onnx.Custom", "function_name" = "LayerNormalization"]
+      %add2 : !operation, %add2_result : !value = pdl.operation() ["name"="onnx.Add"]
+      %layer_norm1 : !operation, %layer_norm1_result : !value = pdl.operation(%add2_result : !value, %layer_norm_cst_weight : !value, %layer_norm_cst_bias : !value) ["name"="onnx.Custom", "function_name" = "LayerNormalization"]
 
       // mask nodes
       %input_mask : !value = pdl.operand() []
-      (%unsqueeze1_mask : !operation, %unsqueeze1_mask_result : !value) = pdl.operation(%input_mask : !value) ["name"="onnx.Unsqueeze"]
-      (%unsqueeze0_mask : !operation, %unsqueeze0_mask_result : !value) = pdl.operation(%unsqueeze1_mask_result : !value) ["name"="onnx.Unsqueeze"]
-      (%cast_mask : !operation, %cast_mask_result : !value) = pdl.operation(%unsqueeze0_mask_result : !value) ["name"="onnx.Cast"]
+      %unsqueeze1_mask : !operation, %unsqueeze1_mask_result : !value = pdl.operation(%input_mask : !value) ["name"="onnx.Unsqueeze"]
+      %unsqueeze0_mask : !operation, %unsqueeze0_mask_result : !value = pdl.operation(%unsqueeze1_mask_result : !value) ["name"="onnx.Unsqueeze"]
+      %cast_mask : !operation, %cast_mask_result : !value = pdl.operation(%unsqueeze0_mask_result : !value) ["name"="onnx.Cast"]
       %sub_cst : !value = pdl.operand() []
-      (%sub_mask : !operation, %sub_mask_result : !value) = pdl.operation(%sub_cst : !value, %cast_mask_result : !value) ["name"="onnx.Sub"]
-      (%mul_mask : !operation, %mul_mask_result : !value) = pdl.operation(%sub_mask_result : !value) ["name"="onnx.Mul"]
+      %sub_mask : !operation, %sub_mask_result : !value = pdl.operation(%sub_cst : !value, %cast_mask_result : !value) ["name"="onnx.Sub"]
+      %mul_mask : !operation, %mul_mask_result : !value = pdl.operation(%sub_mask_result : !value) ["name"="onnx.Mul"]
 
       // q path
       %q_weight : !value = pdl.operand() []
       %q_bias : !value = pdl.operand() []
-      (%matmul_q : !operation, %matmul_q_result : !value) = pdl.operation(%layer_norm1_result : !value, %q_weight : !value) ["name"="onnx.MatMul"]
-      (%add_q : !operation, %add_q_result : !value) = pdl.operation(%matmul_q_result : !value, %q_bias : !value) ["name"="onnx.Add"]
-      (%reshape_q : !operation, %reshape_q_result : !value) = pdl.operation(%add_q_result : !value) ["name"="onnx.Reshape"]
-      (%transposeq : !operation, %transposeq_result : !value) = pdl.operation(%reshape_q_result : !value) ["name"="onnx.Transpose"]
+      %matmul_q : !operation, %matmul_q_result : !value = pdl.operation(%layer_norm1_result : !value, %q_weight : !value) ["name"="onnx.MatMul"]
+      %add_q : !operation, %add_q_result : !value = pdl.operation(%matmul_q_result : !value, %q_bias : !value) ["name"="onnx.Add"]
+      %reshape_q : !operation, %reshape_q_result : !value = pdl.operation(%add_q_result : !value) ["name"="onnx.Reshape"]
+      %transposeq : !operation, %transposeq_result : !value = pdl.operation(%reshape_q_result : !value) ["name"="onnx.Transpose"]
 
       // k path
       %k_weight : !value = pdl.operand() []
       %k_bias : !value = pdl.operand() []
-      (%matmul_k : !operation, %matmul_k_result : !value) = pdl.operation(%layer_norm1_result : !value, %k_weight : !value) ["name"="onnx.MatMul"]
-      (%add_k : !operation, %add_k_result : !value) = pdl.operation(%matmul_k_result : !value, %k_bias : !value) ["name"="onnx.Add"]
-      (%reshape_k : !operation, %reshape_k_result : !value) = pdl.operation(%add_k_result : !value) ["name"="onnx.Reshape"]
-      (%transposek : !operation, %transposek_result : !value) = pdl.operation(%reshape_k_result : !value) ["name"="onnx.Transpose"]
+      %matmul_k : !operation, %matmul_k_result : !value = pdl.operation(%layer_norm1_result : !value, %k_weight : !value) ["name"="onnx.MatMul"]
+      %add_k : !operation, %add_k_result : !value = pdl.operation(%matmul_k_result : !value, %k_bias : !value) ["name"="onnx.Add"]
+      %reshape_k : !operation, %reshape_k_result : !value = pdl.operation(%add_k_result : !value) ["name"="onnx.Reshape"]
+      %transposek : !operation, %transposek_result : !value = pdl.operation(%reshape_k_result : !value) ["name"="onnx.Transpose"]
 
       // qk path
-      (%matmul_qk : !operation, %matmul_qk_result : !value) = pdl.operation(%transposeq_result : !value, %transposek_result : !value) ["name"="onnx.MatMul"]
-      (%divqk : !operation, %divqk_result : !value) = pdl.operation(%matmul_qk_result : !value) ["name"="onnx.Div"]
-      (%add_qk : !operation, %add_qk_result : !value) = pdl.operation(%divqk_result : !value, %mul_mask_result : !value) ["name"="onnx.Add"]
-      (%softmax_qk : !operation, %softmax_qk_result : !value) = pdl.operation(%add_qk_result : !value) ["name"="onnx.Softmax"]
+      %matmul_qk : !operation, %matmul_qk_result : !value = pdl.operation(%transposeq_result : !value, %transposek_result : !value) ["name"="onnx.MatMul"]
+      %divqk : !operation, %divqk_result : !value = pdl.operation(%matmul_qk_result : !value) ["name"="onnx.Div"]
+      %add_qk : !operation, %add_qk_result : !value = pdl.operation(%divqk_result : !value, %mul_mask_result : !value) ["name"="onnx.Add"]
+      %softmax_qk : !operation, %softmax_qk_result : !value = pdl.operation(%add_qk_result : !value) ["name"="onnx.Softmax"]
 
       // v path
       %v_weight : !value = pdl.operand() []
       %v_bias : !value = pdl.operand() []
-      (%matmul_v : !operation, %matmul_v_result : !value) = pdl.operation(%layer_norm1_result : !value, %v_weight : !value) ["name"="onnx.MatMul"]
-      (%add_v : !operation, %add_v_result : !value) = pdl.operation(%matmul_v_result : !value, %v_bias : !value) ["name"="onnx.Add"]
-      (%reshape_v : !operation, %reshape_v_result : !value) = pdl.operation(%add_v_result : !value) ["name"="onnx.Reshape"]
-      (%transpose_v : !operation, %transpose_v_result : !value) = pdl.operation(%reshape_v_result : !value) ["name"="onnx.Transpose"]
+      %matmul_v : !operation, %matmul_v_result : !value = pdl.operation(%layer_norm1_result : !value, %v_weight : !value) ["name"="onnx.MatMul"]
+      %add_v : !operation, %add_v_result : !value = pdl.operation(%matmul_v_result : !value, %v_bias : !value) ["name"="onnx.Add"]
+      %reshape_v : !operation, %reshape_v_result : !value = pdl.operation(%add_v_result : !value) ["name"="onnx.Reshape"]
+      %transpose_v : !operation, %transpose_v_result : !value = pdl.operation(%reshape_v_result : !value) ["name"="onnx.Transpose"]
 
       // qkv path
-      (%matmul_qkv : !operation, %matmul_qkv_result : !value) = pdl.operation(%softmax_qk_result : !value, %transpose_v_result : !value) ["name"="onnx.MatMul"]
-      (%transpose_qkv : !operation, %transpose_qkv_result : !value) = pdl.operation(%matmul_qkv_result : !value) ["name"="onnx.Transpose"]
-      (%reshape_qkv : !operation, %reshape_qkv_result : !value) = pdl.operation(%transpose_qkv_result : !value) ["name"="onnx.Reshape"]
+      %matmul_qkv : !operation, %matmul_qkv_result : !value = pdl.operation(%softmax_qk_result : !value, %transpose_v_result : !value) ["name"="onnx.MatMul"]
+      %transpose_qkv : !operation, %transpose_qkv_result : !value = pdl.operation(%matmul_qkv_result : !value) ["name"="onnx.Transpose"]
+      %reshape_qkv : !operation, %reshape_qkv_result : !value = pdl.operation(%transpose_qkv_result : !value) ["name"="onnx.Reshape"]
       
       // after the attention layer
-      (%matmul0 : !operation, %matmul0_result : !value) = pdl.operation(%reshape_qkv_result : !value) ["name"="onnx.MatMul"]
-      (%add1 : !operation, %add1_result : !value) = pdl.operation(%matmul0_result : !value, %layer_norm1_result : !value) ["name"="onnx.Add"]
+      %matmul0 : !operation, %matmul0_result : !value = pdl.operation(%reshape_qkv_result : !value) ["name"="onnx.MatMul"]
+      %add1 : !operation, %add1_result : !value = pdl.operation(%matmul0_result : !value, %layer_norm1_result : !value) ["name"="onnx.Add"]
       %add_qkv_weight : !value = pdl.operand() []
-      (%add0 : !operation, %add0_result : !value) = pdl.operation(%add1_result : !value, %add_qkv_weight : !value) ["name"="onnx.Add"]
+      %add0 : !operation, %add0_result : !value = pdl.operation(%add1_result : !value, %add_qkv_weight : !value) ["name"="onnx.Add"]
       %layer_norm0 : !operation = pdl.operation(%add0_result : !value) ["name"="onnx.Custom", "function_name" = "LayerNormalization"]
 
       // some assertions and checks over types are missing
@@ -95,18 +95,18 @@ builtin.module() {
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%input_mask : !value, %add2_result : !value, %layer_norm_cst_weight : !value, %layer_norm_cst_bias : !value, %matmul_qkv_result : !value, %q_weight : !value, %q_bias : !value, %k_weight : !value, %k_bias : !value, %v_weight : !value, %v_bias : !value, %layer_norm : !operation, %layer_norm1_result : !value, %add_qkv_weight : !value):
 
-      (%qkv_weight : !attribute, %qkv_weight_type : !type) = irutils.concat_tensors(%q_weight : !value, %k_weight : !value, %v_weight : !value) []
-      (%qkv_weight_cst : !operation, %qkv_weight_cst_result : !value) = irutils.new_op(%qkv_weight : !attribute, %qkv_weight_type : !type) ["name"="onnx.ONNXConstantOp", "attribute_names"=["value"]]
+      %qkv_weight : !attribute, %qkv_weight_type : !type = irutils.concat_tensors(%q_weight : !value, %k_weight : !value, %v_weight : !value) []
+      %qkv_weight_cst : !operation, %qkv_weight_cst_result : !value = irutils.new_op(%qkv_weight : !attribute, %qkv_weight_type : !type) ["name"="onnx.ONNXConstantOp", "attribute_names"=["value"]]
 
-      (%qkv_bias : !attribute, %qkv_bias_type : !type) = irutils.concat_tensors(%q_bias : !value, %k_bias : !value, %v_bias : !value) []
-      (%qkv_bias_cst : !operation, %qkv_bias_cst_result : !value) = irutils.new_op(%qkv_bias : !attribute, %qkv_bias_type : !type) ["name"="onnx.ONNXConstantOp", "attribute_names"=["value"]]
+      %qkv_bias : !attribute, %qkv_bias_type : !type = irutils.concat_tensors(%q_bias : !value, %k_bias : !value, %v_bias : !value) []
+      %qkv_bias_cst : !operation, %qkv_bias_cst_result : !value = irutils.new_op(%qkv_bias : !attribute, %qkv_bias_type : !type) ["name"="onnx.ONNXConstantOp", "attribute_names"=["value"]]
 
       %unranked_tensor_type : !type = irutils.get_type(%matmul_qkv_result : !value) []
-      (%cast_input_mask : !operation, %cast_input_mask_result : !value) = irutils.new_op(%input_mask : !value) ["name" = "onnx.ONNXCastOp", "attribute_names" = ["onnx_node_name", "to"], "to" = !i32, "onnx_node_name" = "Cast3"]
-      (%fused_attention : !operation, %fused_attention_result : !value) = irutils.new_op(%layer_norm1_result : !value, %qkv_weight_cst_result : !value, %qkv_bias_cst_result : !value, %cast_input_mask_result : !value, %unranked_tensor_type : !type) ["name"="onnx.ONNXCustomOp", "attribute_names"=["domain_name", "function_name", "num_heads", "onnx_node_name"], "domain_name" = "com.microsoft", "function_name" = "Attention", "num_heads" = 2 : !si64, "onnx_node_name" = "Attention_0"]
+      %cast_input_mask : !operation, %cast_input_mask_result : !value = irutils.new_op(%input_mask : !value) ["name" = "onnx.ONNXCastOp", "attribute_names" = ["onnx_node_name", "to"], "to" = !i32, "onnx_node_name" = "Cast3"]
+      %fused_attention : !operation, %fused_attention_result : !value = irutils.new_op(%layer_norm1_result : !value, %qkv_weight_cst_result : !value, %qkv_bias_cst_result : !value, %cast_input_mask_result : !value, %unranked_tensor_type : !type) ["name"="onnx.ONNXCustomOp", "attribute_names"=["domain_name", "function_name", "num_heads", "onnx_node_name"], "domain_name" = "com.microsoft", "function_name" = "Attention", "num_heads" = 2 : !si64, "onnx_node_name" = "Attention_0"]
 
 
-      (%matmul : !operation, %matmul_result : !value) = irutils.new_op(%fused_attention_result : !value, %fused_attention_result : !value, %unranked_tensor_type: !type) ["name"="onnx.ONNXMatMulOp", "attribute_names" = ["onnx_node_name"], "onnx_node_name" = "matmul_qkv_2"]
+      %matmul : !operation, %matmul_result : !value = irutils.new_op(%fused_attention_result : !value, %fused_attention_result : !value, %unranked_tensor_type: !type) ["name"="onnx.ONNXMatMulOp", "attribute_names" = ["onnx_node_name"], "onnx_node_name" = "matmul_qkv_2"]
       %output_type : !type = irutils.get_type(%add2_result : !value) []
       %skip_layer_norm : !operation = irutils.new_op(%layer_norm1_result : !value, %matmul_result : !value, %layer_norm_cst_weight : !value, %layer_norm_cst_bias : !value, %add_qkv_weight : !value, %output_type: !type) ["name"="onnx.ONNXCustomOp", "attribute_names"=["domain_name", "epsilon", "function_name", "onnx_node_name"], "domain_name" = "com.microsoft", "function_name" = "SkipLayerNormalization", "onnx_node_name" = "SkipLayerNorm_AddBias_0", "epsilon" = 9.99999996e-13 : !f32]
 

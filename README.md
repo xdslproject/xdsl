@@ -1,28 +1,63 @@
-# xDSL
+# xDSL: A Python-native SSA Compiler Framework
 
-## Prerequisites
+[![Build Status for the Core backend](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml/badge.svg)](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml?query=workflow%3A%22CI+-+Python+application%22++)
+[![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
+[![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
 
-To install XDSL you can either clone the Github repository and install the requirements by following:
+[![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
 
-### Clone and install
-```bash
-git clone https://github.com/xdslproject/xdsl.git
-pip install -e .
-# or for the optional requirements
-# pip install -e .[extras]
-```
+[xDSL](http://www.xdsl.dev) is a Python-native compiler framework built around
+SSA-based intermediate representations (IRs). Users of xDSL build a compiler by
+assembling predefined domain-specific IRs and, optionally, defining their own custom IRs. xDSL uses multi-level IRs, meaning
+that during the compilation process, a program will be lowered through several
+of these IRs. This allows the implementation of abstraction-specific
+optimization passes, similar to the structure of common DSL compilers (such as
+Devito, Psyclone, and Firedrake). To simplify the writing of these passes, xDSL
+uses a uniform data structure based on SSA, basic blocks, and regions, which
+additionally enables the writing of generic passes.
 
-### pip installation
+The design of xDSL is influenced by [MLIR](https://mlir.llvm.org/), a compiler
+framework developed in C++, that is part of the LLVM project. An inherent
+advantage of a close design is the easy interaction between the two frameworks,
+making it possible to translate abstractions and programs back and forth. This
+results in one big SSA-based abstraction ecosystem that can be worked with
+through Python, making analysis through simple scripting languages possible.
+Additionally, xDSL can leverage MLIR's code generation and low-level
+optimization capabilities.
+
+## Installation
+
+To use xDSL for developing your own compiler, just install xDSL via pip:
 
 ```bash
 pip install xdsl
 ```
 
-## Testing
+## Using xDSL
 
-This project includes pytest unit test and llvm-style filecheck tests. They can
-be executed using to following commands from within the root directory of the
-project:
+- [A simple introduction](docs/tutorial.ipynb)
+- [A DSL for defining new IRs](docs/irdl.ipynb)
+- [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
+
+Some of the above tutorials are also available as [interactive notebooks](https://xdsl.dev/xdsl/lab/index.html).
+
+## xDSL Developer Setup
+
+To contribute to the development of xDSL follow the subsequent steps.
+
+
+#### Developer Installation
+
+```bash
+git clone https://github.com/xdslproject/xdsl.git
+pip install -e .
+pip install -e .[extras]
+```
+
+#### Testing
+
+The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
+be executed from the root directory:
 
 ```bash
 # Executes pytests which are located in tests/
@@ -32,38 +67,7 @@ pytest
 lit tests/filecheck
 ```
 
-## Generating executables through MLIR
-
-xDSL can generate executables using MLIR as its backend.
-To benefit from this functionality, we first need to clone and build MLIR.
-Please follow: https://mlir.llvm.org/getting_started/
-
-Next, we need to have `mlir-opt`, `mlir-translate` and `clang` in the path:
-
-```bash
-# For XDSL-MLIR
-export PATH=<insert-your-path>/llvm-project/build/bin:$PATH
-```
-
-Given an input file `input.xdsl`, that contains IR with only the mirrored dialects
-found in `src/xdsl/dialects` (arith, builtin, cf, func, llvm, memref, and scf), run:
-
-```bash
-### Prints MLIR generic from to tmp.mlir
-# e.g.  ./src/tools/xdsl_opt -t mlir -o tmp.mlir `input.xdsl`
-/src/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
-
-mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --convert-arith-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
-```
-
-The generated `tmp.ll` file contains LLVMIR, so it can be directly passed to a
-compiler like clang. Notice that a `main` function is required for clang to
-build. Refer to `tests/filecheck/arith_ops.test` for an example. The
-functionality is tested with MLIR git commit hash:
-74992f4a5bb79e2084abdef406ef2e5aa2024368
-
-
-## Formatting
+#### Formatting
 
 All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
 format the code in a uniform manner.

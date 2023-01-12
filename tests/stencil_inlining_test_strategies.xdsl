@@ -7,13 +7,13 @@ builtin.module() {
   %inline : !strategy = elevate.strategy() {
     ^strategy(%op : !operation):
     %pattern : !pattern = match.pattern() {
-      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
+      %apply_op : !operation, %cons_apply_vals : !range<!value> = pdl.operation() ["name" = "stencil.apply"]
       match.capture(%cons_apply_vals : !range<!value>)
     }
     // automatically using results here should work with ranges as well (i.e. all results are in the range)
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
-      (%producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
+      %producer_apply : !operation, %access_op_to_inline_at : !operation, %operand_to_inline : !value = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable"]  
       
       // concat producer and consumer operands
       %producer_operands : !range<!value> = irutils.get_operands(%producer_apply : !operation)
@@ -62,7 +62,7 @@ builtin.module() {
       // (%producer_apply : !operation, %producer_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"]
       
       // %producer_val : !value = match.any_in_range(%producer_vals : !range<!value>) []
-      (%apply_op : !operation, %cons_apply_vals : !range<!value>) = pdl.operation() ["name" = "stencil.apply"] {
+      %apply_op : !operation, %cons_apply_vals : !range<!value> = pdl.operation() ["name" = "stencil.apply"] {
         ^b1(%cons_block_args : !value):
         
           // To continue meaningfully I have to have an implementation stub for any_in_range
@@ -135,7 +135,7 @@ builtin.module() {
 
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%consumer_apply : !operation, %cons_apply_vals : !range<!value>):
-      (%producer_apply : !operation, %access_op_to_inline_at : !operation, %inlined_operand_result_index : !index) = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable_native_escape"]  
+      %producer_apply : !operation, %access_op_to_inline_at : !operation, %inlined_operand_result_index : !index = irutils.native_matcher(%consumer_apply : !operation) ["matcher_name" = "match_inlinable_native_escape"]  
 
       // concat producer and consumer operands
       %producer_operands : !range<!value> = irutils.get_operands(%producer_apply : !operation)
@@ -214,12 +214,12 @@ builtin.module() {
   %reroute : !strategy = elevate.strategy() {
     ^strategy(%op : !operation):
     %pattern : !pattern = match.pattern() {
-      (%anchor_op : !operation) = pdl.operation()
+      %anchor_op : !operation = pdl.operation()
     }
     // we have a root "anchor" op (will be func here) and do the actual matching only natively -> matchTopToBottom
     match.match_and_replace(%op : !operation, %pattern : !pattern) {
       ^rewrite(%root : !operation):
-      (%producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation) = irutils.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
+      %producer : !operation, %fst_consumer : !operation, %snd_consumer : !operation = irutils.native_matcher(%root : !operation) ["matcher_name" = "match_reroute_output_dependency"]  
       
       // concat producer and consumer operands
       %consumer_operands : !range<!value> = irutils.get_operands(%fst_consumer : !operation)

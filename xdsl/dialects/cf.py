@@ -1,27 +1,17 @@
 from __future__ import annotations
-from typing import List, Union
-from dataclasses import dataclass
+from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import IntegerType
-from xdsl.ir import MLContext, SSAValue
-from xdsl.irdl import (irdl_op_definition, VarOperandDef, AnyAttr, Block,
-                       Operation, OperandDef, AttrSizedOperandSegments)
-
-
-@dataclass
-class Cf:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_op(Branch)
-        self.ctx.register_op(ConditionalBranch)
+from xdsl.ir import SSAValue, Operation, Block, Dialect
+from xdsl.irdl import (irdl_op_definition, VarOperand, AnyAttr, Operand,
+                       AttrSizedOperandSegments)
 
 
 @irdl_op_definition
 class Branch(Operation):
     name: str = "cf.br"
 
-    arguments = VarOperandDef(AnyAttr())
+    arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(block: Block, *ops: Union[Operation, SSAValue]) -> Branch:
@@ -32,9 +22,9 @@ class Branch(Operation):
 class ConditionalBranch(Operation):
     name: str = "cf.cond_br"
 
-    then = OperandDef(IntegerType.from_width(1))
-    then_arguments = VarOperandDef(AnyAttr())
-    else_arguments = VarOperandDef(AnyAttr())
+    then: Annotated[Operand, IntegerType.from_width(1)]
+    then_arguments: Annotated[VarOperand, AnyAttr()]
+    else_arguments: Annotated[VarOperand, AnyAttr()]
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -44,3 +34,6 @@ class ConditionalBranch(Operation):
             else_ops: List[Union[Operation, SSAValue]]) -> ConditionalBranch:
         return ConditionalBranch.build(operands=[cond, then_ops, else_ops],
                                        successors=[then_block, else_block])
+
+
+Cf = Dialect([Branch, ConditionalBranch], [])

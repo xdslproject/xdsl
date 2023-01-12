@@ -1,34 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TypeVar, Optional, List, TypeAlias
+from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
                                    DenseIntOrFPElementsAttr)
-from xdsl.ir import MLIRType, Operation, SSAValue, MLContext
+from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
+                     Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, ParametrizedAttribute,
-                       AnyAttr, OperandDef, VarOperandDef, ResultDef,
-                       AttributeDef, AttrSizedOperandSegments, OptAttributeDef)
-
-
-@dataclass
-class MemRef:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(MemRefType)
-
-        self.ctx.register_op(Load)
-        self.ctx.register_op(Store)
-        self.ctx.register_op(Alloc)
-        self.ctx.register_op(Alloca)
-        self.ctx.register_op(Dealloc)
-
-        self.ctx.register_op(GetGlobal)
-        self.ctx.register_op(Global)
-
+                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
+                       VarOperand, AttributeDef, AttrSizedOperandSegments,
+                       OptAttributeDef)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -74,9 +56,9 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref = OperandDef(MemRefType)
-    indices = VarOperandDef(IndexType)
-    res = ResultDef(AnyAttr())
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
+    res: Annotated[OpResult, AnyAttr()]
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -100,17 +82,17 @@ class Load(Operation):
 @irdl_op_definition
 class Store(Operation):
     name = "memref.store"
-    value = OperandDef(AnyAttr())
-    memref = OperandDef(MemRefType)
-    indices = VarOperandDef(IndexType)
+    value: Annotated[Operand, AnyAttr()]
+    memref: Annotated[Operand, MemRefType]
+    indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
         if self.memref.typ.element_type != self.value.typ:
             raise Exception(
-                "expected value type to match the MemRef element type")
+                "Expected value type to match the MemRef element type")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
-            raise Exception("expected an index for each dimension")
+            raise Exception("Expected an index for each dimension")
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
@@ -122,10 +104,10 @@ class Store(Operation):
 class Alloc(Operation):
     name = "memref.alloc"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -150,10 +132,10 @@ class Alloc(Operation):
 class Alloca(Operation):
     name = "memref.alloca"
 
-    dynamic_sizes = VarOperandDef(IndexType)
-    symbol_operands = VarOperandDef(IndexType)
+    dynamic_sizes: Annotated[VarOperand, IndexType]
+    symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
     alignment = AttributeDef(IntegerAttr)
@@ -177,7 +159,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref = OperandDef(MemRefType)
+    memref: Annotated[Operand, MemRefType]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -185,11 +167,21 @@ class Dealloc(Operation):
 
 
 @irdl_op_definition
+class Dealloca(Operation):
+    name = "memref.dealloca"
+    memref: Annotated[Operand, MemRefType]
+
+    @staticmethod
+    def get(operand: Operation | SSAValue) -> Dealloca:
+        return Dealloca.build(operands=[operand])
+
+
+@irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
     # name = AttributeDef(FlatSymbolRefAttr)
 
-    memref = ResultDef(MemRefType)
+    memref: Annotated[OpResult, MemRefType]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
@@ -244,3 +236,7 @@ class Global(Operation):
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility
             })
+
+
+MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
+                 [MemRefType])
