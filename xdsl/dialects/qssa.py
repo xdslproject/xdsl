@@ -233,33 +233,6 @@ class Merge(Operation):
         return Merge.build(operands=[ws_in], result_types=[wn_type])
 
 
-# class Dagged(Enum):
-#     NONE = 0
-#     DAGGED = auto()
-#
-#
-# @irdl_attr_definition
-# class DaggedAttr(Data[Dagged]):
-#     name = "dagged"
-#
-#     @staticmethod
-#     def parse_parameter(parser: Parser) -> Dagged:
-#         data = parser.parse_str_literal()
-#         if (data.lower() == "dagged"):
-#             return Dagged.DAGGED
-#         else:
-#             return Dagged.NONE
-#
-#     @staticmethod
-#     def print_parameter(data: Dagged, printer: Printer) -> None:
-#         printer.print_string("dagged" if data == Dagged.DAGGED else "none")
-#
-#     @staticmethod
-#     @builder
-#     def from_bool(data: bool) -> DaggedAttr:
-#         return DaggedAttr(data)
-
-
 @irdl_op_definition
 class Dag(Operation):
     name: str = "qssa.dag"
