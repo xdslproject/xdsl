@@ -33,10 +33,10 @@ class OpInserter:
         """Sets the insertion point to the last block in the last region of the operation."""
         if len(op.regions) == 0:
             raise InternalCodeGenerationException(
-                "Trying to set the insertion point for operation {} with no regions.", [op])
+                f"Trying to set the insertion point for operation '{op.name}' with no regions.")
         if len(op.regions[-1].blocks) == 0:
             raise InternalCodeGenerationException(
-                "Trying to set the insertion point for operation {} with no blocks in its last region.", [op])
+                f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region.")
         self.ip = op.regions[-1].blocks[-1]
 
     def set_insertion_point_from_region(self, region: Region) -> None:
