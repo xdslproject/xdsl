@@ -10,7 +10,6 @@ class _FrontendType:
     """Represents any type in the frontend."""
 
     @staticmethod
-    @abs.abstractmethod
     def to_xdsl() -> Callable[..., Any]:
         raise NotImplementedError()
 

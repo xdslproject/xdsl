@@ -13,7 +13,11 @@ p.compile(desymref=False)
 print(p.xdsl())
 
 with CodeContext(p):
-    # CHECK: builtin.module() {}
+    #      CHECK: func.func() ["sym_name" = "foo", "function_type" = !fun<[!i32], []>
+    # CHECK-NEXT: ^0(%{{.*}} : !i32):
+    # CHECK-NEXT:   symref.declare() ["sym_name" = "{{.*}}"]
+    # CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @{{.*}}]
+    # CHECK-NEXT:   func.return()
     def foo(x: i32):
         pass
 

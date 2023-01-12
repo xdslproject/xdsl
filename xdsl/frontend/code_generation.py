@@ -61,9 +61,6 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                                       f"Unsupported Python AST node {str(node)}")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        """
-        Visits Python function definition.
-        """
 
         # Set the symbol table.
         assert self.symbol_table is None
@@ -88,7 +85,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         func_op = func.FuncOp.from_region(
             node.name, argument_types, return_types, body_region)
         self.inserter.insert_op(func_op)
-        self.inserter.set_insertion_point_from_op(func_op)
+        self.inserter.set_insertion_point_from_block(entry_block)
 
         # All arguments are declared using symref.
         for i, arg in enumerate(node.args.args):
@@ -110,4 +107,15 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_op(parent_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
-        pass
+        parent_op = self.inserter.insertion_point.parent_op()
+
+        # We might have to add an explicit return statement in this case. Make sure to
+        # check the type signature.
+        if parent_op is not None and isinstance(parent_op, func.FuncOp):
+            return_types = parent_op.function_type.outputs.data
+            if len(return_types) != 0:
+                function_name = parent_op.attributes["sym_name"].data
+                types_str = "type" if len(return_types) == 1 else "types"
+                raise CodeGenerationException(node.lineno, node.col_offset,
+                                              f"Expected '{function_name}' to return {len(return_types)} {types_str}.")
+            self.inserter.insert_op(func.Return.get())
