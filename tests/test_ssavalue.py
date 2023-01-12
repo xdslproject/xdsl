@@ -3,12 +3,12 @@ import pytest
 from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
 
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Block, Operation, OpResult
 from xdsl.irdl import irdl_op_definition, ResultDef
 
 
 def test_ssa():
-    a = SSAValue(typ=i32)
+    a = OpResult(i32, [], [])
     c = Constant.from_int_and_width(1, i32)
 
     with pytest.raises(TypeError):
@@ -29,7 +29,7 @@ class TwoResultOp(Operation):
 
 def test_var_mixed_builder():
     op = TwoResultOp.build(result_types=[0, 2])
-    b = SSAValue(typ=i32)
+    b = OpResult(i32, [], [])
 
     with pytest.raises(ValueError):
         _ = b.get(op)
