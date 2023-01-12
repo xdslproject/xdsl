@@ -97,12 +97,3 @@ Cannot print the program IR without compiling it first. Make sure to use:
 
     def xdsl(self) -> str:
         return self._print(Printer.Target.XDSL)
-
-    def mlir_roundtrip(self, mlir_opt_path, mlir_opt_args=[]) -> str:
-        """
-        Runs 'mlir-opt' on the generated IR with specified arguments and returns the output as a string.
-        """
-        cmd = [mlir_opt_path] + mlir_opt_args
-        ip = self._print(Printer.Target.MLIR).encode("utf-8")
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, input=ip)
-        return result.stdout.decode("utf-8").strip()
