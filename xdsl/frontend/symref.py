@@ -23,7 +23,8 @@ class Fetch(Operation):
 
     @staticmethod
     def get(symbol: str | FlatSymbolRefAttr, result_type: Attribute) -> Fetch:
-        return Fetch.build(attributes={"symbol": symbol}, result_types=[result_type])
+        return Fetch.build(attributes={"symbol": symbol},
+                           result_types=[result_type])
 
 
 @irdl_op_definition
@@ -33,8 +34,9 @@ class Update(Operation):
     symbol = AttributeDef(FlatSymbolRefAttr)
 
     @staticmethod
-    def get(symbol: str | FlatSymbolRefAttr, value: Operation | SSAValue) -> Update:
-        return Update.build(operands=[value], attributes={"symbol": symbol})
+    def get(symbol: str | FlatSymbolRefAttr,
+            value: Operation | SSAValue) -> Update:
+         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
 Symref = Dialect([Declare, Fetch, Update], [])

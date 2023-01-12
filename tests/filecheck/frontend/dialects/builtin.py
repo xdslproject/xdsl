@@ -37,5 +37,6 @@ with CodeContext(p):
     def fp(x: f16, y: f32, z: f64):
         pass
 
+
 p.compile(desymref=False)
 print(p.xdsl())

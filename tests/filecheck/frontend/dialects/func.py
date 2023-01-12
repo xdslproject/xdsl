@@ -14,5 +14,6 @@ with CodeContext(p):
     def foo(x: i32):
         pass
 
+
 p.compile(desymref=False)
 print(p.xdsl())

@@ -15,7 +15,8 @@ from xdsl.ir import Attribute, Block, Region
 class CodeGeneration:
 
     @staticmethod
-    def run_with_type_converter(type_converter: TypeConverter, stmts: List[ast.stmt]) -> builtin.ModuleOp:
+    def run_with_type_converter(type_converter: TypeConverter,
+                                stmts: List[ast.stmt]) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
         visitor = CodegGenerationVisitor(type_converter, module)
@@ -46,7 +47,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp) -> None:
+    def __init__(self, type_converter: TypeConverter,
+                 module: builtin.ModuleOp) -> None:
         self.type_converter = type_converter
         self.globals = type_converter.globals
 
@@ -57,8 +59,9 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         super().visit(node)
 
     def generic_visit(self, node: ast.AST) -> None:
-        raise CodeGenerationException(node.lineno, node.col_offset,
-                                      f"Unsupported Python AST node {str(node)}")
+        raise CodeGenerationException(
+            node.lineno, node.col_offset,
+            f"Unsupported Python AST node {str(node)}")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
 
@@ -82,8 +85,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # Create a function operation.
         entry_block = Block()
         body_region = Region.from_block_list([entry_block])
-        func_op = func.FuncOp.from_region(
-            node.name, argument_types, return_types, body_region)
+        func_op = func.FuncOp.from_region(node.name, argument_types,
+                                          return_types, body_region)
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
 
@@ -113,8 +116,12 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # check the type signature.
         if parent_op is not None and isinstance(parent_op, func.FuncOp):
             return_types = parent_op.function_type.outputs.data
+            
             if len(return_types) != 0:
                 function_name = parent_op.attributes["sym_name"].data
-                raise CodeGenerationException(node.lineno, node.col_offset,
-                                              f"Expected '{function_name}' to return {{}}.", return_types)
+                return_type_names = ",".join([t.name for t in return_types])
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Expected '{function_name}' to return {return_type_names}."
+                )
             self.inserter.insert_op(func.Return.get())

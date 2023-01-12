@@ -32,7 +32,6 @@ try:
 except FrontendProgramException as e:
     print(e.msg)
 
-
 with CodeContext(p):
     # CHECK: Expected 'foo' to return !i32.
     def foo() -> i32:

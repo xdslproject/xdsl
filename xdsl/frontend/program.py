@@ -39,13 +39,15 @@ Cannot compile program without the code context. Try to use:
     def compile(self, desymref=True) -> None:
         """Generates xDSL from the source program."""
 
-        # Both statements and globals msut be initialized from within the `CodeContext`.
+        # Both statements and globals msut be initialized from within the
+        # `CodeContext`.
         self._check_can_compile()
         assert self.globals is not None
         assert self.stmts is not None
 
-        tc = TypeConverter(self.globals)
-        self.xdsl_program = CodeGeneration.run_with_type_converter(tc, self.stmts)
+        type_converter = TypeConverter(self.globals)
+        self.xdsl_program = CodeGeneration.run_with_type_converter(
+            type_converter, self.stmts)
         self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.

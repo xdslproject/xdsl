@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List
-from xdsl.frontend.exception import InternalCodeGenerationException
+from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -19,7 +19,7 @@ class OpInserter:
     def get_operand(self) -> SSAValue:
         """Pops the last value from the operand stack and returns it."""
         if len(self.stack) == 0:
-            raise InternalCodeGenerationException(
+            raise FrontendProgramException(
                 "Trying to get an operand from an empty stack.")
         return self.stack.pop()
 
@@ -32,18 +32,21 @@ class OpInserter:
     def set_insertion_point_from_op(self, op: Operation) -> None:
         """Sets the insertion point to the last block in the last region of the operation."""
         if len(op.regions) == 0:
-            raise InternalCodeGenerationException(
-                f"Trying to set the insertion point for operation '{op.name}' with no regions.")
+            raise FrontendProgramException(
+                f"Trying to set the insertion point for operation '{op.name}' with no regions."
+            )
         if len(op.regions[-1].blocks) == 0:
-            raise InternalCodeGenerationException(
-                f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region.")
+            raise FrontendProgramException(
+                f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region."
+            )
         self.ip = op.regions[-1].blocks[-1]
 
     def set_insertion_point_from_region(self, region: Region) -> None:
         """Sets the insertion point to the last block in this region."""
         if len(region.blocks) == 0:
-            raise InternalCodeGenerationException(
-                "Trying to set the insertion point from the region without blocks.")
+            raise FrontendProgramException(
+                "Trying to set the insertion point from the region without blocks."
+            )
         self.insertion_point = region.blocks[-1]
 
     def set_insertion_point_from_block(self, block: Block) -> None:
