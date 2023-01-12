@@ -585,16 +585,16 @@ class Operation(IRNode):
            len(self.successors) != len(other.successors) or \
             self.attributes != other.attributes:
             return False
+        if len(self.successors) > 0:
+            raise Exception(
+                "Checking for structural equality of ops with successors is not supported."
+            )
         if self.parent and other.parent and context.get(
                 self.parent) != other.parent:
             return False
         if not all(
                 context.get(operand) == other_operand for operand,
                 other_operand in zip(self.operands, other.operands)):
-            return False
-        if not all(
-                context.get(successor) == other_successor for successor,
-                other_successor in zip(self.successors, other.successors)):
             return False
         if not all(
                 region.is_structurally_equivalent(other_region, context)

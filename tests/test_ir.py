@@ -2,12 +2,13 @@ import pytest
 
 from xdsl.ir import MLContext, Operation, Block, Region
 from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import i32, IntegerAttr
+from xdsl.dialects.builtin import i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
 from xdsl.parser import Parser
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
+from xdsl.dialects.cf import Cf
 
 
 def test_ops_accessor():
@@ -196,3 +197,67 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
+
+
+def test_is_structurally_equivalent():
+    program_successors = \
+    """
+      func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+        ^0:
+          cf.br() (^1)
+        ^1:
+          cf.br() (^0)
+      }
+    """
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Cf)
+
+    parser = Parser(ctx, program_successors)
+    lhs: Operation = parser.parse_op()
+
+    parser = Parser(ctx, program_successors)
+    rhs: Operation = parser.parse_op()
+
+    with pytest.raises(Exception) as e:
+        lhs.is_structurally_equivalent(rhs)
+
+    assert e.value.args[
+        0] == "Checking for structural equality of ops with successors is not supported."
+
+
+def test_is_structurally_equivalent_incompatible_ir_nodes():
+    program_func = \
+  """builtin.module() {
+    func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+    ^0(%0 : !i32, %1 : !i32):
+      %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
+      %3 : !i32 = arith.constant() ["value" = 2 : !i32]
+      func.return(%3 : !i32)
+    ^1(%4 : !i32, %5 : !i32):
+      func.return(%4 : !i32)
+    }
+  }
+  """
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Func)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Cf)
+
+    parser = Parser(ctx, program_func)
+    program: ModuleOp = parser.parse_op()
+
+    assert program.is_structurally_equivalent(program.regions[0]) == False
+    assert program.is_structurally_equivalent(
+        program.regions[0].blocks[0]) == False
+    assert program.regions[0].is_structurally_equivalent(program) == False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(
+        program) == False
+    assert program.ops[0].regions[0].blocks[0].ops[
+        0].is_structurally_equivalent(
+            program.ops[0].regions[0].blocks[0].ops[1]) == False
+    assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
+        program.ops[0].regions[0].blocks[1]) == False
