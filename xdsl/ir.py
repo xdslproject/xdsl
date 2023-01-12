@@ -852,10 +852,9 @@ class Block(IRNode):
             context[arg] = other_arg
         # Add self to the context so Operations can check for identical parents
         context[self] = other
-        if not all([
+        if not all(
                 op.is_structurally_equivalent(other_op, context)
-                for op, other_op in zip(self.ops, other.ops)
-        ]):
+                for op, other_op in zip(self.ops, other.ops)):
             return False
 
         return True
