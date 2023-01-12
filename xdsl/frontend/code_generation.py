@@ -115,7 +115,6 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             return_types = parent_op.function_type.outputs.data
             if len(return_types) != 0:
                 function_name = parent_op.attributes["sym_name"].data
-                types_str = "type" if len(return_types) == 1 else "types"
                 raise CodeGenerationException(node.lineno, node.col_offset,
-                                              f"Expected '{function_name}' to return {len(return_types)} {types_str}.")
+                                              f"Expected '{function_name}' to return {{}}.", return_types)
             self.inserter.insert_op(func.Return.get())

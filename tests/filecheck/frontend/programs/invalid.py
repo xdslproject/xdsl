@@ -3,6 +3,7 @@
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
+from xdsl.frontend.dialects.builtin import i32
 
 p = FrontendProgram()
 
@@ -27,6 +28,19 @@ with CodeContext(p):
 
 
 try:
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+
+with CodeContext(p):
+    # CHECK: Expected 'foo' to return !i32.
+    def foo() -> i32:
+        pass
+
+
+try:
+    p.compile(desymref=False)
     print(p.xdsl())
 except FrontendProgramException as e:
     print(e.msg)
