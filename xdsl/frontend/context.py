@@ -28,7 +28,7 @@ class CodeContext(AbstractContextManager):
 
         # Get all the global information and record it as well. In particular,
         # this contains all the imports.
-        self.program.globals: Dict[str, Any] = frame.f_globals
+        self.program.globals = frame.f_globals
 
         # Find where the program starts.
         for node in ast.walk(python_ast):

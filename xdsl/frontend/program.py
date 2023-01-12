@@ -31,13 +31,13 @@ class FrontendProgram:
     program can be compiled and translated to xDSL or MLIR.
     """
 
-    stmts: List[ast.stmt] = field(default=None)
+    stmts: List[ast.stmt] | None = field(default=None)
     """AST nodes stored for compilation to xDSL."""
 
-    globals: Dict[str, Any] = field(default=None)
+    globals: Dict[str, Any] | None = field(default=None)
     """Global information for this program, including all the imports."""
 
-    xdsl_program: ModuleOp = field(default=None)
+    xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
     def _check_can_compile(self):
@@ -86,6 +86,7 @@ Cannot print the program IR without compiling it first. Make sure to use:
 
     def _print(self, target) -> str:
         self._check_can_print()
+        assert self.xdsl_program is not None
 
         file = StringIO("")
         printer = Printer(stream=file, target=target)
