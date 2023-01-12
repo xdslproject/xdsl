@@ -14,10 +14,10 @@ from io import StringIO
 from typing import TypeVar, Iterable
 
 from xdsl.dialects.builtin import (
-    AnyTensorType, AnyVectorType,
-    Float16Type, Float32Type, Float64Type, FloatAttr,
-    FunctionType, IndexType, IntegerType, Signedness, StringAttr,
-    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType, DefaultIntegerAttrType, FlatSymbolRefAttr)
+    AnyTensorType, AnyVectorType, Float16Type, Float32Type, Float64Type,
+    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
+    DefaultIntegerAttrType, FlatSymbolRefAttr)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute)
 from .printer import Printer
@@ -48,7 +48,13 @@ class ParseError(Exception):
 class MultipleSpansParseError(ParseError):
     ref_text: str | None
     refs: list[tuple[Span, str]]
-    def __init__(self, span: Span, msg: str, ref_text: str, refs: list[tuple[Span, str | None]], history: BacktrackingHistory | None = None):
+
+    def __init__(self,
+                 span: Span,
+                 msg: str,
+                 ref_text: str,
+                 refs: list[tuple[Span, str | None]],
+                 history: BacktrackingHistory | None = None):
         super(MultipleSpansParseError, self).__init__(span, msg, history)
         self.refs = refs
         self.ref_text = ref_text
@@ -161,7 +167,8 @@ class Span:
         return capture.getvalue()
 
     def __repr__(self):
-        return "{}[{}:{}](text='{}')".format(self.__class__.__name__, self.start, self.end, self.text)
+        return "{}[{}:{}](text='{}')".format(self.__class__.__name__,
+                                             self.start, self.end, self.text)
 
 
 @dataclass(frozen=True, repr=False)
@@ -529,7 +536,8 @@ class ParserCommons:
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
     )
     builtin_type = re.compile('(({}))'.format(')|('.join(_builtin_type_names)))
-    builtin_type_xdsl = re.compile('!(({}))'.format(')|('.join(_builtin_type_names)))
+    builtin_type_xdsl = re.compile('!(({}))'.format(
+        ')|('.join(_builtin_type_names)))
     double_colon = re.compile('::')
     comma = re.compile(',')
 
@@ -608,7 +616,8 @@ class BaseParser(ABC):
 
         if block_id is None:
             block = Block(self.tokenizer.last_token)
-        elif self.forward_block_references.pop(block_id.text, None) is not None:
+        elif self.forward_block_references.pop(block_id.text,
+                                               None) is not None:
             block = self.blocks[block_id.text]
             block.delcared_at = block_id
         else:
@@ -618,8 +627,7 @@ class BaseParser(ABC):
                     "Re-declaration of block {}".format(block_id.text),
                     'Originally declared here:',
                     [(self.blocks[block_id.text].delcared_at, None)],
-                    self.tokenizer.history
-                )
+                    self.tokenizer.history)
             block = Block(block_id)
             self.blocks[block_id.text] = block
 
@@ -1083,17 +1091,19 @@ class BaseParser(ABC):
                 while self.tokenizer.starts_with('^'):
                     region.add_block(self.must_parse_block())
 
-            end = self.must_parse_characters('}',
-                                       'Reached end of region, expected `}`!')
+            end = self.must_parse_characters(
+                '}', 'Reached end of region, expected `}`!')
 
             if len(self.forward_block_references) > 0:
                 raise MultipleSpansParseError(
                     end,
-                    "Region ends with missing block declarations for block(s) {}!".format(', '.join(self.forward_block_references.keys())),
+                    "Region ends with missing block declarations for block(s) {}!"
+                    .format(', '.join(self.forward_block_references.keys())),
                     'The following block references are dangling:',
-                    [(span, "Reference to block \"{}\" without implementation!".format(span.text)) for span in itertools.chain(*self.forward_block_references.values())],
-                    self.tokenizer.history
-                )
+                    [(span, "Reference to block \"{}\" without implementation!"
+                      .format(span.text)) for span in itertools.chain(
+                          *self.forward_block_references.values())],
+                    self.tokenizer.history)
 
             return region
         finally:
@@ -1157,8 +1167,7 @@ class BaseParser(ABC):
         attrs = (self.try_parse_builtin_float_attr,
                  self.try_parse_builtin_int_attr,
                  self.try_parse_builtin_str_attr,
-                 self.try_parse_builtin_arr_attr,
-                 self.try_parse_function_type,
+                 self.try_parse_builtin_arr_attr, self.try_parse_function_type,
                  self.try_parse_ref_attr)
 
         for attr_parser in attrs:
@@ -1232,7 +1241,7 @@ class BaseParser(ABC):
             attrs = self.must_parse_list_of(self.try_parse_attribute,
                                             'Expected array entry!')
             self.must_parse_characters(
-                ']', 'Array literals must be enclosed by square brackets!')
+                ']', 'Malformed array contents (expected end of array here!')
             return ArrayAttr.from_list(attrs)
 
     @abstractmethod
@@ -1402,7 +1411,8 @@ class BaseParser(ABC):
         """
         # TODO: remove this function and restructure custom op / irdl parsing
         assert isinstance(self, XDSLParser)
-        args, successors, attributes, regions, _ = self.must_parse_operation_details()
+        args, successors, attributes, regions, _ = self.must_parse_operation_details(
+        )
 
         for x in args:
             if x.text not in self.ssaValues:
@@ -1421,29 +1431,31 @@ class BaseParser(ABC):
             self,
             expect_brackets: bool = False,
             skip_white_space: bool = True) -> list[Attribute]:
-        if self.tokenizer.next_token_of_pattern(
-                '<') is None and expect_brackets:
+        opening_brackets = self.tokenizer.next_token_of_pattern('<')
+        if expect_brackets and opening_brackets is None:
             self.raise_error("Expected start attribute parameters here (`<`)!")
 
         res = self.must_parse_list_of(self.try_parse_attribute,
                                       'Expected another attribute here!')
 
-        if self.tokenizer.next_token_of_pattern(
-                '>') is None and expect_brackets:
+        if opening_brackets is not None and self.tokenizer.next_token_of_pattern(
+                '>') is None:
             self.raise_error(
                 "Malformed parameter list, expected either another parameter or `>`!"
             )
 
         return res
 
-    def parse_char(self, text: str) -> Span:
-        self.must_parse_characters(text, "Expected {} here!".format(text))
+    def parse_char(self, text: str):
+        self.must_parse_characters(text, "Expected '{}' here!".format(text))
 
     def parse_str_literal(self) -> str:
-        return self.expect(self.try_parse_string_literal, 'Malformed string literal!').string_contents
+        return self.expect(self.try_parse_string_literal,
+                           'Malformed string literal!').string_contents
 
     def parse_attribute(self) -> Attribute:
         return self.must_parse_attribute()
+
 
 class MLIRParser(BaseParser):
 
