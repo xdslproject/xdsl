@@ -118,7 +118,17 @@ class SSAValue(ABC):
     uses: set[Use] = field(init=False, default_factory=set, repr=False)
     """All uses of the value."""
 
-    name: str | None = field(init=False, default=None)
+    _name: str | None = field(init=False, default=None)
+
+    @property
+    def name(self) -> str | None:
+        return self._name
+
+    @name.setter
+    def name(self, name: str):
+        if name[-1].isnumeric():
+            return
+        self._name = name
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
