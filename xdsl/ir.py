@@ -317,7 +317,7 @@ class ParametrizedAttribute(Attribute):
 @dataclass
 class IRNode(object):
 
-    parent: IRNode
+    parent: IRNode | None
 
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."

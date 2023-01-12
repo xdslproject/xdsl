@@ -456,7 +456,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
-_TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute)
+_TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
@@ -498,7 +498,9 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
-_UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems", bound=Attribute)
+_UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
+                                   bound=Attribute,
+                                   covariant=True)
 
 
 @irdl_attr_definition
