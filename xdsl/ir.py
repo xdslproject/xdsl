@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast, Iterator)
+                    TypeVar, cast, Iterator, Union)
 import sys
 
 # Used for cyclic dependencies in type hints
@@ -317,19 +317,21 @@ class ParametrizedAttribute(Attribute):
 @dataclass
 class IRNode(object):
 
-    def is_ancestor(cls: IRNode, op: IRNode) -> bool:
+    parent: IRNode | None
+
+    def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
-        if op is cls:
+        if op is self:
             return True
         if op.parent is None:
             return False
-        return cls.is_ancestor(op.parent)
+        return self.is_ancestor(op.parent)
 
-    def get_toplevel_object(cls: IRNode) -> IRNode:
+    def get_toplevel_object(self) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
-        if cls.parent is None:
-            return cls
-        return cls.parent.get_toplevel_object()
+        if self.parent is None:
+            return self
+        return self.parent.get_toplevel_object()
 
 
 @dataclass
@@ -361,16 +363,14 @@ class Operation(IRNode):
     """The block containing this operation."""
 
     def parent_op(self) -> Operation | None:
-        try:
-            return self.parent_region().parent
-        except AttributeError:
-            None
+        if p := self.parent_region():
+            return p.parent
+        return None
 
     def parent_region(self) -> Region | None:
-        try:
-            return self.parent_block().parent
-        except AttributeError:
-            None
+        if p := self.parent_block():
+            return p.parent
+        return None
 
     def parent_block(self) -> Block | None:
         return self.parent

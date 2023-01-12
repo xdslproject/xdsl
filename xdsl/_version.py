@@ -30,6 +30,12 @@ def get_keywords():
 
 class VersioneerConfig:
     """Container for Versioneer configuration parameters."""
+    VCS: str
+    style: str
+    tag_prefix: str
+    parentdir_prefix: str
+    versionfile_source: str
+    verbose: bool
 
 
 def get_config():

@@ -366,7 +366,7 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        raise Exception(f"Unsupported operation on {self.name}")
+        raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
     def verify(self) -> None:
         if not isinstance(self.data, dict):
@@ -377,11 +377,7 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
         for key, val in self.data.items():
             if not isinstance(key, Attribute):
                 raise VerifyException(
-                    f"{self.name} key expects attribute, but {idx} "
-                    f"element is of type {type(val)}")
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} value expects attribute, but {idx} "
+                    f"{self.name} key expects attribute, but {key} "
                     f"element is of type {type(val)}")
 
     @staticmethod

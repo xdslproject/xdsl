@@ -2,7 +2,7 @@ from io import IOBase
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Operation
 from xdsl.irdl import AttrConstraint
 from xdsl.printer import Printer
 from xdsl.dialects.irdl import (
@@ -28,9 +28,7 @@ class IRDLPrinter:
                     if isinstance(di, DialectOp) else None)
         self._print('}')
 
-    def ensure_op_is_irdl_op(self, op: OperationOp | ResultsOp | OperandsOp
-                             | ConstraintVarsOp | TypeOp | ParametersOp
-                             | DialectOp | ModuleOp):
+    def ensure_op_is_irdl_op(self, op: Operation):
         if not isinstance(
                 op, (OperationOp | ResultsOp | OperandsOp, ConstraintVarsOp
                      | TypeOp | ParametersOp | DialectOp | ModuleOp)):
