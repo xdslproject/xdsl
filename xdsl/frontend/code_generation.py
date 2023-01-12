@@ -116,7 +116,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # check the type signature.
         if parent_op is not None and isinstance(parent_op, func.FuncOp):
             return_types = parent_op.function_type.outputs.data
-            
+
             if len(return_types) != 0:
                 function_name = parent_op.attributes["sym_name"].data
                 return_type_names = ",".join([t.name for t in return_types])

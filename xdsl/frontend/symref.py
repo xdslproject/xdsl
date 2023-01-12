@@ -36,7 +36,7 @@ class Update(Operation):
     @staticmethod
     def get(symbol: str | FlatSymbolRefAttr,
             value: Operation | SSAValue) -> Update:
-         return Update.build(operands=[value], attributes={"symbol": symbol})
+        return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
 Symref = Dialect([Declare, Fetch, Update], [])

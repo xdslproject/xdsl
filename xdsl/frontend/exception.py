@@ -31,9 +31,9 @@ class CodeGenerationException(FrontendProgramException):
     col: int
 
     def __init__(self, line: int, col: int, msg: str):
-         super().__init__(msg)
-         self.line = line
-         self.col = col
+        super().__init__(msg)
+        self.line = line
+        self.col = col
 
     def __str__(self) -> str:
         return f"Code generation exception at {self.line}:{self.col}. {self.msg}"
