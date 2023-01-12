@@ -125,7 +125,7 @@ class NumberExprAST(ExprAST):
 @dataclass
 class LiteralExprAST(ExprAST):
     'Expression class for a literal value.'
-    values: List[ExprAST]
+    values: List[LiteralExprAST | NumberExprAST]
     dims: List[int]
 
     @property

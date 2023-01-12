@@ -22,6 +22,10 @@ class Token:
     def loc(self):
         return Location(self.file, self.line, self.col)
 
+    @classmethod
+    def name(cls):
+        return cls.__name__
+
 
 @dataclass
 class IdentifierToken(Token):
