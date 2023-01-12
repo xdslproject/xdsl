@@ -1,27 +1,13 @@
 import ast
-import subprocess
 
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.code_generation import CodeGeneration
+from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.printer import Printer
-
-
-@dataclass
-class FrontendProgramException(Exception):
-    """
-    Exception type used when something goes wrong with `FrontendProgram`.
-    """
-
-    msg: str
-
-    def __init__(self, msg):
-        super().__init__()
-        self.msg = msg
-
-    def __str__(self) -> str:
-        return f"{self.msg}"
 
 
 @dataclass
@@ -43,7 +29,7 @@ class FrontendProgram:
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
             msg = \
-"""
+                """
 Cannot compile program without the code context. Try to use:
     p = FrontendProgram()
     with CodeContext(p):
@@ -55,9 +41,11 @@ Cannot compile program without the code context. Try to use:
 
         # Both statements and globals msut be initialized from within the `CodeContext`.
         self._check_can_compile()
+        assert self.globals is not None
+        assert self.stmts is not None
 
-        # TODO: Land basic code generation in the next patch.
-        self.xdsl_program = ModuleOp.from_region_or_ops([])
+        tc = TypeConverter(self.globals)
+        self.xdsl_program = CodeGeneration.run_with_type_converter(tc, self.stmts)
         self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.
@@ -76,7 +64,7 @@ Cannot compile program without the code context. Try to use:
     def _check_can_print(self):
         if self.xdsl_program is None:
             msg = \
-"""
+                """
 Cannot print the program IR without compiling it first. Make sure to use:
     p = FrontendProgram()
     with CodeContext(p):

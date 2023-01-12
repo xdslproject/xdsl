@@ -1,6 +1,7 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram, FrontendProgramException
+from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 
 p = FrontendProgram()

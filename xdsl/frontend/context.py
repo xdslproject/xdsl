@@ -4,7 +4,6 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from inspect import getsource
 from sys import _getframe
-from typing import Any, Dict
 from xdsl.frontend.program import FrontendProgram
 
 
@@ -17,7 +16,7 @@ class CodeContext(AbstractContextManager):
 
     program: FrontendProgram
     """
-    Underlying front-end program which can be compiled and translated to xDSL/MLIR.
+    Underlying frontend program which can be compiled and translated to xDSL/MLIR.
     """
 
     def __enter__(self) -> None:
