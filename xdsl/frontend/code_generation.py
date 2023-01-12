@@ -121,6 +121,5 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 function_name = parent_op.attributes["sym_name"].data
                 raise CodeGenerationException(
                     node.lineno, node.col_offset,
-                    f"Expected '{function_name}' to return a type."
-                )
+                    f"Expected '{function_name}' to return a type.")
             self.inserter.insert_op(func.Return.get())
