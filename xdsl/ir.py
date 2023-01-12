@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from io import StringIO
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast, Iterator, Union)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
+                    Sequence, TypeVar, cast, Iterator, Union)
 import sys
 
 # Used for cyclic dependencies in type hints
@@ -315,7 +315,7 @@ class ParametrizedAttribute(Attribute):
 
 
 @dataclass
-class IRNode(object):
+class IRNode(ABC):
 
     parent: IRNode | None
 
@@ -332,6 +332,12 @@ class IRNode(object):
         if self.parent is None:
             return self
         return self.parent.get_toplevel_object()
+
+    def is_structurally_equivalent(
+            self,
+            other: IRNode,
+            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        ...
 
 
 @dataclass
@@ -557,6 +563,42 @@ class Operation(IRNode):
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
+    def is_structurally_equivalent(
+            self,
+            other: IRNode,
+            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        """Check if two operations are structurally equivalent."""
+        if context is None:
+            context = {}
+        if not isinstance(other, Operation):
+            return False
+        if self.name != other.name:
+            return False
+        if len(self.operands) != len(other.operands) or \
+           len(self.results) != len(other.results) or \
+           len(self.regions) != len(other.regions) or \
+           len(self.successors) != len(other.successors) or \
+            self.attributes != other.attributes:
+            return False
+        if self.parent and other.parent and context[
+                self.parent] != other.parent:
+            return False
+        for idx, operand in enumerate(self.operands):
+            if context[operand] != other.operands[idx]:
+                return False
+        for idx, successor in enumerate(self.successors):
+            if context[successor] != other.successors[idx]:
+                return False
+        for idx, region in enumerate(self.regions):
+            if not region.is_structurally_equivalent(other.regions[idx],
+                                                     context):
+                return False
+        # Add results of this operation to the context
+        for idx, result in enumerate(self.results):
+            context[result] = other.results[idx]
+
+        return True
+
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -781,6 +823,30 @@ class Block(IRNode):
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
+    def is_structurally_equivalent(
+            self,
+            other: IRNode,
+            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        """Check if two blocks are structurally equivalent."""
+        if context is None:
+            context = {}
+        if not isinstance(other, Block):
+            return False
+        if len(self.args) != len(other.args) or \
+            len(self.ops) != len(other.ops):
+            return False
+        for arg, other_arg in zip(self.args, other.args):
+            if arg.typ != other_arg.typ:
+                return False
+            context[arg] = other_arg
+        # Add self to the context so Operations can check for identical parents
+        context[self] = other
+        for op, other_op in zip(self.ops, other.ops):
+            if not op.is_structurally_equivalent(other_op, context):
+                return False
+
+        return True
+
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -986,3 +1052,18 @@ class Region(IRNode):
         self.blocks = []
         for block in region.blocks:
             block.parent = region
+
+    def is_structurally_equivalent(
+            self,
+            other: IRNode,
+            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        if context is None:
+            context = {}
+        if not isinstance(other, Region):
+            return False
+        if len(self.blocks) != len(other.blocks):
+            return False
+        for block, other_block in zip(self.blocks, other.blocks):
+            if not block.is_structurally_equivalent(other_block, context):
+                return False
+        return True
