@@ -37,6 +37,11 @@ jobs:
     - name: Ninja Setup
       uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
+    - uses: rui314/setup-mold@v1
+      with:
+        mold-version: 1.1.1
+        make-default: false
+
     - name: CCache Setup (C++ compilation)
       uses: hendrikmuhs/ccache-action@v1.2.5
       with:
@@ -74,7 +79,7 @@ jobs:
     - name: MLIR Build
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt MLIRPythonModules
+        mold --run cmake --build . --target mlir-opt MLIRPythonModules
 
     - name: Test with pytest and generate code coverage
       run: |
