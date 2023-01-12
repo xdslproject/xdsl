@@ -1,4 +1,4 @@
-from xdsl.ir import OpResult, SSAValue
+from xdsl.ir import OpResult
 from xdsl.dialects.builtin import i32, IntegerType, IndexType
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
                                   Load, Store)
@@ -27,7 +27,7 @@ def test_memreftype():
 
 def test_memref_load_i32():
     i32_memref_type = MemRefType.from_type_and_list(i32)
-    memref_ssa_value = SSAValue(i32_memref_type)
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
     load = Load.get(memref_ssa_value, [])
 
     assert load.memref is memref_ssa_value
@@ -37,9 +37,9 @@ def test_memref_load_i32():
 
 def test_memref_load_i32_with_dimensions():
     i32_memref_type = MemRefType.from_type_and_list(i32, [2, 3])
-    memref_ssa_value = SSAValue(i32_memref_type)
-    index1 = SSAValue(IndexType)
-    index2 = SSAValue(IndexType)
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    index1 = OpResult(IndexType, [], [])
+    index2 = OpResult(IndexType, [], [])
     load = Load.get(memref_ssa_value, [index1, index2])
 
     assert load.memref is memref_ssa_value
@@ -50,8 +50,8 @@ def test_memref_load_i32_with_dimensions():
 
 def test_memref_store_i32():
     i32_memref_type = MemRefType.from_type_and_list(i32)
-    memref_ssa_value = SSAValue(i32_memref_type)
-    i32_ssa_value = SSAValue(IntegerType.from_width(32))
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    i32_ssa_value = OpResult(i32, [], [])
     store = Store.get(i32_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
@@ -61,10 +61,10 @@ def test_memref_store_i32():
 
 def test_memref_store_i32_with_dimensions():
     i32_memref_type = MemRefType.from_type_and_list(i32, [2, 3])
-    memref_ssa_value = SSAValue(i32_memref_type)
-    i32_ssa_value = SSAValue(IntegerType.from_width(32))
-    index1 = SSAValue(IndexType)
-    index2 = SSAValue(IndexType)
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    i32_ssa_value = OpResult(i32, [], [])
+    index1 = OpResult(IndexType, [], [])
+    index2 = OpResult(IndexType, [], [])
     store = Store.get(i32_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
