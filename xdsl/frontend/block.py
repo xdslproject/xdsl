@@ -19,9 +19,12 @@ def block(*params):
         bb0(a)
     ```
     """
+
     def decorate(f):
         return f
+
     return decorate
 
 def is_block(node: ast.FunctionDef) -> bool:
-    return len(node.decorator_list) == 1 and isinstance(name := node.decorator_list[0], ast.Name) and name.id == "block"
+    return len(node.decorator_list) == 1 and isinstance(
+        name := node.decorator_list[0], ast.Name) and name.id == "block"

@@ -20,8 +20,8 @@ class CodeGeneration:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
         visitor = CodegGenerationVisitor(type_converter, module)
-        for stmt in stmts:
-            visitor.visit(stmt)
+        # for stmt in stmts:
+        #     visitor.visit(stmt)
         return module
 
 
