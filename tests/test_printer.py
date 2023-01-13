@@ -385,11 +385,11 @@ class PlusCustomFormatOp(Operation):
               parser: BaseParser) -> PlusCustomFormatOp:
         def get_ssa_val(name: Span) -> SSAValue:
             if name.text not in parser.ssaValues:
-                parser.raise_error('Unknown SSA Value name', name)
+                parser.raise_error('SSA Value used before assignment', name)
             return parser.ssaValues[name.text]
 
         lhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
-        parser.parse_char("+")
+        parser.must_parse_characters("+", "Malformed operation format, expected `+`!")
         rhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
 
         return PlusCustomFormatOp.create(operands=[get_ssa_val(name) for name in (lhs, rhs)],

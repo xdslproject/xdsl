@@ -23,8 +23,14 @@ def check_error(prog: str, line: int, column: int, message: str):
         parser.must_parse_operation()
 
     assert e.value.span
-    assert e.value.span.get_line_col() == (line, column)
-    assert any(message in ex.error.msg for ex in e.value.history.iterate())
+    msgs = [err.error.msg for err in e.value.history.iterate()]
+
+    for err in e.value.history.iterate():
+        if message in err.error.msg:
+            assert err.error.span.get_line_col() == (line, column)
+            break
+    else:
+        assert False, "'{}' not found in an error message {}!".format(message, e.value.args)
 
 
 def test_parser_missing_equal():
@@ -38,7 +44,7 @@ unknown() {
   %0 : !i32 unknown()
 }
 """
-    check_error(prog, 3, 13, "Operation definitions expect an `=` after op-result-list!")
+    check_error(prog, 3, 12, "Operation definitions expect an `=` after op-result-list!")
 
 
 def test_parser_redefined_value():
@@ -67,10 +73,10 @@ unknown() {
   %val : !i32 = 
 }
 """
-    check_error(prog, 3, 13, "Expected an operation name here")
+    check_error(prog, 4, 0, "Expected an operation name here")
 
 
-def test_parser_missing_attribute():
+def test_parser_malformed_type():
     """Test a missing attribute error."""
     ctx = MLContext()
     ctx.register_op(UnkownOp)
@@ -81,4 +87,4 @@ unknown() {
   %val : i32 = unknown()
 }
 """
-    check_error(prog, 3, 10, "attribute expected")
+    check_error(prog, 3, 9, "Expected type of value-id here!")
