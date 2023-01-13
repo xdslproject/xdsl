@@ -19,7 +19,7 @@ class PythonCodeCheck:
         weird things which xDSL/MLIR would not like.
         """
 
-        # Any code written within code context can be organized either a
+        # Any code written within code context can be organized either as a
         # sequence of instructions (interpreted one by one), for example:
         # ```
         # with CodeContext(p):
@@ -27,7 +27,7 @@ class PythonCodeCheck:
         #   b: i32 = 23
         #   result: i32 = a + b
         # ```
-        # Alternatively, the code can be viewed as sequence of functions
+        # Alternatively, the code can be viewed as a sequence of functions
         # (possibly with a dedicated entry point), for example:
         # ```
         # with CodeContext(p):
