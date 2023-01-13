@@ -147,6 +147,7 @@ b: Const[i32] = a + 23
         visitor.visit(ast.parse(src))
     assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'b' or cannot be evaluated."
 
+
 def test_raises_exception_on_const_inside_functions():
     visitor = ConstantVisitor()
     src = \
