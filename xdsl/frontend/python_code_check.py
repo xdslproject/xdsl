@@ -44,7 +44,7 @@ class PythonCodeCheck:
                 break
 
         # Check Python code is correctly structured.
-        StructureCheck.run_with_scope(single_scope)
+        StructureCheck.run_with_scope(single_scope, stmts)
 
         # TODO: Check constant/global variables are correctly defined.
 
