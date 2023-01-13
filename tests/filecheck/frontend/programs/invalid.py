@@ -35,8 +35,10 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def foo():
             pass
+
         # CHECK: Function 'foo' is already defined.
         def foo():
             pass
@@ -48,10 +50,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def foo():
+
             # CHECK: Cannot have an inner function 'bar' inside the function 'foo'.
             def bar():
                 return
+
             return
 
     p.compile(desymref=False)
@@ -61,12 +66,15 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def foo():
+
             @block
             def bb1():
                 # CHECK: Cannot have an inner function 'foo' inside the block 'bb1'.
                 def foo():
                     return
+
             bb1()
 
     p.compile(desymref=False)
@@ -76,14 +84,19 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def foo():
+
             @block
             def bb0():
+
                 # CHECK: Cannot have a nested block 'bb1' inside the block 'bb0'.
                 @block
                 def bb1():
                     return
+
                 bb1()
+
             bb0()
 
     p.compile(desymref=False)
@@ -93,14 +106,18 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def foo():
+
             @block
             def bb0():
                 bb0()
+
             # Block 'bb0' is already defined in function 'foo'.
             @block
             def bb0():
                 return
+
             bb0()
 
     p.compile(desymref=False)
@@ -110,13 +127,16 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         @block
         def bb0():
             bb0()
+
         # CHECK: Block 'bb0' is already defined.
         @block
         def bb0():
             return
+
         bb0()
 
     p.compile(desymref=False)
@@ -126,11 +146,13 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         @block
         def bb0():
             # CHECK: Cannot have an inner function 'foo' inside the block 'bb0'.
             def foo():
                 return
+
         bb0()
 
     p.compile(desymref=False)
@@ -140,13 +162,16 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         @block
         def bb0():
             # CHECK: Cannot have a nested block 'bb1' inside the block 'bb0'.
             @block
             def bb1():
                 return
+
             bb1()
+
         bb0()
 
     p.compile(desymref=False)

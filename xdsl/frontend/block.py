@@ -22,6 +22,7 @@ def block(*params):
 
     def decorate(*params):
         return None
+
     return decorate
 
 

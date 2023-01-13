@@ -62,7 +62,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         raise CodeGenerationException(
             node.lineno, node.col_offset,
             f"Unsupported Python AST node {str(node)}")
-    
+
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         # TODO: Implement assignemnt in the next patch.
         pass

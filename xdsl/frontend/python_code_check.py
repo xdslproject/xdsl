@@ -45,7 +45,7 @@ class PythonCodeCheck:
 
         # Check Python code is correctly structured.
         StructureCheck.run_with_scope(single_scope)
-        
+
         # TODO: Check constant/global variables are correctly defined.
 
 
