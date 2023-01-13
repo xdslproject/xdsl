@@ -51,7 +51,7 @@ class _D(Generic[T], _FrontendType):
 a: TypeAlias = _A
 b: TypeAlias = _B
 c2: TypeAlias = _C[Literal[2]]
-d12: TypeAlias = _C[Tuple[Literal[1], Literal[2]]]
+d12: TypeAlias = _D[Tuple[Literal[1], Literal[2]]]
 
 globals = _getframe(0).f_globals
 
