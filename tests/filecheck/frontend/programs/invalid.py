@@ -1,6 +1,7 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.frontend.block import block
+from xdsl.frontend.const import Const
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
@@ -53,7 +54,7 @@ try:
 
         def foo():
 
-            # CHECK: Cannot have an inner function 'bar' inside the function 'foo'.
+            # CHECK-NEXT: Cannot have an inner function 'bar' inside the function 'foo'.
             def bar():
                 return
 
@@ -71,7 +72,7 @@ try:
 
             @block
             def bb1():
-                # CHECK: Cannot have an inner function 'foo' inside the block 'bb1'.
+                # CHECK-NEXT: Cannot have an inner function 'foo' inside the block 'bb1'.
                 def foo():
                     return
 
@@ -90,7 +91,7 @@ try:
             @block
             def bb0():
 
-                # CHECK: Cannot have a nested block 'bb1' inside the block 'bb0'.
+                # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
                 @block
                 def bb1():
                     return
@@ -113,7 +114,7 @@ try:
             def bb0():
                 bb0()
 
-            # Block 'bb0' is already defined in function 'foo'.
+            # CHECK-NEXT: Block 'bb0' is already defined in function 'foo'.
             @block
             def bb0():
                 return
@@ -132,7 +133,7 @@ try:
         def bb0():
             bb0()
 
-        # CHECK: Block 'bb0' is already defined.
+        # CHECK-NEXT: Block 'bb0' is already defined.
         @block
         def bb0():
             return
@@ -149,7 +150,7 @@ try:
 
         @block
         def bb0():
-            # CHECK: Cannot have an inner function 'foo' inside the block 'bb0'.
+            # CHECK-NEXT: Cannot have an inner function 'foo' inside the block 'bb0'.
             def foo():
                 return
 
@@ -165,7 +166,7 @@ try:
 
         @block
         def bb0():
-            # CHECK: Cannot have a nested block 'bb1' inside the block 'bb0'.
+            # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
             @block
             def bb1():
                 return
@@ -179,8 +180,117 @@ try:
 except FrontendProgramException as e:
     print(e.msg)
 
+try:
+    with CodeContext(p):
+        a: Const[i32] = 23
+        # CHECK-NEXT: Cannot assign to constant variable 'a'.
+        a = 3
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        b: Const[i32] = 23
+        # CHECK-NEXT: Cannot assign to constant variable 'b'.
+        @block
+        def bb0():
+            b = 3
+            return
+
+        bb0()
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        # CHECK-NEXT: All constant expressions have to be created in the global scope.
+        @block
+        def bb0():
+            c: Const[i32] = 23
+            return
+
+        bb0()
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        d: Const[i32] = 23
+
+        # CHECK-NEXT: Cannot assign to constant variable 'd'.l
+        def foo():
+            d = 2
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        e: Const[i32] = 23
+
+        # CHECK-NEXT: Cannot assign to constant variable 'e'.
+        def foo():
+            @block
+            def bb0():
+                e = 2
+                return
+        
+            bb0()
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        # CHECK-NEXT: All constant expressions have to be created in the global scope.
+        def foo():
+            f: Const[i32] = 23
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        # CHECK-NEXT: All constant expressions have to be created in the global scope.
+        def foo():
+            @block
+            def bb0():
+                g: Const[i32] = 23
+                return
+        
+            bb0()
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
 with CodeContext(p):
-    # CHECK: Expected 'foo' to return a type.
+    # CHECK-NEXT: Expected 'foo' to return a type.
     def foo() -> i32:
         pass
 

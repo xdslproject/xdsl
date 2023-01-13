@@ -1,7 +1,8 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 from xdsl.frontend.block import is_block
+from xdsl.frontend.const import Const
 from xdsl.frontend.exception import CodeGenerationException
 
 
@@ -46,7 +47,9 @@ class PythonCodeCheck:
         # Check Python code is correctly structured.
         StructureCheck.run_with_scope(single_scope, stmts)
 
-        # TODO: Check constant/global variables are correctly defined.
+        # Check constant/global variables are correctly defined. Should be
+        # called only after the structure is checked.
+        ConstantCheck.run(stmts)
 
 
 @dataclass
@@ -141,3 +144,107 @@ class MultipleScopeVisitor(ast.NodeVisitor):
                                     inner_stmt.lineno, inner_stmt.col_offset,
                                     f"Cannot have an inner function '{inner_stmt.name}' inside the block '{stmt.name}'."
                                 )
+
+
+@dataclass
+class ConstantCheck:
+
+    @staticmethod
+    def run(stmts: List[ast.stmt]) -> None:
+        visitor = ConstantVisitor()
+        for stmt in stmts:
+            visitor.visit(stmt)
+
+
+@dataclass
+class Constant:
+
+    value: int | float
+    """Evaluated value of the constant. Only a few primitive types are supported."""
+
+    shadowed: bool = field(default=False)
+    """True if this constant is shadowed by function/block argument."""
+
+
+@dataclass
+class ConstantVisitor(ast.NodeVisitor):
+
+    constants: Dict[str, Constant] = field(default_factory=dict)
+    """Stores all information about constants in the current system."""
+
+    global_scope: bool = field(default=True)
+    """
+    True if the visitor is processing the "global" scope of the program, i.e.
+    not inside block/functions.
+    """
+
+    def visit(self, node: ast.AST) -> None:
+        super().visit(node)
+    
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if Const.check(node.annotation):
+            if not self.global_scope:
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"All constant expressions have to be created in the global scope."
+                )
+
+            if not isinstance(node.target, ast.Name):
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"All constant expressions have to be assigned to 'ast.Name' nodes."
+                )
+
+            name = node.target.id
+            if name in self.constants:
+                raise CodeGenerationException(node.lineno, node.col_offset, f"Constant '{name}' is already defined in the program.")
+
+            try:
+                value = eval(ast.unparse(node.value))
+                # For now, support primitive types only and add a guard to abort
+                # in other cases.
+                if isinstance(value, int) or isinstance(value, float):
+                    self.constants[name] = Constant(value)
+                else:
+                    raise CodeGenerationException(node.lineno, node.col_offset, f"Constant '{name}' has evaluated type '{type(value)}' which is not supported.")
+
+            except Exception:
+                # TODO: This error message can be improved by matching exact
+                # exceptions returned by `eval` call.
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Non-constant expression cannot be assigned to constant variable '{name}' or cannot be evaluated."
+                )
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        if len(node.targets) != 1:
+            raise CodeGenerationException(
+                node.lineno, node.col_offset,
+                f"Assignments are allowed to exactly one variable only.")
+        if isinstance(node.targets[0],ast.Name):
+            name = node.targets[0].id
+            # Ensure that unless the variable is shadowed by local variables, it
+            # cannot be assigned to.
+            if name in self.constants and not self.constants[name].shadowed:
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Cannot assign to constant variable '{name}'.")
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        shadowed_constants: List[str] = []
+        for arg in node.args.args:
+            name = arg.arg
+            if name in self.constants:
+                self.constants[name].shadowed = True
+                shadowed_constants.append(name)
+        
+        # Visit function/block body but with some constants shadowed by the
+        # function/block arguments.
+        for stmt in node.body:
+            old_scope = self.global_scope
+            self.global_scope = False
+            self.visit(stmt)
+            self.global_scope = old_scope
+
+        for name in shadowed_constants:
+            self.constants[name].shadowed = False
