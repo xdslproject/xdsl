@@ -1,7 +1,12 @@
 name: Deploy JupiterLyte Page
 
 on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
@@ -79,6 +84,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       pages: write
       id-token: write
