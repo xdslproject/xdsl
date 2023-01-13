@@ -13,13 +13,10 @@ xdsl_directory = sys.argv[2]
 
 # Parse the auto-generated one
 with open(meta_yaml_path) as f:
-    y = yaml.safe_load(f)
-
-print(meta_yaml_path)
-print(y)
+    yaml_doc = yaml.safe_load(f)
 
 # Add the frozenlist run-time dependency. Importing in JupyterLite doesn't work properly without it
-y["requirements"] = {"run": ["frozenlist"]}
+yaml_doc["requirements"] = {"run": ["frozenlist"]}
 
 # Find the built source distribution. This assumes it is the only thing in xdsl/dist
 xdsl_sdist = os.listdir(os.path.join(xdsl_directory, "dist"))[0]
@@ -31,6 +28,6 @@ with open(xdsl_sdist, "rb") as sdist:
         sha256_hash.update(byte_block)
 
 # Make it build the local xDSL, not the PyPi release. The pyodide build still requires the SHA256 sum.
-y["source"] = {"url": xdsl_sdist, "sha256": sha256_hash.hexdigest()}
+yaml_doc["source"] = {"url": xdsl_sdist, "sha256": sha256_hash.hexdigest()}
 with open(meta_yaml_path, "w") as f:
-    yaml.dump(y, f)
+    yaml.dump(yaml_doc, f)
