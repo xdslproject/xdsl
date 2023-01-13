@@ -1,7 +1,4 @@
 from dataclasses import dataclass
-from io import StringIO
-from typing import Any, List
-from xdsl.printer import Printer
 
 
 @dataclass

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Union
+from typing import Annotated
 from xdsl.ir import Attribute, Dialect, OpResult, SSAValue
 from xdsl.irdl import Operand, irdl_op_definition, AttributeDef, AnyAttr, Operation
 from xdsl.dialects.builtin import StringAttr, FlatSymbolRefAttr
