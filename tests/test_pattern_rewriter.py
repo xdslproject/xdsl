@@ -22,6 +22,8 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
+    assert isinstance(module, ModuleOp)
+
     walker.rewrite_module(module)
     file = StringIO("")
     printer = Printer(stream=file)

@@ -11,8 +11,8 @@ def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
     parser = Parser(ctx, input)
 
-    int_list = parser.parse_list(parser.parse_int_literal)
-    assert int_list == expected
+    int_list = parser.must_parse_list_of(parser.try_parse_integer_literal, '')
+    assert [int(span.text) for span in int_list] == expected
 
 
 @pytest.mark.parametrize("input,expected", [('{"A"=0, "B"=1, "C"=2}', {

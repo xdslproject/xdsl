@@ -1,14 +1,11 @@
+import re
 from io import StringIO
 from typing import Annotated
-import re
 
-from xdsl.dialects.builtin import Builtin
-from xdsl.dialects.memref import MemRef
-from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOpResult,
-                       VarOperand, irdl_attr_definition, irdl_op_definition)
-from xdsl.parser import Parser
+from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, irdl_attr_definition, irdl_op_definition, VarOperand,
+                       VarOpResult)
+from xdsl.parser import Parser, ParseError
 from xdsl.printer import Printer
 
 
@@ -93,7 +90,12 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     ctx.register_attr(ParamAttrWithCustomFormat)
 
     parser = Parser(ctx, test_prog)
-    module = parser.parse_op()
+    try:
+        module = parser.parse_op()
+    except ParseError as err:
+        io = StringIO()
+        err.print_with_history(file=io)
+        raise ParseError(err.span, io.getvalue(), None)
 
     res = StringIO()
     printer = Printer(target=Printer.Target.MLIR, stream=res)

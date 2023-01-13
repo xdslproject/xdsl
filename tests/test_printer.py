@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import re
 from io import StringIO
 from typing import List, Annotated
 
-from xdsl.dialects.func import Func, FuncOp
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
-
-from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
+from xdsl.dialects.func import Func
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
                        Operation, Operand, OptAttributeDef)
+from xdsl.parser import Parser, BaseParser, Span
 from xdsl.printer import Printer
-from xdsl.parser import Parser
 from xdsl.utils.diagnostic import Diagnostic
 
 
@@ -382,12 +382,17 @@ class PlusCustomFormatOp(Operation):
 
     @classmethod
     def parse(cls, result_types: List[Attribute],
-              parser: Parser) -> PlusCustomFormatOp:
-        lhs = parser.parse_ssa_value()
-        parser.skip_white_space()
+              parser: BaseParser) -> PlusCustomFormatOp:
+        def get_ssa_val(name: Span) -> SSAValue:
+            if name.text not in parser.ssaValues:
+                parser.raise_error('Unknown SSA Value name', name)
+            return parser.ssaValues[name.text]
+
+        lhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
         parser.parse_char("+")
-        rhs = parser.parse_ssa_value()
-        return PlusCustomFormatOp.create(operands=[lhs, rhs],
+        rhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
+
+        return PlusCustomFormatOp.create(operands=[get_ssa_val(name) for name in (lhs, rhs)],
                                          result_types=result_types)
 
     def print(self, printer: Printer):
@@ -494,13 +499,13 @@ class CustomFormatAttr(ParametrizedAttribute):
     attr: ParameterDef[IntAttr]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.parse_char("<")
-        value = parser.parse_alpha_num(skip_white_space=False)
-        if value == "zero":
+        value = parser.tokenizer.next_token_of_pattern(re.compile('(zero|one)'))
+        if value and value.text == "zero":
             parser.parse_char(">")
             return [IntAttr.from_int(0)]
-        if value == "one":
+        if value and value.text == "one":
             parser.parse_char(">")
             return [IntAttr.from_int(1)]
         assert False
@@ -550,7 +555,7 @@ def test_parse_generic_format_attr():
     """
     prog = \
         """builtin.module() {
-      any() ["attr" = !"custom"<!int<0>>]
+      any() ["attr" = #"custom"<#int<0>>]
     }"""
 
     expected = \

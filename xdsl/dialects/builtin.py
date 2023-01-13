@@ -16,7 +16,7 @@ from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, ParserError
+    from xdsl.parser import Parser, ParseError
     from xdsl.printer import Printer
 
 
@@ -117,7 +117,7 @@ class SignednessAttr(Data[Signedness]):
             return Signedness.SIGNED
         elif parser.parse_optional_string("unsigned") is not None:
             return Signedness.UNSIGNED
-        raise ParserError(parser.get_pos(), "Expected signedness")
+        raise ParseError(parser.get_pos(), "Expected signedness")
 
     @staticmethod
     def print_parameter(data: Signedness, printer: Printer) -> None:

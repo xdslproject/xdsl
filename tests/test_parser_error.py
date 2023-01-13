@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import Annotated
 
-from xdsl.ir import MLContext
-from xdsl.irdl import AnyAttr, VarOpResult, VarOperand, irdl_op_definition, Operation
+from xdsl.ir import MLContext, OpResult, SSAValue
+from xdsl.irdl import AnyAttr, VarOperandDef, VarResultDef, irdl_op_definition, Operation
 from xdsl.parser import Parser, ParserError
 from pytest import raises
 
@@ -19,13 +19,12 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx.register_op(UnkownOp)
 
     parser = Parser(ctx, prog)
-    with raises(ParserError) as e:
-        parser.parse_op()
+    with raises(ParseError) as e:
+        parser.must_parse_operation()
 
-    assert e.value.pos
-    assert e.value.pos.line is line
-    assert e.value.pos.column is column
-    assert e.value.message == message
+    assert e.value.span
+    assert e.value.span.get_line_col() == (line, column)
+    assert any(message in ex.error.msg for ex in e.value.history.iterate())
 
 
 def test_parser_missing_equal():
@@ -39,7 +38,7 @@ unknown() {
   %0 : !i32 unknown()
 }
 """
-    check_error(prog, 3, 13, "'=' expected, got 'u'")
+    check_error(prog, 3, 13, "Operation definitions expect an `=` after op-result-list!")
 
 
 def test_parser_redefined_value():
@@ -54,7 +53,7 @@ unknown() {
   %val : !i32 = unknown()
 }
 """
-    check_error(prog, 4, 3, "SSA value val is already defined")
+    check_error(prog, 4, 2, "SSA value %val is already defined")
 
 
 def test_parser_missing_operation_name():
@@ -68,7 +67,7 @@ unknown() {
   %val : !i32 = 
 }
 """
-    check_error(prog, 4, 1, "operation name expected")
+    check_error(prog, 3, 13, "Expected an operation name here")
 
 
 def test_parser_missing_attribute():
