@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 from typing import Annotated
 
-from xdsl.ir import MLContext, OpResult, SSAValue
-from xdsl.irdl import AnyAttr, VarOperandDef, VarResultDef, irdl_op_definition, Operation
-from xdsl.parser import Parser, ParserError
 from pytest import raises
+
+from xdsl.ir import MLContext
+from xdsl.irdl import AnyAttr, irdl_op_definition, Operation, VarOperand, VarOpResult
+from xdsl.parser import Parser, ParseError
 
 
 @irdl_op_definition

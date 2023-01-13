@@ -1828,7 +1828,8 @@ class Source(Enum):
 def Parser(ctx: MLContext,
            prog: str,
            source: Source = Source.XDSL,
-           filename: str = '<unknown>') -> BaseParser:
+           filename: str = '<unknown>',
+           allow_unregistered_ops = False) -> BaseParser:
     selected_parser = {
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser
