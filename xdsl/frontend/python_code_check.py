@@ -43,8 +43,17 @@ class PythonCodeCheck:
                 single_scope = False
                 break
 
-        # Check Python code is valid for compilation/execution based on the
-        # current code mode.
+        # Check Python code is correctly structured.
+        StructureCheck.run_with_scope(single_scope)
+        
+        # TODO: Check constant/global variables are correctly defined.
+
+
+@dataclass
+class StructureCheck:
+
+    @staticmethod
+    def run_with_scope(single_scope: bool, stmts: List[ast.stmt]) -> None:
         if single_scope:
             visitor = SingleScopeVisitor()
         else:
