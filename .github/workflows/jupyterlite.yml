@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout xDSL
         uses: actions/checkout@v3
+        with:
+          path: xdsl
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -18,61 +20,62 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: python -m pip install jupyterlite[all] libarchive-c jupyter_server jupyterlab_server build pkginfo pyodide-build
-
-      - name: Setup EmSDK
-        # Doing this in a hacky script because the custom Action is requiring an explicit EmSDK version
-        # Pyodide is requiring a specific version too and it is changing regularly. This install the actual
-        # version required by the latest pyodide.
-
-        # Double initialization of PYODIDE_EMSCRIPTEN_VERSION: see https://github.com/pyodide/pyodide/issues/3430
         run: |
-          git clone https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          PYODIDE_EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version)
-          PYODIDE_EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version)
-          ./emsdk install ${PYODIDE_EMSCRIPTEN_VERSION}
-          ./emsdk activate ${PYODIDE_EMSCRIPTEN_VERSION}
-
-      - name: Build WASM wheels for frozenlist, coverage, and xDSL
+          python -m pip install jupyterlite[all] libarchive-c build pyodide-build
+          
+      - name: Build xDSL source distribution
         run: |
-          mkdir pypi
-          source emsdk/emsdk_env.sh
-          for i in frozenlist coverage
-          do
+          cd xdsl
+          python setup.py sdist
 
-          python -m pip download --no-binary :all: "$(grep $i requirements.txt)"
-          tar -xf $i-*.tar.gz
-          rm $i_*.tar.gz
-          cd $i-*
-          pyodide build
-          cd ..
-          cp $(find -path "./$i-*/dist/$i-*_wasm32.whl") pypi
+      # Pyodide is cached, so cloned only if not present in the cache, otherwise
+      # just checked out to whatever desired version and partially rebuilt.
 
-          done
+      - name: Restore cached Pyodide tree
+        id: cache-pyodide
+        uses: actions/cache@v3
+        with:
+          path: pyodide
+          key: pyodide
+          
+      - name: Clone pyodide if not cached
+        if: steps.cache-pyodide.outputs.cache-hit != 'true'
+        run: git clone https://github.com/pyodide/pyodide.git
 
-          pyodide build
-          cp $(find -path "./dist/xdsl-*.whl") pypi
+      # Clean the xDSL and FrozenList package folders, generate their skeletons
+      # and do the necessary updates before building.
+      - name: Build custom Pyodide distribution
+        run: |
+          
+          cd pyodide
+          git fetch --all
+          git checkout 0.22.0a3
+          python -m pip install -r requirements.txt
+          sudo apt update && sudo apt install f2c
+          
+          rm packages/xdsl packages/frozenlist -rf
+          pyodide skeleton pypi xdsl
+          pyodide skeleton pypi frozenlist
+          
+          ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
+          
+          PYODIDE_PACKAGES="frozenlist,coverage,xdsl" make
 
       - name: Build the JupyterLite site
         run: |
           mkdir content
-          cp README.md content
-          cp docs content -r
-          for f in $(find -path ./content/*.ipynb)
-          do
+          cp xdsl/docs/* content -r
           
-          echo appending to $f
-          sed -i 's/# xDSL should be available in the environment\./# xDSL should be available in the environment.\\n%pip install xdsl/g' $f
+          rm -rf pyodide/pyodide
+          mkdir pyodide/pyodide
+          mv pyodide/dist pyodide/pyodide/pyodide
           
-          done
-          
-          python -m jupyter lite build --contents content --output-dir jupyterlite
+          python -m jupyter lite build --contents content --pyodide pyodide/pyodide
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: ./jupyterlite
+          path: ./_output
 
   deploy:
     needs: build
