@@ -23,15 +23,18 @@ b: Const[i32] = len([1, 2, 3])
 
 def test_can_assign_to_shadowed_constants_I():
     visitor = ConstantVisitor()
-    visitor.constants["a"] = Constant(23, True)
-    visitor.constants["b"] = Constant(23, True)
+    visitor.constants["a"] = Constant(1, True)
+    visitor.constants["b"] = Constant(2, True)
     src = \
 """
 a = 3
 b = 43
 """
-    # Should not raise an exception!
     visitor.visit(ast.parse(src))
+    assert visitor.constants["a"].value == 1
+    assert visitor.constants["a"].shadowed
+    assert visitor.constants["b"].value == 2
+    assert visitor.constants["b"].shadowed
 
 
 def test_can_assign_to_shadowed_constants_II():
@@ -43,8 +46,9 @@ def foo(y: f32):
     y = 125.0
     return
 """
-    # Should not raise an exception!
     visitor.visit(ast.parse(src))
+    assert visitor.constants["y"].value == 32
+    assert not visitor.constants["y"].shadowed
 
 
 def test_raises_exception_on_assignemnt_to_const_I():

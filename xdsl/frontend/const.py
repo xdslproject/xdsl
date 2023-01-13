@@ -15,7 +15,4 @@ class Const(Generic[_T]):
     @staticmethod
     def check(node: ast.expr) -> bool:
         """Returns `True` if the AST node is a Const type."""
-        if isinstance(node, ast.Subscript) and isinstance(
-                node.value, ast.Name) and node.value.id == Const.__name__:
-            return True
-        return False
+        return isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == Const.__name__

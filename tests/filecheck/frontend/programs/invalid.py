@@ -228,7 +228,7 @@ try:
 
         d: Const[i32] = 23
 
-        # CHECK-NEXT: Cannot assign to constant variable 'd'.l
+        # CHECK-NEXT: Cannot assign to constant variable 'd'.
         def foo():
             d = 2
             return
