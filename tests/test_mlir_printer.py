@@ -1,10 +1,10 @@
 import re
 from io import StringIO
 from typing import Annotated
-
-from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, irdl_attr_definition,
-                       irdl_op_definition, VarOperand, VarOpResult)
+from xdsl.ir import (Attribute, Data, MLContext, MLIRType, Operation,
+                     ParametrizedAttribute, Region)
+from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
+                       irdl_attr_definition, irdl_op_definition)
 from xdsl.parser import BaseParser, XDSLParser
 from xdsl.printer import Printer
 
@@ -13,7 +13,7 @@ from xdsl.printer import Printer
 class ModuleOp(Operation):
     """Module operation. Redefined to not depend on the builtin dialect."""
     name = "module"
-    region = RegionDef()
+    region: Region
 
 
 @irdl_op_definition

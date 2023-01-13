@@ -4,7 +4,7 @@ from typing import Annotated, List
 
 from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect
 from xdsl.irdl import (VarOpResult, VarOperand, irdl_op_definition, Operand,
-                       RegionDef, AnyAttr)
+                       AnyAttr)
 from xdsl.dialects.builtin import IntegerType
 
 
@@ -14,9 +14,9 @@ class If(Operation):
     output: Annotated[VarOpResult, AnyAttr()]
     cond: Annotated[Operand, IntegerType.from_width(1)]
 
-    true_region = RegionDef()
+    true_region: Region
     # TODO this should be optional under certain conditions
-    false_region = RegionDef()
+    false_region: Region
 
     @staticmethod
     def get(cond: SSAValue | Operation, return_types: List[Attribute],
@@ -57,8 +57,8 @@ class While(Operation):
     arguments: Annotated[VarOperand, AnyAttr()]
 
     res: Annotated[VarOpResult, AnyAttr()]
-    before_region = RegionDef()
-    after_region = RegionDef()
+    before_region: Region
+    after_region: Region
 
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):

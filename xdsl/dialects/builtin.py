@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
-                    TYPE_CHECKING, Any, TypeVar)
+from typing import (TypeAlias, List, cast, Type, Sequence, TYPE_CHECKING, Any,
+                    TypeVar)
 
-from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
-                     SSAValue, Region, Attribute, Dialect, MLContext)
-from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
+from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation, Region,
+                     Attribute, Dialect)
+from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, builder, ParameterDef,
-                       SingleBlockRegionDef, Generic, GenericData,
-                       AttrConstraint, AnyAttr)
+                       SingleBlockRegion, Generic, GenericData, AttrConstraint,
+                       AnyAttr)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -686,10 +686,10 @@ class OpaqueAttr(ParametrizedAttribute):
 class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
-    op_name__ = AttributeDef(StringAttr)
-    args: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
-    regs = VarRegionDef()
+    op_name__: OpAttr[StringAttr]
+    args: VarOperand
+    res: VarOpResult
+    regs: VarRegion
 
     @property
     def op_name(self) -> StringAttr:
@@ -716,7 +716,7 @@ class UnregisteredOp(Operation):
 class ModuleOp(Operation):
     name: str = "builtin.module"
 
-    body = SingleBlockRegionDef()
+    body: SingleBlockRegion
 
     @property
     def ops(self) -> List[Operation]:

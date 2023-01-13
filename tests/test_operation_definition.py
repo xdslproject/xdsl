@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Annotated
 
-from xdsl.ir import OpResult, Operation
+from xdsl.ir import OpResult, Operation, Region
 from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
-                       AttributeDef, RegionDef, AnyAttr, OpDef)
+                       AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
 
 #  ___ ____  ____  _     ____        __
 # |_ _|  _ \|  _ \| |   |  _ \  ___ / _|
@@ -19,8 +19,8 @@ class OpDefTestOp(Operation):
 
     operand: Annotated[Operand, AnyAttr()]
     result: Annotated[OpResult, AnyAttr()]
-    attr = AttributeDef(AnyAttr())
-    region = RegionDef()
+    attr: OpAttr[AnyAttr()]
+    region: Region
 
 
 def test_get_definition():
