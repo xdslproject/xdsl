@@ -250,7 +250,7 @@ try:
             def bb0():
                 e = 2
                 return
-        
+
             bb0()
             return
 
@@ -277,11 +277,12 @@ try:
 
         # CHECK-NEXT: All constant expressions have to be created in the global scope.
         def foo():
+
             @block
             def bb0():
                 g: Const[i32] = 23
                 return
-        
+
             bb0()
             return
 

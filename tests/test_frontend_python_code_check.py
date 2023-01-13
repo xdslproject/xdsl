@@ -1,8 +1,9 @@
 import ast
 import pytest
-from xdsl.frontend.exception import CodeGenerationException
 
+from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.python_code_check import Constant, ConstantVisitor
+
 
 def test_const_correctly_evaluated():
     visitor = ConstantVisitor()
@@ -20,6 +21,7 @@ b: Const[i32] = len([1, 2, 3])
     assert "b" in visitor.constants
     assert not visitor.constants["b"].shadowed
     assert visitor.constants["b"].value == 3
+
 
 def test_can_assign_to_shadowed_constants_I():
     visitor = ConstantVisitor()
@@ -61,6 +63,7 @@ a = 34
     with pytest.raises(CodeGenerationException) as err:
         visitor.visit(ast.parse(src))
     assert err.value.msg == "Cannot assign to constant variable 'a'."
+
 
 def test_raises_exception_on_assignemnt_to_const_II():
     visitor = ConstantVisitor()

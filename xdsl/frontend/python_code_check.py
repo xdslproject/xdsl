@@ -180,9 +180,13 @@ class ConstantVisitor(ast.NodeVisitor):
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
-    
+
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        if Const.check(node.annotation):
+        if not Const.check(node.annotation):
+            if not self.global_scope and isinstance(node.target, ast.Name):
+                if node.target.id in self.constants:
+                    self.constants[node.target.id].shadowed = True
+        else:
             if not self.global_scope:
                 raise CodeGenerationException(
                     node.lineno, node.col_offset,
@@ -197,8 +201,9 @@ class ConstantVisitor(ast.NodeVisitor):
 
             name = node.target.id
             if name in self.constants:
-                raise CodeGenerationException(node.lineno, node.col_offset, f"Constant '{name}' is already defined in the program.")
-
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Constant '{name}' is already defined in the program.")
             try:
                 # TODO: This does not take care of cases like:
                 # ```
@@ -213,8 +218,10 @@ class ConstantVisitor(ast.NodeVisitor):
                 if isinstance(value, int) or isinstance(value, float):
                     self.constants[name] = Constant(value)
                 else:
-                    raise CodeGenerationException(node.lineno, node.col_offset, f"Constant '{name}' has evaluated type '{type(value)}' which is not supported.")
-
+                    raise CodeGenerationException(
+                        node.lineno, node.col_offset,
+                        f"Constant '{name}' has evaluated type '{type(value)}' which is not supported."
+                    )
             except Exception:
                 # TODO: This error message can be improved by matching exact
                 # exceptions returned by `eval` call.
@@ -228,7 +235,7 @@ class ConstantVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
                 f"Assignments are allowed to exactly one variable only.")
-        if isinstance(node.targets[0],ast.Name):
+        if isinstance(node.targets[0], ast.Name):
             name = node.targets[0].id
             # Ensure that unless the variable is shadowed by local variables, it
             # cannot be assigned to.
@@ -238,20 +245,19 @@ class ConstantVisitor(ast.NodeVisitor):
                     f"Cannot assign to constant variable '{name}'.")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        shadowed_constants: List[str] = []
-        for arg in node.args.args:
-            name = arg.arg
-            if name in self.constants:
-                self.constants[name].shadowed = True
-                shadowed_constants.append(name)
-        
-        # Visit function/block body but with some constants shadowed by the
-        # function/block arguments.
+        # Record all variables that were shadowed before.
+        previously_shadowed_constants: Set[str] = []
+        for name , constant in self.constants.items():
+            if constant.shadowed:
+                previously_shadowed_constants.add(name)
+
         old_scope = self.global_scope
         self.global_scope = False
         for stmt in node.body:
             self.visit(stmt)
         self.global_scope = old_scope
 
-        for name in shadowed_constants:
-            self.constants[name].shadowed = False
+        # Unshadow newly shadowed variables.
+        for name in self.constants.keys():
+            if name not in previously_shadowed_constants:
+                self.constants[name].shadowed = False
