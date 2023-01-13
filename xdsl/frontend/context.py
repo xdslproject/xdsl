@@ -41,6 +41,6 @@ class CodeContext(AbstractContextManager):
                 self.program.stmts = node.body
 
     def __exit__(self, *args):
-        # Having proccessed all the code in the context, check it is well fromed
+        # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed.
         PythonCodeCheck.run(self.program.stmts)
