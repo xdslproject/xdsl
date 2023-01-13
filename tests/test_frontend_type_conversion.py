@@ -12,9 +12,11 @@ from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition
 
+
 @irdl_attr_definition
 class A(ParametrizedAttribute):
     name = "a"
+
 
 class _A(_FrontendType):
 
@@ -22,22 +24,29 @@ class _A(_FrontendType):
     def to_xdsl() -> Callable[..., Any]:
         return A
 
+
 class _B:
     pass
 
+
 T = TypeVar("T")
+
+
 class _C(Generic[T]):
     pass
+
 
 @irdl_attr_definition
 class D(ParametrizedAttribute):
     name = "d"
+
 
 class _D(Generic[T], _FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
         return D
+
 
 a: TypeAlias = _A
 b: TypeAlias = _B

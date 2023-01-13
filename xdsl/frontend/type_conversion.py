@@ -62,7 +62,9 @@ class TypeConverter:
         # Otherwise, it must be some frontend type, and we can look up its class
         # using the imports.
         if type_name not in self.globals:
-            raise CodeGenerationException(type_hint.lineno, type_hint.col_offset, f"Unknown type hint '{type_name}'.")
+            raise CodeGenerationException(type_hint.lineno,
+                                          type_hint.col_offset,
+                                          f"Unknown type hint '{type_name}'.")
         type_class = self.globals[type_name]
 
         # First, type can be generic, e.g. `class _Integer(Generic[_W, _S])`.
@@ -90,8 +92,7 @@ class TypeConverter:
             # If this is not a subclass of FrontendType, then abort.
             raise CodeGenerationException(
                 type_hint.lineno, type_hint.col_offset,
-                f"'{type_name}' is not a frontend type."
-            )
+                f"'{type_name}' is not a frontend type.")
 
         # Otherwise, type can be a simple non-generic frontend type, e.g. `class
         # _Index(FrontendType)`.
