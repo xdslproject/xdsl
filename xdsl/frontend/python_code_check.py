@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Dict, List, Set
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import Const
 from xdsl.frontend.exception import CodeGenerationException
@@ -200,6 +200,13 @@ class ConstantVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(node.lineno, node.col_offset, f"Constant '{name}' is already defined in the program.")
 
             try:
+                # TODO: This does not take care of cases like:
+                # ```
+                # a: Const[i32] = 12
+                # b: Const[i32] = a + 23
+                # ```
+                # It is not difficult to add support for this in th future
+                # though.
                 value = eval(ast.unparse(node.value))
                 # For now, support primitive types only and add a guard to abort
                 # in other cases.
@@ -240,11 +247,11 @@ class ConstantVisitor(ast.NodeVisitor):
         
         # Visit function/block body but with some constants shadowed by the
         # function/block arguments.
+        old_scope = self.global_scope
+        self.global_scope = False
         for stmt in node.body:
-            old_scope = self.global_scope
-            self.global_scope = False
             self.visit(stmt)
-            self.global_scope = old_scope
+        self.global_scope = old_scope
 
         for name in shadowed_constants:
             self.constants[name].shadowed = False

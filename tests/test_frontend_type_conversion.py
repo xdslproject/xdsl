@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-from fileinput import lineno
 from sys import _getframe
 from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
 import pytest
