@@ -44,8 +44,9 @@ def test_can_assign_to_shadowed_constants_II():
     src = \
 """
 y: Const[i32] = 2 ** 5
-def foo(y: f32):
-    y = 125.0
+def foo():
+    y: i32 = 0
+    y = 125
     return
 """
     visitor.visit(ast.parse(src))
@@ -145,3 +146,14 @@ b: Const[i32] = a + 23
     with pytest.raises(CodeGenerationException) as err:
         visitor.visit(ast.parse(src))
     assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'b' or cannot be evaluated."
+
+def test_raises_exception_on_const_inside_functions():
+    visitor = ConstantVisitor()
+    src = \
+"""
+def foo():
+    a: Const[i32] = 12
+"""
+    with pytest.raises(CodeGenerationException) as err:
+        visitor.visit(ast.parse(src))
+    assert err.value.msg == "All constant expressions have to be created in the global scope."

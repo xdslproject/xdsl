@@ -182,10 +182,11 @@ class ConstantVisitor(ast.NodeVisitor):
         super().visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        if not Const.check(node.annotation):
-            if not self.global_scope and isinstance(node.target, ast.Name):
-                if node.target.id in self.constants:
-                    self.constants[node.target.id].shadowed = True
+        if not Const.check(node.annotation) and not self.global_scope and isinstance(node.target, ast.Name):
+            # We are assigning to a non-constant variable inside a function.
+            # Check if it shadows one of the constants.
+            if node.target.id in self.constants:
+                self.constants[node.target.id].shadowed = True
         else:
             if not self.global_scope:
                 raise CodeGenerationException(
@@ -247,7 +248,7 @@ class ConstantVisitor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # Record all variables that were shadowed before.
         previously_shadowed_constants: Set[str] = []
-        for name , constant in self.constants.items():
+        for name, constant in self.constants.items():
             if constant.shadowed:
                 previously_shadowed_constants.add(name)
 

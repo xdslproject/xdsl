@@ -91,7 +91,6 @@ try:
             @block
             def bb0():
 
-
                 # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
                 @block
                 def bb1():
@@ -246,6 +245,7 @@ try:
 
         # CHECK-NEXT: Cannot assign to constant variable 'e'.
         def foo():
+
             @block
             def bb0():
                 e = 2
