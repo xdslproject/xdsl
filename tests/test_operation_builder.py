@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Annotated
 import pytest
 
-from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
+from xdsl.dialects.builtin import (DenseArrayBase, VectorType,
                                    IntegerType, Operation, StringAttr, i32)
 from xdsl.dialects.arith import Constant
 
@@ -98,7 +98,7 @@ def test_two_var_result_builder():
         IntegerType.from_width(32), [2])
 
     assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                         attribute_name] == DenseArrayBase.from_list(
                              dense_type, [2, 2])
 
 
@@ -114,7 +114,7 @@ def test_two_var_result_builder2():
     dense_type = VectorType.from_element_type_and_shape(
         IntegerType.from_width(32), [2])
     assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                         attribute_name] == DenseArrayBase.from_list(
                              dense_type, [1, 3])
 
 
@@ -142,7 +142,7 @@ def test_var_mixed_builder():
     dense_type = VectorType.from_element_type_and_shape(
         IntegerType.from_width(32), [3])
     assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
+                         attribute_name] == DenseArrayBase.from_list(
                              dense_type, [2, 1, 2])
 
 
@@ -236,7 +236,7 @@ def test_two_var_operand_builder():
         IntegerType.from_width(32), [2])
     assert op2.attributes[
         AttrSizedOperandSegments.
-        attribute_name] == DenseIntOrFPElementsAttr.from_list(
+        attribute_name] == DenseArrayBase.from_list(
             dense_type, [2, 2])
 
 
@@ -249,7 +249,7 @@ def test_two_var_operand_builder2():
         IntegerType.from_width(32), [2])
     assert op2.attributes[
         AttrSizedOperandSegments.
-        attribute_name] == DenseIntOrFPElementsAttr.from_list(
+        attribute_name] == DenseArrayBase.from_list(
             dense_type, [1, 3])
 
 

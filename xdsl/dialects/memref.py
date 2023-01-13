@@ -4,7 +4,7 @@ from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    IntegerType, FlatSymbolRefAttr, StringAttr,
-                                   DenseIntOrFPElementsAttr)
+                                   DenseArrayBase)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
@@ -239,9 +239,9 @@ class Global(Operation):
             raise Exception("Global expects a MemRefType")
 
         if self.initial_value and not isinstance(self.initial_value,
-                                                 DenseIntOrFPElementsAttr):
+                                                 DenseArrayBase):
             raise Exception(
-                "Global expects an initial value with type DenseIntOrFPElementsAttr"
+                "Global expects an initial value with type DenseArrayBase"
             )
 
     @staticmethod

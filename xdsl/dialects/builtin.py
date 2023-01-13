@@ -658,6 +658,78 @@ class DenseResourceAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class DenseArrayBase(ParametrizedAttribute):
+    name = "array"
+
+    type: ParameterDef[VectorOrTensorOf[IntegerType]
+                       | VectorOrTensorOf[IndexType]
+                       | VectorOrTensorOf[AnyFloat]]
+    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+    elt_type: ParameterDef[IntegerType | Float16Type | Float32Type | Float64Type]
+
+    @staticmethod
+    @builder
+    def create_dense_index(
+            type: VectorOrTensorOf[IndexType],
+            data: List[int | IntegerAttr[IndexType]]
+    ) -> DenseArrayBase:
+        attr_list = [
+            IntegerAttr.from_index_int_value(d) if isinstance(d, int) else d
+            for d in data
+        ]
+        return DenseArrayBase([type, ArrayAttr.from_list(attr_list), IndexType()])
+
+    @staticmethod
+    @builder
+    def create_dense_int(
+        type: VectorOrTensorOf[IntegerType],
+        data: List[int | IntegerAttr[IntegerType]], typ: IntegerType
+    ) -> DenseArrayBase:
+        attr_list = [
+            IntegerAttr.from_params(d, type.element_type) if isinstance(
+                d, int) else d for d in data
+        ]
+        return DenseArrayBase([type, ArrayAttr.from_list(attr_list), typ])
+
+    @staticmethod
+    @builder
+    def create_dense_float(
+            type: VectorOrTensorOf[AnyFloat],
+            data: List[int | float | AnyFloatAttr],
+            typ: Float16Type | Float32Type | Float64Type
+    ) -> DenseArrayBase:
+        data_attr = [
+            FloatAttr.from_value(float(d), type.element_type)
+            if not isinstance(d, FloatAttr) else d for d in data
+        ]
+        return DenseArrayBase([type, ArrayAttr.from_list(data_attr), typ])
+
+    @staticmethod
+    @builder
+    def from_list(
+        type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
+        | List[int | float | AnyFloatAttr]
+    ) -> DenseArrayBase:
+        if isinstance(type.element_type, IntegerType):
+            return DenseArrayBase.create_dense_int(type, data, type.element_type)
+        elif isinstance(type.element_type, IndexType):
+            return DenseArrayBase.create_dense_index(type, data)
+        elif isinstance(type.element_type, AnyFloat):
+            return DenseArrayBase.create_dense_float(type, data, type.element_type)
+        else:
+            raise TypeError(f"Unsupported element type {type.element_type}")
+
+    @staticmethod
+    @builder
+    def vector_from_list(
+            data: List[int] | List[float],
+            typ: IntegerType | IndexType | AnyFloat
+    ) -> DenseArrayBase:
+        t = AnyVectorType.from_element_type_and_shape(typ, [len(data)])
+        return DenseArrayBase.from_list(t, data)
+
+
+@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 
