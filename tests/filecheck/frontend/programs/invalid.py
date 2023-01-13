@@ -91,6 +91,7 @@ try:
             @block
             def bb0():
 
+
                 # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
                 @block
                 def bb1():

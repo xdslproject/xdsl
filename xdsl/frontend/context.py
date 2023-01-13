@@ -43,4 +43,5 @@ class CodeContext(AbstractContextManager):
     def __exit__(self, *args):
         # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed.
+        assert self.program.stmts is not None
         PythonCodeCheck.run(self.program.stmts)

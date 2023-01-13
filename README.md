@@ -48,8 +48,8 @@ The following tutorials will present xDSL basic concepts, how to
 use its irdl dialect to define new dialects in a user-friendly way, and how to
 work with both xDSL and MLIR.
 
-- [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/tutorial.ipynb)
-- [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=docs/irdl.ipynb)
+- [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=tutorial.ipynb)
+- [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 ## xDSL Developer Setup
@@ -60,9 +60,9 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
-pip install -e .
+pip install --editable .
 # Optional installation of extra requirements
-# pip install -e .[extras]
+pip install --requirement requirements-optional.txt
 ```
 
 ### Testing

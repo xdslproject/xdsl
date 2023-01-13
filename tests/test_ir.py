@@ -169,6 +169,15 @@ program_func = \
   }
 }
 """
+program_successors = \
+"""
+    func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
+    ^0:
+        cf.br() (^1)
+    ^1:
+        cf.br() (^0)
+    }
+"""
 
 
 @pytest.mark.parametrize(
@@ -183,12 +192,16 @@ program_func = \
      ([program_add, program_add], True),
      ([program_add_2, program_add_2], True),
      ([program_add, program_add_2], False),
-     ([program_func, program_func], True)])
+     ([program_func, program_func], True),
+     ([program_successors, program_successors], True),
+     ([program_successors, program_func], False),
+     ([program_successors, program_add], False)])
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
     ctx.register_dialect(Arith)
+    ctx.register_dialect(Cf)
 
     parser = Parser(ctx, args[0])
     lhs: Operation = parser.parse_op()
@@ -197,35 +210,6 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
-
-
-def test_is_structurally_equivalent():
-    program_successors = \
-    """
-      func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-        ^0:
-          cf.br() (^1)
-        ^1:
-          cf.br() (^0)
-      }
-    """
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
-
-    parser = Parser(ctx, program_successors)
-    lhs: Operation = parser.parse_op()
-
-    parser = Parser(ctx, program_successors)
-    rhs: Operation = parser.parse_op()
-
-    with pytest.raises(Exception) as e:
-        lhs.is_structurally_equivalent(rhs)
-
-    assert e.value.args[
-        0] == "Checking for structural equality of ops with successors is not supported."
 
 
 def test_is_structurally_equivalent_incompatible_ir_nodes():
