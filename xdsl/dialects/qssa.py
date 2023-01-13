@@ -1,11 +1,11 @@
 # QSSA dialect
 # operations:
-#   - qssa.alloc             # DONE only op with side effects
+#   - qssa.alloc             # DONE only op with side effects TODO: add support for dynamic types
 #   - qssa.split             # DONE
 #   - qssa.merge             # DONE
 #   - qssa.dim               # DONE
-#   - qssa.cast              # 
-#   - qssa.measure           # 
+#   - qssa.cast              # TODO: need to support dynamic qubit types first
+#   - qssa.measure           # DONE
 #   - qssa.gate, qssa.U      # for arbitrary gates. U is for a single qubit matrix (by describing angles)
 #   - qssa.CNOT              # DONE
 #   - qssa.{X, Y, Z}         # DONE
@@ -13,7 +13,7 @@
 #   - qssa.S                 # DONE
 #   - qssa.T                 # DONE
 #   - qssa.H                 # DONE
-#   - qssa.dag               # DONE but problem: this is actually an operation on operations => needs to map Gate Ops into "dagged" Gate Ops!
+#   - qssa.dag               # TODO: problem - this is actually an operation on gate operations => needs to map Gate Ops into "dagged" Gate Ops!
 #       - two options for modelling this:
 #           - 1. introduce new type "Gate" which is what gate ops will now return, and an "apply" operation to apply Gates on Qubits
 #           - 2. leave as an identity operation on Qubits, but encode its semantics in the rewrite rules <-- using this for now
@@ -30,6 +30,8 @@
 # 
 # TODO:
 #   - dynamic qubit types
+#   - add traits
+#   - move params into operands rather than attributes
 from __future__ import annotations
 
 from xdsl.parser import Parser
@@ -52,6 +54,9 @@ from xdsl.irdl import (
     VarOperand,
     AttributeDef,
     BaseAttr,
+    AttrConstraint,
+    AnyAttr,
+    AnyOf,
     builder,
     attr_constr_coercion,
 )
@@ -64,18 +69,24 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     i32,
+    f64, f32, f16,
     Annotated,
     StringAttr,
     FloatAttr,
-    TensorType
+    TensorType,
+    ArrayAttr
 )
-from xdsl.dialects.arith import Constant, Subi
+from xdsl.dialects.arith import Constant, Subi, AnyFloat
 
 from typing import Union, Optional
+from dataclasses import dataclass
 
 # type attributes. Actually these are type functions: Qubits :: [Attribute] -> Attribute
 @irdl_attr_definition
 class Qubits(ParametrizedAttribute):
+    """
+    TODO: add support for dynamic qubit sizes
+    """
     name = "qubits"
 
     # number of qubits
@@ -113,6 +124,7 @@ class Angle(Data[float]):
 
 @irdl_op_definition
 class Alloc(Operation):
+    # TODO: support dynamic qubit types
     # create qubits of the form `|0^n>`
     name: str = "qssa.alloc"
 
@@ -125,10 +137,7 @@ class Alloc(Operation):
     result: Annotated[OpResult, Qubits]
 
     @staticmethod
-    def get(val: Optional[Union[int, Attribute]] = None) -> Alloc:
-        if not val:
-            return Alloc.build(result_types=[Qubits()])
-
+    def get(val: Union[int, Attribute]) -> Alloc:
         if isinstance(val, int):
             # convert to an IntAttr
             val = IntAttr.from_int(val)
@@ -151,7 +160,6 @@ class Dim(Operation):
     @staticmethod
     def apply(input_qubit: Union[Operation, SSAValue]) -> Dim:
         input_type = SSAValue.get(input_qubit).typ
-        attr_constr_coercion(Qubits).verify(input_type)
         return Dim.build(operands=[input_qubit], result_types=[input_type, i32])
 
 
@@ -182,14 +190,10 @@ class Split(Operation):
         attr_constr_coercion(IntegerType).verify(w1_out_n_qubits_ssa.typ)
         w1_out_n_qubits = w1_out_n_qubits.value.value.data
         
-        
         # w1 should have type Qubits<w1_qubits.data>
         # w2 should have type Qubits<n - w1_qubits.data>, where type of input_qubis is Qubits<n>
         w_in_ssa = SSAValue.get(w_in)
-        w_in_type = w_in_ssa.typ
-        attr_constr_coercion(Qubits).verify(w_in_type)
-
-        w_in_n_qubits = w_in_type.n.data # TODO: handle the dynamic qubit case here
+        w_in_n_qubits = w_in_ssa.typ.n.data # TODO: handle the dynamic qubit case here
         w2_out_n_qubits = w_in_n_qubits - w1_out_n_qubits
         if w1_out_n_qubits <= 0 or w2_out_n_qubits <= 0:
             # TODO: use Qubit print method.
@@ -249,7 +253,9 @@ class Dag(Operation):
             operands=[input_qubits], result_types=[SSAValue.get(input_qubits).typ]
         )
 
+
 bit_type = IntegerType.from_width(1)
+
 
 @irdl_op_definition
 class Measure(Operation):
@@ -259,18 +265,40 @@ class Measure(Operation):
     qubits_in: Annotated[Operand, Qubits]
 
     # output
-    results_out: Annotated[OpResult, TensorType]
+    tensor_out: Annotated[OpResult, TensorType]
 
     @staticmethod
     def apply(input_qubits: Union[Operation, SSAValue]) -> Measure:
-        input_qubits_typ = SSAValue.get(input_qubits).typ
-        attr_constr_coercion(Qubits).verify(input_qubits_typ)
-
         # find the dimension of current qubits
-        qubit_dim = input_qubits_typ.n.data
+        qubit_dim = SSAValue.get(input_qubits).typ.n.data
         bit_measure_type = TensorType.from_type_and_list(bit_type, [qubit_dim])
         return Measure.build(
             operands=[input_qubits], result_types=[bit_measure_type]
+        )
+
+
+@irdl_op_definition
+class Cast(Operation):
+    """
+    Cast operation. Casts dynamic qubit types Qubits<?> into static ones Qubits<n> and vice versa
+    """
+    name: str = "qssa.cast"
+
+    # operands
+    qubits_in: Annotated[Operand, Qubits]
+
+    # output
+    qubits_out: Annotated[OpResult, Qubits]
+
+    @staticmethod
+    def apply(input_qubits: Union[Operation, SSAValue]) -> Cast:
+        input_qubits_typ = SSAValue.get(input_qubits).typ
+        output_qubits_typ = input_qubits_typ
+        # for now, just return identity
+        # TODO: actually implement the casting functionality for dynamic <-> static types
+
+        return Cast.build(
+            operands=[input_qubits], result_types=[input_qubits_typ]
         )
 
 
@@ -282,6 +310,84 @@ class Measure(Operation):
 #
 #     # attributes
 #     dagged = OptAttributeDef(BaseAttr(DaggedAttr))
+
+
+@dataclass
+class SquareMatrixConstraint(AttrConstraint):
+    # Check that an attribute satisfies the constraints
+    def verify(self, attr: Attribute) -> None:
+        attr_constr_coercion(ArrayAttr).verify(attr)
+
+        # check to ensure array represents a square matrix
+        matrix = attr.data
+        if not matrix:
+            raise DiagnosticException("Matrix cannot be empty.")
+
+        # ensure array dimensions is 2^n for some n
+        nrows = len(matrix)
+        if not (nrows & (nrows-1) == 0):
+            raise DiagnosticException(f"Matrix dimension ({nrows}x_) is not 2^n x 2^n")
+
+        # ensure array is square
+        first_row = matrix[0]
+        if not all(len(row) == len(first_row) for row in matrix):
+            raise DiagnosticException("Matrix is not square")
+
+
+@irdl_op_definition
+class MatrixGate(Operation):
+    """
+    Definition of a gate by a 2^n x 2^n matrix.
+    Gates must be reversible thus square.
+    """
+    name: str = "qssa.gate"
+
+    # attributes
+    matrix = AttributeDef(SquareMatrixConstraint())
+
+    # inputs
+    input: Annotated[Operand, Qubits]
+
+    # outputs
+    out: Annotated[OpResult, Qubits]
+
+    @staticmethod
+    def _convert_to_array_attr(matrix: list[list[float]]) -> ArrayAttr:
+        matrix_attr_elems = [[FloatAttr.from_value(float(e)) for e in row] for row in matrix]
+        matrix_attr_rows = [ArrayAttr.from_list(row) for row in matrix_attr_elems]
+        return ArrayAttr.from_list(matrix_attr_rows)
+
+    @staticmethod
+    def apply(input_qubits: Union[Operation, SSAValue], matrix: list[list[float]]) -> MatrixGate:
+        qubit_type = SSAValue.get(input_qubits).typ
+        # TODO: add check to ensure matrix is compatible with number of qubits, i.e. is 2^n x 2^n for qubit<n>
+        matrix_attr = MatrixGate._convert_to_array_attr(matrix)
+        return MatrixGate.build(operands=[input_qubits], result_types=[qubit_type], attributes={"matrix": matrix_attr})
+
+
+@irdl_op_definition
+class EulerUnitaryGate(Operation):
+    """
+    Single qubit unitary from Euler angles
+    """
+    name: str = "qssa.euler_gate"
+
+    # inputs
+    the: Annotated[Operand, AnyOf([f16, f32, f64])]
+    phi: Annotated[Operand, AnyOf([f16, f32, f64])]
+    lam: Annotated[Operand, AnyOf([f16, f32, f64])]
+    input: Annotated[Operand, Qubits]
+
+    # outputs
+    out: Annotated[OpResult, Qubits]
+
+    @staticmethod
+    def apply(the: Union[Operation, SSAValue],
+              phi: Union[Operation, SSAValue],
+              lam: Union[Operation, SSAValue],
+              input_qubits: Union[Operation, SSAValue]) -> EulerUnitaryGate:
+        qubit_type = SSAValue.get(input_qubits).typ
+        return EulerUnitaryGate.build(operands=[the, phi, lam, input_qubits], result_types=[qubit_type])
 
 
 @irdl_op_definition
@@ -521,7 +627,7 @@ def main() -> None:
     i64_3 = Constant.from_int_and_width(3, 64)
     try:
         split_i64_3 = Split.apply(i64_3, i64_5)
-    except DiagnosticException as e:
+    except AttributeError as e:
         _show_indent(printer, "qssa.split (arith.constant 3), (arith.constant 5) error caught!", str(e))
 
     # merge: merge 3, 5 -> 8
@@ -560,15 +666,38 @@ def main() -> None:
     # measuring something that's not a qubit
     try:
         Measure.apply(i64_2)
-    except DiagnosticException as e:
+    except AttributeError as e:
         _show_indent(printer, "qssa.measure (arith.constant 2) error caught!", str(e))
 
     try:
         Measure.apply(i32_5_ssa)
-    except DiagnosticException as e:
+    except AttributeError as e:
         _show_indent(printer, "qssa.measure (qssa.dim q5) error caught!", str(e))
 
+    # Test 7: matrices and custom gates
+    print("7: Custom gates (matrices and single qubit gates)")
+    # testing matrix constraints
+    # good matrix
+    matrix = [[1,2,3,4], [5,6,7,8], [9,0,5,3], [1,7,2,9]]
+    matrix_q2_ssa = MatrixGate.apply(q2, matrix)
+    _show_indent(printer, "qssa.matrix {matrix} q2", matrix_q2_ssa)
 
+    # bad matrix
+    bad_matrix = [[1,2,3], [5,6,7], [9,0,5]]
+    try:
+        MatrixGate.apply(q2, bad_matrix).verify()
+    except DiagnosticException as e:
+        _show_indent(printer, "qssa.matrix {3x3 matrix} error caught!", str(e))
+
+    # single qubit unitary via angles
+    f_the = Constant.from_float_and_width(2.4, f64)
+    f_phi = Constant.from_float_and_width(2.3, f64)
+    f_lam = Constant.from_float_and_width(2.5, f64)
+    _show_indent(printer, "angle %the defined", f_the)
+    _show_indent(printer, "angle %phi defined", f_phi)
+    _show_indent(printer, "angle %lam defined", f_lam)
+    q1_rot_ssa = EulerUnitaryGate.apply(f_the, f_phi, f_lam, q1)
+    _show_indent(printer, "qssa.euler_gate %lam %the %phi q1", q1_rot_ssa)
 
 
 if __name__ == "__main__":
