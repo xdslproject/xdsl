@@ -185,7 +185,8 @@ class Span:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print("{}:{}:{}".format(self.input.name, line_no, offset), file=capture)
+        print("{}:{}:{}".format(self.input.name, line_no, offset),
+              file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:
@@ -714,8 +715,7 @@ class BaseParser(ABC):
         args = self.must_parse_list_of(self.try_parse_value_id_and_type,
                                        "Expected value-id and type here!")
 
-        self.must_parse_characters(')',
-                                   'Expected closing of block arguments!')
+        self.must_parse_characters(')', 'Expected closing of block arguments!')
 
         return args
 
@@ -765,7 +765,7 @@ class BaseParser(ABC):
         items.append(first_item)
 
         while (match := self.tokenizer.next_token_of_pattern(separator_pattern)
-        ) is not None:
+               ) is not None:
             next_item = try_parse()
             if next_item is None:
                 # if the separator is emtpy, we are good here
@@ -988,7 +988,7 @@ class BaseParser(ABC):
 
     def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
-                                                ('x',)):
+                                       ('x', )):
             # check for unranked-ness
             if self.tokenizer.next_token_of_pattern('*') is not None:
                 # consume `x`
@@ -1046,7 +1046,8 @@ class BaseParser(ABC):
         params = self.must_parse_list_of(self.try_parse_type,
                                          'Expected a type here!')
 
-        self.must_parse_characters('>', 'Expected end of type parameterization here!')
+        self.must_parse_characters(
+            '>', 'Expected end of type parameterization here!')
 
         return params
 
@@ -1090,8 +1091,7 @@ class BaseParser(ABC):
         if len(result_list) > 0:
             self.must_parse_characters(
                 '=',
-                'Operation definitions expect an `=` after op-result-list!'
-            )
+                'Operation definitions expect an `=` after op-result-list!')
 
         # check for custom op format
         op_name = self.try_parse_bare_id()
@@ -1120,8 +1120,7 @@ class BaseParser(ABC):
                 result_types=ret_types,
                 attributes=attrs,
                 successors=[
-                    self.blocks[block_name.text]
-                    for block_name in successors
+                    self.blocks[block_name.text] for block_name in successors
                 ],
                 regions=regions)
 
@@ -1168,7 +1167,7 @@ class BaseParser(ABC):
                     'The following block references are dangling:',
                     [(span, "Reference to block \"{}\" without implementation!"
                       .format(span.text)) for span in itertools.chain(
-                        *self.forward_block_references.values())],
+                          *self.forward_block_references.values())],
                     self.tokenizer.history)
 
             return region
@@ -1249,13 +1248,15 @@ class BaseParser(ABC):
 
     def try_parse_builtin_dense_attr(self) -> Attribute | None:
         with self.tokenizer.backtracking("dense attribute"):
-            self.must_parse_characters("dense", "builtin dense attribute must start with `dense`")
+            self.must_parse_characters(
+                "dense", "builtin dense attribute must start with `dense`")
             err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"
             self.must_parse_characters("<", err_msg)
             info = list(self.must_parse_builtin_dense_attr_args())
             self.must_parse_characters(">", err_msg)
             self.must_parse_characters(":", err_msg)
-            type = self.expect(self.try_parse_type, "Dense attribute must be typed!")
+            type = self.expect(self.try_parse_type,
+                               "Dense attribute must be typed!")
             return DenseIntOrFPElementsAttr.from_list(type, info)
 
     def must_parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
@@ -1265,12 +1266,14 @@ class BaseParser(ABC):
         dense-attr-params           := float-literal | int-literal | list-of-dense-attrs-params
         list-of-dense-attrs-params  := `[` dense-attr-params (`,` dense-attr-params)* `]`
         """
+
         def try_parse_int_or_float():
             if (literal := self.try_parse_float_literal()) is not None:
                 return float(literal.text)
             if (literal := self.try_parse_integer_literal()) is not None:
                 return int(literal.text)
             self.raise_error('Expected int or float literal here!')
+
         if not self.tokenizer.starts_with('['):
             yield try_parse_int_or_float()
             return
@@ -1281,7 +1284,6 @@ class BaseParser(ABC):
             if self.tokenizer.next_token_of_pattern(',') is None:
                 break
         self.must_parse_characters(']', '')
-
 
     def try_parse_ref_attr(self) -> FlatSymbolRefAttr | None:
         if not self.tokenizer.starts_with("@"):
@@ -1568,7 +1570,9 @@ class BaseParser(ABC):
         return self.must_parse_operation()
 
     def parse_int_literal(self) -> int:
-        return int(self.expect(self.try_parse_integer_literal, 'Expected integer literal here').text)
+        return int(
+            self.expect(self.try_parse_integer_literal,
+                        'Expected integer literal here').text)
 
 
 class MLIRParser(BaseParser):
@@ -1804,9 +1808,12 @@ class XDSLParser(BaseParser):
             self.raise_error("Unknown attribute name!", name)
         if not issubclass(attr, ParametrizedAttribute):
             self.raise_error("Expected ParametrizedAttribute name here!", name)
-        self.must_parse_characters('<', 'Expected generic attribute arguments here!')
-        args = self.must_parse_list_of(self.try_parse_attribute, 'Unexpected end of attribute list!')
-        self.must_parse_characters('>', 'Malformed attribute arguments, reached end of args list!')
+        self.must_parse_characters(
+            '<', 'Expected generic attribute arguments here!')
+        args = self.must_parse_list_of(self.try_parse_attribute,
+                                       'Unexpected end of attribute list!')
+        self.must_parse_characters(
+            '>', 'Malformed attribute arguments, reached end of args list!')
         return attr(args)
 
 
@@ -1818,8 +1825,14 @@ class Source(Enum):
     MLIR = 2
 
 
-def Parser(ctx: MLContext, prog: str, source: Source = Source.XDSL, filename: str = '<unknown>') -> BaseParser:
-    selected_parser = {Source.XDSL: XDSLParser, Source.MLIR: MLIRParser}[source]
+def Parser(ctx: MLContext,
+           prog: str,
+           source: Source = Source.XDSL,
+           filename: str = '<unknown>') -> BaseParser:
+    selected_parser = {
+        Source.XDSL: XDSLParser,
+        Source.MLIR: MLIRParser
+    }[source]
     return selected_parser(ctx, prog, filename)
 
 
