@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from inspect import getsource
 from sys import _getframe
 from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.python_code_check import PythonCodeCheck
 
 
 @dataclass
@@ -40,4 +41,6 @@ class CodeContext(AbstractContextManager):
                 self.program.stmts = node.body
 
     def __exit__(self, *args):
-        pass
+        # Having proccessed all the code in the context, check it is well fromed
+        # and can be compiled/executed.
+        PythonCodeCheck.run(self.program.stmts)
