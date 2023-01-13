@@ -1,8 +1,7 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Dict, List, Set
 from xdsl.frontend.block import is_block
-from xdsl.frontend.const import Const
 from xdsl.frontend.exception import CodeGenerationException
 
 
@@ -38,15 +37,15 @@ class PythonCodeCheck:
         #    y: i32 = foo(100)
         # ```
         # First, find out which of the two modes is used.
-        interpreter_mode: bool = True
+        single_scope: bool = True
         for stmt in stmts:
             if isinstance(stmt, ast.FunctionDef) and not is_block(stmt):
-                interpreter_mode = False
+                single_scope = False
                 break
 
         # Check Python code is valid for compilation/execution based on the
         # current code mode.
-        if interpreter_mode:
+        if single_scope:
             visitor = SingleScopeVisitor()
         else:
             visitor = MultipleScopeVisitor()
@@ -57,37 +56,11 @@ class PythonCodeCheck:
 @dataclass
 class SingleScopeVisitor(ast.NodeVisitor):
 
-    constants: Dict[str, Any] = field(default_factory=dict)
-    """Stores constants of the current program and their values."""
-
     block_names: Set[str] = field(default_factory=set)
     """Tracks duplicate block labels."""
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        if Const.check(node.annotation):
-            assert isinstance(node.target, ast.Name)
-            try:
-                self.constants[node.target.id] = eval(ast.unparse(node.value))
-            except Exception:
-                raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"Non-constant expression cannot be assigned to constant variable '{node.target.id}'."
-                )
-
-    def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1:
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Assignments are allowed to exaclty one variable only.")
-        if isinstance(node.targets[0],
-                      ast.Name) and (name :=
-                                     node.targets[0].id) in self.constants:
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Cannot assign to constant variable '{name}'.")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         assert is_block(node)
@@ -115,53 +88,11 @@ class SingleScopeVisitor(ast.NodeVisitor):
 @dataclass
 class MultipleScopeVisitor(ast.NodeVisitor):
 
-    constants: Dict[str, Any] = field(default_factory=dict)
-    """Stores constants of the current program and their values."""
-
     function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
     """Tracks duplicate function names and duplicate block labels."""
 
-    visiting_function_def: bool = field(default=False)
-    """If set, the visitor is currently visiting the function definition."""
-
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        # Const assignement inside the function.
-        # TODO: We can actually support function-level compile-time constants,
-        # but it was never a priority to implement.
-        if self.visiting_function_def and Const.check(node.annotation):
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Cannot create constants inside functions. Try to remove the '{Const.__name__}' annotation or use a constant defined outside of the function."
-            )
-
-        # Non-const assignement outside the function.
-        if not self.visiting_function_def and not Const.check(node.annotation):
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Cannot create the variable with non-constant type. Try to wrap it using '{Const.__name__}'."
-            )
-
-    def visit_Assign(self, node: ast.Assign) -> None:
-        if not self.visiting_function_def:
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Cannot assign to the variable outside of the function definition. If you want to use the variable as a compile-time constant, wrap the type into '{Const.__name__}'."
-            )
-
-        # Otherwise, we are checking the function body.
-        if len(node.targets) != 1:
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Assignments are allowed to exaclty one variable only.")
-        if isinstance(node.targets[0],
-                      ast.Name) and (name :=
-                                     node.targets[0].id) in self.constants:
-            raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Cannot assign to constant variable '{name}'.")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         assert not is_block(node)

@@ -20,8 +20,8 @@ class CodeGeneration:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
         visitor = CodegGenerationVisitor(type_converter, module)
-        # for stmt in stmts:
-        #     visitor.visit(stmt)
+        for stmt in stmts:
+            visitor.visit(stmt)
         return module
 
 
@@ -62,6 +62,14 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         raise CodeGenerationException(
             node.lineno, node.col_offset,
             f"Unsupported Python AST node {str(node)}")
+    
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        # TODO: Implement assignemnt in the next patch.
+        pass
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        # TODO: Implement assignemnt in the next patch.
+        pass
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
 

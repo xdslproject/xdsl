@@ -20,10 +20,10 @@ def block(*params):
     ```
     """
 
-    def decorate(f):
-        return f
-
+    def decorate(*params):
+        return None
     return decorate
+
 
 def is_block(node: ast.FunctionDef) -> bool:
     return len(node.decorator_list) == 1 and isinstance(
