@@ -37,7 +37,6 @@ from __future__ import annotations
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.ir import (
-    MLContext,
     Operation,
     SSAValue,
     Dialect,
@@ -55,7 +54,6 @@ from xdsl.irdl import (
     AttributeDef,
     BaseAttr,
     AttrConstraint,
-    AnyAttr,
     AnyOf,
     builder,
     attr_constr_coercion,
@@ -63,9 +61,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import DiagnosticException
 
 # other dialects
-from xdsl.dialects.scf import Scf
 from xdsl.dialects.builtin import (
-    Builtin,
     IntAttr,
     IntegerType,
     i32,
@@ -76,9 +72,8 @@ from xdsl.dialects.builtin import (
     TensorType,
     ArrayAttr
 )
-from xdsl.dialects.arith import Constant, Subi, AnyFloat
 
-from typing import Union, Optional
+from typing import Union
 from dataclasses import dataclass
 
 # type attributes. Actually these are type functions: Qubits :: [Attribute] -> Attribute
@@ -330,7 +325,7 @@ class SquareMatrixConstraint(AttrConstraint):
 
         # ensure array is square
         first_row = matrix[0]
-        if not all(len(row) == len(first_row) for row in matrix):
+        if not all(len(row.data) == len(first_row.data) for row in matrix):
             raise DiagnosticException("Matrix is not square")
 
 
@@ -506,199 +501,3 @@ class TGate(Operation):
 
 
 Quantum = Dialect([Alloc, CNOT, PauliRotate, Pauli, Merge, Split, SGate, HGate, TGate], [Qubits, Angle])
-
-
-def _show_indent(
-    printer: Printer,
-    pre: str,
-    value: Optional[Union[Operation, SSAValue, Attribute]] = None,
-    post: str = "\n",
-):
-    print(f"\t{pre}", end=" -> ")
-    if isinstance(value, str):
-        print(value, end="")
-    elif value:
-        printer.print(value)
-    print(post)
-
-
-def main() -> None:
-    # TESTS: TO MOVE OUT TO SEPARATE FILES
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Quantum)
-
-    # Printer used to pretty-print MLIR data structures
-    printer = Printer()
-
-    # Test0: check Qubit type as expected
-    print("0: check qubit type")
-    int_attr_5 = IntAttr.from_int(5)
-    q5_type = Qubits([int_attr_5])  # assert q5_type == Qubits.get_n_qubits_type(5)
-    _show_indent(printer, "q5_type", q5_type)
-
-    # Test1: check we can alloc qubits
-    print("1: Qubit allocation...")
-    q10 = Alloc.get(10)
-    _show_indent(printer, "q10", q10)
-
-    # manually specify the result type and operation params
-    q5 = Alloc.build(result_types=[q5_type], attributes={"n_qubits": int_attr_5})
-    _show_indent(printer, "q5", q5)
-
-    # Test2: check CNOT gate
-    # this should be applied
-    print("2: CNOT application")
-    q2 = Alloc.get(2)
-    _show_indent(printer, "qssa.alloc q2", q2)
-
-    cnot_00 = CNOT.apply(q2)
-    cnot_00.verify()  # should pass
-    _show_indent(printer, "qssa.cnot(q2)", cnot_00)
-
-    # this should not be applied (wrong input type)
-    q3 = Alloc.get(3)
-    _show_indent(printer, "qssa.alloc q3", q3)
-
-    cnot_000 = CNOT.apply(q3)
-    _show_indent(printer, "qssa.cnot(q3)", cnot_000)
-    try:
-        cnot_000.verify()  # should fail
-    except DiagnosticException as e:
-        # ignore other lines of the error message - don't care
-        _show_indent(
-            printer, "qssa.cnot(q3) successfully caught!", str(e).split("\n")[0]
-        )
-
-    # Test3: check Pauli gates
-    print("3: Pauli/PauliRotate application")
-
-    # pauli apply (raw pauli)
-    q1 = Alloc.get(1)
-    _show_indent(printer, "qssa.alloc q1", q1)
-
-    pauli_x0_0 = PauliRotate.apply(q1, "X")
-    _show_indent(printer, "qssa.pauli {'X', 0.0} q1", pauli_x0_0)
-    pauli_x0_0.verify()
-
-    # pauli apply (with angles)
-    pauli_zhalf_0 = PauliRotate.apply(q1, "Z", 0.50)
-    _show_indent(printer, "qssa.pauli {'Z', 0.50} q1", pauli_zhalf_0)
-    pauli_zhalf_0.verify()
-
-    # pauli apply on wrong qubit type
-    pauli_y0_00 = PauliRotate.apply(q2, "Y", 1.00)
-    _show_indent(printer, "qssa.pauli {'Y', 1.00} q2", pauli_y0_00)
-    try:
-        pauli_y0_00.verify()
-    except DiagnosticException as e:
-        _show_indent(
-            printer,
-            "qssa.pauli {'Y', 1.00} q2 successfully caught!",
-            str(e).split("\n")[0],
-        )
-
-    # Test 4: split/merge
-    print("4: Wire split and merge")
-
-    # normal split: 5 -> 2, 3
-    i64_2 = Constant.from_int_and_width(2, 64)
-    _show_indent(printer, "arith.constant {2}", i64_2)
-    q23_ssa = Split.apply(q5, i64_2)
-    q2_ssa, q3_ssa = q23_ssa.results
-    _show_indent(printer, "qssa.split (q5, arith.constant 2)", q23_ssa)
-
-    # error split: 5 -> 5, 0
-    i64_5 = Constant.from_int_and_width(5, 64)
-    _show_indent(printer, "arith.constant {5}", i64_5)
-    try:
-        q50_s = Split.apply(q5, i64_5)
-    except DiagnosticException as e:
-        _show_indent(printer, "qssa.split (q5, arith.constant 5) successfully caught!", str(e))
-
-    # error split: 5 -> -1, 6
-    i64_neg1 = Constant.from_int_and_width(-1, 64)
-    try:
-        qneg16_s = Split.apply(q5, i64_neg1)
-    except DiagnosticException as e:
-        _show_indent(printer, "qssa.split (q5, arith.constant -1) successfully caught!", str(e))
-
-    # error split: wrong input type, not Qubits<n> type.
-    i64_3 = Constant.from_int_and_width(3, 64)
-    try:
-        split_i64_3 = Split.apply(i64_3, i64_5)
-    except AttributeError as e:
-        _show_indent(printer, "qssa.split (arith.constant 3), (arith.constant 5) error caught!", str(e))
-
-    # merge: merge 3, 5 -> 8
-    q8 = Merge.apply([q3, q5])
-    _show_indent(printer, "qssa.merge (q3, q5)", q8)
-
-    # merge: merge splitted wires 2, 3 -> 5
-    q5_merged = Merge.apply([q2_ssa, q3_ssa])
-    _show_indent(printer, "qssa.merge (q2, q3)", q5_merged)
-
-    # merge: type mismatch
-    try:
-        Merge.apply([i64_3, q8])
-    except DiagnosticException as e:
-        _show_indent(printer, "qssa.merge (arith.constant 3, q8) error caught!", str(e))
-
-    # Test 5: dimension
-    print("5: Dimensions operation")
-
-    # dim q5: qubit<5>, constant 5
-    q5_dim_ssa = Dim.apply(q5)
-    q5_ssa, i32_5_ssa = q5_dim_ssa.results
-    _show_indent(printer, "qssa.dim q5", q5_dim_ssa)
-
-    # applying values from dimension (Doesn't work yet without dynamic qubit sizes)
-    # i32_5_minus_2_ssa = Subi.get(i32_5_ssa, i64_2)
-    # _show_indent(printer, "%subi = arith.subi ((qssa.dim q5)[1], arith.constant 2)", i32_5_minus_2_ssa)
-    # q5_dim_split_ssa = Split.apply(q5, i32_5_minus_2_ssa)
-    # _show_indent(printer, "qssa.split (%q5, %subi)", q5_dim_split_ssa)
-
-    # Test 6: measure
-    print("6: Measure operation")
-    q3_measured_ssa = Measure.apply(q3)
-    _show_indent(printer, "qssa.measure q3", q3_measured_ssa)
-
-    # measuring something that's not a qubit
-    try:
-        Measure.apply(i64_2)
-    except AttributeError as e:
-        _show_indent(printer, "qssa.measure (arith.constant 2) error caught!", str(e))
-
-    try:
-        Measure.apply(i32_5_ssa)
-    except AttributeError as e:
-        _show_indent(printer, "qssa.measure (qssa.dim q5) error caught!", str(e))
-
-    # Test 7: matrices and custom gates
-    print("7: Custom gates (matrices and single qubit gates)")
-    # testing matrix constraints
-    # good matrix
-    matrix = [[1,2,3,4], [5,6,7,8], [9,0,5,3], [1,7,2,9]]
-    matrix_q2_ssa = MatrixGate.apply(q2, matrix)
-    _show_indent(printer, "qssa.matrix {matrix} q2", matrix_q2_ssa)
-
-    # bad matrix
-    bad_matrix = [[1,2,3], [5,6,7], [9,0,5]]
-    try:
-        MatrixGate.apply(q2, bad_matrix).verify()
-    except DiagnosticException as e:
-        _show_indent(printer, "qssa.matrix {3x3 matrix} error caught!", str(e))
-
-    # single qubit unitary via angles
-    f_the = Constant.from_float_and_width(2.4, f64)
-    f_phi = Constant.from_float_and_width(2.3, f64)
-    f_lam = Constant.from_float_and_width(2.5, f64)
-    _show_indent(printer, "angle %the defined", f_the)
-    _show_indent(printer, "angle %phi defined", f_phi)
-    _show_indent(printer, "angle %lam defined", f_lam)
-    q1_rot_ssa = EulerUnitaryGate.apply(f_the, f_phi, f_lam, q1)
-    _show_indent(printer, "qssa.euler_gate %lam %the %phi q1", q1_rot_ssa)
-
-
-if __name__ == "__main__":
-    main()
