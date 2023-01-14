@@ -27,7 +27,7 @@
 #   - qubit used at most once in the same region
 #   - two use in different regions, neither region can be an ancestor of another (otherwise we have reuse)
 #   - if qubit is within a for loop, i.e. scf.for { qubit }, then definition of qubit must be in the region too
-# 
+#
 # TODO:
 #   - dynamic qubit types
 #   - add traits
@@ -65,12 +65,14 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     i32,
-    f64, f32, f16,
+    f64,
+    f32,
+    f16,
     Annotated,
     StringAttr,
     FloatAttr,
     TensorType,
-    ArrayAttr
+    ArrayAttr,
 )
 
 from typing import Union
@@ -82,6 +84,7 @@ class Qubits(ParametrizedAttribute):
     """
     TODO: add support for dynamic qubit sizes
     """
+
     name = "qubits"
 
     # number of qubits
@@ -184,11 +187,11 @@ class Split(Operation):
         w1_out_n_qubits_ssa = SSAValue.get(w1_out_n_qubits)
         attr_constr_coercion(IntegerType).verify(w1_out_n_qubits_ssa.typ)
         w1_out_n_qubits = w1_out_n_qubits.value.value.data
-        
+
         # w1 should have type Qubits<w1_qubits.data>
         # w2 should have type Qubits<n - w1_qubits.data>, where type of input_qubis is Qubits<n>
         w_in_ssa = SSAValue.get(w_in)
-        w_in_n_qubits = w_in_ssa.typ.n.data # TODO: handle the dynamic qubit case here
+        w_in_n_qubits = w_in_ssa.typ.n.data  # TODO: handle the dynamic qubit case here
         w2_out_n_qubits = w_in_n_qubits - w1_out_n_qubits
         if w1_out_n_qubits <= 0 or w2_out_n_qubits <= 0:
             # TODO: use Qubit print method.
@@ -267,9 +270,7 @@ class Measure(Operation):
         # find the dimension of current qubits
         qubit_dim = SSAValue.get(input_qubits).typ.n.data
         bit_measure_type = TensorType.from_type_and_list(bit_type, [qubit_dim])
-        return Measure.build(
-            operands=[input_qubits], result_types=[bit_measure_type]
-        )
+        return Measure.build(operands=[input_qubits], result_types=[bit_measure_type])
 
 
 @irdl_op_definition
@@ -277,6 +278,7 @@ class Cast(Operation):
     """
     Cast operation. Casts dynamic qubit types Qubits<?> into static ones Qubits<n> and vice versa
     """
+
     name: str = "qssa.cast"
 
     # operands
@@ -292,9 +294,7 @@ class Cast(Operation):
         # for now, just return identity
         # TODO: actually implement the casting functionality for dynamic <-> static types
 
-        return Cast.build(
-            operands=[input_qubits], result_types=[input_qubits_typ]
-        )
+        return Cast.build(operands=[input_qubits], result_types=[input_qubits_typ])
 
 
 # class Gate(Operation, ABC):
@@ -320,7 +320,7 @@ class SquareMatrixConstraint(AttrConstraint):
 
         # ensure array dimensions is 2^n for some n
         nrows = len(matrix)
-        if not (nrows & (nrows-1) == 0):
+        if not (nrows & (nrows - 1) == 0):
             raise DiagnosticException(f"Matrix dimension ({nrows}x_) is not 2^n x 2^n")
 
         # ensure array is square
@@ -335,6 +335,7 @@ class MatrixGate(Operation):
     Definition of a gate by a 2^n x 2^n matrix.
     Gates must be reversible thus square.
     """
+
     name: str = "qssa.gate"
 
     # attributes
@@ -348,16 +349,24 @@ class MatrixGate(Operation):
 
     @staticmethod
     def _convert_to_array_attr(matrix: list[list[float]]) -> ArrayAttr:
-        matrix_attr_elems = [[FloatAttr.from_value(float(e)) for e in row] for row in matrix]
+        matrix_attr_elems = [
+            [FloatAttr.from_value(float(e)) for e in row] for row in matrix
+        ]
         matrix_attr_rows = [ArrayAttr.from_list(row) for row in matrix_attr_elems]
         return ArrayAttr.from_list(matrix_attr_rows)
 
     @staticmethod
-    def apply(input_qubits: Union[Operation, SSAValue], matrix: list[list[float]]) -> MatrixGate:
+    def apply(
+        input_qubits: Union[Operation, SSAValue], matrix: list[list[float]]
+    ) -> MatrixGate:
         qubit_type = SSAValue.get(input_qubits).typ
         # TODO: add check to ensure matrix is compatible with number of qubits, i.e. is 2^n x 2^n for qubit<n>
         matrix_attr = MatrixGate._convert_to_array_attr(matrix)
-        return MatrixGate.build(operands=[input_qubits], result_types=[qubit_type], attributes={"matrix": matrix_attr})
+        return MatrixGate.build(
+            operands=[input_qubits],
+            result_types=[qubit_type],
+            attributes={"matrix": matrix_attr},
+        )
 
 
 @irdl_op_definition
@@ -365,6 +374,7 @@ class EulerUnitaryGate(Operation):
     """
     Single qubit unitary from Euler angles
     """
+
     name: str = "qssa.euler_gate"
 
     # inputs
@@ -377,12 +387,16 @@ class EulerUnitaryGate(Operation):
     out: Annotated[OpResult, Qubits]
 
     @staticmethod
-    def apply(the: Union[Operation, SSAValue],
-              phi: Union[Operation, SSAValue],
-              lam: Union[Operation, SSAValue],
-              input_qubits: Union[Operation, SSAValue]) -> EulerUnitaryGate:
+    def apply(
+        the: Union[Operation, SSAValue],
+        phi: Union[Operation, SSAValue],
+        lam: Union[Operation, SSAValue],
+        input_qubits: Union[Operation, SSAValue],
+    ) -> EulerUnitaryGate:
         qubit_type = SSAValue.get(input_qubits).typ
-        return EulerUnitaryGate.build(operands=[the, phi, lam, input_qubits], result_types=[qubit_type])
+        return EulerUnitaryGate.build(
+            operands=[the, phi, lam, input_qubits], result_types=[qubit_type]
+        )
 
 
 @irdl_op_definition
@@ -500,4 +514,7 @@ class TGate(Operation):
         return TGate.build(operands=[input_qubit], result_types=[q1_Type])
 
 
-Quantum = Dialect([Alloc, CNOT, PauliRotate, Pauli, Merge, Split, SGate, HGate, TGate], [Qubits, Angle])
+Quantum = Dialect(
+    [Alloc, CNOT, PauliRotate, Pauli, Merge, Split, SGate, HGate, TGate],
+    [Qubits, Angle],
+)
