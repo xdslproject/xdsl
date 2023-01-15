@@ -28,6 +28,7 @@ class Const(Generic[_T]):
     """
     pass
 
+
 def is_constant(node: ast.expr) -> bool:
     """Returns `True` if the AST node is a Const type."""
     return isinstance(node, ast.Subscript) and isinstance(

@@ -155,21 +155,27 @@ class CheckAndInlineConstants:
         CheckAndInlineConstants.run_with_variables(stmts, set())
 
     @staticmethod
-    def run_with_variables(stmts: List[ast.stmt], defined_variables: Set[str]) -> None:
+    def run_with_variables(stmts: List[ast.stmt],
+                           defined_variables: Set[str]) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so we have to
             # keep track of these to raise an exception.
-            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
+            if isinstance(stmt, ast.Assign) and len(
+                    stmt.targets) == 1 and isinstance(stmt.targets[0],
+                                                      ast.Name):
                 defined_variables.add(stmt.targets[0].id)
                 continue
 
             # Similarly, this case (`a: i32 = ...`) can also be redefined as a constant.
-            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and not is_constant(stmt.annotation):
+            if isinstance(stmt, ast.AnnAssign) and isinstance(
+                    stmt.target,
+                    ast.Name) and not is_constant(stmt.annotation):
                 defined_variables.add(stmt.target.id)
                 continue
 
             # This is a constant.
-            if isinstance(stmt, ast.AnnAssign) and is_constant(stmt.annotation):
+            if isinstance(stmt, ast.AnnAssign) and is_constant(
+                    stmt.annotation):
                 if not isinstance(stmt.target, ast.Name):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
@@ -200,7 +206,7 @@ class CheckAndInlineConstants:
                 # `a: Const[i16] = 100000000` should give an error.
                 new_node = ast.Constant(value)
                 inliner = ConstantInliner(name, new_node)
-                for candidate in stmts[(i+1):]:
+                for candidate in stmts[(i + 1):]:
                     inliner.visit(candidate)
 
                 # Ideally, we can prune this AST node now, but it is easier just
@@ -212,8 +218,10 @@ class CheckAndInlineConstants:
             # this then all constants above `i` must have been already inlined.
             # Hence, it is sufficient to check the function body only.
             if isinstance(stmt, ast.FunctionDef):
-                new_defined_variables = set([arg.arg for arg in stmt.args.args])
-                CheckAndInlineConstants.run_with_variables(stmt.body, new_defined_variables)
+                new_defined_variables = set(
+                    [arg.arg for arg in stmt.args.args])
+                CheckAndInlineConstants.run_with_variables(
+                    stmt.body, new_defined_variables)
 
 
 @dataclass
@@ -226,30 +234,30 @@ class ConstantInliner(ast.NodeTransformer):
     """New constant to ."""
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == self.name:
+        if len(node.targets) == 1 and isinstance(
+                node.targets[0], ast.Name) and node.targets[0].id == self.name:
             raise CodeGenerationException(
-                        node.lineno, node.col_offset,
-                        f"Constant '{self.name}' is already defined and cannot be assigned to."
-                    )
+                node.lineno, node.col_offset,
+                f"Constant '{self.name}' is already defined and cannot be assigned to."
+            )
         node.value = self.visit(node.value)
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         if isinstance(node.target, ast.Name) and node.target.id == self.name:
             raise CodeGenerationException(
-                        node.lineno, node.col_offset,
-                        f"Constant '{self.name}' is already defined."
-                    )
+                node.lineno, node.col_offset,
+                f"Constant '{self.name}' is already defined.")
         node.value = self.visit(node.value)
         return node
-    
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         for arg in node.args.args:
             if arg.arg == self.name:
                 raise CodeGenerationException(
-                        node.lineno, node.col_offset,
-                        f"Constant '{self.name}' is already defined and cannot be used as a function/block argument name."
-                    )
+                    node.lineno, node.col_offset,
+                    f"Constant '{self.name}' is already defined and cannot be used as a function/block argument name."
+                )
         for stmt in node.body:
             self.visit(stmt)
         return node

@@ -240,7 +240,7 @@ try:
     with CodeContext(p):
 
         c: Const[i32] = 23
-       
+
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
             c = 2
@@ -255,7 +255,7 @@ try:
     with CodeContext(p):
 
         c: Const[i32] = 23
-       
+
         def foo():
             # CHECK-NEXT: Constant 'c' is already defined.
             c: i32 = 2
@@ -270,7 +270,7 @@ try:
     with CodeContext(p):
 
         c: Const[i32] = 23
-       
+
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
         def foo(c: i32):
             return
