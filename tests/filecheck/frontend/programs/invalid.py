@@ -183,7 +183,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         a: Const[i32] = 23
-        # CHECK-NEXT: Cannot assign to constant variable 'a'.
+        # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
         a = 3
 
     p.compile(desymref=False)
@@ -193,10 +193,22 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+        a: Const[i32] = 23
+        # CHECK-NEXT: Constant 'a' is already defined.
+        a: i32 = 3
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
         b: Const[i32] = 23
-        # CHECK-NEXT: Cannot assign to constant variable 'b'.
+
         @block
         def bb0():
+            # CHECK-NEXT: Constant 'b' is already defined and cannot be assigned to.
             b = 3
             return
 
@@ -209,11 +221,12 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+        b: Const[i32] = 23
 
-        # CHECK-NEXT: All constant expressions have to be created in the global scope.
         @block
         def bb0():
-            c: Const[i32] = 23
+            # CHECK-NEXT: Constant 'b' is already defined.
+            b: i32 = 3
             return
 
         bb0()
@@ -226,11 +239,40 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        d: Const[i32] = 23
-
-        # CHECK-NEXT: Cannot assign to constant variable 'd'.
+        c: Const[i32] = 23
+       
         def foo():
-            d = 2
+            # CHECK-NEXT: Constant 'c' is already defined and cannot be assigned to.
+            c = 2
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        c: Const[i32] = 23
+       
+        def foo():
+            # CHECK-NEXT: Constant 'c' is already defined.
+            c: i32 = 2
+            return
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+
+        c: Const[i32] = 23
+       
+        # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
+        def foo(c: i32):
             return
 
     p.compile(desymref=False)
@@ -243,44 +285,12 @@ try:
 
         e: Const[i32] = 23
 
-        # CHECK-NEXT: Cannot assign to constant variable 'e'.
         def foo():
 
             @block
             def bb0():
+                # CHECK-NEXT: Constant 'e' is already defined and cannot be assigned to.
                 e = 2
-                return
-
-            bb0()
-            return
-
-    p.compile(desymref=False)
-    print(p.xdsl())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-
-        # CHECK-NEXT: All constant expressions have to be created in the global scope.
-        def foo():
-            f: Const[i32] = 23
-            return
-
-    p.compile(desymref=False)
-    print(p.xdsl())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-
-        # CHECK-NEXT: All constant expressions have to be created in the global scope.
-        def foo():
-
-            @block
-            def bb0():
-                g: Const[i32] = 23
                 return
 
             bb0()

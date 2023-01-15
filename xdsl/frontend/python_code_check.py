@@ -1,8 +1,9 @@
 import ast
 from dataclasses import dataclass, field
+import enum
 from typing import Dict, List, Set
 from xdsl.frontend.block import is_block
-from xdsl.frontend.const import Const
+from xdsl.frontend.const import is_constant
 from xdsl.frontend.exception import CodeGenerationException
 
 
@@ -45,15 +46,15 @@ class PythonCodeCheck:
                 break
 
         # Check Python code is correctly structured.
-        StructureCheck.run_with_scope(single_scope, stmts)
+        CheckStructure.run_with_scope(single_scope, stmts)
 
         # Check constant/global variables are correctly defined. Should be
         # called only after the structure is checked.
-        ConstantCheck.run(stmts)
+        CheckAndInlineConstants.run(stmts)
 
 
 @dataclass
-class StructureCheck:
+class CheckStructure:
 
     @staticmethod
     def run_with_scope(single_scope: bool, stmts: List[ast.stmt]) -> None:
@@ -147,120 +148,114 @@ class MultipleScopeVisitor(ast.NodeVisitor):
 
 
 @dataclass
-class ConstantCheck:
+class CheckAndInlineConstants:
 
     @staticmethod
     def run(stmts: List[ast.stmt]) -> None:
-        visitor = ConstantVisitor()
-        for stmt in stmts:
-            visitor.visit(stmt)
+        CheckAndInlineConstants.run_with_variables(stmts, set())
 
+    @staticmethod
+    def run_with_variables(stmts: List[ast.stmt], defined_variables: Set[str]) -> None:
+        for i, stmt in enumerate(stmts):
+            # This variable (`a = ...`) can be redefined as a constant, and so we have to
+            # keep track of these to raise an exception.
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
+                defined_variables.add(stmt.targets[0].id)
+                continue
 
-@dataclass
-class Constant:
+            # Similarly, this case (`a: i32 = ...`) can also be redefined as a constant.
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) and not is_constant(stmt.annotation):
+                defined_variables.add(stmt.target.id)
+                continue
 
-    value: int | float
-    """Evaluated value of the constant. Only a few primitive types are supported."""
+            # This is a constant.
+            if isinstance(stmt, ast.AnnAssign) and is_constant(stmt.annotation):
+                if not isinstance(stmt.target, ast.Name):
+                    raise CodeGenerationException(
+                        stmt.lineno, stmt.col_offset,
+                        f"All constant expressions have to be assigned to 'ast.Name' nodes."
+                    )
 
-    shadowed: bool = field(default=False)
-    """True if this constant is shadowed by function/block argument."""
+                name = stmt.target.id
+                try:
+                    value = eval(ast.unparse(stmt.value))
+                except Exception:
+                    # TODO: This error message can be improved by matching exact
+                    # exceptions returned by `eval` call.
+                    raise CodeGenerationException(
+                        stmt.lineno, stmt.col_offset,
+                        f"Non-constant expression cannot be assigned to constant variable '{name}' or cannot be evaluated."
+                    )
 
-
-@dataclass
-class ConstantVisitor(ast.NodeVisitor):
-
-    constants: Dict[str, Constant] = field(default_factory=dict)
-    """Stores all information about constants in the current system."""
-
-    global_scope: bool = field(default=True)
-    """
-    True if the visitor is processing the "global" scope of the program, i.e.
-    not inside block/functions.
-    """
-
-    def visit(self, node: ast.AST) -> None:
-        super().visit(node)
-
-    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
-        if not Const.check(
-                node.annotation) and not self.global_scope and isinstance(
-                    node.target, ast.Name):
-            # We are assigning to a non-constant variable inside a function.
-            # Check if it shadows one of the constants.
-            if node.target.id in self.constants:
-                self.constants[node.target.id].shadowed = True
-        elif Const.check(node.annotation):
-            if not self.global_scope:
-                raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"All constant expressions have to be created in the global scope."
-                )
-
-            if not isinstance(node.target, ast.Name):
-                raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"All constant expressions have to be assigned to 'ast.Name' nodes."
-                )
-
-            name = node.target.id
-            if name in self.constants:
-                raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"Constant '{name}' is already defined in the program.")
-            try:
-                # TODO: This does not take care of cases like:
-                # ```
-                # a: Const[i32] = 12
-                # b: Const[i32] = a + 23
-                # ```
-                # It is not difficult to add support for this in th future
-                # though.
-                value = eval(ast.unparse(node.value))
                 # For now, support primitive types only and add a guard to abort
                 # in other cases.
-                if isinstance(value, int) or isinstance(value, float):
-                    self.constants[name] = Constant(value)
-                else:
+                if not isinstance(value, int) and not isinstance(value, float):
                     raise CodeGenerationException(
-                        node.lineno, node.col_offset,
+                        stmt.lineno, stmt.col_offset,
                         f"Constant '{name}' has evaluated type '{type(value)}' which is not supported."
                     )
-            except Exception:
-                # TODO: This error message can be improved by matching exact
-                # exceptions returned by `eval` call.
-                raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"Non-constant expression cannot be assigned to constant variable '{name}' or cannot be evaluated."
-                )
 
-    def visit_Assign(self, node: ast.Assign) -> None:
-        if len(node.targets) != 1:
+                # TODO: We should typecheck the value against the type. This
+                # can get tricky since ints can overflow, etc. For example,
+                # `a: Const[i16] = 100000000` should give an error.
+                new_node = ast.Constant(value)
+                inliner = ConstantInliner(name, new_node)
+                for candidate in stmts[(i+1):]:
+                    inliner.visit(candidate)
+
+                # Ideally, we can prune this AST node now, but it is easier just
+                # to avoid it during code generation phase.
+                continue
+
+            # In case of a function/block definition, we must ensure we process
+            # the nested list of statements as well. Note that if we reached
+            # this then all constants above `i` must have been already inlined.
+            # Hence, it is sufficient to check the function body only.
+            if isinstance(stmt, ast.FunctionDef):
+                new_defined_variables = set([arg.arg for arg in stmt.args.args])
+                CheckAndInlineConstants.run_with_variables(stmt.body, new_defined_variables)
+
+
+@dataclass
+class ConstantInliner(ast.NodeTransformer):
+
+    name: str
+    """The name of the constant to inline."""
+
+    new_node: ast.Constant
+    """New constant to ."""
+
+    def visit_Assign(self, node: ast.Assign) -> ast.Assign:
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == self.name:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Assignments are allowed to exactly one variable only.")
-        if isinstance(node.targets[0], ast.Name):
-            name = node.targets[0].id
-            # Ensure that unless the variable is shadowed by local variables, it
-            # cannot be assigned to.
-            if name in self.constants and not self.constants[name].shadowed:
+                        node.lineno, node.col_offset,
+                        f"Constant '{self.name}' is already defined and cannot be assigned to."
+                    )
+        node.value = self.visit(node.value)
+        return node
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
+        if isinstance(node.target, ast.Name) and node.target.id == self.name:
+            raise CodeGenerationException(
+                        node.lineno, node.col_offset,
+                        f"Constant '{self.name}' is already defined."
+                    )
+        node.value = self.visit(node.value)
+        return node
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        for arg in node.args.args:
+            if arg.arg == self.name:
                 raise CodeGenerationException(
-                    node.lineno, node.col_offset,
-                    f"Cannot assign to constant variable '{name}'.")
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        # Record all variables that were shadowed before.
-        previously_shadowed_constants: Set[str] = []
-        for name, constant in self.constants.items():
-            if constant.shadowed:
-                previously_shadowed_constants.add(name)
-
-        old_scope = self.global_scope
-        self.global_scope = False
+                        node.lineno, node.col_offset,
+                        f"Constant '{self.name}' is already defined and cannot be used as a function/block argument name."
+                    )
         for stmt in node.body:
             self.visit(stmt)
-        self.global_scope = old_scope
+        return node
 
-        # Unshadow newly shadowed variables.
-        for name in self.constants.keys():
-            if name not in previously_shadowed_constants:
-                self.constants[name].shadowed = False
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        if node.id == self.name:
+            return self.new_node
+        else:
+            return node

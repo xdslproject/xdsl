@@ -2,86 +2,102 @@ import ast
 import pytest
 
 from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.python_code_check import Constant, ConstantVisitor
+from xdsl.frontend.python_code_check import CheckAndInlineConstants
 
 
-def test_const_correctly_evaluated():
-    visitor = ConstantVisitor()
+def test_const_correctly_evaluated_I():
+
     src = \
 """
 a: Const[i32] = 2 ** 5
-b: Const[i32] = len([1, 2, 3])
+x = a
 """
-    visitor.visit(ast.parse(src))
-
-    assert "a" in visitor.constants
-    assert not visitor.constants["a"].shadowed
-    assert visitor.constants["a"].value == 32
-
-    assert "b" in visitor.constants
-    assert not visitor.constants["b"].shadowed
-    assert visitor.constants["b"].value == 3
+    stmts = ast.parse(src).body
+    CheckAndInlineConstants.run(stmts)
+    assert(ast.unparse(stmts).endswith("x = 32"))
 
 
-def test_can_assign_to_shadowed_constants_I():
-    visitor = ConstantVisitor()
-    visitor.constants["a"] = Constant(1, True)
-    visitor.constants["b"] = Constant(2, True)
+def test_const_correctly_evaluated_II():
+
     src = \
 """
-a = 3
-b = 43
+a: Const[i32] = 4
+x: i64 = a + 2
 """
-    visitor.visit(ast.parse(src))
-    assert visitor.constants["a"].value == 1
-    assert visitor.constants["a"].shadowed
-    assert visitor.constants["b"].value == 2
-    assert visitor.constants["b"].shadowed
+    stmts = ast.parse(src).body
+    CheckAndInlineConstants.run(stmts)
+    assert(ast.unparse(stmts).endswith("x: i64 = 4 + 2"))
 
 
-def test_can_assign_to_shadowed_constants_II():
-    visitor = ConstantVisitor()
+def test_const_correctly_evaluated_III():
+
     src = \
 """
-y: Const[i32] = 2 ** 5
-def foo():
-    y: i32 = 0
-    y = 125
-    return
+a: Const[i32] = 4
+b: Const[i32] = len([1, 2, 3, 4])
+x: Const[i32] = a + b
+y = x
 """
-    visitor.visit(ast.parse(src))
-    assert visitor.constants["y"].value == 32
-    assert not visitor.constants["y"].shadowed
+    stmts = ast.parse(src).body
+    CheckAndInlineConstants.run(stmts)
+    assert(ast.unparse(stmts).endswith("y = 8"))
+
+
+def test_const_correctly_evaluated_IV():
+
+    src = \
+"""
+a: Const[i32] = 4
+def foo(y: i32):
+    x: i32 = a + y
+"""
+    stmts = ast.parse(src).body
+    CheckAndInlineConstants.run(stmts)
+    assert(ast.unparse(stmts).endswith("x: i32 = 4 + y"))
+
+
+def test_const_correctly_evaluated_V():
+
+    src = \
+"""
+a: Const[i32] = 4
+b: Const[i32] = 4
+def foo(y: i32):
+    c: Const[i32] = a + b + 2
+    x: i32 = c
+"""
+    stmts = ast.parse(src).body
+    CheckAndInlineConstants.run(stmts)
+    assert(ast.unparse(stmts).endswith("x: i32 = 10"))
 
 
 def test_raises_exception_on_assignemnt_to_const_I():
-    visitor = ConstantVisitor()
     src = \
 """
 a: Const[i32] = 2 ** 5
 a = 34
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Cannot assign to constant variable 'a'."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Constant 'a' is already defined and cannot be assigned to."
 
 
 def test_raises_exception_on_assignemnt_to_const_II():
-    visitor = ConstantVisitor()
     src = \
 """
 x: Const[i32] = 100
 def foo():
-    x = 2
+    x: i32 = 2
     return
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Cannot assign to constant variable 'x'."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Constant 'x' is already defined."
 
 
 def test_raises_exception_on_assignemnt_to_const_III():
-    visitor = ConstantVisitor()
     src = \
 """
 y: Const[i32] = 100
@@ -91,70 +107,57 @@ def bb0():
     return
 bb0()
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Cannot assign to constant variable 'y'."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Constant 'y' is already defined and cannot be assigned to."
 
 
 def test_raises_exception_on_assignemnt_to_const_IV():
-    visitor = ConstantVisitor()
     src = \
 """
 z: Const[i32] = 100
-def foo():
+def foo(x: i32):
     @block
-    def bb0():
-        z = 32
+    def bb0(z: i32):
         return
-    bb0()
+    bb0(x)
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Cannot assign to constant variable 'z'."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Constant 'z' is already defined and cannot be used as a function/block argument name."
 
 
 def test_raises_exception_on_duplicate_const():
-    visitor = ConstantVisitor()
     src = \
 """
 z: Const[i32] = 100
 z: Const[i32] = 2
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Constant 'z' is already defined in the program."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Constant 'z' is already defined."
 
 
 def test_raises_exception_on_evaluation_error_I():
-    visitor = ConstantVisitor()
     src = \
 """
 z: Const[i32] = 23 / 0
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
+        CheckAndInlineConstants.run(stmts)
     assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
 
 
 def test_raises_exception_on_evaluation_error_II():
-    visitor = ConstantVisitor()
     src = \
 """
-a: Const[i32] = 12
-b: Const[i32] = a + 23
+a: Const[i32] = x + 12
 """
+    stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'b' or cannot be evaluated."
-
-
-def test_raises_exception_on_const_inside_functions():
-    visitor = ConstantVisitor()
-    src = \
-"""
-def foo():
-    a: Const[i32] = 12
-"""
-    with pytest.raises(CodeGenerationException) as err:
-        visitor.visit(ast.parse(src))
-    assert err.value.msg == "All constant expressions have to be created in the global scope."
+        CheckAndInlineConstants.run(stmts)
+    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
