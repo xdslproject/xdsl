@@ -27,14 +27,6 @@ class AnyOp(Operation):
     res: Annotated[VarOpResult, AnyAttr()]
 
 
-@irdl_op_definition
-class TestOpCrash(Operation):
-    """Operation only used for testing."""
-    name = "test.op_crash"
-    op: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
-
-
 @irdl_attr_definition
 class DataAttr(Data[int]):
     """Attribute only used for testing."""
