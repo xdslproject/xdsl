@@ -78,12 +78,11 @@ class Printer:
     def _add_message_on_next_line(self, message: str, begin_pos: int,
                                   end_pos: int):
         """Add a message that will be displayed on the next line."""
-        # Python does not have a way to specify the type of an optional
-        # argument.
-        callback: Callable[[int], None] = (
-            lambda indent=self._indent: self._print_message(
-                message, begin_pos, end_pos, indent))
-        self._next_line_callback.append(cast(Callable[[], None], callback))
+
+        def callback(indent: int = self._indent):
+            self._print_message(message, begin_pos, end_pos, indent)
+
+        self._next_line_callback.append(callback)
 
     def _print_message(self,
                        message: str,
@@ -113,6 +112,8 @@ class Printer:
         self._print_new_line(indent=0, print_message=False)
 
     T = TypeVar('T')
+    K = TypeVar('K')
+    V = TypeVar('V')
 
     def print_list(self,
                    elems: Iterable[T],
@@ -124,15 +125,16 @@ class Printer:
             print_fn(elem)
 
     def print_dictionary(self,
-                         elems: dict,
-                         print_fn: Callable[[T], None],
+                         elems: dict[K, V],
+                         print_key: Callable[[K], None],
+                         print_value: Callable[[V], None],
                          delimiter: str = ", ") -> None:
         for i, (key, value) in enumerate(elems.items()):
             if i:
                 self.print(delimiter)
-            print_fn(key)
+            print_key(key)
             self.print("=")
-            print_fn(value)
+            print_value(value)
 
     def _print_new_line(self,
                         indent: int | None = None,
@@ -293,6 +295,9 @@ class Printer:
         self.print_list(params, self.print_attribute)
         self.print(">")
 
+    def print_string_literal(self, string: str):
+        self.print(f'"{string}"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -321,7 +326,7 @@ class Printer:
                 return
 
         if isinstance(attribute, StringAttr):
-            self.print(f'"{attribute.data}"')
+            self.print_string_literal(attribute.data)
             return
 
         if isinstance(attribute, FlatSymbolRefAttr):
@@ -347,7 +352,8 @@ class Printer:
 
         if isinstance(attribute, FloatAttr):
             value = attribute.value
-            typ = attribute.type
+            typ = cast(FloatAttr[Float16Type | Float32Type | Float64Type],
+                       attribute).type
             self.print(value.data)
             self.print(" : ")
             self.print_attribute(typ)
@@ -363,9 +369,8 @@ class Printer:
 
         if isinstance(attribute, DictionaryAttr):
             self.print_string("{")
-            self.print_dictionary(
-                attribute.data,  # type: ignore
-                self.print_attribute)
+            self.print_dictionary(attribute.data, self.print_string_literal,
+                                  self.print_attribute)
             self.print_string("}")
             return
 
@@ -530,7 +535,7 @@ class Printer:
         self.print(" ")
         self.print("[" if self.target == Printer.Target.XDSL else "{")
 
-        attribute_list = [p for p in attributes.items()]
+        attribute_list = list(attributes.items())
         self.print_list(attribute_list, self._print_attr_string)
 
         self.print("]" if self.target == Printer.Target.XDSL else "}")

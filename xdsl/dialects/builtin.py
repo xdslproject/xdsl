@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (Annotated, TypeAlias, List, cast, Type, Sequence, Optional,
+from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
@@ -342,26 +342,25 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
-_DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
-
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
+class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[_DictionaryAttrT]:
+    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
         parser.parse_char("{")
-        data = parser.parse_dictionary(parser.parse_optional_attribute)
+
+        data = parser.parse_dictionary(parser.parse_optional_str_literal,
+                                       parser.parse_optional_attribute)
         parser.parse_char("}")
-        # the type system can't ensure that the elements are of type A
-        # and not just of type Attribute, therefore, the following cast
-        return cast(dict, data)
+        return data
 
     @staticmethod
-    def print_parameter(data: dict, printer: Printer) -> None:
+    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(data, printer.print_attribute)
+        printer.print_dictionary(data, printer.print_string_literal,
+                                 printer.print_attribute)
         printer.print_string("}")
 
     @staticmethod
@@ -375,20 +374,23 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
                 f" {type(self.data)}, but expected dictionary of"
                 " attributes")
         for key, val in self.data.items():
-            if not isinstance(key, Attribute):
+            if not isinstance(key, str):
                 raise VerifyException(
-                    f"{self.name} key expects attribute, but {key} "
+                    f"{self.name} key expects str, but {key} "
+                    f"element is of type {type(key)}")
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} key expects attribute, but {val} "
                     f"element is of type {type(val)}")
 
     @staticmethod
     @builder
-    def from_dict(data: dict) -> DictionaryAttr[_DictionaryAttrT]:
-        to_add_data = {}
+    def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
+        to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
-            if not isinstance(k, StringAttr):
-                if isinstance(k, str):
-                    str_attr_k = StringAttr.from_str(k)
-                    to_add_data[str_attr_k] = v
+            if not isinstance(k, str):
+                if isinstance(k, StringAttr):
+                    to_add_data[k.data] = v
                 else:
                     raise TypeError(
                         f"Attribute DictionaryAttr expects keys to"
@@ -397,9 +399,6 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
             else:
                 to_add_data[k] = v
         return DictionaryAttr(to_add_data)
-
-
-AnyDictionaryAttr: TypeAlias = DictionaryAttr[Attribute]
 
 
 @irdl_attr_definition
@@ -474,7 +473,7 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
     @builder
     def from_type_and_list(
         referenced_type: _TensorTypeElems,
-        shape: Optional[Sequence[int | IntegerAttr[IndexType]]] = None
+        shape: Sequence[int | IntegerAttr[IndexType]] | None = None
     ) -> TensorType[_TensorTypeElems]:
         if shape is None:
             shape = [1]

@@ -460,36 +460,44 @@ class Parser:
             res.append(one)
         return res
 
+    K = TypeVar('K')
+    V = TypeVar('V')
+
     def parse_dictionary(self,
-                         parse_optional_one: Callable[[], T | None],
+                         parse_optional_key: Callable[[], K | None],
+                         parse_optional_value: Callable[[], V | None],
                          delimiter: str = ",",
-                         skip_white_space: bool = True) -> dict[T]:
+                         skip_white_space: bool = True) -> dict[K, V]:
         if skip_white_space:
             self.skip_white_space()
         assert (len(delimiter) <= 1)
-        res = dict[Any]()  # Pyright do not let us use `T` here
-        entry = self.parse_dict_entry(parse_optional_one)
-        if entry is not None:
-            res = res | entry
-        while self.parse_optional_char(delimiter) if len(
-                delimiter) == 1 else True:
-            entry = self.parse_dict_entry(parse_optional_one)
-            if entry is None:
-                return res
-            res = res | entry
+        entry = self.parse_optional_dict_entry(parse_optional_key,
+                                               parse_optional_value)
+        if entry is None:
+            return {}
+        res = dict([entry])
+        while (self.parse_optional_char(delimiter)
+               if len(delimiter) == 1 else True):
+            entry = self.parse_optional_dict_entry(parse_optional_key,
+                                                   parse_optional_value)
+            if entry is not None:
+                res[entry[0]] = entry[1]
+
         return res
 
-    def parse_dict_entry(
+    def parse_optional_dict_entry(
         self,
-        parse_optional_one: Callable[[],
-                                     T | None]) -> dict[str, Attribute] | None:
-        # Limitation currently is that the key is a string
-        key = self.parse_str_literal()
-        if self.parse_optional_char("="):
-            value = parse_optional_one()
-            if value is not None:
-                return {key: value}
-        return None
+        parse_optional_key: Callable[[], K | None],
+        parse_optional_value: Callable[[], V | None],
+    ) -> tuple[K, V] | None:
+        if (key := parse_optional_key()) is None:
+            return None
+        self.parse_char("=")
+        if (value := parse_optional_value()) is None:
+            raise ParserError(self._pos,
+                              'Expected dictionary value after `key=`')
+
+        return key, value
 
     def parse_optional_block_argument(
             self,
@@ -706,7 +714,8 @@ class Parser:
         # Shorthand for DictionaryAttr
         parse_bracket = self.parse_optional_char("{")
         if parse_bracket:
-            dictionary = self.parse_dictionary(self.parse_optional_attribute)
+            dictionary = self.parse_dictionary(self.parse_optional_str_literal,
+                                               self.parse_optional_attribute)
             self.parse_char("}")
             return DictionaryAttr.from_dict(dictionary)
 
@@ -983,7 +992,8 @@ class Parser:
 
         # Shorthand for DictionaryAttr
         if self.parse_optional_char("{"):
-            contents = self.parse_dictionary(self.parse_optional_attribute)
+            contents = self.parse_dictionary(self.parse_optional_str_literal,
+                                             self.parse_optional_attribute)
             self.parse_char("}")
             return DictionaryAttr.from_dict(contents)
 
