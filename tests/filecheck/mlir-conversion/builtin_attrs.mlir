@@ -124,4 +124,10 @@
 
   // CHECK: tensor<?xi32>
 
+  "func.func"() ({}) {function_type = () -> (), 
+                      memref = memref<2xf32>,
+                      sym_name = "memref"} : () -> ()
+
+  // CHECK: memref<2xf32>
+
 }) : () -> ()
