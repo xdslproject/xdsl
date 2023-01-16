@@ -346,7 +346,7 @@ _DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
+class DictionaryAttr(GenericData[dict[StringAttr, _DictionaryAttrT]]):
     name = "dictionary"
 
     @staticmethod
@@ -355,7 +355,14 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
         parse_optional_attribute: Callable[[], _DictionaryAttrT | None]
     ) -> dict[str, _DictionaryAttrT]:
         parser.parse_char("{")
-        data = parser.parse_dictionary(parser.parse_str_literal,
+
+        def parse_optional_string_attr():
+            literal = parser.parse_optional_str_literal()
+            if literal is None:
+                return None
+            return StringAttr.from_str(literal)
+
+        data = parser.parse_dictionary(parse_optional_string_attr,
                                        parse_optional_attribute)
         parser.parse_char("}")
         return data

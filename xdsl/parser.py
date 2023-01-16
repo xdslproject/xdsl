@@ -709,7 +709,7 @@ class Parser:
         # Shorthand for DictionaryAttr
         parse_bracket = self.parse_optional_char("{")
         if parse_bracket:
-            dictionary = self.parse_dictionary(self.parse_str_literal,
+            dictionary = self.parse_dictionary(self.parse_optional_str_literal,
                                                self.parse_optional_attribute)
             self.parse_char("}")
             return DictionaryAttr.from_dict(dictionary)
@@ -987,7 +987,7 @@ class Parser:
 
         # Shorthand for DictionaryAttr
         if self.parse_optional_char("{"):
-            contents = self.parse_dictionary(self.parse_str_literal,
+            contents = self.parse_dictionary(self.parse_optional_str_literal,
                                              self.parse_optional_attribute)
             self.parse_char("}")
             return DictionaryAttr.from_dict(contents)

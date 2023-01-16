@@ -367,7 +367,6 @@ class Printer:
         if isinstance(attribute, DictionaryAttr):
             data = cast(DictionaryAttr[Attribute], attribute).data
             self.print_string("{")
-            # The keys are attributes, even if type is annotated as dict[str, Attribute]
             self.print_dictionary(data, self.print_attribute,
                                   self.print_attribute)
             self.print_string("}")

@@ -7,7 +7,7 @@ from xdsl.parser import Parser
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
                                             ("1, 0, 1", [1, 0, 1]),
                                             ("1, 1, 0", [1, 1, 0])])
-def test_int_list_parser(input, expected):
+def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
     parser = Parser(ctx, input)
 
@@ -28,10 +28,10 @@ def test_int_list_parser(input, expected):
     "VV": 12,
     "AA": -8
 })])
-def test_int_dictionary_parser(input, expected):
+def test_int_dictionary_parser(input: str, expected: dict[str, int]):
     ctx = MLContext()
     parser = Parser(ctx, input)
 
-    int_dict = parser.parse_dictionary(parser.parse_str_literal,
-                                       parser.parse_int_literal)
+    int_dict = parser.parse_dictionary(parser.parse_optional_str_literal,
+                                       parser.parse_optional_int_literal)
     assert int_dict == expected
