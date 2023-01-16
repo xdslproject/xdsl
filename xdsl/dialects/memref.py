@@ -241,8 +241,7 @@ class Global(Operation):
         if self.initial_value and not isinstance(self.initial_value,
                                                  DenseArrayBase):
             raise Exception(
-                "Global expects an initial value with type DenseArrayBase"
-            )
+                "Global expects an initial value with type DenseArrayBase")
 
     @staticmethod
     def get(sym_name: str | StringAttr,
