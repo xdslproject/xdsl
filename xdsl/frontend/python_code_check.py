@@ -1,6 +1,5 @@
 import ast
 from dataclasses import dataclass, field
-import enum
 from typing import Dict, List, Set
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import is_constant
@@ -89,12 +88,14 @@ class SingleScopeVisitor(ast.NodeVisitor):
                 if is_block(stmt):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"Cannot have a nested block '{stmt.name}' inside the block '{node.name}'."
+                        f"Cannot have a nested block '{stmt.name}' inside the "
+                        f"block '{node.name}'."
                     )
                 else:
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"Cannot have an inner function '{stmt.name}' inside the block '{node.name}'."
+                        f"Cannot have an inner function '{stmt.name}' inside "
+                        f"the block '{node.name}'."
                     )
 
 
@@ -123,27 +124,31 @@ class MultipleScopeVisitor(ast.NodeVisitor):
                 if not is_block(stmt):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"Cannot have an inner function '{stmt.name}' inside the function '{node.name}'."
+                        f"Cannot have an inner function '{stmt.name}' inside "
+                        f"the function '{node.name}'."
                     )
                 else:
                     if stmt.name in self.function_and_block_names[node.name]:
                         raise CodeGenerationException(
                             stmt.lineno, stmt.col_offset,
-                            f"Block '{stmt.name}' is already defined in function '{node.name}'."
+                            f"Block '{stmt.name}' is already defined in "
+                            f"function '{node.name}'."
                         )
                     self.function_and_block_names[node.name].add(stmt.name)
 
-                    for inner_stmt in stmt.body:
-                        if isinstance(inner_stmt, ast.FunctionDef):
-                            if is_block(inner_stmt):
+                    for inner in stmt.body:
+                        if isinstance(inner, ast.FunctionDef):
+                            if is_block(inner):
                                 raise CodeGenerationException(
-                                    inner_stmt.lineno, inner_stmt.col_offset,
-                                    f"Cannot have a nested block '{inner_stmt.name}' inside the block '{stmt.name}'."
+                                    inner.lineno, inner.col_offset,
+                                    f"Cannot have a nested block '{inner.name}'"
+                                    f" inside the block '{stmt.name}'."
                                 )
                             else:
                                 raise CodeGenerationException(
-                                    inner_stmt.lineno, inner_stmt.col_offset,
-                                    f"Cannot have an inner function '{inner_stmt.name}' inside the block '{stmt.name}'."
+                                    inner.lineno, inner.col_offset,
+                                    f"Cannot have an inner function '{inner.name}'"
+                                    f" inside the block '{stmt.name}'."
                                 )
 
 
@@ -176,15 +181,16 @@ class CheckAndInlineConstants:
     def run_with_variables(stmts: List[ast.stmt],
                            defined_variables: Set[str]) -> None:
         for i, stmt in enumerate(stmts):
-            # This variable (`a = ...`) can be redefined as a constant, and so we have to
-            # keep track of these to raise an exception.
+            # This variable (`a = ...`) can be redefined as a constant, and so
+            # we have to keep track of these to raise an exception.
             if isinstance(stmt, ast.Assign) and len(
                     stmt.targets) == 1 and isinstance(stmt.targets[0],
                                                       ast.Name):
                 defined_variables.add(stmt.targets[0].id)
                 continue
 
-            # Similarly, this case (`a: i32 = ...`) can also be redefined as a constant.
+            # Similarly, this case (`a: i32 = ...`) can also be redefined as a
+            # constant.
             if isinstance(stmt, ast.AnnAssign) and isinstance(
                     stmt.target,
                     ast.Name) and not is_constant(stmt.annotation):
@@ -197,7 +203,8 @@ class CheckAndInlineConstants:
                 if not isinstance(stmt.target, ast.Name):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"All constant expressions have to be assigned to 'ast.Name' nodes."
+                        f"All constant expressions have to be assigned to "
+                         "'ast.Name' nodes."
                     )
 
                 name = stmt.target.id
@@ -208,7 +215,8 @@ class CheckAndInlineConstants:
                     # exceptions returned by `eval` call.
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"Non-constant expression cannot be assigned to constant variable '{name}' or cannot be evaluated."
+                        f"Non-constant expression cannot be assigned to "
+                        f"constant variable '{name}' or cannot be evaluated."
                     )
 
                 # For now, support primitive types only and add a guard to abort
@@ -216,12 +224,13 @@ class CheckAndInlineConstants:
                 if not isinstance(value, int) and not isinstance(value, float):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
-                        f"Constant '{name}' has evaluated type '{type(value)}' which is not supported."
+                        f"Constant '{name}' has evaluated type '{type(value)}' "
+                         "which is not supported."
                     )
 
-                # TODO: We should typecheck the value against the type. This
-                # can get tricky since ints can overflow, etc. For example,
-                # `a: Const[i16] = 100000000` should give an error.
+                # TODO: We should typecheck the value against the type. This can
+                # get tricky since ints can overflow, etc. For example, `a:
+                # Const[i16] = 100000000` should give an error.
                 new_node = ast.Constant(value)
                 inliner = ConstantInliner(name, new_node)
                 for candidate in stmts[(i + 1):]:
@@ -263,7 +272,8 @@ class ConstantInliner(ast.NodeTransformer):
                 node.targets[0], ast.Name) and node.targets[0].id == self.name:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
-                f"Constant '{self.name}' is already defined and cannot be assigned to."
+                f"Constant '{self.name}' is already defined and cannot be "
+                 "assigned to."
             )
         node.value = self.visit(node.value)
         return node
@@ -281,7 +291,8 @@ class ConstantInliner(ast.NodeTransformer):
             if arg.arg == self.name:
                 raise CodeGenerationException(
                     node.lineno, node.col_offset,
-                    f"Constant '{self.name}' is already defined and cannot be used as a function/block argument name."
+                    f"Constant '{self.name}' is already defined and cannot be "
+                     "used as a function/block argument name."
                 )
         for stmt in node.body:
             self.visit(stmt)
