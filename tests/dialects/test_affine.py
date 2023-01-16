@@ -1,7 +1,8 @@
-from xdsl.dialects.affine import For, Yield
-from xdsl.ir import Region, OpResult, Block
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 import pytest
+
+from xdsl.dialects.affine import For, Yield
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.ir import Region, OpResult, Block
 
 
 def test_simple_for():

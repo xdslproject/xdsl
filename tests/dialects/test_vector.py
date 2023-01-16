@@ -1,4 +1,4 @@
-from pytest import raises
+import pytest
 
 from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType
@@ -63,7 +63,7 @@ def test_vector_load_verify_type_matching():
     load = Load.build(operands=[memref_ssa_value, []],
                       result_types=[res_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         load.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the Vector element type."
@@ -75,7 +75,7 @@ def test_vector_load_verify_indexing_exception():
 
     load = Load.get(memref_ssa_value, [])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         load.verify()
     assert exc_info.value.args[0] == "Expected an index for each dimension."
 
@@ -120,7 +120,7 @@ def test_vector_store_verify_type_matching():
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         store.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the Vector element type."
@@ -135,7 +135,7 @@ def test_vector_store_verify_indexing_exception():
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         store.verify()
     assert exc_info.value.args[0] == "Expected an index for each dimension."
 
@@ -156,7 +156,7 @@ def test_vector_broadcast_verify_type_matching():
     broadcast = Broadcast.build(operands=[index1],
                                 result_types=[res_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         broadcast.verify()
     assert exc_info.value.args[
         0] == "Source operand and result vector must have the same element type."
@@ -208,7 +208,7 @@ def test_vector_fma_verify_res_lhs_type_matching():
     ],
                     result_types=[i64_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
@@ -226,7 +226,7 @@ def test_vector_fma_verify_res_rhs_type_matching():
     ],
                     result_types=[i64_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
@@ -244,7 +244,7 @@ def test_vector_fma_verify_res_acc_type_matching():
     ],
                     result_types=[i64_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
@@ -261,7 +261,7 @@ def test_vector_fma_verify_res_lhs_shape_matching():
         operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
         result_types=[i32_vector_type2])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
@@ -278,7 +278,7 @@ def test_vector_fma_verify_res_rhs_shape_matching():
         operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
         result_types=[i32_vector_type2])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
@@ -295,7 +295,7 @@ def test_vector_fma_verify_res_acc_shape_matching():
         operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
         result_types=[i32_vector_type2])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert exc_info.value.args[
         0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
@@ -366,7 +366,7 @@ def test_vector_masked_load_verify_memref_res_type_matching():
     ],
                                   result_types=[i64_res_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
@@ -392,7 +392,7 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
     ],
                                   result_types=[i64_res_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[
         0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
@@ -413,7 +413,7 @@ def test_vector_masked_load_verify_indexing_exception():
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[
         0] == "Expected an index for each memref dimension."
@@ -439,7 +439,7 @@ def test_vector_masked_load_verify_result_vector_rank():
     ],
                                   result_types=[i32_res_vector_type])
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[0] == "Expected a rank 1 result vector."
 
@@ -459,7 +459,7 @@ def test_vector_masked_load_verify_mask_vector_rank():
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[0] == "Expected a rank 1 mask vector."
 
@@ -479,6 +479,6 @@ def test_vector_masked_load_verify_mask_vector_type():
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
 
-    with raises(Exception) as exc_info:
+    with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[0] == "Expected mask element type to be i1."

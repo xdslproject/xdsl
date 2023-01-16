@@ -1,8 +1,9 @@
-from xdsl.ir import Block, Region
+import pytest
+
 from xdsl.dialects.func import FuncOp, Return
 from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import IntegerAttr, i32
-import pytest
+from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
 
