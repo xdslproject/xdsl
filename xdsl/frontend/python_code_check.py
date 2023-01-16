@@ -149,6 +149,24 @@ class MultipleScopeVisitor(ast.NodeVisitor):
 
 @dataclass
 class CheckAndInlineConstants:
+    """
+    This class is responsible for checking that the constants defined in the
+    frontend program are valid. Every valid constant is inlined as a new AST
+    node.
+
+    The algorithm for checking and inlining is iterative. When a new constant
+    definition is encountered, the algorithm tries to inline it. This way
+    frontend programs can define constants such as:
+
+    ```
+    a: Const[i32] = 1 + len([1, 2, 3, 4])
+    b: Const[i32] = a * a
+    # here b = 25
+    ```
+
+    Note that the algorithm does not remove constant definitions from the AST,
+    but this functionality can be added later.
+    """
 
     @staticmethod
     def run(stmts: List[ast.stmt]) -> None:
@@ -226,12 +244,19 @@ class CheckAndInlineConstants:
 
 @dataclass
 class ConstantInliner(ast.NodeTransformer):
+    """
+    Given the name of a constant and a corresponding AST node, `ConstantInliner`
+    traverses the AST and replaces the uses of the `name` with the node.
+    Additionally, it is responsible for performing various checks whether the
+    constant value is correctly used. In cases of a misuse (e.g. assigning to a
+    constant), an exception is raised.
+    """
 
     name: str
     """The name of the constant to inline."""
 
     new_node: ast.Constant
-    """New constant to ."""
+    """New AST node to inline."""
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
         if len(node.targets) == 1 and isinstance(
