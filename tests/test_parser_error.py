@@ -39,7 +39,7 @@ unknown() {
   %0 : !i32 unknown()
 }
 """
-    check_error(prog, 3, 13, "'=' expected")
+    check_error(prog, 3, 13, "'=' expected, got u")
 
 
 def test_parser_redefined_value():

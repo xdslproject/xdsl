@@ -349,11 +349,8 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> dict[str, Attribute]:
-        parser.parse_char("{")
-
-        data = parser.parse_dictionary(parser.parse_optional_str_literal,
-                                       parser.parse_optional_attribute)
-        parser.parse_char("}")
+        data = parser.parse_dictionary(parser.parse_str_literal,
+                                       parser.parse_attribute)
         return data
 
     @staticmethod

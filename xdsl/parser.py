@@ -139,7 +139,7 @@ class Parser:
             self.skip_white_space()
         if self._pos is None:
             return None
-        if self._pos.idx + n >= len(self.str):
+        if self._pos.idx + n > len(self.str):
             return None
         return self.str[self._pos.idx:self._pos.idx + n]
 
@@ -356,9 +356,11 @@ class Parser:
 
     def parse_char(self, char: str, skip_white_space: bool = True) -> bool:
         assert (len(char) == 1)
+        current_char = self.get_char()
         res = self.parse_optional_char(char, skip_white_space=skip_white_space)
         if res is None:
-            raise ParserError(self._pos, f"'{char}' expected")
+            raise ParserError(self._pos,
+                              f"'{char}' expected, got {current_char}")
         return True
 
     def parse_string(self,
@@ -464,39 +466,41 @@ class Parser:
     V = TypeVar('V')
 
     def parse_dictionary(self,
-                         parse_optional_key: Callable[[], K | None],
-                         parse_optional_value: Callable[[], V | None],
+                         parse_key: Callable[[], K],
+                         parse_value: Callable[[], V],
                          delimiter: str = ",",
                          skip_white_space: bool = True) -> dict[K, V]:
         if skip_white_space:
             self.skip_white_space()
         assert (len(delimiter) <= 1)
-        entry = self.parse_optional_dict_entry(parse_optional_key,
-                                               parse_optional_value)
-        if entry is None:
+        if len(delimiter):
+            parse_delimiter = lambda: self.parse_char(delimiter)
+        else:
+            parse_delimiter = lambda: True
+
+        self.parse_char("{")
+        if self.peek_char("}"):
             return {}
-        res = dict([entry])
-        while (self.parse_optional_char(delimiter)
-               if len(delimiter) == 1 else True):
-            entry = self.parse_optional_dict_entry(parse_optional_key,
-                                                   parse_optional_value)
-            if entry is not None:
-                res[entry[0]] = entry[1]
+
+        entry = self.parse_dict_entry(parse_key, parse_value)
+        res = dict((entry, ))
+        while not self.peek_char("}"):
+            parse_delimiter()
+            entry = self.parse_dict_entry(parse_key, parse_value)
+            res[entry[0]] = entry[1]
+
+        self.parse_char("}")
 
         return res
 
-    def parse_optional_dict_entry(
+    def parse_dict_entry(
         self,
-        parse_optional_key: Callable[[], K | None],
-        parse_optional_value: Callable[[], V | None],
-    ) -> tuple[K, V] | None:
-        if (key := parse_optional_key()) is None:
-            return None
+        parse_key: Callable[[], K],
+        parse_value: Callable[[], V],
+    ) -> tuple[K, V]:
+        key = parse_key()
         self.parse_char("=")
-        if (value := parse_optional_value()) is None:
-            raise ParserError(self._pos,
-                              'Expected dictionary value after `key=`')
-
+        value = parse_value()
         return key, value
 
     def parse_optional_block_argument(
@@ -712,11 +716,9 @@ class Parser:
             return ArrayAttr.from_list(array)
 
         # Shorthand for DictionaryAttr
-        parse_bracket = self.parse_optional_char("{")
-        if parse_bracket:
-            dictionary = self.parse_dictionary(self.parse_optional_str_literal,
-                                               self.parse_optional_attribute)
-            self.parse_char("}")
+        if self.peek_char("{"):
+            dictionary = self.parse_dictionary(self.parse_str_literal,
+                                               self.parse_attribute)
             return DictionaryAttr.from_dict(dictionary)
 
         # Shorthand for FlatSymbolRefAttr
@@ -991,10 +993,9 @@ class Parser:
             return ArrayAttr.from_list(contents)
 
         # Shorthand for DictionaryAttr
-        if self.parse_optional_char("{"):
-            contents = self.parse_dictionary(self.parse_optional_str_literal,
-                                             self.parse_optional_attribute)
-            self.parse_char("}")
+        if self.peek_char("{"):
+            contents = self.parse_dictionary(self.parse_str_literal,
+                                             self.parse_attribute)
             return DictionaryAttr.from_dict(contents)
 
         # FlatSymbolRefAttr
