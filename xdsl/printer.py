@@ -376,12 +376,13 @@ class Printer:
         if isinstance(attribute, DenseArrayBase):
             self.print("array<", attribute.elt_type)
             data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
-            if len(data.data) != 0:
+            if len(data.data) == 0:
                 self.print(">")
                 return
             self.print(": ")
             self.print_list(data.data, lambda x: self.print(x.data))
             self.print(">")
+            return
 
         if isinstance(attribute, DictionaryAttr):
             self.print_string("{")
