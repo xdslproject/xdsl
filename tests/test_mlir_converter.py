@@ -89,7 +89,7 @@ def test_variadic_conversion():
 builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
-    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
+    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = array<!i32: 0, 0>]
 
     func.return()
   }
@@ -104,10 +104,10 @@ builtin.module() {
   func.func() ["sym_name" = "sum", "function_type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "public"]{
   ^0(%0 : !i32, %1 : !i32):
     %2 : !index = arith.constant() ["value" = 0 : !index]
-    %3 : !memref<[1 : !index], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
+    %3 : !memref<[1 : !index], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = array<!i32: 0, 0>]
     memref.store(%0 : !i32, %3 : !memref<[1 : !index], !i32>, %2 : !index)
     %4 : !index = arith.constant() ["value" = 0 : !index]
-    %5 : !memref<[1 : !index], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !index], !i32>, [0 : !i32, 0 : !i32]>]
+    %5 : !memref<[1 : !index], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = array<!i32: 0, 0>]
     memref.store(%1 : !i32, %5 : !memref<[1 : !index], !i32>, %4 : !index)
     %6 : !index = arith.constant() ["value" = 0 : !index]
     %7 : !i32 = memref.load(%3 : !memref<[1 : !index], !i32>, %6 : !index)
@@ -126,7 +126,7 @@ def test_unit_attr_conversion():
 builtin.module() {
   func.func() ["sym_name" = "test", "function_type" = !fun<[], []>, "sym_visibility" = "private", "llvm.emit_c_interface"]
   {
-    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = !dense<!vector<[2 : !i64], !i32>, [0 : !i32, 0 : !i32]>]
+    %1 : !memref<[1 : !i64], !i32> = memref.alloca() ["alignment" = 0 : !i64, "operand_segment_sizes" = array<!i32: 0, 0>]
 
     func.return()
   }
