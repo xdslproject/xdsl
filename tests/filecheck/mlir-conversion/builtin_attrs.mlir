@@ -130,4 +130,10 @@
 
   // CHECK: memref<2xf32>
 
+  "func.func"() ({}) {function_type = () -> (), 
+                      memref = memref<*xf32>,
+                      sym_name = "memref"} : () -> ()
+
+  // CHECK: memref<*xf32>
+
 }) : () -> ()
