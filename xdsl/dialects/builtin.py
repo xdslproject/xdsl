@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
-                    Optional, TYPE_CHECKING, Any, TypeVar)
+                    TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
                      SSAValue, Region, Attribute, Dialect)
@@ -480,7 +480,7 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
     @builder
     def from_type_and_list(
         referenced_type: _TensorTypeElems,
-        shape: Optional[Sequence[int | IntegerAttr[IndexType]]] = None
+        shape: Sequence[int | IntegerAttr[IndexType]] | None = None
     ) -> TensorType[_TensorTypeElems]:
         if shape is None:
             shape = [1]
