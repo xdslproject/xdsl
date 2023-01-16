@@ -342,36 +342,24 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
-_DictionaryAttrT = TypeVar("_DictionaryAttrT", bound=Attribute, covariant=True)
-
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[StringAttr, _DictionaryAttrT]]):
+class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(
-        parser: Parser,
-        parse_optional_attribute: Callable[[], _DictionaryAttrT | None]
-    ) -> dict[str, _DictionaryAttrT]:
+    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
         parser.parse_char("{")
 
-        def parse_optional_string_attr():
-            literal = parser.parse_optional_str_literal()
-            if literal is None:
-                return None
-            return StringAttr.from_str(literal)
-
-        data = parser.parse_dictionary(parse_optional_string_attr,
-                                       parse_optional_attribute)
+        data = parser.parse_dictionary(parser.parse_optional_str_literal,
+                                       parser.parse_optional_attribute)
         parser.parse_char("}")
         return data
 
     @staticmethod
-    def print_parameter(data: dict[str, _DictionaryAttrT],
-                        printer: Printer) -> None:
+    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(data, printer.print_attribute,
+        printer.print_dictionary(data, printer.print_string_literal,
                                  printer.print_attribute)
         printer.print_string("}")
 
@@ -386,22 +374,23 @@ class DictionaryAttr(GenericData[dict[StringAttr, _DictionaryAttrT]]):
                 f" {type(self.data)}, but expected dictionary of"
                 " attributes")
         for key, val in self.data.items():
-            if not isinstance(key, Attribute):
+            if not isinstance(key, str):
                 raise VerifyException(
-                    f"{self.name} key expects attribute, but {key} "
+                    f"{self.name} key expects str, but {key} "
+                    f"element is of type {type(key)}")
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} key expects attribute, but {val} "
                     f"element is of type {type(val)}")
 
     @staticmethod
     @builder
-    def from_dict(
-        data: dict[str | StringAttr, _DictionaryAttrT]
-    ) -> DictionaryAttr[_DictionaryAttrT]:
-        to_add_data: dict[StringAttr, _DictionaryAttrT] = {}
+    def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
+        to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
-            if not isinstance(k, StringAttr):
-                if isinstance(k, str):
-                    str_attr_k = StringAttr.from_str(k)
-                    to_add_data[str_attr_k] = v
+            if not isinstance(k, str):
+                if isinstance(k, StringAttr):
+                    to_add_data[k.data] = v
                 else:
                     raise TypeError(
                         f"Attribute DictionaryAttr expects keys to"
@@ -410,9 +399,6 @@ class DictionaryAttr(GenericData[dict[StringAttr, _DictionaryAttrT]]):
             else:
                 to_add_data[k] = v
         return DictionaryAttr(to_add_data)
-
-
-AnyDictionaryAttr: TypeAlias = DictionaryAttr[Attribute]
 
 
 @irdl_attr_definition

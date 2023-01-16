@@ -295,6 +295,9 @@ class Printer:
         self.print_list(params, self.print_attribute)
         self.print(">")
 
+    def print_string_literal(self, string: str):
+        self.print(f'"{string}"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -323,7 +326,7 @@ class Printer:
                 return
 
         if isinstance(attribute, StringAttr):
-            self.print(f'"{attribute.data}"')
+            self.print_string_literal(attribute.data)
             return
 
         if isinstance(attribute, FlatSymbolRefAttr):
@@ -365,9 +368,8 @@ class Printer:
             return
 
         if isinstance(attribute, DictionaryAttr):
-            data = cast(DictionaryAttr[Attribute], attribute).data
             self.print_string("{")
-            self.print_dictionary(data, self.print_attribute,
+            self.print_dictionary(attribute.data, self.print_string_literal,
                                   self.print_attribute)
             self.print_string("}")
             return

@@ -386,8 +386,6 @@ class Parser:
         return None
 
     T = TypeVar('T')
-    K = TypeVar('K')
-    V = TypeVar('V')
 
     def parse_optional_nested_list(
             self,
@@ -462,6 +460,9 @@ class Parser:
             res.append(one)
         return res
 
+    K = TypeVar('K')
+    V = TypeVar('V')
+
     def parse_dictionary(self,
                          parse_optional_key: Callable[[], K | None],
                          parse_optional_value: Callable[[], V | None],
@@ -488,10 +489,13 @@ class Parser:
         parse_optional_key: Callable[[], K | None],
         parse_optional_value: Callable[[], V | None],
     ) -> dict[K, V] | None:
-        if not ((key := parse_optional_key()) is not None
-                and self.parse_optional_char("=") and
-                (value := parse_optional_value()) is not None):
+        if (key := parse_optional_key()) is None:
             return None
+        self.parse_char("=")
+        if (value := parse_optional_value()) is None:
+            raise ParserError(self._pos,
+                              'Expected dictionary value after `key=`')
+
         return {key: value}
 
     def parse_optional_block_argument(
