@@ -89,14 +89,12 @@ class SingleScopeVisitor(ast.NodeVisitor):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"Cannot have a nested block '{stmt.name}' inside the "
-                        f"block '{node.name}'."
-                    )
+                        f"block '{node.name}'.")
                 else:
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"Cannot have an inner function '{stmt.name}' inside "
-                        f"the block '{node.name}'."
-                    )
+                        f"the block '{node.name}'.")
 
 
 @dataclass
@@ -125,15 +123,13 @@ class MultipleScopeVisitor(ast.NodeVisitor):
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"Cannot have an inner function '{stmt.name}' inside "
-                        f"the function '{node.name}'."
-                    )
+                        f"the function '{node.name}'.")
                 else:
                     if stmt.name in self.function_and_block_names[node.name]:
                         raise CodeGenerationException(
                             stmt.lineno, stmt.col_offset,
                             f"Block '{stmt.name}' is already defined in "
-                            f"function '{node.name}'."
-                        )
+                            f"function '{node.name}'.")
                     self.function_and_block_names[node.name].add(stmt.name)
 
                     for inner in stmt.body:
@@ -142,14 +138,12 @@ class MultipleScopeVisitor(ast.NodeVisitor):
                                 raise CodeGenerationException(
                                     inner.lineno, inner.col_offset,
                                     f"Cannot have a nested block '{inner.name}'"
-                                    f" inside the block '{stmt.name}'."
-                                )
+                                    f" inside the block '{stmt.name}'.")
                             else:
                                 raise CodeGenerationException(
                                     inner.lineno, inner.col_offset,
                                     f"Cannot have an inner function '{inner.name}'"
-                                    f" inside the block '{stmt.name}'."
-                                )
+                                    f" inside the block '{stmt.name}'.")
 
 
 @dataclass
@@ -204,8 +198,7 @@ class CheckAndInlineConstants:
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"All constant expressions have to be assigned to "
-                         "'ast.Name' nodes."
-                    )
+                        "'ast.Name' nodes.")
 
                 name = stmt.target.id
                 try:
@@ -216,8 +209,7 @@ class CheckAndInlineConstants:
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"Non-constant expression cannot be assigned to "
-                        f"constant variable '{name}' or cannot be evaluated."
-                    )
+                        f"constant variable '{name}' or cannot be evaluated.")
 
                 # For now, support primitive types only and add a guard to abort
                 # in other cases.
@@ -225,8 +217,7 @@ class CheckAndInlineConstants:
                     raise CodeGenerationException(
                         stmt.lineno, stmt.col_offset,
                         f"Constant '{name}' has evaluated type '{type(value)}' "
-                         "which is not supported."
-                    )
+                        "which is not supported.")
 
                 # TODO: We should typecheck the value against the type. This can
                 # get tricky since ints can overflow, etc. For example, `a:
@@ -273,8 +264,7 @@ class ConstantInliner(ast.NodeTransformer):
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
                 f"Constant '{self.name}' is already defined and cannot be "
-                 "assigned to."
-            )
+                "assigned to.")
         node.value = self.visit(node.value)
         return node
 
@@ -292,8 +282,7 @@ class ConstantInliner(ast.NodeTransformer):
                 raise CodeGenerationException(
                     node.lineno, node.col_offset,
                     f"Constant '{self.name}' is already defined and cannot be "
-                     "used as a function/block argument name."
-                )
+                    "used as a function/block argument name.")
         for stmt in node.body:
             self.visit(stmt)
         return node
