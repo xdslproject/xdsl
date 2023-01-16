@@ -11,7 +11,7 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type, Float32Type,
+    DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type, Float32Type,
     Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr, OpaqueAttr,
     Signedness, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr,
     TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
@@ -372,6 +372,16 @@ class Printer:
                 self.print_attribute)
             self.print_string("]")
             return
+
+        if isinstance(attribute, DenseArrayBase):
+            self.print("array<", attribute.elt_type)
+            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
+            if len(data.data) != 0:
+                self.print(">")
+                return
+            self.print(": ")
+            self.print_list(data.data, lambda x: self.print(x.data))
+            self.print(">")
 
         if isinstance(attribute, DictionaryAttr):
             self.print_string("{")
