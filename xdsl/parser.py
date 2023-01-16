@@ -471,16 +471,17 @@ class Parser:
         if skip_white_space:
             self.skip_white_space()
         assert (len(delimiter) <= 1)
-        res = self.parse_optional_dict_entry(parse_optional_key,
-                                             parse_optional_value)
-        if res is None:
+        entry = self.parse_optional_dict_entry(parse_optional_key,
+                                               parse_optional_value)
+        if entry is None:
             return {}
+        res = dict([entry])
         while (self.parse_optional_char(delimiter)
                if len(delimiter) == 1 else True):
             entry = self.parse_optional_dict_entry(parse_optional_key,
                                                    parse_optional_value)
             if entry is not None:
-                res = res | entry
+                res[entry[0]] = entry[1]
 
         return res
 
@@ -488,7 +489,7 @@ class Parser:
         self,
         parse_optional_key: Callable[[], K | None],
         parse_optional_value: Callable[[], V | None],
-    ) -> dict[K, V] | None:
+    ) -> tuple[K, V] | None:
         if (key := parse_optional_key()) is None:
             return None
         self.parse_char("=")
@@ -496,7 +497,7 @@ class Parser:
             raise ParserError(self._pos,
                               'Expected dictionary value after `key=`')
 
-        return {key: value}
+        return key, value
 
     def parse_optional_block_argument(
             self,
