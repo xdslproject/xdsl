@@ -32,5 +32,6 @@ def test_int_dictionary_parser(input, expected):
     ctx = MLContext()
     parser = Parser(ctx, input)
 
-    int_dict = parser.parse_dictionary(parser.parse_int_literal)
+    int_dict = parser.parse_dictionary(parser.parse_str_literal,
+                                       parser.parse_int_literal)
     assert int_dict == expected

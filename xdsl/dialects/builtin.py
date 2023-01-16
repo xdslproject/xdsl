@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (Annotated, TypeAlias, List, cast, Type, Sequence, Optional,
-                    TYPE_CHECKING, Any, TypeVar)
+from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
+                    Optional, TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
                      SSAValue, Region, Attribute, Dialect)
@@ -350,18 +350,22 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[_DictionaryAttrT]:
+    def parse_parameter(
+        parser: Parser,
+        parse_optional_attribute: Callable[[], _DictionaryAttrT | None]
+    ) -> dict[str, _DictionaryAttrT]:
         parser.parse_char("{")
-        data = parser.parse_dictionary(parser.parse_optional_attribute)
+        data = parser.parse_dictionary(parser.parse_str_literal,
+                                       parse_optional_attribute)
         parser.parse_char("}")
-        # the type system can't ensure that the elements are of type A
-        # and not just of type Attribute, therefore, the following cast
-        return cast(dict, data)
+        return data
 
     @staticmethod
-    def print_parameter(data: dict, printer: Printer) -> None:
+    def print_parameter(data: dict[str, _DictionaryAttrT],
+                        printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(data, printer.print_attribute)
+        printer.print_dictionary(data, printer.print_attribute,
+                                 printer.print_attribute)
         printer.print_string("}")
 
     @staticmethod
@@ -382,8 +386,10 @@ class DictionaryAttr(GenericData[dict[str, _DictionaryAttrT]]):
 
     @staticmethod
     @builder
-    def from_dict(data: dict) -> DictionaryAttr[_DictionaryAttrT]:
-        to_add_data = {}
+    def from_dict(
+        data: dict[str | StringAttr, _DictionaryAttrT]
+    ) -> DictionaryAttr[_DictionaryAttrT]:
+        to_add_data: dict[StringAttr, _DictionaryAttrT] = {}
         for k, v in data.items():
             if not isinstance(k, StringAttr):
                 if isinstance(k, str):
