@@ -38,7 +38,7 @@ for mreqs, mode in zip(
         # Git repos, install master
         if ir[0:3] == "git":
             name = ir.split("/")[-1]
-            opt_reqs += ["%s @ %s@master" % (name, ir)]
+            opt_reqs += ["%s @ %s@main" % (name, ir)]
         else:
             opt_reqs += [ir]
     extras_require[mode] = opt_reqs

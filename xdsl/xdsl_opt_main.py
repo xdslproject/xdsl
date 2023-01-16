@@ -187,8 +187,8 @@ class xDSLOptMain:
             type=str,
             default=False,
             required=False,
-            help=
-            "Defines the directory xdsl-opt will be run in. This flag only takes effect if `--generate-config` was specified."
+            help="Defines the directory xdsl-opt will be run in."
+            "This flag only takes effect if `--generate-config` was specified."
         )
 
     def register_all_dialects(self):

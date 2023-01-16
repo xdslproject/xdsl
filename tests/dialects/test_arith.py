@@ -22,8 +22,8 @@ class Test_integer_arith_construction:
     )
     def test_arith_ops(self, func):
         op = func.get(self.a, self.b)
-        op.operands[0].op is self.a
-        op.operands[1].op is self.b
+        assert op.operands[0].op is self.a
+        assert op.operands[1].op is self.b
 
     def test_Cmpi(self):
         _ = Cmpi.get(self.a, self.b, 2)
@@ -47,5 +47,5 @@ class Test_float_arith_construction:
     )
     def test_arith_ops(self, func):
         op = func.get(self.a, self.b)
-        op.operands[0].op is self.a
-        op.operands[1].op is self.b
+        assert op.operands[0].op is self.a
+        assert op.operands[1].op is self.b
