@@ -32,12 +32,10 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     @builder
-    def from_type_and_list(
-        referenced_type: _MemRefTypeElement,
-        shape: Optional[List[int | AnyIntegerAttr]] = None
+    def from_element_type_and_shape(
+            referenced_type: _MemRefTypeElement,
+            shape: List[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
-        if shape is None:
-            shape = [1]
         return MemRefType([
             ArrayAttr[AnyIntegerAttr].from_list(
                 [IntegerAttr.build(d) for d in shape]), referenced_type
@@ -120,12 +118,15 @@ class Alloc(Operation):
             shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
-        return Alloc.build(
-            operands=[[], []],
-            result_types=[MemRefType.from_type_and_list(return_type, shape)],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-            })
+        return Alloc.build(operands=[[], []],
+                           result_types=[
+                               MemRefType.from_element_type_and_shape(
+                                   return_type, shape)
+                           ],
+                           attributes={
+                               "alignment":
+                               IntegerAttr.from_int_and_width(alignment, 64)
+                           })
 
 
 @irdl_op_definition
@@ -148,12 +149,15 @@ class Alloca(Operation):
             shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
         if shape is None:
             shape = [1]
-        return Alloca.build(
-            operands=[[], []],
-            result_types=[MemRefType.from_type_and_list(return_type, shape)],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-            })
+        return Alloca.build(operands=[[], []],
+                            result_types=[
+                                MemRefType.from_element_type_and_shape(
+                                    return_type, shape)
+                            ],
+                            attributes={
+                                "alignment":
+                                IntegerAttr.from_int_and_width(alignment, 64)
+                            })
 
 
 @irdl_op_definition

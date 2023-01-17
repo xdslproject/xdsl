@@ -5,13 +5,13 @@ from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
 
 
 def test_memreftype():
-    mem1 = MemRefType.from_type_and_list(i32)
+    mem1 = MemRefType.from_element_type_and_shape(i32, [1])
 
     assert mem1.get_num_dims() == 1
     assert mem1.get_shape() == [1]
     assert mem1.element_type is i32
 
-    mem2 = MemRefType.from_type_and_list(i32, [3, 3, 3])
+    mem2 = MemRefType.from_element_type_and_shape(i32, [3, 3, 3])
 
     assert mem2.get_num_dims() == 3
     assert mem2.get_shape() == [3, 3, 3]
@@ -26,7 +26,7 @@ def test_memreftype():
 
 
 def test_memref_load_i32():
-    i32_memref_type = MemRefType.from_type_and_list(i32)
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
     load = Load.get(memref_ssa_value, [])
 
@@ -36,7 +36,7 @@ def test_memref_load_i32():
 
 
 def test_memref_load_i32_with_dimensions():
-    i32_memref_type = MemRefType.from_type_and_list(i32, [2, 3])
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
     index1 = OpResult(IndexType, [], [])
     index2 = OpResult(IndexType, [], [])
@@ -49,7 +49,7 @@ def test_memref_load_i32_with_dimensions():
 
 
 def test_memref_store_i32():
-    i32_memref_type = MemRefType.from_type_and_list(i32)
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
     i32_ssa_value = OpResult(i32, [], [])
     store = Store.get(i32_ssa_value, memref_ssa_value, [])
@@ -60,7 +60,7 @@ def test_memref_store_i32():
 
 
 def test_memref_store_i32_with_dimensions():
-    i32_memref_type = MemRefType.from_type_and_list(i32, [2, 3])
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
     i32_ssa_value = OpResult(i32, [], [])
     index1 = OpResult(IndexType, [], [])
