@@ -1320,7 +1320,7 @@ class BaseParser(ABC):
         if len(ref) > 1:
             self.raise_error("Nested refs are not supported yet!", ref[1])
 
-        return FlatSymbolRefAttr.from_str(ref[0].text[1:])
+        return FlatSymbolRefAttr.from_str(ref[0].text)
 
     def try_parse_builtin_int_attr(self) -> IntegerAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
