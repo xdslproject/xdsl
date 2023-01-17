@@ -5,7 +5,7 @@ from io import IOBase, StringIO
 import coverage
 
 from xdsl.ir import MLContext
-from xdsl.parser import Parser, XDSLParser, MLIRParser
+from xdsl.parser import Parser, XDSLParser, MLIRParser, BaseParser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -33,7 +33,7 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]]
+    available_frontends: Dict[str, type[BaseParser]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -215,35 +215,8 @@ class xDSLOptMain:
 
         Add other/additional frontends by overloading this function.
         """
-
-        def parse_xdsl(f: IOBase):
-            input_str = f.read()
-            parser = XDSLParser(
-                self.ctx,
-                input_str,
-                self.args.input_file or '<unknown>',
-                allow_unregistered_ops=self.args.allow_unregistered_ops)
-            module = parser.parse_op()
-            if not (isinstance(module, ModuleOp)):
-                raise Exception(
-                    "Expected module or program as toplevel operation")
-            return module
-
-        def parse_mlir(f: IOBase):
-            input_str = f.read()
-            parser = MLIRParser(
-                self.ctx,
-                input_str,
-                self.args.input_file or '<unknown>',
-                allow_unregistered_ops=self.args.allow_unregistered_ops)
-            module = parser.parse_op()
-            if not (isinstance(module, ModuleOp)):
-                raise Exception(
-                    "Expected module or program as toplevel operation")
-            return module
-
-        self.available_frontends['xdsl'] = parse_xdsl
-        self.available_frontends['mlir'] = parse_mlir
+        self.available_frontends['xdsl'] = XDSLParser
+        self.available_frontends['mlir'] = MLIRParser
 
     def register_all_passes(self):
         """
@@ -319,7 +292,10 @@ class xDSLOptMain:
         if file_extension not in self.available_frontends:
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        return self.available_frontends[file_extension](f)
+        parser = self.available_frontends[file_extension](
+            self.ctx, f.read(), self.args.input_file or 'stdin',
+            self.args.allow_unregistered_ops)
+        return parser.begin_parse()
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""

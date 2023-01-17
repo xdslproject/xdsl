@@ -530,6 +530,7 @@ class Tokenizer:
         """
         try:
             self.next_pos()
+            return False
         except EOFError:
             return True
 
@@ -643,6 +644,7 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
+        self.allow_unregistered_ops = allow_unregistered_ops
 
     def begin_parse(self):
         ops = []
