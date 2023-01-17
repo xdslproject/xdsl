@@ -383,17 +383,22 @@ class PlusCustomFormatOp(Operation):
     @classmethod
     def parse(cls, result_types: List[Attribute],
               parser: BaseParser) -> PlusCustomFormatOp:
+
         def get_ssa_val(name: Span) -> SSAValue:
             if name.text not in parser.ssaValues:
                 parser.raise_error('SSA Value used before assignment', name)
             return parser.ssaValues[name.text]
 
-        lhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
-        parser.must_parse_characters("+", "Malformed operation format, expected `+`!")
-        rhs = parser.expect(parser.try_parse_value_id, 'Expected SSA Value name here!')
+        lhs = parser.expect(parser.try_parse_value_id,
+                            'Expected SSA Value name here!')
+        parser.must_parse_characters(
+            "+", "Malformed operation format, expected `+`!")
+        rhs = parser.expect(parser.try_parse_value_id,
+                            'Expected SSA Value name here!')
 
-        return PlusCustomFormatOp.create(operands=[get_ssa_val(name) for name in (lhs, rhs)],
-                                         result_types=result_types)
+        return PlusCustomFormatOp.create(
+            operands=[get_ssa_val(name) for name in (lhs, rhs)],
+            result_types=result_types)
 
     def print(self, printer: Printer):
         printer.print(" ", self.lhs, " + ", self.rhs)
@@ -501,7 +506,8 @@ class CustomFormatAttr(ParametrizedAttribute):
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.parse_char("<")
-        value = parser.tokenizer.next_token_of_pattern(re.compile('(zero|one)'))
+        value = parser.tokenizer.next_token_of_pattern(
+            re.compile('(zero|one)'))
         if value and value.text == "zero":
             parser.parse_char(">")
             return [IntAttr.from_int(0)]

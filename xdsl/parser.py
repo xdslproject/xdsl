@@ -633,13 +633,11 @@ class BaseParser(ABC):
     of all try_parse functions is T_ | None
     """
 
-    def __init__(
-        self,
-        ctx: MLContext,
-        input: str,
-        name: str = '<unknown>',
-        allow_unregistered_ops = False
-    ):
+    def __init__(self,
+                 ctx: MLContext,
+                 input: str,
+                 name: str = '<unknown>',
+                 allow_unregistered_ops=False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.ctx = ctx
         self.ssaValues = dict()
@@ -1580,7 +1578,9 @@ class BaseParser(ABC):
     def try_parse_builtin_dict_attr(self):
         attr_def = self.ctx.get_optional_attr('dictionary')
         if attr_def is None:
-            self.raise_error("An attribute named `dictionary` must be available in the context in order to parse dictionary attributes! Please make sure the builtin dialect is available, or provide your own replacement!")
+            self.raise_error(
+                "An attribute named `dictionary` must be available in the context in order to parse dictionary attributes! Please make sure the builtin dialect is available, or provide your own replacement!"
+            )
         param = attr_def.parse_parameter(self)
         return attr_def(param)
 
@@ -1634,7 +1634,6 @@ class MLIRParser(BaseParser):
             None,
         )
 
-
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
         if not self.tokenizer.starts_with("{"):
             return dict()
@@ -1646,7 +1645,7 @@ class MLIRParser(BaseParser):
         attrs = []
         if not self.tokenizer.starts_with('}'):
             attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
-                                        "Expected attribute entry")
+                                            "Expected attribute entry")
 
         self.must_parse_characters(
             "}",
@@ -1842,7 +1841,7 @@ def Parser(ctx: MLContext,
            prog: str,
            source: Source = Source.XDSL,
            filename: str = '<unknown>',
-           allow_unregistered_ops = False) -> BaseParser:
+           allow_unregistered_ops=False) -> BaseParser:
     selected_parser = {
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser

@@ -32,7 +32,8 @@ def check_error(prog: str, line: int, column: int, message: str):
             assert err.error.span.get_line_col() == (line, column)
             break
     else:
-        assert False, "'{}' not found in an error message {}!".format(message, e.value.args)
+        assert False, "'{}' not found in an error message {}!".format(
+            message, e.value.args)
 
 
 def test_parser_missing_equal():
@@ -46,7 +47,8 @@ unknown() {
   %0 : !i32 unknown()
 }
 """
-    check_error(prog, 3, 12, "Operation definitions expect an `=` after op-result-list!")
+    check_error(prog, 3, 12,
+                "Operation definitions expect an `=` after op-result-list!")
 
 
 def test_parser_redefined_value():

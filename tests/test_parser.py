@@ -2,10 +2,10 @@ from io import StringIO
 
 import pytest
 
-from printer import Printer
+from xdsl.printer import Printer
 from xdsl.ir import MLContext, Attribute
 from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, FloatAttr, ArrayAttr, Builtin
+from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
 
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
@@ -21,7 +21,11 @@ def test_int_list_parser(input: str, expected: list[int]):
 
 @pytest.mark.parametrize('data', [
     dict(a=IntAttr.from_int(1), b=IntAttr.from_int(2), c=IntAttr.from_int(3)),
-    dict(a=StringAttr.from_str('hello'), b=IntAttr.from_int(2), c=ArrayAttr.from_list([IntAttr.from_int(2), StringAttr.from_str('world')])),
+    dict(a=StringAttr.from_str('hello'),
+         b=IntAttr.from_int(2),
+         c=ArrayAttr.from_list(
+             [IntAttr.from_int(2),
+              StringAttr.from_str('world')])),
     dict(),
 ])
 def test_dictionary_attr(data: dict[str, Attribute]):
@@ -37,5 +41,3 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     attr = XDSLParser(ctx, text).must_parse_attribute()
 
     assert attr.data == data
-
-

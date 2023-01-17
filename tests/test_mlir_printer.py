@@ -3,8 +3,8 @@ from io import StringIO
 from typing import Annotated
 
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
-from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, irdl_attr_definition, irdl_op_definition, VarOperand,
-                       VarOpResult)
+from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, irdl_attr_definition,
+                       irdl_op_definition, VarOperand, VarOpResult)
 from xdsl.parser import ParseError, BaseParser, XDSLParser
 from xdsl.printer import Printer
 
