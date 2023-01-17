@@ -471,7 +471,7 @@ class Printer:
             self.print(">")
             return
 
-        # index type have an alias in MLIR, but not in xDSL
+        # IndexType has an alias in MLIR, but not in xDSL
         if (isinstance(attribute, IndexType)
                 and self.target == self.Target.MLIR):
             self.print("index")
