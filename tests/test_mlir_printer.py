@@ -1,5 +1,7 @@
 from io import StringIO
 from typing import Annotated
+import re
+
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.func import Func
@@ -8,8 +10,6 @@ from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-
-import re
 
 
 @irdl_op_definition
