@@ -456,8 +456,9 @@ class Printer:
                 and self.target == self.Target.MLIR):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            self.print_list(attribute.shape.data,
-                            lambda x: self.print(x.value.data), "x")
+            self.print_list(
+                attribute.shape.data, lambda x: self.print(x.value.data)
+                if x.value.data != -1 else self.print("?"), "x")
             self.print("x", attribute.element_type)
             self.print(">")
             return
