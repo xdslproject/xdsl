@@ -6,7 +6,7 @@ import coverage
 from typing.io import IO
 
 from xdsl.ir import MLContext
-from xdsl.parser import XDSLParser, MLIRParser
+from xdsl.parser import XDSLParser, MLIRParser, ParseError
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -88,7 +88,15 @@ class xDSLOptMain:
 
             cov.start()
 
-        module = self.parse_input()
+        if not self.args.parsing_diagnostics:
+            module = self.parse_input()
+        else:
+            try:
+                module = self.parse_input()
+            except ParseError as e:
+                print(e)
+                exit(0)
+
         if not self.args.verify_diagnostics:
             self.apply_passes(module)
         else:
@@ -162,7 +170,13 @@ class xDSLOptMain:
                                 default=False,
                                 action='store_true',
                                 help="Prints the content of a triggered "
-                                "exception and exits with code 0")
+                                "verifier exception and exits with code 0")
+
+        arg_parser.add_argument("--parsing-diagnostics",
+                                default=False,
+                                action='store_true',
+                                help="Prints the content of a triggered "
+                                "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
             "--use-mlir-bindings",
