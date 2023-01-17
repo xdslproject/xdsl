@@ -9,7 +9,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 
-from xdsl.parser import Parser
+from xdsl.parser import XDSLParser
 from xdsl.ir import MLContext
 from xdsl.dialects.builtin import Builtin
 
@@ -23,7 +23,7 @@ def convert_and_verify(test_prog: str):
     ctx.register_dialect(Scf)
     ctx.register_dialect(MemRef)
 
-    parser = Parser(ctx, test_prog)
+    parser = XDSLParser(ctx, test_prog)
     module = parser.parse_op()
     module.verify()
 

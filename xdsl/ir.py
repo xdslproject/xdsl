@@ -10,7 +10,7 @@ import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import Parser, BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
 
@@ -294,7 +294,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(parser: BaseParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @staticmethod
@@ -309,7 +309,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -507,7 +507,7 @@ class Operation(IRNode):
 
     @classmethod
     def parse(cls: type[_OperationType], result_types: list[Attribute],
-              parser: Parser) -> _OperationType:
+              parser: BaseParser) -> _OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):

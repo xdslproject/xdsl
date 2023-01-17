@@ -6,7 +6,7 @@ from pytest import raises
 
 from xdsl.ir import MLContext
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operation, VarOperand, VarOpResult
-from xdsl.parser import Parser, ParseError
+from xdsl.parser import Parser, ParseError, XDSLParser
 
 
 @irdl_op_definition
@@ -20,7 +20,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     with raises(ParseError) as e:
         parser.must_parse_operation()
 

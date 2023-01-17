@@ -5,7 +5,7 @@ from io import IOBase, StringIO
 import coverage
 
 from xdsl.ir import MLContext
-from xdsl.parser import Parser
+from xdsl.parser import Parser, XDSLParser, MLIRParser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -218,9 +218,10 @@ class xDSLOptMain:
 
         def parse_xdsl(f: IOBase):
             input_str = f.read()
-            parser = Parser(
+            parser = XDSLParser(
                 self.ctx,
                 input_str,
+                self.args.input_file or '<unknown>',
                 allow_unregistered_ops=self.args.allow_unregistered_ops)
             module = parser.parse_op()
             if not (isinstance(module, ModuleOp)):
@@ -230,10 +231,10 @@ class xDSLOptMain:
 
         def parse_mlir(f: IOBase):
             input_str = f.read()
-            parser = Parser(
+            parser = MLIRParser(
                 self.ctx,
                 input_str,
-                source=Parser.Source.MLIR,
+                self.args.input_file or '<unknown>',
                 allow_unregistered_ops=self.args.allow_unregistered_ops)
             module = parser.parse_op()
             if not (isinstance(module, ModuleOp)):

@@ -5,7 +5,7 @@ from typing import Annotated
 from xdsl.ir import Attribute, Data, MLContext, MLIRType, Operation, ParametrizedAttribute
 from xdsl.irdl import (AnyAttr, ParameterDef, RegionDef, irdl_attr_definition, irdl_op_definition, VarOperand,
                        VarOpResult)
-from xdsl.parser import Parser, ParseError
+from xdsl.parser import ParseError, BaseParser, XDSLParser
 from xdsl.printer import Printer
 
 
@@ -30,7 +30,7 @@ class DataAttr(Data[int]):
     name = "data_attr"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
     @staticmethod
@@ -44,7 +44,7 @@ class DataType(Data[int], MLIRType):
     name = "data_type"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
     @staticmethod
@@ -89,9 +89,9 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     ctx.register_attr(ParamAttrWithParam)
     ctx.register_attr(ParamAttrWithCustomFormat)
 
-    parser = Parser(ctx, test_prog)
+    parser = XDSLParser(ctx, test_prog)
     try:
-        module = parser.parse_op()
+        module = parser.must_parse_operation()
     except ParseError as err:
         io = StringIO()
         err.print_with_history(file=io)

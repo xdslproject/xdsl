@@ -13,7 +13,7 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
                        irdl_attr_definition, builder, irdl_to_attr_constraint,
                        AnyAttr, BaseAttr, ParamAttrDef)
-from xdsl.parser import Parser
+from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
@@ -31,14 +31,13 @@ class BoolData(Data[bool]):
     name = "bool"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> bool:
-        val = parser.parse_optional_ident()
-        if val == "True":
+    def parse_parameter(parser: BaseParser) -> bool:
+        val = parser.tokenizer.next_token_of_pattern('(True|False)')
+        if val is None or val.text not in ('True', 'False'):
+            parser.raise_error("Expected True or False literal")
+        if val.text == "True":
             return True
-        elif val == "False":
-            return False
-        else:
-            raise Exception("Wrong argument passed to BoolAttr.")
+        return False
 
     @staticmethod
     def print_parameter(data: bool, printer: Printer):
@@ -51,7 +50,7 @@ class IntData(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
     @staticmethod
@@ -65,7 +64,7 @@ class StringData(Data[str]):
     name = "str"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         return parser.parse_str_literal()
 
     @staticmethod
@@ -102,7 +101,7 @@ class IntListMissingVerifierData(Data[list[int]]):
     name = "missing_verifier_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> list[int]:
+    def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
@@ -134,7 +133,7 @@ class IntListData(Data[list[int]]):
     name = "int_list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> list[int]:
+    def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
     @staticmethod
@@ -431,7 +430,7 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
     name = "missing_genericdata"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> _MissingGenericDataData:
+    def parse_parameter(parser: BaseParser) -> _MissingGenericDataData:
         raise NotImplementedError()
 
     @staticmethod
@@ -484,7 +483,7 @@ class ListData(GenericData[list[A]]):
     name = "list"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> list[A]:
+    def parse_parameter(parser: BaseParser) -> list[A]:
         raise NotImplementedError()
 
     @staticmethod

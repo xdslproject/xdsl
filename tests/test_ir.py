@@ -4,7 +4,7 @@ from xdsl.ir import MLContext, Operation, Block, Region
 from xdsl.dialects.arith import Addi, Subi, Constant
 from xdsl.dialects.builtin import i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
-from xdsl.parser import Parser
+from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
@@ -203,10 +203,10 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = Parser(ctx, args[0])
+    parser = XDSLParser(ctx, args[0])
     lhs: Operation = parser.parse_op()
 
-    parser = Parser(ctx, args[1])
+    parser = XDSLParser(ctx, args[1])
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
@@ -231,8 +231,8 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = Parser(ctx, program_func)
-    program: ModuleOp = parser.parse_op()
+    parser = XDSLParser(ctx, program_func)
+    program: ModuleOp = parser.must_parse_operation()
 
     assert program.is_structurally_equivalent(program.regions[0]) == False
     assert program.is_structurally_equivalent(

@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.ir import ParametrizedAttribute, Data
 from xdsl.irdl import irdl_attr_definition, builder
-from xdsl.parser import Parser
+from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import BuilderNotFoundException
 
@@ -34,7 +34,7 @@ class OneBuilderAttr(Data[str]):
         return OneBuilderAttr(str(data))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         raise NotImplementedError()
 
     @staticmethod
@@ -72,7 +72,7 @@ class OneBuilderTwoArgsAttr(Data[str]):
         return OneBuilderAttr(str(data1) + data2)
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         raise NotImplementedError()
 
     @staticmethod
@@ -105,7 +105,7 @@ class TwoBuildersAttr(Data[str]):
         return TwoBuildersAttr(s)
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         raise NotImplementedError()
 
     @staticmethod
@@ -145,7 +145,7 @@ class BuilderDefaultArgAttr(Data[str]):
         return BuilderDefaultArgAttr(f"{data1}, {data2}, {data3}")
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         raise NotImplementedError()
 
     @staticmethod
@@ -188,7 +188,7 @@ class BuilderUnionArgAttr(Data[str]):
         return BuilderUnionArgAttr(str(data))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         raise NotImplementedError()
 
     @staticmethod

@@ -9,7 +9,7 @@ from xdsl.ir import OpResult, Attribute
 from xdsl.dialects.builtin import StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import BaseParser
     from xdsl.printer import Printer
 
 
@@ -38,10 +38,10 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
         printer.print(")>")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_string("<(")
-        params = parser.parse_list(parser.parse_optional_attribute)
-        parser.parse_string(")>")
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        parser.must_parse_characters("<(", "LLVM Struct must start with `<(`")
+        params = parser.must_parse_list_of(parser.try_parse_attribute, "Malformed LLVM struct, expected attribute definition here!")
+        parser.must_parse_characters(")>", "Unexpected input, expected end of LLVM struct!")
         return [StringAttr.from_str(""), ArrayAttr.from_list(params)]
 
 

@@ -637,7 +637,8 @@ class BaseParser(ABC):
         self,
         ctx: MLContext,
         input: str,
-        name: str,
+        name: str = '<unknown>',
+        allow_unregistered_ops = False
     ):
         self.tokenizer = Tokenizer(Input(input, name))
         self.ctx = ctx
@@ -1237,6 +1238,8 @@ class BaseParser(ABC):
             return self.try_parse_ref_attr()
         elif next_token.text == "dense":
             return self.try_parse_builtin_dense_attr()
+        elif next_token.text == '{':
+            return self.try_parse_builtin_dict_attr()
 
         # order here is important!
         attrs = (self.try_parse_builtin_float_attr,
@@ -1574,6 +1577,13 @@ class BaseParser(ABC):
             self.expect(self.try_parse_integer_literal,
                         'Expected integer literal here').text)
 
+    def try_parse_builtin_dict_attr(self):
+        attr_def = self.ctx.get_optional_attr('dictionary')
+        if attr_def is None:
+            self.raise_error("An attribute named `dictionary` must be available in the context in order to parse dictionary attributes! Please make sure the builtin dialect is available, or provide your own replacement!")
+        param = attr_def.parse_parameter(self)
+        return attr_def(param)
+
 
 class MLIRParser(BaseParser):
 
@@ -1624,6 +1634,7 @@ class MLIRParser(BaseParser):
             None,
         )
 
+
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
         if not self.tokenizer.starts_with("{"):
             return dict()
@@ -1632,7 +1643,9 @@ class MLIRParser(BaseParser):
             "{",
             "MLIR Attribute dictionary must be enclosed in curly brackets")
 
-        attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
+        attrs = []
+        if not self.tokenizer.starts_with('}'):
+            attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
                                         "Expected attribute entry")
 
         self.must_parse_characters(

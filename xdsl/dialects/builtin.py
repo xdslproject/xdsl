@@ -16,7 +16,7 @@ from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, ParseError
+    from xdsl.parser import BaseParser, ParseError
     from xdsl.printer import Printer
 
 
@@ -25,7 +25,7 @@ class StringAttr(Data[str]):
     name = "string"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         data = parser.parse_str_literal()
         return data
 
@@ -81,7 +81,7 @@ class IntAttr(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         data = parser.parse_int_literal()
         return data
 
@@ -110,7 +110,7 @@ class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Signedness:
+    def parse_parameter(parser: BaseParser) -> Signedness:
         if parser.parse_optional_string("signless") is not None:
             return Signedness.SIGNLESS
         elif parser.parse_optional_string("signed") is not None:
@@ -227,7 +227,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> float:
+    def parse_parameter(parser: BaseParser) -> float:
         return parser.parse_float_literal()
 
     @staticmethod
@@ -300,7 +300,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     name = "array"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[_ArrayAttrT]:
+    def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
@@ -345,17 +345,17 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[str, Attribute]]):
+class DictionaryAttr(GenericData[dict[StringAttr, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
-        data = parser.parse_dictionary(parser.parse_str_literal,
-                                       parser.parse_attribute)
-        return data
+    def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
+        # force MLIR style parsing of attribute
+        from xdsl.parser import MLIRParser
+        return MLIRParser.must_parse_optional_attr_dict(parser)
 
     @staticmethod
-    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
+    def print_parameter(data: dict[StringAttr, Attribute], printer: Printer) -> None:
         printer.print_string("{")
         printer.print_dictionary(data, printer.print_string_literal,
                                  printer.print_attribute)
@@ -384,18 +384,18 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     @staticmethod
     @builder
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
-        to_add_data: dict[str, Attribute] = {}
+        to_add_data = {}
         for k, v in data.items():
+            # try to coerce keys into StringAttr
+            if isinstance(k, StringAttr):
+                k = k.data
+            # if coercion fails, raise KeyError!
             if not isinstance(k, str):
-                if isinstance(k, StringAttr):
-                    to_add_data[k.data] = v
-                else:
-                    raise TypeError(
-                        f"Attribute DictionaryAttr expects keys to"
-                        f" be of type StringAttr or str, but {type(k)} provided"
-                    )
-            else:
-                to_add_data[k] = v
+                raise TypeError(
+                    f"Attribute DictionaryAttr expects keys to"
+                    f" be of type str or str, but {type(k)} provided"
+                )
+            to_add_data[k] = v
         return DictionaryAttr(to_add_data)
 
 
