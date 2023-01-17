@@ -179,13 +179,6 @@ class xDSLOptMain:
                                 "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
-            "--use-mlir-bindings",
-            default=False,
-            action='store_true',
-            help="Use the MLIR bindings for printing MLIR. "
-            "This requires the MLIR Python bindings to be installed.")
-
-        arg_parser.add_argument(
             "--allow-unregistered-ops",
             default=False,
             action='store_true',
@@ -262,14 +255,8 @@ class xDSLOptMain:
             printer.print_op(prog)
 
         def _output_mlir(prog: ModuleOp, output: IOBase):
-            if self.args.use_mlir_bindings:
-                from xdsl.mlir_converter import MLIRConverter
-                converter = MLIRConverter(self.ctx)
-                mlir_module = converter.convert_module(prog)
-                print(mlir_module, file=output)
-            else:
-                printer = Printer(stream=output, target=Printer.Target.MLIR)
-                printer.print_op(prog)
+            printer = Printer(stream=output, target=Printer.Target.MLIR)
+            printer.print_op(prog)
 
         def _output_irdl(prog: ModuleOp, output: IOBase):
             irdl_to_mlir = IRDLPrinter(stream=output)
