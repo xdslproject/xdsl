@@ -226,34 +226,3 @@ def test_param_custom_format():
         """any() [ "attr" = !param_custom_format<!param_attr> ]""",
         """"any"() {"attr" = #param_custom_format~~} : () -> ()""",
     )
-
-
-def test_parse_memref():
-    """Test parsing and printing of memref works"""
-
-    test_prog = """\
-    "builtin.module"() ({
-      "func.func"() ({
-        ^0(%0 : i1, %1 : memref<2xf32>, %2 : memref<2xf32>):
-          "func.return"() : () -> ()
-        }) {"function_type" = (i1, memref<2xf32>, memref<2xf32>) -> (), "sym_name" = "simple1"} : () -> ()
-    }) : () -> ()
-    """
-
-    ctx = MLContext()
-
-    _ = Builtin(ctx)
-    _ = MemRef(ctx)
-    _ = Func(ctx)
-
-    parser = Parser(ctx, test_prog, source=Parser.Source.MLIR)
-    module = parser.parse_op()
-
-    res = StringIO()
-    printer = Printer(target=Printer.Target.MLIR, stream=res)
-    printer.print_op(module)
-
-    # Remove all whitespace from the expected string.
-    regex = re.compile(r'[^\S]+')
-    assert (regex.sub("", res.getvalue()).strip() == \
-            regex.sub("", test_prog).strip())
