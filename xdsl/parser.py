@@ -580,7 +580,7 @@ class ParserCommons:
 
     integer_literal = re.compile(r"[+-]?([0-9]+|0x[0-9A-Fa-f]+)")
     decimal_literal = re.compile(r"[+-]?([1-9][0-9]*)")
-    string_literal = re.compile(r'"([^\n\f\v\r"]|\\[nfvr"])+"')
+    string_literal = re.compile(r'"(\\[nfvr"\\]|[^\n\f\v\r"\\])*"')
     float_literal = re.compile(r"[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?")
     bare_id = re.compile(r"[A-Za-z_][\w$.]+")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
@@ -1261,6 +1261,8 @@ class BaseParser(ABC):
             return self.try_parse_builtin_dense_attr()
         elif next_token.text == '{':
             return self.try_parse_builtin_dict_attr()
+        elif next_token.text == '(':
+            return self.try_parse_function_type()
 
         # order here is important!
         attrs = (self.try_parse_builtin_float_attr,
