@@ -580,7 +580,7 @@ class ParserCommons:
 
     integer_literal = re.compile(r"[+-]?([0-9]+|0x[0-9A-Fa-f]+)")
     decimal_literal = re.compile(r"[+-]?([1-9][0-9]*)")
-    string_literal = re.compile(r'"(\\[nfvr"\\]|[^\n\f\v\r"\\])*"')
+    string_literal = re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"')
     float_literal = re.compile(r"[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?")
     bare_id = re.compile(r"[A-Za-z_][\w$.]+")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
@@ -990,7 +990,7 @@ class BaseParser(ABC):
                 self.raise_error(
                     "Expected a type at the end of the vector parameters!")
 
-            return VectorType.from_type_and_list(type, shape)
+            return VectorType.from_element_type_and_shape(type, shape)
 
     def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
@@ -1866,6 +1866,9 @@ class XDSLParser(BaseParser):
         # TODO: check if type is correct here!
         return [name for name, _ in args]
 
+
+    def try_parse_type(self) -> Attribute | None:
+        return self.try_parse_attribute()
 
 # COMPAT layer so parser_ng is a drop-in replacement for parser:
 

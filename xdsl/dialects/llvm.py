@@ -41,7 +41,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.must_parse_characters("<(", "LLVM Struct must start with `<(`")
         params = parser.must_parse_list_of(
-            parser.try_parse_attribute,
+            parser.try_parse_type,
             "Malformed LLVM struct, expected attribute definition here!")
         parser.must_parse_characters(
             ")>", "Unexpected input, expected end of LLVM struct!")
