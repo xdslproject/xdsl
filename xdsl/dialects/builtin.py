@@ -6,7 +6,7 @@ from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
-                     SSAValue, Region, Attribute, Dialect)
+                     SSAValue, Region, Attribute, Dialect, MLContext)
 from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -692,24 +692,27 @@ class UnregisteredOp(Operation):
     res: Annotated[VarOpResult, AnyAttr()]
     regs = VarRegionDef()
 
+    __registered_unregistered_ops: dict[str, type['UnregisteredOp']] = dict()
+
     @property
     def op_name(self) -> StringAttr:
         return self.op_name__  # type: ignore
 
-    @staticmethod
-    def from_name(name: str | StringAttr,
-                  args: list[SSAValue | Operation] = [],
-                  res: list[Attribute] = [],
-                  regs: list[Region] = [],
-                  attrs: dict[str, Attribute] = {}) -> UnregisteredOp:
-        if "op_name__" in attrs:
-            raise Exception(
-                "Cannot create an unregistered op with an __op_name attribute")
-        attrs["op_name__"] = StringAttr.build(name)
-        return UnregisteredOp.build(operands=args,
-                                    result_types=res,
-                                    regions=regs,
-                                    attributes=attrs)
+    @classmethod
+    def with_name(cls, name: str, ctx: MLContext) -> type[UnregisteredOp]:
+        if name in ctx.registered_unregistered_ops:
+            return ctx.registered_unregistered_ops[name]  # type: ignore
+
+        class UnregisteredOpWithName(UnregisteredOp):
+
+            @classmethod
+            def create(cls, **kwargs):
+                op = super().create(**kwargs)
+                op.attributes['op_name__'] = StringAttr.build(name)
+                return op
+
+        ctx.registered_unregistered_ops[name] = UnregisteredOpWithName
+        return UnregisteredOpWithName
 
 
 @irdl_op_definition

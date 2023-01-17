@@ -49,6 +49,8 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    registered_unregistered_ops: dict[str, type[Operation]] = field(
+        default_factory=dict)
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""

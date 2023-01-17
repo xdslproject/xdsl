@@ -18,7 +18,8 @@ from xdsl.dialects.builtin import (
     AnyTensorType, AnyVectorType, Float16Type, Float32Type, Float64Type,
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr)
+    DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr,
+    UnregisteredOp)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -37,7 +38,8 @@ class ParseError(Exception):
             io = StringIO()
             history.print_unroll(io)
             preamble = io.getvalue() + '\n'
-
+        if span is None:
+            raise ValueError("Span can't be None!")
         super().__init__(preamble + span.print_with_context(msg))
         self.span = span
         self.msg = msg
@@ -306,6 +308,9 @@ class Tokenizer:
                                                 repr=False)
 
     last_token: Span | None = field(init=False, default=None, repr=False)
+
+    def __post_init__(self):
+        self.last_token = self.next_token(peek=True)
 
     def save(self) -> save_t:
         """
@@ -634,6 +639,8 @@ class BaseParser(ABC):
     of all try_parse functions is T_ | None
     """
 
+    allow_unregistered_ops: bool
+
     def __init__(self,
                  ctx: MLContext,
                  input: str,
@@ -647,12 +654,10 @@ class BaseParser(ABC):
         self.allow_unregistered_ops = allow_unregistered_ops
 
     def begin_parse(self):
-        ops = []
-        while (op := self.try_parse_operation()) is not None:
-            ops.append(op)
-        if not self.tokenizer.is_eof():
+        op = self.try_parse_operation()
+        if not op:
             self.raise_error("Could not parse entire input!")
-        return ops
+        return op
 
     def get_block_from_name(self, block_name: Span):
         """
@@ -1097,7 +1102,7 @@ class BaseParser(ABC):
         # check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
-            op_type = self.ctx.get_op(op_name.text)
+            op_type = self._get_op_by_name(op_name)
             op = op_type.parse(ret_types, self)
         else:
             # check for basic op format
@@ -1114,7 +1119,7 @@ class BaseParser(ABC):
                 assert func_type is not None
                 ret_types = func_type.outputs.data
 
-            op_type = self.ctx.get_op(op_name.string_contents)
+            op_type = self._get_op_by_name(op_name)
 
             op = op_type.create(
                 operands=[self.ssaValues[span.text] for span in args],
@@ -1135,6 +1140,22 @@ class BaseParser(ABC):
             self.ssaValues[ssa_val_name].name = ssa_val_name.lstrip('%')
 
         return op
+
+    def _get_op_by_name(self, span: Span) -> type[Operation]:
+        if isinstance(span, StringLiteral):
+            op_name = span.string_contents
+        else:
+            op_name = span.text
+
+        op_type = self.ctx.get_optional_op(op_name)
+
+        if op_type is not None:
+            return op_type
+
+        if self.allow_unregistered_ops:
+            return UnregisteredOp.with_name(op_name, self.ctx)
+
+        self.raise_error(f'Unknown operation {op_name}!', span)
 
     def must_parse_region(self) -> Region:
         oldSSAVals = self.ssaValues.copy()
@@ -1309,7 +1330,6 @@ class BaseParser(ABC):
                 self.try_parse_integer_literal,
                 'Integer attribute must start with an integer literal!')
             if self.tokenizer.next_token(peek=True).text != ':':
-                print(self.tokenizer.next_token(peek=True))
                 return IntegerAttr.from_params(int(value.text),
                                                DefaultIntegerAttrType)
             type = self.must_parse_attribute_type()
@@ -1495,15 +1515,9 @@ class BaseParser(ABC):
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def must_parse_op_args_list(self) -> list[Span]:
-        self.must_parse_characters(
-            "(", "Operation args list must be enclosed by brackets!")
-        args = self.must_parse_list_of(self.try_parse_value_id_and_type,
-                                       "Expected another bare-id here")
-        self.must_parse_characters(
-            ")", "Operation args list must be closed by a closing bracket")
-        # TODO: check if type is correct here!
-        return [name for name, _ in args]
+        raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
     # since we don't want to rewrite all dialects currently, the new emulator needs to expose the same
@@ -1691,6 +1705,16 @@ class MLIRParser(BaseParser):
             "]", "Successor list is enclosed in square brackets")
         return successors
 
+    def must_parse_op_args_list(self) -> list[Span]:
+        self.must_parse_characters(
+            "(", "Operation args list must be enclosed by brackets!")
+        args = self.must_parse_list_of(self.try_parse_value_id,
+                                       "Expected another bare-id here")
+        self.must_parse_characters(
+            ")", "Operation args list must be closed by a closing bracket")
+        # TODO: check if type is correct here!
+        return args
+
 
 class XDSLParser(BaseParser):
 
@@ -1829,6 +1853,16 @@ class XDSLParser(BaseParser):
         self.must_parse_characters(
             '>', 'Malformed attribute arguments, reached end of args list!')
         return attr(args)
+
+    def must_parse_op_args_list(self) -> list[Span]:
+        self.must_parse_characters(
+            "(", "Operation args list must be enclosed by brackets!")
+        args = self.must_parse_list_of(self.try_parse_value_id_and_type,
+                                       "Expected another bare-id here")
+        self.must_parse_characters(
+            ")", "Operation args list must be closed by a closing bracket")
+        # TODO: check if type is correct here!
+        return [name for name, _ in args]
 
 
 # COMPAT layer so parser_ng is a drop-in replacement for parser:
