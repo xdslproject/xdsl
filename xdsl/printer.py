@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from frozenlist import FrozenList
@@ -296,7 +297,7 @@ class Printer:
         self.print(">")
 
     def print_string_literal(self, string: str):
-        self.print(f'"{string}"')
+        self.print(json.dumps(string))
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
