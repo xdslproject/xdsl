@@ -31,7 +31,7 @@ def test_raises_exception_on_op_with_no_blocks():
     assert err.value.msg == "Trying to set the insertion point for operation 'affine.for' with no blocks in its last region."
 
 
-def test_raises_exception_on_op_with_no_blocks():
+def test_raises_exception_on_op_with_no_blocks_II():
     inserter = OpInserter(Block())
     empty_region = Region.from_block_list([])
     with pytest.raises(FrontendProgramException) as err:
