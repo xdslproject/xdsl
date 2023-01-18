@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
     DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr)
+    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -655,6 +655,9 @@ class BaseParser(ABC):
 
     def begin_parse(self):
         op = self.try_parse_operation()
+        if not isinstance(op, ModuleOp):
+            self.tokenizer.pos = 0
+            self.raise_error("Expected ModuleOp at top level!", self.tokenizer.next_token())
         if not op:
             self.raise_error("Could not parse entire input!")
         return op

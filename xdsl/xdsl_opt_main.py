@@ -299,7 +299,7 @@ class xDSLOptMain:
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
-        assert isinstance(prog, ModuleOp)
+        assert isinstance(prog, ModuleOp), "Expected top-level module!"
         if not self.args.disable_verify:
             prog.verify()
         for pass_name, p in self.pipeline:

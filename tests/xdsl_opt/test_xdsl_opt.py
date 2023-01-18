@@ -29,9 +29,9 @@ def test_empty_program():
 
 @pytest.mark.parametrize("args, expected_error",
                          [(['tests/xdsl_opt/not_module.xdsl'],
-                           "Expected module or program as toplevel operation"),
+                           "Expected ModuleOp at top level!"),
                           (['tests/xdsl_opt/not_module.mlir'],
-                           "Expected module or program as toplevel operation"),
+                           "Expected ModuleOp at top level!"),
                           (['tests/xdsl_opt/empty_program.wrong'
                             ], "Unrecognized file extension 'wrong'")])
 def test_error_on_run(args, expected_error):
@@ -40,7 +40,7 @@ def test_error_on_run(args, expected_error):
     with pytest.raises(Exception) as e:
         opt.run()
 
-    assert e.value.args[0] == expected_error
+    assert expected_error in e.value.args[0]
 
 
 @pytest.mark.parametrize(
