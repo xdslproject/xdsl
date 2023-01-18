@@ -64,7 +64,10 @@ class Call(Operation):
 
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyAttr()]
+
     # TODO how do we verify that the types are correct?
+    def verify_(self) -> None:
+        raise NotImplementedError
 
     @staticmethod
     def get(callee: Union[str, FlatSymbolRefAttr],

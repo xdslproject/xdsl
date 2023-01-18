@@ -1,9 +1,10 @@
 import pytest
 
-from xdsl.dialects.func import FuncOp, Return
+from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32
-from xdsl.ir import Block, Region
+from xdsl.dialects.builtin import IntegerAttr, i32, AnyAttr
+from xdsl.ir import Block, Region, Attribute
+from xdsl.irdl import AttributeDef
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -99,4 +100,16 @@ def test_return():
 
     # Use these region to create a func0
     ret0 = Return.get(a, b, c)
+    assert len(ret0.operands) == 3
+
+
+def test_call():
+    # Create two constants and add them, then return
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
+    c = Constant.from_int_and_width(3, i32)
+
+    ret = Attribute
+    # Use these region to create a func0
+    ret0 = Call.get('mycall', [a, b, c], [ret])
     assert len(ret0.operands) == 3

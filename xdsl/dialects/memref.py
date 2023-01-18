@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
 from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
