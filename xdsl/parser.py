@@ -360,7 +360,7 @@ class Parser:
         res = self.parse_optional_char(char, skip_white_space=skip_white_space)
         if res is None:
             raise ParserError(self._pos,
-                              f"'{char}' expected, got {current_char}")
+                              f"'{char}' expected, got '{current_char}'")
         return True
 
     def parse_string(self,
