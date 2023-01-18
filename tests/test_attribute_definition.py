@@ -531,7 +531,8 @@ class Test_generic_data_verifier:
         stream = StringIO()
         p = Printer(stream=stream)
         p.print_attribute(attr)
-        assert stream.getvalue() == "!list<[!bool<True>, !list<[!bool<False>]>]>"
+        assert stream.getvalue(
+        ) == "!list<[!bool<True>, !list<[!bool<False>]>]>"
 
     def test_generic_data_verifier_fail(self):
         """
@@ -548,8 +549,9 @@ class Test_generic_data_verifier:
         """
         with pytest.raises(VerifyException) as e:
             ListData((0))  # type: ignore
-        assert e.value.args[0] == ("Wrong type given to attribute list: "
-                                   "got <class 'int'>, but expected list of attributes.")
+        assert e.value.args[0] == (
+            "Wrong type given to attribute list: "
+            "got <class 'int'>, but expected list of attributes.")
 
 
 @irdl_attr_definition
