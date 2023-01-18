@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
     DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr,
-    UnregisteredOp)
+    UnregisteredOp, OpaqueAttr, NoneAttr)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -35,9 +35,7 @@ class ParseError(Exception):
                  history: BacktrackingHistory | None = None):
         preamble = ""
         if history:
-            io = StringIO()
-            history.print_unroll(io)
-            preamble = io.getvalue() + '\n'
+            preamble = history.error.args[0] + '\n'
         if span is None:
             raise ValueError("Span can't be None!")
         super().__init__(preamble + span.print_with_context(msg))
@@ -595,6 +593,8 @@ class ParserCommons:
         "opaque", "tuple", "index", "dense"
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
     )
+    builtin_attr_names = ('dense', 'opaque', 'affine_map', 'array',
+                          'dense_resource', 'sparse')
     builtin_type = re.compile("(({}))".format(")|(".join(_builtin_type_names)))
     builtin_type_xdsl = re.compile("!(({}))".format(
         ")|(".join(_builtin_type_names)))
@@ -923,7 +923,6 @@ class BaseParser(ABC):
             "memref": unimplemented,
             "tensor": self.must_parse_tensor_attrs,
             "complex": self.must_parse_complex_attrs,
-            "opaque": unimplemented,
             "tuple": unimplemented,
         }
 
@@ -931,15 +930,6 @@ class BaseParser(ABC):
         # get the parser for the type, falling back to the unimplemented warning
         res = builtin_parsers.get(name.text, unimplemented)()
         self.must_parse_characters(">", "Expected end of parameter list here!")
-
-        if name in ("dense", ):
-            self.must_parse_characters(
-                ":",
-                "Attribute {} must be followed by (`:` type)!".format(name))
-            type = self.expect(
-                self.try_parse_type(),
-                "Attribute {} must be followed by (`:` type)!".format(name),
-            )
 
         return res
 
@@ -1257,33 +1247,66 @@ class BaseParser(ABC):
             return self.try_parse_builtin_arr_attr()
         elif next_token.text == "@":
             return self.try_parse_ref_attr()
-        elif next_token.text == "dense":
-            return self.try_parse_builtin_dense_attr()
         elif next_token.text == '{':
             return self.try_parse_builtin_dict_attr()
         elif next_token.text == '(':
             return self.try_parse_function_type()
-
+        elif next_token.text in ParserCommons.builtin_attr_names:
+            return self.try_parse_builtin_named_attr()
         # order here is important!
         attrs = (self.try_parse_builtin_float_attr,
-                 self.try_parse_builtin_int_attr)
+                 self.try_parse_builtin_int_attr, self.try_parse_builtin_type)
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
 
-    def try_parse_builtin_dense_attr(self) -> Attribute | None:
-        with self.tokenizer.backtracking("dense attribute"):
-            self.must_parse_characters(
-                "dense", "builtin dense attribute must start with `dense`")
-            err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"
-            self.must_parse_characters("<", err_msg)
-            info = list(self.must_parse_builtin_dense_attr_args())
-            self.must_parse_characters(">", err_msg)
-            self.must_parse_characters(":", err_msg)
+    def try_parse_builtin_named_attr(self) -> Attribute | None:
+        name = self.tokenizer.next_token(peek=True)
+        with self.tokenizer.backtracking("Builtin attribute {}".format(
+                name.text)):
+            self.tokenizer.consume_peeked(name)
+            parsers = {
+                'dense': self.must_parse_builtin_dense_attr,
+                'opaque': self.must_parse_builtin_opaque_attr,
+            }
+
+            def not_implemented():
+                raise NotImplementedError()
+
+            return parsers.get(name.text, not_implemented)()
+
+    def must_parse_builtin_dense_attr(self) -> Attribute | None:
+        err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"
+        self.must_parse_characters("<", err_msg)
+        info = list(self.must_parse_builtin_dense_attr_args())
+        self.must_parse_characters(">", err_msg)
+        self.must_parse_characters(":", err_msg)
+        type = self.expect(self.try_parse_type,
+                           "Dense attribute must be typed!")
+        return DenseIntOrFPElementsAttr.from_list(type, info)
+
+    def must_parse_builtin_opaque_attr(self):
+        self.must_parse_characters("<",
+                                   "Opaque attribute must be parametrized")
+        str_lit_list = self.must_parse_list_of(self.try_parse_string_literal,
+                                               'Expected opaque attr here!')
+
+        if len(str_lit_list) != 2:
+            self.raise_error('Opaque expects 2 string literal parameters!')
+
+        self.must_parse_characters(
+            ">", "Unexpected parameters for opaque attr, expected `>`!")
+
+        type = NoneAttr()
+        if self.tokenizer.starts_with(':'):
+            self.must_parse_characters(":", "opaque attribute must be typed!")
             type = self.expect(self.try_parse_type,
-                               "Dense attribute must be typed!")
-            return DenseIntOrFPElementsAttr.from_list(type, info)
+                               "opaque attribute must be typed!")
+
+        return OpaqueAttr.from_strings(*(span.string_contents
+                                         for span in str_lit_list),
+                                       type=type)
 
     def must_parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
@@ -1866,9 +1889,9 @@ class XDSLParser(BaseParser):
         # TODO: check if type is correct here!
         return [name for name, _ in args]
 
-
     def try_parse_type(self) -> Attribute | None:
         return self.try_parse_attribute()
+
 
 # COMPAT layer so parser_ng is a drop-in replacement for parser:
 
