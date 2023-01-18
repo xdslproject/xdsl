@@ -20,7 +20,7 @@ from xdsl.dialects.builtin import (
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
     DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp)
+    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -1212,6 +1212,9 @@ class BaseParser(ABC):
             self.raise_error(
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
+
+        if not self.tokenizer.starts_with('='):
+            return name, UnitAttr()
 
         self.must_parse_characters(
             "=", "Attribute entries must be of format name `=` attribute!")
