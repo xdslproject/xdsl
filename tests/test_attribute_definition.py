@@ -276,13 +276,11 @@ def test_annotated_constraint():
     assert stream.getvalue() == "!positive_int<!int<42>>"
 
 
-class Test_annotated_constraint_fail:
-
-    def test_fail_I(self):
-        """Test that the verifier of an annotated constraint can fail."""
-        with pytest.raises(Exception) as e:
-            PositiveIntAttr([IntData(-42)])
-        assert e.value.args[0] == "Expected positive integer, got -42."
+def test_annotated_constraint_fail():
+    """Test that the verifier of an annotated constraint can fail."""
+    with pytest.raises(Exception) as e:
+        PositiveIntAttr([IntData(-42)])
+    assert e.value.args[0] == "Expected positive integer, got -42."
 
 
 #  _____               __     __          ____                _
