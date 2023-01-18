@@ -692,14 +692,12 @@ class UnregisteredOp(Operation):
     res: Annotated[VarOpResult, AnyAttr()]
     regs = VarRegionDef()
 
-    __registered_unregistered_ops: dict[str, type['UnregisteredOp']] = dict()
-
     @property
     def op_name(self) -> StringAttr:
         return self.op_name__  # type: ignore
 
     @classmethod
-    def with_name(cls, name: str, ctx: MLContext) -> type[UnregisteredOp]:
+    def with_name(cls, name: str, ctx: MLContext) -> type[Operation]:
         if name in ctx.registered_unregistered_ops:
             return ctx.registered_unregistered_ops[name]  # type: ignore
 
