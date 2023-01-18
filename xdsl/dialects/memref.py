@@ -51,6 +51,29 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
         return MemRefType([shape, referenced_type])
 
 
+_UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems",
+                                   bound=Attribute,
+                                   covariant=True)
+
+
+@irdl_attr_definition
+class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
+                         ParametrizedAttribute, MLIRType):
+    name = "unranked_memref"
+
+    element_type: ParameterDef[_UnrankedMemrefTypeElems]
+
+    @staticmethod
+    @builder
+    def from_type(
+        referenced_type: _UnrankedMemrefTypeElems
+    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElems]:
+        return UnrankedMemrefType([referenced_type])
+
+
+AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
+
+
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
@@ -243,4 +266,4 @@ class Global(Operation):
 
 
 MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
-                 [MemRefType])
+                 [MemRefType, UnrankedMemrefType])

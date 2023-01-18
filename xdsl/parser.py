@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, TypeVar
 
+from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute)
 
@@ -881,6 +882,24 @@ class Parser:
             return VectorType.from_element_type_and_shape(typ, dims)
         return None
 
+    def parse_optional_mlir_memref(
+        self,
+        skip_white_space: bool = True
+    ) -> MemRefType[Any] | UnrankedMemrefType[Any] | None:
+        if self.parse_optional_string("memref",
+                                      skip_white_space=skip_white_space):
+            self.parse_char("<")
+            # Unranked memref case
+            if self.parse_optional_char("*"):
+                self.parse_char("x")
+                typ = self.parse_attribute()
+                self.parse_char(">")
+                return UnrankedMemrefType.from_type(typ)
+            dims, typ = self.parse_shape()
+            self.parse_char(">")
+            return MemRefType.from_element_type_and_shape(typ, dims)
+        return None
+
     def parse_optional_mlir_index_type(self,
                                        skip_white_space: bool = True
                                        ) -> IndexType | None:
@@ -1060,6 +1079,10 @@ class Parser:
                 return FunctionType.from_lists(inputs, outputs)
             output = self.parse_attribute()
             return FunctionType.from_lists(inputs, [output])
+
+        # memref type
+        if (memref := self.parse_optional_mlir_memref()) is not None:
+            return memref
 
         return None
 

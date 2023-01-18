@@ -5,7 +5,7 @@ from enum import Enum
 from frozenlist import FrozenList
 from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
 
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
                      Attribute, Region, Operation, Data, ParametrizedAttribute)
 from xdsl.utils.diagnostic import Diagnostic
@@ -456,13 +456,23 @@ class Printer:
                 and self.target == self.Target.MLIR):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            self.print_list(attribute.shape.data,
-                            lambda x: self.print(x.value.data), "x")
+            self.print_list(
+                attribute.shape.data, lambda x: self.print(x.value.data)
+                if x.value.data != -1 else self.print("?"), "x")
             self.print("x", attribute.element_type)
             self.print(">")
             return
 
-        # index type have an alias in MLIR, but not in xDSL
+        # Unranked tensors have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, UnrankedMemrefType)
+                and self.target == self.Target.MLIR):
+            attribute = cast(AnyUnrankedMemrefType, attribute)
+            self.print("memref<*x")
+            self.print(attribute.element_type)
+            self.print(">")
+            return
+
+        # IndexType has an alias in MLIR, but not in xDSL
         if (isinstance(attribute, IndexType)
                 and self.target == self.Target.MLIR):
             self.print("index")
