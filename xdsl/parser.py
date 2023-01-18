@@ -14,6 +14,7 @@ from enum import Enum
 from io import StringIO
 from typing import TypeVar, Iterable
 
+from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyTensorType, AnyVectorType, Float16Type, Float32Type, Float64Type,
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
@@ -657,7 +658,8 @@ class BaseParser(ABC):
         op = self.try_parse_operation()
         if not isinstance(op, ModuleOp):
             self.tokenizer.pos = 0
-            self.raise_error("Expected ModuleOp at top level!", self.tokenizer.next_token())
+            self.raise_error("Expected ModuleOp at top level!",
+                             self.tokenizer.next_token())
         if not op:
             self.raise_error("Could not parse entire input!")
         return op
@@ -923,7 +925,7 @@ class BaseParser(ABC):
 
         builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
             "vector": self.must_parse_vector_attrs,
-            "memref": unimplemented,
+            "memref": self.must_parse_memref_attrs,
             "tensor": self.must_parse_tensor_attrs,
             "complex": self.must_parse_complex_attrs,
             "tuple": unimplemented,
@@ -936,15 +938,15 @@ class BaseParser(ABC):
 
         return res
 
-    def must_parse_dense_type_attrs(self):
-        arr = self.expect(
-            self.try_parse_builtin_arr_attr(),
-            "dense attribute must be parametrized by Array",
-        )
-        DenseIntOrFPElementsAttr.from_list(arr)
-
     def must_parse_complex_attrs(self):
         self.raise_error("ComplexType is unimplemented!")
+
+    def must_parse_memref_attrs(self) -> MemRefType | UnrankedMemrefType:
+        dims = self.must_parse_tensor_or_memref_dims()
+        type = self.try_parse_type()
+        if dims is None:
+            return UnrankedMemrefType.from_type(type)
+        return MemRefType.from_element_type_and_shape(type, dims)
 
     def try_parse_numerical_dims(self,
                                  accept_closing_bracket: bool = False,
