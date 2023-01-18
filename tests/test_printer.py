@@ -633,11 +633,11 @@ def test_parse_dense_mlir():
     Test that we can parse attributes using generic formats.
     """
     prog = """
-    %0 = "arith.constant"() {"value" = dense<[[0.000000e+00, 1.000000e+00, 2.000000e+00], [3.000000e+00, 4.000000e+00, 5.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
     """
 
     expected = """
-    %0 = "arith.constant"() {value = dense<[[0.000000e+00, 1.000000e+00, 2.000000e+00], [3.000000e+00, 4.000000e+00, 5.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
     """
 
     ctx = MLContext()
