@@ -519,25 +519,37 @@ class ListData(GenericData[list[A]]):
 AnyListData: TypeAlias = ListData[Attribute]
 
 
-def test_generic_data_verifier():
-    """
-    Test that a GenericData can be created.
-    """
-    attr = ListData([BoolData(True), ListData([BoolData(False)])])
-    stream = StringIO()
-    p = Printer(stream=stream)
-    p.print_attribute(attr)
-    assert stream.getvalue() == "!list<[!bool<True>, !list<[!bool<False>]>]>"
+class Test_generic_data_verifier:
 
+    def test_generic_data_verifier(self):
+        """
+        Test that a GenericData can be created.
+        """
+        attr = ListData([BoolData(True), ListData([BoolData(False)])])
+        stream = StringIO()
+        p = Printer(stream=stream)
+        p.print_attribute(attr)
+        assert stream.getvalue(
+        ) == "!list<[!bool<True>, !list<[!bool<False>]>]>"
 
-def test_generic_data_verifier_fail():
-    """
-    Test that a GenericData verifier fails when given wrong parameters.
-    """
-    with pytest.raises(VerifyException) as e:
-        ListData([0])  # type: ignore
-    assert e.value.args[0] == ("list data expects attribute list, but"
-                               " element 0 is of type <class 'int'>.")
+    def test_generic_data_verifier_fail(self):
+        """
+        Test that a GenericData verifier fails when given wrong parameters.
+        """
+        with pytest.raises(VerifyException) as e:
+            ListData([0])  # type: ignore
+        assert e.value.args[0] == ("list data expects attribute list, but"
+                                   " element 0 is of type <class 'int'>.")
+
+    def test_generic_data_verifier_fail_II(self):
+        """
+        Test that a GenericData verifier fails when given wrong parameters.
+        """
+        with pytest.raises(VerifyException) as e:
+            ListData((0))  # type: ignore
+        assert e.value.args[0] == (
+            "Wrong type given to attribute list: "
+            "got <class 'int'>, but expected list of attributes.")
 
 
 @irdl_attr_definition

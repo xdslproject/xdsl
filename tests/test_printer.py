@@ -602,6 +602,35 @@ def test_parse_generic_format_attr_II():
     assert file.getvalue().strip() == expected.strip()
 
 
+def test_parse_generic_format_attr_III():
+    """
+    Test that we can parse attributes using generic formats.
+    """
+    prog = \
+        """builtin.module() {
+      any() ["attr" = !custom<one>]
+    }"""
+
+    expected = \
+"""\
+"builtin.module"() {
+  "any"() ["attr" = !"custom"<!int<1>>]
+}"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_op(AnyOp)
+    ctx.register_attr(CustomFormatAttr)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    file = StringIO("")
+    printer = Printer(stream=file, print_generic_format=True)
+    printer.print_op(module)
+    assert file.getvalue().strip() == expected.strip()
+
+
 def test_parse_dense_xdsl():
     '''
     Test that parsing of shaped dense tensors works.
