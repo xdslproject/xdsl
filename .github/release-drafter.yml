@@ -2,29 +2,33 @@
 name-template: 'v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
 categories:
+  - title: 'xDSL framework'
+    labels:
+      - 'core'
+      - 'rewriting'
+      - 'frontend'
+  - title: 'Dialects'
+    label: 'dialects'
   - title: 'API'
     label: 'API'
-  - title: 'Examples'
+  - title: 'Examples/Tutorials'
     label: 'examples'
-  - title: 'Documentation'
+  - title: '🗎 Documentation'
     label: 'documentation'
-  - title: 'Compiler'
-    label: 'compiler'
   - title: '🐛 Bug Fixes'
-    labels:
-      - 'bug-py-minor'
-      - 'bug-py'
-  - title: 'Benchmarking'
-    label: 'benchmarking'
+    label: 'bug'
   - title: 'Testing'
     label: 'testing'
   - title: 'Continuous Integration'
     label: 'CI'
   - title: 'Installation'
     labels:
-      - 'docker'
       - 'installation'
       - 'dependencies'
+  - title: 'Miscellaneous'
+    labels:
+      - 'minor'
+      - 'misc'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 template: |
   ## Changes
