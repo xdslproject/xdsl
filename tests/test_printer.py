@@ -7,12 +7,14 @@ from typing import List, Annotated
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.func import Func
-from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, SSAValue
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
                        Operation, Operand, OptAttributeDef)
-from xdsl.parser import Parser, BaseParser, Span, XDSLParser
+from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
+
+from conftest import assert_print_op
 
 
 def test_simple_forgotten_op():
@@ -36,11 +38,7 @@ def test_simple_forgotten_op():
 -------------------------------------------------------------------------------------------------
 """
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(add)
-
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(add, expected, None)
 
 
 def test_forgotten_op_non_fail():
@@ -68,11 +66,7 @@ builtin.module() {
 }
 """
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(mod)
-
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(mod, expected, None)
 
 
 @irdl_op_definition
@@ -90,13 +84,9 @@ def test_unit_attr():
 unit_attr_op() ["parallelize"]
 """
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-
     unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
 
-    printer.print_op(unit_op)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(unit_op, expected, None)
 
 
 def test_added_unit_attr():
@@ -106,16 +96,12 @@ def test_added_unit_attr():
 """
 unit_attr_op() ["parallelize", "vectorize"]
 """
-    file = StringIO("")
-    printer = Printer(stream=file)
     unitop = UnitAttrOp.build(attributes={
         "parallelize": UnitAttr([]),
         "vectorize": UnitAttr([])
     })
 
-    printer.print_op(unitop)
-    assert file.getvalue().strip() == expected.strip()
-
+    assert_print_op(unitop, expected, None)
 
 #  ____  _                             _   _
 # |  _ \(_) __ _  __ _ _ __   ___  ___| |_(_) ___
@@ -152,12 +138,10 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
     diagnostic = Diagnostic()
     diagnostic.add_message(module.ops[0], "Test message")
-    printer = Printer(stream=file, diagnostic=diagnostic)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+
+    assert_print_op(module, expected, diagnostic)
 
 
 def test_two_different_op_messages():
@@ -187,13 +171,11 @@ def test_two_different_op_messages():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_module()
 
-    file = StringIO("")
     diagnostic = Diagnostic()
     diagnostic.add_message(module.ops[0], "Test message 1")
     diagnostic.add_message(module.ops[1], "Test message 2")
-    printer = Printer(stream=file, diagnostic=diagnostic)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+
+    assert_print_op(module, expected, diagnostic)
 
 
 def test_two_same_op_messages():
@@ -223,13 +205,11 @@ def test_two_same_op_messages():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
     diagnostic = Diagnostic()
-    printer = Printer(stream=file, diagnostic=diagnostic)
     diagnostic.add_message(module.ops[0], "Test message 1")
     diagnostic.add_message(module.ops[0], "Test message 2")
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+
+    assert_print_op(module, expected, diagnostic)
 
 
 def test_op_message_with_region():
@@ -257,12 +237,10 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
     diagnostic = Diagnostic()
-    printer = Printer(stream=file, diagnostic=diagnostic)
     diagnostic.add_message(module, "Test")
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+
+    assert_print_op(module, expected, diagnostic)
 
 
 def test_op_message_with_region_and_overflow():
@@ -293,12 +271,9 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
     diagnostic = Diagnostic()
-    printer = Printer(stream=file, diagnostic=diagnostic)
     diagnostic.add_message(module, "Test long message")
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, diagnostic)
 
 
 def test_diagnostic():
@@ -359,10 +334,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 #   ____          _                  _____                          _
@@ -425,10 +397,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 def test_custom_format():
@@ -456,10 +425,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 def test_custom_format_II():
@@ -487,10 +453,7 @@ def test_custom_format_II():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file, print_generic_format=True)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None, print_generic_format=True)
 
 
 @irdl_attr_definition
@@ -549,6 +512,7 @@ builtin.module() {
     printer = Printer(stream=file)
     printer.print_op(module)
     assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 def test_parse_generic_format_attr():
@@ -574,10 +538,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 def test_parse_generic_format_attr_II():
@@ -603,10 +564,7 @@ def test_parse_generic_format_attr_II():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file, print_generic_format=True)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None, print_generic_format=True)
 
 
 def test_parse_generic_format_attr_III():
@@ -632,10 +590,7 @@ def test_parse_generic_format_attr_III():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file, print_generic_format=True)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None, print_generic_format=True)
 
 
 def test_parse_dense_xdsl():
@@ -658,10 +613,7 @@ def test_parse_dense_xdsl():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None)
 
 
 def test_parse_dense_mlir():
@@ -683,10 +635,8 @@ def test_parse_dense_mlir():
     parser = Parser(ctx, prog, source=Parser.Source.MLIR)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file, target=Printer.Target.MLIR)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
+    assert_print_op(module, expected, None, print_generic_format=True,
+                    target=Printer.Target.MLIR)
 
 
 def test_foo_string():
@@ -725,7 +675,4 @@ def test_dictionary_attr():
     parser = XDSLParser(ctx, prog)
     parsed = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(parsed)
-    assert file.getvalue().strip() == prog.strip()
+    assert_print_op(parsed, prog, None)
