@@ -90,7 +90,7 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     ctx.register_attr(ParamAttrWithCustomFormat)
 
     parser = XDSLParser(ctx, test_prog)
-    module = parser.begin_parse()
+    module = parser.must_parse_operation()
 
     res = StringIO()
     printer = Printer(target=Printer.Target.MLIR, stream=res)
