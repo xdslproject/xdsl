@@ -347,7 +347,7 @@ class Tokenizer:
             yield
             # clear error history when something doesn't fail
             # this is because we are only interested in the last "cascade" of failures.
-            # if a backtracking() completes without failre, something has been parsed (we assume)
+            # if a backtracking() completes without failure, something has been parsed (we assume)
             if self.pos > starting_position and self.history is not None:
                 self.history = None
         except Exception as ex:
