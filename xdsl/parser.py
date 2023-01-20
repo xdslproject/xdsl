@@ -682,7 +682,7 @@ class BaseParser(ABC):
             self.raise_error("Expected ModuleOp at top level!",
                              self.tokenizer.next_token())
 
-    def get_block_from_name(self, block_name: Span):
+    def get_block_from_name(self, block_name: Span) -> Block:
         """
         This function takes a span containing a block id (like `^42`) and returns a block.
 
