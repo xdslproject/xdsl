@@ -687,14 +687,14 @@ class BaseParser(ABC):
         elif self.forward_block_references.pop(block_id.text,
                                                None) is not None:
             block = self.blocks[block_id.text]
-            block.delcared_at = block_id
+            block.declared_at = block_id
         else:
             if block_id.text in self.blocks:
                 raise MultipleSpansParseError(
                     block_id,
                     "Re-declaration of block {}".format(block_id.text),
                     "Originally declared here:",
-                    [(self.blocks[block_id.text].delcared_at, None)],
+                    [(self.blocks[block_id.text].declared_at, None)],
                     self.tokenizer.history,
                 )
             block = Block(block_id)
