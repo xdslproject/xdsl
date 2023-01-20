@@ -185,7 +185,7 @@ def test_two_different_op_messages():
     ctx.register_dialect(Builtin)
 
     parser = XDSLParser(ctx, prog, '<unknown>')
-    module = parser.parse_op()
+    module = parser.begin_parse()
 
     file = StringIO("")
     diagnostic = Diagnostic()

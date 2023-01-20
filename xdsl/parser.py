@@ -654,15 +654,18 @@ class BaseParser(ABC):
         self.forward_block_references = dict()
         self.allow_unregistered_ops = allow_unregistered_ops
 
-    def begin_parse(self):
+    def begin_parse(self) -> ModuleOp:
         op = self.try_parse_operation()
-        if not isinstance(op, ModuleOp):
+
+        if op is None:
+            self.raise_error("Could not parse entire input!")
+
+        if isinstance(op, ModuleOp):
+            return op
+        else:
             self.tokenizer.pos = 0
             self.raise_error("Expected ModuleOp at top level!",
                              self.tokenizer.next_token())
-        if not op:
-            self.raise_error("Could not parse entire input!")
-        return op
 
     def get_block_from_name(self, block_name: Span):
         """
