@@ -122,19 +122,6 @@ class BacktrackingHistory:
         return id(self)
 
 
-class BacktrackingAbort(Exception):
-    reason: str | None
-
-    def __init__(self, reason: str | None = None):
-        super().__init__(
-            "This message should never escape the parser, it's intended to signal a failed parsing "
-            "attempt\n "
-            "It should never be used outside of a tokenizer.backtracking() block!\n"
-            "The reason for this abort was {}".format(
-                'not specified' if reason is None else reason))
-        self.reason = reason
-
-
 @dataclass(frozen=True)
 class Span:
     """
@@ -295,7 +282,7 @@ class Tokenizer:
 
     with tokenizer.backtracking():
         # try stuff
-        raise BacktrackingAbort(...)
+        raise ParseError(...)
 
     and not worry about manually resetting the input position. Backtracking will also
     record errors that happen during backtracking to provide a richer error reporting
@@ -361,7 +348,6 @@ class Tokenizer:
 
         The backtracker accepts the following exceptions:
          - ParseError: signifies that the region could not be parsed because of (unexpected) syntax errors
-         - BacktrackingAbort: signifies that backtracking was aborted, not necessarily indicating a syntax error
          - AssertionError: this error should probably be phased out in favour of the two above
          - EOFError: signals that EOF was reached unexpectedly
 
@@ -378,11 +364,6 @@ class Tokenizer:
                 self.history = None
         except Exception as ex:
             how_far_we_got = self.pos
-
-            # AssertionErrors act upon the consumed token, this means we only go to the start of the token
-            if isinstance(ex, BacktrackingAbort):
-                # TODO: skip space as well
-                how_far_we_got -= self.last_token.len
 
             # if we have no error history, start recording!
             if not self.history:
@@ -427,18 +408,6 @@ class Tokenizer:
 
             return BacktrackingHistory(
                 ParseError(self.last_token, reason[-1], self.history),
-                self.history,
-                region,
-                pos,
-            )
-        elif isinstance(ex, BacktrackingAbort):
-            return BacktrackingHistory(
-                ParseError(
-                    self.next_token(peek=True),
-                    "Backtracking aborted: {}".format(ex.reason
-                                                      or "unknown reason"),
-                    self.history,
-                ),
                 self.history,
                 region,
                 pos,
@@ -1675,7 +1644,7 @@ class MLIRParser(BaseParser):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:
-                raise BacktrackingAbort("Expected builtin name!")
+                raise self.raise_error("Expected builtin name!")
 
             return self.must_parse_builtin_type_with_name(name)
 
@@ -1790,7 +1759,7 @@ class XDSLParser(BaseParser):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type_xdsl)
             if name is None:
-                raise BacktrackingAbort("Expected builtin name!")
+                self.raise_error("Expected builtin name!")
             # xdsl builtin types have a '!' prefix, we strip that out here
             name = Span(start=name.start + 1, end=name.end, input=name.input)
 
