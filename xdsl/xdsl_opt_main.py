@@ -295,7 +295,7 @@ class xDSLOptMain:
         parser = self.available_frontends[file_extension](
             self.ctx, f.read(), self.args.input_file or 'stdin',
             self.args.allow_unregistered_ops)
-        return parser.begin_parse()
+        return parser.parse_module()
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
