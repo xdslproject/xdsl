@@ -288,6 +288,32 @@ save_t = tuple[int, tuple[str, ...]]
 
 @dataclass
 class Tokenizer:
+    """
+    This class is used to tokenize an Input.
+
+    It provides an interface for backtracking, so you can use:
+
+    with tokenizer.backtracking():
+        # try stuff
+        raise BacktrackingAbort(...)
+
+    and not worry about manually resetting the input position. Backtracking will also
+    record errors that happen during backtracking to provide a richer error reporting
+    experience.
+
+    It also provides the following methods to inspect the input:
+
+     - next_token(peek) is used to get the next token
+        (which just breaks the input as per the rules defined in break_on)
+        peek=True doesn't advance the position in the file.
+     - next_token_of_pattern(pattern, peek) can be used to get a next token if it
+        conforms to a specific pattern. If a literal string is given, it'll check
+        if the next characters match. If a regex is given, it will check
+        the regex.
+     - starts_with(pattern) checks if the input starts with a literal string or
+        regex pattern
+    """
+
     input: Input
 
     pos: int = field(init=False, default=0)
@@ -436,18 +462,16 @@ class Tokenizer:
             pos,
         )
 
-    def next_token(self, start: int | None = None, peek: bool = False) -> Span:
+    def next_token(self, peek: bool = False) -> Span:
         """
         Return a Span of the next token, according to the self.break_on rules.
 
         Can be modified using:
-
-         - start: don't start at the current tokenizer position, instead start here (useful for skipping comments, etc)
          - peek: don't advance the position, only "peek" at the input
 
         This will skip over line comments. Meaning it will skip the entire line if it encounters '//'
         """
-        i = self.next_pos(start)
+        i = self.next_pos()
         # construct the span:
         span = Span(i, self._find_token_end(i), self.input)
         # advance pointer if not peeking
