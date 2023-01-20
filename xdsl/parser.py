@@ -85,6 +85,24 @@ class MultipleSpansParseError(ParseError):
 
 @dataclass
 class BacktrackingHistory:
+    """
+    This class holds on to past errors encountered during parsing.
+
+    Given the following error message:
+       <unknown>:2:12
+         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
+               ^^^^^^^
+               'invalid' is not a known attribute
+
+       <unknown>:2:7
+         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
+              ^
+              Expected type of value-id here!
+
+    The BacktrackingHistory will contain the outermost error (expected type of value-id here)
+    It's parent will be the next error message (not a known attribute).
+    Some errors happen in named regions (e.g. "parsing of operation")
+    """
     error: ParseError
     parent: BacktrackingHistory | None
     region_name: str | None
