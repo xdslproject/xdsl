@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, Union)
+                    Sequence, TypeVar, cast, Iterator, Union, ClassVar)
 import sys
 
 # Used for cyclic dependencies in type hints
@@ -122,15 +123,17 @@ class SSAValue(ABC):
 
     _name: str | None = field(init=False, default=None)
 
+    _name_regex: ClassVar[re.Pattern] = re.compile(
+        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+
     @property
     def name(self) -> str | None:
         return self._name
 
     @name.setter
     def name(self, name: str):
-        if name[-1].isnumeric():
-            return
-        self._name = name
+        if self._name_regex.fullmatch(name):
+            self._name = name
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:

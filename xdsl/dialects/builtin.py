@@ -345,7 +345,7 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[StringAttr, Attribute]]):
+class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
@@ -355,8 +355,7 @@ class DictionaryAttr(GenericData[dict[StringAttr, Attribute]]):
         return MLIRParser.must_parse_optional_attr_dict(parser)
 
     @staticmethod
-    def print_parameter(data: dict[StringAttr, Attribute],
-                        printer: Printer) -> None:
+    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
         printer.print_string("{")
         printer.print_dictionary(data, printer.print_string_literal,
                                  printer.print_attribute)
@@ -385,7 +384,7 @@ class DictionaryAttr(GenericData[dict[StringAttr, Attribute]]):
     @staticmethod
     @builder
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
-        to_add_data = {}
+        to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
             # try to coerce keys into StringAttr
             if isinstance(k, StringAttr):
@@ -393,8 +392,8 @@ class DictionaryAttr(GenericData[dict[StringAttr, Attribute]]):
             # if coercion fails, raise KeyError!
             if not isinstance(k, str):
                 raise TypeError(
-                    f"Attribute DictionaryAttr expects keys to"
-                    f" be of type str or str, but {type(k)} provided")
+                    f"DictionaryAttr.from_dict expects keys to"
+                    f" be of type str or StringAttr, but {type(k)} provided")
             to_add_data[k] = v
         return DictionaryAttr(to_add_data)
 

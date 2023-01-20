@@ -584,6 +584,10 @@ class ParserCommons:
     bare_id = re.compile(r"[A-Za-z_][\w$.]+")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     suffix_id = re.compile(r"([0-9]+|([A-Za-z_$.-][\w$.-]*))")
+    """
+    suffix-id ::= (digit+ | ((letter|id-punct) (letter|id-punct|digit)*))
+    id-punct  ::= [$._-]
+    """
     block_id = re.compile(r"\^([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     type_alias = re.compile(r"![A-Za-z_][\w$.]+")
     attribute_alias = re.compile(r"#[A-Za-z_][\w$.]+")
