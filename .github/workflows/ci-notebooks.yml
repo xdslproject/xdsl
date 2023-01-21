@@ -39,3 +39,4 @@ jobs:
       run: |
         pytest --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
         pytest --nbval docs/tutorial.ipynb --maxfail 1 -vv
+        pytest --nbval docs/Toy/Toy_Ch1.ipynb -vv
