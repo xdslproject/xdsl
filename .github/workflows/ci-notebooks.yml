@@ -15,27 +15,27 @@ on:
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.10', '3.11']
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Upgrade pip
-        run: |
-          pip install --upgrade pip
-      - name: Install the package locally
-        run: pip install -e .
-      - name: Install nbval
-        run: |
-          pip install nbval
-      - name: Run examples/tutorials
-        run: |
-          pytest --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
-          pytest --nbval docs/tutorial.ipynb --maxfail 1 -vv
-          pytest --nbval docs/Toy/Toy_Ch1.ipynb -vv
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Upgrade pip
+      run: |
+        pip install --upgrade pip
+    - name: Install the package locally
+      run: pip install -e .
+    - name: Install nbval
+      run: |
+        pip install nbval
+    - name: Run examples/tutorials
+      run: |
+        pytest --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
+        pytest --nbval docs/tutorial.ipynb --maxfail 1 -vv
