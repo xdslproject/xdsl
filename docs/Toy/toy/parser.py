@@ -104,7 +104,7 @@ class Parser:
         return cast(TokenT, self.tokens[self.pos - 1])
 
     def parseModule(self):
-        'Parse a full Module. A module is a list of function definitions.'
+        '''Parse a full Module. A module is a list of function definitions.'''
         functions: List[FunctionAST] = []
 
         while not self.check(EOFToken):
@@ -275,7 +275,7 @@ class Parser:
         '''
         Recursively parse the right hand side of a binary expression, the ExprPrec
         argument indicates the precedence of the current binary operator.
-        
+
         binoprhs ::= ('+' primary)*
         '''
         # If this is a binop, find its precedence.
@@ -306,7 +306,7 @@ class Parser:
             lhs = BinaryExprAST(rhs.loc, binOp, lhs, rhs)
 
     def parseExpression(self) -> ExprAST:
-        'expression::= primary binop rhs'
+        '''expression::= primary binop rhs'''
         lhs = self.parsePrimaryNotNone()
         return self.parseBinOpRHS(0, lhs)
 
