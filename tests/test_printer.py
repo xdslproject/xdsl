@@ -392,7 +392,8 @@ class PlusCustomFormatOp(Operation):
                             'Expected SSA Value name here!')
 
         return PlusCustomFormatOp.create(
-            operands=[parser.get_ssa_val(lhs), parser.get_ssa_val(rhs)],
+            operands=[parser.get_ssa_val(lhs),
+                      parser.get_ssa_val(rhs)],
             result_types=result_types)
 
     def print(self, printer: Printer):

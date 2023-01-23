@@ -3,9 +3,10 @@ import sys
 import os
 from io import IOBase, StringIO
 import coverage
+from typing.io import IO
 
 from xdsl.ir import MLContext
-from xdsl.parser import Parser, XDSLParser, MLIRParser, BaseParser
+from xdsl.parser import XDSLParser, MLIRParser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -33,7 +34,7 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, type[BaseParser]]
+    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -215,8 +216,20 @@ class xDSLOptMain:
 
         Add other/additional frontends by overloading this function.
         """
-        self.available_frontends['xdsl'] = XDSLParser
-        self.available_frontends['mlir'] = MLIRParser
+        def parse_xdsl(io: IOBase):
+            return XDSLParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_ops
+            ).parse_module()
+
+        def parse_mlir(io: IOBase):
+            return MLIRParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_ops
+            ).parse_module()
+
+        self.available_frontends['xdsl'] = parse_xdsl
+        self.available_frontends['mlir'] = parse_mlir
 
     def register_all_passes(self):
         """
@@ -292,10 +305,7 @@ class xDSLOptMain:
         if file_extension not in self.available_frontends:
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        parser = self.available_frontends[file_extension](
-            self.ctx, f.read(), self.args.input_file or 'stdin',
-            self.args.allow_unregistered_ops)
-        return parser.parse_module()
+        return self.available_frontends[file_extension](f)
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
@@ -329,3 +339,6 @@ class xDSLOptMain:
         else:
             output_stream = open(self.args.output_file, 'w')
             output_stream.write(contents)
+
+    def get_input_name(self):
+        return self.args.input_file or 'stdin'
