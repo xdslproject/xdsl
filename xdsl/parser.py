@@ -482,12 +482,12 @@ class Parser:
         if self.peek_char("}"):
             return {}
 
-        entry = self.parse_dict_entry(parse_key, parse_value)
-        res = dict((entry, ))
+        key, value = self.parse_dict_entry(parse_key, parse_value)
+        res = {key: value}
         while not self.peek_char("}"):
             parse_delimiter()
-            entry = self.parse_dict_entry(parse_key, parse_value)
-            res[entry[0]] = entry[1]
+            key, value = self.parse_dict_entry(parse_key, parse_value)
+            res[key] = value
 
         self.parse_char("}")
 
