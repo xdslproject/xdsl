@@ -324,7 +324,7 @@ class Tokenizer:
 
             # If we have no error history, start recording!
             if not self.history:
-                self.history = self.history_entry_from_exception(
+                self.history = self._history_entry_from_exception(
                     ex, region_name, how_far_we_got)
 
             # If we got further than on previous attempts
@@ -332,18 +332,18 @@ class Tokenizer:
                 # Throw away history
                 self.history = None
                 # Generate new history entry,
-                self.history = self.history_entry_from_exception(
+                self.history = self._history_entry_from_exception(
                     ex, region_name, how_far_we_got)
 
             # Otherwise, add to exception, if we are in a named region
             elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.history = self.history_entry_from_exception(
+                self.history = self._history_entry_from_exception(
                     ex, region_name, how_far_we_got)
 
             self.resume_from(save)
 
-    def history_entry_from_exception(self, ex: Exception, region: str,
-                                     pos: int) -> BacktrackingHistory:
+    def _history_entry_from_exception(self, ex: Exception, region: str,
+                                      pos: int) -> BacktrackingHistory:
         """
         Given an exception generated inside a backtracking attempt,
         generate a BacktrackingHistory object with the relevant information in it.
@@ -626,7 +626,7 @@ class BaseParser(ABC):
             self.raise_error('SSA Value used before assignment', name)
         return self.ssaValues[name.text]
 
-    def get_block_from_name(self, block_name: Span) -> Block:
+    def _get_block_from_name(self, block_name: Span) -> Block:
         """
         This function takes a span containing a block id (like `^42`) and returns a block.
 
@@ -639,7 +639,7 @@ class BaseParser(ABC):
         return self.blocks[name]
 
     def must_parse_block(self) -> Block:
-        block_id, args = self.must_parse_optional_block_label()
+        block_id, args = self._must_parse_optional_block_label()
 
         if block_id is None:
             block = Block(self.tokenizer.last_token)
@@ -669,20 +669,23 @@ class BaseParser(ABC):
 
         return block
 
-    def must_parse_optional_block_label(
+    def _must_parse_optional_block_label(
             self) -> tuple[Span | None, list[tuple[Span, Attribute]]]:
+        """
+        A block label consists of block-id ( `(` block-arg `,` ... `)` )?
+        """
         block_id = self.try_parse_block_id()
         arg_list = list()
 
         if block_id is not None:
             if self.tokenizer.starts_with('('):
-                arg_list = self.must_parse_block_arg_list()
+                arg_list = self._must_parse_block_arg_list()
 
             self.must_parse_characters(':', 'Block label must end in a `:`!')
 
         return block_id, arg_list
 
-    def must_parse_block_arg_list(self) -> list[tuple[Span, Attribute]]:
+    def _must_parse_block_arg_list(self) -> list[tuple[Span, Attribute]]:
         self.must_parse_characters('(', 'Block arguments must start with `(`')
 
         args = self.must_parse_list_of(self.try_parse_value_id_and_type,
@@ -819,9 +822,9 @@ class BaseParser(ABC):
         with self.tokenizer.backtracking("dialect attribute or type"):
             self.tokenizer.consume_peeked(kind)
             if kind.text == '!':
-                return self.must_parse_dialect_type_or_attribute_inner('type')
+                return self._must_parse_dialect_type_or_attribute_inner('type')
             else:
-                return self.must_parse_dialect_type_or_attribute_inner(
+                return self._must_parse_dialect_type_or_attribute_inner(
                     'attribute')
 
     def try_parse_dialect_type(self):
@@ -833,7 +836,7 @@ class BaseParser(ABC):
         with self.tokenizer.backtracking("dialect type"):
             self.must_parse_characters('!',
                                        "Dialect type must start with a `!`")
-            return self.must_parse_dialect_type_or_attribute_inner('type')
+            return self._must_parse_dialect_type_or_attribute_inner('type')
 
     def try_parse_dialect_attr(self):
         """
@@ -844,9 +847,10 @@ class BaseParser(ABC):
         with self.tokenizer.backtracking("dialect attribute"):
             self.must_parse_characters(
                 '#', "Dialect attribute must start with a `#`")
-            return self.must_parse_dialect_type_or_attribute_inner('attribute')
+            return self._must_parse_dialect_type_or_attribute_inner(
+                'attribute')
 
-    def must_parse_dialect_type_or_attribute_inner(self, kind: str):
+    def _must_parse_dialect_type_or_attribute_inner(self, kind: str):
         type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
 
         if type_name is None:
@@ -878,8 +882,11 @@ class BaseParser(ABC):
         """
         raise NotImplemented("Subclasses must implement this method!")
 
-    def must_parse_builtin_parametrized_type(
+    def _must_parse_builtin_parametrized_type(
             self, name: Span) -> ParametrizedAttribute:
+        """
+        This function is called after we parse the name of a paremetrized type such as vector.
+        """
 
         def unimplemented() -> ParametrizedAttribute:
             raise ParseError(name,
@@ -904,7 +911,7 @@ class BaseParser(ABC):
         self.raise_error("ComplexType is unimplemented!")
 
     def must_parse_memref_attrs(self) -> MemRefType | UnrankedMemrefType:
-        dims = self.must_parse_tensor_or_memref_dims()
+        dims = self._must_parse_tensor_or_memref_dims()
         type = self.try_parse_type()
         if dims is None:
             return UnrankedMemrefType.from_type(type)
@@ -914,7 +921,7 @@ class BaseParser(ABC):
                                  accept_closing_bracket: bool = False,
                                  lower_bound: int = 1) -> Iterable[int]:
         while (shape_arg :=
-               self.try_parse_shape_element(lower_bound)) is not None:
+               self._try_parse_shape_element(lower_bound)) is not None:
             yield shape_arg
             # Look out for the closing bracket for scalable vector dims
             if accept_closing_bracket and self.tokenizer.starts_with("]"):
@@ -949,7 +956,7 @@ class BaseParser(ABC):
 
             return VectorType.from_element_type_and_shape(type, shape)
 
-    def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
+    def _must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
                                        ('x', )):
             # Check for unranked-ness
@@ -963,7 +970,7 @@ class BaseParser(ABC):
                 return list(self.try_parse_numerical_dims(lower_bound=0))
 
     def must_parse_tensor_attrs(self) -> AnyTensorType:
-        shape = self.must_parse_tensor_or_memref_dims()
+        shape = self._must_parse_tensor_or_memref_dims()
         type = self.try_parse_type()
 
         if type is None:
@@ -981,7 +988,7 @@ class BaseParser(ABC):
 
         return UnrankedTensorType.from_type(type)
 
-    def try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
+    def _try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
         """
         Parse a shape element, either a decimal integer immediate or a `?`, which evaluates to -1
 
@@ -1002,7 +1009,7 @@ class BaseParser(ABC):
             return -1
         return None
 
-    def must_parse_type_params(self) -> list[Attribute]:
+    def _must_parse_type_params(self) -> list[Attribute]:
         # Consume opening bracket
         self.must_parse_characters('<', 'Type must be parameterized!')
 
@@ -1041,7 +1048,7 @@ class BaseParser(ABC):
         return match
 
     @abstractmethod
-    def must_parse_op_result_list(
+    def _must_parse_op_result_list(
             self) -> tuple[list[Span], list[Attribute] | None]:
         raise NotImplemented()
 
@@ -1050,7 +1057,7 @@ class BaseParser(ABC):
             return self.must_parse_operation()
 
     def must_parse_operation(self) -> Operation:
-        result_list, ret_types = self.must_parse_op_result_list()
+        result_list, ret_types = self._must_parse_op_result_list()
         if len(result_list) > 0:
             self.must_parse_characters(
                 '=',
@@ -1069,7 +1076,7 @@ class BaseParser(ABC):
                     "Expected an operation name here, either a bare-id, or a string literal!"
                 )
 
-            args, successors, attrs, regions, func_type = self.must_parse_operation_details(
+            args, successors, attrs, regions, func_type = self._must_parse_operation_details(
             )
 
             if ret_types is None:
@@ -1155,12 +1162,12 @@ class BaseParser(ABC):
             self.blocks = oldBBNames
             self.forward_block_references = oldForwardRefs
 
-    def try_parse_op_name(self) -> Span | None:
+    def _try_parse_op_name(self) -> Span | None:
         if (str_lit := self.try_parse_string_literal()) is not None:
             return str_lit
         return self.try_parse_bare_id()
 
-    def must_parse_attribute_entry(self) -> tuple[Span, Attribute]:
+    def _must_parse_attribute_entry(self) -> tuple[Span, Attribute]:
         """
         Parse entry in attribute dict. Of format:
 
@@ -1196,7 +1203,7 @@ class BaseParser(ABC):
         with self.tokenizer.backtracking("attribute"):
             return self.must_parse_attribute()
 
-    def must_parse_attribute_type(self) -> Attribute:
+    def _must_parse_attribute_type(self) -> Attribute:
         """
         Parses `:` type and returns the type
         """
@@ -1237,8 +1244,8 @@ class BaseParser(ABC):
                 name.text)):
             self.tokenizer.consume_peeked(name)
             parsers = {
-                'dense': self.must_parse_builtin_dense_attr,
-                'opaque': self.must_parse_builtin_opaque_attr,
+                'dense': self._must_parse_builtin_dense_attr,
+                'opaque': self._must_parse_builtin_opaque_attr,
             }
 
             def not_implemented():
@@ -1246,17 +1253,17 @@ class BaseParser(ABC):
 
             return parsers.get(name.text, not_implemented)()
 
-    def must_parse_builtin_dense_attr(self) -> Attribute | None:
+    def _must_parse_builtin_dense_attr(self) -> Attribute | None:
         err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"
         self.must_parse_characters("<", err_msg)
-        info = list(self.must_parse_builtin_dense_attr_args())
+        info = list(self._must_parse_builtin_dense_attr_args())
         self.must_parse_characters(">", err_msg)
         self.must_parse_characters(":", err_msg)
         type = self.expect(self.try_parse_type,
                            "Dense attribute must be typed!")
         return DenseIntOrFPElementsAttr.from_list(type, info)
 
-    def must_parse_builtin_opaque_attr(self):
+    def _must_parse_builtin_opaque_attr(self):
         self.must_parse_characters("<",
                                    "Opaque attribute must be parametrized")
         str_lit_list = self.must_parse_list_of(self.try_parse_string_literal,
@@ -1278,7 +1285,7 @@ class BaseParser(ABC):
                                          for span in str_lit_list),
                                        type=type)
 
-    def must_parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
+    def _must_parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
         dense attribute params must be:
 
@@ -1299,7 +1306,7 @@ class BaseParser(ABC):
 
         self.must_parse_characters('[', '')
         while not self.tokenizer.starts_with(']'):
-            yield from self.must_parse_builtin_dense_attr_args()
+            yield from self._must_parse_builtin_dense_attr_args()
             if self.tokenizer.next_token_of_pattern(',') is None:
                 break
         self.must_parse_characters(']', '')
@@ -1326,7 +1333,7 @@ class BaseParser(ABC):
                 'Integer attribute must start with an integer literal!')
             if self.tokenizer.next_token(peek=True).text != ':':
                 return IntegerAttr.from_params(int(value.text), i64)
-            type = self.must_parse_attribute_type()
+            type = self._must_parse_attribute_type()
             return IntegerAttr.from_params(int(value.text), type)
 
     def try_parse_builtin_float_attr(self) -> FloatAttr | None:
@@ -1339,7 +1346,7 @@ class BaseParser(ABC):
             if not self.tokenizer.starts_with(":"):
                 return FloatAttr.from_value(float(value.text))
 
-            type = self.must_parse_attribute_type()
+            type = self._must_parse_attribute_type()
             return FloatAttr.from_value(float(value.text), type)
 
     def try_parse_builtin_boolean_attr(self) -> IntegerAttr | None:
@@ -1377,7 +1384,7 @@ class BaseParser(ABC):
     def must_parse_optional_attr_dict(self) -> dict[str, Attribute]:
         raise NotImplementedError()
 
-    def attr_dict_from_tuple_list(
+    def _attr_dict_from_tuple_list(
             self, tuple_list: list[tuple[Span,
                                          Attribute]]) -> dict[str, Attribute]:
         """
@@ -1423,9 +1430,9 @@ class BaseParser(ABC):
                                    "Malformed function type, expected `->`!")
 
         return FunctionType.from_lists(
-            args, self.must_parse_type_or_type_list_parens())
+            args, self._must_parse_type_or_type_list_parens())
 
-    def must_parse_type_or_type_list_parens(self) -> list[Attribute]:
+    def _must_parse_type_or_type_list_parens(self) -> list[Attribute]:
         """
         Parses type-or-type-list-parens, which is used in function-type.
 
@@ -1461,7 +1468,10 @@ class BaseParser(ABC):
             regions.append(self.must_parse_region())
         return regions
 
-    def must_parse_builtin_type_with_name(self, name: Span):
+    def _must_parse_builtin_type_with_name(self, name: Span):
+        """
+        Parses one of the builtin types like i42, vector, etc...
+        """
         if name.text == "index":
             return IndexType()
         if (re_match := re.match(r"^[su]?i(\d+)$", name.text)) is not None:
@@ -1485,10 +1495,10 @@ class BaseParser(ABC):
                     "Unsupported floating point width: {}".format(width))
             return type()
 
-        return self.must_parse_builtin_parametrized_type(name)
+        return self._must_parse_builtin_parametrized_type(name)
 
     @abstractmethod
-    def must_parse_operation_details(
+    def _must_parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
@@ -1509,7 +1519,7 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def must_parse_op_args_list(self) -> list[Span]:
+    def _must_parse_op_args_list(self) -> list[Span]:
         raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
@@ -1531,7 +1541,7 @@ class BaseParser(ABC):
         """
         # TODO: remove this function and restructure custom op / irdl parsing
         assert isinstance(self, XDSLParser)
-        args, successors, attributes, regions, _ = self.must_parse_operation_details(
+        args, successors, attributes, regions, _ = self._must_parse_operation_details(
         )
 
         for x in args:
@@ -1544,7 +1554,9 @@ class BaseParser(ABC):
             operands=[self.ssaValues[span.text] for span in args],
             result_types=result_types,
             attributes=attributes,
-            successors=[self.get_block_from_name(span) for span in successors],
+            successors=[
+                self._get_block_from_name(span) for span in successors
+            ],
             regions=regions)
 
     def parse_paramattr_parameters(
@@ -1608,7 +1620,7 @@ class MLIRParser(BaseParser):
             if name is None:
                 raise self.raise_error("Expected builtin name!")
 
-            return self.must_parse_builtin_type_with_name(name)
+            return self._must_parse_builtin_type_with_name(name)
 
     def must_parse_attribute(self) -> Attribute:
         """
@@ -1636,7 +1648,7 @@ class MLIRParser(BaseParser):
 
         return builtin_val
 
-    def must_parse_op_result_list(
+    def _must_parse_op_result_list(
             self) -> tuple[list[Span], list[Attribute] | None]:
         return (
             self.must_parse_list_of(self.try_parse_value_id,
@@ -1655,21 +1667,21 @@ class MLIRParser(BaseParser):
 
         attrs = []
         if not self.tokenizer.starts_with('}'):
-            attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
+            attrs = self.must_parse_list_of(self._must_parse_attribute_entry,
                                             "Expected attribute entry")
 
         self.must_parse_characters(
             "}",
             "MLIR Attribute dictionary must be enclosed in curly brackets")
 
-        return self.attr_dict_from_tuple_list(attrs)
+        return self._attr_dict_from_tuple_list(attrs)
 
-    def must_parse_operation_details(
+    def _must_parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
-        args = self.must_parse_op_args_list()
-        succ = self.must_parse_optional_successor_list()
+        args = self._must_parse_op_args_list()
+        succ = self._must_parse_optional_successor_list()
 
         regions = []
         if self.tokenizer.starts_with("("):
@@ -1688,7 +1700,7 @@ class MLIRParser(BaseParser):
 
         return args, succ, attrs, regions, func_type
 
-    def must_parse_optional_successor_list(self) -> list[Span]:
+    def _must_parse_optional_successor_list(self) -> list[Span]:
         if not self.tokenizer.starts_with("["):
             return []
         self.must_parse_characters(
@@ -1700,7 +1712,7 @@ class MLIRParser(BaseParser):
             "]", "Successor list is enclosed in square brackets")
         return successors
 
-    def must_parse_op_args_list(self) -> list[Span]:
+    def _must_parse_op_args_list(self) -> list[Span]:
         self.must_parse_characters(
             "(", "Operation args list must be enclosed by brackets!")
         args = self.must_parse_list_of(self.try_parse_value_id,
@@ -1725,7 +1737,7 @@ class XDSLParser(BaseParser):
             # xDSL builtin types have a '!' prefix, we strip that out here
             name = Span(start=name.start + 1, end=name.end, input=name.input)
 
-            return self.must_parse_builtin_type_with_name(name)
+            return self._must_parse_builtin_type_with_name(name)
 
     def must_parse_attribute(self) -> Attribute:
         """
@@ -1748,7 +1760,7 @@ class XDSLParser(BaseParser):
 
         return value
 
-    def must_parse_op_result_list(
+    def _must_parse_op_result_list(
             self) -> tuple[list[Span], list[Attribute] | None]:
         if not self.tokenizer.starts_with("%"):
             return list(), list()
@@ -1783,16 +1795,16 @@ class XDSLParser(BaseParser):
             "[",
             "xDSL Attribute dictionary must be enclosed in square brackets")
 
-        attrs = self.must_parse_list_of(self.must_parse_attribute_entry,
+        attrs = self.must_parse_list_of(self._must_parse_attribute_entry,
                                         "Expected attribute entry")
 
         self.must_parse_characters(
             "]",
             "xDSL Attribute dictionary must be enclosed in square brackets")
 
-        return self.attr_dict_from_tuple_list(attrs)
+        return self._attr_dict_from_tuple_list(attrs)
 
-    def must_parse_operation_details(
+    def _must_parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
@@ -1806,14 +1818,14 @@ class XDSLParser(BaseParser):
               containing the types of the returned SSAValues
 
         """
-        args = self.must_parse_op_args_list()
-        succ = self.must_parse_optional_successor_list()
+        args = self._must_parse_op_args_list()
+        succ = self._must_parse_optional_successor_list()
         attrs = self.must_parse_optional_attr_dict()
         regions = self.must_parse_region_list()
 
         return args, succ, attrs, regions, None
 
-    def must_parse_optional_successor_list(self) -> list[Span]:
+    def _must_parse_optional_successor_list(self) -> list[Span]:
         if not self.tokenizer.starts_with("("):
             return []
         self.must_parse_characters(
@@ -1825,17 +1837,17 @@ class XDSLParser(BaseParser):
             ")", "Successor list is enclosed in round brackets")
         return successors
 
-    def must_parse_dialect_type_or_attribute_inner(self, kind: str):
+    def _must_parse_dialect_type_or_attribute_inner(self, kind: str):
         if self.tokenizer.starts_with('"'):
             name = self.try_parse_string_literal()
             if name is None:
                 self.raise_error(
                     "Expected string literal for an attribute in generic format here!"
                 )
-            return self.must_parse_generic_attribute_args(name)
-        return super().must_parse_dialect_type_or_attribute_inner(kind)
+            return self._must_parse_generic_attribute_args(name)
+        return super()._must_parse_dialect_type_or_attribute_inner(kind)
 
-    def must_parse_generic_attribute_args(self, name: StringLiteral):
+    def _must_parse_generic_attribute_args(self, name: StringLiteral):
         attr = self.ctx.get_optional_attr(name.string_contents)
         if attr is None:
             self.raise_error("Unknown attribute name!", name)
@@ -1849,7 +1861,7 @@ class XDSLParser(BaseParser):
             '>', 'Malformed attribute arguments, reached end of args list!')
         return attr(args)
 
-    def must_parse_op_args_list(self) -> list[Span]:
+    def _must_parse_op_args_list(self) -> list[Span]:
         self.must_parse_characters(
             "(", "Operation args list must be enclosed by brackets!")
         args = self.must_parse_list_of(self.try_parse_value_id_and_type,
