@@ -386,8 +386,8 @@ class PlusCustomFormatOp(Operation):
 
         lhs = parser.expect(parser.try_parse_value_id,
                             'Expected SSA Value name here!')
-        parser.parse_characters(
-            "+", "Malformed operation format, expected `+`!")
+        parser.parse_characters("+",
+                                "Malformed operation format, expected `+`!")
         rhs = parser.expect(parser.try_parse_value_id,
                             'Expected SSA Value name here!')
 

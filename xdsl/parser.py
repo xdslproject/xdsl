@@ -685,7 +685,7 @@ class BaseParser(ABC):
         self.parse_characters('(', 'Block arguments must start with `(`')
 
         args = self.parse_list_of(self.try_parse_value_id_and_type,
-                                       "Expected value-id and type here!")
+                                  "Expected value-id and type here!")
 
         self.parse_characters(')', 'Expected closing of block arguments!')
 
@@ -709,10 +709,10 @@ class BaseParser(ABC):
             allow_empty=False)
 
     def parse_list_of(self,
-                           try_parse: Callable[[], T_ | None],
-                           error_msg: str,
-                           separator_pattern: re.Pattern = ParserCommons.comma,
-                           allow_empty: bool = True) -> list[T_]:
+                      try_parse: Callable[[], T_ | None],
+                      error_msg: str,
+                      separator_pattern: re.Pattern = ParserCommons.comma,
+                      allow_empty: bool = True) -> list[T_]:
         """
         This is a greedy list-parser. It accepts input only in these cases:
 
@@ -789,8 +789,8 @@ class BaseParser(ABC):
             if value_id is None:
                 self.raise_error("Invalid value-id format!")
 
-            self.parse_characters(
-                ':', 'Expected expression (value-id `:` type)')
+            self.parse_characters(':',
+                                  'Expected expression (value-id `:` type)')
 
             type = self.try_parse_type()
 
@@ -820,8 +820,7 @@ class BaseParser(ABC):
             if kind.text == '!':
                 return self._parse_dialect_type_or_attribute_inner('type')
             else:
-                return self._parse_dialect_type_or_attribute_inner(
-                    'attribute')
+                return self._parse_dialect_type_or_attribute_inner('attribute')
 
     def try_parse_dialect_type(self):
         """
@@ -830,8 +829,7 @@ class BaseParser(ABC):
         if not self.tokenizer.starts_with('!'):
             return None
         with self.tokenizer.backtracking("dialect type"):
-            self.parse_characters('!',
-                                       "Dialect type must start with a `!`")
+            self.parse_characters('!', "Dialect type must start with a `!`")
             return self._parse_dialect_type_or_attribute_inner('type')
 
     def try_parse_dialect_attr(self):
@@ -841,10 +839,9 @@ class BaseParser(ABC):
         if not self.tokenizer.starts_with('#'):
             return None
         with self.tokenizer.backtracking("dialect attribute"):
-            self.parse_characters(
-                '#', "Dialect attribute must start with a `#`")
-            return self._parse_dialect_type_or_attribute_inner(
-                'attribute')
+            self.parse_characters('#',
+                                  "Dialect attribute must start with a `#`")
+            return self._parse_dialect_type_or_attribute_inner('attribute')
 
     def _parse_dialect_type_or_attribute_inner(self, kind: str):
         type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
@@ -862,8 +859,7 @@ class BaseParser(ABC):
         if issubclass(type_def, ParametrizedAttribute):
             param_list = type_def.parse_parameters(self)
         elif issubclass(type_def, Data):
-            self.parse_characters("<",
-                                       "This attribute must be parametrized!")
+            self.parse_characters("<", "This attribute must be parametrized!")
             param_list = type_def.parse_parameter(self)
             self.parse_characters(
                 ">", "Invalid attribute parametrization, expected `>`!")
@@ -878,8 +874,8 @@ class BaseParser(ABC):
         """
         raise NotImplemented("Subclasses must implement this method!")
 
-    def _parse_builtin_parametrized_type(
-            self, name: Span) -> ParametrizedAttribute:
+    def _parse_builtin_parametrized_type(self,
+                                         name: Span) -> ParametrizedAttribute:
         """
         This function is called after we parse the name of a paremetrized type such as vector.
         """
@@ -922,8 +918,8 @@ class BaseParser(ABC):
             # Look out for the closing bracket for scalable vector dims
             if accept_closing_bracket and self.tokenizer.starts_with("]"):
                 break
-            self.parse_characters(
-                "x", "Unexpected end of dimension parameters!")
+            self.parse_characters("x",
+                                  "Unexpected end of dimension parameters!")
 
     def parse_vector_attrs(self) -> AnyVectorType:
         # Also break on 'x' characters as they are separators in dimension parameters
@@ -1010,10 +1006,10 @@ class BaseParser(ABC):
         self.parse_characters('<', 'Type must be parameterized!')
 
         params = self.parse_list_of(self.try_parse_type,
-                                         'Expected a type here!')
+                                    'Expected a type here!')
 
-        self.parse_characters(
-            '>', 'Expected end of type parameterization here!')
+        self.parse_characters('>',
+                              'Expected end of type parameterization here!')
 
         return params
 
@@ -1260,10 +1256,9 @@ class BaseParser(ABC):
         return DenseIntOrFPElementsAttr.from_list(type, info)
 
     def _parse_builtin_opaque_attr(self):
-        self.parse_characters("<",
-                                   "Opaque attribute must be parametrized")
+        self.parse_characters("<", "Opaque attribute must be parametrized")
         str_lit_list = self.parse_list_of(self.try_parse_string_literal,
-                                               'Expected opaque attr here!')
+                                          'Expected opaque attr here!')
 
         if len(str_lit_list) != 2:
             self.raise_error('Opaque expects 2 string literal parameters!')
@@ -1368,10 +1363,9 @@ class BaseParser(ABC):
         if not self.tokenizer.starts_with("["):
             return None
         with self.tokenizer.backtracking("array literal"):
-            self.parse_characters("[",
-                                       "Array literals must start with `[`")
+            self.parse_characters("[", "Array literals must start with `[`")
             attrs = self.parse_list_of(self.try_parse_attribute,
-                                            "Expected array entry!")
+                                       "Expected array entry!")
             self.parse_characters(
                 "]", "Malformed array contents (expected end of array here!")
             return ArrayAttr.from_list(attrs)
@@ -1414,19 +1408,18 @@ class BaseParser(ABC):
         self.parse_characters(
             "(", "First group of function args must start with a `(`")
 
-        args: list[Attribute] = self.parse_list_of(
-            self.try_parse_type, "Expected type here!")
+        args: list[Attribute] = self.parse_list_of(self.try_parse_type,
+                                                   "Expected type here!")
 
         self.parse_characters(
             ")",
             "Malformed function type, expected closing brackets of argument types!"
         )
 
-        self.parse_characters("->",
-                                   "Malformed function type, expected `->`!")
+        self.parse_characters("->", "Malformed function type, expected `->`!")
 
-        return FunctionType.from_lists(
-            args, self._parse_type_or_type_list_parens())
+        return FunctionType.from_lists(args,
+                                       self._parse_type_or_type_list_parens())
 
     def _parse_type_or_type_list_parens(self) -> list[Attribute]:
         """
@@ -1437,10 +1430,9 @@ class BaseParser(ABC):
         type-list-no-parens      ::=  type (`,` type)*
         """
         if self.tokenizer.next_token_of_pattern("(") is not None:
-            args: list[Attribute] = self.parse_list_of(
-                self.try_parse_type, "Expected type here!")
-            self.parse_characters(
-                ")", "Unclosed function type argument list!")
+            args: list[Attribute] = self.parse_list_of(self.try_parse_type,
+                                                       "Expected type here!")
+            self.parse_characters(")", "Unclosed function type argument list!")
         else:
             args = [self.try_parse_type()]
             if args[0] is None:
@@ -1560,7 +1552,7 @@ class BaseParser(ABC):
             self.raise_error("Expected start attribute parameters here (`<`)!")
 
         res = self.parse_list_of(self.try_parse_attribute,
-                                      'Expected another attribute here!')
+                                 'Expected another attribute here!')
 
         if opening_brackets is not None and self.tokenizer.next_token_of_pattern(
                 '>') is None:
@@ -1644,8 +1636,8 @@ class MLIRParser(BaseParser):
             self) -> tuple[list[Span], list[Attribute] | None]:
         return (
             self.parse_list_of(self.try_parse_value_id,
-                                    "Expected op-result here!",
-                                    allow_empty=True),
+                               "Expected op-result here!",
+                               allow_empty=True),
             None,
         )
 
@@ -1660,7 +1652,7 @@ class MLIRParser(BaseParser):
         attrs = []
         if not self.tokenizer.starts_with('}'):
             attrs = self.parse_list_of(self._parse_attribute_entry,
-                                            "Expected attribute entry")
+                                       "Expected attribute entry")
 
         self.parse_characters(
             "}",
@@ -1677,11 +1669,9 @@ class MLIRParser(BaseParser):
 
         regions = []
         if self.tokenizer.starts_with("("):
-            self.parse_characters("(",
-                                       "Expected brackets enclosing regions!")
+            self.parse_characters("(", "Expected brackets enclosing regions!")
             regions = self.parse_region_list()
-            self.parse_characters(")",
-                                       "Expected brackets enclosing regions!")
+            self.parse_characters(")", "Expected brackets enclosing regions!")
 
         attrs = self.parse_optional_attr_dict()
 
@@ -1695,20 +1685,20 @@ class MLIRParser(BaseParser):
     def _parse_optional_successor_list(self) -> list[Span]:
         if not self.tokenizer.starts_with("["):
             return []
-        self.parse_characters(
-            "[", "Successor list is enclosed in square brackets")
+        self.parse_characters("[",
+                              "Successor list is enclosed in square brackets")
         successors = self.parse_list_of(self.try_parse_block_id,
-                                             "Expected a block-id",
-                                             allow_empty=False)
-        self.parse_characters(
-            "]", "Successor list is enclosed in square brackets")
+                                        "Expected a block-id",
+                                        allow_empty=False)
+        self.parse_characters("]",
+                              "Successor list is enclosed in square brackets")
         return successors
 
     def _parse_op_args_list(self) -> list[Span]:
         self.parse_characters(
             "(", "Operation args list must be enclosed by brackets!")
         args = self.parse_list_of(self.try_parse_value_id,
-                                       "Expected another bare-id here")
+                                  "Expected another bare-id here")
         self.parse_characters(
             ")", "Operation args list must be closed by a closing bracket")
         # TODO: check if type is correct here!
@@ -1788,7 +1778,7 @@ class XDSLParser(BaseParser):
             "xDSL Attribute dictionary must be enclosed in square brackets")
 
         attrs = self.parse_list_of(self._parse_attribute_entry,
-                                        "Expected attribute entry")
+                                   "Expected attribute entry")
 
         self.parse_characters(
             "]",
@@ -1820,13 +1810,13 @@ class XDSLParser(BaseParser):
     def _parse_optional_successor_list(self) -> list[Span]:
         if not self.tokenizer.starts_with("("):
             return []
-        self.parse_characters(
-            "(", "Successor list is enclosed in round brackets")
+        self.parse_characters("(",
+                              "Successor list is enclosed in round brackets")
         successors = self.parse_list_of(self.try_parse_block_id,
-                                             "Expected a block-id",
-                                             allow_empty=False)
-        self.parse_characters(
-            ")", "Successor list is enclosed in round brackets")
+                                        "Expected a block-id",
+                                        allow_empty=False)
+        self.parse_characters(")",
+                              "Successor list is enclosed in round brackets")
         return successors
 
     def _parse_dialect_type_or_attribute_inner(self, kind: str):
@@ -1845,10 +1835,10 @@ class XDSLParser(BaseParser):
             self.raise_error("Unknown attribute name!", name)
         if not issubclass(attr, ParametrizedAttribute):
             self.raise_error("Expected ParametrizedAttribute name here!", name)
-        self.parse_characters(
-            '<', 'Expected generic attribute arguments here!')
+        self.parse_characters('<',
+                              'Expected generic attribute arguments here!')
         args = self.parse_list_of(self.try_parse_attribute,
-                                       'Unexpected end of attribute list!')
+                                  'Unexpected end of attribute list!')
         self.parse_characters(
             '>', 'Malformed attribute arguments, reached end of args list!')
         return attr(args)
@@ -1857,7 +1847,7 @@ class XDSLParser(BaseParser):
         self.parse_characters(
             "(", "Operation args list must be enclosed by brackets!")
         args = self.parse_list_of(self.try_parse_value_id_and_type,
-                                       "Expected another bare-id here")
+                                  "Expected another bare-id here")
         self.parse_characters(
             ")", "Operation args list must be closed by a closing bracket")
         # TODO: check if type is correct here!
