@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Annotated
 
 from pytest import raises
@@ -26,7 +24,6 @@ def check_error(prog: str, line: int, column: int, message: str):
         parser.must_parse_operation()
 
     assert e.value.span
-    msgs = [err.error.msg for err in e.value.history.iterate()]
 
     for err in e.value.history.iterate():
         if message in err.error.msg:
