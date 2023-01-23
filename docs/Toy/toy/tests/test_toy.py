@@ -3,7 +3,7 @@ from pathlib import Path
 from ..parser import Parser
 
 
-def test_memreftype():
+def test_parse_ast():
     ast_toy = Path() / 'docs' / 'Toy' / 'examples' / 'ast.toy'
 
     with open(ast_toy, 'r') as f:
