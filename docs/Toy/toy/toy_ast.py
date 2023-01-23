@@ -25,14 +25,10 @@ class ExprASTKind(Enum):
     Expr_Print = 8
 
 
-@dataclass(init=False)
+@dataclass()
 class Dumper():
     lines: List[str]
-    indentation: int
-
-    def __init__(self, lines: List[str], indentation: int = 0):
-        self.lines = lines
-        self.indentation = indentation
+    indentation: int = 0
 
     def append(self, prefix: str, line: str):
         self.lines.append(' ' * self.indentation * INDENT + prefix + line)
