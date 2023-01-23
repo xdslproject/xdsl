@@ -130,7 +130,7 @@ class Span:
         if info is None:
             return "Unknown location of span {}. Error: ".format(self, msg)
         lines, offset_of_first_line, line_no = info
-        # offset relative to the first line:
+        # Offset relative to the first line:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
@@ -205,16 +205,16 @@ class Input:
         while True:
             next_start = source.find('\n', start)
             line_no += 1
-            # handle eof
+            # Handle eof
             if next_start == -1:
                 if span.start > len(source):
                     return None
                 return [source[start:]], start, line_no
-            # as long as the next newline comes before the spans start we can continue
+            # As long as the next newline comes before the spans start we can continue
             if next_start < span.start:
                 start = next_start + 1
                 continue
-            # if the whole span is on one line, we are good as well
+            # If the whole span is on one line, we are good as well
             if next_start >= span.end:
                 return [source[start:next_start]], start, line_no
             while next_start < span.end:
@@ -238,7 +238,7 @@ class Tokenizer:
     It provides an interface for backtracking, so you can use:
 
     with tokenizer.backtracking():
-        # try stuff
+        # Try stuff
         raise ParseError(...)
 
     and not worry about manually resetting the input position. Backtracking will also
@@ -314,28 +314,28 @@ class Tokenizer:
         starting_position = self.pos
         try:
             yield
-            # clear error history when something doesn't fail
-            # this is because we are only interested in the last "cascade" of failures.
-            # if a backtracking() completes without failure, something has been parsed (we assume)
+            # Clear error history when something doesn't fail
+            # Lhis is because we are only interested in the last "cascade" of failures.
+            # If a backtracking() completes without failure, something has been parsed (we assume)
             if self.pos > starting_position and self.history is not None:
                 self.history = None
         except Exception as ex:
             how_far_we_got = self.pos
 
-            # if we have no error history, start recording!
+            # If we have no error history, start recording!
             if not self.history:
                 self.history = self.history_entry_from_exception(
                     ex, region_name, how_far_we_got)
 
-            # if we got further than on previous attempts
+            # If we got further than on previous attempts
             elif how_far_we_got > self.history.get_farthest_point():
-                # throw away history
+                # Throw away history
                 self.history = None
-                # generate new history entry,
+                # Generate new history entry,
                 self.history = self.history_entry_from_exception(
                     ex, region_name, how_far_we_got)
 
-            # otherwise, add to exception, if we are in a named region
+            # Otherwise, add to exception, if we are in a named region
             elif region_name is not None and how_far_we_got - starting_position > 0:
                 self.history = self.history_entry_from_exception(
                     ex, region_name, how_far_we_got)
@@ -357,7 +357,7 @@ class Tokenizer:
                 "Generic assertion failure",
                 *(reason for reason in ex.args if isinstance(reason, str)),
             ]
-            # we assume that assertions fail because of the last read-in token
+            # We assume that assertions fail because of the last read-in token
             if len(reason) == 1:
                 tb = StringIO()
                 traceback.print_exc(file=tb)
@@ -398,13 +398,13 @@ class Tokenizer:
         This will skip over line comments. Meaning it will skip the entire line if it encounters '//'
         """
         i = self.next_pos()
-        # construct the span:
+        # Construct the span:
         span = Span(i, self._find_token_end(i), self.input)
-        # advance pointer if not peeking
+        # Advance pointer if not peeking
         if not peek:
             self.pos = span.end
 
-        # save last token
+        # Save last token
         self.last_token = span
         return span
 
@@ -419,7 +419,7 @@ class Tokenizer:
         except EOFError:
             return None
 
-        # handle search for string literal
+        # Handle search for string literal
         if isinstance(pattern, str):
             if self.starts_with(pattern):
                 if not peek:
@@ -427,7 +427,7 @@ class Tokenizer:
                 return Span(start, start + len(pattern), self.input)
             return None
 
-        # handle regex logic
+        # Handle regex logic
         match = pattern.match(self.input.content, start)
         if match is None:
             return None
@@ -435,7 +435,7 @@ class Tokenizer:
         if not peek:
             self.pos = match.end()
 
-        # save last token
+        # Save last token
         self.last_token = Span(start, match.end(), self.input)
         return self.last_token
 
@@ -449,11 +449,11 @@ class Tokenizer:
         Find the point (optionally starting from start) where the token ends
         """
         i = self.next_pos() if start is None else start
-        # search for literal breaks
+        # Search for literal breaks
         for part in self.break_on:
             if self.input.content.startswith(part, i):
                 return i + len(part)
-        # otherwise return the start of the next break
+        # Otherwise return the start of the next break
         return min(
             filter(
                 lambda x: x >= 0,
@@ -467,11 +467,11 @@ class Tokenizer:
         This will skip line comments!
         """
         i = self.pos if i is None else i
-        # skip whitespaces
+        # Skip whitespaces
         while self.input.at(i).isspace():
             i += 1
 
-        # skip comments as well
+        # Skip comments as well
         if self.input.content.startswith("//", i):
             i = self.input.content.find("\n", i) + 1
             return self.next_pos(i)
@@ -493,12 +493,12 @@ class Tokenizer:
         """
         This is a helper class to allow expressing a temporary change in config, allowing you to write:
 
-        # parsing double-quoted string now
+        # Parsing double-quoted string now
         string_content = ""
         with tokenizer.configured(break_on=('"', '\\'),):
-            # use tokenizer
+            # Use tokenizer
 
-        # now old config is restored automatically
+        # Now old config is restored automatically
 
         """
         save = self.save()
@@ -542,7 +542,7 @@ class ParserCommons:
     type_alias = re.compile(r"![A-Za-z_][\w$.]+")
     attribute_alias = re.compile(r"#[A-Za-z_][\w$.]+")
     boolean_literal = re.compile(r"(true|false)")
-    # a list of
+    # A list of names that are builtin types
     _builtin_type_names = (
         r"[su]?i\d+", r"f\d+", "tensor", "vector", "memref", "complex",
         "opaque", "tuple", "index", "dense"
@@ -741,7 +741,7 @@ class BaseParser(ABC):
                ) is not None:
             next_item = try_parse()
             if next_item is None:
-                # if the separator is emtpy, we are good here
+                # If the separator is emtpy, we are good here
                 if separator_pattern.pattern == '':
                     return items
                 self.raise_error(error_msg +
@@ -858,7 +858,7 @@ class BaseParser(ABC):
                 "'{}' is not a know attribute!".format(type_name.text),
                 type_name)
 
-        # pass the task of parsing parameters on to the attribute/type definition
+        # Pass the task of parsing parameters on to the attribute/type definition
         if issubclass(type_def, ParametrizedAttribute):
             param_list = type_def.parse_parameters(self)
         elif issubclass(type_def, Data):
@@ -894,7 +894,7 @@ class BaseParser(ABC):
         }
 
         self.must_parse_characters("<", "Expected parameter list here!")
-        # get the parser for the type, falling back to the unimplemented warning
+        # Get the parser for the type, falling back to the unimplemented warning
         res = builtin_parsers.get(name.text, unimplemented)()
         self.must_parse_characters(">", "Expected end of parameter list here!")
 
@@ -916,21 +916,21 @@ class BaseParser(ABC):
         while (shape_arg :=
                self.try_parse_shape_element(lower_bound)) is not None:
             yield shape_arg
-            # look out for the closing bracket for scalable vector dims
+            # Look out for the closing bracket for scalable vector dims
             if accept_closing_bracket and self.tokenizer.starts_with("]"):
                 break
             self.must_parse_characters(
                 "x", "Unexpected end of dimension parameters!")
 
     def must_parse_vector_attrs(self) -> AnyVectorType:
-        # also break on 'x' characters as they are separators in dimension parameters
+        # Also break on 'x' characters as they are separators in dimension parameters
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
                                        ("x", )):
             shape = list[int](self.try_parse_numerical_dims())
             scaling_shape: list[int] | None = None
 
             if self.tokenizer.next_token_of_pattern("[") is not None:
-                # we now need to parse the scalable dimensions
+                # We now need to parse the scalable dimensions
                 scaling_shape = list(self.try_parse_numerical_dims())
                 self.must_parse_characters(
                     "]", "Expected end of scalable vector dimensions here!")
@@ -952,14 +952,14 @@ class BaseParser(ABC):
     def must_parse_tensor_or_memref_dims(self) -> list[int] | None:
         with self.tokenizer.configured(break_on=self.tokenizer.break_on +
                                        ('x', )):
-            # check for unranked-ness
+            # Check for unranked-ness
             if self.tokenizer.next_token_of_pattern('*') is not None:
-                # consume `x`
+                # Consume `x`
                 self.must_parse_characters(
                     'x',
                     'Unranked tensors must follow format (`<*x` type `>`)')
             else:
-                # parse rank:
+                # Parse rank:
                 return list(self.try_parse_numerical_dims(lower_bound=0))
 
     def must_parse_tensor_attrs(self) -> AnyTensorType:
@@ -1003,7 +1003,7 @@ class BaseParser(ABC):
         return None
 
     def must_parse_type_params(self) -> list[Attribute]:
-        # consume opening bracket
+        # Consume opening bracket
         self.must_parse_characters('<', 'Type must be parameterized!')
 
         params = self.must_parse_list_of(self.try_parse_type,
@@ -1056,13 +1056,13 @@ class BaseParser(ABC):
                 '=',
                 'Operation definitions expect an `=` after op-result-list!')
 
-        # check for custom op format
+        # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
             op_type = self._get_op_by_name(op_name)
             op = op_type.parse(ret_types, self)
         else:
-            # check for basic op format
+            # Check for basic op format
             op_name = self.try_parse_string_literal()
             if op_name is None:
                 self.raise_error(
@@ -1128,7 +1128,7 @@ class BaseParser(ABC):
             if self.tokenizer.starts_with("}"):
                 region.add_block(Block())
             else:
-                # parse first block
+                # Parse first block
                 block = self.must_parse_block()
                 region.add_block(block)
 
@@ -1223,7 +1223,7 @@ class BaseParser(ABC):
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
             return self.try_parse_builtin_named_attr()
-        # order here is important!
+        # Order here is important!
         attrs = (self.try_parse_builtin_float_attr,
                  self.try_parse_builtin_int_attr, self.try_parse_builtin_type)
 
@@ -1335,7 +1335,7 @@ class BaseParser(ABC):
                 self.try_parse_float_literal,
                 "Float attribute must start with a float literal!",
             )
-            # if we don't see a ':' indicating a type signature
+            # If we don't see a ':' indicating a type signature
             if not self.tokenizer.starts_with(":"):
                 return FloatAttr.from_value(float(value.text))
 
@@ -1513,8 +1513,8 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
-    # since we don't want to rewrite all dialects currently, the new parser needs to expose the same
-    # interface to the dialect definitions (to some extent). Here we implement that interface.
+    # Since we don't want to rewrite all dialects currently, the new parser needs to expose the same
+    # Interface to the dialect definitions (to some extent). Here we implement that interface.
 
     _OperationType = TypeVar("_OperationType", bound=Operation)
 
@@ -1614,11 +1614,11 @@ class MLIRParser(BaseParser):
         """
         Parse attribute (either builtin or dialect)
         """
-        # all dialect attrs must start with '#', so we check for that first (as it's easier)
+        # All dialect attrs must start with '#', so we check for that first (as it's easier)
         if self.tokenizer.starts_with("#"):
             value = self.try_parse_dialect_attr()
 
-            # no value => error
+            # No value => error
             if value is None:
                 self.raise_error(
                     "`#` must be followed by a valid dialect attribute or type!"
@@ -1626,7 +1626,7 @@ class MLIRParser(BaseParser):
 
             return value
 
-        # if it isn't a dialect attr, parse builtin
+        # If it isn't a dialect attr, parse builtin
         builtin_val = self.try_parse_builtin_attr()
 
         if builtin_val is None:
@@ -1722,7 +1722,7 @@ class XDSLParser(BaseParser):
                 ParserCommons.builtin_type_xdsl)
             if name is None:
                 self.raise_error("Expected builtin name!")
-            # xdsl builtin types have a '!' prefix, we strip that out here
+            # xDSL builtin types have a '!' prefix, we strip that out here
             name = Span(start=name.start + 1, end=name.end, input=name.input)
 
             return self.must_parse_builtin_type_with_name(name)
@@ -1738,7 +1738,7 @@ class XDSLParser(BaseParser):
         # xDSL: Allow both # and ! prefixes, as we allow both types and attrs
         # TODO: phase out use of next_token(peek=True) in favour of starts_with
         if value is None and self.tokenizer.next_token(peek=True).text in "#!":
-            # in MLIR # and ! are prefixes for dialect attrs/types, but in xDSL ! is also used for builtin types
+            # In MLIR # and ! are prefixes for dialect attrs/types, but in xDSL ! is also used for builtin types
             value = self.try_parse_dialect_type_or_attribute()
 
         if value is None:
@@ -1767,7 +1767,7 @@ class XDSLParser(BaseParser):
 
         If the mode is xDSL, it also allows parsing of builtin types
         """
-        # in xdsl, two things are different here:
+        # In xdsl, two things are different here:
         #  1. types are considered valid attributes
         #  2. all types, builtins included, are prefixed with !
         if self.tokenizer.starts_with("!"):
