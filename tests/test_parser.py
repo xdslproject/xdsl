@@ -15,7 +15,7 @@ def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
     parser = XDSLParser(ctx, input)
 
-    int_list = parser.must_parse_list_of(parser.try_parse_integer_literal, '')
+    int_list = parser.parse_list_of(parser.try_parse_integer_literal, '')
     assert [int(span.text) for span in int_list] == expected
 
 
@@ -38,6 +38,6 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = XDSLParser(ctx, text).must_parse_attribute()
+    attr = XDSLParser(ctx, text).parse_attribute()
 
     assert attr.data == data

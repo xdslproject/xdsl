@@ -232,7 +232,7 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     ctx.register_dialect(Cf)
 
     parser = XDSLParser(ctx, program_func)
-    program: ModuleOp = parser.must_parse_operation()
+    program: ModuleOp = parser.parse_operation()
 
     assert program.is_structurally_equivalent(program.regions[0]) == False
     assert program.is_structurally_equivalent(

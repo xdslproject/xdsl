@@ -21,7 +21,7 @@ def check_error(prog: str, line: int, column: int, message: str):
 
     parser = XDSLParser(ctx, prog)
     with raises(ParseError) as e:
-        parser.must_parse_operation()
+        parser.parse_operation()
 
     assert e.value.span
 
