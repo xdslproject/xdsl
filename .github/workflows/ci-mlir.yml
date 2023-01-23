@@ -44,6 +44,7 @@ jobs:
         restore-keys: ${{ runner.os }}-${{ env.MLIR-Version }}
         # LLVM needs serious cache size
         max-size: 6G
+        append-timestamp: false
 
     - name: Checkout project
       uses: actions/checkout@v3
