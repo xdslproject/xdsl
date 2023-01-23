@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr
                                             ("1, 1, 0", [1, 1, 0])])
 def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
-    parser = XDSLParser(ctx, input, '<unknown>')
+    parser = XDSLParser(ctx, input)
 
     int_list = parser.must_parse_list_of(parser.try_parse_integer_literal, '')
     assert [int(span.text) for span in int_list] == expected

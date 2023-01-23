@@ -149,7 +149,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -655,7 +655,7 @@ def test_parse_dense_xdsl():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -703,7 +703,7 @@ def test_foo_string():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     try:
         parser.parse_op()
         assert False
@@ -722,7 +722,7 @@ def test_dictionary_attr():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     parsed = parser.parse_op()
 
     file = StringIO("")
