@@ -248,15 +248,6 @@ class Input:
     def __len__(self):
         return self.len
 
-    def get_nth_line_bounds(self, n: int):
-        start = 0
-        for i in range(n):
-            next_start = self.content.find('\n', start)
-            if next_start == -1:
-                return None
-            start = next_start + 1
-        return start, self.content.find('\n', start)
-
     def get_lines_containing(self,
                              span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
