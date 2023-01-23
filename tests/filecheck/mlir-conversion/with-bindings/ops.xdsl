@@ -50,6 +50,5 @@ builtin.module() {
     func.return(%24 : !i32)
   }
 
-  memref.global() ["sym_name" = "complex_types", "type" = !memref<[1 : !i64], !index>, "initial_value" = array<!i32: 0>, "sym_visibility" = "public"]
-
+  memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !i64>, "initial_value" = array<!i64: 0>, "sym_visibility" = "public"]
 }
