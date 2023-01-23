@@ -5,7 +5,7 @@ import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import AllOf, AnyAttr, AnyOf, AttrConstraint, BaseAttr, EqAttrConstraint, ParamAttrConstraint, ParameterDef, irdl_attr_definition
-from xdsl.parser import Parser
+from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
@@ -16,7 +16,7 @@ class BoolData(Data[bool]):
     name = "bool"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> bool:
+    def parse_parameter(parser: BaseParser) -> bool:
         raise NotImplementedError()
 
     @staticmethod
@@ -30,7 +30,7 @@ class IntData(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
     @staticmethod

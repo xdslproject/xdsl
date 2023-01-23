@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+import re
 from io import StringIO
 from typing import List, Annotated
 
-from xdsl.dialects.func import Func, FuncOp
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.arith import Arith, Addi, Constant
-
-from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
+from xdsl.dialects.func import Func
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
                        Operation, Operand, OptAttributeDef)
+from xdsl.parser import Parser, BaseParser, Span, XDSLParser
 from xdsl.printer import Printer
-from xdsl.parser import Parser
 from xdsl.utils.diagnostic import Diagnostic
 
 
@@ -149,7 +149,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -184,8 +184,8 @@ def test_two_different_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
-    module = parser.parse_op()
+    parser = XDSLParser(ctx, prog)
+    module = parser.parse_module()
 
     file = StringIO("")
     diagnostic = Diagnostic()
@@ -220,7 +220,7 @@ def test_two_same_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -254,7 +254,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -290,7 +290,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -316,7 +316,7 @@ def test_diagnostic():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     diag = Diagnostic()
@@ -356,7 +356,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -382,13 +382,19 @@ class PlusCustomFormatOp(Operation):
 
     @classmethod
     def parse(cls, result_types: List[Attribute],
-              parser: Parser) -> PlusCustomFormatOp:
-        lhs = parser.parse_ssa_value()
-        parser.skip_white_space()
-        parser.parse_char("+")
-        rhs = parser.parse_ssa_value()
-        return PlusCustomFormatOp.create(operands=[lhs, rhs],
-                                         result_types=result_types)
+              parser: BaseParser) -> PlusCustomFormatOp:
+
+        lhs = parser.expect(parser.try_parse_value_id,
+                            'Expected SSA Value name here!')
+        parser.parse_characters("+",
+                                "Malformed operation format, expected `+`!")
+        rhs = parser.expect(parser.try_parse_value_id,
+                            'Expected SSA Value name here!')
+
+        return PlusCustomFormatOp.create(
+            operands=[parser.get_ssa_val(lhs),
+                      parser.get_ssa_val(rhs)],
+            result_types=result_types)
 
     def print(self, printer: Printer):
         printer.print(" ", self.lhs, " + ", self.rhs)
@@ -416,7 +422,7 @@ builtin.module() {
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -447,7 +453,7 @@ builtin.module() {
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -478,7 +484,7 @@ def test_custom_format_II():
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -494,13 +500,14 @@ class CustomFormatAttr(ParametrizedAttribute):
     attr: ParameterDef[IntAttr]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.parse_char("<")
-        value = parser.parse_alpha_num(skip_white_space=False)
-        if value == "zero":
+        value = parser.tokenizer.next_token_of_pattern(
+            re.compile('(zero|one)'))
+        if value and value.text == "zero":
             parser.parse_char(">")
             return [IntAttr.from_int(0)]
-        if value == "one":
+        if value and value.text == "one":
             parser.parse_char(">")
             return [IntAttr.from_int(1)]
         assert False
@@ -535,7 +542,7 @@ builtin.module() {
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -550,7 +557,7 @@ def test_parse_generic_format_attr():
     """
     prog = \
         """builtin.module() {
-      any() ["attr" = !"custom"<!int<0>>]
+      any() ["attr" = #"custom"<#int<0>>]
     }"""
 
     expected = \
@@ -564,7 +571,7 @@ builtin.module() {
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -593,7 +600,7 @@ def test_parse_generic_format_attr_II():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -648,7 +655,7 @@ def test_parse_dense_xdsl():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -696,7 +703,7 @@ def test_foo_string():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     try:
         parser.parse_op()
         assert False
@@ -715,7 +722,7 @@ def test_dictionary_attr():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
 
-    parser = Parser(ctx, prog)
+    parser = XDSLParser(ctx, prog)
     parsed = parser.parse_op()
 
     file = StringIO("")

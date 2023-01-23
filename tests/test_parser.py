@@ -1,7 +1,11 @@
+from io import StringIO
+
 import pytest
 
-from xdsl.ir import MLContext
-from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.ir import MLContext, Attribute
+from xdsl.parser import XDSLParser
+from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
 
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
@@ -9,29 +13,31 @@ from xdsl.parser import Parser
                                             ("1, 1, 0", [1, 1, 0])])
 def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
-    parser = Parser(ctx, input)
+    parser = XDSLParser(ctx, input)
 
-    int_list = parser.parse_list(parser.parse_int_literal)
-    assert int_list == expected
+    int_list = parser.parse_list_of(parser.try_parse_integer_literal, '')
+    assert [int(span.text) for span in int_list] == expected
 
 
-@pytest.mark.parametrize("input,expected", [('{"A"=0, "B"=1, "C"=2}', {
-    "A": 0,
-    "B": 1,
-    "C": 2
-}), ('{"MA"=10, "BR"=7, "Z"=3}', {
-    "MA": 10,
-    "BR": 7,
-    "Z": 3
-}), ('{"Q"=77, "VV"=12, "AA"=-8}', {
-    "Q": 77,
-    "VV": 12,
-    "AA": -8
-})])
-def test_int_dictionary_parser(input: str, expected: dict[str, int]):
+@pytest.mark.parametrize('data', [
+    dict(a=IntAttr.from_int(1), b=IntAttr.from_int(2), c=IntAttr.from_int(3)),
+    dict(a=StringAttr.from_str('hello'),
+         b=IntAttr.from_int(2),
+         c=ArrayAttr.from_list(
+             [IntAttr.from_int(2),
+              StringAttr.from_str('world')])),
+    dict(),
+])
+def test_dictionary_attr(data: dict[str, Attribute]):
+    attr = DictionaryAttr.from_dict(data)
+
+    with StringIO() as io:
+        Printer(io).print(attr)
+        text = io.getvalue()
+
     ctx = MLContext()
-    parser = Parser(ctx, input)
+    ctx.register_dialect(Builtin)
 
-    int_dict = parser.parse_dictionary(parser.parse_str_literal,
-                                       parser.parse_int_literal)
-    assert int_dict == expected
+    attr = XDSLParser(ctx, text).parse_attribute()
+
+    assert attr.data == data

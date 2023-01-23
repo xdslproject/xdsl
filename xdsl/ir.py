@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, Union)
+                    Sequence, TypeVar, cast, Iterator, Union, ClassVar)
 import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import Parser, BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
 
@@ -49,6 +50,8 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    registered_unregistered_ops: dict[str, type[Operation]] = field(
+        default_factory=dict)
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -118,7 +121,19 @@ class SSAValue(ABC):
     uses: set[Use] = field(init=False, default_factory=set, repr=False)
     """All uses of the value."""
 
-    name: str | None = field(init=False, default=None)
+    _name: str | None = field(init=False, default=None)
+
+    _name_regex: ClassVar[re.Pattern] = re.compile(
+        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+
+    @property
+    def name(self) -> str | None:
+        return self._name
+
+    @name.setter
+    def name(self, name: str):
+        if self._name_regex.fullmatch(name):
+            self._name = name
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -284,7 +299,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(parser: BaseParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @staticmethod
@@ -299,7 +314,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -497,7 +512,7 @@ class Operation(IRNode):
 
     @classmethod
     def parse(cls: type[_OperationType], result_types: list[Attribute],
-              parser: Parser) -> _OperationType:
+              parser: BaseParser) -> _OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):
@@ -622,6 +637,8 @@ class Operation(IRNode):
 @dataclass()
 class Block(IRNode):
     """A sequence of operations"""
+
+    declared_at: 'Span' | None = None
 
     _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
                                              init=False)

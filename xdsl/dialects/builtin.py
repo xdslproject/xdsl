@@ -6,7 +6,7 @@ from typing import (Annotated, Callable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar)
 
 from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation,
-                     SSAValue, Region, Attribute, Dialect)
+                     SSAValue, Region, Attribute, Dialect, MLContext)
 from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -16,7 +16,8 @@ from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, ParserError
+    from xdsl.parser import BaseParser
+    from utils.exceptions import ParseError
     from xdsl.printer import Printer
 
 
@@ -25,7 +26,7 @@ class StringAttr(Data[str]):
     name = "string"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: BaseParser) -> str:
         data = parser.parse_str_literal()
         return data
 
@@ -81,7 +82,7 @@ class IntAttr(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: BaseParser) -> int:
         data = parser.parse_int_literal()
         return data
 
@@ -110,14 +111,14 @@ class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Signedness:
+    def parse_parameter(parser: BaseParser) -> Signedness:
         if parser.parse_optional_string("signless") is not None:
             return Signedness.SIGNLESS
         elif parser.parse_optional_string("signed") is not None:
             return Signedness.SIGNED
         elif parser.parse_optional_string("unsigned") is not None:
             return Signedness.UNSIGNED
-        raise ParserError(parser.get_pos(), "Expected signedness")
+        raise ParseError(parser.get_pos(), "Expected signedness")
 
     @staticmethod
     def print_parameter(data: Signedness, printer: Printer) -> None:
@@ -226,7 +227,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> float:
+    def parse_parameter(parser: BaseParser) -> float:
         return parser.parse_float_literal()
 
     @staticmethod
@@ -299,7 +300,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     name = "array"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> List[_ArrayAttrT]:
+    def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
         parser.parse_char("[")
         data = parser.parse_list(parser.parse_optional_attribute)
         parser.parse_char("]")
@@ -348,10 +349,10 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
-        data = parser.parse_dictionary(parser.parse_str_literal,
-                                       parser.parse_attribute)
-        return data
+    def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
+        # force MLIR style parsing of attribute
+        from xdsl.parser import MLIRParser
+        return MLIRParser.parse_optional_attr_dict(parser)
 
     @staticmethod
     def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
@@ -385,16 +386,15 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
         to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
+            # try to coerce keys into StringAttr
+            if isinstance(k, StringAttr):
+                k = k.data
+            # if coercion fails, raise KeyError!
             if not isinstance(k, str):
-                if isinstance(k, StringAttr):
-                    to_add_data[k.data] = v
-                else:
-                    raise TypeError(
-                        f"Attribute DictionaryAttr expects keys to"
-                        f" be of type StringAttr or str, but {type(k)} provided"
-                    )
-            else:
-                to_add_data[k] = v
+                raise TypeError(
+                    f"DictionaryAttr.from_dict expects keys to"
+                    f" be of type str or StringAttr, but {type(k)} provided")
+            to_add_data[k] = v
         return DictionaryAttr(to_add_data)
 
 
@@ -695,20 +695,21 @@ class UnregisteredOp(Operation):
     def op_name(self) -> StringAttr:
         return self.op_name__  # type: ignore
 
-    @staticmethod
-    def from_name(name: str | StringAttr,
-                  args: list[SSAValue | Operation] = [],
-                  res: list[Attribute] = [],
-                  regs: list[Region] = [],
-                  attrs: dict[str, Attribute] = {}) -> UnregisteredOp:
-        if "op_name__" in attrs:
-            raise Exception(
-                "Cannot create an unregistered op with an __op_name attribute")
-        attrs["op_name__"] = StringAttr.build(name)
-        return UnregisteredOp.build(operands=args,
-                                    result_types=res,
-                                    regions=regs,
-                                    attributes=attrs)
+    @classmethod
+    def with_name(cls, name: str, ctx: MLContext) -> type[Operation]:
+        if name in ctx.registered_unregistered_ops:
+            return ctx.registered_unregistered_ops[name]  # type: ignore
+
+        class UnregisteredOpWithName(UnregisteredOp):
+
+            @classmethod
+            def create(cls, **kwargs):
+                op = super().create(**kwargs)
+                op.attributes['op_name__'] = StringAttr.build(name)
+                return op
+
+        ctx.registered_unregistered_ops[name] = UnregisteredOpWithName
+        return UnregisteredOpWithName
 
 
 @irdl_op_definition

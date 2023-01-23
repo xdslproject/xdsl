@@ -3,9 +3,10 @@ import sys
 import os
 from io import IOBase, StringIO
 import coverage
+from typing.io import IO
 
 from xdsl.ir import MLContext
-from xdsl.parser import Parser
+from xdsl.parser import XDSLParser, MLIRParser
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -216,30 +217,13 @@ class xDSLOptMain:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_xdsl(f: IOBase):
-            input_str = f.read()
-            parser = Parser(
-                self.ctx,
-                input_str,
-                allow_unregistered_ops=self.args.allow_unregistered_ops)
-            module = parser.parse_op()
-            if not (isinstance(module, ModuleOp)):
-                raise Exception(
-                    "Expected module or program as toplevel operation")
-            return module
+        def parse_xdsl(io: IOBase):
+            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
+                              self.args.allow_unregistered_ops).parse_module()
 
-        def parse_mlir(f: IOBase):
-            input_str = f.read()
-            parser = Parser(
-                self.ctx,
-                input_str,
-                source=Parser.Source.MLIR,
-                allow_unregistered_ops=self.args.allow_unregistered_ops)
-            module = parser.parse_op()
-            if not (isinstance(module, ModuleOp)):
-                raise Exception(
-                    "Expected module or program as toplevel operation")
-            return module
+        def parse_mlir(io: IOBase):
+            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
+                              self.args.allow_unregistered_ops).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
@@ -352,3 +336,6 @@ class xDSLOptMain:
         else:
             output_stream = open(self.args.output_file, 'w')
             output_stream.write(contents)
+
+    def get_input_name(self):
+        return self.args.input_file or 'stdin'

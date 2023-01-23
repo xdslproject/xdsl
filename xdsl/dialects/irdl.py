@@ -6,7 +6,7 @@ from xdsl.ir import ParametrizedAttribute, Operation, Attribute, Dialect
 from xdsl.irdl import (ParameterDef, AnyAttr, AttributeDef,
                        SingleBlockRegionDef, irdl_op_definition,
                        irdl_attr_definition)
-from xdsl.parser import Parser
+from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
 
@@ -61,7 +61,7 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
     params_constraints: ParameterDef[Attribute]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.parse_char("<")
         type_name = parser.parse_str_literal()
         parser.parse_char(":")
