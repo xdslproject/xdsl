@@ -673,6 +673,11 @@ class BaseParser(ABC):
             self.raise_error("Expected ModuleOp at top level!",
                              self.tokenizer.next_token())
 
+    def get_ssa_val(self, name: Span) -> SSAValue:
+        if name.text not in self.ssaValues:
+            self.raise_error('SSA Value used before assignment', name)
+        return self.ssaValues[name.text]
+
     def get_block_from_name(self, block_name: Span) -> Block:
         """
         This function takes a span containing a block id (like `^42`) and returns a block.

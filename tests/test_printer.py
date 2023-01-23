@@ -184,7 +184,7 @@ def test_two_different_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_module()
 
     file = StringIO("")
@@ -220,7 +220,7 @@ def test_two_same_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -254,7 +254,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -290,7 +290,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -316,7 +316,7 @@ def test_diagnostic():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     diag = Diagnostic()
@@ -356,7 +356,7 @@ builtin.module() {
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -384,11 +384,6 @@ class PlusCustomFormatOp(Operation):
     def parse(cls, result_types: List[Attribute],
               parser: BaseParser) -> PlusCustomFormatOp:
 
-        def get_ssa_val(name: Span) -> SSAValue:
-            if name.text not in parser.ssaValues:
-                parser.raise_error('SSA Value used before assignment', name)
-            return parser.ssaValues[name.text]
-
         lhs = parser.expect(parser.try_parse_value_id,
                             'Expected SSA Value name here!')
         parser.must_parse_characters(
@@ -397,7 +392,7 @@ class PlusCustomFormatOp(Operation):
                             'Expected SSA Value name here!')
 
         return PlusCustomFormatOp.create(
-            operands=[get_ssa_val(name) for name in (lhs, rhs)],
+            operands=[parser.get_ssa_val(lhs), parser.get_ssa_val(rhs)],
             result_types=result_types)
 
     def print(self, printer: Printer):
@@ -426,7 +421,7 @@ builtin.module() {
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -457,7 +452,7 @@ builtin.module() {
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -488,7 +483,7 @@ def test_custom_format_II():
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -546,7 +541,7 @@ builtin.module() {
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -575,7 +570,7 @@ builtin.module() {
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
@@ -604,7 +599,7 @@ def test_parse_generic_format_attr_II():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = XDSLParser(ctx, prog, '<unknown>')
+    parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
     file = StringIO("")
