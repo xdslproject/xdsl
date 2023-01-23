@@ -81,7 +81,7 @@ jobs:
         cd xdsl
         # Add the MLIR Python bindings to the PYTHONPATH
         export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
-        pytest --cov --cov-config=.coveragerc tests
+        pytest --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
