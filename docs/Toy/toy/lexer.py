@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 from typing import List
-from toy.location import Location
+from .location import Location
 
 
 @dataclass(init=False)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Callable, Iterable
 from enum import Enum
 from dataclasses import dataclass
-from toy.location import Location
+from .location import Location
 
 INDENT = 2
 

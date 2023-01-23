@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import List, NoReturn, TypeVar, cast
 
-from toy.lexer import (OperatorToken, Token, tokenize, NumberToken, EOFToken,
+from .lexer import (OperatorToken, Token, tokenize, NumberToken, EOFToken,
                        IdentifierToken)
-from toy.ast import (BinaryExprAST, ExprAST, NumberExprAST, FunctionAST,
+from .ast import (BinaryExprAST, ExprAST, NumberExprAST, FunctionAST,
                      ModuleAST, LiteralExprAST, VarDeclExprAST, VarType,
                      VariableExprAST, ReturnExprAST, PrintExprAST, CallExprAST,
                      PrototypeAST)
