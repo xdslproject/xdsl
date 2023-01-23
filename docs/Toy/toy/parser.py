@@ -53,9 +53,11 @@ class Parser:
         self.pos = 0
 
     def getToken(self):
+        '''Returns current token in parser'''
         return self.tokens[self.pos]
 
-    def getTokenPrecedence(self):
+    def getTokenPrecedence(self) -> int:
+        '''Returns precedence if the current token is a binary operation, -1 otherwise'''
         PRECEDENCE = {
             '-': 20,
             '+': 20,
@@ -68,7 +70,8 @@ class Parser:
         except KeyError:
             return -1
 
-    def peek(self, pattern: str | type[Token] | None = None):
+    def peek(self, pattern: str | type[Token] | None = None) -> None:
+        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
         token = self.getToken()
         tokenType, text = (None,
                            pattern) if isinstance(pattern, str) else (pattern,
@@ -81,7 +84,8 @@ class Parser:
             if token.text != text:
                 self.parseError(f"'{text}'")
 
-    def check(self, pattern: str | type[Token] | None = None):
+    def check(self, pattern: str | type[Token] | None = None) -> bool:
+        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
         try:
             self.peek(pattern)
             return True
@@ -94,11 +98,13 @@ class Parser:
         return self.tokens[self.pos - 1]
 
     def pop_pattern(self, pattern: str | None = None) -> Token:
+        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
         self.peek(pattern)
         self.pos += 1
         return self.tokens[self.pos - 1]
 
     def pop_token(self, tokenType: type[TokenT]) -> TokenT:
+        '''Verifies that the current token is of expected type, raises ParseError otherwise'''
         self.peek(tokenType)
         self.pos += 1
         return cast(TokenT, self.tokens[self.pos - 1])
