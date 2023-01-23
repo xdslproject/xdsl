@@ -1677,7 +1677,8 @@ class MLIRParser(BaseParser):
 
         self.parse_characters(
             ":",
-            "MLIR Operation definitions must end in a function type signature!")
+            "MLIR Operation definitions must end in a function type signature!"
+        )
         func_type = self.parse_function_type()
 
         return args, succ, attrs, regions, func_type
