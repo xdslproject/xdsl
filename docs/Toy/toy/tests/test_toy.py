@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from ..toy.parser import Parser
+from ..parser import Parser
 
 
 def test_memreftype():
