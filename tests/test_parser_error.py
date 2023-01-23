@@ -79,7 +79,7 @@ unknown() {
 
 
 def test_parser_malformed_type():
-    """Test a missing attribute error."""
+    """Test a missing type error."""
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
