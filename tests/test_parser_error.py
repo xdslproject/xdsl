@@ -6,7 +6,8 @@ from pytest import raises
 
 from xdsl.ir import MLContext
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operation, VarOperand, VarOpResult
-from xdsl.parser import Parser, ParseError, XDSLParser
+from xdsl.parser import XDSLParser
+from xdsl.utils.exceptions import ParseError
 
 
 @irdl_op_definition

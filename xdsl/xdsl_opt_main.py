@@ -216,17 +216,14 @@ class xDSLOptMain:
 
         Add other/additional frontends by overloading this function.
         """
+
         def parse_xdsl(io: IOBase):
-            return XDSLParser(
-                self.ctx, io.read(), self.get_input_name(),
-                self.args.allow_unregistered_ops
-            ).parse_module()
+            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
+                              self.args.allow_unregistered_ops).parse_module()
 
         def parse_mlir(io: IOBase):
-            return MLIRParser(
-                self.ctx, io.read(), self.get_input_name(),
-                self.args.allow_unregistered_ops
-            ).parse_module()
+            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
+                              self.args.allow_unregistered_ops).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir

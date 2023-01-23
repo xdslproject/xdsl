@@ -16,7 +16,8 @@ from xdsl.irdl import (AttributeDef, VarOpResult, VarOperand, VarRegionDef,
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser, ParseError
+    from xdsl.parser import BaseParser
+    from utils.exceptions import ParseError
     from xdsl.printer import Printer
 
 
@@ -202,7 +203,6 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
-DefaultIntegerAttrType = i64
 
 
 @irdl_attr_definition

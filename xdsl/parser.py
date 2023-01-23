@@ -14,73 +14,16 @@ from enum import Enum
 from io import StringIO
 from typing import TypeVar, Iterable
 
+from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyTensorType, AnyVectorType, Float16Type, Float32Type, Float64Type,
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    DefaultIntegerAttrType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr)
+    FlatSymbolRefAttr, DenseIntOrFPElementsAttr, UnregisteredOp, OpaqueAttr,
+    NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
-
-
-class ParseError(Exception):
-    span: Span
-    msg: str
-    history: BacktrackingHistory | None
-
-    def __init__(self,
-                 span: Span,
-                 msg: str,
-                 history: BacktrackingHistory | None = None):
-        preamble = ""
-        if history:
-            preamble = history.error.args[0] + '\n'
-        if span is None:
-            raise ValueError("Span can't be None!")
-        super().__init__(preamble + span.print_with_context(msg))
-        self.span = span
-        self.msg = msg
-        self.history = history
-
-    def print_pretty(self, file=sys.stderr):
-        print(self.span.print_with_context(self.msg), file=file)
-
-    def print_with_history(self, file=sys.stderr):
-        if self.history is not None:
-            for h in sorted(self.history.iterate(), key=lambda h: -h.pos):
-                h.print()
-        else:
-            self.print_pretty(file)
-
-    def __repr__(self):
-        io = StringIO()
-        self.print_with_history(io)
-        return "{}:\n{}".format(self.__class__.__name__, io.getvalue())
-
-
-class MultipleSpansParseError(ParseError):
-    ref_text: str | None
-    refs: list[tuple[Span, str]]
-
-    def __init__(
-        self,
-        span: Span,
-        msg: str,
-        ref_text: str,
-        refs: list[tuple[Span, str | None]],
-        history: BacktrackingHistory | None = None,
-    ):
-        super(MultipleSpansParseError, self).__init__(span, msg, history)
-        self.refs = refs
-        self.ref_text = ref_text
-
-    def print_pretty(self, file=sys.stderr):
-        super(MultipleSpansParseError, self).print_pretty(file)
-        print(self.ref_text or "With respect to:", file=file)
-        for span, msg in self.refs:
-            print(span.print_with_context(msg), file=file)
 
 
 @dataclass
@@ -223,6 +166,11 @@ class StringLiteral(Span):
 
     @classmethod
     def from_span(cls, span: Span | None) -> StringLiteral | None:
+        """
+        Convert a normal span into a StringLiteral, to facilitate parsing.
+
+        If argument is None, returns None.
+        """
         if span is None:
             return None
         return cls(span.start, span.end, span.input)
@@ -1377,8 +1325,7 @@ class BaseParser(ABC):
                 self.try_parse_integer_literal,
                 'Integer attribute must start with an integer literal!')
             if self.tokenizer.next_token(peek=True).text != ':':
-                return IntegerAttr.from_params(int(value.text),
-                                               DefaultIntegerAttrType)
+                return IntegerAttr.from_params(int(value.text), i64)
             type = self.must_parse_attribute_type()
             return IntegerAttr.from_params(int(value.text), type)
 
