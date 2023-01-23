@@ -315,7 +315,7 @@ class Tokenizer:
         try:
             yield
             # Clear error history when something doesn't fail
-            # Lhis is because we are only interested in the last "cascade" of failures.
+            # This is because we are only interested in the last "cascade" of failures.
             # If a backtracking() completes without failure, something has been parsed (we assume)
             if self.pos > starting_position and self.history is not None:
                 self.history = None
@@ -523,7 +523,7 @@ class Tokenizer:
 
 class ParserCommons:
     """
-    Colelction of common things used in parsing MLIR/IRDL
+    Collection of common things used in parsing MLIR/IRDL
 
     """
 
@@ -626,7 +626,7 @@ class BaseParser(ABC):
         """
         This function takes a span containing a block id (like `^42`) and returns a block.
 
-        If the block defintion was not seen yet, we create a forward declaration.
+        If the block definition was not seen yet, we create a forward declaration.
         """
         name = block_name.text
         if name not in self.blocks:
@@ -872,12 +872,12 @@ class BaseParser(ABC):
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        raise NotImplemented("Subclasses must implement this method!")
+        raise NotImplementedError("Subclasses must implement this method!")
 
     def _parse_builtin_parametrized_type(self,
                                          name: Span) -> ParametrizedAttribute:
         """
-        This function is called after we parse the name of a paremetrized type such as vector.
+        This function is called after we parse the name of a parameterized type such as vector.
         """
 
         def unimplemented() -> ParametrizedAttribute:
@@ -1027,7 +1027,7 @@ class BaseParser(ABC):
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
-        This will, for example, include backtracking errors, if any occured previously
+        This will, for example, include backtracking errors, if any occurred previously
         """
         if at_position is None:
             at_position = self.tokenizer.next_token(peek=True)
@@ -1042,7 +1042,7 @@ class BaseParser(ABC):
     @abstractmethod
     def _parse_op_result_list(
             self) -> tuple[list[Span], list[Attribute] | None]:
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def try_parse_operation(self) -> Operation | None:
         with self.tokenizer.backtracking("operation"):
@@ -1163,8 +1163,8 @@ class BaseParser(ABC):
         """
         Parse entry in attribute dict. Of format:
 
-        attrbiute_entry := (bare-id | string-literal) `=` attribute
-        attrbiute       := dialect-attribute | builtin-attribute
+        attribute_entry := (bare-id | string-literal) `=` attribute
+        attribute       := dialect-attribute | builtin-attribute
         """
         if (name := self.try_parse_bare_id()) is None:
             name = self.try_parse_string_literal()
@@ -1189,7 +1189,7 @@ class BaseParser(ABC):
 
         This is different in xDSL and MLIR, so the actuall implementation is provided by the subclass
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def try_parse_attribute(self) -> Attribute | None:
         with self.tokenizer.backtracking("attribute"):
@@ -1207,7 +1207,7 @@ class BaseParser(ABC):
 
     def try_parse_builtin_attr(self) -> Attribute | None:
         """
-        Tries to parse a bultin attribute, e.g. a string literal, int, array, etc..
+        Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
         """
         next_token = self.tokenizer.next_token(peek=True)
         if next_token.text == '"':
@@ -1570,7 +1570,7 @@ class BaseParser(ABC):
                            'Malformed string literal!').string_contents
 
     def parse_attribute(self) -> Attribute:
-        return self.parse_attribute()
+        raise NotImplementedError()
 
     def parse_op(self) -> Operation:
         return self.parse_operation()
@@ -1677,7 +1677,7 @@ class MLIRParser(BaseParser):
 
         self.parse_characters(
             ":",
-            "MLIR Operation defintions must end in a function type signature!")
+            "MLIR Operation definitions must end in a function type signature!")
         func_type = self.parse_function_type()
 
         return args, succ, attrs, regions, func_type
@@ -1757,7 +1757,7 @@ class XDSLParser(BaseParser):
 
     def try_parse_builtin_attr(self) -> Attribute:
         """
-        Tries to parse a bultin attribute, e.g. a string literal, int, array, etc..
+        Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
 
         If the mode is xDSL, it also allows parsing of builtin types
         """
