@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import List, NoReturn, TypeVar, cast
 
 from .lexer import (OperatorToken, Token, tokenize, NumberToken, EOFToken,
-                       IdentifierToken)
-from .ast import (BinaryExprAST, ExprAST, NumberExprAST, FunctionAST,
-                     ModuleAST, LiteralExprAST, VarDeclExprAST, VarType,
-                     VariableExprAST, ReturnExprAST, PrintExprAST, CallExprAST,
-                     PrototypeAST)
+                    IdentifierToken)
+from .toy_ast import (BinaryExprAST, ExprAST, NumberExprAST, FunctionAST,
+                      ModuleAST, LiteralExprAST, VarDeclExprAST, VarType,
+                      VariableExprAST, ReturnExprAST, PrintExprAST,
+                      CallExprAST, PrototypeAST)
 
 
 class ParseError(Exception):
