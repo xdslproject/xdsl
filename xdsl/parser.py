@@ -1518,7 +1518,6 @@ class BaseParser(ABC):
             regions.append(self.must_parse_region())
         return regions
 
-    # COMMON xDSL/MLIR code:
     def must_parse_builtin_type_with_name(self, name: Span):
         if name.text == "index":
             return IndexType()
@@ -1571,8 +1570,8 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
-    # since we don't want to rewrite all dialects currently, the new emulator needs to expose the same
-    # interface to the dialect definitions. Here we implement that interface.
+    # since we don't want to rewrite all dialects currently, the new parser needs to expose the same
+    # interface to the dialect definitions (to some extent). Here we implement that interface.
 
     _OperationType = TypeVar("_OperationType", bound=Operation)
 
@@ -1646,8 +1645,10 @@ class BaseParser(ABC):
         attr_def = self.ctx.get_optional_attr('dictionary')
         if attr_def is None:
             self.raise_error(
-                "An attribute named `dictionary` must be available in the context in order to parse dictionary attributes! Please make sure the builtin dialect is available, or provide your own replacement!"
-            )
+                "An attribute named `dictionary` must be available in the "
+                "context in order to parse dictionary attributes! Please make "
+                "sure the builtin dialect is available, or provide your own "
+                "replacement!")
         param = attr_def.parse_parameter(self)
         return attr_def(param)
 
