@@ -119,7 +119,7 @@ class Parser:
         # If we didn't reach EOF, there was an error during parsing
         self.pop_token(EOFToken)
 
-        return ModuleAST(functions)
+        return ModuleAST(tuple(functions))
 
     def parseReturn(self):
         """
@@ -354,7 +354,7 @@ class Parser:
         expr = self.parseExpression()
         return VarDeclExprAST(var.loc, name, varType, expr)
 
-    def parseBlock(self):
+    def parseBlock(self) -> tuple[ExprAST, ...]:
         """
         Parse a block: a list of expression separated by semicolons and wrapped in
         curly braces.
@@ -390,7 +390,7 @@ class Parser:
 
         self.pop_pattern('}')
 
-        return exprList
+        return tuple(exprList)
 
     def parsePrototype(self):
         """

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Callable, Iterable
 from enum import Enum
 from dataclasses import dataclass
+
 from .location import Location
 
 INDENT = 2
@@ -228,7 +229,7 @@ class FunctionAST:
     'This class represents a function definition itself.'
     loc: Location
     proto: PrototypeAST
-    body: List[ExprAST]
+    body: tuple[ExprAST, ...]
 
     def dump(self):
         dumper = Dumper([])
@@ -246,7 +247,7 @@ class FunctionAST:
 @dataclass
 class ModuleAST:
     'This class represents a list of functions to be processed together'
-    funcs: List[FunctionAST]
+    funcs: tuple[FunctionAST, ...]
 
     def dump(self):
         dumper = Dumper([])
