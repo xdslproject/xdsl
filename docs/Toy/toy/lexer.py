@@ -1,7 +1,9 @@
+import re
+
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import List
+
 from .location import Location
 
 
