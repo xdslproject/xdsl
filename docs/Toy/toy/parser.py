@@ -53,11 +53,11 @@ class Parser:
         self.pos = 0
 
     def getToken(self):
-        '''Returns current token in parser'''
+        """Returns current token in parser"""
         return self.tokens[self.pos]
 
     def getTokenPrecedence(self) -> int:
-        '''Returns precedence if the current token is a binary operation, -1 otherwise'''
+        """Returns precedence if the current token is a binary operation, -1 otherwise"""
         PRECEDENCE = {
             '-': 20,
             '+': 20,
@@ -71,7 +71,7 @@ class Parser:
             return -1
 
     def peek(self, pattern: str | type[Token] | None = None) -> None:
-        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
+        """Verifies that the current token fits the pattern, raises ParseError otherwise"""
         token = self.getToken()
         tokenType, text = (None,
                            pattern) if isinstance(pattern, str) else (pattern,
@@ -85,7 +85,7 @@ class Parser:
                 self.parseError(f"'{text}'")
 
     def check(self, pattern: str | type[Token] | None = None) -> bool:
-        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
+        """Verifies that the current token fits the pattern, raises ParseError otherwise"""
         try:
             self.peek(pattern)
             return True
@@ -98,19 +98,19 @@ class Parser:
         return self.tokens[self.pos - 1]
 
     def pop_pattern(self, pattern: str | None = None) -> Token:
-        '''Verifies that the current token fits the pattern, raises ParseError otherwise'''
+        """Verifies that the current token fits the pattern, raises ParseError otherwise"""
         self.peek(pattern)
         self.pos += 1
         return self.tokens[self.pos - 1]
 
     def pop_token(self, tokenType: type[TokenT]) -> TokenT:
-        '''Verifies that the current token is of expected type, raises ParseError otherwise'''
+        """Verifies that the current token is of expected type, raises ParseError otherwise"""
         self.peek(tokenType)
         self.pos += 1
         return cast(TokenT, self.tokens[self.pos - 1])
 
     def parseModule(self):
-        '''Parse a full Module. A module is a list of function definitions.'''
+        """Parse a full Module. A module is a list of function definitions."""
         functions: List[FunctionAST] = []
 
         while not self.check(EOFToken):
@@ -122,10 +122,10 @@ class Parser:
         return ModuleAST(functions)
 
     def parseReturn(self):
-        '''
+        """
         Parse a return statement.
         return :== return ; | return expr ;
-        '''
+        """
         returnToken = self.pop_pattern('return')
         expr = None
 
@@ -136,19 +136,19 @@ class Parser:
         return ReturnExprAST(returnToken.loc, expr)
 
     def parseNumberExpr(self):
-        '''
+        """
         Parse a literal number.
         numberexpr ::= number
-        '''
+        """
         numberToken = self.pop_token(NumberToken)
         return NumberExprAST(numberToken.loc, numberToken.value)
 
     def parseTensorLiteralExpr(self):
-        '''
+        """
         Parse a literal array expression.
         tensorLiteral ::= [ literalList ] | number
         literalList ::= tensorLiteral | tensorLiteral, literalList
-        '''
+        """
         openBracket = self.pop_pattern('[')
 
         # Hold the list of values at this nesting level.
@@ -204,11 +204,11 @@ class Parser:
         return v
 
     def parseIdentifierExpr(self):
-        '''
+        """
         identifierexpr
         ::= identifier
         ::= identifier '(' expression ')'
-        '''
+        """
         name = self.pop_token(IdentifierToken)
         if not self.check('('):
             # Simple variable ref.
@@ -234,13 +234,13 @@ class Parser:
         return CallExprAST(name.loc, name.text, args)
 
     def parsePrimary(self) -> ExprAST | None:
-        '''
+        """
         primary
         ::= identifierexpr
         ::= numberexpr
         ::= parenexpr
         ::= tensorliteral
-        '''
+        """
         current = self.tokens[self.pos]
         if isinstance(current, IdentifierToken):
             return self.parseIdentifierExpr()
@@ -258,13 +258,13 @@ class Parser:
             self.parseError('expression or one of `;`, `}`')
 
     def parsePrimaryNotNone(self) -> ExprAST:
-        '''
+        """
         primary
         ::= identifierexpr
         ::= numberexpr
         ::= parenexpr
         ::= tensorliteral
-        '''
+        """
         current = self.tokens[self.pos]
         if isinstance(current, IdentifierToken):
             return self.parseIdentifierExpr()
@@ -278,12 +278,12 @@ class Parser:
             self.parseError('expression')
 
     def parseBinOpRHS(self, exprPrec: int, lhs: ExprAST) -> ExprAST:
-        '''
+        """
         Recursively parse the right hand side of a binary expression, the ExprPrec
         argument indicates the precedence of the current binary operator.
 
         binoprhs ::= ('+' primary)*
-        '''
+        """
         # If this is a binop, find its precedence.
         while True:
             tokPrec = self.getTokenPrecedence()
@@ -312,15 +312,15 @@ class Parser:
             lhs = BinaryExprAST(rhs.loc, binOp, lhs, rhs)
 
     def parseExpression(self) -> ExprAST:
-        '''expression::= primary binop rhs'''
+        """expression::= primary binop rhs"""
         lhs = self.parsePrimaryNotNone()
         return self.parseBinOpRHS(0, lhs)
 
     def parseType(self):
-        '''
+        """
         type ::= < shape_list >
         shape_list ::= num | num , shape_list
-        '''
+        """
         self.pop_pattern('<')
         shape: List[int] = []
 
@@ -334,12 +334,12 @@ class Parser:
         return VarType(shape)
 
     def parseDeclaration(self):
-        '''
+        """
         Parse a variable declaration, it starts with a `var` keyword followed by
         and identifier and an optional type (shape specification) before the
         initializer.
         decl ::= var identifier [ type ] = expr
-        '''
+        """
         var = self.pop_pattern('var')
         name = self.pop_token(IdentifierToken).text
 
@@ -355,14 +355,14 @@ class Parser:
         return VarDeclExprAST(var.loc, name, varType, expr)
 
     def parseBlock(self):
-        '''
+        """
         Parse a block: a list of expression separated by semicolons and wrapped in
         curly braces.
 
         block ::= { expression_list }
         expression_list ::= block_expr ; expression_list
         block_expr ::= decl | "return" | expr
-        '''
+        """
         self.pop_pattern('{')
         exprList: List[ExprAST] = []
 
@@ -393,10 +393,10 @@ class Parser:
         return exprList
 
     def parsePrototype(self):
-        '''
+        """
         prototype ::= def id '(' decl_list ')'
         decl_list ::= identifier | identifier, decl_list
-        '''
+        """
         defToken = self.pop_pattern('def')
         fnName = self.pop_token(IdentifierToken).text
         self.pop_pattern('(')
@@ -414,12 +414,12 @@ class Parser:
         return PrototypeAST(defToken.loc, fnName, args)
 
     def parseDefinition(self):
-        '''
+        """
         Parse a function definition, we expect a prototype initiated with the
         `def` keyword, followed by a block containing a list of expressions.
     
         definition ::= prototype block
-        '''
+        """
         proto = self.parsePrototype()
         block = self.parseBlock()
         return FunctionAST(proto.loc, proto, block)
@@ -427,11 +427,11 @@ class Parser:
     def parseError(self,
                    expected: str | type[Token],
                    context: str = '') -> NoReturn:
-        '''
+        """
         Helper function to signal errors while parsing, it takes an argument
         indicating the expected token and another argument giving more context.
         Location is retrieved from the lexer to enrich the error message.
-        '''
+        """
         token = self.getToken()
         line = self.program.splitlines()[token.line]
         raise ParseError(self.getToken(), expected, context, line)

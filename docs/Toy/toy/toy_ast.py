@@ -203,11 +203,11 @@ class PrintExprAST(ExprAST):
 
 @dataclass
 class PrototypeAST:
-    '''
+    """
     This class represents the "prototype" for a function, which captures its
     name, and its argument names (thus implicitly the number of arguments the
     function takes).
-    '''
+    """
     loc: Location
     name: str
     args: List[VariableExprAST]
