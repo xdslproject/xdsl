@@ -22,8 +22,8 @@ class OpResolver:
         resolver_name = "resolve_" + func_name
         if not hasattr(module, resolver_name):
             raise FrontendProgramException(
-                f"Internal failure: cannot resolve operation '{func_name}' "
-                f"from module '{module_name}'.")
+                f"Internal failure: operation '{func_name}' does not exist "
+                f"in module '{module_name}'.")
         return getattr(module, resolver_name)()
     
     @staticmethod
