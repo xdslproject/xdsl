@@ -3,7 +3,8 @@ from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
 from xdsl.ir import (ParametrizedAttribute, Operation, Attribute, Dialect)
-from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition)
+from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition,
+                       SingleBlockRegion, OpAttr)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
