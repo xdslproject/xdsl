@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 
 from typing import Union, TypeVar, Type
 
-from xdsl.ir import MLContext, Operation, Data
+from xdsl.ir import Dialect, MLContext, Operation, Data
 from xdsl.irdl import irdl_op_definition, irdl_attr_definition, builder, AnyOf
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import StringAttr, AttributeDef, IntegerAttr
+from xdsl.dialects.builtin import StringAttr, IntegerAttr, OpAttr
 
 
 @dataclass(frozen=True)
@@ -65,13 +65,13 @@ class Register:
             return Register.from_index(Register.abi_names[name])
         if name[0] == 'x' and name[1:].isnumeric():
             return Register.from_index(int(name[1:]))
-        assert False and "register with unknown name"
+        assert False, "register with unknown name"
 
     def get_abi_name(self) -> str:
         for name, index in Register.abi_names.items():
             if index == self.index:
                 return name
-        assert False and "Register with unknown index"
+        assert False, "Register with unknown index"
 
 
 @irdl_attr_definition
@@ -126,9 +126,9 @@ Op = TypeVar("Op", bound=Operation)
 
 
 class Riscv1Rd1Rs1ImmOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    rs1 = AttributeDef(RegisterAttr)
-    immediate = AttributeDef(IntegerAttr)
+    rd: OpAttr[RegisterAttr]
+    rs1: OpAttr[RegisterAttr]
+    immediate: OpAttr[IntegerAttr]
 
     @classmethod
     def get(cls: Type[Op], rd, rs1, immediate) -> Op:
@@ -142,9 +142,9 @@ class Riscv1Rd1Rs1ImmOperation(Operation):
 
 
 class Riscv1Rd1Rs1OffOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    rs1 = AttributeDef(RegisterAttr)
-    offset = AttributeDef(AnyOf([IntegerAttr, LabelAttr]))
+    rd: OpAttr[RegisterAttr]
+    rs1: OpAttr[RegisterAttr]
+    offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
     def get(cls: Type[Op], rd, rs1, offset) -> Op:
@@ -156,9 +156,9 @@ class Riscv1Rd1Rs1OffOperation(Operation):
 
 
 class Riscv2Rs1ImmOperation(Operation):
-    rs1 = AttributeDef(RegisterAttr)
-    rs2 = AttributeDef(RegisterAttr)
-    immediate = AttributeDef(IntegerAttr)
+    rs1: OpAttr[RegisterAttr]
+    rs2: OpAttr[RegisterAttr]
+    immediate: OpAttr[IntegerAttr]
 
     @classmethod
     def get(cls: Type[Op], rs1, rs2, immediate) -> Op:
@@ -172,9 +172,9 @@ class Riscv2Rs1ImmOperation(Operation):
 
 
 class Riscv2Rs1OffOperation(Operation):
-    rs1 = AttributeDef(RegisterAttr)
-    rs2 = AttributeDef(RegisterAttr)
-    offset = AttributeDef(AnyOf([IntegerAttr, LabelAttr]))
+    rs1: OpAttr[RegisterAttr]
+    rs2: OpAttr[RegisterAttr]
+    offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
     def get(cls: Type[Op], rs1, rs2, offset) -> Op:
@@ -186,9 +186,9 @@ class Riscv2Rs1OffOperation(Operation):
 
 
 class Riscv1Rd2RsOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    rs1 = AttributeDef(RegisterAttr)
-    rs2 = AttributeDef(RegisterAttr)
+    rd: OpAttr[RegisterAttr]
+    rs1: OpAttr[RegisterAttr]
+    rs2: OpAttr[RegisterAttr]
 
     @classmethod
     def get(cls: Type[Op], rd, rs1, rs2) -> Op:
@@ -196,9 +196,9 @@ class Riscv1Rd2RsOperation(Operation):
 
 
 class Riscv1Rs1Rt1OffOperation(Operation):
-    rs = AttributeDef(RegisterAttr)
-    rt = AttributeDef(RegisterAttr)
-    offset = AttributeDef(AnyOf([IntegerAttr, LabelAttr]))
+    rs: OpAttr[RegisterAttr]
+    rt: OpAttr[RegisterAttr]
+    offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
     def get(cls: Type[Op], rs, rt, offset) -> Op:
@@ -210,8 +210,8 @@ class Riscv1Rs1Rt1OffOperation(Operation):
 
 
 class Riscv1Rd1ImmOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    immediate = AttributeDef(IntegerAttr)
+    rd: OpAttr[RegisterAttr]
+    immediate: OpAttr[IntegerAttr]
 
     @classmethod
     def get(cls: Type[Op], rd, immediate) -> Op:
@@ -221,8 +221,8 @@ class Riscv1Rd1ImmOperation(Operation):
 
 
 class Riscv1Rd1OffOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    offset = AttributeDef(AnyOf([IntegerAttr, LabelAttr]))
+    rd: OpAttr[RegisterAttr]
+    offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
     def get(cls: Type[Op], rd, offset) -> Op:
@@ -234,8 +234,8 @@ class Riscv1Rd1OffOperation(Operation):
 
 
 class Riscv1Rs1OffOperation(Operation):
-    rs = AttributeDef(RegisterAttr)
-    offset = AttributeDef(AnyOf([IntegerAttr, LabelAttr]))
+    rs: OpAttr[RegisterAttr]
+    offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
     def get(cls: Type[Op], rs, offset) -> Op:
@@ -247,8 +247,8 @@ class Riscv1Rs1OffOperation(Operation):
 
 
 class Riscv1Rd1RsOperation(Operation):
-    rd = AttributeDef(RegisterAttr)
-    rs = AttributeDef(RegisterAttr)
+    rd: OpAttr[RegisterAttr]
+    rs: OpAttr[RegisterAttr]
 
     @classmethod
     def get(cls: Type[Op], rd, rs) -> Op:
@@ -644,7 +644,7 @@ class RETOp(RiscvNoParamsOperation):
 @irdl_op_definition
 class LabelOp(Operation):
     name = "riscv.label"
-    label = AttributeDef(LabelAttr)
+    label: OpAttr[LabelAttr]
 
     @staticmethod
     def get(label: Union[str, LabelAttr]) -> LabelOp:
@@ -654,8 +654,8 @@ class LabelOp(Operation):
 @irdl_op_definition
 class DirectiveOp(Operation):
     name = "riscv.directive"
-    directive = AttributeDef(StringAttr)
-    value = AttributeDef(StringAttr)
+    directive: OpAttr[StringAttr]
+    value: OpAttr[StringAttr]
 
     @staticmethod
     def get(directive: Union[str, StringAttr],
@@ -666,91 +666,100 @@ class DirectiveOp(Operation):
         })
 
 
-@dataclass
-class RISCV:
-    ctx: MLContext
+RISCV = Dialect(
+    [
+        # Loads
+        LBOp,
+        LBUOp,
+        LHOp,
+        LHUOp,
+        LWOp,
 
-    def __post_init__(self):
-        self.ctx.register_attr(RegisterAttr)
-        self.ctx.register_attr(LabelAttr)
+        # Stores
+        SBOp,
+        SHOp,
+        SWOp,
 
-        self.ctx.register_op(LBOp)
-        self.ctx.register_op(LBUOp)
-        self.ctx.register_op(LHOp)
-        self.ctx.register_op(LHUOp)
-        self.ctx.register_op(LWOp)
+        # Branches
+        BEQOp,
+        BNEOp,
+        BLTOp,
+        BGEOp,
+        BLTUOp,
+        BGEUOp,
 
-        self.ctx.register_op(SBOp)
-        self.ctx.register_op(SHOp)
-        self.ctx.register_op(SWOp)
+        # Shifts
+        SLLOp,
+        SLLIOp,
+        SRLOp,
+        SRLIOp,
+        SRAOp,
+        SRAIOp,
 
-        self.ctx.register_op(BEQOp)
-        self.ctx.register_op(BNEOp)
-        self.ctx.register_op(BLTOp)
-        self.ctx.register_op(BGEOp)
-        self.ctx.register_op(BLTUOp)
-        self.ctx.register_op(BGEUOp)
+        # Arithmetic
+        AddOp,
+        AddIOp,
+        SubOp,
+        LUIOp,
+        AUIPCOp,
 
-        self.ctx.register_op(SLLOp)
-        self.ctx.register_op(SLLIOp)
-        self.ctx.register_op(SRLOp)
-        self.ctx.register_op(SRLIOp)
-        self.ctx.register_op(SRAOp)
-        self.ctx.register_op(SRAIOp)
+        # Logical
+        XOROp,
+        XORIOp,
+        OROp,
+        ORIOp,
+        ANDOp,
+        ANDIOp,
 
-        self.ctx.register_op(AddOp)
-        self.ctx.register_op(AddIOp)
-        self.ctx.register_op(SubOp)
-        self.ctx.register_op(LUIOp)
-        self.ctx.register_op(AUIPCOp)
+        # Compare
+        SLTOp,
+        SLTIOp,
+        SLTUOp,
+        SLTUIOp,
 
-        self.ctx.register_op(XOROp)
-        self.ctx.register_op(XORIOp)
-        self.ctx.register_op(OROp)
-        self.ctx.register_op(ORIOp)
-        self.ctx.register_op(ANDOp)
-        self.ctx.register_op(ANDIOp)
+        # Jump & Link
+        JALOp,
+        JALROp,
 
-        self.ctx.register_op(SLTOp)
-        self.ctx.register_op(SLTIOp)
-        self.ctx.register_op(SLTUOp)
-        self.ctx.register_op(SLTUIOp)
+        # System
+        SCALLOp,
+        SBREAKOp,
 
-        self.ctx.register_op(JALOp)
-        self.ctx.register_op(JALROp)
+        #  Optional Multiply-Devide Instruction Extension (RVM)
+        MULOp,
+        MULHOp,
+        MULHSUOp,
+        MULHUOp,
+        DIVOp,
+        DIVUOp,
+        REMOp,
+        REMUOp,
 
-        self.ctx.register_op(SCALLOp)
-        self.ctx.register_op(SBREAKOp)
+        # Pseudo Ops
+        NOPOp,
+        LIOp,
+        MVOp,
+        NOTOp,
+        NEGOp,
+        NEGWOp,
+        SEQZOp,
+        SNEZOp,
+        SLTZOp,
+        SGTZOp,
+        BEQZOp,
+        BNEZOp,
+        BLEZOp,
+        BGEZOp,
+        BLTZOp,
+        BGTZOp,
+        BGTOp,
+        BLEOp,
+        BGTUOp,
+        BLEUOp,
+        RETOp,
 
-        self.ctx.register_op(MULOp)
-        self.ctx.register_op(MULHOp)
-        self.ctx.register_op(MULHSUOp)
-        self.ctx.register_op(MULHUOp)
-        self.ctx.register_op(DIVOp)
-        self.ctx.register_op(DIVUOp)
-        self.ctx.register_op(REMOp)
-        self.ctx.register_op(REMUOp)
-
-        self.ctx.register_op(NOPOp)
-        self.ctx.register_op(LIOp)
-        self.ctx.register_op(MVOp)
-        self.ctx.register_op(NOTOp)
-        self.ctx.register_op(NEGOp)
-        self.ctx.register_op(NEGWOp)
-        self.ctx.register_op(SEQZOp)
-        self.ctx.register_op(SNEZOp)
-        self.ctx.register_op(SLTZOp)
-        self.ctx.register_op(SGTZOp)
-        self.ctx.register_op(BEQZOp)
-        self.ctx.register_op(BNEZOp)
-        self.ctx.register_op(BLEZOp)
-        self.ctx.register_op(BGEZOp)
-        self.ctx.register_op(BLTZOp)
-        self.ctx.register_op(BGTZOp)
-        self.ctx.register_op(BGTOp)
-        self.ctx.register_op(BLEOp)
-        self.ctx.register_op(BGTUOp)
-        self.ctx.register_op(BLEUOp)
-        self.ctx.register_op(RETOp)
-
-        self.ctx.register_op(LabelOp)
+        # Auxiliary operations
+        LabelOp,
+        DirectiveOp
+    ],
+    [RegisterAttr, LabelAttr])
