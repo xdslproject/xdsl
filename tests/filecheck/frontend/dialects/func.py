@@ -18,7 +18,7 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return()
     def f2():
         return
-    
+
     #      CHECK: func.func() ["sym_name" = "f3", "function_type" = !fun<[!i32], [!i32]>
     # CHECK-NEXT: ^{{.*}}(%{{.*}} : !i32):
     # CHECK-NEXT:   symref.declare() ["sym_name" = "{{.*}}"]
@@ -27,6 +27,7 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return(%{{.*}} : !i32)
     def f3(x: i32) -> i32:
         return x
+
 
 p.compile(desymref=False)
 print(p.xdsl())

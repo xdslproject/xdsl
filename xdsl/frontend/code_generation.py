@@ -159,7 +159,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         body_region = Region.from_block_list([entry_block])
         func_op = func.FuncOp.from_region(node.name, argument_types,
                                           return_types, body_region)
-        
+
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
 
@@ -200,7 +200,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                     node.lineno, node.col_offset,
                     f"Expected '{function_name}' to return a type.")
             self.inserter.insert_op(func.Return.get())
-    
+
     def visit_Return(self, node: ast.Return) -> None:
         # First of all, we should only be able to return if the statement is directly
         # in the function. Cases like:
@@ -214,7 +214,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # are not allowed at the moment.
         parent_op = self.inserter.insertion_point.parent_op()
         if not isinstance(parent_op, func.FuncOp):
-            raise CodeGenerationException(node.lineno, node.col_offset, "Return statement should be placed only at the end of the function body.")
+            raise CodeGenerationException(
+                node.lineno, node.col_offset,
+                "Return statement should be placed only at the end of the "
+                "function body.")
 
         func_name = parent_op.attributes["sym_name"].data
         func_return_types = parent_op.function_type.outputs.data
@@ -222,7 +225,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         if node.value is None:
             # Return nothing, check function signature matches.
             if len(func_return_types) != 0:
-                raise CodeGenerationException(node.lineno, node.col_offset, f"Expected non-zero number of return types in function '{func_name}', but got 0.")
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Expected non-zero number of return types in function "
+                    "'{func_name}', but got 0.")
             self.inserter.insert_op(func.Return.get())
         else:
             # Return some type, check function signature matches as well.
@@ -231,10 +237,16 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             operands = [self.inserter.get_operand()]
 
             if len(func_return_types) == 0:
-                raise CodeGenerationException(node.lineno, node.col_offset, f"Expected no return types in function '{func_name}'.")
+                raise CodeGenerationException(
+                    node.lineno, node.col_offset,
+                    f"Expected no return types in function '{func_name}'.")
 
             for i in range(len(operands)):
-                if func_return_types[i] != operands[i].typ:
-                    raise CodeGenerationException(node.lineno, node.col_offset, f"Type signature and the type of the return value do not match at position {i}: expected {func_return_types[i]}, got {operands[i].typ}.")
+                 if func_return_types[i] != operands[i].typ:
+                    raise CodeGenerationException(
+                        node.lineno, node.col_offset,
+                        f"Type signature and the type of the return value do "
+                        "not match at position {i}: expected {func_return_types[i]},"
+                        " got {operands[i].typ}.")
 
             self.inserter.insert_op(func.Return.get(*operands))
