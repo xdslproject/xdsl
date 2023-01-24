@@ -503,7 +503,11 @@ class Operation(IRNode):
         self.verify_()
         if verify_nested_ops:
             for region in self.regions:
-                region.verify()
+                try:
+                    region.verify()
+                except:
+                    print(f'Verification error for operation `{self}`')
+                    raise
 
     def verify_(self) -> None:
         pass
