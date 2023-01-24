@@ -8,6 +8,7 @@ parallel = True
 source =
     xdsl/
     tests/
+    docs/
 
 
 
