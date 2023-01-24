@@ -28,10 +28,8 @@ def error(op: Operation, msg: str):
 
 class IRDLAnnotations(Enum):
     ParamDefAnnot = 1
-
     AttributeDefAnnot = 2
     OptAttributeDefAnnot = 3
-
     SingleBlockRegionAnnot = 4
 
 
