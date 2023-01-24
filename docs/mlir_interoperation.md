@@ -17,8 +17,8 @@ found in `xdsl/dialects` (arith, builtin, cf, func, llvm, memref, and scf), run:
 
 ```bash
 ### Prints MLIR generic form to tmp.mlir
-./src/tools/xdsl_opt -t mlir -o tmp.mlir `input.xdsl`
-# For example: /src/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
+./xdsl/tools/xdsl-opt -t mlir -o tmp.mlir `input.xdsl`
+# For example: ./xdsl/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
 
 mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --convert-arith-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
 ```
