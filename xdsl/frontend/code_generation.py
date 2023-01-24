@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.op_inserter import OpInserter
+from xdsl.frontend.op_resolver import OpResolver
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region
 
@@ -71,6 +72,69 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # TODO: Implement assignemnt in the next patch.
         pass
 
+    def visit_BinOp(self, node: ast.BinOp):
+        op_name: str = node.op.__class__.__name__
+
+        # Local table which maps the name of a binry operator to the
+        # corresponding Python function.
+        op_to_python = {
+            "Add": "__add__",
+            "BitAnd": "__and__",
+            "LShift": "__lshift__",
+            "Mult": "__mul__",
+            "RShift": "__rshift__",
+            "Sub": "__sub__",
+        }
+        if op_name not in op_to_python:
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Unknown binary operation {op_name}.")
+
+        self.visit(node.right)
+        rhs = self.inserter.get_operand()
+        self.visit(node.left)
+        lhs = self.inserter.get_operand()
+        if lhs.typ != rhs.typ:
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for a binary operation '{op_name}', but got {lhs.typ} != {rhs.typ}.")
+
+        # Look-up what is the frontend type we deal with to resolve the binary
+        # operation.
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
+
+        op = OpResolver.resolve_op_overload(op_to_python[op_name], frontend_type)(lhs, rhs)
+        self.inserter.insert_op(op)
+
+    def visit_Compare(self, node: ast.Compare):
+        # Allow a single comparison only.
+        if len(node.comparators) != 1 or len(node.ops) != 1:
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected a single comparator, but found {len(node.comparators)}.")
+        comp = node.comparators[0]
+        op_name: str = node.ops[0].__class__.__name__
+
+        # Local table which maps the name of a comparison operator to the
+        # corresponding Python functions and xDSL mnemonics.
+        op_to_python_and_mnemonic = {
+            "Eq": ("__eq__", "eq"),
+            "Gt": ("__gt__", "sgt"),
+            "GtE": ("__ge__", "sge"),
+            "Lt": ("__lt__", "slt"),
+            "LtE": ("__le__", "sle"),
+            "NotEq": ("__ne__" "ne"),
+        }
+        if op_name not in op_to_python_and_mnemonic:
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Unknown comparison operation {op_name}.")
+
+        self.visit(comp)
+        rhs = self.inserter.get_operand()
+        self.visit(node.left)
+        lhs = self.inserter.get_operand()    
+        if lhs.typ != rhs.typ:
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for comparison operator '{op_name}', but got {lhs.typ} != {rhs.typ}.")
+
+        python_op, mnemonic = op_to_python_and_mnemonic[op_name]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
+
+        op = OpResolver.resolve_op_overload(python_op, frontend_type)(lhs, rhs, mnemonic)
+        self.inserter.insert_op(op)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
 
         # Set the symbol table.
@@ -95,6 +159,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         body_region = Region.from_block_list([entry_block])
         func_op = func.FuncOp.from_region(node.name, argument_types,
                                           return_types, body_region)
+        
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
 
@@ -117,6 +182,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         assert parent_op is not None
         self.inserter.set_insertion_point_from_op(parent_op)
 
+    def visit_Name(self, node: ast.Name):
+        fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
+        self.inserter.insert_op(fetch_op)
+
     def visit_Pass(self, node: ast.Pass) -> None:
         parent_op = self.inserter.insertion_point.parent_op()
 
@@ -131,3 +200,41 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                     node.lineno, node.col_offset,
                     f"Expected '{function_name}' to return a type.")
             self.inserter.insert_op(func.Return.get())
+    
+    def visit_Return(self, node: ast.Return) -> None:
+        # First of all, we should only be able to return if the statement is directly
+        # in the function. Cases like:
+        #
+        # def foo(cond: i1):
+        #   if cond:
+        #     return 1
+        #   else:
+        #     return 0
+        #
+        # are not allowed at the moment.
+        parent_op = self.inserter.insertion_point.parent_op()
+        if not isinstance(parent_op, func.FuncOp):
+            raise CodeGenerationException(node.lineno, node.col_offset, "Return statement should be placed only at the end of the function body.")
+
+        func_name = parent_op.attributes["sym_name"].data
+        func_return_types = parent_op.function_type.outputs.data
+
+        if node.value is None:
+            # Return nothing, check function signature matches.
+            if len(func_return_types) != 0:
+                raise CodeGenerationException(node.lineno, node.col_offset, f"Expected non-zero number of return types in function '{func_name}', but got 0.")
+            self.inserter.insert_op(func.Return.get())
+        else:
+            # Return some type, check function signature matches as well.
+            # TODO: Support multiple return values if we allow multiple assignemnts.
+            self.visit(node.value)
+            operands = [self.inserter.get_operand()]
+
+            if len(func_return_types) == 0:
+                raise CodeGenerationException(node.lineno, node.col_offset, f"Expected no return types in function '{func_name}'.")
+
+            for i in range(len(operands)):
+                if func_return_types[i] != operands[i].typ:
+                    raise CodeGenerationException(node.lineno, node.col_offset, f"Type signature and the type of the return value do not match at position {i}: expected {func_return_types[i]}, got {operands[i].typ}.")
+
+            self.inserter.insert_op(func.Return.get(*operands))
