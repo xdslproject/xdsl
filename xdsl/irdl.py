@@ -397,7 +397,7 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
 
-VarOpResult = list[OpResult]
+VarOpResult: TypeAlias = list[OpResult]
 
 
 @dataclass(init=False)
@@ -405,7 +405,7 @@ class OptResultDef(VarResultDef, OptionalDef):
     """An IRDL optional result definition."""
 
 
-OptOpResult = OpResult | None
+OptOpResult: TypeAlias = OpResult | None
 
 
 @dataclass
@@ -508,6 +508,10 @@ class OpDef:
             if field_name in get_type_hints(Operation).keys():
                 continue
 
+            # If the field type is an Annotated, separate the origin
+            # from the arguments.
+            # If the field type is not an Annotated, then the arguments should
+            # just be the field itself.
             origin = get_origin(field_type)
             args: tuple[Any, ...]
             if origin is None:
@@ -532,6 +536,20 @@ class OpDef:
                     return constraints[0]
                 return AllOf(constraints)
 
+            # Get the operand, result, attribute, or region definition, from
+            # the pyrdl description.
+
+            # For operands and results, constrants are encoded as arguments of
+            # an Annotated, where the origin is the definition type (operand,
+            # optional result, etc...).
+            # For Attributes, constraints are encoded in the origin and the
+            # args of the Annotated, and the definition type (required or
+            # optional) is given in the Annotated arguments.
+            # For Regions, SingleBlock regions are given as Annotated arguments,
+            # and otherwise the Annotated origin (if it is an Annotated) gives
+            # the Region definition (required, optional, or variadic).
+
+            # Operand annotation
             if args[0] == Operand:
                 constraint = get_constraint(args[1:])
                 op_def.operands.append((field_name, OperandDef(constraint)))
@@ -542,6 +560,7 @@ class OpDef:
                 constraint = get_constraint(args[1:])
                 op_def.operands.append((field_name, OptOperandDef(constraint)))
 
+            # Result annotation
             elif args[0] == OpResult:
                 constraint = get_constraint(args[1:])
                 op_def.results.append((field_name, ResultDef(constraint)))
@@ -552,6 +571,7 @@ class OpDef:
                 constraint = get_constraint(args[1:])
                 op_def.results.append((field_name, OptResultDef(constraint)))
 
+            # Attribute annotation
             elif IRDLAnnotations.AttributeDefAnnot in args:
                 constraint = get_constraint(args)
                 op_def.attributes[field_name] = AttributeDef(constraint)
@@ -562,6 +582,7 @@ class OpDef:
                 constraint = get_constraint(args)
                 op_def.attributes[field_name] = OptAttributeDef(constraint)
 
+            # Region annotation
             elif args[0] == Region:
                 if (len(args) > 1
                         and args[1] == IRDLAnnotations.SingleBlockRegionAnnot):
