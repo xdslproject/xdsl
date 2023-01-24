@@ -2,10 +2,9 @@ from __future__ import annotations
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-from xdsl.ir import ParametrizedAttribute, Operation, Attribute, Dialect
-from xdsl.irdl import (ParameterDef, AnyAttr, AttributeDef,
-                       SingleBlockRegionDef, irdl_op_definition,
-                       irdl_attr_definition)
+from xdsl.ir import (ParametrizedAttribute, Operation, Attribute, Dialect)
+from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition,
+                       SingleBlockRegion, OpAttr)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
@@ -80,7 +79,7 @@ class DialectOp(Operation):
     Define a new dialect
     """
     name = "irdl.dialect"
-    body = SingleBlockRegionDef()
+    body: SingleBlockRegion
 
     @property
     def dialect_name(self) -> StringAttr:
@@ -107,7 +106,7 @@ class ParametersOp(Operation):
     Define the parameters of a type/attribute definition
     """
     name = "irdl.parameters"
-    params = AttributeDef(ArrayAttr)
+    params: OpAttr[AnyArrayAttr]
 
 
 @irdl_op_definition
@@ -116,7 +115,7 @@ class TypeOp(Operation):
     Defines new types belonging to previously defined dialect
     """
     name = "irdl.type"
-    body = SingleBlockRegionDef()
+    body: SingleBlockRegion
 
     @property
     def type_name(self) -> StringAttr:
@@ -136,7 +135,7 @@ class ConstraintVarsOp(Operation):
     current region
     """
     name = "irdl.constraint_vars"
-    constraints = AttributeDef(AnyAttr())
+    constraints: OpAttr[Attribute]
 
 
 @irdl_op_definition
@@ -145,7 +144,7 @@ class OperandsOp(Operation):
     Define the operands of a parent operation
     """
     name = "irdl.operands"
-    params = AttributeDef(AnyAttr())
+    params: OpAttr[Attribute]
 
 
 @irdl_op_definition
@@ -154,7 +153,7 @@ class ResultsOp(Operation):
     Define results of parent operation
     """
     name = "irdl.results"
-    params = AttributeDef(AnyAttr())
+    params: OpAttr[Attribute]
 
 
 @irdl_op_definition
@@ -163,7 +162,7 @@ class OperationOp(Operation):
     Define a new operation belonging to previously defined dialect
     """
     name = "irdl.operation"
-    body = SingleBlockRegionDef()
+    body: SingleBlockRegion
 
     @property
     def op_name(self) -> StringAttr:

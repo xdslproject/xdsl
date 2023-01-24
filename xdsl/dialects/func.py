@@ -3,8 +3,8 @@ from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
 from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
-from xdsl.irdl import (OptAttributeDef, VarOpResult, irdl_op_definition,
-                       VarOperand, AnyAttr, RegionDef, AttributeDef)
+from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
+                       OpAttr, OptOpAttr)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -12,10 +12,10 @@ from xdsl.utils.exceptions import VerifyException
 class FuncOp(Operation):
     name: str = "func.func"
 
-    body = RegionDef()
-    sym_name = AttributeDef(StringAttr)
-    function_type = AttributeDef(FunctionType)
-    sym_visibility = OptAttributeDef(StringAttr)
+    body: Region
+    sym_name: OpAttr[StringAttr]
+    function_type: OpAttr[FunctionType]
+    sym_visibility: OptOpAttr[StringAttr]
 
     def verify_(self) -> None:
         # TODO: how to verify that there is a terminator?
@@ -60,7 +60,7 @@ class FuncOp(Operation):
 class Call(Operation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
-    callee = AttributeDef(FlatSymbolRefAttr)
+    callee: OpAttr[FlatSymbolRefAttr]
 
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyAttr()]

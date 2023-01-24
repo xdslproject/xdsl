@@ -7,10 +7,9 @@ from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
                                    DenseIntOrFPElementsAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperand, AttributeDef, AttrSizedOperandSegments,
-                       OptAttributeDef)
+from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
+                       builder, ParameterDef, Generic, Attribute, AnyAttr,
+                       Operand, VarOperand, AttrSizedOperandSegments, OpAttr)
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -131,7 +130,7 @@ class Alloc(Operation):
     memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = AttributeDef(IntegerAttr)
+    alignment: OpAttr[AnyIntegerAttr]
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -162,7 +161,7 @@ class Alloca(Operation):
     memref: Annotated[OpResult, MemRefType]
 
     # TODO how to constraint the IntegerAttr type?
-    alignment = AttributeDef(IntegerAttr)
+    alignment: OpAttr[AnyIntegerAttr]
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -206,8 +205,6 @@ class Dealloca(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    # name = AttributeDef(FlatSymbolRefAttr)
-
     memref: Annotated[OpResult, MemRefType]
 
     def verify_(self) -> None:
@@ -231,15 +228,11 @@ class GetGlobal(Operation):
 @irdl_op_definition
 class Global(Operation):
     name = "memref.global"
-    sym_name = AttributeDef(StringAttr)
 
-    sym_visibility = AttributeDef(StringAttr)
-    type = AttributeDef(AnyAttr())
-
-    initial_value = OptAttributeDef(AnyAttr())
-
-    # TODO how do we represent these in MLIR-Lite
-    # constant = AttributeDef(UnitAttr)
+    sym_name: OpAttr[StringAttr]
+    sym_visibility: OpAttr[StringAttr]
+    type: OpAttr[Attribute]
+    initial_value: OptOpAttr[Attribute]
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):

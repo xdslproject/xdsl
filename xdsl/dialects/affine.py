@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IndexType
+from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Operation, SSAValue, Block, Region, Dialect
-from xdsl.irdl import (VarOpResult, irdl_op_definition, AttributeDef,
-                       RegionDef, VarOperand, AnyAttr)
+from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
+                       AnyAttr)
 
 
 @irdl_op_definition
@@ -17,11 +17,11 @@ class For(Operation):
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
-    lower_bound = AttributeDef(IntegerAttr)
-    upper_bound = AttributeDef(IntegerAttr)
-    step = AttributeDef(IntegerAttr)
+    lower_bound: OpAttr[AnyIntegerAttr]
+    upper_bound: OpAttr[AnyIntegerAttr]
+    step: OpAttr[AnyIntegerAttr]
 
-    body = RegionDef()
+    body: Region
 
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):
@@ -49,9 +49,9 @@ class For(Operation):
                     step: int | AnyIntegerAttr = 1) -> For:
         result_types = [SSAValue.get(op).typ for op in operands]
         attributes = {
-            "lower_bound": lower_bound,
-            "upper_bound": upper_bound,
-            "step": step,
+            "lower_bound": IntegerAttr.from_index_int_value(lower_bound),
+            "upper_bound": IntegerAttr.from_index_int_value(upper_bound),
+            "step": IntegerAttr.from_index_int_value(step),
         }
         return For.build(operands=[[operand for operand in operands]],
                          result_types=[result_types],

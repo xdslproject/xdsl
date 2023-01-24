@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexT
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
                                    Attribute, AnyFloat)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import (AnyOf, irdl_op_definition, AttributeDef, AnyAttr,
+from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
 from xdsl.utils.exceptions import VerifyException
 
@@ -20,7 +20,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 class Constant(Operation):
     name: str = "arith.constant"
     result: Annotated[OpResult, AnyAttr()]
-    value = AttributeDef(AnyAttr())
+    value: OpAttr[Attribute]
 
     @staticmethod
     def from_attr(attr: Attribute, typ: Attribute) -> Constant:
@@ -423,7 +423,7 @@ class Cmpi(Operation):
     -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
     """
     name: str = "arith.cmpi"
-    predicate = AttributeDef(IntegerAttr)
+    predicate: OpAttr[IntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType.from_width(1)]

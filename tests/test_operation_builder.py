@@ -6,13 +6,12 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
                                    IntegerType, Operation, StringAttr, i32)
 from xdsl.dialects.arith import Constant
 
-from xdsl.ir import Block, OpResult
-from xdsl.irdl import (OptOpResult, OptOperand, OptRegionDef,
-                       OptSingleBlockRegionDef, Operand, SingleBlockRegionDef,
-                       VarOpResult, VarRegionDef, VarSingleBlockRegionDef,
+from xdsl.ir import Block, OpResult, Region
+from xdsl.irdl import (OptOpResult, OptOperand, OptRegion,
+                       OptSingleBlockRegion, Operand, SingleBlockRegion,
+                       VarOpResult, VarRegion, VarSingleBlockRegion,
                        irdl_op_definition, AttrSizedResultSegments, VarOperand,
-                       AttrSizedOperandSegments, AttributeDef, RegionDef,
-                       OptAttributeDef, Region)
+                       AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -265,7 +264,7 @@ def test_two_var_operand_builder2():
 @irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
-    attr = AttributeDef(StringAttr)
+    attr: OpAttr[StringAttr]
 
 
 def test_attr_op():
@@ -288,7 +287,7 @@ def test_attr_new_attr_op():
 class OptionalAttrOp(Operation):
     name: str = "test.opt_attr_op"
 
-    opt_attr = OptAttributeDef(StringAttr)
+    opt_attr: OptOpAttr[StringAttr]
 
 
 def test_optional_attr_op_empty():
@@ -310,7 +309,7 @@ def test_optional_attr_op_empty():
 class RegionOp(Operation):
     name: str = "test.region_op"
 
-    region = RegionDef()
+    region: Region
 
 
 def test_region_op_region():
@@ -350,7 +349,7 @@ def test_singleop_region():
 class SBRegionOp(Operation):
     name: str = "test.sbregion_op"
 
-    region = SingleBlockRegionDef()
+    region: SingleBlockRegion
 
 
 def test_sbregion_one_block():
@@ -363,7 +362,7 @@ def test_sbregion_one_block():
 class OptRegionOp(Operation):
     name: str = "test.opt_region_op"
 
-    reg = OptRegionDef()
+    reg: OptRegion
 
 
 def test_opt_region_builder():
@@ -382,7 +381,7 @@ def test_opt_region_builder_two_args():
 class OptSBRegionOp(Operation):
     name: str = "test.sbregion_op"
 
-    region = OptSingleBlockRegionDef()
+    region: OptSingleBlockRegion
 
 
 def test_opt_sbregion_one_block():
@@ -398,7 +397,7 @@ def test_opt_sbregion_one_block():
 class VarRegionOp(Operation):
     name: str = "test.var_operand_op"
 
-    regs = VarRegionDef()
+    regs: VarRegion
 
 
 def test_var_region_builder():
@@ -412,7 +411,7 @@ def test_var_region_builder():
 class VarSBRegionOp(Operation):
     name: str = "test.sbregion_op"
 
-    regs = VarSingleBlockRegionDef()
+    regs: VarSingleBlockRegion
 
 
 def test_var_sbregion_one_block():
