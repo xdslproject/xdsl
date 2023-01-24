@@ -25,7 +25,7 @@ class OpResolver:
                 f"Internal failure: operation '{func_name}' does not exist "
                 f"in module '{module_name}'.")
         return getattr(module, resolver_name)()
-    
+
     @staticmethod
     def resolve_op_overload(
             python_op: str,

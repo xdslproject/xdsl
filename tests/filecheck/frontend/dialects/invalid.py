@@ -21,7 +21,6 @@ try:
 except FrontendProgramException as e:
     print(e.msg)
 
-
 try:
     with CodeContext(p):
 
@@ -33,7 +32,6 @@ try:
     print(p.xdsl())
 except FrontendProgramException as e:
     print(e.msg)
-
 
 try:
     with CodeContext(p):
@@ -47,7 +45,6 @@ try:
 except FrontendProgramException as e:
     print(e.msg)
 
-
 try:
     with CodeContext(p):
 
@@ -59,7 +56,6 @@ try:
     print(p.xdsl())
 except FrontendProgramException as e:
     print(e.msg)
-
 
 try:
     with CodeContext(p):

@@ -65,7 +65,7 @@ with CodeContext(p):
 
     # CHECK: arith.addf(%{{.*}} : !f64, %{{.*}} : !f64)
     def test_addf_overload_f64(a: f64, b: f64) -> f64:
-        return a + b    
+        return a + b
 
     # CHECK: arith.subf(%{{.*}} : !f16, %{{.*}} : !f16)
     def test_subf_overload_f16(a: f16, b: f16) -> f16:
@@ -82,14 +82,15 @@ with CodeContext(p):
     # CHECK: arith.mulf(%{{.*}} : !f16, %{{.*}} : !f16)
     def test_mulf_overload_f16(a: f16, b: f16) -> f16:
         return a * b
-    
+
     # CHECK: arith.mulf(%{{.*}} : !f32, %{{.*}} : !f32)
     def test_mulf_overload_f32(a: f32, b: f32) -> f32:
         return a * b
-    
+
     # CHECK: arith.mulf(%{{.*}} : !f64, %{{.*}} : !f64)
     def test_mulf_overload_f64(a: f64, b: f64) -> f64:
         return a * b
+
 
 p.compile(desymref=False)
 print(p.xdsl())

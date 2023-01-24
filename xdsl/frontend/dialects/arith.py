@@ -22,6 +22,7 @@ def andi(lhs: _Int, rhs: _Int) -> _Int:
 def resolve_andi() -> Callable[..., Operation]:
     return arith.AndI.get
 
+
 def cmpi(lhs: _Int, rhs: _Int, mnemonic: str) -> i1:
     pass
 
