@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import StringAttr, IntegerAttr, OpAttr
 
 @dataclass(frozen=True)
 class Register:
-    """A riscv register."""
+    """A RISC-V register."""
 
     index: int = field()
     """The register index. Can be between 0 and 31."""
@@ -76,6 +76,7 @@ class Register:
 
 @irdl_attr_definition
 class RegisterAttr(Data[Register]):
+    """An attribute representing a RISC-V register"""
     name = "riscv.reg"
 
     @staticmethod
@@ -105,6 +106,7 @@ class RegisterAttr(Data[Register]):
 
 @irdl_attr_definition
 class LabelAttr(Data[str]):
+    """An attribute representing a RISC-V label"""
     name = "riscv.label"
 
     @staticmethod
@@ -126,6 +128,8 @@ Op = TypeVar("Op", bound=Operation)
 
 
 class Riscv1Rd1Rs1ImmOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) register and one rs (source) register, and one immediate parameters."""
+
     rd: OpAttr[RegisterAttr]
     rs1: OpAttr[RegisterAttr]
     immediate: OpAttr[IntegerAttr]
@@ -142,6 +146,7 @@ class Riscv1Rd1Rs1ImmOperation(Operation):
 
 
 class Riscv1Rd1Rs1OffOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) register and one rs (source) register, and one offset parameters."""
     rd: OpAttr[RegisterAttr]
     rs1: OpAttr[RegisterAttr]
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
@@ -156,6 +161,7 @@ class Riscv1Rd1Rs1OffOperation(Operation):
 
 
 class Riscv2Rs1ImmOperation(Operation):
+    """An abstract RISC-V operation with two rs (source) register, and one immediate parameters."""
     rs1: OpAttr[RegisterAttr]
     rs2: OpAttr[RegisterAttr]
     immediate: OpAttr[IntegerAttr]
@@ -172,6 +178,7 @@ class Riscv2Rs1ImmOperation(Operation):
 
 
 class Riscv2Rs1OffOperation(Operation):
+    """An abstract RISC-V operation with two rs (source) register, and one offset parameters."""
     rs1: OpAttr[RegisterAttr]
     rs2: OpAttr[RegisterAttr]
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
@@ -186,6 +193,7 @@ class Riscv2Rs1OffOperation(Operation):
 
 
 class Riscv1Rd2RsOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) and two rs (source) register parameters."""
     rd: OpAttr[RegisterAttr]
     rs1: OpAttr[RegisterAttr]
     rs2: OpAttr[RegisterAttr]
@@ -196,6 +204,7 @@ class Riscv1Rd2RsOperation(Operation):
 
 
 class Riscv1Rs1Rt1OffOperation(Operation):
+    """An abstract RISC-V operation with one rs (source), one rt (?) register and one offset parameters."""
     rs: OpAttr[RegisterAttr]
     rt: OpAttr[RegisterAttr]
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
@@ -210,6 +219,7 @@ class Riscv1Rs1Rt1OffOperation(Operation):
 
 
 class Riscv1Rd1ImmOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) and one immediate parameters."""
     rd: OpAttr[RegisterAttr]
     immediate: OpAttr[IntegerAttr]
 
@@ -221,6 +231,7 @@ class Riscv1Rd1ImmOperation(Operation):
 
 
 class Riscv1Rd1OffOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) and one offset parameters."""
     rd: OpAttr[RegisterAttr]
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
@@ -234,6 +245,7 @@ class Riscv1Rd1OffOperation(Operation):
 
 
 class Riscv1Rs1OffOperation(Operation):
+    """An abstract RISC-V operation with one rs (source) and one offset parameters."""
     rs: OpAttr[RegisterAttr]
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
@@ -247,6 +259,7 @@ class Riscv1Rs1OffOperation(Operation):
 
 
 class Riscv1Rd1RsOperation(Operation):
+    """An abstract RISC-V operation with one rd (destination) and one rs (source) parameters."""
     rd: OpAttr[RegisterAttr]
     rs: OpAttr[RegisterAttr]
 
@@ -256,6 +269,7 @@ class Riscv1Rd1RsOperation(Operation):
 
 
 class RiscvNoParamsOperation(Operation):
+    """An abstract RISC-V operation with no parameters."""
 
     @classmethod
     def get(cls: Type[Op]) -> RiscvNoParamsOperation:
@@ -643,6 +657,7 @@ class RETOp(RiscvNoParamsOperation):
 
 @irdl_op_definition
 class LabelOp(Operation):
+    """An operation encoding a RISC-V label."""
     name = "riscv.label"
     label: OpAttr[LabelAttr]
 
@@ -653,6 +668,7 @@ class LabelOp(Operation):
 
 @irdl_op_definition
 class DirectiveOp(Operation):
+    """An operation encoding a assembler directive."""
     name = "riscv.directive"
     directive: OpAttr[StringAttr]
     value: OpAttr[StringAttr]
