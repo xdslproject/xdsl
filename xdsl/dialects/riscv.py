@@ -131,7 +131,7 @@ class Riscv1Rd1Rs1ImmOperation(Operation):
     immediate: OpAttr[IntegerAttr]
 
     @classmethod
-    def get(cls: Type[Op], rd, rs1, immediate) -> Op:
+    def get(cls: Type[Op], rd, rs1, immediate) -> Riscv1Rd1Rs1ImmOperation:
         if isinstance(immediate, int):
             immediate = IntegerAttr.from_int_and_width(immediate, 64)
         return cls.build(attributes={
@@ -147,7 +147,7 @@ class Riscv1Rd1Rs1OffOperation(Operation):
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
-    def get(cls: Type[Op], rd, rs1, offset) -> Op:
+    def get(cls: Type[Op], rd, rs1, offset) -> Riscv1Rd1Rs1OffOperation:
         if isinstance(offset, int):
             offset = IntegerAttr.from_int_and_width(offset, 64)
         if isinstance(offset, str):
@@ -161,7 +161,7 @@ class Riscv2Rs1ImmOperation(Operation):
     immediate: OpAttr[IntegerAttr]
 
     @classmethod
-    def get(cls: Type[Op], rs1, rs2, immediate) -> Op:
+    def get(cls: Type[Op], rs1, rs2, immediate) -> Riscv2Rs1ImmOperation:
         if isinstance(immediate, int):
             immediate = IntegerAttr.from_int_and_width(immediate, 64)
         return cls.build(attributes={
@@ -177,7 +177,7 @@ class Riscv2Rs1OffOperation(Operation):
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
-    def get(cls: Type[Op], rs1, rs2, offset) -> Op:
+    def get(cls: Type[Op], rs1, rs2, offset) -> Riscv2Rs1OffOperation:
         if isinstance(offset, int):
             offset = IntegerAttr.from_int_and_width(offset, 64)
         if isinstance(offset, str):
@@ -191,7 +191,7 @@ class Riscv1Rd2RsOperation(Operation):
     rs2: OpAttr[RegisterAttr]
 
     @classmethod
-    def get(cls: Type[Op], rd, rs1, rs2) -> Op:
+    def get(cls: Type[Op], rd, rs1, rs2) -> Riscv1Rd2RsOperation:
         return cls.build(attributes={"rd": rd, "rs1": rs1, "rs2": rs2})
 
 
@@ -201,7 +201,7 @@ class Riscv1Rs1Rt1OffOperation(Operation):
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
-    def get(cls: Type[Op], rs, rt, offset) -> Op:
+    def get(cls: Type[Op], rs, rt, offset) -> Riscv1Rs1Rt1OffOperation:
         if isinstance(offset, int):
             offset = IntegerAttr.from_int_and_width(offset, 64)
         if isinstance(offset, str):
@@ -214,7 +214,7 @@ class Riscv1Rd1ImmOperation(Operation):
     immediate: OpAttr[IntegerAttr]
 
     @classmethod
-    def get(cls: Type[Op], rd, immediate) -> Op:
+    def get(cls: Type[Op], rd, immediate) -> Riscv1Rd1ImmOperation:
         if isinstance(immediate, int):
             immediate = IntegerAttr.from_int_and_width(immediate, 64)
         return cls.build(attributes={"rd": rd, "immediate": immediate})
@@ -225,7 +225,7 @@ class Riscv1Rd1OffOperation(Operation):
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
-    def get(cls: Type[Op], rd, offset) -> Op:
+    def get(cls: Type[Op], rd, offset) -> Riscv1Rd1OffOperation:
         if isinstance(offset, int):
             offset = IntegerAttr.from_int_and_width(offset, 64)
         if isinstance(offset, str):
@@ -238,7 +238,7 @@ class Riscv1Rs1OffOperation(Operation):
     offset: OpAttr[AnyOf([IntegerAttr, LabelAttr])]
 
     @classmethod
-    def get(cls: Type[Op], rs, offset) -> Op:
+    def get(cls: Type[Op], rs, offset) -> Riscv1Rs1OffOperation:
         if isinstance(offset, int):
             offset = IntegerAttr.from_int_and_width(offset, 64)
         if isinstance(offset, str):
@@ -251,14 +251,14 @@ class Riscv1Rd1RsOperation(Operation):
     rs: OpAttr[RegisterAttr]
 
     @classmethod
-    def get(cls: Type[Op], rd, rs) -> Op:
+    def get(cls: Type[Op], rd, rs) -> Riscv1Rd1RsOperation:
         return cls.build(attributes={"rd": rd, "rs": rs})
 
 
 class RiscvNoParamsOperation(Operation):
 
     @classmethod
-    def get(cls: Type[Op]) -> Op:
+    def get(cls: Type[Op]) -> RiscvNoParamsOperation:
         return cls.build()
 
 
