@@ -1,5 +1,6 @@
 from io import StringIO
 from typing import Callable
+from conftest import assert_print_op
 
 from xdsl.dialects.arith import Arith, Constant, Addi
 from xdsl.dialects.builtin import ModuleOp, Builtin, i32
@@ -24,10 +25,8 @@ def rewrite_and_compare(prog: str, expected_prog: str,
 
     rewriter = Rewriter()
     transformation(module, rewriter)
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected_prog.strip()
+
+    assert_print_op(module, expected_prog, None)
 
 
 def test_operation_deletion():

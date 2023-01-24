@@ -103,6 +103,7 @@ unit_attr_op() ["parallelize", "vectorize"]
 
     assert_print_op(unitop, expected, None)
 
+
 #  ____  _                             _   _
 # |  _ \(_) __ _  __ _ _ __   ___  ___| |_(_) ___
 # | | | | |/ _` |/ _` | '_ \ / _ \/ __| __| |/ __|
@@ -508,10 +509,6 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected.strip()
     assert_print_op(module, expected, None)
 
 
@@ -635,7 +632,10 @@ def test_parse_dense_mlir():
     parser = Parser(ctx, prog, source=Parser.Source.MLIR)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=True,
+    assert_print_op(module,
+                    expected,
+                    None,
+                    print_generic_format=True,
                     target=Printer.Target.MLIR)
 
 
