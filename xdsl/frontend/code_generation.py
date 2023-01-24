@@ -114,7 +114,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
-                f"Expected a single comparator, but found {len(node.comparators)}.")
+                "Expected a single comparator, but found "
+                f"{len(node.comparators)}.")
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__name__
 
@@ -132,7 +133,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
                 f"Unknown comparison operation '{op_name}'.")
-  
+
         self.visit(comp)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
