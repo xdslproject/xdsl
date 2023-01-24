@@ -93,7 +93,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.visit(node.left)
         lhs = self.inserter.get_operand()
         if lhs.typ != rhs.typ:
-            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for a binary operation '{op_name}', but got {lhs.typ} != {rhs.typ}.")
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for binary operation '{op_name}', but got {lhs.typ} and {rhs.typ}.")
 
         # Look-up what is the frontend type we deal with to resolve the binary
         # operation.
@@ -117,7 +117,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "GtE": ("__ge__", "sge"),
             "Lt": ("__lt__", "slt"),
             "LtE": ("__le__", "sle"),
-            "NotEq": ("__ne__" "ne"),
+            "NotEq": ("__ne__", "ne"),
         }
         if op_name not in op_to_python_and_mnemonic:
             raise CodeGenerationException(node.lineno, node.col_offset, f"Unknown comparison operation {op_name}.")
@@ -127,9 +127,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.visit(node.left)
         lhs = self.inserter.get_operand()    
         if lhs.typ != rhs.typ:
-            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for comparison operator '{op_name}', but got {lhs.typ} != {rhs.typ}.")
+            raise CodeGenerationException(node.lineno, node.col_offset, f"Expected the same types for comparison operator '{op_name}', but got {lhs.typ} and {rhs.typ}.")
 
-        python_op, mnemonic = op_to_python_and_mnemonic[op_name]
+        python_op = op_to_python_and_mnemonic[op_name][0]
+        mnemonic = op_to_python_and_mnemonic[op_name][1]
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
 
         op = OpResolver.resolve_op_overload(python_op, frontend_type)(lhs, rhs, mnemonic)
@@ -228,7 +229,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 raise CodeGenerationException(
                     node.lineno, node.col_offset,
                     f"Expected non-zero number of return types in function "
-                    "'{func_name}', but got 0.")
+                    f"'{func_name}', but got 0.")
             self.inserter.insert_op(func.Return.get())
         else:
             # Return some type, check function signature matches as well.
@@ -246,7 +247,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                     raise CodeGenerationException(
                         node.lineno, node.col_offset,
                         f"Type signature and the type of the return value do "
-                        "not match at position {i}: expected {func_return_types[i]},"
-                        " got {operands[i].typ}.")
+                        f"not match at position {i}: expected {func_return_types[i]},"
+                        f" got {operands[i].typ}.")
 
             self.inserter.insert_op(func.Return.get(*operands))

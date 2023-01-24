@@ -23,8 +23,8 @@ class OpResolver:
         if not hasattr(module, resolver_name):
             raise FrontendProgramException(
                 f"Internal failure: cannot resolve operation '{func_name}' "
-                "from module '{module_name}'.")
-        return getattr(module, resolver_name)
+                f"from module '{module_name}'.")
+        return getattr(module, resolver_name)()
     
     @staticmethod
     def resolve_op_overload(
@@ -34,7 +34,7 @@ class OpResolver:
         if not hasattr(frontend_type, python_op):
             raise FrontendProgramException(
                 f"Internal failure: '{frontend_type.__name__}' does not "
-                "overload '{python_op}'.")
+                f"overload '{python_op}'.")
         overload = getattr(frontend_type, python_op)
 
         # Inspect overloaded function to extract what it maps to. By our
