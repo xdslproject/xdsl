@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from inspect import getsource
 from sys import _getframe
+
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.python_code_check import PythonCodeCheck
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
+from xdsl.dialects.builtin import StringAttr, ArrayAttr, AnyArrayAttr
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
-                     Operation)
+                     OpResult, Operation)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
                        irdl_attr_definition, irdl_op_definition, builder)
-from xdsl.ir import OpResult, Attribute
-from xdsl.dialects.builtin import AnyArrayAttr, StringAttr, ArrayOfConstraint, ArrayAttr
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser

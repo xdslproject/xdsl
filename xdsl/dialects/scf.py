@@ -1,11 +1,10 @@
 from __future__ import annotations
-
 from typing import Annotated, List
 
+from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import SSAValue, Block, Region, Operation, Attribute, Dialect
 from xdsl.irdl import (VarOpResult, VarOperand, irdl_op_definition, Operand,
                        AnyAttr)
-from xdsl.dialects.builtin import IntegerType
 
 
 @irdl_op_definition

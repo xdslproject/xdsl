@@ -15,7 +15,6 @@ signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 
-
 @irdl_op_definition
 class Constant(Operation):
     name: str = "arith.constant"

@@ -11,6 +11,8 @@ from xdsl.pattern_rewriter import (PatternRewriteWalker,
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
+from conftest import assert_print_op
+
 
 def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
@@ -25,10 +27,8 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     assert isinstance(module, ModuleOp)
 
     walker.rewrite_module(module)
-    file = StringIO("")
-    printer = Printer(stream=file)
-    printer.print_op(module)
-    assert file.getvalue().strip() == expected_prog.strip()
+
+    assert_print_op(module, expected_prog, None)
 
 
 def test_non_recursive_rewrite():
