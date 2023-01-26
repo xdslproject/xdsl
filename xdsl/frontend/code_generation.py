@@ -5,7 +5,7 @@ import xdsl.frontend.symref as symref
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
-from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
 from xdsl.frontend.type_conversion import TypeConverter
@@ -75,25 +75,32 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     def visit_BinOp(self, node: ast.BinOp):
         op_name: str = node.op.__class__.__name__
 
-        # Table with currently unsupported Python AST operators.
-        unsupported_python_AST_operator = {
-            "BitOr", "BitXor", "Div", "FloorDiv", "Mod", "MatMult", "Pow"
-        }
-
         # Table with mappings of Python AST operator to Python methods.
         python_AST_operator_to_python_overload = {
             "Add": "__add__",
-            "BitAnd": "__and__",
-            "LShift": "__lshift__",
-            "Mult": "__mul__",
-            "RShift": "__rshift__",
             "Sub": "__sub__",
+            "Mult": "__mul__",
+            "Div": "__truediv__",
+            "FloorDiv": "__floordiv__",
+            "Mod": "__mod__",
+            "Pow": "__pow__",
+            "LShift": "__lshift__",
+            "RShift": "__rshift__",
+            "BitOr": "__or__",
+            "BitXor": "__xor__",
+            "BitAnd": "__and__",
+            "MatMult": "__matmul__"
         }
-        if op_name in unsupported_python_AST_operator:
+
+        if op_name not in python_AST_operator_to_python_overload:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
-                f"Unsupported binary operation {op_name}.")
+                f"Unexpected binary operation {op_name}.")
 
+        # Check that the types of the operands are the same.
+        # This is a (temporary?) restriction over Python for implementation simplicity.
+        # This also means that we do not need to support reflected operations
+        # (__radd__, __rsub__, etc.) which only exist for operations between different types.
         self.visit(node.right)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
@@ -109,10 +116,18 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
-        op = OpResolver.resolve_op_overload(
-            python_AST_operator_to_python_overload[op_name],
-            frontend_type)(lhs, rhs)
-        self.inserter.insert_op(op)
+        try:
+            overload_name = python_AST_operator_to_python_overload[op_name]
+            op = OpResolver.resolve_op_overload(
+                overload_name,
+                frontend_type)(lhs, rhs)
+            self.inserter.insert_op(op)
+        except FrontendProgramException:
+            raise CodeGenerationException(
+                node.lineno, node.col_offset,
+                f"Binary operation '{op_name}' "
+                f"is not supported by type '{frontend_type.__name__}' "
+                f"which does not overload '{overload_name}'.")
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.

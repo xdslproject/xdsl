@@ -3,6 +3,7 @@
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.builtin import i1, i32, i64, f16, f32, f64
+from xdsl.frontend.exception import CodeGenerationException
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -94,3 +95,15 @@ with CodeContext(p):
 
 p.compile(desymref=False)
 print(p.xdsl())
+
+try:
+    with CodeContext(p):
+
+        # CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
+        def test_missing_floordiv_overload_f64(a: f64, b: f64) -> f64:
+            return a // b
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
+    print(e.msg)
