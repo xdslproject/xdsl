@@ -118,14 +118,12 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         try:
             overload_name = python_AST_operator_to_python_overload[op_name]
-            op = OpResolver.resolve_op_overload(
-                overload_name,
-                frontend_type)(lhs, rhs)
+            op = OpResolver.resolve_op_overload(overload_name,
+                                                frontend_type)(lhs, rhs)
             self.inserter.insert_op(op)
         except FrontendProgramException:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
-                f"Binary operation '{op_name}' "
+                node.lineno, node.col_offset, f"Binary operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
                 f"which does not overload '{overload_name}'.")
 
@@ -155,7 +153,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "Lt": "__lt__",
             "LtE": "__le__",
             "NotEq": "__ne__",
-            "In": "__contains__"}
+            "In": "__contains__"
+        }
 
         # Table with mappings of Python AST cmpop to xDSL mnemonics.
         python_AST_cmpop_to_mnemonic = {
@@ -193,8 +192,9 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             lhs.typ.__class__]
 
         try:
-            op = OpResolver.resolve_op_overload(python_op, frontend_type)(lhs, rhs,
-                                                                          mnemonic)
+            op = OpResolver.resolve_op_overload(python_op,
+                                                frontend_type)(lhs, rhs,
+                                                               mnemonic)
             self.inserter.insert_op(op)
         except FrontendProgramException:
             raise CodeGenerationException(
