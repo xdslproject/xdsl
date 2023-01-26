@@ -39,6 +39,8 @@ class TypeConverter:
     what overloaded Python operations does this xDSL type support.
     """
 
+    file: str = field(default="<unknown file>")
+
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and
         # many other IR constructs.
@@ -62,7 +64,7 @@ class TypeConverter:
         # Otherwise, it must be some frontend type, and we can look up its class
         # using the imports.
         if type_name not in self.globals:
-            raise CodeGenerationException(type_hint.lineno,
+            raise CodeGenerationException(self.file, type_hint.lineno,
                                           type_hint.col_offset,
                                           f"Unknown type hint '{type_name}'.")
         type_class = self.globals[type_name]
@@ -77,7 +79,7 @@ class TypeConverter:
                 materialized_arguments = type_argument.__args__
                 if len(materialized_arguments) != 1:
                     raise CodeGenerationException(
-                        type_hint.lineno, type_hint.col_offset,
+                        self.file, type_hint.lineno, type_hint.col_offset,
                         f"Expected 1 type argument for generic type '{type_name}', got {len(materialized_arguments)} type arguments instead."
                     )
                 arguments_for_constructor.append(materialized_arguments[0])
@@ -91,7 +93,7 @@ class TypeConverter:
 
             # If this is not a subclass of FrontendType, then abort.
             raise CodeGenerationException(
-                type_hint.lineno, type_hint.col_offset,
+                self.file, type_hint.lineno, type_hint.col_offset,
                 f"'{type_name}' is not a frontend type.")
 
         # Otherwise, type can be a simple non-generic frontend type, e.g. `class
@@ -102,7 +104,7 @@ class TypeConverter:
             return xdsl_type
 
         raise CodeGenerationException(
-            type_hint.lineno, type_hint.col_offset,
+            self.file, type_hint.lineno, type_hint.col_offset,
             f"Unknown type hint for type '{type_name}' inside 'ast.Name' expression."
         )
 
@@ -116,7 +118,7 @@ class TypeConverter:
         # `Foo[Literal[2]]``. Support this in the future patches.
         if isinstance(type_hint, ast.Subscript):
             raise CodeGenerationException(
-                type_hint.lineno, type_hint.col_offset,
+                self.file, type_hint.lineno, type_hint.col_offset,
                 f"Converting subscript type hints is not supported.")
 
         # Type hint can also be a TypeAlias. For example, one can define
@@ -126,5 +128,5 @@ class TypeConverter:
             return self._convert_name(type_hint)
 
         raise CodeGenerationException(
-            type_hint.lineno, type_hint.col_offset,
+            self.file, type_hint.lineno, type_hint.col_offset,
             f"Unknown type hint AST node '{type_hint}'.")

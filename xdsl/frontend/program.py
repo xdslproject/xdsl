@@ -26,6 +26,9 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
+    file: str | None = field(default=None)
+    """Path to the file that contains the program."""
+
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
             msg = \
@@ -47,7 +50,7 @@ Cannot compile program without the code context. Try to use:
 
         type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.stmts)
+            type_converter, self.stmts, self.file)
         self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.
