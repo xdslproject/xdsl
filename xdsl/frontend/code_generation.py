@@ -76,7 +76,9 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         op_name: str = node.op.__class__.__name__
 
         # Table with currently unsupported Python AST operators.
-        unsupported_python_AST_operator = {"BitOr", "BitXor", "Div", "FloorDiv", "Mod", "MatMult", "Pow"}
+        unsupported_python_AST_operator = {
+            "BitOr", "BitXor", "Div", "FloorDiv", "Mod", "MatMult", "Pow"
+        }
 
         # Table with mappings of Python AST operator to Python methods.
         python_AST_operator_to_python_overload = {
@@ -107,8 +109,9 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
-        op = OpResolver.resolve_op_overload(python_AST_operator_to_python_overload[op_name],
-                                            frontend_type)(lhs, rhs)
+        op = OpResolver.resolve_op_overload(
+            python_AST_operator_to_python_overload[op_name],
+            frontend_type)(lhs, rhs)
         self.inserter.insert_op(op)
 
     def visit_Compare(self, node: ast.Compare):
@@ -135,7 +138,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         }
 
         # Table with mappings of Python AST cmpop to xDSL mnemonics.
-        python_AST_cmpop_to_mnemonic= {
+        python_AST_cmpop_to_mnemonic = {
             "Eq": "eq",
             "Gt": "sgt",
             "GtE": "sge",
