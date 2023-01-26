@@ -107,3 +107,16 @@ try:
     print(p.xdsl())
 except CodeGenerationException as e:
     print(e.msg)
+
+
+try:
+    with CodeContext(p):
+
+        # CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
+        def test_missing_contains_overload_f64(a: f64, b: f64) -> f64:
+            return a in b
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
+    print(e.msg)

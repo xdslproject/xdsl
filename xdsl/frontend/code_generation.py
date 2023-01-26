@@ -140,7 +140,12 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         op_name: str = node.ops[0].__class__.__name__
 
         # Table with currently unsupported Python AST cmpops.
-        unsupported_python_AST_cmpop = {"In", "Is", "IsNot", "NotIn"}
+        # The "is" and "is not" operators are (currently) not supported,
+        # since the frontend does not consider/preserve object identity.
+        # Finally, "not in" does not directly correspond to a special method
+        # and is instead simply implemented as the negation of __contains__
+        # which the current mapping framework cannot handle.
+        unsupported_python_AST_cmpop = {"Is", "IsNot", "NotIn"}
 
         # Table with mappings of Python AST cmpop to Python methods.
         python_AST_cmpop_to_python_overload = {
@@ -150,7 +155,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "Lt": "__lt__",
             "LtE": "__le__",
             "NotEq": "__ne__",
-        }
+            "In": "__contains__"}
 
         # Table with mappings of Python AST cmpop to xDSL mnemonics.
         python_AST_cmpop_to_mnemonic = {
@@ -160,6 +165,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "Lt": "slt",
             "LtE": "sle",
             "NotEq": "ne",
+            "In": "contains"  # Note: Not a real xDSL mnemonic!
         }
 
         if op_name in unsupported_python_AST_cmpop:
@@ -167,6 +173,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 node.lineno, node.col_offset,
                 f"Unsupported comparison operation '{op_name}'.")
 
+        # Check that the types of the operands are the same.
+        # This is a (temporary?) restriction over Python for implementation simplicity.
+        # This also means that we do not need to consider swapping arguments
+        # (__eq__ and __ne__ are their own reflection, __lt__ <-> __gt__  and __le__ <-> __ge__).
         self.visit(comp)
         rhs = self.inserter.get_operand()
         self.visit(node.left)
@@ -182,9 +192,16 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
-        op = OpResolver.resolve_op_overload(python_op, frontend_type)(lhs, rhs,
-                                                                      mnemonic)
-        self.inserter.insert_op(op)
+        try:
+            op = OpResolver.resolve_op_overload(python_op, frontend_type)(lhs, rhs,
+                                                                          mnemonic)
+            self.inserter.insert_op(op)
+        except FrontendProgramException:
+            raise CodeGenerationException(
+                node.lineno, node.col_offset,
+                f"Comparison operation '{op_name}' "
+                f"is not supported by type '{frontend_type.__name__}' "
+                f"which does not overload '{python_op}'.")
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
 
