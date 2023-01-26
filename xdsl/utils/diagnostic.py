@@ -1,9 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from io import StringIO
 
 from xdsl.ir import IRNode, Block, Operation, Region
 from xdsl.utils.exceptions import DiagnosticException
-from io import StringIO
 
 
 @dataclass

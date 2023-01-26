@@ -42,7 +42,8 @@ class BacktrackingHistory:
               ^
               Expected type of value-id here!
 
-    The BacktrackingHistory will contain the outermost error (expected type of value-id here)
+    The BacktrackingHistory will contain the outermost error "
+    "(expected type of value-id here)
     It's parent will be the next error message (not a known attribute).
     Some errors happen in named regions (e.g. "parsing of operation")
     """
@@ -86,7 +87,8 @@ class BacktrackingHistory:
 @dataclass(frozen=True)
 class Span:
     """
-    Parts of the input are always passed around as spans, so we know where they originated.
+    Parts of the input are always passed around as spans, so we know where "
+    "they originated.
     """
 
     start: int
@@ -128,7 +130,7 @@ class Span:
         """
         info = self.input.get_lines_containing(self)
         if info is None:
-            return "Unknown location of span {}. Error: ".format(self, msg)
+            return "Unknown location of span {}. Error: ".format(msg)
         lines, offset_of_first_line, line_no = info
         # Offset relative to the first line:
         offset = self.start - offset_of_first_line
@@ -304,11 +306,14 @@ class Tokenizer:
         with some meta information in the history attribute.
 
         The backtracker accepts the following exceptions:
-         - ParseError: signifies that the region could not be parsed because of (unexpected) syntax errors
-         - AssertionError: this error should probably be phased out in favour of the two above
+         - ParseError: signifies that the region could not be parsed because of
+         (unexpected) syntax errors
+         - AssertionError: this error should probably be phased out in favour
+         of the two above
          - EOFError: signals that EOF was reached unexpectedly
 
-        Any other error will be printed to stderr, but backtracking will continue as normal.
+        Any other error will be printed to stderr, but backtracking will continue
+        as normal.
         """
         save = self.save()
         starting_position = self.pos
@@ -316,7 +321,8 @@ class Tokenizer:
             yield
             # Clear error history when something doesn't fail
             # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure, something has been parsed (we assume)
+            # If a backtracking() completes without failure,
+            # something has been parsed (we assume)
             if self.pos > starting_position and self.history is not None:
                 self.history = None
         except Exception as ex:
@@ -342,7 +348,7 @@ class Tokenizer:
 
             self.resume_from(save)
 
-    def _history_entry_from_exception(self, ex: Exception, region: str,
+    def _history_entry_from_exception(self, ex: Exception, region: str | None,
                                       pos: int) -> BacktrackingHistory:
         """
         Given an exception generated inside a backtracking attempt,

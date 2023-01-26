@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 from frozenlist import FrozenList
 from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, Union, ClassVar)
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, BaseParser
+    from xdsl.parser import BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
 
@@ -38,7 +38,8 @@ class Dialect:
 
     def __call__(self, ctx: MLContext) -> None:
         print(
-            "Calling a dialect in order to register it is deprecated and will soon be removed.",
+            "Calling a dialect in order to register it is deprecated"
+            "and will soon be removed.",
             file=sys.stderr)
         # TODO; Remove this function in a future release.
         assert isinstance(ctx, MLContext)
@@ -585,8 +586,9 @@ class Operation(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two operations are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}
@@ -598,7 +600,7 @@ class Operation(IRNode):
            len(self.results) != len(other.results) or \
            len(self.regions) != len(other.regions) or \
            len(self.successors) != len(other.successors) or \
-            self.attributes != other.attributes:
+           self.attributes != other.attributes:
             return False
         if self.parent and other.parent and context.get(
                 self.parent) != other.parent:
@@ -853,15 +855,16 @@ class Block(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two blocks are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}
         if not isinstance(other, Block):
             return False
         if len(self.args) != len(other.args) or \
-            len(self.ops) != len(other.ops):
+           len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
@@ -1088,8 +1091,9 @@ class Region(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two regions are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}
