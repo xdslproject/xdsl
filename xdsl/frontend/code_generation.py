@@ -75,9 +75,11 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     def visit_BinOp(self, node: ast.BinOp):
         op_name: str = node.op.__class__.__name__
 
-        # Local table which maps the name of a binry operator to the
-        # corresponding Python function.
-        op_to_python = {
+        # Table with currently unsupported Python AST operators.
+        unsupported_python_AST_operator = {"BitOr", "BitXor", "Div", "FloorDiv", "Mod", "MatMult", "Pow"}
+
+        # Table with mappings of Python AST operator to Python methods.
+        python_AST_operator_to_python_overload = {
             "Add": "__add__",
             "BitAnd": "__and__",
             "LShift": "__lshift__",
@@ -85,10 +87,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "RShift": "__rshift__",
             "Sub": "__sub__",
         }
-        if op_name not in op_to_python:
+        if op_name in unsupported_python_AST_operator:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
-                f"Unknown binary operation {op_name}.")
+                f"Unsupported binary operation {op_name}.")
 
         self.visit(node.right)
         rhs = self.inserter.get_operand()
@@ -105,7 +107,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
-        op = OpResolver.resolve_op_overload(op_to_python[op_name],
+        op = OpResolver.resolve_op_overload(python_AST_operator_to_python_overload[op_name],
                                             frontend_type)(lhs, rhs)
         self.inserter.insert_op(op)
 
@@ -119,20 +121,33 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__name__
 
-        # Local table which maps the name of a comparison operator to the
-        # corresponding Python functions and xDSL mnemonics.
-        op_to_python_and_mnemonic = {
-            "Eq": ("__eq__", "eq"),
-            "Gt": ("__gt__", "sgt"),
-            "GtE": ("__ge__", "sge"),
-            "Lt": ("__lt__", "slt"),
-            "LtE": ("__le__", "sle"),
-            "NotEq": ("__ne__", "ne"),
+        # Table with currently unsupported Python AST cmpops.
+        unsupported_python_AST_cmpop = {"In", "Is", "IsNot", "NotIn"}
+
+        # Table with mappings of Python AST cmpop to Python methods.
+        python_AST_cmpop_to_python_overload = {
+            "Eq": "__eq__",
+            "Gt": "__gt__",
+            "GtE": "__ge__",
+            "Lt": "__lt__",
+            "LtE": "__le__",
+            "NotEq": "__ne__",
         }
-        if op_name not in op_to_python_and_mnemonic:
+
+        # Table with mappings of Python AST cmpop to xDSL mnemonics.
+        python_AST_cmpop_to_mnemonic= {
+            "Eq": "eq",
+            "Gt": "sgt",
+            "GtE": "sge",
+            "Lt": "slt",
+            "LtE": "sle",
+            "NotEq": "ne",
+        }
+
+        if op_name in unsupported_python_AST_cmpop:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
-                f"Unknown comparison operation '{op_name}'.")
+                f"Unsupported comparison operation '{op_name}'.")
 
         self.visit(comp)
         rhs = self.inserter.get_operand()
@@ -144,8 +159,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 f"Expected the same types for comparison operator '{op_name}',"
                 f" but got {lhs.typ} and {rhs.typ}.")
 
-        python_op = op_to_python_and_mnemonic[op_name][0]
-        mnemonic = op_to_python_and_mnemonic[op_name][1]
+        python_op = python_AST_cmpop_to_python_overload[op_name]
+        mnemonic = python_AST_cmpop_to_mnemonic[op_name]
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
