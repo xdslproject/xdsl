@@ -264,13 +264,13 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_op(parent_op)
 
     def visit_Name(self, node: ast.Name):
-        try:
-            fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
-            self.inserter.insert_op(fetch_op)
-        except:
+        if node.id not in self.symbol_table:
             raise CodeGenerationException(
                 self.file, node.lineno, node.col_offset,
                 f"Symbol '{node.id}' is not defined.")
+
+        fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
+        self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
         parent_op = self.inserter.insertion_point.parent_op()
