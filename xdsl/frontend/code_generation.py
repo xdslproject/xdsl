@@ -193,7 +193,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # Create the comparison operation (including any potential negations)
         if op_name == "In":
             # "in" does not take a mnemonic.
-            op = op()
+            op = op(lhs, rhs)
         else:
             # Table with mappings of Python AST cmpop to xDSL mnemonics.
             python_AST_cmpop_to_mnemonic = {
