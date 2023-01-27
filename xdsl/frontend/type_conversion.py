@@ -39,7 +39,7 @@ class TypeConverter:
     what overloaded Python operations does this xDSL type support.
     """
 
-    file: str = field(default="<unknown file>")
+    file: str = field(default=None)
 
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and

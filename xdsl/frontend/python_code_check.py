@@ -69,7 +69,7 @@ class CheckStructure:
 @dataclass
 class SingleScopeVisitor(ast.NodeVisitor):
 
-    file: str = field(default="<unknown file>")
+    file: str = field(default=None)
     """File path for error reporting."""
 
     block_names: Set[str] = field(default_factory=set)
@@ -104,7 +104,7 @@ class SingleScopeVisitor(ast.NodeVisitor):
 @dataclass
 class MultipleScopeVisitor(ast.NodeVisitor):
 
-    file: str = field(default="<unknown file>")
+    file: str = field(default=None)
 
     function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
     """Tracks duplicate function names and duplicate block labels."""
@@ -264,7 +264,7 @@ class ConstantInliner(ast.NodeTransformer):
     new_node: ast.Constant
     """New AST node to inline."""
 
-    file: str = field(default="<unknown file>")
+    file: str = field(default=None)
     """Path to the file containing the program."""
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:

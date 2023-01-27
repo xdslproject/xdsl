@@ -41,4 +41,8 @@ class CodeGenerationException(FrontendProgramException):
         self.col = col
 
     def __str__(self) -> str:
-        return f'Code generation exception at "{self.file}", line {self.line} column {self.col}: {self.msg}'
+        str = 'Code generation exception at '
+        if self.file:
+            return str + f'"{self.file}", line {self.line} column {self.col}: {self.msg}'
+        else:
+            return str + f'line {self.line} column {self.col}: {self.msg}'

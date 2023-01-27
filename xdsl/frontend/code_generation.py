@@ -49,7 +49,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    file: str = field(default="<unknown file>")
+    file: str = field(default=None)
     """Path of the file containing the program being processed."""
 
     def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
