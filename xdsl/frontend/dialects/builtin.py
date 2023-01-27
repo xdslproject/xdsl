@@ -97,16 +97,30 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
 
 # Type aliases for signless integers.
 i1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNLESS]]
+i8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNLESS]]
+i16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNLESS]]
 i32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNLESS]]
 i64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNLESS]]
+i128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNLESS]]
+i255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNLESS]]
 
 # Type aliases for signed integers.
+si1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNED]]
+si8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNED]]
+si16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNED]]
 si32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNED]]
 si64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNED]]
+si128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNED]]
+si255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNED]]
 
 # Type aliases for unsigned integers.
+ui1: TypeAlias = _Integer[Literal[1], Literal[Signedness.UNSIGNED]]
+ui8: TypeAlias = _Integer[Literal[8], Literal[Signedness.UNSIGNED]]
+ui16: TypeAlias = _Integer[Literal[16], Literal[Signedness.UNSIGNED]]
 ui32: TypeAlias = _Integer[Literal[32], Literal[Signedness.UNSIGNED]]
 ui64: TypeAlias = _Integer[Literal[64], Literal[Signedness.UNSIGNED]]
+ui128: TypeAlias = _Integer[Literal[128], Literal[Signedness.UNSIGNED]]
+ui255: TypeAlias = _Integer[Literal[255], Literal[Signedness.UNSIGNED]]
 
 
 class _Index(_FrontendType):
