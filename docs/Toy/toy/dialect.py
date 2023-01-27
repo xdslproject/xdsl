@@ -148,24 +148,27 @@ class FuncOp(Operation):
         last_op = block.ops[-1]
 
         if not isinstance(last_op, ReturnOp):
-            raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
+            raise VerifyException(
+                "Expected last op of FuncOp to be a ReturnOp")
 
         operand = last_op.input
         operand_typ = None if operand is None else operand.typ
-        
+
         return_typs = self.function_type.outputs.data
-        
-        match len(return_typs):
-            case 0:
-                return_typ = None
-            case 1:
+
+        if len(return_typs):
+            if len(return_typs) == 1:
                 return_typ = return_typs[0]
-            case _:
-                raise VerifyException("Expected return type of func to have 0 or 1 values")
-        
+            else:
+                raise VerifyException(
+                    "Expected return type of func to have 0 or 1 values")
+        else:
+            return_typ = None
+
         if operand_typ != return_typ:
-            raise VerifyException("Expected return value to match return type of function")
-        
+            raise VerifyException(
+                "Expected return value to match return type of function")
+
 
 @irdl_op_definition
 class GenericCallOp(Operation):
@@ -254,7 +257,7 @@ class ReturnOp(Operation):
     def from_input(cls: type[ReturnOp],
                    input: Optional[SSAValue] = None) -> ReturnOp:
         return cls.create(operands=[input] if input is not None else [])
-    
+
 
 @irdl_op_definition
 class ReshapeOp(Operation):
