@@ -666,10 +666,14 @@ class BaseParser(ABC):
             block = Block(block_id)
             self.blocks[block_id.text] = block
 
+        block_args: list[BlockArgument] = []
+
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
             self.ssaValues[name.text] = arg
-            block.args.append(arg)
+            block_args.append(arg)
+
+        block._args = tuple(block_args)  # type: ignore
 
         while (next_op := self.try_parse_operation()) is not None:
             block.add_op(next_op)

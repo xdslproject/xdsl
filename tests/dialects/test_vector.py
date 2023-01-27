@@ -38,7 +38,7 @@ def test_vector_load_i32():
 
     assert type(load.results[0]) is OpResult
     assert type(load.results[0].typ) is VectorType
-    assert load.indices == []
+    assert load.indices == ()
 
 
 def test_vector_load_i32_with_dimensions():
@@ -91,7 +91,7 @@ def test_vector_store_i32():
 
     assert store.memref is memref_ssa_value
     assert store.vector is vector_ssa_value
-    assert store.indices == []
+    assert store.indices == ()
 
 
 def test_vector_store_i32_with_dimensions():
@@ -318,7 +318,7 @@ def test_vector_masked_load():
 
     assert type(maskedload.results[0]) is OpResult
     assert type(maskedload.results[0].typ) is VectorType
-    assert maskedload.indices == []
+    assert maskedload.indices == ()
 
 
 def test_vector_masked_load_with_dimensions():
