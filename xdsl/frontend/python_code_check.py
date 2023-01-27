@@ -70,7 +70,7 @@ class CheckStructure:
 class SingleScopeVisitor(ast.NodeVisitor):
 
     file: str = field(default="<unknown file>")
-    """File name for error reporting."""
+    """File path for error reporting."""
 
     block_names: Set[str] = field(default_factory=set)
     """Tracks duplicate block labels."""
