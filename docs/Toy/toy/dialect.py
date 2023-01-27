@@ -66,7 +66,22 @@ class AddOp(Operation):
         assert isinstance(lhs.typ, TensorType | UnrankedTensorType)
         element_type = cast(Float64Type,
                             cast(TensorType[Any], lhs.typ).element_type)
-        return super().create(result_types=[element_type], operands=[lhs, rhs])
+        return cls.create(result_types=[element_type], operands=[lhs, rhs])
+
+    def verify_(self):
+        if not len(self.arguments):
+            raise VerifyException("Expected AddOp args to not be empty")
+
+        shape = None
+        for arg in self.arguments:
+            # Expect shapes to be the same whenever they are defined, no check for unranked
+            if isinstance(arg.typ, TensorType):
+                if shape is None:
+                    shape = arg.typ.shape
+                else:
+                    if shape != arg.typ.shape:
+                        raise VerifyException(
+                            "Expected AddOp args to have the same shape")
 
 
 @irdl_op_definition
@@ -137,9 +152,9 @@ class GenericCallOp(Operation):
         if isinstance(callee, str):
             callee = FlatSymbolRefAttr.from_str(callee)
 
-        return super().create(operands=operands,
-                              result_types=return_types,
-                              attributes={"callee": callee})
+        return cls.create(operands=operands,
+                          result_types=return_types,
+                          attributes={"callee": callee})
 
 
 @irdl_op_definition
@@ -154,16 +169,22 @@ class MulOp(Operation):
 
     @classmethod
     def from_summands(cls: type[MulOp], lhs: SSAValue, rhs: SSAValue) -> MulOp:
-        return super().create(result_types=[lhs.typ], operands=[lhs, rhs])
+        return cls.create(result_types=[lhs.typ], operands=[lhs, rhs])
 
     def verify_(self):
-        [arg0, arg1] = self.arguments
-        arg0_typ, arg1_typ = arg0.typ, arg1.typ
-        if isinstance(arg0_typ, TensorType) and isinstance(
-                arg1_typ, TensorType):
-            if arg0_typ.shape != arg1_typ.shape:
-                raise VerifyException(
-                    "Expected MulOp args to have the same shape")
+        if not len(self.arguments):
+            raise VerifyException("Expected MulOp args to not be empty")
+
+        shape = None
+        for arg in self.arguments:
+            # Expect shapes to be the same whenever they are defined, no check for unranked
+            if isinstance(arg.typ, TensorType):
+                if shape is None:
+                    shape = arg.typ.shape
+                else:
+                    if shape != arg.typ.shape:
+                        raise VerifyException(
+                            "Expected MulOp args to have the same shape")
 
 
 @irdl_op_definition
@@ -177,7 +198,7 @@ class PrintOp(Operation):
 
     @classmethod
     def from_input(cls: type[PrintOp], input: SSAValue) -> PrintOp:
-        return super().create(operands=[input])
+        return cls.create(operands=[input])
 
 
 @irdl_op_definition
@@ -201,7 +222,7 @@ class ReturnOp(Operation):
     @classmethod
     def from_input(cls: type[ReturnOp],
                    input: Optional[SSAValue] = None) -> ReturnOp:
-        return super().create(operands=[input] if input is not None else [])
+        return cls.create(operands=[input] if input is not None else [])
 
 
 @irdl_op_definition
@@ -226,7 +247,7 @@ class ReshapeOp(Operation):
         element_type = cast(Float64Type,
                             cast(TensorType[Any], input.typ).element_type)
         t = AnyTensorType.from_type_and_list(element_type, shape)
-        return super().create(result_types=[t], operands=[input])
+        return cls.create(result_types=[t], operands=[input])
 
     def verify_(self):
         result_type = self.res.typ
