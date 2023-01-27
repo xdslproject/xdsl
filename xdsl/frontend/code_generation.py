@@ -137,15 +137,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__name__
 
-        # Table with currently unsupported Python AST cmpops.
-        # The "is" and "is not" operators are (currently) not supported,
-        # since the frontend does not consider/preserve object identity.
-        # Finally, "not in" does not directly correspond to a special method
-        # and is instead simply implemented as the negation of __contains__
-        # which the current mapping framework cannot handle.
-        unsupported_python_AST_cmpop = {"Is", "IsNot", "NotIn"}
-
-        # Table with mappings of Python AST cmpop to Python methods.
+        # Table with mappings of Python AST cmpop to Python method.
         python_AST_cmpop_to_python_overload = {
             "Eq": "__eq__",
             "Gt": "__gt__",
@@ -153,19 +145,17 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "Lt": "__lt__",
             "LtE": "__le__",
             "NotEq": "__ne__",
-            "In": "__contains__"
+            "In": "__contains__",
+            "NotIn": "__contains__"
         }
 
-        # Table with mappings of Python AST cmpop to xDSL mnemonics.
-        python_AST_cmpop_to_mnemonic = {
-            "Eq": "eq",
-            "Gt": "sgt",
-            "GtE": "sge",
-            "Lt": "slt",
-            "LtE": "sle",
-            "NotEq": "ne",
-            "In": "contains"  # Note: Not a real xDSL mnemonic!
-        }
+        # Table with currently unsupported Python AST cmpops.
+        # The "is" and "is not" operators are (currently) not supported,
+        # since the frontend does not consider/preserve object identity.
+        # Finally, "not in" does not directly correspond to a special method
+        # and is instead simply implemented as the negation of __contains__
+        # which the current mapping framework cannot handle.
+        unsupported_python_AST_cmpop = {"Is", "IsNot", "NotIn"}
 
         if op_name in unsupported_python_AST_cmpop:
             raise CodeGenerationException(
@@ -186,22 +176,38 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 f"Expected the same types for comparison operator '{op_name}',"
                 f" but got {lhs.typ} and {rhs.typ}.")
 
+        # Resolve the comparison operation to an xdsl operation class
         python_op = python_AST_cmpop_to_python_overload[op_name]
-        mnemonic = python_AST_cmpop_to_mnemonic[op_name]
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
         try:
-            op = OpResolver.resolve_op_overload(python_op,
-                                                frontend_type)(lhs, rhs,
-                                                               mnemonic)
-            self.inserter.insert_op(op)
+            op = OpResolver.resolve_op_overload(python_op, frontend_type)
         except FrontendProgramException:
             raise CodeGenerationException(
                 node.lineno, node.col_offset,
                 f"Comparison operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
                 f"which does not overload '{python_op}'.")
+
+        # Create the comparison operation (including any potential negations)
+        if op_name == "In":
+            # "in" does not take a mnemonic.
+            op = op()
+        else:
+            # Table with mappings of Python AST cmpop to xDSL mnemonics.
+            python_AST_cmpop_to_mnemonic = {
+                "Eq": "eq",
+                "Gt": "sgt",
+                "GtE": "sge",
+                "Lt": "slt",
+                "LtE": "sle",
+                "NotEq": "ne"
+            }
+            mnemonic = python_AST_cmpop_to_mnemonic[op_name]
+            op = op(lhs, rhs, mnemonic)
+
+        self.inserter.insert_op(op)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
 
