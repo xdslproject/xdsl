@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Iterable, Sequence, SupportsIndex, Type, TypeGuard, Any, TypeVar, List
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
 
-
 _T = TypeVar('_T')
+
+
 class IList(List[_T]):
     """
     A list that can be frozen. Once frozen, it can not be modified. 
@@ -62,12 +63,13 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         if isinstance(__x, IList) and __x._frozen:
             raise Exception("frozen list can not be modified")
-        return IList(super().__add__(__x)) # type: ignore
+        return IList(super().__add__(__x))  # type: ignore
 
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, IList):
-            return super().__eq__(__o) # type: ignore
+            return super().__eq__(__o)  # type: ignore
         return False
+
 
 @dataclass(frozen=True)
 class ISSAValue(ABC):
@@ -79,15 +81,17 @@ class ISSAValue(ABC):
     users: IList[IOp]
 
     def _add_user(self, op: IOp):
-        self.users._unfreeze() # type: ignore
+        self.users._unfreeze()  # type: ignore
         self.users.append(op)
         self.users.freeze()
 
     def _remove_user(self, op: IOp):
         if op not in self.users:
-            raise Exception(f"Trying to remove a user ({op.name}) that is not an actual user of this value!")
+            raise Exception(
+                f"Trying to remove a user ({op.name}) that is not an actual user of this value!"
+            )
 
-        self.users._unfreeze() # type: ignore
+        self.users._unfreeze()  # type: ignore
         self.users.remove(op)
         self.users.freeze()
 
@@ -150,8 +154,7 @@ class IRegion:
         """Returns a list of all operations in this region."""
 
         return IList([op for block in self.blocks for op in block.ops])
-         
-        
+
     def __init__(self, blocks: Sequence[IBlock]):
         """Creates a new immutable region from a sequence of immutable blocks."""
 
@@ -179,7 +182,7 @@ class IRegion:
         # when the actual block is created all successor references will be moved
         # to the correct block
         for block in blocks:
-            block_map[block] = IBlock([],[])
+            block_map[block] = IBlock([], [])
 
         immutable_blocks = [
             IBlock.from_mutable(block, value_map, block_map)
@@ -198,7 +201,10 @@ class IRegion:
                 except ValueError:
                     continue
                 # replace dummy successor with actual successor
-                object.__setattr__(op, "successors", IList(op.successors[:dummy_index]+[imm_block]+op.successors[dummy_index+1:]))
+                object.__setattr__(
+                    op, "successors",
+                    IList(op.successors[:dummy_index] + [imm_block] +
+                          op.successors[dummy_index + 1:]))
 
         return region
 
@@ -219,11 +225,13 @@ class IRegion:
         # All mutable blocks have to be initialized first so that ops can
         # refer to them in their successor lists.
         for block in self.blocks:
-            mutable_blocks.append(mutable_block := Block.from_arg_types(block.arg_types))
+            mutable_blocks.append(
+                mutable_block := Block.from_arg_types(block.arg_types))
             block_mapping[block] = mutable_block
         for block in self.blocks:
             # This will use the already created Block and populate it
-            block.get_mutable_copy(value_mapping=value_mapping, block_mapping=block_mapping)
+            block.get_mutable_copy(value_mapping=value_mapping,
+                                   block_mapping=block_mapping)
         return Region.from_block_list(mutable_blocks)
 
 
@@ -268,7 +276,8 @@ class IBlock:
 
         if is_type_seq(args):
             block_args: Sequence[IBlockArg] = [
-                IBlockArg(type, IList([]), self, idx) for idx, type in enumerate(args)
+                IBlockArg(type, IList([]), self, idx)
+                for idx, type in enumerate(args)
             ]
         elif is_iblock_arg_seq(args):
             block_args: Sequence[IBlockArg] = args
@@ -304,13 +313,19 @@ class IBlock:
         for arg in block.args:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
-            immutable_arg = IBlockArg(arg.typ, IList([]), None, arg.index)  # type: ignore
+            immutable_arg = IBlockArg(
+                arg.typ,
+                IList([]),
+                None,  # type: ignore
+                arg.index)
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
 
         immutable_ops = [
-            IOp.from_mutable(op, value_map=value_map, block_map=block_map, existing_operands=None)
-            for op in block.ops
+            IOp.from_mutable(op,
+                             value_map=value_map,
+                             block_map=block_map,
+                             existing_operands=None) for op in block.ops
         ]
 
         return IBlock(args, immutable_ops)
@@ -328,7 +343,6 @@ class IBlock:
             value_mapping = {}
         if block_mapping is None:
             block_mapping = {}
-
 
         # Block might already have been created by the Region, look it up
         if self in block_mapping:
@@ -366,7 +380,7 @@ class OpData:
 @dataclass(frozen=True)
 class IOp:
     """Represents an immutable operation."""
-    
+
     __match_args__ = ("op_type", "operands", "results", "successors",
                       "regions")
     _op_data: OpData
@@ -382,7 +396,7 @@ class IOp:
         object.__setattr__(self, "_op_data", op_data)
         object.__setattr__(self, "operands", IList(operands))
         for operand in operands:
-            operand._add_user(self) # type: ignore
+            operand._add_user(self)  # type: ignore
         object.__setattr__(
             self, "results",
             IList([
@@ -516,22 +530,21 @@ class IOp:
         operands: list[ISSAValue] = []
         if existing_operands is None:
             for operand in op.operands:
-                match operand:
-                    case OpResult():
-                        if operand in value_map:
-                            operands.append(value_map[operand])
-                        else:
-                            raise Exception("Operand used before definition")
-                    case BlockArgument():
-                        if operand not in value_map:
-                            raise Exception(
-                                "Block argument expected in mapping for op: " +
-                                op.name)
+                if isinstance(operand, OpResult):
+                    if operand in value_map:
                         operands.append(value_map[operand])
-                    case _:
+                    else:
+                        raise Exception("Operand used before definition")
+                elif isinstance(operand, BlockArgument):
+                    if operand not in value_map:
                         raise Exception(
-                            "Operand is expected to be either OpResult or BlockArgument"
-                        )
+                            "Block argument expected in mapping for op: " +
+                            op.name)
+                    operands.append(value_map[operand])
+                else:
+                    raise Exception(
+                        "Operand is expected to be either OpResult or BlockArgument"
+                    )
         else:
             operands.extend(existing_operands)
 
