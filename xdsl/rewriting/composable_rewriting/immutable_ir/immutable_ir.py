@@ -65,6 +65,11 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return IList(super().__add__(__x))  # type: ignore
 
+    def __iadd__(self, __x: Iterable[_T]) -> IList[_T]:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().__iadd__(__x)  # type: ignore
+
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, IList):
             return super().__eq__(__o)  # type: ignore
