@@ -55,9 +55,6 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return super().__setitem__(__index, __object)
 
-    def __getitem__(self, key: SupportsIndex | slice) -> _T | list[_T]:
-        return super().__getitem__(key)
-
     def __add__(self, __x: Iterable[_T]) -> IList[_T]:
         if self._frozen:
             raise Exception("frozen list can not be modified")
@@ -123,7 +120,7 @@ class IBlockArg(ISSAValue):
     index: int
 
     def __hash__(self) -> int:
-        return hash(id(self))
+        return hash(id(self.block)) + hash(self.index)
 
     def __eq__(self, __o: IBlockArg) -> bool:
         return self is __o
@@ -147,18 +144,28 @@ class IRegion:
         return self is __o
 
     @property
-    def block(self) -> IBlock | None:
-        """Returns the entry block of this region."""
-
-        if len(self.blocks) > 0:
-            return self.blocks[0]
-        return None
+    def block(self) -> IBlock:
+        """
+        Returns the block of a single-block region.
+        Returns an exception if the region is not single-block.
+        """
+        if len(self.blocks) != 1:
+            raise ValueError(
+                "'block' property of IRegion class is only available "
+                "for single-block regions.")
+        return self.blocks[0]
 
     @property
     def ops(self) -> IList[IOperation]:
-        """Returns a list of all operations in this region."""
-
-        return IList([op for block in self.blocks for op in block.ops])
+        """
+        Get the operations of a single-block region.
+        Returns an exception if the region is not single-block.
+        """
+        if len(self.blocks) != 1:
+            raise ValueError(
+                "'ops' property of IRegion class is only available "
+                "for single-block regions.")
+        return self.block.ops
 
     def __init__(self, blocks: Sequence[IBlock]):
         """Creates a new immutable region from a sequence of immutable blocks."""
@@ -200,16 +207,17 @@ class IRegion:
         # clean up successor references to blocks for ops inside this region
         for block, imm_block in zip(blocks, region.blocks):
             dummy_block = block_map[block]
-            for op in region.ops:
-                try:
-                    dummy_index = op.successors.index(dummy_block)
-                except ValueError:
-                    continue
-                # replace dummy successor with actual successor
-                object.__setattr__(
-                    op, "successors",
-                    IList(op.successors[:dummy_index] + [imm_block] +
-                          op.successors[dummy_index + 1:]))
+            for block in region.blocks:
+                for op in block.ops:
+                    try:
+                        dummy_index = op.successors.index(dummy_block)
+                    except ValueError:
+                        continue
+                    # replace dummy successor with actual successor
+                    object.__setattr__(
+                        op, "successors",
+                        IList(op.successors[:dummy_index] + [imm_block] +
+                              op.successors[dummy_index + 1:]))
 
         return region
 
@@ -443,16 +451,28 @@ class IOperation:
         return self._op_data.attributes
 
     @property
-    def result(self) -> IOpResult | None:
-        if len(self.results) > 0:
-            return self.results[0]
-        return None
+    def result(self) -> IOpResult:
+        """
+        Get the result of a of an IOperation with a single result.
+        Returns an exception if the operation does not have exactly one result.
+        """
+        if len(self.results) != 1:
+            raise ValueError(
+                "'result' property of IOperation class is only available "
+                "for IOperations with exactly one result.")
+        return self.results[0]
 
     @property
-    def region(self) -> IRegion | None:
-        if len(self.regions) > 0:
-            return self.regions[0]
-        return None
+    def region(self) -> IRegion:
+        """
+        Get the region of a of an IOperation with a single region.
+        Returns an exception if the operation does not have exactly one region.
+        """
+        if len(self.regions) != 1:
+            raise ValueError(
+                "'region' property of IOperation class is only available "
+                "for IOperations with exactly one region.")
+        return self.regions[0]
 
     @property
     def result_types(self) -> list[Attribute]:
