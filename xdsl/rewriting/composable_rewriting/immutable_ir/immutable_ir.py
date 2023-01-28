@@ -1,9 +1,8 @@
 from __future__ import annotations
 from abc import ABC
-from typing import Iterable, Sequence, SupportsIndex, Type, TypeGuard, Any
-from xdsl.ir import *
-from xdsl.dialects.builtin import *
-from xdsl.dialects.arith import *
+from dataclasses import dataclass
+from typing import Iterable, Sequence, SupportsIndex, Type, TypeGuard, Any, TypeVar, List
+from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
 
 
 _T = TypeVar('_T')
@@ -50,6 +49,25 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return super().clear()
 
+    def __setitem__(self, __index: SupportsIndex, __object: _T) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().__setitem__(__index, __object)
+
+    def __getitem__(self, key: SupportsIndex | slice) -> _T | list[_T]:
+        return super().__getitem__(key)
+
+    def __add__(self, __x: Iterable[_T]) -> IList[_T]:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        if isinstance(__x, IList) and __x._frozen:
+            raise Exception("frozen list can not be modified")
+        return IList(super().__add__(__x)) # type: ignore
+
+    def __eq__(self, __o: object) -> bool:
+        if isinstance(__o, IList):
+            return super().__eq__(__o) # type: ignore
+        return False
 
 @dataclass(frozen=True)
 class ISSAValue(ABC):
@@ -120,7 +138,7 @@ class IRegion:
         return self is __o
 
     @property
-    def block(self) -> Optional[IBlock]:
+    def block(self) -> IBlock | None:
         """Returns the entry block of this region."""
 
         if len(self.blocks) > 0:
@@ -144,8 +162,8 @@ class IRegion:
     def from_mutable(
         cls,
         blocks: Sequence[Block],
-        value_map: Optional[dict[SSAValue, ISSAValue]] = None,
-        block_map: Optional[dict[Block, IBlock]] = None,
+        value_map: dict[SSAValue, ISSAValue] | None = None,
+        block_map: dict[Block, IBlock] | None = None,
     ) -> IRegion:
         """
         Creates a new immutable region from a sequence of mutable blocks.
@@ -186,8 +204,8 @@ class IRegion:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[dict[IBlock, Block]] = None) -> Region:
+            value_mapping: dict[ISSAValue, SSAValue] | None = None,
+            block_mapping: dict[IBlock, Block] | None = None) -> Region:
         """
         Returns a mutable region that is a copy of this immutable region.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -197,7 +215,7 @@ class IRegion:
             value_mapping = {}
         if block_mapping is None:
             block_mapping = {}
-        mutable_blocks: List[Block] = []
+        mutable_blocks: list[Block] = []
         # All mutable blocks have to be initialized first so that ops can
         # refer to them in their successor lists.
         for block in self.blocks:
@@ -216,7 +234,7 @@ class IBlock:
     ops: IList[IOp]
 
     @property
-    def arg_types(self) -> List[Attribute]:
+    def arg_types(self) -> list[Attribute]:
         frozen_arg_types = [arg.typ for arg in self.args]
         return frozen_arg_types
 
@@ -269,8 +287,8 @@ class IBlock:
     def from_mutable(
         cls,
         block: Block,
-        value_map: Optional[dict[SSAValue, ISSAValue]] = None,
-        block_map: Optional[dict[Block, IBlock]] = None,
+        value_map: dict[SSAValue, ISSAValue] | None = None,
+        block_map: dict[Block, IBlock] | None = None,
     ) -> IBlock:
         """
         Creates an immutable block from a mutable block. 
@@ -282,7 +300,7 @@ class IBlock:
         if block_map is None:
             block_map = {}
 
-        args: List[IBlockArg] = []
+        args: list[IBlockArg] = []
         for arg in block.args:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
@@ -299,8 +317,8 @@ class IBlock:
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[dict[IBlock, Block]] = None) -> Block:
+            value_mapping: dict[ISSAValue, SSAValue] | None = None,
+            block_mapping: dict[IBlock, Block] | None = None) -> Block:
         """
         Returns a mutable block that is a copy of this immutable block.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -418,13 +436,13 @@ class IOp:
         return None
 
     @property
-    def result_types(self) -> List[Attribute]:
+    def result_types(self) -> list[Attribute]:
         return [result.typ for result in self.results]
 
     def get_mutable_copy(
             self,
-            value_mapping: Optional[dict[ISSAValue, SSAValue]] = None,
-            block_mapping: Optional[dict[IBlock, Block]] = None) -> Operation:
+            value_mapping: dict[ISSAValue, SSAValue] | None = None,
+            block_mapping: dict[IBlock, Block] | None = None) -> Operation:
         """
         Returns a mutable operation that is a copy of this immutable operation.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -435,7 +453,7 @@ class IOp:
         if block_mapping is None:
             block_mapping = {}
 
-        mutable_operands: List[SSAValue] = []
+        mutable_operands: list[SSAValue] = []
         for operand in self.operands:
             if operand in value_mapping:
                 mutable_operands.append(value_mapping[operand])
@@ -449,14 +467,14 @@ class IOp:
                         None,  # type: ignore
                         0))
 
-        mutable_successors: List[Block] = []
+        mutable_successors: list[Block] = []
         for successor in self.successors:
             if successor in block_mapping:
                 mutable_successors.append(block_mapping[successor])
             else:
                 raise Exception("Block used before definition")
 
-        mutable_regions: List[Region] = []
+        mutable_regions: list[Region] = []
         for region in self.regions:
             mutable_regions.append(
                 region.get_mutable_copy(value_mapping=value_mapping,
@@ -479,9 +497,9 @@ class IOp:
     def from_mutable(
             cls,
             op: Operation,
-            value_map: Optional[dict[SSAValue, ISSAValue]] = None,
-            block_map: Optional[dict[Block, IBlock]] = None,
-            existing_operands: Optional[Sequence[ISSAValue]] = None) -> IOp:
+            value_map: dict[SSAValue, ISSAValue] | None = None,
+            block_map: dict[Block, IBlock] | None = None,
+            existing_operands: Sequence[ISSAValue] | None = None) -> IOp:
         """
         Returns an immutable operation that is a copy of the given mutable operation.
         The value_map and block_map are used to map already known correspondings
@@ -495,7 +513,7 @@ class IOp:
         if block_map is None:
             block_map = {}
 
-        operands: List[ISSAValue] = []
+        operands: list[ISSAValue] = []
         if existing_operands is None:
             for operand in op.operands:
                 match operand:
@@ -519,7 +537,7 @@ class IOp:
 
         attributes: dict[str, Attribute] = op.attributes.copy()
 
-        successors: List[IBlock] = []
+        successors: list[IBlock] = []
         for successor in op.successors:
             if successor in block_map:
                 successors.append(block_map[successor])
@@ -529,7 +547,7 @@ class IOp:
                 block_map[successor] = newImmutableSuccessor
                 successors.append(newImmutableSuccessor)
 
-        regions: List[IRegion] = []
+        regions: list[IRegion] = []
         for region in op.regions:
             regions.append(
                 IRegion.from_mutable(region.blocks, value_map, block_map))
