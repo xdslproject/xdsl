@@ -78,14 +78,14 @@ class ISSAValue(ABC):
     or a basic block argument.
     """
     typ: Attribute
-    users: IList[IOp]
+    users: IList[IOperation]
 
-    def _add_user(self, op: IOp):
+    def _add_user(self, op: IOperation):
         self.users._unfreeze()  # type: ignore
         self.users.append(op)
         self.users.freeze()
 
-    def _remove_user(self, op: IOp):
+    def _remove_user(self, op: IOperation):
         if op not in self.users:
             raise Exception(
                 f"Trying to remove a user ({op.name}) that is not an actual user of this value!"
@@ -97,16 +97,16 @@ class ISSAValue(ABC):
 
 
 @dataclass(frozen=True)
-class IResult(ISSAValue):
+class IOpResult(ISSAValue):
     """Represents an immutable SSA variable defined by an operation result."""
-    op: IOp
+    op: IOperation
     result_index: int
 
     def __hash__(self) -> int:
         return hash(id(self.op)) + hash(self.result_index)
 
-    def __eq__(self, __o: IResult) -> bool:
-        if isinstance(__o, IResult):
+    def __eq__(self, __o: IOpResult) -> bool:
+        if isinstance(__o, IOpResult):
             return self.op == __o.op and self.result_index == __o.result_index
         return False
 
@@ -150,7 +150,7 @@ class IRegion:
         return None
 
     @property
-    def ops(self) -> IList[IOp]:
+    def ops(self) -> IList[IOperation]:
         """Returns a list of all operations in this region."""
 
         return IList([op for block in self.blocks for op in block.ops])
@@ -239,7 +239,7 @@ class IRegion:
 class IBlock:
     """An immutable block contains a list of immutable operations. IBlocks are contained in IRegions."""
     args: IList[IBlockArg]
-    ops: IList[IOp]
+    ops: IList[IOperation]
 
     @property
     def arg_types(self) -> list[Attribute]:
@@ -261,7 +261,7 @@ class IBlock:
             object.__setattr__(arg, "block", self)
 
     def __init__(self, args: Sequence[Attribute] | Sequence[IBlockArg],
-                 ops: Sequence[IOp]):
+                 ops: Sequence[IOperation]):
         """Creates a new immutable block."""
 
         # Type Guards:
@@ -322,10 +322,10 @@ class IBlock:
             value_map[arg] = immutable_arg
 
         immutable_ops = [
-            IOp.from_mutable(op,
-                             value_map=value_map,
-                             block_map=block_map,
-                             existing_operands=None) for op in block.ops
+            IOperation.from_mutable(op,
+                                    value_map=value_map,
+                                    block_map=block_map,
+                                    existing_operands=None) for op in block.ops
         ]
 
         return IBlock(args, immutable_ops)
@@ -360,8 +360,8 @@ class IBlock:
         return mutable_block
 
 
-def get_immutable_copy(op: Operation) -> IOp:
-    return IOp.from_mutable(op, {})
+def get_immutable_copy(op: Operation) -> IOperation:
+    return IOperation.from_mutable(op, {})
 
 
 @dataclass(frozen=True)
@@ -378,14 +378,14 @@ class OpData:
 
 
 @dataclass(frozen=True)
-class IOp:
+class IOperation:
     """Represents an immutable operation."""
 
     __match_args__ = ("op_type", "operands", "results", "successors",
                       "regions")
     _op_data: OpData
     operands: IList[ISSAValue]
-    results: IList[IResult]
+    results: IList[IOpResult]
     successors: IList[IBlock]
     regions: IList[IRegion]
 
@@ -400,7 +400,7 @@ class IOp:
         object.__setattr__(
             self, "results",
             IList([
-                IResult(type, IList([]), self, idx)
+                IOpResult(type, IList([]), self, idx)
                 for idx, type in enumerate(result_types)
             ]))
         object.__setattr__(self, "successors", IList(successors))
@@ -415,7 +415,7 @@ class IOp:
     def get(cls, name: str, op_type: type[Operation],
             operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
             attributes: dict[str, Attribute], successors: Sequence[IBlock],
-            regions: Sequence[IRegion]) -> IOp:
+            regions: Sequence[IRegion]) -> IOperation:
         return cls(OpData(name, op_type, attributes), operands, result_types,
                    successors, regions)
 
@@ -438,7 +438,7 @@ class IOp:
         return self._op_data.attributes
 
     @property
-    def result(self) -> IResult | None:
+    def result(self) -> IOpResult | None:
         if len(self.results) > 0:
             return self.results[0]
         return None
@@ -513,7 +513,8 @@ class IOp:
             op: Operation,
             value_map: dict[SSAValue, ISSAValue] | None = None,
             block_map: dict[Block, IBlock] | None = None,
-            existing_operands: Sequence[ISSAValue] | None = None) -> IOp:
+            existing_operands: Sequence[ISSAValue] | None = None
+    ) -> IOperation:
         """
         Returns an immutable operation that is a copy of the given mutable operation.
         The value_map and block_map are used to map already known correspondings
@@ -565,9 +566,9 @@ class IOp:
             regions.append(
                 IRegion.from_mutable(region.blocks, value_map, block_map))
 
-        immutable_op = IOp.get(op.name, op_type, operands,
-                               [result.typ for result in op.results],
-                               attributes, successors, regions)
+        immutable_op = IOperation.get(op.name, op_type, operands,
+                                      [result.typ for result in op.results],
+                                      attributes, successors, regions)
 
         for idx, result in enumerate(op.results):
             value_map[result] = immutable_op.results[idx]
