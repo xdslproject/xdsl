@@ -1,0 +1,14 @@
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "vector_createmask_verify_mask_type", "function_type" = !fun<[!index], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !index):
+    %1 : !vector<[2 : !i32], !i32> = vector.create_mask(%0 : !index)
+
+    func.return()
+  }
+
+// CHECK: Expected mask element type to be i1.
+
+}

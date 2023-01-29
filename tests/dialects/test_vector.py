@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects.vector import Broadcast, Load, Maskedload, Store, FMA
+from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
 from xdsl.ir import OpResult
 
 
@@ -482,3 +482,204 @@ def test_vector_masked_load_verify_mask_vector_type():
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert exc_info.value.args[0] == "Expected mask element type to be i1."
+
+
+def test_vector_masked_store():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    assert maskedstore.memref is memref_ssa_value
+    assert maskedstore.mask is mask_vector_ssa_value
+    assert maskedstore.value_to_store is value_to_store_vector_ssa_value
+    assert maskedstore.indices == []
+
+
+def test_vector_masked_store_with_dimensions():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [4, 5])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    index1 = OpResult(IndexType, [], [])
+    index2 = OpResult(IndexType, [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [index1, index2],
+                                  mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    assert maskedstore.memref is memref_ssa_value
+    assert maskedstore.mask is mask_vector_ssa_value
+    assert maskedstore.value_to_store is value_to_store_vector_ssa_value
+    assert maskedstore.indices[0] is index1
+    assert maskedstore.indices[1] is index2
+
+
+def test_vector_masked_store_verify_memref_value_to_store_type_matching():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i64_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i64, [1])
+    value_to_store_vector_ssa_value = OpResult(i64_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    with pytest.raises(Exception) as exc_info:
+        maskedstore.verify()
+    assert exc_info.value.args[
+        0] == "MemRef element type should match the stored vector type."
+
+
+def test_vector_masked_store_verify_indexing_exception():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [4, 5])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [2])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                 value_to_store_vector_ssa_value)
+
+    with pytest.raises(Exception) as exc_info:
+        maskedstore.verify()
+    assert exc_info.value.args[
+        0] == "Expected an index for each memref dimension."
+
+
+def test_vector_masked_store_verify_value_to_store_vector_rank():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [1])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [2, 3])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    with pytest.raises(Exception) as exc_info:
+        maskedstore.verify()
+    assert exc_info.value.args[0] == "Expected a rank 1 vector to be stored."
+
+
+def test_vector_masked_store_verify_mask_vector_rank():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i1_mask_vector_type = VectorType.from_element_type_and_shape(i1, [2, 3])
+    mask_vector_ssa_value = OpResult(i1_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    with pytest.raises(Exception) as exc_info:
+        maskedstore.verify()
+    assert exc_info.value.args[0] == "Expected a rank 1 mask vector."
+
+
+def test_vector_masked_store_verify_mask_vector_type():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    memref_ssa_value = OpResult(i32_memref_type, [], [])
+
+    i32_mask_vector_type = VectorType.from_element_type_and_shape(i32, [2])
+    mask_vector_ssa_value = OpResult(i32_mask_vector_type, [], [])
+
+    i32_value_to_store_vector_type = VectorType.from_element_type_and_shape(
+        i32, [1])
+    value_to_store_vector_ssa_value = OpResult(i32_value_to_store_vector_type,
+                                               [], [])
+
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
+
+    with pytest.raises(Exception) as exc_info:
+        maskedstore.verify()
+    assert exc_info.value.args[0] == "Expected mask element type to be i1."
+
+
+def test_vector_print():
+    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    vector_ssa_value = OpResult(i32_vector_type, [], [])
+
+    print = Print.get(vector_ssa_value)
+
+    assert print.source is vector_ssa_value
+
+
+def test_vector_create_mask():
+    create_mask = Createmask.get([])
+
+    assert type(create_mask.results[0]) is OpResult
+    assert type(create_mask.results[0].typ) is VectorType
+    assert create_mask.mask_operands == []
+
+
+def test_vector_create_mask_with_dimensions():
+    index1 = OpResult(IndexType, [], [])
+    index2 = OpResult(IndexType, [], [])
+
+    create_mask = Createmask.get([index1, index2])
+
+    assert type(create_mask.results[0]) is OpResult
+    assert type(create_mask.results[0].typ) is VectorType
+    assert create_mask.mask_operands[0] is index1
+    assert create_mask.mask_operands[1] is index2
+
+
+def test_vector_create_mask_verify_mask_vector_type():
+    mask_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+
+    create_mask = Createmask.build(operands=[[]],
+                                   result_types=[mask_vector_type])
+
+    with pytest.raises(Exception) as exc_info:
+        create_mask.verify()
+    assert exc_info.value.args[0] == "Expected mask element type to be i1."
+
+
+def test_vector_create_mask_verify_indexing_exception():
+    mask_vector_type = VectorType.from_element_type_and_shape(i1, [2, 3])
+
+    create_mask = Createmask.build(operands=[[]],
+                                   result_types=[mask_vector_type])
+
+    with pytest.raises(Exception) as exc_info:
+        create_mask.verify()
+    assert exc_info.value.args[
+        0] == "Expected an operand value for each dimension of resultant mask."
