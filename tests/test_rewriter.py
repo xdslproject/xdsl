@@ -1,4 +1,3 @@
-from io import StringIO
 from typing import Callable
 from conftest import assert_print_op
 
@@ -8,7 +7,6 @@ from xdsl.dialects.scf import Scf, Yield
 from xdsl.dialects.func import Func
 from xdsl.ir import MLContext, Block
 from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
 
 

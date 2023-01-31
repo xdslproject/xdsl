@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from xdsl.ir import SSAValue, BlockArgument
-from xdsl.irdl import Operation, Region, Block
+from xdsl.irdl import Operation, Region, Block, OpResult
 
 
 class Rewriter:
@@ -20,10 +20,12 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def replace_op(op: Operation,
-                   new_ops: Operation | List[Operation],
-                   new_results: Optional[List[Optional[SSAValue]]] = None,
-                   safe_erase: bool = True):
+    def replace_op(
+            op: Operation,
+            new_ops: Operation | List[Operation],
+            new_results: Optional[List[Optional[SSAValue]]
+                                  | List[OpResult]] = None,  # noqa
+            safe_erase: bool = True):
         """
         Replace an operation with multiple new ones.
         If new_results is specified, map the results of the deleted operations with these
