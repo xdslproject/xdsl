@@ -1006,7 +1006,21 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
 
 
 def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
-    """Decorator used on classes to define a new operation definition."""
+    """
+    Decorator used on classes to define a new operation definition.
+
+    This takes care of:
+        - generating a .build() classmethod that properly initializes
+          the objects fields from the given irdl definition and parameters
+
+          e.g. if you annotated `rhs: Annotated[Operand, ...]` it will
+          assign it the first operand. Same with fields in the attribute
+          dict.
+        - generate a verify() method that:
+            - ensures all annotated irdl constraints hold
+            - calls the classes verify_ method if present
+        - Adding an irdl_definition field that returns the irdl definition object (for easy introspection)
+    """
 
     assert issubclass(
         cls,
