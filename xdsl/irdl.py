@@ -1051,11 +1051,21 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                 new_attrs["verify_"])
 
     def builder(cls,
-                operands=[],
-                result_types=[],
-                attributes=dict(),
-                successors=[],
-                regions=[]):
+                operands=None,
+                result_types=None,
+                attributes=None,
+                successors=None,
+                regions=None):
+        if regions is None:
+            regions = []
+        if successors is None:
+            successors = []
+        if attributes is None:
+            attributes = dict()
+        if result_types is None:
+            result_types = []
+        if operands is None:
+            operands = []
         return irdl_op_builder(cls, op_def, operands, result_types, attributes,
                                successors, regions)
 
