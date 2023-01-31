@@ -38,7 +38,7 @@ class Dialect:
 
     def __call__(self, ctx: MLContext) -> None:
         print(
-            "Calling a dialect in order to register it is deprecated"
+            "Calling a dialect in order to register it is deprecated "
             "and will soon be removed.",
             file=sys.stderr)
         # TODO; Remove this function in a future release.
