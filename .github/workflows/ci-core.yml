@@ -15,27 +15,23 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11']
+        python-version: ["3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
-    - name: Install the package locally
-      run: pip install -e .[extras]
-    - name: Test with pytest
-      run: |
-        pytest
-    - name: Execute lit tests
-      run: |
-        export PYTHONPATH=$(pwd)
-        lit -v tests/filecheck/
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install the package locally
+        run: pip install -e .[extras]
+      - name: Test with pytest
+        run: |
+          pytest
+      - name: Execute lit tests
+        run: |
+          export PYTHONPATH=$(pwd)
+          lit -v tests/filecheck/
