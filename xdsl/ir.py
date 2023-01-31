@@ -418,13 +418,12 @@ class Operation(IRNode):
         assert (isinstance(self.name, str))
 
     @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: Sequence[SSAValue] | None = None,
-            result_types: Sequence[Attribute] | None = None,
-            attributes: dict[str, Attribute] | None = None,
-            successors: Sequence[Block] | None = None,
-            regions: Sequence[Region] | None = None) -> Operation:
+    def with_result_types(op: type[OpT],
+                          operands: Sequence[SSAValue] | None = None,
+                          result_types: Sequence[Attribute] | None = None,
+                          attributes: dict[str, Attribute] | None = None,
+                          successors: Sequence[Block] | None = None,
+                          regions: Sequence[Region] | None = None) -> OpT:
 
         operation = op()
         if operands is not None:
@@ -452,17 +451,22 @@ class Operation(IRNode):
                regions: Sequence[Region] | None = None) -> OpT:
         op = Operation.with_result_types(cls, operands, result_types,
                                          attributes, successors, regions)
-        return cast(OpT, op)
+        return op
 
     @classmethod
-    def build(cls: type[OpT],
-              operands: list[Any] | None = None,
-              result_types: list[Any] | None = None,
-              attributes: dict[str, Any] | None = None,
-              successors: list[Any] | None = None,
-              regions: list[Any] | None = None) -> OpT:
+    def build(
+        cls: type[OpT],
+        operands: list[SSAValue | Operation | list[SSAValue | Operation]]
+        | None = None,
+        result_types: list[Any] | None = None,
+        attributes: dict[str, Attribute | Any] | None = None,
+        successors: list[Block] | None = None,
+        regions: list[Region | list[Block] | list[Operation]] | None = None
+    ) -> OpT:
         """Create a new operation using builders."""
-        ...
+        raise NotImplementedError("{}.build(...) must either be implemented by"
+                                  " the user, or is provided when you wrap "
+                                  "your class in @irdl_op_definition!")
 
     def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
         """Replace an operand with another operand."""
