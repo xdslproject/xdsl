@@ -1,5 +1,5 @@
 pytest<8.0
 filecheck<0.0.24
 lit<16.0.0
-frozenlist<1.4.*
+frozenlist<1.4
 coverage<8.0.0
