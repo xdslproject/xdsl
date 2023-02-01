@@ -8,8 +8,8 @@ from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
 from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
-from xdsl.irdl import (ParameterDef, irdl_attr_definition, irdl_op_definition,
-                       Operation, Operand, OptAttributeDef)
+from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
+                       irdl_op_definition, Operation, Operand, OptAttributeDef)
 from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
@@ -73,7 +73,7 @@ builtin.module() {
 class UnitAttrOp(Operation):
     name = "unit_attr_op"
 
-    parallelize = OptAttributeDef(UnitAttr)
+    parallelize: OptOpAttr[UnitAttr]
 
 
 def test_unit_attr():

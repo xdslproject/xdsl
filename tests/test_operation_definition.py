@@ -1,16 +1,10 @@
 from __future__ import annotations
-from typing import Annotated
+import pytest
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
 from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
                        AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
-
-#  ___ ____  ____  _     ____        __
-# |_ _|  _ \|  _ \| |   |  _ \  ___ / _|
-#  | || |_) | | | | |   | | | |/ _ \ |_
-#  | ||  _ <| |_| | |___| |_| |  __/  _|
-# |___|_| \_\____/|_____|____/ \___|_|
-#
+from xdsl.utils.exceptions import PyRDLOpDefinitionError
 
 
 @irdl_op_definition
@@ -22,6 +16,9 @@ class OpDefTestOp(Operation):
     attr: OpAttr[Attribute]
     region: Region
 
+    def test(self):
+        pass
+
 
 def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
@@ -31,3 +28,15 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={"attr": AttributeDef(AnyAttr())},
         regions=[("region", RegionDef())])
+
+
+class InvalidTypedFieldTestOp(Operation):
+    name = "test.invalid_field"
+
+    field: int
+
+
+def test_invalid_field():
+    """"""
+    with pytest.raises(PyRDLOpDefinitionError):
+        irdl_op_definition(InvalidTypedFieldTestOp)
