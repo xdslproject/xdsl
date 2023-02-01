@@ -356,8 +356,6 @@ class PlusCustomFormatOp(Operation):
     @classmethod
     def parse(cls, result_types: List[Attribute],
               parser: BaseParser) -> PlusCustomFormatOp:
-
-        parser.parse_operand()
         lhs = parser.parse_operand('Expected SSA Value name here!')
         parser.parse_characters("+",
                                 "Malformed operation format, expected `+`!")
