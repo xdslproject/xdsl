@@ -786,6 +786,17 @@ class BaseParser(ABC):
     def try_parse_value_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.value_id)
 
+    def try_parse_operand(self) -> SSAValue | None:
+        """Try to parse an operand with format `%<value-id>`."""
+        value_id = self.try_parse_value_id()
+        if value_id is None:
+            return None
+        return self.get_ssa_val(value_id)
+
+    def parse_operand(self, msg: str = "operand expected") -> SSAValue:
+        """Parse an operand with format `%<value-id>`."""
+        return self.expect(self.try_parse_operand, msg)
+
     def try_parse_suffix_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.suffix_id)
 
