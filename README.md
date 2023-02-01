@@ -40,21 +40,22 @@ just install [xDSL via pip](https://pypi.org/project/xdsl/):
 pip install xdsl
 ```
 
-## Using xDSL
+## Getting Started
 
-To use xDSL we recommend following the [xDSL Developer Setup](#xdsl-developer-setup)
-to clone the repository including the notebooks.
-The following tutorials will present xDSL basic concepts, how to
-use its irdl dialect to define new dialects in a user-friendly way, and how to
-work with both xDSL and MLIR.
+To get into xDSL, we recommend our jupyter notebooks as the starting point. The
+notebooks consist of a small example of a database compiler and documentation on
+the core xDSL data structures and on xDSL's Python embedded abstraction
+definition language. There also exists a small documentation showing how to
+connect xDSL with MLIR for users interested in that use case.
 
+- [A Database example](https://xdsl.dev/xdsl/retro/notebooks/?path=database_example.ipynb)
 - [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=tutorial.ipynb)
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 ## xDSL Developer Setup
 
-To contribute to the development of xDSL follow the subsequent steps.
+To set up our environment as a collaborator of xDSL follow the subsequent steps.
 
 ### Developer Installation
 
