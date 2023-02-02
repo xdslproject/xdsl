@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Callable, TypeVar
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
@@ -319,11 +319,14 @@ class RewritePattern(ABC):
     """
 
     @abstractmethod
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         """
         Match an operation, and optionally perform a rewrite using the rewriter.
         """
         ...
+
+
+_OperationT = TypeVar("_OperationT", bound=Operation)
 
 
 @dataclass(eq=False, repr=False)
@@ -331,16 +334,20 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
-    func: Callable[[Operation, PatternRewriter], None]
+    func: Callable[[AnonymousRewritePattern, Operation, PatternRewriter], None]
 
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
-        self.func(op, rewriter)
+        self.func(self, op, rewriter)
+
+
+_RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
+_OperationT = TypeVar("_OperationT", bound=Operation)
 
 
 def op_type_rewrite_pattern(
-    func: Callable[..., None]
-) -> Callable[[Any, Any], None] | Callable[[Any, Any, Any], None]:
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter method.
     It uses type hints to match on a specific operation type before calling the decorated
@@ -348,46 +355,27 @@ def op_type_rewrite_pattern(
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) < 2:
+    if len(params) != 3:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
-            "have two non-self arguments.")
-    is_method = params[0].name == "self"
-    if is_method:
-        if len(params) != 3:
-            raise Exception(
-                "op_type_rewrite_pattern expects the decorated method to "
-                "have two non-self arguments.")
-    else:
-        if len(params) != 2:
-            raise Exception(
-                "op_type_rewrite_pattern expects the decorated function to "
-                "have two arguments.")
-    expected_type = params[-2].annotation
-    if not issubclass(expected_type, Operation):
+            "have three arguments.")
+    if params[0].name != "self":
         raise Exception(
-            "op_type_rewrite_pattern expects the first non-self argument"
-            "type hint to be an Operation subclass")
+            "op_type_rewrite_pattern expects the decorated method to "
+            "have self as the first argument.")
 
-    if not is_method:
-
-        def op_type_rewrite_pattern_static_wrapper(
-                op: Operation, rewriter: PatternRewriter) -> None:
-            if not isinstance(op, expected_type):
-                return None
-            func(op, rewriter)
-
-        return op_type_rewrite_pattern_static_wrapper
+    expected_type: type[_OperationT] = params[1].annotation
+    if not issubclass(expected_type, Operation):
+        raise Exception("op_type_rewrite_pattern expects the second argument"
+                        "type hint to be an Operation subclass")
 
     def op_type_rewrite_pattern_method_wrapper(
-            self,  # type: ignore
-            op: Operation,
+            self: _RewritePatternT, op: Operation,
             rewriter: PatternRewriter) -> None:
-        if not isinstance(op, expected_type):
-            return None
-        func(self, op, rewriter)
+        if isinstance(op, expected_type):
+            func(self, op, rewriter)
 
-    return op_type_rewrite_pattern_method_wrapper  # type: ignore
+    return op_type_rewrite_pattern_method_wrapper
 
 
 @dataclass(eq=False, repr=False)

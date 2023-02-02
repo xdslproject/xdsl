@@ -1,5 +1,3 @@
-from io import StringIO
-
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
@@ -9,7 +7,6 @@ from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    PatternRewriter, AnonymousRewritePattern,
                                    GreedyRewritePatternApplier)
 from xdsl.parser import Parser
-from xdsl.printer import Printer
 
 from conftest import assert_print_op
 
@@ -129,7 +126,8 @@ def test_op_type_rewrite_pattern_static_decorator():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Constant,
+                          rewriter: PatternRewriter):
         rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
@@ -160,7 +158,8 @@ def test_recursive_rewriter():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Constant,
+                          rewriter: PatternRewriter):
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -199,7 +198,8 @@ def test_recursive_rewriter_reversed():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Constant,
+                          rewriter: PatternRewriter):
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -233,11 +233,13 @@ def test_greedy_rewrite_pattern_applier():
 }"""
 
     @op_type_rewrite_pattern
-    def constant_rewrite(op: Constant, rewriter: PatternRewriter):
+    def constant_rewrite(self: AnonymousRewritePattern, op: Constant,
+                         rewriter: PatternRewriter):
         rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
 
     @op_type_rewrite_pattern
-    def addi_rewrite(op: Addi, rewriter: PatternRewriter):
+    def addi_rewrite(self: AnonymousRewritePattern, op: Addi,
+                     rewriter: PatternRewriter):
         rewriter.replace_matched_op([Muli.get(op.lhs, op.rhs)])
 
     rewrite_and_compare(
@@ -264,7 +266,8 @@ def test_insert_op_before_matched_op():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: None, cst: Constant,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before_matched_op(new_cst)
 
@@ -289,7 +292,8 @@ def test_insert_op_at_pos():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, mod: ModuleOp,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
 
@@ -314,7 +318,8 @@ def test_insert_op_before():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, mod: ModuleOp,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before(new_cst, mod.ops[0])
 
@@ -339,7 +344,8 @@ def test_insert_op_after():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, mod: ModuleOp,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after(new_cst, mod.ops[0])
 
@@ -364,7 +370,8 @@ def test_insert_op_after_matched_op():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, cst: Constant,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
@@ -389,7 +396,8 @@ def test_insert_op_after_matched_op_reversed():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, cst: Constant,
+                          rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_after_matched_op(new_cst)
 
@@ -412,7 +420,8 @@ def test_operation_deletion():
 """builtin.module() {}"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Constant,
+                          rewriter: PatternRewriter):
         rewriter.erase_matched_op()
 
     rewrite_and_compare(
@@ -435,7 +444,8 @@ def test_operation_deletion_reversed():
     expected = \
 """builtin.module() {}"""
 
-    def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Operation,
+                          rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
             rewriter.erase_matched_op()
 
@@ -459,7 +469,8 @@ def test_operation_deletion_failure():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: Constant,
+                          rewriter: PatternRewriter):
         rewriter.erase_matched_op()
 
     parser = Parser(ctx, prog)
@@ -486,7 +497,8 @@ def test_delete_inner_op():
 """builtin.module() {}"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: ModuleOp,
+                          rewriter: PatternRewriter):
         rewriter.erase_op(op.ops[0])
 
     rewrite_and_compare(
@@ -508,7 +520,8 @@ def test_replace_inner_op():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: ModuleOp,
+                          rewriter: PatternRewriter):
         rewriter.replace_op(op.ops[0], [Constant.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
@@ -538,7 +551,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         rewriter.modify_block_argument_type(op.true_region.blocks[0].args[0],
                                             i64)
 
@@ -566,7 +580,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         rewriter.erase_block_argument(op.true_region.blocks[0].args[0])
 
     rewrite_and_compare(
@@ -593,7 +608,8 @@ scf.if(%0 : !i1) {} {}
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         rewriter.insert_block_argument(op.true_region.blocks[0], 0, i32)
 
     rewrite_and_compare(
@@ -625,7 +641,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         if len(op.true_region.blocks[0].ops) > 0 and isinstance(
                 op.true_region.blocks[0].ops[0], If):
             inner_if_block = op.true_region.blocks[0].ops[
@@ -657,7 +674,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         rewriter.inline_block_before_matched_op(op.true_region.blocks[0])
 
     rewrite_and_compare(
@@ -689,7 +707,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         if len(op.true_region.blocks[0].ops) > 0 and isinstance(
                 op.true_region.blocks[0].ops[0], If):
             inner_if_block = op.true_region.blocks[0].ops[
@@ -722,7 +741,8 @@ scf.if(%0 : !i1) {
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         rewriter.inline_block_before(op.true_region.blocks[0], op)
 
     rewrite_and_compare(
@@ -754,7 +774,8 @@ def test_inline_block_after():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: If,
+                          rewriter: PatternRewriter):
         if len(op.true_region.blocks[0].ops) > 0 and isinstance(
                 op.true_region.blocks[0].ops[0], If):
             inner_if_block = op.true_region.blocks[0].ops[
@@ -789,7 +810,8 @@ def test_move_region_contents_to_new_regions():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self: AnonymousRewritePattern, op: ModuleOp,
+                          rewriter: PatternRewriter):
         new_region = rewriter.move_region_contents_to_new_regions(
             op.ops[1].regions[0])
         new_if = If.get(op.ops[1].cond, [], new_region,
