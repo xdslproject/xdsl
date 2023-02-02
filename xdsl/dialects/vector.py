@@ -182,7 +182,9 @@ class Maskedstore(Operation):
 
         if memref_element_type != self.value_to_store.typ.element_type:
             raise VerifyException(
-                "MemRef element type should match the stored vector type.")
+                "MemRef element type should match the stored vector type. Obtained types were "
+                + str(memref_element_type) + " and " +
+                str(self.value_to_store.typ.element_type) + ".")
 
         if len(self.value_to_store.typ.get_shape()) != 1:
             raise VerifyException("Expected a rank 1 vector to be stored.")
