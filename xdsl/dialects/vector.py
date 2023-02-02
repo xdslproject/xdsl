@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated, List
 
-from xdsl.dialects.builtin import IndexType, VectorType, i1, Attribute
+from xdsl.dialects.builtin import IndexType, VectorType, i1
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
@@ -210,7 +210,7 @@ class Maskedstore(Operation):
 @irdl_op_definition
 class Print(Operation):
     name = "vector.print"
-    source: Annotated[Operand, Attribute]
+    source: Annotated[Operand, AnyAttr()]
 
     @staticmethod
     def get(source: Operation | SSAValue) -> Print:
