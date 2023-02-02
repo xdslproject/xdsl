@@ -319,7 +319,7 @@ class RewritePattern(ABC):
     """
 
     @abstractmethod
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         """
         Match an operation, and optionally perform a rewrite using the rewriter.
         """
@@ -331,7 +331,7 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
-    func: Callable[[AnonymousRewritePattern, Operation, PatternRewriter], None]
+    func: Callable[[RewritePattern, Operation, PatternRewriter], None]
 
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
@@ -344,6 +344,7 @@ _OperationT = TypeVar("_OperationT", bound=Operation)
 
 def op_type_rewrite_pattern(
     func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+    | Callable[[_OperationT, PatternRewriter], None]
 ) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter method.
@@ -352,25 +353,44 @@ def op_type_rewrite_pattern(
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) != 3:
+    if len(params) < 2:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
-            "have three arguments.")
-    if params[0].name != "self":
-        raise Exception(
-            "op_type_rewrite_pattern expects the decorated method to "
-            "have self as the first argument.")
-
-    expected_type: type[_OperationT] = params[1].annotation
+            "have two non-self arguments.")
+    is_method = params[0].name == "self"
+    if is_method:
+        if len(params) != 3:
+            raise Exception(
+                "op_type_rewrite_pattern expects the decorated method to "
+                "have two non-self arguments.")
+    else:
+        if len(params) != 2:
+            raise Exception(
+                "op_type_rewrite_pattern expects the decorated function to "
+                "have two arguments.")
+    expected_type: type[_OperationT] = params[-2].annotation
     if not issubclass(expected_type, Operation):
-        raise Exception("op_type_rewrite_pattern expects the second argument"
-                        "type hint to be an Operation subclass")
+        raise Exception(
+            "op_type_rewrite_pattern expects the first non-self argument"
+            "type hint to be an Operation subclass")
+
+    if not is_method:
+
+        def op_type_rewrite_pattern_static_wrapper(
+                self: RewritePattern, op: Operation,
+                rewriter: PatternRewriter) -> None:
+            if not isinstance(op, expected_type):
+                return None
+            func(op, rewriter)  # type: ignore
+
+        return op_type_rewrite_pattern_static_wrapper
 
     def op_type_rewrite_pattern_method_wrapper(
             self: _RewritePatternT, op: Operation,
             rewriter: PatternRewriter) -> None:
-        if isinstance(op, expected_type):
-            func(self, op, rewriter)
+        if not isinstance(op, expected_type):
+            return None
+        func(self, op, rewriter)  # type: ignore
 
     return op_type_rewrite_pattern_method_wrapper
 
