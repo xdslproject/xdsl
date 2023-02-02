@@ -24,6 +24,7 @@ class CodeContext(AbstractContextManager):
     def __enter__(self) -> None:
         # First, get the Python AST from the code.
         frame = _getframe(1)
+        self.program.file = frame.f_code.co_filename
         src = getsource(frame)
         python_ast = ast.parse(src)
 
@@ -44,4 +45,4 @@ class CodeContext(AbstractContextManager):
         # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed.
         assert self.program.stmts is not None
-        PythonCodeCheck.run(self.program.stmts)
+        PythonCodeCheck.run(self.program.stmts, self.program.file)

@@ -17,10 +17,11 @@ class CodeGeneration:
 
     @staticmethod
     def run_with_type_converter(type_converter: TypeConverter,
-                                stmts: List[ast.stmt]) -> builtin.ModuleOp:
+                                stmts: List[ast.stmt],
+                                file: str) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
-        visitor = CodegGenerationVisitor(type_converter, module)
+        visitor = CodegGenerationVisitor(type_converter, module, file)
         for stmt in stmts:
             visitor.visit(stmt)
         return module
@@ -48,10 +49,14 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    def __init__(self, type_converter: TypeConverter,
-                 module: builtin.ModuleOp) -> None:
+    file: str = field(default=None)
+    """Path of the file containing the program being processed."""
+
+    def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
+                 file: str) -> None:
         self.type_converter = type_converter
         self.globals = type_converter.globals
+        self.file = file
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.blocks[0])
@@ -61,7 +66,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
-            node.lineno, node.col_offset,
+            self.file, node.lineno, node.col_offset,
             f"Unsupported Python AST node {str(node)}")
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
@@ -94,7 +99,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         if op_name not in python_AST_operator_to_python_overload:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Unexpected binary operation {op_name}.")
 
         # Check that the types of the operands are the same.
@@ -107,7 +112,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.typ != rhs.typ:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Expected the same types for binary operation '{op_name}', "
                 f"but got {lhs.typ} and {rhs.typ}.")
 
@@ -123,7 +128,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             self.inserter.insert_op(op)
         except FrontendProgramException:
             raise CodeGenerationException(
-                node.lineno, node.col_offset, f"Binary operation '{op_name}' "
+                self.file, node.lineno, node.col_offset,
+                f"Binary operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
                 f"which does not overload '{overload_name}'.")
 
@@ -131,7 +137,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # Allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 "Expected a single comparator, but found "
                 f"{len(node.comparators)}.")
         comp = node.comparators[0]
@@ -159,7 +165,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         if op_name in unsupported_python_AST_cmpop:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Unsupported comparison operation '{op_name}'.")
 
         # Check that the types of the operands are the same.
@@ -172,7 +178,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.typ != rhs.typ:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Expected the same types for comparison operator '{op_name}',"
                 f" but got {lhs.typ} and {rhs.typ}.")
 
@@ -185,7 +191,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             op = OpResolver.resolve_op_overload(python_op, frontend_type)
         except FrontendProgramException:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Comparison operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
                 f"which does not overload '{python_op}'.")
@@ -219,7 +225,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         argument_types: List[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
-                raise CodeGenerationException(arg.lineno, arg.col_offset, f"")
+                raise CodeGenerationException(self.file, arg.lineno,
+                                              arg.col_offset, f"")
             xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
@@ -257,6 +264,11 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_op(parent_op)
 
     def visit_Name(self, node: ast.Name):
+        if node.id not in self.symbol_table:
+            raise CodeGenerationException(
+                self.file, node.lineno, node.col_offset,
+                f"Symbol '{node.id}' is not defined.")
+
         fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
         self.inserter.insert_op(fetch_op)
 
@@ -271,7 +283,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             if len(return_types) != 0:
                 function_name = parent_op.attributes["sym_name"].data
                 raise CodeGenerationException(
-                    node.lineno, node.col_offset,
+                    self.file, node.lineno, node.col_offset,
                     f"Expected '{function_name}' to return a type.")
             self.inserter.insert_op(func.Return.get())
 
@@ -289,7 +301,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         parent_op = self.inserter.insertion_point.parent_op()
         if not isinstance(parent_op, func.FuncOp):
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 "Return statement should be placed only at the end of the "
                 "function body.")
 
@@ -300,7 +312,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             # Return nothing, check function signature matches.
             if len(func_return_types) != 0:
                 raise CodeGenerationException(
-                    node.lineno, node.col_offset,
+                    self.file, node.lineno, node.col_offset,
                     f"Expected non-zero number of return types in function "
                     f"'{func_name}', but got 0.")
             self.inserter.insert_op(func.Return.get())
@@ -312,13 +324,13 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
             if len(func_return_types) == 0:
                 raise CodeGenerationException(
-                    node.lineno, node.col_offset,
+                    self.file, node.lineno, node.col_offset,
                     f"Expected no return types in function '{func_name}'.")
 
             for i in range(len(operands)):
                 if func_return_types[i] != operands[i].typ:
                     raise CodeGenerationException(
-                        node.lineno, node.col_offset,
+                        self.file, node.lineno, node.col_offset,
                         f"Type signature and the type of the return value do "
                         f"not match at position {i}: expected {func_return_types[i]},"
                         f" got {operands[i].typ}.")

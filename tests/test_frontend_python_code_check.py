@@ -13,7 +13,7 @@ a: Const[i32] = 2 ** 5
 x = a
 """
     stmts = ast.parse(src).body
-    CheckAndInlineConstants.run(stmts)
+    CheckAndInlineConstants.run(stmts, __file__)
     assert ast.unparse(stmts).endswith("x = 32")
 
 
@@ -25,7 +25,7 @@ a: Const[i32] = 4
 x: i64 = a + 2
 """
     stmts = ast.parse(src).body
-    CheckAndInlineConstants.run(stmts)
+    CheckAndInlineConstants.run(stmts, __file__)
     assert ast.unparse(stmts).endswith("x: i64 = 4 + 2")
 
 
@@ -39,7 +39,7 @@ x: Const[i32] = a + b
 y = x
 """
     stmts = ast.parse(src).body
-    CheckAndInlineConstants.run(stmts)
+    CheckAndInlineConstants.run(stmts, __file__)
     assert ast.unparse(stmts).endswith("y = 8")
 
 
@@ -52,7 +52,7 @@ def foo(y: i32):
     x: i32 = a + y
 """
     stmts = ast.parse(src).body
-    CheckAndInlineConstants.run(stmts)
+    CheckAndInlineConstants.run(stmts, __file__)
     assert ast.unparse(stmts).endswith("x: i32 = 4 + y")
 
 
@@ -67,7 +67,7 @@ def foo(y: i32):
     x: i32 = c
 """
     stmts = ast.parse(src).body
-    CheckAndInlineConstants.run(stmts)
+    CheckAndInlineConstants.run(stmts, __file__)
     assert ast.unparse(stmts).endswith("x: i32 = 10")
 
 
@@ -79,7 +79,7 @@ a = 34
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Constant 'a' is already defined and cannot be assigned to."
 
 
@@ -93,7 +93,7 @@ def foo():
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Constant 'x' is already defined."
 
 
@@ -109,7 +109,7 @@ bb0()
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Constant 'y' is already defined and cannot be assigned to."
 
 
@@ -125,7 +125,7 @@ def foo(x: i32):
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Constant 'z' is already defined and cannot be used as a function/block argument name."
 
 
@@ -137,7 +137,7 @@ z: Const[i32] = 2
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Constant 'z' is already defined."
 
 
@@ -148,7 +148,7 @@ z: Const[i32] = 23 / 0
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
 
 
@@ -159,5 +159,5 @@ a: Const[i32] = x + 12
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, __file__)
     assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
