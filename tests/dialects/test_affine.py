@@ -66,4 +66,4 @@ def test_for_mismatch_blockargs():
 
 def test_yield():
     yield_ = Yield.get()
-    assert yield_.arguments == []
+    assert yield_.arguments == ()

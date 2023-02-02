@@ -15,9 +15,6 @@ xdsl_directory = sys.argv[2]
 with open(meta_yaml_path) as f:
     yaml_doc = yaml.safe_load(f)
 
-# Add the frozenlist run-time dependency. Importing in JupyterLite doesn't work properly without it
-yaml_doc["requirements"] = {"run": ["frozenlist"]}
-
 # Find the built source distribution. This assumes it is the only thing in xdsl/dist
 xdsl_sdist = os.listdir(os.path.join(xdsl_directory, "dist"))[0]
 xdsl_sdist = os.path.abspath(os.path.join(xdsl_directory, "dist", xdsl_sdist))

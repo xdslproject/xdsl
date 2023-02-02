@@ -31,7 +31,7 @@ def test_memref_load_i32():
     load = Load.get(memref_ssa_value, [])
 
     assert load.memref is memref_ssa_value
-    assert load.indices == []
+    assert load.indices == ()
     assert load.res.typ is i32
 
 
@@ -55,7 +55,7 @@ def test_memref_store_i32():
     store = Store.get(i32_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
-    assert store.indices == []
+    assert store.indices == ()
     assert store.value is i32_ssa_value
 
 
@@ -78,7 +78,7 @@ def test_memref_alloc():
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
 
-    assert alloc0.dynamic_sizes == []
+    assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
     assert alloc0.results[0].typ.get_shape() == [3, 1, 2]
     assert type(alloc0.results[0].typ) is MemRefType

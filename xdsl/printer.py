@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from frozenlist import FrozenList
 from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
@@ -274,7 +273,7 @@ class Printer:
             self.print(" ")
             self.print_list(regions, self.print_region, delimiter=" ")
 
-    def _print_operands(self, operands: FrozenList[SSAValue]) -> None:
+    def _print_operands(self, operands: tuple[SSAValue, ...]) -> None:
         if len(operands) == 0:
             self.print("()")
             return
