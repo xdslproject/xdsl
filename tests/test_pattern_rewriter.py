@@ -266,7 +266,7 @@ def test_insert_op_before_matched_op():
 }"""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self: None, cst: Constant,
+    def match_and_rewrite(self: AnonymousRewritePattern, cst: Constant,
                           rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_before_matched_op(new_cst)

@@ -326,9 +326,6 @@ class RewritePattern(ABC):
         ...
 
 
-_OperationT = TypeVar("_OperationT", bound=Operation)
-
-
 @dataclass(eq=False, repr=False)
 class AnonymousRewritePattern(RewritePattern):
     """
