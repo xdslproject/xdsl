@@ -502,7 +502,7 @@ def test_vector_masked_store():
     assert maskedstore.memref is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
     assert maskedstore.value_to_store is value_to_store_vector_ssa_value
-    assert maskedstore.indices == []
+    assert maskedstore.indices == ()
 
 
 def test_vector_masked_store_with_dimensions():
@@ -647,7 +647,7 @@ def test_vector_create_mask():
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].typ) is VectorType
-    assert create_mask.mask_operands == []
+    assert create_mask.mask_operands == ()
 
 
 def test_vector_create_mask_with_dimensions():
