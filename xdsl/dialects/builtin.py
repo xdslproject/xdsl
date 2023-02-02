@@ -112,6 +112,7 @@ class SignednessAttr(Data[Signedness]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Signedness:
+        # Is this ever used? TOADD tests?
         if parser.parse_optional_string("signless") is not None:
             return Signedness.SIGNLESS
         elif parser.parse_optional_string("signed") is not None:

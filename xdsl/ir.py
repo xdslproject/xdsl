@@ -1,17 +1,17 @@
 from __future__ import annotations
+from itertools import chain
 
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from frozenlist import FrozenList
 from io import StringIO
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, Union, ClassVar)
+                    Sequence, Tuple, TypeVar, cast, Iterator, ClassVar)
 import sys
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, BaseParser
+    from xdsl.parser import BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
 
@@ -38,7 +38,8 @@ class Dialect:
 
     def __call__(self, ctx: MLContext) -> None:
         print(
-            "Calling a dialect in order to register it is deprecated and will soon be removed.",
+            "Calling a dialect in order to register it is deprecated "
+            "and will soon be removed.",
             file=sys.stderr)
         # TODO; Remove this function in a future release.
         assert isinstance(ctx, MLContext)
@@ -363,7 +364,7 @@ class Operation(IRNode):
     name: str = field(default="", init=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: FrozenList[SSAValue] = field(default_factory=FrozenList)
+    _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
     """The operation operands."""
 
     results: list[OpResult] = field(default_factory=list)
@@ -398,19 +399,18 @@ class Operation(IRNode):
         return self.parent
 
     @property
-    def operands(self) -> FrozenList[SSAValue]:
+    def operands(self) -> tuple[SSAValue, ...]:
         return self._operands
 
     @operands.setter
-    def operands(self, new: list[SSAValue] | FrozenList[SSAValue]):
+    def operands(self, new: list[SSAValue] | tuple[SSAValue, ...]):
         if isinstance(new, list):
-            new = FrozenList(new)
+            new = tuple(new)
         for idx, operand in enumerate(self._operands):
             operand.remove_use(Use(self, idx))
         for idx, operand in enumerate(new):
             operand.add_use(Use(self, idx))
         self._operands = new
-        self._operands.freeze()
 
     def __post_init__(self):
         assert (self.name != "")
@@ -585,8 +585,9 @@ class Operation(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two operations are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}
@@ -598,7 +599,7 @@ class Operation(IRNode):
            len(self.results) != len(other.results) or \
            len(self.regions) != len(other.regions) or \
            len(self.successors) != len(other.successors) or \
-            self.attributes != other.attributes:
+           self.attributes != other.attributes:
             return False
         if self.parent and other.parent and context.get(
                 self.parent) != other.parent:
@@ -640,7 +641,7 @@ class Block(IRNode):
 
     declared_at: 'Span' | None = None
 
-    _args: FrozenList[BlockArgument] = field(default_factory=FrozenList,
+    _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
                                              init=False)
     """The basic block arguments."""
 
@@ -663,17 +664,16 @@ class Block(IRNode):
         return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
     @property
-    def args(self) -> FrozenList[BlockArgument]:
+    def args(self) -> tuple[BlockArgument, ...]:
         """Returns the block arguments."""
         return self._args
 
     @staticmethod
     def from_arg_types(arg_types: list[Attribute]) -> Block:
         b = Block()
-        b._args = FrozenList([
-            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
-        ])
-        b._args.freeze()
+        b._args = tuple(
+            BlockArgument(typ, b, index)
+            for index, typ in enumerate(arg_types))
         return b
 
     @staticmethod
@@ -681,11 +681,9 @@ class Block(IRNode):
                  arg_types: list[Attribute] | None = None):
         b = Block()
         if arg_types:
-            b._args = FrozenList([
+            b._args = tuple(
                 BlockArgument(typ, b, index)
-                for index, typ in enumerate(arg_types)
-            ])
-            b._args.freeze()
+                for index, typ in enumerate(arg_types))
         b.add_ops(ops)
         return b
 
@@ -710,9 +708,8 @@ class Block(IRNode):
         new_arg = BlockArgument(typ, self, index)
         for arg in self._args[index:]:
             arg.index += 1
-        self._args = FrozenList(
-            list(self._args[:index]) + [new_arg] + list(self._args[index:]))
-        self._args.freeze()
+        self._args = tuple(
+            chain(self._args[:index], [new_arg], self._args[index:]))
         return new_arg
 
     def erase_arg(self, arg: BlockArgument, safe_erase: bool = True) -> None:
@@ -726,8 +723,8 @@ class Block(IRNode):
                 "Attempting to delete an argument of the wrong block")
         for block_arg in self._args[arg.index + 1:]:
             block_arg.index -= 1
-        self._args = FrozenList(
-            list(self._args[:arg.index]) + list(self._args[arg.index + 1:]))
+        self._args = tuple(
+            chain(self._args[:arg.index], self._args[arg.index + 1:]))
         arg.erase(safe_erase=safe_erase)
 
     def _attach_op(self, operation: Operation) -> None:
@@ -853,15 +850,16 @@ class Block(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two blocks are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}
         if not isinstance(other, Block):
             return False
         if len(self.args) != len(other.args) or \
-            len(self.ops) != len(other.ops):
+           len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
@@ -1088,8 +1086,9 @@ class Region(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two regions are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known to be equivalent.
-        This enables checking whether the use dependencies and successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known "
+        "to be equivalent. This enables checking whether the use dependencies and "
+        "successors are equivalent.
         """
         if context is None:
             context = {}

@@ -356,18 +356,13 @@ class PlusCustomFormatOp(Operation):
     @classmethod
     def parse(cls, result_types: List[Attribute],
               parser: BaseParser) -> PlusCustomFormatOp:
-
-        lhs = parser.expect(parser.try_parse_value_id,
-                            'Expected SSA Value name here!')
+        lhs = parser.parse_operand('Expected SSA Value name here!')
         parser.parse_characters("+",
                                 "Malformed operation format, expected `+`!")
-        rhs = parser.expect(parser.try_parse_value_id,
-                            'Expected SSA Value name here!')
+        rhs = parser.parse_operand('Expected SSA Value name here!')
 
-        return PlusCustomFormatOp.create(
-            operands=[parser.get_ssa_val(lhs),
-                      parser.get_ssa_val(rhs)],
-            result_types=result_types)
+        return PlusCustomFormatOp.create(operands=[lhs, rhs],
+                                         result_types=result_types)
 
     def print(self, printer: Printer):
         printer.print(" ", self.lhs, " + ", self.rhs)

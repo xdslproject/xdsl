@@ -4,7 +4,6 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from frozenlist import FrozenList
 from functools import reduce
 from inspect import isclass
 from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
@@ -644,7 +643,7 @@ def get_construct_defs(
 
 def get_op_constructs(
     op: Operation, construct: VarIRConstruct
-) -> FrozenList[SSAValue] | list[OpResult] | list[Region]:
+) -> tuple[SSAValue, ...] | list[OpResult] | list[Region]:
     """
         Get the list of arguments of the type in an operation.
         For example, if the argument type is an operand, get the list of
@@ -763,8 +762,8 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
 def get_operand_result_or_region(
     op: Operation, op_def: OpDef, arg_def_idx: int, previous_var_args: int,
     construct: VarIRConstruct
-) -> None | SSAValue | FrozenList[SSAValue] | list[OpResult] | Region | list[
-        Region]:
+) -> None | SSAValue | tuple[SSAValue,
+                             ...] | list[OpResult] | Region | list[Region]:
     """
     Get an operand, result, or region.
     In the case of a variadic definition, return a list of elements.

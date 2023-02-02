@@ -74,7 +74,7 @@ class ParseError(Exception):
 
 class MultipleSpansParseError(ParseError):
     ref_text: str | None
-    refs: list[tuple['Span', str]]
+    refs: list[tuple['Span', str | None]]
 
     def __init__(
         self,

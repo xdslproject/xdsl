@@ -47,7 +47,7 @@ jobs:
         if: steps.cache-pyodide.outputs.cache-hit != 'true'
         run: git clone https://github.com/pyodide/pyodide.git
 
-      # Clean the xDSL and FrozenList package folders, generate their skeletons
+      # Clean the xDSL package folder, generate the skeletons
       # and do the necessary updates before building.
       - name: Build custom Pyodide distribution
         run: |
@@ -58,13 +58,12 @@ jobs:
           python -m pip install -r requirements.txt
           sudo apt update && sudo apt install f2c
           
-          rm packages/xdsl packages/frozenlist -rf
+          rm packages/xdsl -rf
           pyodide skeleton pypi xdsl
-          pyodide skeleton pypi frozenlist
           
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
           
-          PYODIDE_PACKAGES="frozenlist,coverage,xdsl" make
+          PYODIDE_PACKAGES="coverage,xdsl" make
 
       - name: Build the JupyterLite site
         run: |

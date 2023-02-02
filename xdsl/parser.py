@@ -42,7 +42,8 @@ class BacktrackingHistory:
               ^
               Expected type of value-id here!
 
-    The BacktrackingHistory will contain the outermost error (expected type of value-id here)
+    The BacktrackingHistory will contain the outermost error "
+    "(expected type of value-id here)
     It's parent will be the next error message (not a known attribute).
     Some errors happen in named regions (e.g. "parsing of operation")
     """
@@ -86,7 +87,8 @@ class BacktrackingHistory:
 @dataclass(frozen=True)
 class Span:
     """
-    Parts of the input are always passed around as spans, so we know where they originated.
+    Parts of the input are always passed around as spans, so we know where "
+    "they originated.
     """
 
     start: int
@@ -128,7 +130,7 @@ class Span:
         """
         info = self.input.get_lines_containing(self)
         if info is None:
-            return "Unknown location of span {}. Error: ".format(self, msg)
+            return "Unknown location of span {}. Error: ".format(msg)
         lines, offset_of_first_line, line_no = info
         # Offset relative to the first line:
         offset = self.start - offset_of_first_line
@@ -304,11 +306,14 @@ class Tokenizer:
         with some meta information in the history attribute.
 
         The backtracker accepts the following exceptions:
-         - ParseError: signifies that the region could not be parsed because of (unexpected) syntax errors
-         - AssertionError: this error should probably be phased out in favour of the two above
-         - EOFError: signals that EOF was reached unexpectedly
+        - ParseError: signifies that the region could not be parsed because of
+          (unexpected) syntax errors
+        - AssertionError: this error should probably be phased out in favour
+          of the two above
+        - EOFError: signals that EOF was reached unexpectedly
 
-        Any other error will be printed to stderr, but backtracking will continue as normal.
+        Any other error will be printed to stderr, but backtracking will continue
+        as normal.
         """
         save = self.save()
         starting_position = self.pos
@@ -316,7 +321,8 @@ class Tokenizer:
             yield
             # Clear error history when something doesn't fail
             # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure, something has been parsed (we assume)
+            # If a backtracking() completes without failure,
+            # something has been parsed (we assume)
             if self.pos > starting_position and self.history is not None:
                 self.history = None
         except Exception as ex:
@@ -342,7 +348,7 @@ class Tokenizer:
 
             self.resume_from(save)
 
-    def _history_entry_from_exception(self, ex: Exception, region: str,
+    def _history_entry_from_exception(self, ex: Exception, region: str | None,
                                       pos: int) -> BacktrackingHistory:
         """
         Given an exception generated inside a backtracking attempt,
@@ -395,7 +401,8 @@ class Tokenizer:
         Can be modified using:
          - peek: don't advance the position, only "peek" at the input
 
-        This will skip over line comments. Meaning it will skip the entire line if it encounters '//'
+        This will skip over line comments. Meaning it will skip the entire line if
+        it encounters '//'
         """
         i = self.next_pos()
         # Construct the span:
@@ -412,7 +419,8 @@ class Tokenizer:
                               pattern: re.Pattern | str,
                               peek: bool = False) -> Span | None:
         """
-        Return a span that matched the pattern, or nothing. You can choose not to consume the span.
+        Return a span that matched the pattern, or nothing.
+        You can choose not to consume the span.
         """
         try:
             start = self.next_pos()
@@ -491,7 +499,8 @@ class Tokenizer:
     @contextlib.contextmanager
     def configured(self, break_on: tuple[str, ...]):
         """
-        This is a helper class to allow expressing a temporary change in config, allowing you to write:
+        This is a helper class to allow expressing a temporary change in config,
+        allowing you to write:
 
         # Parsing double-quoted string now
         string_content = ""
@@ -561,15 +570,16 @@ class BaseParser(ABC):
     """
     Basic recursive descent parser.
 
-    methods marked try_... will attempt to parse, and return None if they failed. If they return None
-    they must make sure to restore all state.
+    methods marked try_... will attempt to parse, and return None if they failed.
+    If they return None they must make sure to restore all state.
 
-    methods marked parse_... will do "greedy" parsing, meaning they consume as much as they can. They will
-    also throw an error if the think they should still be parsing. e.g. when parsing a list of numbers
-    separated by '::', the following input will trigger an exception:
+    methods marked parse_... will do "greedy" parsing, meaning they consume
+    as much as they can. They will also throw an error if the think they should
+    still be parsing. e.g. when parsing a list of numbers separated by '::',
+    the following input will trigger an exception:
         1::2::
-    Due to the '::' present after the last element. This is useful for parsing lists, as a trailing
-    separator is usually considered a syntax error there.
+    Due to the '::' present after the last element. This is useful for parsing lists,
+    as a trailing separator is usually considered a syntax error there.
 
     must_ type parsers are preferred because they are explicit about their failure modes.
     """
@@ -581,13 +591,14 @@ class BaseParser(ABC):
     blocks: dict[str, Block]
     forward_block_references: dict[str, list[Span]]
     """
-    Blocks we encountered references to before the definition (must be empty after parsing of region completes)
+    Blocks we encountered references to before the definition (must be empty after
+    parsing of region completes)
     """
 
     T_ = TypeVar("T_")
     """
-    Type var used for handling function that return single or multiple Spans. Basically the output type
-    of all try_parse functions is T_ | None
+    Type var used for handling function that return single or multiple Spans.
+    Basically the output type of all try_parse functions is `T_ | None`
     """
 
     allow_unregistered_ops: bool
@@ -655,10 +666,14 @@ class BaseParser(ABC):
             block = Block(block_id)
             self.blocks[block_id.text] = block
 
+        block_args: list[BlockArgument] = []
+
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
             self.ssaValues[name.text] = arg
-            block.args.append(arg)
+            block_args.append(arg)
+
+        block._args = tuple(block_args)  # type: ignore
 
         while (next_op := self.try_parse_operation()) is not None:
             block.add_op(next_op)
@@ -718,14 +733,17 @@ class BaseParser(ABC):
 
          - If the separator isn't encountered, which signals the end of the list
          - If an empty list is allowed, it accepts when the first try_parse fails
-         - If an empty separator is given, it instead sees a failed try_parse as the end of the list.
+         - If an empty separator is given, it instead sees a failed try_parse as the
+           end of the list.
 
         This means, that the setup will not accept the input and instead raise an error:
+
             try_parse = parse_integer_literal
             separator = 'x'
             input = 3x4x4xi32
-        as it will read [3,4,4], then see another separator, and expects the next try_parse call to succeed
-        (which won't as i32 is not a valid integer literal)
+
+        as it will read [3,4,4], then see another separator, and expects the next
+        `try_parse` call to succeed (which won't as i32 is not a valid integer literal)
         """
         items = list()
         first_item = try_parse()
@@ -771,6 +789,17 @@ class BaseParser(ABC):
 
     def try_parse_value_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.value_id)
+
+    def try_parse_operand(self) -> SSAValue | None:
+        """Try to parse an operand with format `%<value-id>`."""
+        value_id = self.try_parse_value_id()
+        if value_id is None:
+            return None
+        return self.get_ssa_val(value_id)
+
+    def parse_operand(self, msg: str = "operand expected") -> SSAValue:
+        """Parse an operand with format `%<value-id>`."""
+        return self.expect(self.try_parse_operand, msg)
 
     def try_parse_suffix_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.suffix_id)
@@ -877,7 +906,8 @@ class BaseParser(ABC):
     def _parse_builtin_parametrized_type(self,
                                          name: Span) -> ParametrizedAttribute:
         """
-        This function is called after we parse the name of a parameterized type such as vector.
+        This function is called after we parse the name of a parameterized type
+        such as vector.
         """
 
         def unimplemented() -> ParametrizedAttribute:
@@ -982,16 +1012,17 @@ class BaseParser(ABC):
 
     def _try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
         """
-        Parse a shape element, either a decimal integer immediate or a `?`, which evaluates to -1
-
-        immediate cannot be smaller than lower_bound (defaults to 1) (is 0 for tensors and memrefs)
+        Parse a shape element, either a decimal integer immediate or a `?`,
+        which evaluates to -1 immediate cannot be smaller than lower_bound
+        (defaults to 1, is 0 for tensors and memrefs)
         """
         int_lit = self.try_parse_decimal_literal()
 
         if int_lit is not None:
             value = int(int_lit.text)
             if value < lower_bound:
-                # TODO: this is ugly, it's a raise inside a try_ type function, which should instead just give up
+                # TODO: this is ugly, it's a raise inside a try_ type function, which
+                # should instead just give up
                 raise ParseError(
                     int_lit,
                     "Shape element literal cannot be negative or zero!")
@@ -1016,7 +1047,8 @@ class BaseParser(ABC):
     def expect(self, try_parse: Callable[[], T_ | None],
                error_message: str) -> T_:
         """
-        Used to force completion of a try_parse function. Will throw a parse error if it can't
+        Used to force completion of a try_parse function.
+        Will throw a parse error if it can't.
         """
         res = try_parse()
         if res is None:
@@ -1027,7 +1059,7 @@ class BaseParser(ABC):
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
-        This will, for example, include backtracking errors, if any occurred previously
+        This will, for example, include backtracking errors, if any occurred previously.
         """
         if at_position is None:
             at_position = self.tokenizer.next_token(peek=True)
@@ -1065,8 +1097,8 @@ class BaseParser(ABC):
             op_name = self.try_parse_string_literal()
             if op_name is None:
                 self.raise_error(
-                    "Expected an operation name here, either a bare-id, or a string literal!"
-                )
+                    "Expected an operation name here, either a bare-id, or a string "
+                    "literal!")
 
             args, successors, attrs, regions, func_type = self._parse_operation_details(
             )
@@ -1246,7 +1278,7 @@ class BaseParser(ABC):
             return parsers.get(name.text, not_implemented)()
 
     def _parse_builtin_dense_attr(self) -> Attribute | None:
-        err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"
+        err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"  # noqa
         self.parse_characters("<", err_msg)
         info = list(self._parse_builtin_dense_attr_args())
         self.parse_characters(">", err_msg)
@@ -1278,7 +1310,7 @@ class BaseParser(ABC):
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
-        dense attribute params must be:
+        Dense attribute params must be:
 
         dense-attr-params           := float-literal | int-literal | list-of-dense-attrs-params
         list-of-dense-attrs-params  := `[` dense-attr-params (`,` dense-attr-params)* `]`
@@ -1421,7 +1453,7 @@ class BaseParser(ABC):
         return FunctionType.from_lists(args,
                                        self._parse_type_or_type_list_parens())
 
-    def _parse_type_or_type_list_parens(self) -> list[Attribute]:
+    def _parse_type_or_type_list_parens(self) -> list[Attribute | None]:
         """
         Parses type-or-type-list-parens, which is used in function-type.
 
@@ -1569,9 +1601,6 @@ class BaseParser(ABC):
         return self.expect(self.try_parse_string_literal,
                            'Malformed string literal!').string_contents
 
-    def parse_attribute(self) -> Attribute:
-        raise NotImplementedError()
-
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
@@ -1610,7 +1639,8 @@ class MLIRParser(BaseParser):
         """
         Parse attribute (either builtin or dialect)
         """
-        # All dialect attrs must start with '#', so we check for that first (as it's easier)
+        # All dialect attrs must start with '#', so we check for that first
+        # (as it's easier)
         if self.tokenizer.starts_with("#"):
             value = self.try_parse_dialect_attr()
 
@@ -1733,7 +1763,8 @@ class XDSLParser(BaseParser):
         # xDSL: Allow both # and ! prefixes, as we allow both types and attrs
         # TODO: phase out use of next_token(peek=True) in favour of starts_with
         if value is None and self.tokenizer.next_token(peek=True).text in "#!":
-            # In MLIR # and ! are prefixes for dialect attrs/types, but in xDSL ! is also used for builtin types
+            # In MLIR, `#` and `!` are prefixes for dialect attrs/types, but in xDSL,
+            # `!` is also used for builtin types
             value = self.try_parse_dialect_type_or_attribute()
 
         if value is None:
@@ -1756,7 +1787,7 @@ class XDSLParser(BaseParser):
         # zip(*results) works, but is barely readable :/
         return [name for name, _ in results], [type for _, type in results]
 
-    def try_parse_builtin_attr(self) -> Attribute:
+    def try_parse_builtin_attr(self) -> Attribute | None:
         """
         Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
 
@@ -1797,8 +1828,8 @@ class XDSLParser(BaseParser):
             - a list of successor names
             - the attributes attached to the OP
             - the regions of the op
-            - An optional function type. If not supplied, parse_op_result_list must return a second value
-              containing the types of the returned SSAValues
+            - An optional function type. If not supplied, parse_op_result_list must
+              return a second value containing the types of the returned SSAValues
 
         """
         args = self._parse_op_args_list()

@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import (Operation, OpResult, Region, Block, BlockArgument,
-                     Attribute, SSAValue)
+from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
+                     SSAValue)
 from xdsl.rewriter import Rewriter
 
 
