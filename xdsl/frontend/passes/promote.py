@@ -120,7 +120,8 @@ class Promoter:
         method_name = f"promote_{dialect_name}_{op_name}"
 
         if not hasattr(self, method_name):
-            raise FrontendProgramException(f"Cannot find promotion method for '{self.op.name}'.")
+            raise FrontendProgramException(
+                f"Cannot find promotion method for '{self.op.name}'.")
 
         promote = getattr(self.__class__, method_name)
         promote(self.rewriter, self.op, symbols)
@@ -219,6 +220,7 @@ class Promoter:
                     if isinstance(op, symref.Fetch):
                         if symbol == op.attributes["symbol"].data.data:
                             fetch_ops_to_promote.append(op)
+
             promote_from_block(true_block)
             promote_from_block(false_block)
 
@@ -231,7 +233,8 @@ class Promoter:
                 new_fetch_op = fetch_ops_to_promote[0].clone()
                 insert_before(if_op, new_fetch_op)
                 for fetch_op in fetch_ops_to_promote:
-                    rewriter.replace_op(fetch_op, [], [new_fetch_op.results[0]])
+                    rewriter.replace_op(fetch_op, [],
+                                        [new_fetch_op.results[0]])
                 promoted_fetch_ops.append(new_fetch_op)
 
         # At this point all possible fetches were hoisted out. We are ready to
@@ -258,18 +261,23 @@ class Promoter:
                 continue
 
             # Record the type of the update to reconstruct a new scf.if later.
-            update_ty = true_block_update_op.operands[0].typ if true_block_update_op is not None else false_block_update_op.operands[0].typ
+            if true_block_update_op is not None:
+                update_ty = true_block_update_op.operands[0].typ 
+            else:
+                update_ty = false_block_update_op.operands[0].typ
 
             # Otherwise there is an update. First, we check if some of the
             # blocks haven't updated the symbol and it was also not fetched. In
             # this case, we need to introduce a fetch operation in the parent
             # block.
-            if (true_block_update_op is None or false_block_update_op is None) and promoted_fetch_ops[i] is None:
+            if (true_block_update_op is None or false_block_update_op is None
+                ) and promoted_fetch_ops[i] is None:
                 new_fetch_op = symref.Fetch.get(symbol, update_ty)
                 insert_before(if_op, new_fetch_op)
                 promoted_fetch_ops[i] = new_fetch_op
 
-            def promote_update(update_op: None | symref.Update, yield_operands: List[SSAValue]) -> SSAValue:
+            def promote_update(update_op: None | symref.Update,
+                               yield_operands: List[SSAValue]) -> SSAValue:
                 if update_op is not None:
                     yield_value = update_op.operands[0]
                     rewriter.erase_op(update_op)
@@ -300,7 +308,7 @@ class Promoter:
         if_op.false_region.clone_into(new_false_region)
 
         new_if_op = scf.If.get(if_op.cond, return_types, new_true_region,
-                            new_false_region)
+                               new_false_region)
         insert_after(if_op, new_if_op)
         for i, r in enumerate(if_op.results):
             r.replace_by(new_if_op.results[i])
