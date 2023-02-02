@@ -153,7 +153,9 @@ class SymbolInfo:
 
 @dataclass
 class Desymrefier:
-    """Class responsible for rewriting xDSL and removing symref operations."""
+    """
+    Class responsible for rewriting xDSL and removing symref operations.
+    """
 
     rewriter: Rewriter
     """Rewriter to replace and erase operations."""
@@ -165,7 +167,8 @@ class Desymrefier:
         if len(op.regions) == 0:
             return
 
-        # Otherwise, there is a region containing a CFG and we have to desymrefy it.
+        # Otherwise, there is a region containing a CFG and we have to desymrefy
+        # it.
         for region in op.regions:
             self.run_on_region(region)
 
@@ -177,12 +180,16 @@ class Desymrefier:
         """Desymrefies a region."""
         num_blocks = len(region.blocks)
         if num_blocks == 1:
-            # If there is only one block, desymrefication is significantly easier.
+            # If there is only one block, desymrefication is significantly
+            # easier.
             self._run_on_single_block(region.blocks[0])
         else:
-            # TODO: support regions with multiple blocks. This is not trivial, particularly
-            # when the symbol is declared in one of the parent regions.
-            raise FrontendProgramException(f"Running desymrefier on region with {num_blocks} > 1 blocks is not supported.")
+            # TODO: Support regions with multiple blocks. This is not trivial,
+            # particularly when the symbol is declared in one of the parent
+            # regions.
+            raise FrontendProgramException(
+                f"Running desymrefier on region with {num_blocks} > 1 blocks is "
+                "not supported.")
 
     def _run_on_single_block(self, block: Block):
         """Desymrefies a single block inside a region."""
@@ -215,8 +222,8 @@ class Desymrefier:
             if len(declare_ops) == 0:
                 return
 
-            # Otherwise, some declarations are still alive and
-            # there is still some work to do.
+            # Otherwise, some declarations are still alive and there is still
+            # some work to do.
             for declare_op in declare_ops:
                 symbol = declare_op.attributes["sym_name"].data
 
@@ -233,22 +240,22 @@ class Desymrefier:
                         if symbol == op_symbol:
                             update_ops.append(op)
 
-                # Declared symbol can be never read, and so all updates
-                # are dead.
+                # Declared symbol can be never read, and so all updates are
+                # dead.
                 if len(fetch_ops) == 0:
                     for update_op in update_ops:
                         self.rewriter.erase_op(update_op)
                     self.rewriter.erase_op(declare_op)
                     continue
 
-                # Otherwise, symbol is read and used. We can first check
-                # if it was updated once, sunce then we can replace every
-                # symbol fetch with updated value trivially (recall that
-                # we are in the same block, so no CFG and the dominance
-                # relations do not matter)!
+                # Otherwise, symbol is read and used. We can first check if it
+                # was updated once, sunce then we can replace every symbol fetch
+                # with updated value trivially (recall that we are in the same
+                # block, so no CFG and the dominance relations do not matter).
                 if len(update_ops) == 1:
                     for fetch_op in fetch_ops:
-                        self.rewriter.replace_op(fetch_op, [], [update_ops[0].operands[0]])
+                        self.rewriter.replace_op(fetch_op, [],
+                                                 [update_ops[0].operands[0]])
                     self.rewriter.erase_op(declare_op)
                     self.rewriter.erase_op(update_ops[0])
                     continue
@@ -269,7 +276,8 @@ class Desymrefier:
 
                     # Replace the result of the fetch with update's operand.
                     if prev_update_op is not None:
-                        self.rewriter.replace_op(fetch_op, [], [prev_update_op.operands[0]])
+                        self.rewriter.replace_op(fetch_op, [],
+                                                 [prev_update_op.operands[0]])
 
     def _remove_used_symbols(self, block: Block):
         """Removes all possible symbol uses in a single block."""
@@ -287,7 +295,8 @@ class Desymrefier:
             # Find all symbols that are still in use in this block.
             symbols = set()
             for op in block.ops:
-                if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+                if isinstance(op, symref.Fetch) or isinstance(
+                        op, symref.Update):
                     symbol = op.attributes["symbol"].data.data
                     if symbol not in ignore_symols:
                         symbols.add(symbol)
@@ -309,38 +318,41 @@ class Desymrefier:
                         if symbol == op_symbol:
                             update_ops.append(op)
 
-                # There is no fetches of this symbol. Then we can only
-                # keep the last update to that symbol!
+                # There is no fetches of this symbol. Then we can only keep the
+                # last update to that symbol.
                 if len(fetch_ops) == 0:
                     for update_op in update_ops[:-1]:
                         self.rewriter.erase_op(update_op)
                     ignore_symols.add(symbol)
                     continue
 
-                # There are no updates to this symbol. We can replace
-                # all fetches with this symbol
+                # There are no updates to this symbol. We can replace all
+                # fetches with this symbol.
                 if len(update_ops) == 0:
                     for fetch_op in fetch_ops[1:]:
-                        self.rewriter.replace_op(fetch_op, [], [fetch_ops[0].results[0]])
+                        self.rewriter.replace_op(fetch_op, [],
+                                                 [fetch_ops[0].results[0]])
                     ignore_symols.add(symbol)
                     continue
 
-                # Otherwise, in general we are done if all fetches preceed all updates.
+                # Otherwise, in general we are done if all fetches preceed all
+                # updates.
                 last_fetch_idx = block.get_operation_index(fetch_ops[-1])
                 first_update_idx = block.get_operation_index(update_ops[0])
                 if last_fetch_idx < first_update_idx:
-                    # Get rid of all but one fetches, and keep only the
-                    # last update.
+                    # Get rid of all but one fetches, and keep only the last
+                    # update.
                     for fetch_op in fetch_ops[1:]:
-                        self.rewriter.replace_op(fetch_op, [], [fetch_ops[0].results[0]])
+                        self.rewriter.replace_op(fetch_op, [],
+                                                 [fetch_ops[0].results[0]])
                     for update_op in update_ops[:-1]:
                         self.rewriter.erase_op(update_op)
                     ignore_symols.add(symbol)
                     continue
 
-                # This symbol should still be processed then, and has a micture of
-                # fetches and updates. We can use the same strategy as with declared
-                # symbols and replace all fetches with updated value.
+                # This symbol should still be processed then, and has a micture
+                # of fetches and updates. We can use the same strategy as with
+                # declared symbols and replace all fetches with updated value.
                 for fetch_op in fetch_ops:
                     fetch_idx = block.get_operation_index(fetch_op)
 
@@ -354,7 +366,8 @@ class Desymrefier:
 
                     # Replace the result of the fetch with update's operand.
                     if prev_update_op is not None:
-                        self.rewriter.replace_op(fetch_op, [], [prev_update_op.operands[0]])
+                        self.rewriter.replace_op(fetch_op, [],
+                                                 [prev_update_op.operands[0]])
 
     def _check_single_block_for_promotion(self, block: Block):
         """Raises exception if the block is not ready for promotion."""
@@ -379,7 +392,9 @@ class Desymrefier:
                         update_cnt += 1
 
             if fetch_cnt > 1 or update_cnt > 1:
-                raise FrontendProgramException(f"Block {block} not ready for promotion: found {fetch_cnt} fetches and {update_cnt} updates.")
+                raise FrontendProgramException(
+                    f"Block {block} not ready for promotion: found {fetch_cnt}"
+                    f" fetches and {update_cnt} updates.")
 
 
 @dataclass

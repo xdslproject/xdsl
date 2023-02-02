@@ -46,24 +46,31 @@ def insert_before(op: Operation, new_op: Operation):
     op_idx = op_parent_block.get_operation_index(op)
     op_parent_block.insert_op(new_op, op_idx)
 
+
 def is_read_only(symbol: str, block: Block) -> bool:
     """
     Returns true if the symbol is never updated.
     """
     for op in block.ops:
-        if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+        if isinstance(
+                op,
+                symref.Update) and op.attributes["symbol"].data.data == symbol:
             return False
     return True
 
+
 def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
     """
-    Returns a fetch of this symbol in this block. Should be used when the
-    symbol is used fetched in the block.
+    Returns a fetch of this symbol in this block. Should be used when the symbol
+    is used fetched in the block.
     """
     for op in block.ops:
-        if isinstance(op, symref.Fetch) and op.attributes["symbol"].data.data == symbol:
+        if isinstance(
+                op,
+                symref.Fetch) and op.attributes["symbol"].data.data == symbol:
             return op
     return None
+
 
 def get_update_op(symbol: str, block: Block) -> None | symref.Update:
     """
@@ -71,9 +78,12 @@ def get_update_op(symbol: str, block: Block) -> None | symref.Update:
     symbol is updated once in the block.
     """
     for op in block.ops:
-        if isinstance(op, symref.Update) and op.attributes["symbol"].data.data == symbol:
+        if isinstance(
+                op,
+                symref.Update) and op.attributes["symbol"].data.data == symbol:
             return op
     return None
+
 
 @dataclass
 class Promoter:
@@ -91,7 +101,8 @@ class Promoter:
         for region in self.op.regions:
             for block in region.blocks:
                 for op in block.ops:
-                    if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+                    if isinstance(op, symref.Fetch) or isinstance(
+                            op, symref.Update):
                         symbol = op.attributes["symbol"].data.data
                         if symbol not in symbols:
                             symbols.append(symbol)
@@ -118,13 +129,13 @@ class Promoter:
     def _check_promotion(op: Operation):
         for region in op.regions:
             # Desymrefication only runs on single blocks at the moment.
-            # TODO: AVoid this limitation.
+            # TODO: Avoid this limitation.
             if len(region.blocks) > 1:
-                raise FrontendProgramException("Only single-block promotion is supported.")
+                raise FrontendProgramException(
+                    "Only single-block promotion is supported.")
 
-    
-
-    def promote_affine_for(rewriter: Rewriter, for_op: affine.For, symbols: List[str]):
+    def promote_affine_for(rewriter: Rewriter, for_op: affine.For,
+                           symbols: List[str]):
         """Promotes a single affine.for operation."""
 
         Promoter._check_promotion(for_op)
@@ -142,18 +153,19 @@ class Promoter:
                 insert_before(for_op, new_fetch_op)
                 rewriter.replace_op(fetch_op, [], [new_fetch_op.results[0]])
             else:
-                # Otherwise symbol is updated. The update becomes the yielded value
-                # and must be recorded as a block argument.
+                # Otherwise symbol is updated. The update becomes the yielded
+                # value and must be recorded as a block argument.
                 fetch_op = get_fetch_op(symbol, body_block)
                 update_op = get_update_op(symbol, body_block)
 
                 yield_value = update_op.operands[0]
                 yield_operands.append(yield_value)
-                update_as_arg = body_block.insert_arg(yield_value.typ, len(body_block.args))
+                update_as_arg = body_block.insert_arg(yield_value.typ,
+                                                      len(body_block.args))
                 rewriter.erase_op(update_op)
 
-                # Check if the symbol was also fetched. If not, we have to create
-                # a fetch operation.
+                # Check if the symbol was also fetched. If not, we have to
+                # create a fetch operation.
                 if fetch_op is None:
                     new_fetch_op = symref.Fetch.get(symbol, yield_value.typ)
                     insert_before(for_op, new_fetch_op)
@@ -162,35 +174,40 @@ class Promoter:
                     insert_before(for_op, new_fetch_op)
                     rewriter.replace_op(fetch_op, [], [update_as_arg])
 
-                # Record the symbol value before the loop to pass it as an operand.
+                # Record the symbol value before the loop to pass it as an
+                # operand.
                 for_operands.append(new_fetch_op.results[0])
                 promoted_symbols.append(symbol)
 
         # Add affine.yield operation and construct a new affine.for.
-        rewriter.replace_op(body_block.ops[-1], affine.Yield.get(*yield_operands))
+        rewriter.replace_op(body_block.ops[-1],
+                            affine.Yield.get(*yield_operands))
 
         new_body = Region()
         for_op.body.clone_into(new_body)
-        new_for_op = affine.For.from_region(for_operands, for_op.lower_bound, for_op.upper_bound, new_body, for_op.step)
+        new_for_op = affine.For.from_region(for_operands, for_op.lower_bound,
+                                            for_op.upper_bound, new_body,
+                                            for_op.step)
         insert_after(for_op, new_for_op)
         rewriter.erase_op(for_op)
 
-        # Lastly, make sure the symbol is updated with the results of affine.for.
+        # Lastly, make sure the symbol is updated with the results of
+        # affine.for.
         for i, symbol in enumerate(promoted_symbols):
             update_op = symref.Update.get(symbol, new_for_op.results[i])
             insert_after(new_for_op, update_op)
 
-def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
+    def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
         """Promotes a single scf.if operation."""
 
         Promoter._check_promotion(if_op)
         true_block = if_op.true_region.blocks[0]
         false_block = if_op.false_region.blocks[0]
 
-        # This scf.if is promotable, so we start by hoisting fetches outside
-        # fo this operation. Here, everything is safe to be fetched outside
-        # becuse we are guaranteed to have at most one fetch and at most one
-        # update and all fetch operations preceed update operations.
+        # This scf.if is promotable, so we start by hoisting fetches outside of
+        # this operation. Here, everything is safe to be fetched outside because
+        # we are guaranteed to have at most one fetch and at most one update and
+        # all fetch operations preceed update operations.
         promoted_fetch_ops: List[None | symref.Fetch] = []
         for symbol in symbols:
             fetch_ops_to_promote: List[symref.Fetch] = []
@@ -209,8 +226,8 @@ def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
                 # This symbol was never fetched, we are done.
                 promoted_fetch_ops.append(None)
             else:
-                # If this symbol is fetched, hoist it outside and delete
-                # fetches in both true and false blocks.
+                # If this symbol is fetched, hoist it outside and delete fetches
+                # in both true and false blocks.
                 new_fetch_op = fetch_ops_to_promote[0].clone()
                 insert_before(if_op, new_fetch_op)
                 for fetch_op in fetch_ops_to_promote:
@@ -243,9 +260,10 @@ def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
             # Record the type of the update to reconstruct a new scf.if later.
             update_ty = true_block_update_op.operands[0].typ if true_block_update_op is not None else false_block_update_op.operands[0].typ
 
-            # Otherwise there is an update. First, we check if some of the blocks
-            # haven't updated the symbol and it was also not fetched. In this case,
-            # we need to introduce a fetch operation in the parent block.
+            # Otherwise there is an update. First, we check if some of the
+            # blocks haven't updated the symbol and it was also not fetched. In
+            # this case, we need to introduce a fetch operation in the parent
+            # block.
             if (true_block_update_op is None or false_block_update_op is None) and promoted_fetch_ops[i] is None:
                 new_fetch_op = symref.Fetch.get(symbol, update_ty)
                 insert_before(if_op, new_fetch_op)
@@ -259,17 +277,21 @@ def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
                     yield_value = promoted_fetch_ops[i].results[0]
                 yield_operands.append(yield_value)
 
-            # Promote updates by making them operands to scf.yield.
-            promoted_symbols.append(symbol)
-            promote_update(true_block_update_op, true_block_yield_operands)
-            promote_update(false_block_update_op, false_block_yield_operands)
+        # Promote updates by making them operands to scf.yield.
+        promoted_symbols.append(symbol)
+        promote_update(true_block_update_op, true_block_yield_operands)
+        promote_update(false_block_update_op, false_block_yield_operands)
 
         # Next, actually construct a new scf.if operation.
-        true_block_yield_operands = list(true_block.ops[-1].operands) + true_block_yield_operands
-        false_block_yield_operands = list(false_block.ops[-1].operands) + false_block_yield_operands
+        true_block_yield_operands = list(
+            true_block.ops[-1].operands) + true_block_yield_operands
+        false_block_yield_operands = list(
+            false_block.ops[-1].operands) + false_block_yield_operands
 
-        rewriter.replace_op(true_block.ops[-1], scf.Yield.get(*true_block_yield_operands))
-        rewriter.replace_op(false_block.ops[-1], scf.Yield.get(*false_block_yield_operands))
+        rewriter.replace_op(true_block.ops[-1],
+                            scf.Yield.get(*true_block_yield_operands))
+        rewriter.replace_op(false_block.ops[-1],
+                            scf.Yield.get(*false_block_yield_operands))
         return_types = list(map(lambda op: op.typ, true_block_yield_operands))
 
         new_true_region = Region()
@@ -277,7 +299,8 @@ def promote_scf_if(rewriter: Rewriter, if_op: scf.If, symbols: List[str]):
         new_false_region = Region()
         if_op.false_region.clone_into(new_false_region)
 
-        new_if_op = scf.If.get(if_op.cond, return_types, new_true_region, new_false_region)
+        new_if_op = scf.If.get(if_op.cond, return_types, new_true_region,
+                            new_false_region)
         insert_after(if_op, new_if_op)
         for i, r in enumerate(if_op.results):
             r.replace_by(new_if_op.results[i])
