@@ -319,7 +319,7 @@ class RewritePattern(ABC):
     """
 
     @abstractmethod
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         """
         Match an operation, and optionally perform a rewrite using the rewriter.
         """
