@@ -502,6 +502,16 @@ class OpDef:
         for parent_cls in Operation.mro()[::-1]:
             opdict = {**opdict, **parent_cls.__dict__}
 
+        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
+            raise PyRDLOpDefinitionError(
+                f"{field_name} is neither a function, or an "
+                "operand, result, region, or attribute definition. "
+                "Operands should be defined with type hints of "
+                "Annotated[Operand, <Constraint>], results with "
+                "Annotated[OpResult, <Constraint>], regions with "
+                "Region, and attributes with "
+                "OpAttr[<Constraint>]")
+
         # Check that all fields of the operation definition are either already
         # in Operation, or are class functions or methods.
         for field_name, value in clsdict.items():
@@ -513,9 +523,7 @@ class OpDef:
                     value,
                 (FunctionType, PropertyType, classmethod, staticmethod)):
                 continue
-            raise PyRDLOpDefinitionError(
-                f"{field_name} is neither a function, or an "
-                "operand, result, region, or attribute definition.")
+            raise wrong_field_exception(field_name)
 
         if "name" not in clsdict:
             raise Exception(
@@ -626,9 +634,7 @@ class OpDef:
                 else:
                     op_def.regions.append((field_name, OptRegionDef()))
             else:
-                raise PyRDLOpDefinitionError(
-                    f"{field_name} is neither a function, or an "
-                    "operand, result, region, or attribute definition.")
+                raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
 
@@ -1242,7 +1248,7 @@ def irdl_param_attr_get_param_type_hints(
             raise PyRDLAttrDefinitionError(
                 f"In attribute {cls.__name__} definition: Parameter " +
                 f"definition {field_name} should be defined with " +
-                f"type `ParameterDef`, got type {field_type}.")
+                f"type `ParameterDef[<Constraint>]`, got type {field_type}.")
 
         res.append((field_name, field_type))
     return res
