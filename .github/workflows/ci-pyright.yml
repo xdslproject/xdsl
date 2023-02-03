@@ -22,6 +22,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - uses: jordemort/action-pyright@v1
+        with:
+          github_token: ${{ github.token }}
+          reporter: github-pr-review # Change reporter.
+          lib: true
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
