@@ -16,7 +16,7 @@ class OpDefTestOp(Operation):
     attr: OpAttr[Attribute]
     region: Region
 
-    # Check that we can defined methods
+    # Check that we can define methods in operation definitions
     def test(self):
         pass
 

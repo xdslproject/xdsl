@@ -618,7 +618,7 @@ class ParamAttrDefAttr(ParametrizedAttribute):
     arg1: ParameterDef[Attribute]
     arg2: ParameterDef[BoolData]
 
-    # Check that we can defined methods
+    # Check that we can define methods in attribute definition
     def test(self):
         pass
 
