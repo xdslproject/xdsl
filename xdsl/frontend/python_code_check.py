@@ -10,7 +10,7 @@ from xdsl.frontend.exception import CodeGenerationException
 class PythonCodeCheck:
 
     @staticmethod
-    def run(stmts: List[ast.stmt]) -> None:
+    def run(stmts: List[ast.stmt], file: str) -> None:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
         cases, an exception is raised. Particularly, the check is used for
@@ -45,28 +45,32 @@ class PythonCodeCheck:
                 break
 
         # Check Python code is correctly structured.
-        CheckStructure.run_with_scope(single_scope, stmts)
+        CheckStructure.run_with_scope(single_scope, stmts, file)
 
         # Check constant/global variables are correctly defined. Should be
         # called only after the structure is checked.
-        CheckAndInlineConstants.run(stmts)
+        CheckAndInlineConstants.run(stmts, file)
 
 
 @dataclass
 class CheckStructure:
 
     @staticmethod
-    def run_with_scope(single_scope: bool, stmts: List[ast.stmt]) -> None:
+    def run_with_scope(single_scope: bool, stmts: List[ast.stmt],
+                       file: str) -> None:
         if single_scope:
-            visitor = SingleScopeVisitor()
+            visitor = SingleScopeVisitor(file)
         else:
-            visitor = MultipleScopeVisitor()
+            visitor = MultipleScopeVisitor(file)
         for stmt in stmts:
             visitor.visit(stmt)
 
 
 @dataclass
 class SingleScopeVisitor(ast.NodeVisitor):
+
+    file: str = field(default=None)
+    """File path for error reporting."""
 
     block_names: Set[str] = field(default_factory=set)
     """Tracks duplicate block labels."""
@@ -79,7 +83,7 @@ class SingleScopeVisitor(ast.NodeVisitor):
 
         if node.name in self.block_names:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Block '{node.name}' is already defined.")
         self.block_names.add(node.name)
 
@@ -87,18 +91,20 @@ class SingleScopeVisitor(ast.NodeVisitor):
             if isinstance(stmt, ast.FunctionDef):
                 if is_block(stmt):
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        self.file, stmt.lineno, stmt.col_offset,
                         f"Cannot have a nested block '{stmt.name}' inside the "
                         f"block '{node.name}'.")
                 else:
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        self.file, stmt.lineno, stmt.col_offset,
                         f"Cannot have an inner function '{stmt.name}' inside "
                         f"the block '{node.name}'.")
 
 
 @dataclass
 class MultipleScopeVisitor(ast.NodeVisitor):
+
+    file: str = field(default=None)
 
     function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
     """Tracks duplicate function names and duplicate block labels."""
@@ -111,7 +117,7 @@ class MultipleScopeVisitor(ast.NodeVisitor):
 
         if node.name in self.function_and_block_names:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Function '{node.name}' is already defined.")
         self.function_and_block_names[node.name] = set()
 
@@ -121,13 +127,13 @@ class MultipleScopeVisitor(ast.NodeVisitor):
             if isinstance(stmt, ast.FunctionDef):
                 if not is_block(stmt):
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        self.file, stmt.lineno, stmt.col_offset,
                         f"Cannot have an inner function '{stmt.name}' inside "
                         f"the function '{node.name}'.")
                 else:
                     if stmt.name in self.function_and_block_names[node.name]:
                         raise CodeGenerationException(
-                            stmt.lineno, stmt.col_offset,
+                            self.file, stmt.lineno, stmt.col_offset,
                             f"Block '{stmt.name}' is already defined in "
                             f"function '{node.name}'.")
                     self.function_and_block_names[node.name].add(stmt.name)
@@ -136,12 +142,12 @@ class MultipleScopeVisitor(ast.NodeVisitor):
                         if isinstance(inner, ast.FunctionDef):
                             if is_block(inner):
                                 raise CodeGenerationException(
-                                    inner.lineno, inner.col_offset,
+                                    self.file, inner.lineno, inner.col_offset,
                                     f"Cannot have a nested block '{inner.name}'"
                                     f" inside the block '{stmt.name}'.")
                             else:
                                 raise CodeGenerationException(
-                                    inner.lineno, inner.col_offset,
+                                    self.file, inner.lineno, inner.col_offset,
                                     f"Cannot have an inner function '{inner.name}'"
                                     f" inside the block '{stmt.name}'.")
 
@@ -168,12 +174,12 @@ class CheckAndInlineConstants:
     """
 
     @staticmethod
-    def run(stmts: List[ast.stmt]) -> None:
-        CheckAndInlineConstants.run_with_variables(stmts, set())
+    def run(stmts: List[ast.stmt], file: str) -> None:
+        CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
-    def run_with_variables(stmts: List[ast.stmt],
-                           defined_variables: Set[str]) -> None:
+    def run_with_variables(stmts: List[ast.stmt], defined_variables: Set[str],
+                           file: str) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
             # we have to keep track of these to raise an exception.
@@ -196,7 +202,7 @@ class CheckAndInlineConstants:
                     stmt.annotation):
                 if not isinstance(stmt.target, ast.Name):
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        file, stmt.lineno, stmt.col_offset,
                         f"All constant expressions have to be assigned to "
                         "'ast.Name' nodes.")
 
@@ -207,7 +213,7 @@ class CheckAndInlineConstants:
                     # TODO: This error message can be improved by matching exact
                     # exceptions returned by `eval` call.
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        file, stmt.lineno, stmt.col_offset,
                         f"Non-constant expression cannot be assigned to "
                         f"constant variable '{name}' or cannot be evaluated.")
 
@@ -215,7 +221,7 @@ class CheckAndInlineConstants:
                 # in other cases.
                 if not isinstance(value, int) and not isinstance(value, float):
                     raise CodeGenerationException(
-                        stmt.lineno, stmt.col_offset,
+                        file, stmt.lineno, stmt.col_offset,
                         f"Constant '{name}' has evaluated type '{type(value)}' "
                         "which is not supported.")
 
@@ -223,7 +229,7 @@ class CheckAndInlineConstants:
                 # get tricky since ints can overflow, etc. For example, `a:
                 # Const[i16] = 100000000` should give an error.
                 new_node = ast.Constant(value)
-                inliner = ConstantInliner(name, new_node)
+                inliner = ConstantInliner(name, new_node, file)
                 for candidate in stmts[(i + 1):]:
                     inliner.visit(candidate)
 
@@ -239,7 +245,7 @@ class CheckAndInlineConstants:
                 new_defined_variables = set(
                     [arg.arg for arg in stmt.args.args])
                 CheckAndInlineConstants.run_with_variables(
-                    stmt.body, new_defined_variables)
+                    stmt.body, new_defined_variables, file)
 
 
 @dataclass
@@ -258,11 +264,14 @@ class ConstantInliner(ast.NodeTransformer):
     new_node: ast.Constant
     """New AST node to inline."""
 
+    file: str = field(default=None)
+    """Path to the file containing the program."""
+
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
         if len(node.targets) == 1 and isinstance(
                 node.targets[0], ast.Name) and node.targets[0].id == self.name:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Constant '{self.name}' is already defined and cannot be "
                 "assigned to.")
         node.value = self.visit(node.value)
@@ -271,7 +280,7 @@ class ConstantInliner(ast.NodeTransformer):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         if isinstance(node.target, ast.Name) and node.target.id == self.name:
             raise CodeGenerationException(
-                node.lineno, node.col_offset,
+                self.file, node.lineno, node.col_offset,
                 f"Constant '{self.name}' is already defined.")
         node.value = self.visit(node.value)
         return node
@@ -280,7 +289,7 @@ class ConstantInliner(ast.NodeTransformer):
         for arg in node.args.args:
             if arg.arg == self.name:
                 raise CodeGenerationException(
-                    node.lineno, node.col_offset,
+                    self.file, node.lineno, node.col_offset,
                     f"Constant '{self.name}' is already defined and cannot be "
                     "used as a function/block argument name.")
         for stmt in node.body:

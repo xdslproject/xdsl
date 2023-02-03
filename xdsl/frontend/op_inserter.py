@@ -52,7 +52,7 @@ class OpInserter:
             raise FrontendProgramException(
                 f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region."
             )
-        self.ip = op.regions[-1].blocks[-1]
+        self.insertion_point = op.regions[-1].blocks[-1]
 
     def set_insertion_point_from_region(self, region: Region) -> None:
         """Sets the insertion point to the last block in this region."""
