@@ -16,6 +16,7 @@ class OpDefTestOp(Operation):
     attr: OpAttr[Attribute]
     region: Region
 
+    # Check that we can defined methods
     def test(self):
         pass
 
@@ -31,12 +32,24 @@ def test_get_definition():
 
 
 class InvalidTypedFieldTestOp(Operation):
-    name = "test.invalid_field"
+    name = "test.invalid_typed_field"
 
     field: int
 
 
-def test_invalid_field():
-    """"""
+def test_invalid_typed_field():
+    """Check that typed fields are not allowed"""
     with pytest.raises(PyRDLOpDefinitionError):
         irdl_op_definition(InvalidTypedFieldTestOp)
+
+
+class InvalidFieldTestOp(Operation):
+    name = "test.invalid_field"
+
+    field = 2
+
+
+def test_invalid_field():
+    """Check that untyped fields are not allowed"""
+    with pytest.raises(PyRDLOpDefinitionError):
+        irdl_op_definition(InvalidFieldTestOp)

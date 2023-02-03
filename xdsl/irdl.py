@@ -15,6 +15,7 @@ from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (BuilderNotFoundException,
+                                   PyRDLAttrDefinitionError,
                                    PyRDLOpDefinitionError, VerifyException)
 from xdsl.utils.hints import is_satisfying_hint, PropertyType
 
@@ -1238,7 +1239,7 @@ def irdl_param_attr_get_param_type_hints(
         origin = get_origin(field_type)
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise ValueError(
+            raise PyRDLAttrDefinitionError(
                 f"In attribute {cls.__name__} definition: Parameter " +
                 f"definition {field_name} should be defined with " +
                 f"type `ParameterDef`, got type {field_type}.")
@@ -1259,6 +1260,25 @@ class ParamAttrDef:
         clsdict = dict[str, Any]()
         for parent_cls in pyrdl_def.mro()[::-1]:
             clsdict = {**clsdict, **parent_cls.__dict__}
+
+        # Get all fields of the ParametrizedAttribute class, including their
+        # parents classes
+        attrdict: dict[str, Any] = dict()
+        for parent_cls in ParametrizedAttribute.mro()[::-1]:
+            attrdict = {**attrdict, **parent_cls.__dict__}
+        attrdict = {**attrdict, **Generic.__dict__, **GenericData.__dict__}
+
+        # Check that all fields of the attribute definition are either already
+        # in ParametrizedAttribute, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            if field_name in attrdict:
+                continue
+            if isinstance(
+                    value,
+                (FunctionType, PropertyType, classmethod, staticmethod)):
+                continue
+            raise PyRDLAttrDefinitionError(
+                f"{field_name} is not a parameter definition.")
 
         if "name" not in clsdict:
             raise Exception(
