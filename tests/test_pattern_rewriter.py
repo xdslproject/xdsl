@@ -432,7 +432,6 @@ def test_operation_deletion_reversed():
     expected = \
 """builtin.module() {}"""
 
-    @op_type_rewrite_pattern
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
             rewriter.erase_matched_op()

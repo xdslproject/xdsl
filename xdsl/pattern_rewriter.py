@@ -333,6 +333,23 @@ class AnonymousRewritePattern(RewritePattern):
     """
     func: Callable[[RewritePattern, Operation, PatternRewriter], None]
 
+    def __init__(
+        self,
+        func: Callable[[RewritePattern, Operation, PatternRewriter], None]
+        | Callable[[Operation, PatternRewriter], None]):
+        params = [
+            param for param in inspect.signature(func).parameters.values()
+        ]
+        if len(params) == 2:
+
+            def new_func(self: RewritePattern, op: Operation,
+                         rewriter: PatternRewriter):
+                func(op, rewriter)  # type: ignore
+
+            self.func = new_func
+        else:
+            self.func = func  # type: ignore
+
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
         self.func(self, op, rewriter)
