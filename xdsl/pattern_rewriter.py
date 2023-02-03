@@ -318,6 +318,9 @@ class RewritePattern(ABC):
     A side-effect free rewrite pattern matching on a DAG.
     """
 
+    # The / in the function signature makes the previous arguments positional, see
+    # https://peps.python.org/pep-0570/
+    # This is used by the op_type_rewrite_pattern
     @abstractmethod
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         """
