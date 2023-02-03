@@ -293,7 +293,6 @@ def test_insert_op_at_pos():
         new_cst = Constant.from_int_and_width(42, i32)
         rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
 
-    a: str = 1
 
     rewrite_and_compare(
         prog, expected,

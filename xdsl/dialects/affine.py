@@ -25,8 +25,6 @@ class For(Operation):
 
     def verify_(self) -> None:
 
-        a: str = 1
-
         if len(self.operands) != len(self.results):
             raise Exception("Expected the same amount of operands and results")
 
