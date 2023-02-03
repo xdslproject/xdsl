@@ -22,11 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: jordemort/action-pyright@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review # Change reporter.
-          lib: true
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -38,3 +33,7 @@ jobs:
         run: pip install -e .[extras]
       - name: Pyright
         uses: jordemort/action-pyright@v1.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review # Change reporter.
+          lib: true
