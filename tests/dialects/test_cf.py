@@ -1,12 +1,22 @@
-from xdsl.ir import Block, OpResult
+from xdsl.ir import Block
 from xdsl.dialects.arith import Addi, Subi, Muli, Constant
 from xdsl.dialects.builtin import i32
 from xdsl.dialects.cf import Branch, ConditionalBranch
 
 
 def test_branch():
-    block0 = Block()
-    _ = Branch.get(block0)
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
+    # Operation to add these constants
+    c = Addi.get(a, b)
+
+    block0 = Block.from_ops([a, b, c])
+    br0 = Branch.get(block0)
+
+    assert br0.successors[0] is block0
+    assert br0.successors[0].ops[0] is a
+    assert br0.successors[0].ops[1] is b
+    assert br0.successors[0].ops[2] is c
 
 
 def test_condbranch():

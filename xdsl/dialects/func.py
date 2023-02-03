@@ -23,8 +23,8 @@ class FuncOp(Operation):
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != block_arg_types:
             raise VerifyException(
-                "Expected entry block arguments to have the same types as the function input types"
-            )
+                "Expected entry block arguments to have the same types as the function "
+                "input types")
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],
