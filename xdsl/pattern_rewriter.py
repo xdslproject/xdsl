@@ -345,6 +345,8 @@ class AnonymousRewritePattern(RewritePattern):
         ]
         if len(params) == 2:
 
+            a: str = 1
+
             def new_func(self: RewritePattern, op: Operation,
                          rewriter: PatternRewriter):
                 func(op, rewriter)  # type: ignore
