@@ -456,17 +456,45 @@ class Tokenizer:
         """
         Find the point (optionally starting from start) where the token ends
         """
+        # get the start of the token
         i = self.next_pos() if start is None else start
-        # Search for literal breaks
+
+        # we only look 100 characters ahead when searching for a token.
+        # this is a large file optimization. Since we are searching for each break
+        # symbol independently, we sometimes look very far into the file before
+        # we find it. By limiting our lookahead to a few characters, we can cover
+        # most cases, and only have to fall back to a slow scan in
+        # relatively few cases.
+        lookahead = 100
+        # the end of our token
+        end_of_token = i + lookahead
+
+        # now do a scan for each thing we break on
         for part in self.break_on:
-            if self.input.content.startswith(part, i):
+            # check if the next break is closer than the previous best token
+            next_breaking_symb = self.input.content.find(part, i, end_of_token)
+            # if it's not, or it's farther away than our current "best"
+            if next_breaking_symb < 0 or next_breaking_symb > end_of_token:
+                # continue our search
+                continue
+            # if the breaking symbol is at the start of this token,
+            # it *is* this token. So we return it!
+            if next_breaking_symb == i:
                 return i + len(part)
-        # Otherwise return the start of the next break
-        return min(
+            # otherwise mark our best attempt
+            end_of_token = next_breaking_symb
+
+        # if we've found something, we are good!
+        if end_of_token < lookahead + i:
+            return end_of_token
+
+        # fallback solution, slow scan
+        res = min(
             filter(
                 lambda x: x >= 0,
                 (self.input.content.find(part, i) for part in self.break_on),
             ))
+        return res
 
     def next_pos(self, i: int | None = None) -> int:
         """
