@@ -37,6 +37,53 @@ class BuilderNotFoundException(Exception):
                f"arguments {self.args}"
 
 
+class DeferredExceptionMessage:
+    """
+    This class can be used to defer exception message generation to the
+    time when the message is printed.
+
+    We saw a problem with our parser where parse times in specific
+    scenarios went from seconds to minutes, due to errors that were
+    created in backtracking taking a long time to format their error
+    messages. The problem was, that all those backtracking errors
+    were never shown to the user, and the effort of printing them
+    was thus wasted.
+
+    This class provides a wrapper around a callable that produces
+    the formatted error message, but which is only called when it's
+    to be printed out.
+    """
+
+    _producer: typing.Callable[[], str]
+    """
+    A function that produces the error message
+    """
+
+    _cache: str | None
+    """
+    A cache so that we don't have to evaluate the _producer multiple
+    times
+    """
+
+    def __init__(self, producer: typing.Callable[[], str]):
+        self._producer = producer
+        self._cache = None
+
+    def _get_msg(self):
+        if self._cache is None:
+            self._cache = self._producer()
+        return self._cache
+
+    def __str__(self):
+        return self._get_msg()
+
+    def __repr__(self):
+        return self._get_msg()
+
+    def __contains__(self, item):
+        return item in self._get_msg()
+
+
 class ParseError(Exception):
     span: 'Span'
     msg: str
@@ -46,12 +93,9 @@ class ParseError(Exception):
                  span: 'Span',
                  msg: str,
                  history: 'BacktrackingHistory' | None = None):
-        preamble = ""
-        if history:
-            preamble = history.error.args[0] + '\n'
         if span is None:
             raise ValueError("Span can't be None!")
-        super().__init__(preamble + span.print_with_context(msg))
+        super().__init__(DeferredExceptionMessage(lambda: repr(self)))
         self.span = span
         self.msg = msg
         self.history = history
