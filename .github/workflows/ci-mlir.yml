@@ -56,7 +56,6 @@ jobs:
 
     - name: Install CI dependencies
       run: |
-        pip install nbval
         pip install codecov
 
     - name: Checkout MLIR
