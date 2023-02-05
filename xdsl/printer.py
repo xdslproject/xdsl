@@ -11,11 +11,11 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
-    DictionaryAttr)
+    DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type, Float32Type,
+    Float64Type, FloatAttr, IndexType, IntegerType, NoneAttr, OpaqueAttr,
+    Signedness, StringAttr, FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr,
+    TensorType, UnitAttr, FunctionType, UnrankedTensorType, UnregisteredOp,
+    VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -424,6 +424,11 @@ class Printer:
             print_dense_list(data, shape)
             self.print("> : ")
             self.print(attribute.type)
+            return
+
+        # Dense resources have an alias in MLIR, but not in xDSL
+        if isinstance(attribute, DenseResourceAttr):
+            self.print(f"dense_resource<{attribute.resource_handle.data}>")
             return
 
         # vector types have an alias in MLIR, but not in xDSL

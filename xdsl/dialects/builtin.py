@@ -640,6 +640,20 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class DenseResourceAttr(ParametrizedAttribute):
+    name = "dense_resource"
+
+    resource_handle: ParameterDef[StringAttr]
+
+    @staticmethod
+    @builder
+    def from_handle(handle: str | StringAttr) -> DenseResourceAttr:
+        if isinstance(handle, str):
+            handle = StringAttr.from_str(handle)
+        return DenseResourceAttr([handle])
+
+
+@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 

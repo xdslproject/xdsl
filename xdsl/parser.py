@@ -17,11 +17,11 @@ from typing import TypeVar, Iterable
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
-    AnyTensorType, AnyVectorType, Float16Type, Float32Type, Float64Type,
-    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
-    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    FlatSymbolRefAttr, DenseIntOrFPElementsAttr, UnregisteredOp, OpaqueAttr,
-    NoneAttr, ModuleOp, UnitAttr, i64)
+    AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type, Float32Type,
+    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
+    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
+    VectorType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr, UnregisteredOp,
+    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -1270,6 +1270,7 @@ class BaseParser(ABC):
             parsers = {
                 'dense': self._parse_builtin_dense_attr,
                 'opaque': self._parse_builtin_opaque_attr,
+                'dense_resource': self._parse_builtin_dense_resource_attr,
             }
 
             def not_implemented():
@@ -1307,6 +1308,14 @@ class BaseParser(ABC):
         return OpaqueAttr.from_strings(*(span.string_contents
                                          for span in str_lit_list),
                                        type=type)
+
+    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
+        err_msg = ("Malformed dense_resource attribute, format must be "
+                   "(`dense_resource` `<` resource-handle `>`)")
+        self.parse_characters("<", err_msg)
+        resource_handle = self.expect(self.try_parse_bare_id, err_msg)
+        self.parse_characters(">", err_msg)
+        return DenseResourceAttr.from_handle(resource_handle.text)
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
