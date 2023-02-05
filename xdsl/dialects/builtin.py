@@ -767,6 +767,7 @@ Builtin = Dialect(
         ArrayAttr,
         DictionaryAttr,
         DenseIntOrFPElementsAttr,
+        DenseResourceAttr,
         UnitAttr,
         FloatData,
         NoneAttr,
