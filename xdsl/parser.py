@@ -1462,8 +1462,8 @@ class BaseParser(ABC):
         type-list-no-parens      ::=  type (`,` type)*
         """
         if self.tokenizer.next_token_of_pattern("(") is not None:
-            args: list[Attribute] = self.parse_list_of(self.try_parse_type,
-                                                       "Expected type here!")
+            args: list[Attribute | None] = self.parse_list_of(self.try_parse_type,
+                                                              "Expected type here!")
             self.parse_characters(")", "Unclosed function type argument list!")
         else:
             args = [self.try_parse_type()]
@@ -1528,8 +1528,8 @@ class BaseParser(ABC):
             - a list of successor names
             - the attributes attached to the OP
             - the regions of the op
-            - An optional function type. If not supplied, parse_op_result_list must return a second value
-              containing the types of the returned SSAValues
+            - An optional function type. If not supplied, `parse_op_result_list` "
+              must return a second value containing the types of the returned SSAValues
 
         """
         raise NotImplementedError()
@@ -1539,8 +1539,9 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
-    # Since we don't want to rewrite all dialects currently, the new parser needs to expose the same
-    # Interface to the dialect definitions (to some extent). Here we implement that interface.
+    # Since we don't want to rewrite all dialects currently, the new parser needs
+    # to expose the same Interface to the dialect definitions (to some extent).
+    # Here we implement that interface.
 
     _OperationType = TypeVar("_OperationType", bound=Operation)
 
@@ -1550,8 +1551,8 @@ class BaseParser(ABC):
         result_types: list[Attribute],
     ) -> _OperationType:
         """
-        Compatibility wrapper so the new parser can be passed instead of the old one. Parses everything after the
-        operation name.
+        Compatibility wrapper so the new parser can be passed instead of the old one.
+        Parses everything after the operation name.
 
         This implicitly assumes XDSL format, and will fail on MLIR style operations
         """
