@@ -53,8 +53,9 @@ jobs:
 
     - name: Install the package locally
       run: |
+        # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -e xdsl[extras]
+        pip install -e .[extras]
 
     - name: Install CI dependencies
       run: |
