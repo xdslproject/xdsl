@@ -52,7 +52,9 @@ jobs:
         pip install --upgrade pip
 
     - name: Install the package locally
-      run: pip install -e xdsl[extras]
+      run: |
+        cd xdsl
+        pip install -e xdsl[extras]
 
     - name: Install CI dependencies
       run: |
