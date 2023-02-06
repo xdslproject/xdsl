@@ -8,13 +8,15 @@ from functools import reduce
 from inspect import isclass
 from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
                     TypeVar, Union, cast, get_args, get_origin, get_type_hints)
-from types import UnionType, GenericAlias
+from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import BuilderNotFoundException, VerifyException
-from xdsl.utils.hints import is_satisfying_hint
+from xdsl.utils.exceptions import (BuilderNotFoundException,
+                                   PyRDLAttrDefinitionError,
+                                   PyRDLOpDefinitionError, VerifyException)
+from xdsl.utils.hints import is_satisfying_hint, PropertyType
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -492,6 +494,36 @@ class OpDef:
         for parent_cls in pyrdl_def.mro()[::-1]:
             clsdict = {**clsdict, **parent_cls.__dict__}
 
+        type_hints = get_type_hints(pyrdl_def, include_extras=True)
+
+        # Get all fields of the Operation class, including their parents classes
+        opdict: dict[str, Any] = dict()
+        for parent_cls in Operation.mro()[::-1]:
+            opdict = {**opdict, **parent_cls.__dict__}
+
+        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
+            raise PyRDLOpDefinitionError(
+                f"{field_name} is neither a function, or an "
+                "operand, result, region, or attribute definition. "
+                "Operands should be defined with type hints of "
+                "Annotated[Operand, <Constraint>], results with "
+                "Annotated[OpResult, <Constraint>], regions with "
+                "Region, and attributes with "
+                "OpAttr[<Constraint>]")
+
+        # Check that all fields of the operation definition are either already
+        # in Operation, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            if field_name in opdict:
+                continue
+            if field_name == "irdl_options":
+                continue
+            if isinstance(
+                    value,
+                (FunctionType, PropertyType, classmethod, staticmethod)):
+                continue
+            raise wrong_field_exception(field_name)
+
         if "name" not in clsdict:
             raise Exception(
                 f"pyrdl operation definition '{pyrdl_def.__name__}' does not "
@@ -499,8 +531,8 @@ class OpDef:
                 "adding a 'name' field.")
 
         op_def = OpDef(clsdict["name"])
-        for field_name, field_type in get_type_hints(
-                pyrdl_def, include_extras=True).items():
+
+        for field_name, field_type in type_hints.items():
 
             if field_name in get_type_hints(Operation).keys():
                 continue
@@ -600,6 +632,8 @@ class OpDef:
                         (field_name, OptSingleBlockRegionDef()))
                 else:
                     op_def.regions.append((field_name, OptRegionDef()))
+            else:
+                raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
 
@@ -1210,10 +1244,10 @@ def irdl_param_attr_get_param_type_hints(
         origin = get_origin(field_type)
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise ValueError(
+            raise PyRDLAttrDefinitionError(
                 f"In attribute {cls.__name__} definition: Parameter " +
                 f"definition {field_name} should be defined with " +
-                f"type `ParameterDef`, got type {field_type}.")
+                f"type `ParameterDef[<Constraint>]`, got type {field_type}.")
 
         res.append((field_name, field_type))
     return res
@@ -1231,6 +1265,25 @@ class ParamAttrDef:
         clsdict = dict[str, Any]()
         for parent_cls in pyrdl_def.mro()[::-1]:
             clsdict = {**clsdict, **parent_cls.__dict__}
+
+        # Get all fields of the ParametrizedAttribute class, including their
+        # parents classes
+        attrdict: dict[str, Any] = dict()
+        for parent_cls in ParametrizedAttribute.mro()[::-1]:
+            attrdict = {**attrdict, **parent_cls.__dict__}
+        attrdict = {**attrdict, **Generic.__dict__, **GenericData.__dict__}
+
+        # Check that all fields of the attribute definition are either already
+        # in ParametrizedAttribute, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            if field_name in attrdict:
+                continue
+            if isinstance(
+                    value,
+                (FunctionType, PropertyType, classmethod, staticmethod)):
+                continue
+            raise PyRDLAttrDefinitionError(
+                f"{field_name} is not a parameter definition.")
 
         if "name" not in clsdict:
             raise Exception(

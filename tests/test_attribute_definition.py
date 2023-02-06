@@ -15,7 +15,7 @@ from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
                        AnyAttr, BaseAttr, ParamAttrDef)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
 #  ____        _
 # |  _ \  __ _| |_ __ _
@@ -618,6 +618,10 @@ class ParamAttrDefAttr(ParametrizedAttribute):
     arg1: ParameterDef[Attribute]
     arg2: ParameterDef[BoolData]
 
+    # Check that we can define methods in attribute definition
+    def test(self):
+        pass
+
 
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
@@ -625,3 +629,27 @@ def test_irdl_definition():
     assert ParamAttrDefAttr.irdl_definition == ParamAttrDef(
         "test.param_attr_def_attr", [("arg1", AnyAttr()),
                                      ("arg2", BaseAttr(BoolData))])
+
+
+class InvalidTypedFieldTestAttr(ParametrizedAttribute):
+    name = "test.invalid_typed_field"
+
+    x: int
+
+
+def test_invalid_typed_field():
+    """Check that typed fields are not allowed."""
+    with pytest.raises(PyRDLAttrDefinitionError):
+        irdl_attr_definition(InvalidTypedFieldTestAttr)
+
+
+class InvalidUntypedFieldTestAttr(ParametrizedAttribute):
+    name = "test.invalid_untyped_field"
+
+    x = 2
+
+
+def test_invalid_field():
+    """Check that untyped fields are not allowed."""
+    with pytest.raises(PyRDLAttrDefinitionError):
+        irdl_attr_definition(InvalidUntypedFieldTestAttr)

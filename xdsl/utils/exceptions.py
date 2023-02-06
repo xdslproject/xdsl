@@ -23,6 +23,18 @@ class VerifyException(DiagnosticException):
     pass
 
 
+class PyRDLError(Exception):
+    pass
+
+
+class PyRDLOpDefinitionError(Exception):
+    pass
+
+
+class PyRDLAttrDefinitionError(Exception):
+    pass
+
+
 @dataclass
 class BuilderNotFoundException(Exception):
     """
