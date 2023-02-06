@@ -27,7 +27,7 @@ class Diagnostic:
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
         elif isinstance(toplevel, Block):
-            p._print_named_block(toplevel)  # type: ignore
+            p.print_block(toplevel)  # type: ignore
         elif isinstance(toplevel, Region):
             p._print_region(toplevel)  # type: ignore
         else:
