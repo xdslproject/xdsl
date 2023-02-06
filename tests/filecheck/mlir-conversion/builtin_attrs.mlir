@@ -143,10 +143,10 @@
   // CHECK: memref<2x?xf32>
 
   "func.func"() ({}) {function_type = () -> (), 
-                      dense_resource = dense_resource<resource_1>,
+                      dense_resource = dense_resource<resource_1> : tensor<1xi32>,
                       sym_name = "dense_resource"} : () -> ()
 
-  // CHECK: dense_resource<resource_1>
+  // CHECK: dense_resource<resource_1> : tensor<1xi32>
 
 
 }) : () -> ()

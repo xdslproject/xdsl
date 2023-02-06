@@ -645,12 +645,16 @@ class DenseResourceAttr(ParametrizedAttribute):
 
     resource_handle: ParameterDef[StringAttr]
 
+    # Should be a ShapedType, but this is not defined yet in xDSL
+    type: ParameterDef[Attribute]
+
     @staticmethod
     @builder
-    def from_handle(handle: str | StringAttr) -> DenseResourceAttr:
+    def from_params(handle: str | StringAttr,
+                    type: Attribute) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr.from_str(handle)
-        return DenseResourceAttr([handle])
+        return DenseResourceAttr([handle, type])
 
 
 @irdl_attr_definition

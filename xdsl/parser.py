@@ -1315,7 +1315,10 @@ class BaseParser(ABC):
         self.parse_characters("<", err_msg)
         resource_handle = self.expect(self.try_parse_bare_id, err_msg)
         self.parse_characters(">", err_msg)
-        return DenseResourceAttr.from_handle(resource_handle.text)
+        self.parse_characters(":", err_msg)
+        type = self.expect(self.try_parse_type,
+                           "Dense resource attribute must be typed!")
+        return DenseResourceAttr.from_params(resource_handle.text, type)
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
