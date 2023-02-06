@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Annotated, TypeVar, Optional, List, TypeAlias
 
-from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
-                                   IntegerType, FlatSymbolRefAttr, StringAttr,
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                   IndexType, ArrayAttr, IntegerType,
+                                   FlatSymbolRefAttr, StringAttr,
                                    DenseArrayBase)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
@@ -238,10 +239,10 @@ class Global(Operation):
         if not isinstance(self.type, MemRefType):
             raise Exception("Global expects a MemRefType")
 
-        #if self.initial_value and not isinstance(self.initial_value,
-        #                                         DenseArrayBase):
-        #    raise Exception(
-        #        "Global expects an initial value with type DenseArrayBase")
+        if self.initial_value and not isinstance(self.initial_value,
+                                                 DenseIntOrFPElementsAttr):
+            raise Exception(
+                "Global expects an initial value with a dense type")
 
     @staticmethod
     def get(sym_name: str | StringAttr,
