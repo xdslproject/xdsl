@@ -1219,7 +1219,8 @@ class BaseParser(ABC):
         """
         Parse attribute (either builtin or dialect)
 
-        This is different in xDSL and MLIR, so the actuall implementation is provided by the subclass
+        This is different in xDSL and MLIR, so the actuall implementation is
+        provided by the subclass
         """
         raise NotImplementedError()
 
@@ -1462,8 +1463,8 @@ class BaseParser(ABC):
         type-list-no-parens      ::=  type (`,` type)*
         """
         if self.tokenizer.next_token_of_pattern("(") is not None:
-            args: list[Attribute | None] = self.parse_list_of(self.try_parse_type,
-                                                              "Expected type here!")
+            args: list[Attribute | None] = self.parse_list_of(
+                self.try_parse_type, "Expected type here!")
             self.parse_characters(")", "Unclosed function type argument list!")
         else:
             args = [self.try_parse_type()]

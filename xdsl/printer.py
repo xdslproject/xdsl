@@ -249,7 +249,8 @@ class Printer:
 
     def print_region(self, region: Region) -> None:
         if not isinstance(region, Region):
-            raise TypeError('Expected a Region; got %s' % type(region).__name__)
+            raise TypeError('Expected a Region; got %s' %
+                            type(region).__name__)
         if len(region.blocks) == 0:
             self.print("{}")
             return
@@ -591,7 +592,8 @@ class Printer:
 
     def _print_op(self, op: Operation) -> None:
         if not isinstance(op, Operation):
-            raise TypeError('Expected an Operation; got %s' % type(op).__name__)
+            raise TypeError('Expected an Operation; got %s' %
+                            type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         if isinstance(op, UnregisteredOp):
