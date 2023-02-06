@@ -5,7 +5,7 @@ from typing import Annotated, TypeVar, Optional, List, TypeAlias
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    IndexType, ArrayAttr, IntegerType,
                                    FlatSymbolRefAttr, StringAttr,
-                                   DenseArrayBase)
+                                   DenseArrayBase, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
@@ -233,16 +233,16 @@ class Global(Operation):
     sym_name: OpAttr[StringAttr]
     sym_visibility: OpAttr[StringAttr]
     type: OpAttr[Attribute]
-    initial_value: OptOpAttr[Attribute]
+    initial_value: OpAttr[Attribute]
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
             raise Exception("Global expects a MemRefType")
 
-        if self.initial_value and not isinstance(self.initial_value,
-                                                 DenseIntOrFPElementsAttr):
+        if (not isinstance(self.initial_value, UnitAttr) and
+                not isinstance(self.initial_value, DenseIntOrFPElementsAttr)):
             raise Exception(
-                "Global expects an initial value with a dense type")
+                "Global initial value is expected to be a dense type")
 
     @staticmethod
     def get(sym_name: str | StringAttr,
