@@ -5,6 +5,7 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
                                  Mulf, Divf, Maxf, Minf)
+from xdsl.dialects.scf import If
 from xdsl.dialects.builtin import i32, f32
 
 
@@ -33,7 +34,13 @@ class Test_integer_arith_construction:
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
     def test_Cmpi_from_mnemonic(self, input):
-        _ = Cmpi.from_mnemonic(self.a, self.b, input)
+        condition = Cmpi.from_mnemonic(self.a, self.b, input)
+        assert condition.operands[0].op is self.a
+        assert condition.operands[1].op is self.b
+
+        # op = If.get(condition)
+
+        # import pdb;pdb.set_trace()
 
 
 class Test_float_arith_construction:
