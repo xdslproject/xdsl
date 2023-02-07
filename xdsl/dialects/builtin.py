@@ -640,6 +640,24 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class DenseResourceAttr(ParametrizedAttribute):
+    name = "dense_resource"
+
+    resource_handle: ParameterDef[StringAttr]
+
+    # Should be a ShapedType, but this is not defined yet in xDSL
+    type: ParameterDef[Attribute]
+
+    @staticmethod
+    @builder
+    def from_params(handle: str | StringAttr,
+                    type: Attribute) -> DenseResourceAttr:
+        if isinstance(handle, str):
+            handle = StringAttr.from_str(handle)
+        return DenseResourceAttr([handle, type])
+
+
+@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 
@@ -753,6 +771,7 @@ Builtin = Dialect(
         ArrayAttr,
         DictionaryAttr,
         DenseIntOrFPElementsAttr,
+        DenseResourceAttr,
         UnitAttr,
         FloatData,
         NoneAttr,
