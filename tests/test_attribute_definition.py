@@ -632,3 +632,36 @@ def test_invalid_field():
     """Check that untyped fields are not allowed."""
     with pytest.raises(PyRDLAttrDefinitionError):
         irdl_attr_definition(InvalidUntypedFieldTestAttr)
+
+
+@irdl_attr_definition
+class OveriddenInitAttr(ParametrizedAttribute):
+    name = "test.overidden_init"
+
+    param: ParameterDef[Attribute]
+
+    def __init__(self, param: int | str):
+        if isinstance(param, int):
+            super().__init__([IntData(param)])
+        elif isinstance(param, str):
+            super().__init__([StringData(param)])
+        else:
+            raise TypeError("Expected `int` or `str` type in "
+                            "OveriddenInitAttr constructor")
+
+
+def test_generic_constructor():
+    """Test the generic constructor of a ParametrizedAttribute."""
+
+    param = IntData(42)
+    attr = OveriddenInitAttr.new([param])
+
+    assert isinstance(attr, OveriddenInitAttr)
+    assert attr.param == param
+
+
+def test_custom_constructor():
+    """Test the use of custom constructors in ParametrizedAttribute."""
+
+    assert OveriddenInitAttr.new([IntData(42)]) == OveriddenInitAttr(42)
+    assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")

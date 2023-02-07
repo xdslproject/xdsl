@@ -311,10 +311,24 @@ class Data(Generic[DataElement], Attribute, ABC):
         """Print the attribute parameter."""
 
 
+_PA = TypeVar("_PA", bound="ParametrizedAttribute")
+
+
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
     parameters: list[Attribute] = field(default_factory=list)
+
+    @classmethod
+    def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+        # Create the new attribute object, without calling its __init__.
+        # We do this to allow users to redefine their own __init__.
+        attr = cls.__new__(cls)
+
+        # Call the __init__ of ParametrizedAttribute, which will set the
+        # parameters field.
+        ParametrizedAttribute.__init__(attr, params)
+        return attr
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
