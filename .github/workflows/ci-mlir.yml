@@ -101,6 +101,7 @@ jobs:
         coverage report
         coverage xml
         ls -la
+        pwd
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
@@ -108,6 +109,6 @@ jobs:
       with:
         fail_ci_if_error: true
         verbose: true
-        directory: ${GITHUB_WORKSPACE}/xdsl/
+        directory: ${GITHUB_WORKSPACE}/
         files: coverage.xml
         token: ${{ secrets.CODECOV_TOKEN }}
