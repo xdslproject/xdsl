@@ -17,11 +17,12 @@ from typing import TypeVar, Iterable
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
-    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    VectorType, FlatSymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr, UnregisteredOp,
-    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    AnyFloat, AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntegerType,
+    Signedness, StringAttr, IntegerAttr, ArrayAttr, TensorType,
+    UnrankedTensorType, VectorType, FlatSymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp,
+    UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -1315,7 +1316,8 @@ class BaseParser(ABC):
                                          for span in str_lit_list),
                                        type=type)
 
-    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
+    def _parse_builtin_dense_resource_attr(self,
+                                           _name: Span) -> DenseResourceAttr:
         err_msg = ("Malformed dense_resource attribute, format must be "
                    "(`dense_resource` `<` resource-handle `>`)")
         self.parse_characters("<", err_msg)
