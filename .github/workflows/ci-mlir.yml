@@ -94,6 +94,13 @@ jobs:
         export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
         lit -v tests/filecheck/ -DCOVERAGE -DEXEC_DIR=$(pwd)
 
+    - name: Combine coverage data
+      run: |
+        cd xdsl
+        coverage combine --append
+        coverage report
+        coverage xml
+
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
       uses: codecov/codecov-action@v3
