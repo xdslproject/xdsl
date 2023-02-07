@@ -52,7 +52,10 @@ jobs:
         pip install --upgrade pip
 
     - name: Install the package locally
-      run: pip install -e xdsl[extras]
+      run: |
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        pip install -e .[extras]
 
     - name: Install CI dependencies
       run: |
