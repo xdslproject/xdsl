@@ -1412,7 +1412,6 @@ class BaseParser(ABC):
                                          Attribute]]) -> dict[str, Attribute]:
         """
         Convert a list of tuples (Span, Attribute) to a dictionary.
-
         This function converts the span to a string, trimming quotes from string literals
         """
 
@@ -1529,7 +1528,7 @@ class BaseParser(ABC):
             - a list of successor names
             - the attributes attached to the OP
             - the regions of the op
-            - An optional function type. If not supplied, `parse_op_result_list` "
+            - An optional function type. If not supplied, `parse_op_result_list`
               must return a second value containing the types of the returned SSAValues
 
         """
