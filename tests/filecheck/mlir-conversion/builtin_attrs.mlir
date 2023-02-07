@@ -148,5 +148,16 @@
 
   // CHECK: dense_resource<resource_1> : tensor<1xi32>
 
+  "func.func"() ({}) {function_type = () -> (), 
+                      type_attr = index,
+                      sym_name = "memref"} : () -> ()
+
+  // CHECK: "type_attr" = index
+
+  "func.func"() ({}) {function_type = () -> (), 
+                      type_attr = !index,
+                      sym_name = "memref"} : () -> ()
+
+  // CHECK: "type_attr" = index
 
 }) : () -> ()

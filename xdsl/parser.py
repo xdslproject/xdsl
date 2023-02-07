@@ -1665,6 +1665,12 @@ class MLIRParser(BaseParser):
 
             return value
 
+        # In MLIR, a type can be parsed at any attribute location.
+        # While MLIR wraps the type in a `TypeAttr`, we do not require this
+        # in xDSL.
+        if (type := self.try_parse_type()) is not None:
+            return type
+
         # If it isn't a dialect attr, parse builtin
         builtin_val = self.try_parse_builtin_attr()
 
