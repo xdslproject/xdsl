@@ -100,5 +100,5 @@ jobs:
       with:
         fail_ci_if_error: true
         verbose: true
-        directory: ${GITHUB_WORKSPACE}/xdsl/
+        directory: ${GITHUB_WORKSPACE}/xdsl/xdsl/
         token: ${{ secrets.CODECOV_TOKEN }}
