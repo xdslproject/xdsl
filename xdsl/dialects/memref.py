@@ -239,10 +239,10 @@ class Global(Operation):
         if not isinstance(self.type, MemRefType):
             raise Exception("Global expects a MemRefType")
 
-        if (not isinstance(self.initial_value, UnitAttr) and
-                not isinstance(self.initial_value, DenseIntOrFPElementsAttr)):
-            raise Exception(
-                "Global initial value is expected to be a dense type")
+        if not isinstance(self.initial_value,
+                          UnitAttr | DenseIntOrFPElementsAttr):
+            raise Exception("Global initial value is expected to be a "
+                            "dense type or an unit attribute")
 
     @staticmethod
     def get(sym_name: str | StringAttr,
