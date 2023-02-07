@@ -1,13 +1,13 @@
 from __future__ import annotations
-from itertools import chain
-
 import re
+import sys
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
+from itertools import chain
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, Tuple, TypeVar, cast, Iterator, ClassVar)
-import sys
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -113,8 +113,10 @@ class Use:
 
 @dataclass
 class SSAValue(ABC):
-    """A reference to an SSA variable.
-    An SSA variable is either an operation result, or a basic block argument."""
+    """
+    A reference to an SSA variable.
+    An SSA variable is either an operation result, or a basic block argument.
+    """
 
     typ: Attribute
     """Each SSA variable is associated to a type."""
@@ -585,9 +587,9 @@ class Operation(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two operations are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known "
-        "to be equivalent. This enables checking whether the use dependencies and "
-        "successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known
+        to be equivalent. This enables checking whether the use dependencies and
+        successors are equivalent.
         """
         if context is None:
             context = {}
@@ -850,9 +852,9 @@ class Block(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two blocks are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known "
-        "to be equivalent. This enables checking whether the use dependencies and "
-        "successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known
+        to be equivalent. This enables checking whether the use dependencies and
+        successors are equivalent.
         """
         if context is None:
             context = {}
@@ -1086,9 +1088,9 @@ class Region(IRNode):
             context: Optional[dict[IRNode, IRNode]] = None) -> bool:
         """
         Check if two regions are structurally equivalent.
-        The context is a mapping of IR nodes to IR nodes that are already known "
-        "to be equivalent. This enables checking whether the use dependencies and "
-        "successors are equivalent.
+        The context is a mapping of IR nodes to IR nodes that are already known
+        to be equivalent. This enables checking whether the use dependencies and
+        successors are equivalent.
         """
         if context is None:
             context = {}

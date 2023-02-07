@@ -58,7 +58,7 @@ class Printer:
                 self.print_region(arg)
                 continue
             if isinstance(arg, Block):
-                self.print_block_name(arg)
+                self.print_block(arg)
                 continue
             if isinstance(arg, Operation):
                 self.print_op(arg)
@@ -225,7 +225,10 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def _print_named_block(self, block: Block) -> None:
+    def print_block(self, block: Block) -> None:
+        if not isinstance(block, Block):
+            raise TypeError('Expected a Block; got %s' % type(block).__name__)
+
         self.print_block_name(block)
         if len(block.args) > 0:
             self.print("(")
@@ -245,6 +248,9 @@ class Printer:
         self.print_attribute(arg.typ)
 
     def print_region(self, region: Region) -> None:
+        if not isinstance(region, Region):
+            raise TypeError('Expected a Region; got %s' %
+                            type(region).__name__)
         if len(region.blocks) == 0:
             self.print("{}")
             return
@@ -258,7 +264,7 @@ class Printer:
         self.print("{")
         self._print_new_line()
         for block in region.blocks:
-            self._print_named_block(block)
+            self.print_block(block)
         self.print("}")
 
     def print_regions(self, regions: List[Region]) -> None:
@@ -585,6 +591,9 @@ class Printer:
                 self.print(")")
 
     def _print_op(self, op: Operation) -> None:
+        if not isinstance(op, Operation):
+            raise TypeError('Expected an Operation; got %s' %
+                            type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         if isinstance(op, UnregisteredOp):
