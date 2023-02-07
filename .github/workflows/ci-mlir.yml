@@ -107,6 +107,6 @@ jobs:
       with:
         fail_ci_if_error: true
         verbose: true
-        directory: ${GITHUB_WORKSPACE}/../
+        directory: ${GITHUB_WORKSPACE}/xdsl/
         files: coverage.xml
         token: ${{ secrets.CODECOV_TOKEN }}
