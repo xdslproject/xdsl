@@ -665,6 +665,19 @@ class DenseArrayBase(ParametrizedAttribute):
                            | Float64Type]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
+    def verify(self):
+        if isinstance(self.elt_type, IntegerType):
+            for d in self.data.data:
+                if isinstance(d, FloatData):
+                    raise VerifyException(
+                        "dense array of integer element type "
+                        "should only contain integers")
+        else:
+            for d in self.data.data:
+                if isinstance(d, IntAttr):
+                    raise VerifyException("dense array of float element type "
+                                          "should only contain floats")
+
     @staticmethod
     @builder
     def create_dense_int_or_index(typ: IntegerType | IndexType,
