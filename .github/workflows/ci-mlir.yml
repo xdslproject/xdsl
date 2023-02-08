@@ -91,7 +91,7 @@ jobs:
           ref: ${{ env.MLIR-Version }}
 
       - name: Install Python Bindings Requirements
-        run: pip install -r ${GITHUB_WORKSPACE}/xdsl/llvm-project/mlir/python/requirements.txt
+        run: pip install -r ${GITHUB_WORKSPACE}/llvm-project/mlir/python/requirements.txt
 
       - name: MLIR Build Setup
         if: steps.cache-binary.outputs.cache-hit != 'true'
