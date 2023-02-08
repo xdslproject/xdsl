@@ -294,11 +294,33 @@ class Attribute(ABC):
 
 DataElement = TypeVar("DataElement")
 
+_D = TypeVar("_D", bound="Data[Any]")
+
 
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
     data: DataElement
+
+    @classmethod
+    def new(cls: type[_D], params: Any) -> _D:
+        """
+        Create a new `Data` given its parameter.
+
+        The `params` argument should be of the same type as the `Data` generic
+        argument.
+
+        This function should be preferred over `__init__` when instantiating
+        attributes in a generic way (i.e., without knowing their concrete type
+        statically).
+        """
+        # Create the new attribute object, without calling its __init__.
+        # We do this to allow users to redefine their own __init__.
+        attr = cls.__new__(cls)
+
+        # Call the __init__ of Data, which will set the parameters field.
+        Data[Any].__init__(attr, params)
+        return attr
 
     @staticmethod
     @abstractmethod
@@ -321,6 +343,13 @@ class ParametrizedAttribute(Attribute):
 
     @classmethod
     def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+        """
+        Create a new `ParametrizedAttribute` given its parameters.
+
+        This function should be preferred over `__init__` when instantiating
+        attributes in a generic way (i.e., without knowing their concrete type
+        statically).
+        """
         # Create the new attribute object, without calling its __init__.
         # We do this to allow users to redefine their own __init__.
         attr = cls.__new__(cls)
