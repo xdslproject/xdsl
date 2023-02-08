@@ -3,7 +3,6 @@ import sys
 import os
 from io import IOBase, StringIO
 import coverage
-from typing.io import IO
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
@@ -23,7 +22,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
-from typing import Dict, Callable, List
+from typing import IO, Dict, Callable, List
 
 
 class xDSLOptMain:
@@ -34,7 +33,7 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]]
+    available_frontends: Dict[str, Callable[[IO[str]], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -45,7 +44,7 @@ class xDSLOptMain:
     A mapping from pass names to functions that apply the pass to a  ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]]
+    available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
     stream.
@@ -110,7 +109,7 @@ class xDSLOptMain:
         self.print_to_output_stream(contents)
 
         if self.args.generate_coverage:
-            cov.stop()
+            cov.stop()  # type: ignore (reportUnboundVariable)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -224,11 +223,11 @@ class xDSLOptMain:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_xdsl(io: IOBase):
+        def parse_xdsl(io: IO[str]):
             return XDSLParser(self.ctx, io.read(), self.get_input_name(),
                               self.args.allow_unregistered_ops).parse_module()
 
-        def parse_mlir(io: IOBase):
+        def parse_mlir(io: IO[str]):
             return MLIRParser(self.ctx, io.read(), self.get_input_name(),
                               self.args.allow_unregistered_ops).parse_module()
 
@@ -250,15 +249,15 @@ class xDSLOptMain:
         Add other/additional targets by overloading this function.
         """
 
-        def _output_xdsl(prog: ModuleOp, output: IOBase):
+        def _output_xdsl(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output)
             printer.print_op(prog)
 
-        def _output_mlir(prog: ModuleOp, output: IOBase):
+        def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output, target=Printer.Target.MLIR)
             printer.print_op(prog)
 
-        def _output_irdl(prog: ModuleOp, output: IOBase):
+        def _output_irdl(prog: ModuleOp, output: IO[str]):
             irdl_to_mlir = IRDLPrinter(stream=output)
             irdl_to_mlir.print_module(prog)
 
