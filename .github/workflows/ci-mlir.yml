@@ -83,7 +83,7 @@ jobs:
         uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
       - name: Checkout MLIR
-        if: steps.cache-binary.outputs.cache-hit != 'true' || steps.cache-requirements.outputs.cache-hit != true
+        if: ${{ (steps.cache-binary.outputs.cache-hit != 'true') || (steps.cache-requirements.outputs.cache-hit != true) }}
         uses: actions/checkout@v3
         with:
           repository: llvm/llvm-project.git
@@ -100,9 +100,8 @@ jobs:
           cd llvm-project/build
           cmake -G Ninja ../llvm -DPython3_EXECUTABLE=python3 -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_LLD=ON -DMLIR_ENABLE_BINDINGS_PYTHON=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON
 
-
       - name: Restore binary folder on reclone
-        if: steps.cache-binary.outputs.cache-hit == 'true' && steps.cache-requirements.outputs.cache-hit != true
+        if: ${{ (steps.cache-binary.outputs.cache-hit == 'true') && (steps.cache-requirements.outputs.cache-hit != true) }}
         uses: actions/cache/restore@v3
         with:
           path: llvm-project/build
@@ -114,12 +113,6 @@ jobs:
         run: |
           cd llvm-project/build
           cmake --build . --target mlir-opt MLIRPythonModules
-
-      - name: diag
-        run: |
-          echo $PYTHONPATH
-          ls -R ${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
-          cat ${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core/mlir/_mlir_libs/_mlir/ir.pyi
 
       - name: Test with pytest and generate code coverage
         run: |
