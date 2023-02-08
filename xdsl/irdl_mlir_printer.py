@@ -1,4 +1,4 @@
-from io import IOBase
+from typing import IO
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
@@ -16,7 +16,7 @@ from xdsl.dialects.irdl import (
 @dataclass(frozen=True, eq=False)
 class IRDLPrinter:
 
-    stream: IOBase
+    stream: IO[str]
 
     def _print(self, s: str, end: str | None = None):
         print(s, file=self.stream, end=end)
