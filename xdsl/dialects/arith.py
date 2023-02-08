@@ -49,7 +49,9 @@ class BinaryOperation(Operation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+        if len(self.operands) != 2 or len(self.results) != 1:
+            raise VerifyException("Binary operation expects 2 operands and 1 result.")
+        if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
             raise VerifyException(
                 "expect all input and result types to be equal")
 
