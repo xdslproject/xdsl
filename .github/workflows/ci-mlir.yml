@@ -77,7 +77,14 @@ jobs:
       run: |
         mkdir -p llvm-project/build
         cd llvm-project/build
-        cmake -G Ninja ../llvm -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_LLD=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON
+        cmake -G Ninja ../llvm \
+          -DLLVM_ENABLE_PROJECTS=mlir \
+          -DLLVM_TARGETS_TO_BUILD="X86" \
+          -DLLVM_ENABLE_LLD=ON \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DLLVM_ENABLE_ASSERTIONS=ON
 
     - name: MLIR Build
       if: steps.cache-binary.outputs.cache-hit != 'true'
@@ -90,7 +97,6 @@ jobs:
         cd xdsl
         # Add the MLIR Python bindings to the PYTHONPATH
         export PYTHONPATH=${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
-        echo $PYTHONPATH
         pytest --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
