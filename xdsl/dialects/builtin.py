@@ -112,14 +112,15 @@ class SignednessAttr(Data[Signedness]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Signedness:
-        # Is this ever used? TOADD tests?
-        if parser.parse_optional_string("signless") is not None:
+        value = parser.expect(parser.try_parse_bare_id,
+                              "Expected `signless`, `signed`, or `unsigned`.")
+        if value.text == "signless":
             return Signedness.SIGNLESS
-        elif parser.parse_optional_string("signed") is not None:
+        elif value.text == "signed":
             return Signedness.SIGNED
-        elif parser.parse_optional_string("unsigned") is not None:
+        elif value.text == "unsigned":
             return Signedness.UNSIGNED
-        raise ParseError(parser.get_pos(), "Expected signedness")
+        raise ParseError(value, "Expected signedness")
 
     @staticmethod
     def print_parameter(data: Signedness, printer: Printer) -> None:
@@ -838,6 +839,7 @@ Builtin = Dialect(
         Float32Type,
         Float64Type,
         FloatAttr,
+        SignednessAttr,
         TupleType,
         IntegerType,
         IndexType,
