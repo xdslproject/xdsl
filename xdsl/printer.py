@@ -446,8 +446,7 @@ class Printer:
         # Dense resources have an alias in MLIR, but not in xDSL
         if isinstance(attribute, DenseResourceAttr):
             handle = attribute.resource_handle.data
-            type = attribute.type
-            self.print(f"dense_resource<{handle}> : ", type)
+            self.print(f"dense_resource<{handle}> : ", attribute.type)
             return
 
         # vector types have an alias in MLIR, but not in xDSL
