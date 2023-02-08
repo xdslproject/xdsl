@@ -24,7 +24,6 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
     #  bitmask = ParameterDef(StringAttr)
 
     @staticmethod
-    @builder
     def from_type_list(types: list[Attribute]) -> LLVMStructType:
         return LLVMStructType(
             [StringAttr.from_str(""),

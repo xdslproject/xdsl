@@ -32,9 +32,9 @@ class FuncOp(Operation):
                       func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes = {
-            "sym_name": name,
+            "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": "private"
+            "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes,
                           regions=[
@@ -48,9 +48,9 @@ class FuncOp(Operation):
                     return_types: List[Attribute], region: Region) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes = {
-            "sym_name": name,
+            "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": "private"
+            "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op
@@ -70,6 +70,8 @@ class Call(Operation):
     def get(callee: Union[str, SymbolRefAttr], ops: List[Union[SSAValue,
                                                                Operation]],
             return_types: List[Attribute]) -> Call:
+        if isinstance(callee, str):
+            callee = SymbolRefAttr.from_str(callee)
         return Call.build(operands=[ops],
                           result_types=[return_types],
                           attributes={"callee": callee})

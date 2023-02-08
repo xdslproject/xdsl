@@ -480,7 +480,6 @@ class ListData(GenericData[list[A]]):
         return DataListAttr(irdl_to_attr_constraint(args[0]))
 
     @staticmethod
-    @builder
     def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
 
