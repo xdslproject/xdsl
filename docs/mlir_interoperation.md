@@ -26,4 +26,4 @@ mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --conve
 The generated `tmp.ll` file contains LLVM IR, so it can be directly passed to
 the clang compiler. Notice that a `main` function is required for clang to
 build. The functionality is tested with the MLIR git commit hash:
-74992f4a5bb79e2084abdef406ef2e5aa2024368
+89996621de073e43de7bed552037b10d2a0fdf80

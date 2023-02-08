@@ -658,6 +658,61 @@ class DenseResourceAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class DenseArrayBase(ParametrizedAttribute):
+    name = "array"
+
+    elt_type: ParameterDef[IntegerType | Float16Type | Float32Type
+                           | Float64Type]
+    data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
+
+    def verify(self):
+        if isinstance(self.elt_type, IntegerType):
+            for d in self.data.data:
+                if isinstance(d, FloatData):
+                    raise VerifyException(
+                        "dense array of integer element type "
+                        "should only contain integers")
+        else:
+            for d in self.data.data:
+                if isinstance(d, IntAttr):
+                    raise VerifyException("dense array of float element type "
+                                          "should only contain floats")
+
+    @staticmethod
+    @builder
+    def create_dense_int_or_index(typ: IntegerType | IndexType,
+                                  data: List[int | IntAttr]) -> DenseArrayBase:
+        attr_list = [
+            IntAttr.from_int(d) if isinstance(d, int) else d for d in data
+        ]
+        return DenseArrayBase([typ, ArrayAttr.from_list(attr_list)])
+
+    @staticmethod
+    @builder
+    def create_dense_float(
+            typ: Float16Type | Float32Type | Float64Type,
+            data: List[int | float | FloatData]) -> DenseArrayBase:
+        data_attr = [
+            FloatData.from_float(float(d)) if isinstance(d, float | int) else d
+            for d in data
+        ]
+        return DenseArrayBase([typ, ArrayAttr.from_list(data_attr)])
+
+    @staticmethod
+    @builder
+    def from_list(
+        type: Attribute, data: List[int | AnyIntegerAttr]
+        | List[int | float | AnyFloatAttr]
+    ) -> DenseArrayBase:
+        if isinstance(type, IndexType | IntegerType):
+            return DenseArrayBase.create_dense_int_or_index(type, data)
+        elif isinstance(type, AnyFloat):
+            return DenseArrayBase.create_dense_float(type, data)
+        else:
+            raise TypeError(f"Unsupported element type {type}")
+
+
+@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 

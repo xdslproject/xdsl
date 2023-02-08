@@ -17,11 +17,12 @@ from typing import TypeVar, Iterable
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
-    AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
-    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    VectorType, FlatSymbolRefAttr, DenseIntOrFPElementsAttr, UnregisteredOp,
-    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    AnyFloat, AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntegerType,
+    Signedness, StringAttr, IntegerAttr, ArrayAttr, TensorType,
+    UnrankedTensorType, VectorType, FlatSymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp,
+    UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -1066,6 +1067,10 @@ class BaseParser(ABC):
 
         raise ParseError(at_position, msg, self.tokenizer.history)
 
+    def try_parse_characters(self, text: str) -> Span | None:
+        with self.tokenizer.backtracking("characters"):
+            return self.parse_characters(text, "Expected " + text)
+
     def parse_characters(self, text: str, msg: str) -> Span:
         if (match := self.tokenizer.next_token_of_pattern(text)) is None:
             self.raise_error(msg)
@@ -1272,14 +1277,15 @@ class BaseParser(ABC):
                 'dense': self._parse_builtin_dense_attr,
                 'opaque': self._parse_builtin_opaque_attr,
                 'dense_resource': self._parse_builtin_dense_resource_attr,
+                'array': self._parse_builtin_array_attr,
             }
 
-            def not_implemented():
+            def not_implemented(_name: Span):
                 raise NotImplementedError()
 
-            return parsers.get(name.text, not_implemented)()
+            return parsers.get(name.text, not_implemented)(name)
 
-    def _parse_builtin_dense_attr(self) -> Attribute | None:
+    def _parse_builtin_dense_attr(self, _name: Span) -> Attribute | None:
         err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"  # noqa
         self.parse_characters("<", err_msg)
         info = list(self._parse_builtin_dense_attr_args())
@@ -1289,7 +1295,7 @@ class BaseParser(ABC):
                            "Dense attribute must be typed!")
         return DenseIntOrFPElementsAttr.from_list(type, info)
 
-    def _parse_builtin_opaque_attr(self):
+    def _parse_builtin_opaque_attr(self, _name: Span):
         self.parse_characters("<", "Opaque attribute must be parametrized")
         str_lit_list = self.parse_list_of(self.try_parse_string_literal,
                                           'Expected opaque attr here!')
@@ -1310,7 +1316,8 @@ class BaseParser(ABC):
                                          for span in str_lit_list),
                                        type=type)
 
-    def _parse_builtin_dense_resource_attr(self) -> DenseResourceAttr:
+    def _parse_builtin_dense_resource_attr(self,
+                                           _name: Span) -> DenseResourceAttr:
         err_msg = ("Malformed dense_resource attribute, format must be "
                    "(`dense_resource` `<` resource-handle `>`)")
         self.parse_characters("<", err_msg)
@@ -1320,6 +1327,38 @@ class BaseParser(ABC):
         type = self.expect(self.try_parse_type,
                            "Dense resource attribute must be typed!")
         return DenseResourceAttr.from_params(resource_handle.text, type)
+
+    def _parse_builtin_array_attr(self, name: Span) -> DenseArrayBase | None:
+        err_msg = (
+            "Malformed dense array, format must be "
+            "`array` `<` (integer-type | float-type) (`:` tensor-literal)? `>`"
+        )
+        self.parse_characters("<", err_msg)
+        element_type = self.parse_attribute()
+
+        if not isinstance(element_type, IntegerType | AnyFloat):
+            raise ParseError(
+                name, "dense array element type must be an "
+                "integer or floating point type")
+
+        # Empty array
+        if self.try_parse_characters(">"):
+            return DenseArrayBase.from_list(element_type, [])
+
+        self.parse_characters(":", err_msg)
+
+        def try_parse_dense_array_value() -> int | float | None:
+            if (v := self.try_parse_float_literal()) is not None:
+                return float(v.text)
+            if (v := self.try_parse_integer_literal()) is not None:
+                return int(v.text)
+            return None
+
+        values = self.parse_list_of(try_parse_dense_array_value,
+                                    "Expected tensor literal here!")
+        self.parse_characters(">", err_msg)
+
+        return DenseArrayBase.from_list(element_type, values)
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """

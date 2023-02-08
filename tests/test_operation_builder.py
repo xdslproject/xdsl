@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import Annotated
 import pytest
 
-from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, VectorType,
-                                   IntegerType, Operation, StringAttr, i32)
+from xdsl.dialects.builtin import (DenseArrayBase, VectorType, IntegerType,
+                                   Operation, StringAttr, i32)
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region
@@ -94,12 +94,9 @@ def test_two_var_result_builder():
         StringAttr.from_int(3)
     ]
 
-    dense_type = VectorType.from_element_type_and_shape(
-        IntegerType.from_width(32), [2])
-
-    assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
-                             dense_type, [2, 2])
+    assert op.attributes[
+        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [2, 2])
 
 
 def test_two_var_result_builder2():
@@ -111,11 +108,9 @@ def test_two_var_result_builder2():
         StringAttr.from_int(2),
         StringAttr.from_int(3)
     ]
-    dense_type = VectorType.from_element_type_and_shape(
-        IntegerType.from_width(32), [2])
-    assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
-                             dense_type, [1, 3])
+    assert op.attributes[
+        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [1, 3])
 
 
 @irdl_op_definition
@@ -139,11 +134,9 @@ def test_var_mixed_builder():
         StringAttr.from_int(4)
     ]
 
-    dense_type = VectorType.from_element_type_and_shape(
-        IntegerType.from_width(32), [3])
-    assert op.attributes[AttrSizedResultSegments.
-                         attribute_name] == DenseIntOrFPElementsAttr.from_list(
-                             dense_type, [2, 1, 2])
+    assert op.attributes[
+        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [2, 1, 2])
 
 
 #   ___                                 _
@@ -232,12 +225,9 @@ def test_two_var_operand_builder():
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
-    dense_type = VectorType.from_element_type_and_shape(
-        IntegerType.from_width(32), [2])
     assert op2.attributes[
-        AttrSizedOperandSegments.
-        attribute_name] == DenseIntOrFPElementsAttr.from_list(
-            dense_type, [2, 2])
+        AttrSizedOperandSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [2, 2])
 
 
 def test_two_var_operand_builder2():
@@ -245,12 +235,9 @@ def test_two_var_operand_builder2():
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
-    dense_type = VectorType.from_element_type_and_shape(
-        IntegerType.from_width(32), [2])
     assert op2.attributes[
-        AttrSizedOperandSegments.
-        attribute_name] == DenseIntOrFPElementsAttr.from_list(
-            dense_type, [1, 3])
+        AttrSizedOperandSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [1, 3])
 
 
 #      _   _   _        _ _           _

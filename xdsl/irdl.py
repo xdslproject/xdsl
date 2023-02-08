@@ -714,8 +714,8 @@ def get_variadic_sizes_from_attr(op: Operation,
     Get the sizes of the variadic definitions
     from the corresponding attribute.
     """
-    # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+    # Circular import because DenseArrayBase is defined using IRDL
+    from xdsl.dialects.builtin import DenseArrayBase, i32
 
     # Check that the attribute is present
     if size_attribute_name not in op.attributes:
@@ -723,12 +723,17 @@ def get_variadic_sizes_from_attr(op: Operation,
             f"Expected {size_attribute_name} attribute in {op.name} operation."
         )
     attribute = op.attributes[size_attribute_name]
-    if not isinstance(attribute, DenseIntOrFPElementsAttr):
+    if not isinstance(attribute, DenseArrayBase):
         raise VerifyException(f"{size_attribute_name} attribute is expected "
-                              "to be a DenseIntOrFPElementsAttr.")
-    def_sizes: list[int] = [
-        size_attr.value.data for size_attr in attribute.data.data
-    ]
+                              "to be a DenseArrayBase.")
+
+    if attribute.elt_type != i32:
+        raise VerifyException(
+            f"{size_attribute_name} attribute is expected to "
+            "be a DenseArrayBase of i32")
+    def_sizes = cast(list[int],
+                     [size_attr.data for size_attr in attribute.data.data])
+
     if len(def_sizes) != len(defs):
         raise VerifyException(
             f"expected {len(defs)} values in "
@@ -956,10 +961,10 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                     regions: Sequence[Any | None]) -> _OpT:
     """Builder for an irdl operation."""
 
-    # We need irdl to define DenseIntOrFPElementsAttr, but here we need
-    # DenseIntOrFPElementsAttr.
+    # We need irdl to define DenseArrayBase, but here we need
+    # DenseArrayBase.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, i32)
+    from xdsl.dialects.builtin import (DenseArrayBase, i32)
 
     error_prefix = f"Error in {op_def.name} builder: "
 
@@ -993,12 +998,12 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
     if AttrSizedOperandSegments() in op_def.options:
         sizes = operand_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
+            DenseArrayBase.from_list(i32, sizes)
 
     if AttrSizedResultSegments() in op_def.options:
         sizes = result_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
+            DenseArrayBase.from_list(i32, sizes)
 
     return cls.create(operands=built_operands,
                       result_types=built_res_types,

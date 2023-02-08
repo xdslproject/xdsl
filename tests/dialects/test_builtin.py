@@ -1,4 +1,9 @@
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, f32, FloatAttr
+import pytest
+
+from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
+                                   i32, f32, FloatAttr, ArrayAttr, IntAttr,
+                                   FloatData)
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -28,4 +33,15 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert value4 == 5.0
 
 
-# TODO: Add more tests for the builtin dialect.
+def test_DenseArrayBase_verifier_failure():
+    # Check that a malformed attribute raises a verify error
+
+    with pytest.raises(VerifyException) as err:
+        DenseArrayBase([f32, ArrayAttr.from_list([IntAttr(0)])])
+    assert err.value.args[0] == ("dense array of float element type "
+                                 "should only contain floats")
+
+    with pytest.raises(VerifyException) as err:
+        DenseArrayBase([i32, ArrayAttr.from_list([FloatData(0.0)])])
+    assert err.value.args[0] == ("dense array of integer element type "
+                                 "should only contain integers")
