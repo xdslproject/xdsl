@@ -1,7 +1,7 @@
 import argparse
 import sys
 import os
-from io import IOBase, StringIO
+from io import StringIO
 import coverage
 
 from xdsl.ir import MLContext
