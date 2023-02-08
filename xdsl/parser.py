@@ -17,12 +17,12 @@ from typing import TypeVar, Iterable
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyVectorType, DenseResourceAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, FunctionType, IndexType, IntegerType,
-    Signedness, StringAttr, IntegerAttr, ArrayAttr, TensorType,
-    UnrankedTensorType, VectorType, FlatSymbolRefAttr, DenseArrayBase,
-    DenseIntOrFPElementsAttr, UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64)
+    AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
+    DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type, Float64Type,
+    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
+    FlatSymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
+    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -357,6 +357,7 @@ class Tokenizer:
 
         If an unexpected exception type is encountered, print a traceback to stderr
         """
+        assert self.last_token is not None
         if isinstance(ex, ParseError):
             return BacktrackingHistory(ex, self.history, region, pos)
         elif isinstance(ex, AssertionError):
@@ -992,7 +993,7 @@ class BaseParser(ABC):
                 # Parse rank:
                 return list(self.try_parse_numerical_dims(lower_bound=0))
 
-    def parse_tensor_attrs(self) -> AnyTensorType:
+    def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape = self._parse_tensor_or_memref_dims()
         type = self.try_parse_type()
 
@@ -1001,10 +1002,10 @@ class BaseParser(ABC):
 
         if self.tokenizer.starts_with(','):
             # TODO: add tensor encoding!
-            raise self.raise_error("Parsing tensor encoding is not supported!")
+            self.raise_error("Parsing tensor encoding is not supported!")
 
         if shape is None and self.tokenizer.starts_with(','):
-            raise self.raise_error("Unranked tensors don't have an encoding!")
+            self.raise_error("Unranked tensors don't have an encoding!")
 
         if shape is not None:
             return TensorType.from_type_and_list(type, shape)
@@ -1662,15 +1663,8 @@ class BaseParser(ABC):
                         'Expected integer literal here').text)
 
     def try_parse_builtin_dict_attr(self):
-        attr_def = self.ctx.get_optional_attr('dictionary')
-        if attr_def is None:
-            self.raise_error(
-                "An attribute named `dictionary` must be available in the "
-                "context in order to parse dictionary attributes! Please make "
-                "sure the builtin dialect is available, or provide your own "
-                "replacement!")
-        param = attr_def.parse_parameter(self)
-        return attr_def(param)
+        param = DictionaryAttr.parse_parameter(self)
+        return DictionaryAttr(param)
 
 
 class MLIRParser(BaseParser):
@@ -1683,7 +1677,7 @@ class MLIRParser(BaseParser):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:
-                raise self.raise_error("Expected builtin name!")
+                self.raise_error("Expected builtin name!")
 
             return self._parse_builtin_type_with_name(name)
 
