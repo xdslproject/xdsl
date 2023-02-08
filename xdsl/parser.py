@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import TypeVar, Iterable
+from typing import Any, TypeVar, Iterable, IO
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
@@ -53,7 +53,7 @@ class BacktrackingHistory:
     region_name: str | None
     pos: int
 
-    def print_unroll(self, file=sys.stderr):
+    def print_unroll(self, file: IO[str] = sys.stderr):
         if self.parent:
             if self.parent.get_farthest_point() > self.pos:
                 self.parent.print_unroll(file)
@@ -62,7 +62,7 @@ class BacktrackingHistory:
                 self.print(file)
                 self.parent.print_unroll(file)
 
-    def print(self, file=sys.stderr):
+    def print(self, file: IO[str] = sys.stderr):
         print("Parsing of {} failed:".format(self.region_name or "<unknown>"),
               file=file)
         self.error.print_pretty(file=file)
@@ -418,7 +418,7 @@ class Tokenizer:
         return span
 
     def next_token_of_pattern(self,
-                              pattern: re.Pattern | str,
+                              pattern: re.Pattern[str] | str,
                               peek: bool = False) -> Span | None:
         """
         Return a span that matched the pattern, or nothing.
@@ -514,15 +514,14 @@ class Tokenizer:
         """
         save = self.save()
 
-        if break_on is not None:
-            self.break_on = break_on
+        self.break_on = break_on
 
         try:
             yield self
         finally:
             self.break_on = save[1]
 
-    def starts_with(self, text: str | re.Pattern) -> bool:
+    def starts_with(self, text: str | re.Pattern[str]) -> bool:
         try:
             start = self.next_pos()
             if isinstance(text, re.Pattern):
@@ -609,7 +608,7 @@ class BaseParser(ABC):
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_ops=False):
+                 allow_unregistered_ops: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.ctx = ctx
         self.ssaValues = dict()
@@ -688,7 +687,7 @@ class BaseParser(ABC):
         A block label consists of block-id ( `(` block-arg `,` ... `)` )?
         """
         block_id = self.try_parse_block_id()
-        arg_list = list()
+        arg_list = list[tuple[Span, Attribute]]()
 
         if block_id is not None:
             if self.tokenizer.starts_with('('):
@@ -728,7 +727,7 @@ class BaseParser(ABC):
     def parse_list_of(self,
                       try_parse: Callable[[], T_ | None],
                       error_msg: str,
-                      separator_pattern: re.Pattern = ParserCommons.comma,
+                      separator_pattern: re.Pattern[str] = ParserCommons.comma,
                       allow_empty: bool = True) -> list[T_]:
         """
         This is a greedy list-parser. It accepts input only in these cases:
@@ -874,7 +873,7 @@ class BaseParser(ABC):
                                   "Dialect attribute must start with a `#`")
             return self._parse_dialect_type_or_attribute_inner('attribute')
 
-    def _parse_dialect_type_or_attribute_inner(self, kind: str):
+    def _parse_dialect_type_or_attribute_inner(self, kind: str) -> Attribute:
         type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
 
         if type_name is None:
@@ -1903,7 +1902,7 @@ class XDSLParser(BaseParser):
                               "Successor list is enclosed in round brackets")
         return successors
 
-    def _parse_dialect_type_or_attribute_inner(self, kind: str):
+    def _parse_dialect_type_or_attribute_inner(self, kind: str) -> Attribute:
         if self.tokenizer.starts_with('"'):
             name = self.try_parse_string_literal()
             if name is None:

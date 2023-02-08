@@ -8,7 +8,7 @@ import sys
 import typing
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any
+from typing import Any, IO
 
 if typing.TYPE_CHECKING:
     from parser import Span, BacktrackingHistory
@@ -68,10 +68,10 @@ class ParseError(Exception):
         self.msg = msg
         self.history = history
 
-    def print_pretty(self, file=sys.stderr):
+    def print_pretty(self, file: IO[str] = sys.stderr):
         print(self.span.print_with_context(self.msg), file=file)
 
-    def print_with_history(self, file=sys.stderr):
+    def print_with_history(self, file: IO[str] = sys.stderr):
         if self.history is not None:
             for h in sorted(self.history.iterate(), key=lambda h: -h.pos):
                 h.print()
@@ -100,7 +100,7 @@ class MultipleSpansParseError(ParseError):
         self.refs = refs
         self.ref_text = ref_text
 
-    def print_pretty(self, file=sys.stderr):
+    def print_pretty(self, file: IO[str] = sys.stderr):
         super(MultipleSpansParseError, self).print_pretty(file)
         print(self.ref_text or "With respect to:", file=file)
         for span, msg in self.refs:
