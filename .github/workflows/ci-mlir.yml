@@ -47,13 +47,6 @@ jobs:
         run: |
           pip install codecov
 
-      - name: Checkout MLIR
-        uses: actions/checkout@v3
-        with:
-          repository: llvm/llvm-project.git
-          path: llvm-project
-          ref: ${{ env.MLIR-Version }}
-
       - name: Cache binaries
         id: cache-binary
         uses: actions/cache@v3
@@ -63,6 +56,14 @@ jobs:
           restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
           append-timestamp: false
 
+      - name: Checkout MLIR
+        if: steps.cache-binary.outputs.cache-hit != 'true'
+        uses: actions/checkout@v3
+        with:
+          repository: llvm/llvm-project.git
+          path: llvm-project
+          ref: ${{ env.MLIR-Version }}
+
       - name: Clang Setup
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: egor-tensin/setup-clang@v1
@@ -71,21 +72,18 @@ jobs:
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
-      - name: Install Python Bindings Requirements
-        run: pip install -r ${GITHUB_WORKSPACE}/llvm-project/mlir/python/requirements.txt
-
       - name: MLIR Build Setup
         if: steps.cache-binary.outputs.cache-hit != 'true'
         run: |
           mkdir -p llvm-project/build
           cd llvm-project/build
-          cmake -G Ninja ../llvm -DPython3_EXECUTABLE=python3 -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_LLD=ON -DMLIR_ENABLE_BINDINGS_PYTHON=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON
+          cmake -G Ninja ../llvm -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_LLD=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON
 
       - name: MLIR Build
         if: steps.cache-binary.outputs.cache-hit != 'true'
         run: |
           cd llvm-project/build
-          cmake --build . --target mlir-opt MLIRPythonModules
+          cmake --build . --target mlir-opt
 
       - name: Test with pytest and generate code coverage
         run: |
