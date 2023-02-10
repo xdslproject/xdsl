@@ -75,7 +75,7 @@ jobs:
     - name: MLIR Build Setup
       if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
-        mkdir -p llvm-project/build
+        mkdir llvm-project/build
         cd llvm-project/build
         cmake -G Ninja ../llvm \
           -DLLVM_ENABLE_PROJECTS=mlir \
