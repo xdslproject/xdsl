@@ -1,26 +1,32 @@
 import pytest
 
-from typing import List
+from typing import TypeVar, List
 
-from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType, _VectorTypeElems
-from xdsl.dialects.memref import MemRefType, _MemRefTypeElement, AnyIntegerAttr
+from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
+from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
 from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
 from xdsl.ir import OpResult
+from xdsl.irdl import Attribute
+
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
 
 
 def get_MemRef_SSAVal_from_element_type_and_shape(
-    referenced_type: _MemRefTypeElement, 
-    shape: List[int | AnyIntegerAttr]
-) -> OpResult:
-    memref_type = MemRefType.from_element_type_and_shape(referenced_type, shape)
+        referenced_type: _MemRefTypeElement,
+        shape: List[int | AnyIntegerAttr]) -> OpResult:
+    memref_type = MemRefType.from_element_type_and_shape(
+        referenced_type, shape)
     return OpResult(memref_type, [], [])
 
+
 def get_Vector_SSAVal_from_element_type_and_shape(
-    referenced_type: _VectorTypeElems, 
-    shape: List[int | AnyIntegerAttr]
-) -> OpResult:
-    vector_type = VectorType.from_element_type_and_shape(referenced_type, shape)
+        referenced_type: _VectorTypeElems,
+        shape: List[int | AnyIntegerAttr]) -> OpResult:
+    vector_type = VectorType.from_element_type_and_shape(
+        referenced_type, shape)
     return OpResult(vector_type, [], [])
+
 
 def test_vectorType():
     vec = VectorType.from_element_type_and_shape(i32, [1])
@@ -57,7 +63,8 @@ def test_vector_load_i32():
 
 
 def test_vector_load_i32_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
     index1 = OpResult(IndexType, [], [])
     index2 = OpResult(IndexType, [], [])
     load = Load.get(memref_ssa_value, [index1, index2])
@@ -71,7 +78,8 @@ def test_vector_load_i32_with_dimensions():
 def test_vector_load_verify_type_matching():
     res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     load = Load.build(operands=[memref_ssa_value, []],
                       result_types=[res_vector_type])
@@ -83,7 +91,8 @@ def test_vector_load_verify_type_matching():
 
 
 def test_vector_load_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
 
     load = Load.get(memref_ssa_value, [])
 
@@ -104,8 +113,10 @@ def test_vector_store_i32():
 
 
 def test_vector_store_i32_with_dimensions():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     index1 = OpResult(IndexType, [], [])
     index2 = OpResult(IndexType, [], [])
@@ -118,8 +129,10 @@ def test_vector_store_i32_with_dimensions():
 
 
 def test_vector_store_verify_type_matching():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
@@ -130,8 +143,10 @@ def test_vector_store_verify_type_matching():
 
 
 def test_vector_store_verify_indexing_exception():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
@@ -303,8 +318,10 @@ def test_vector_fma_verify_res_acc_shape_matching():
 
 def test_vector_masked_load():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
@@ -315,9 +332,12 @@ def test_vector_masked_load():
 
 
 def test_vector_masked_load_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     index1 = OpResult(IndexType, [], [])
     index2 = OpResult(IndexType, [], [])
@@ -334,8 +354,10 @@ def test_vector_masked_load_with_dimensions():
 
 def test_vector_masked_load_verify_memref_res_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     i64_res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
@@ -353,8 +375,10 @@ def test_vector_masked_load_verify_memref_res_type_matching():
 
 def test_vector_masked_load_verify_memref_passthrough_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [1])
 
     i64_res_vector_type = VectorType.from_element_type_and_shape(i32, [1])
 
@@ -371,9 +395,12 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
 
 
 def test_vector_masked_load_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [2])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
@@ -386,8 +413,10 @@ def test_vector_masked_load_verify_indexing_exception():
 
 def test_vector_masked_load_verify_result_vector_rank():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     i32_res_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
 
@@ -404,8 +433,10 @@ def test_vector_masked_load_verify_result_vector_rank():
 
 def test_vector_masked_load_verify_mask_vector_rank():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2, 3])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [2, 3])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
@@ -417,8 +448,10 @@ def test_vector_masked_load_verify_mask_vector_rank():
 
 def test_vector_masked_load_verify_mask_vector_type():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2])
-    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2])
+    passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                 passthrough_vector_ssa_value)
@@ -430,8 +463,10 @@ def test_vector_masked_load_verify_mask_vector_type():
 
 def test_vector_masked_store():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
                                   value_to_store_vector_ssa_value)
@@ -443,9 +478,12 @@ def test_vector_masked_store():
 
 
 def test_vector_masked_store_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     index1 = OpResult(IndexType, [], [])
     index2 = OpResult(IndexType, [], [])
@@ -463,8 +501,10 @@ def test_vector_masked_store_with_dimensions():
 
 def test_vector_masked_store_verify_memref_value_to_store_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [1])
 
     maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
                                   value_to_store_vector_ssa_value)
@@ -476,9 +516,12 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
 
 
 def test_vector_masked_store_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [2])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedstore = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
                                  value_to_store_vector_ssa_value)
@@ -491,8 +534,10 @@ def test_vector_masked_store_verify_indexing_exception():
 
 def test_vector_masked_store_verify_value_to_store_vector_rank():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [1])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
 
     maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
                                   value_to_store_vector_ssa_value)
@@ -504,8 +549,10 @@ def test_vector_masked_store_verify_value_to_store_vector_rank():
 
 def test_vector_masked_store_verify_mask_vector_rank():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2, 3])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i1, [2, 3])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
                                   value_to_store_vector_ssa_value)
@@ -517,8 +564,10 @@ def test_vector_masked_store_verify_mask_vector_rank():
 
 def test_vector_masked_store_verify_mask_vector_type():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2])
-    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2])
+    value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
 
     maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
                                   value_to_store_vector_ssa_value)
