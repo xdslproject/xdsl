@@ -95,18 +95,13 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        # Add the MLIR Python bindings to the PYTHONPATH
-        export PYTHONPATH=${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
         pytest --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
         cd xdsl
-        export PYTHONPATH=$(pwd)
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        # Add the MLIR Python bindings to the PYTHONPATH
-        export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
         lit -v tests/filecheck/ -DCOVERAGE -DEXEC_DIR=$(pwd)
 
     - name: Combine coverage data
