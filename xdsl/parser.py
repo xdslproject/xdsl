@@ -1628,19 +1628,17 @@ class BaseParser(ABC):
             ],
             regions=regions)
 
-    def parse_paramattr_parameters(
-            self,
-            expect_brackets: bool = False,
-            skip_white_space: bool = True) -> list[Attribute]:
+    def parse_paramattr_parameters(self,
+                                   skip_white_space: bool = True
+                                   ) -> list[Attribute]:
         opening_brackets = self.tokenizer.next_token_of_pattern('<')
-        if expect_brackets and opening_brackets is None:
-            self.raise_error("Expected start attribute parameters here (`<`)!")
+        if opening_brackets is None:
+            return []
 
         res = self.parse_list_of(self.try_parse_attribute,
                                  'Expected another attribute here!')
 
-        if opening_brackets is not None and self.tokenizer.next_token_of_pattern(
-                '>') is None:
+        if self.tokenizer.next_token_of_pattern('>') is None:
             self.raise_error(
                 "Malformed parameter list, expected either another parameter or `>`!"
             )
