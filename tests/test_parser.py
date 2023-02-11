@@ -1,10 +1,10 @@
 from io import StringIO
 
 import pytest
-from xdsl.irdl import irdl_attr_definition
 
 from xdsl.printer import Printer
 from xdsl.ir import MLContext, Attribute, ParametrizedAttribute
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
 
