@@ -1,9 +1,10 @@
 from io import StringIO
 
 import pytest
+from xdsl.irdl import irdl_attr_definition
 
 from xdsl.printer import Printer
-from xdsl.ir import MLContext, Attribute
+from xdsl.ir import MLContext, Attribute, ParametrizedAttribute
 from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
 
@@ -41,3 +42,23 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     attr = XDSLParser(ctx, text).parse_attribute()
 
     assert attr.data == data
+
+
+@irdl_attr_definition
+class TestAttr(ParametrizedAttribute):
+    name = 'test.attr'
+
+
+def test_parsing():
+    """
+    Test that the default attribute parser does not try to
+    parse attribute arguments without the delimiters.
+    """
+    ctx = MLContext()
+    ctx.register_attr(TestAttr)
+
+    prog = '#test.attr "foo"'
+    parser = XDSLParser(ctx, prog)
+
+    r = parser.parse_attribute()
+    assert r == TestAttr()
