@@ -212,11 +212,12 @@ def test_vector_fma_with_dimensions():
 
 
 def test_vector_fma_verify_res_lhs_type_matching():
-    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [1])
 
     fma = FMA.build(operands=[
         i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value
@@ -230,11 +231,12 @@ def test_vector_fma_verify_res_lhs_type_matching():
 
 
 def test_vector_fma_verify_res_rhs_type_matching():
-    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [1])
 
     fma = FMA.build(operands=[
         i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value
@@ -248,11 +250,12 @@ def test_vector_fma_verify_res_rhs_type_matching():
 
 
 def test_vector_fma_verify_res_acc_type_matching():
-    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    i64_vector_ssa_value = OpResult(i64_vector_type, [], [])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
+        i64, [1])
 
     fma = FMA.build(operands=[
         i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value
@@ -266,11 +269,12 @@ def test_vector_fma_verify_res_acc_type_matching():
 
 
 def test_vector_fma_verify_res_lhs_shape_matching():
-    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
-    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
@@ -283,11 +287,12 @@ def test_vector_fma_verify_res_lhs_shape_matching():
 
 
 def test_vector_fma_verify_res_rhs_shape_matching():
-    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
-    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
@@ -300,11 +305,12 @@ def test_vector_fma_verify_res_rhs_shape_matching():
 
 
 def test_vector_fma_verify_res_acc_shape_matching():
-    i32_vector_type1 = VectorType.from_element_type_and_shape(i32, [2, 3])
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = OpResult(i32_vector_type1, [], [])
-    vector_ssa_value2 = OpResult(i32_vector_type2, [], [])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
+        i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
@@ -523,8 +529,8 @@ def test_vector_masked_store_verify_indexing_exception():
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
         i32, [1])
 
-    maskedstore = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                 value_to_store_vector_ssa_value)
+    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
+                                  value_to_store_vector_ssa_value)
 
     with pytest.raises(Exception) as exc_info:
         maskedstore.verify()
