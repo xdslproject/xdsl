@@ -1397,7 +1397,8 @@ class BaseParser(ABC):
         elif len(refs) > 1:
             return SymbolRefAttr([
                 StringAttr(refs[0].text),
-                ArrayAttr([FlatSymbolRefAttr.from_str(ref.text) for ref in refs[1:]])
+                ArrayAttr(
+                    [FlatSymbolRefAttr.from_str(ref.text) for ref in refs[1:]])
             ])
         else:
             return None
