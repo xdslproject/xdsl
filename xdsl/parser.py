@@ -1119,7 +1119,7 @@ class BaseParser(ABC):
                 result_types=ret_types,
                 attributes=attrs,
                 successors=[
-                    self.blocks[block_name.text] for block_name in successors
+                    self._get_block_from_name(block_name) for block_name in successors
                 ],
                 regions=regions)
 
@@ -1955,7 +1955,7 @@ def Parser(ctx: MLContext,
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser
     }[source]
-    return selected_parser(ctx, prog, filename)
+    return selected_parser(ctx, prog, filename, allow_unregistered_ops)
 
 
 setattr(Parser, 'Source', Source)
