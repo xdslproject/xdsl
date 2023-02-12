@@ -338,7 +338,7 @@ class Printer:
         if isinstance(attribute, SymbolRefAttr):
             self.print(f'@{attribute.root_reference.data}')
             for ref in attribute.nested_references.data:
-                self.print(f'::@{ref.data.data}')
+                self.print(f'::@{ref.data}')
             return
 
         if isinstance(attribute, IntegerAttr):
