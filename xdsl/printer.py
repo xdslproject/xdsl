@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
     Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StringAttr, FlatSymbolRefAttr,
+    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, FlatSymbolRefAttr,
     IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType,
     UnrankedTensorType, UnregisteredOp, VectorType, DictionaryAttr)
 
@@ -337,6 +337,12 @@ class Printer:
 
         if isinstance(attribute, FlatSymbolRefAttr):
             self.print(f'@{attribute.data.data}')
+            return
+
+        if isinstance(attribute, SymbolRefAttr):
+            self.print(f'@{attribute.root_reference.data}')
+            for ref in attribute.nested_references.data:
+                self.print(f'::@{ref.data.data}')
             return
 
         if isinstance(attribute, IntegerAttr):

@@ -6,7 +6,7 @@ from xdsl.printer import Printer
 from xdsl.ir import MLContext, Attribute, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
+from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin, SymbolRefAttr, FlatSymbolRefAttr
 
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
@@ -62,3 +62,20 @@ def test_parsing():
 
     r = parser.parse_attribute()
     assert r == DummyAttr()
+
+@pytest.mark.parametrize("ref,expected", [
+    ("@foo", FlatSymbolRefAttr.from_str("foo")),
+    ("@foo::@bar", SymbolRefAttr([StringAttr("foo"), ArrayAttr([FlatSymbolRefAttr.from_str("bar")])])),
+    ("@foo::@bar::@baz", SymbolRefAttr([StringAttr("foo"), ArrayAttr([FlatSymbolRefAttr.from_str("bar"), FlatSymbolRefAttr.from_str("baz")])])),
+])
+def test_symref(ref: str, expected: Attribute | None):
+    """
+    Test that symbol references are correctly parsed.
+    """
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    parser = XDSLParser(ctx, ref)
+    parsed_ref = parser.try_parse_ref_attr()
+
+    assert parsed_ref == expected

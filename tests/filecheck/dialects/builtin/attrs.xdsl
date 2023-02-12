@@ -38,6 +38,15 @@ builtin.module() {
     // CHECK: "test" = !signedness<unsigned>
     %x11 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !signedness<unsigned>]
 
+    // CHECK: "test" = @foo
+    %x12 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = @foo]
+
+    // CHECK: "test" = @foo::@bar
+    %x13 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = @foo::@bar]
+
+    // CHECK: "test" = @foo::@bar::@baz
+    %x14 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = @foo::@bar::@baz]
+
     func.return()
   }
 

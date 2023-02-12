@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
     DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type, Float64Type,
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    FlatSymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
+    SymbolRefAttr, FlatSymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
     UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
@@ -1386,16 +1386,21 @@ class BaseParser(ABC):
                 break
         self.parse_characters(']', '')
 
-    def try_parse_ref_attr(self) -> FlatSymbolRefAttr | None:
+    def try_parse_ref_attr(self) -> SymbolRefAttr | FlatSymbolRefAttr | None:
         if not self.tokenizer.starts_with("@"):
             return None
 
-        ref = self.parse_reference()
+        refs = self.parse_reference()
 
-        if len(ref) > 1:
-            self.raise_error("Nested refs are not supported yet!", ref[1])
-
-        return FlatSymbolRefAttr.from_str(ref[0].text)
+        if len(refs) == 1:
+            return FlatSymbolRefAttr.from_str(refs[0].text)
+        elif len(refs) > 1:
+            return SymbolRefAttr([
+                StringAttr(refs[0].text),
+                ArrayAttr([FlatSymbolRefAttr.from_str(ref.text) for ref in refs[1:]])
+            ])
+        else:
+            return None
 
     def try_parse_builtin_int_attr(self) -> IntegerAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
