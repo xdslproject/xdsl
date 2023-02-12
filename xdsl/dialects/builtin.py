@@ -132,26 +132,20 @@ class SymbolNameAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class FlatSymbolRefAttr(ParametrizedAttribute):
-    name: str = "flat_symbol_ref"
-    data: ParameterDef[StringAttr]
-
-    @staticmethod
-    @builder
-    def from_str(data: str) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([StringAttr(data)])
-
-    @staticmethod
-    @builder
-    def from_string_attr(data: StringAttr) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([data])
-
-
-@irdl_attr_definition
 class SymbolRefAttr(ParametrizedAttribute):
     name = "symbol_ref"
     root_reference: ParameterDef[StringAttr]
-    nested_references: ParameterDef[ArrayAttr[FlatSymbolRefAttr]]
+    nested_references: ParameterDef[ArrayAttr[StringAttr]]
+
+    @staticmethod
+    @builder
+    def from_str(data: str) -> SymbolRefAttr:
+        return SymbolRefAttr([StringAttr(data), ArrayAttr([])])
+
+    @staticmethod
+    @builder
+    def from_string_attr(data: StringAttr) -> SymbolRefAttr:
+        return SymbolRefAttr([data, ArrayAttr([])])
 
 
 @irdl_attr_definition
@@ -836,7 +830,6 @@ Builtin = Dialect(
     [
         StringAttr,
         SymbolRefAttr,
-        FlatSymbolRefAttr,
         SymbolNameAttr,
         IntAttr,
         IntegerAttr,

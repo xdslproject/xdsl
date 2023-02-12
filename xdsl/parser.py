@@ -21,8 +21,8 @@ from xdsl.dialects.builtin import (
     DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type, Float64Type,
     FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
     IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    SymbolRefAttr, FlatSymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr, UnregisteredOp,
+    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 
@@ -1386,19 +1386,16 @@ class BaseParser(ABC):
                 break
         self.parse_characters(']', '')
 
-    def try_parse_ref_attr(self) -> SymbolRefAttr | FlatSymbolRefAttr | None:
+    def try_parse_ref_attr(self) -> SymbolRefAttr | None:
         if not self.tokenizer.starts_with("@"):
             return None
 
         refs = self.parse_reference()
 
-        if len(refs) == 1:
-            return FlatSymbolRefAttr.from_str(refs[0].text)
-        elif len(refs) > 1:
+        if len(refs) >= 1:
             return SymbolRefAttr([
                 StringAttr(refs[0].text),
-                ArrayAttr(
-                    [FlatSymbolRefAttr.from_str(ref.text) for ref in refs[1:]])
+                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]])
             ])
         else:
             return None

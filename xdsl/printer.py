@@ -13,9 +13,9 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
     Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, FlatSymbolRefAttr,
-    IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType,
-    UnrankedTensorType, UnregisteredOp, VectorType, DictionaryAttr)
+    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
+    ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
+    UnregisteredOp, VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -333,10 +333,6 @@ class Printer:
 
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
-            return
-
-        if isinstance(attribute, FlatSymbolRefAttr):
-            self.print(f'@{attribute.data.data}')
             return
 
         if isinstance(attribute, SymbolRefAttr):
