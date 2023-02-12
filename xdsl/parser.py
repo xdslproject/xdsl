@@ -1119,7 +1119,8 @@ class BaseParser(ABC):
                 result_types=ret_types,
                 attributes=attrs,
                 successors=[
-                    self._get_block_from_name(block_name) for block_name in successors
+                    self._get_block_from_name(block_name)
+                    for block_name in successors
                 ],
                 regions=regions)
 
@@ -1623,8 +1624,7 @@ class BaseParser(ABC):
             result_types=result_types,
             attributes=attributes,
             successors=[
-                self._get_block_from_name(span)
-                for span in successors
+                self._get_block_from_name(span) for span in successors
             ],
             regions=regions)
 
