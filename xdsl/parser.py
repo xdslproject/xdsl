@@ -1623,7 +1623,8 @@ class BaseParser(ABC):
             result_types=result_types,
             attributes=attributes,
             successors=[
-                self._get_block_from_name(span) for span in successors
+                self._get_block_from_name(span)
+                for span in successors
             ],
             regions=regions)
 
