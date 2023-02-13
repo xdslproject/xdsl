@@ -18,7 +18,7 @@ func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !i
 
 // CHECK: builtin.module() {
 // CHECK-NEXT: func.func() ["sym_name" = "vector_test", "function_type" = !fun<[!memref<[4 : !index, 4 : !index], !index>, !vector<[true], !i1>, !index], []>, "sym_visibility" = "private"] {
-// CHECK-NEXT: ^{{.*}}(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index):
+// CHECK-NEXT: ^{{.*}}(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !vector<[true], !i1>, %{{.*}} : !index):
 // CHECK-NEXT: %{{.*}} : !vector<[2 : !index], !index> = vector.load(%{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
 // CHECK-NEXT: vector.store(%{{.*}} : !vector<[2 : !index], !index>, %{{.*}} : !memref<[4 : !index, 4 : !index], !index>, %{{.*}} : !index)
 // CHECK-NEXT: %{{.*}} : !vector<[1 : !index], !index> = vector.broadcast(%{{.*}} : !index)
