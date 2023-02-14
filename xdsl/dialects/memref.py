@@ -5,10 +5,10 @@ from typing import Annotated, TypeVar, Optional, List, TypeAlias
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    IndexType, ArrayAttr, IntegerType,
                                    FlatSymbolRefAttr, StringAttr,
-                                   UnitAttr)
+                                   DenseArrayBase, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
+from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
                        builder, ParameterDef, Generic, Attribute, AnyAttr,
                        Operand, VarOperand, AttrSizedOperandSegments, OpAttr)
 
