@@ -1,8 +1,9 @@
 import pytest
 
-from xdsl.dialects.func import FuncOp, Return
+from conftest import assert_print_op
+from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -82,13 +83,53 @@ def test_wrong_blockarg_types():
         f.verify()
 
     assert e.value.args[
-        0] == "Expected entry block arguments to have the same types as the function input types"
+        0] == ("Expected entry block arguments to have the same "
+               "types as the function input types")
 
 
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda: [])
     assert f.sym_name.data == "f"
     assert f.body.ops == []
+
+
+def test_call():
+    # Create two constants and add them, then return
+
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
+    # Operation to add these constants
+    c = Addi.get(a, b)
+    ret0 = Return.get(c)
+
+    # Create a region to include a, b, c and return
+    region = Region.from_operation_list([a, b, c, ret0])
+
+    # Use this region to create a func0
+    func0 = FuncOp.from_region("func0", [a.results[0].typ, b.results[0].typ],
+                               [c.results[0].typ], region)
+
+    # Use these region to create a func0
+    call0 = Call.get(func0.attributes['sym_name'].data, [a, b],
+                     [ret0.operands[0].typ])
+
+    mod = ModuleOp.from_region_or_ops([func0, call0])
+
+    expected = \
+"""
+"builtin.module"() {
+  "func.func"() ["sym_name" = "func0", "function_type" = !"fun"<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
+    %0 : !i32 = "arith.constant"() ["value" = 1 : !i32]
+    %1 : !i32 = "arith.constant"() ["value" = 2 : !i32]
+    %2 : !i32 = "arith.addi"(%0 : !i32, %1 : !i32)
+    "func.return"(%2 : !i32)
+  }
+  %3 : !i32 = "func.call"(%0 : !i32, %1 : !i32) ["callee" = @func0]
+}
+"""
+    assert len(call0.operands) == 2
+    assert len(func0.operands) == 0
+    assert_print_op(mod, expected, None, print_generic_format=True)
 
 
 def test_return():
