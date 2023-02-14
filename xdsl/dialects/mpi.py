@@ -16,10 +16,7 @@ AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
 
 
 class MPIBaseOp(Operation, ABC):
-    api_name: str
-    """
-    The corresponding function name in the MPI API
-    """
+    pass
 
 
 @irdl_attr_definition
@@ -35,7 +32,6 @@ class Status(ParametrizedAttribute):
 @irdl_op_definition
 class ISend(MPIBaseOp):
     name = 'mpi.isend'
-    api_name = 'MPI_Isend'
 
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
