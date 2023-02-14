@@ -1,6 +1,6 @@
-from io import StringIO
-
 import pytest
+
+from io import StringIO
 
 from xdsl.printer import Printer
 from xdsl.ir import MLContext, Attribute, ParametrizedAttribute
@@ -45,8 +45,8 @@ def test_dictionary_attr(data: dict[str, Attribute]):
 
 
 @irdl_attr_definition
-class TestAttr(ParametrizedAttribute):
-    name = 'test.attr'
+class DummyAttr(ParametrizedAttribute):
+    name = 'dummy.attr'
 
 
 def test_parsing():
@@ -55,10 +55,10 @@ def test_parsing():
     parse attribute arguments without the delimiters.
     """
     ctx = MLContext()
-    ctx.register_attr(TestAttr)
+    ctx.register_attr(DummyAttr)
 
-    prog = '#test.attr "foo"'
+    prog = '#dummy.attr "foo"'
     parser = XDSLParser(ctx, prog)
 
     r = parser.parse_attribute()
-    assert r == TestAttr()
+    assert r == DummyAttr()
