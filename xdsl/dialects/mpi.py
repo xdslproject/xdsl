@@ -113,17 +113,32 @@ class StatusGetStatus(MPIBaseOp):
         return cls.build(operands=[request], result_types=[t_int])
 
 
+@irdl_op_definition
+class Wait(MPIBaseOp):
+    name = "mpi.wait"
+
+    request: Annotated[Operand, RequestType()]
+    status: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls, request: Operand):
+        return cls.build(operands=[request], result_types=[t_int])
+
+
 if __name__ == '__main__':
     printer = Printer(target=Printer.Target.MLIR)
 
+    # yapf: ignore
     reg = Region.from_operation_list([
-        memref := Alloc.get(f64, 32, [100, 14, 14]), dest :=
-        Constant.from_int_and_width(1,
-                                    t_int), req := ISend.get(memref, dest, 1),
-        res := IRecv.get(dest, memref.results[0].typ,
-                         1), test_res := Test.get(res.results[1]), flag :=
-        StatusGetFlag.get(test_res), code := StatusGetStatus.get(test_res)
-    ])
+        memref := Alloc.get(f64, 32, [100, 14, 14]),
+        dest := Constant.from_int_and_width(1,t_int),
+        req := ISend.get(memref, dest, 1),
+        res := IRecv.get(dest, memref.results[0].typ, 1),
+        test_res := Test.get(res.results[1]),
+        flag := StatusGetFlag.get(test_res),
+        code := StatusGetStatus.get(test_res),
+        code2 := Wait.get(res.results[1])
+    ])  # yapf: disable
 
     printer.print_region(reg)
 """
