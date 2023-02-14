@@ -7,10 +7,9 @@ from xdsl.printer import Printer
 from xdsl.dialects.memref import MemRefType, Alloc
 from abc import ABC
 
-printer = Printer(target=Printer.Target.MLIR)
-
 t_uint32: IntegerType = IntegerType.from_width(32, Signedness.UNSIGNED)
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNED)
+t_bool: IntegerAttr = IntegerType.from_width(1, Signedness.SIGNLESS)
 
 AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
 
@@ -20,12 +19,12 @@ class MPIBaseOp(Operation, ABC):
 
 
 @irdl_attr_definition
-class Request(ParametrizedAttribute):
+class RequestType(ParametrizedAttribute):
     name = 'mpi.request'
 
 
 @irdl_attr_definition
-class Status(ParametrizedAttribute):
+class StatusType(ParametrizedAttribute):
     name = 'mpi.status'
 
 
@@ -38,7 +37,7 @@ class ISend(MPIBaseOp):
 
     tag: OptOpAttr[IntegerAttr]
 
-    request: Annotated[OpResult, Request()]
+    request: Annotated[OpResult, RequestType()]
 
     @classmethod
     def get(cls, buff: Operand, dest: Operand, tag: int | None):
@@ -47,11 +46,9 @@ class ISend(MPIBaseOp):
         if tag is not None:
             attrs['tag'] = IntegerAttr.from_params(tag, t_int)
 
-        return cls.build(
-            operands=[buff, dest],
-            attributes=attrs,
-            result_types=[Request()]
-        )
+        return cls.build(operands=[buff, dest],
+                         attributes=attrs,
+                         result_types=[RequestType()])
 
 
 @irdl_op_definition
@@ -63,32 +60,72 @@ class IRecv(MPIBaseOp):
     tag: OptOpAttr[IntegerAttr]
 
     buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
-    request: Annotated[OpResult, Request()]
+    request: Annotated[OpResult, RequestType()]
 
     @classmethod
-    def get(cls, source: Operand, dtype: MemRefType[AnyNumericAttr], tag: int | None = None):
+    def get(cls,
+            source: Operand,
+            dtype: MemRefType[AnyNumericAttr],
+            tag: int | None = None):
         attrs = {}
 
         if tag is not None:
             attrs['tag'] = IntegerAttr.from_params(tag, t_int)
 
-        return cls.build(
-            operands=[source],
-            attributes=attrs,
-            result_types=[dtype, Request()]
-        )
+        return cls.build(operands=[source],
+                         attributes=attrs,
+                         result_types=[dtype, RequestType()])
+
+
+@irdl_op_definition
+class Test(MPIBaseOp):
+    name = "mpi.test"
+
+    request: Annotated[Operand, RequestType()]
+    status: Annotated[OpResult, StatusType()]
+
+    @classmethod
+    def get(cls, request: Operand):
+        return cls.build(operands=[request], result_types=[StatusType()])
+
+
+@irdl_op_definition
+class StatusGetFlag(MPIBaseOp):
+    name = "mpi.status_get_flag"
+
+    request: Annotated[Operand, StatusType()]
+    status: Annotated[OpResult, t_bool]
+
+    @classmethod
+    def get(cls, request: Operand):
+        return cls.build(operands=[request], result_types=[t_bool])
+
+
+@irdl_op_definition
+class StatusGetStatus(MPIBaseOp):
+    name = "mpi.status_get_status"
+
+    request: Annotated[Operand, StatusType()]
+    status: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls, request: Operand):
+        return cls.build(operands=[request], result_types=[t_int])
 
 
 if __name__ == '__main__':
+    printer = Printer(target=Printer.Target.MLIR)
+
     reg = Region.from_operation_list([
-        memref := Alloc.get(f64, 32, [100, 14, 14]),
-        dest := Constant.from_int_and_width(1, t_int),
-        req := ISend.get(memref, dest, 1),
-        res := IRecv.get(dest, memref.results[0].typ, 1)
+        memref := Alloc.get(f64, 32, [100, 14, 14]), dest :=
+        Constant.from_int_and_width(1,
+                                    t_int), req := ISend.get(memref, dest, 1),
+        res := IRecv.get(dest, memref.results[0].typ,
+                         1), test_res := Test.get(res.results[1]), flag :=
+        StatusGetFlag.get(test_res), code := StatusGetStatus.get(test_res)
     ])
 
     printer.print_region(reg)
-
 """
 // Example isend
 // %in is the input memref
