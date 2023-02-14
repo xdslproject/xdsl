@@ -22,7 +22,7 @@ class RequestType(ParametrizedAttribute):
 
 @irdl_attr_definition
 class StatusType(ParametrizedAttribute):
-    # Type defined for MPI_Request
+    # Type defined for MPI_Status
     name = 'mpi.status'
 
 
@@ -33,8 +33,24 @@ class MPIBaseOp(Operation, ABC):
 
 @irdl_op_definition
 class ISend(MPIBaseOp):
-    # Class for an MPI_ISend operation (nonblocking send)
-    # https://www.mpich.org/static/docs/v3.1/www3/MPI_Isend.html
+    """
+    This wraps the MPI_Isend function
+
+    ## The MPI_Isend Function Docs:
+
+    int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
+         int tag, MPI_Comm comm, MPI_Request *request)
+
+        - buf: Initial address of send buffer (choice).
+        - count: Number of elements in send buffer (integer).
+        - datatype: Datatype of each send buffer element (handle).
+        - dest: Rank of destination (integer).
+        - tag: Message tag (integer).
+        - comm: Communicator (handle).
+
+    ## Our Abstraction:
+
+    """
     name = 'mpi.isend'
 
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
@@ -81,8 +97,29 @@ class Send(MPIBaseOp):
 
 @irdl_op_definition
 class IRecv(MPIBaseOp):
-    # Class for an MPI_Irecv operation (nonblocking receive)
-    # https://www.mpich.org/static/docs/v3.3/www3/MPI_Irecv.html
+    """
+    This wraps the MPI_Irecv function.
+
+    ## The MPI_Irecv Function Docs:
+
+    int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
+            int source, int tag, MPI_Comm comm, MPI_Request *request)
+
+        - buf: Initial address of receive buffer (choice).
+        - count: Number of elements in receive buffer (integer).
+        - datatype: Datatype of each receive buffer element (handle).
+        - source: Rank of source (integer).
+        - tag: Message tag (integer).
+        - comm: Communicator (handle).
+
+    ## Our Abstractions:
+
+        - We bundle buf, count and datatype into the type definition and use `memref`
+        - We assume this type information is compile-time known
+        - We assume tag is compile-time known
+
+    """
+
     name = "mpi.irecv"
 
     source: Annotated[Operand, t_int]
