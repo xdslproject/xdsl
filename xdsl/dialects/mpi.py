@@ -194,7 +194,7 @@ class Recv(MPIBaseOp):
     This wraps the MPI_Recv function (blocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Recv.html
 
-    ## The MPI_Irecv Function Docs:
+    ## The MPI_Recv Function Docs:
 
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
@@ -215,7 +215,7 @@ class Recv(MPIBaseOp):
         - We omit the possibility of using multiple communicators
     """
 
-    name = "mpi.irecv"
+    name = "mpi.recv"
 
     source: Annotated[Operand, t_int]
 
