@@ -1,10 +1,11 @@
 from abc import ABC
+from enum import Enum
 
 from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, Operation
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OptOpAttr)
+                       irdl_attr_definition, OptOpAttr, OpAttr)
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   AnyFloatAttr, AnyIntegerAttr)
+                                   AnyFloatAttr, AnyIntegerAttr, StringAttr)
 from xdsl.dialects.memref import MemRefType, Alloc
 
 t_uint32: IntegerType = IntegerType.from_width(32, Signedness.UNSIGNED)
@@ -24,6 +25,15 @@ class RequestType(ParametrizedAttribute):
 class StatusType(ParametrizedAttribute):
     # Type defined for MPI_Status
     name = 'mpi.status'
+
+
+class StatusTypeField(Enum):
+    """
+    This enum lists all fields in the MPI_Status struct
+    """
+    MPI_SOURCE = 'MPI_SOURCE'
+    MPI_TAG = 'MPI_TAG'
+    MPI_ERROR = 'MPI_ERROR'
 
 
 class MPIBaseOp(Operation, ABC):
@@ -155,7 +165,7 @@ class Recv(MPIBaseOp):
     tag: OptOpAttr[IntegerAttr]
 
     buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
-    status: Annotated[OpResult, StatusType()]
+    status: Annotated[OpResult, StatusType]
 
     @classmethod
     def get(cls,
@@ -178,37 +188,15 @@ class Test(MPIBaseOp):
     # https://www.mpich.org/static/docs/v3.2/www3/MPI_Test.html
     name = "mpi.test"
 
+    request: Annotated[Operand, RequestType]
+
     flag: Annotated[OpResult, t_bool]
-    status: Annotated[OpResult, StatusType()]
-    request: Annotated[Operand, RequestType()]
+    status: Annotated[OpResult, StatusType]
 
     @classmethod
     def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_bool, StatusType()])
-
-
-@irdl_op_definition
-class StatusGetFlag(MPIBaseOp):
-    name = "mpi.status_get_flag"
-
-    request: Annotated[Operand, StatusType()]
-    status: Annotated[OpResult, t_bool]
-
-    @classmethod
-    def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_bool])
-
-
-@irdl_op_definition
-class StatusGetStatus(MPIBaseOp):
-    name = "mpi.status_get_status"
-
-    request: Annotated[Operand, StatusType()]
-    status: Annotated[OpResult, t_int]
-
-    @classmethod
-    def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_int])
+        return cls.build(operands=[request],
+                         result_types=[t_bool, StatusType()])
 
 
 @irdl_op_definition
@@ -223,6 +211,32 @@ class Wait(MPIBaseOp):
         return cls.build(operands=[request], result_types=[t_int])
 
 
+@irdl_op_definition
+class GetStatusField(MPIBaseOp):
+    """
+    Accessors for the MPI_Status struct
+
+    This allows access to the three integer properties in the struct called
+        - MPI_SOURCE
+        - MPI_TAG
+        - MPI_ERROR
+
+    """
+    name = "mpi.status.get"
+
+    status: Annotated[Operand, StatusType]
+
+    field: OpAttr[StringAttr]
+
+    result: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls, status_obj: Operand, field: StatusTypeField):
+        return cls.build(operands=[status_obj],
+                         attributes={'field': field.value},
+                         result_types=[t_int])
+
+
 MPI = Dialect(
-    [MPIBaseOp, Alloc, ISend, IRecv, Test, StatusGetFlag, StatusGetStatus],
-    [RequestType, StatusType])
+    [MPIBaseOp, Alloc, ISend, IRecv, Test, Recv, Send, GetStatusField],
+    [RequestType])
