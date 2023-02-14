@@ -20,8 +20,8 @@ def test_mpi_combo():
         req := ISend.get(memref, dest, 1),
         res := IRecv.get(dest, memref.results[0].typ, 1),
         test_res := Test.get(res.results[1]),
-        flag := StatusGetFlag.get(test_res),
-        code := StatusGetStatus.get(test_res),
+        flag := StatusGetFlag.get(test_res.results[1]),
+        code := StatusGetStatus.get(test_res.results[1]),
         code2 := Wait.get(res.results[1])
     ])  # yapf: disable
 
@@ -31,10 +31,10 @@ def test_mpi_combo():
   %1 = "arith.constant"() {"value" = 1 : si32} : () -> si32
   %2 = "mpi.isend"(%0, %1) {"tag" = 1 : si32} : (memref<100x14x14xf64>, si32) -> #mpi.request
   %3, %4 = "mpi.irecv"(%1) {"tag" = 1 : si32} : (si32) -> (memref<100x14x14xf64>, #mpi.request)
-  %5 = "mpi.test"(%4) : (#mpi.request) -> #mpi.status
-  %6 = "mpi.status_get_flag"(%5) : (#mpi.status) -> i1
-  %7 = "mpi.status_get_status"(%5) : (#mpi.status) -> si32
-  %8 = "mpi.wait"(%4) : (#mpi.request) -> si32
+  %5, %6 = "mpi.test"(%4) : (#mpi.request) -> (i1, si32)
+  %7 = "mpi.status_get_flag"(%6) : (si32) -> i1
+  %8 = "mpi.status_get_status"(%6) : (si32) -> si32
+  %9 = "mpi.wait"(%4) : (#mpi.request) -> si32
 }) : () -> ()
 """
 
@@ -73,13 +73,13 @@ def test_mpi_baseop():
     send = ISend.get(alloc0, dest, 1)
     recv = IRecv.get(dest, alloc0.results[0].typ, 1)
     test_res = Test.get(recv.results[1])
-    status_flag = StatusGetFlag.get(test_res)
-    status = StatusGetStatus.get(test_res)
+    status_flag = StatusGetFlag.get(test_res.results[1])
+    status = StatusGetStatus.get(test_res.results[1])
     code2 = Wait.get(recv.results[1])
 
     assert send.operands[0] is alloc0.results[0]
     assert send.operands[1] is dest.results[0]
     assert recv.operands[0] is send.operands[1]
-    assert status_flag.operands[0] is test_res.results[0]
-    assert status.operands[0] is test_res.results[0]
+    assert status_flag.operands[0] is test_res.results[1]
+    assert status.operands[0] is test_res.results[1]
     assert code2.operands[0] is recv.results[1]
