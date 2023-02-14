@@ -51,6 +51,17 @@ class MPIBaseOp(Operation, ABC):
     pass
 
 
+def _build_attr_dict_with_optional_tag(tag: int | None = None):
+    """
+    Helper function for building attribute dicts that have an optional `tag` entry
+    """
+
+    attrs = {}
+    if tag is not None:
+        attrs['tag'] = IntegerAttr.from_params(tag, t_int)
+    return attrs
+
+
 @irdl_op_definition
 class ISend(MPIBaseOp):
     """
@@ -87,13 +98,8 @@ class ISend(MPIBaseOp):
 
     @classmethod
     def get(cls, buff: Operand, dest: Operand, tag: int | None):
-        attrs = {}
-
-        if tag is not None:
-            attrs['tag'] = IntegerAttr.from_params(tag, t_int)
-
         return cls.build(operands=[buff, dest],
-                         attributes=attrs,
+                         attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[RequestType()])
 
 
@@ -131,13 +137,8 @@ class Send(MPIBaseOp):
 
     @classmethod
     def get(cls, buff: Operand, dest: Operand, tag: int | None):
-        attrs = {}
-
-        if tag is not None:
-            attrs['tag'] = IntegerAttr.from_params(tag, t_int)
-
         return cls.build(operands=[buff, dest],
-                         attributes=attrs,
+                         attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[RequestType()])
 
 
@@ -182,13 +183,8 @@ class IRecv(MPIBaseOp):
             source: Operand,
             dtype: MemRefType[AnyNumericAttr],
             tag: int | None = None):
-        attrs = {}
-
-        if tag is not None:
-            attrs['tag'] = IntegerAttr.from_params(tag, t_int)
-
         return cls.build(operands=[source],
-                         attributes=attrs,
+                         attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[dtype, RequestType()])
 
 
@@ -233,13 +229,8 @@ class Recv(MPIBaseOp):
             source: Operand,
             dtype: MemRefType[AnyNumericAttr],
             tag: int | None = None):
-        attrs = {}
-
-        if tag is not None:
-            attrs['tag'] = IntegerAttr.from_params(tag, t_int)
-
         return cls.build(operands=[source],
-                         attributes=attrs,
+                         attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[dtype, StatusType()])
 
 
@@ -322,6 +313,15 @@ class GetStatusField(MPIBaseOp):
                          result_types=[t_int])
 
 
-MPI = Dialect(
-    [MPIBaseOp, Alloc, ISend, IRecv, Test, Recv, Send, GetStatusField],
-    [RequestType])
+MPI = Dialect([
+    MPIBaseOp,
+    Alloc,
+    ISend,
+    IRecv,
+    Test,
+    Recv,
+    Send,
+    GetStatusField,
+], [
+    RequestType,
+])
