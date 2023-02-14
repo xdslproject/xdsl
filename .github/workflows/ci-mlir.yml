@@ -102,7 +102,7 @@ jobs:
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        lit -v tests/filecheck/ -DCOVERAGE -DEXEC_DIR=$(pwd)
+        lit -v tests/filecheck/ -DCOVERAGE
 
     - name: Combine coverage data
       run: |

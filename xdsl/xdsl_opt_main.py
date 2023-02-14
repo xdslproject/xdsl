@@ -169,15 +169,6 @@ class xDSLOptMain:
             action='store_true',
             help="Allow the parsing of unregistered operations.")
 
-        arg_parser.add_argument(
-            "--exec-root",
-            type=str,
-            default=False,
-            required=False,
-            help="Defines the directory xdsl-opt will be run in."
-            "This flag only takes effect if `--generate-config` was specified."
-        )
-
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
