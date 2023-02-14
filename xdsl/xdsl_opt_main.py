@@ -2,7 +2,6 @@ import argparse
 import sys
 import os
 from io import StringIO
-import coverage
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
@@ -77,16 +76,6 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        if self.args.generate_coverage:
-            if self.args.exec_root:
-                os.chdir(self.args.exec_root)
-            cov = coverage.Coverage(config_file='.coveragerc',
-                                    auto_data=True,
-                                    data_file='.coverage',
-                                    data_suffix=True)
-
-            cov.start()
-
         if not self.args.parsing_diagnostics:
             module = self.parse_input()
         else:
@@ -107,9 +96,6 @@ class xDSLOptMain:
 
         contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
-
-        if self.args.generate_coverage:
-            cov.stop()  # type: ignore (reportUnboundVariable)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -182,12 +168,6 @@ class xDSLOptMain:
             default=False,
             action='store_true',
             help="Allow the parsing of unregistered operations.")
-
-        arg_parser.add_argument(
-            "--generate-coverage",
-            default=False,
-            action='store_true',
-            help="Generate the xDSL code coverage for this run.")
 
         arg_parser.add_argument(
             "--exec-root",
