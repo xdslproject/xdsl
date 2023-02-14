@@ -1,11 +1,11 @@
-from dialects.arith import Constant
-from xdsl.ir import Operation, OpResult, ParametrizedAttribute, Region
-from xdsl.irdl import Operation, OpResult, Operand, Annotated, AnyAttr, Attribute, irdl_op_definition, \
-    irdl_attr_definition, OptOpAttr
-from xdsl.dialects.builtin import IntegerType, i64, Signedness, IntegerAttr, f64, AnyFloatAttr, AnyIntegerAttr
-from xdsl.printer import Printer
-from xdsl.dialects.memref import MemRefType, Alloc
 from abc import ABC
+
+from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, Operation
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
+                       irdl_attr_definition, OptOpAttr)
+from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
+                                   AnyFloatAttr, AnyIntegerAttr)
+from xdsl.dialects.memref import MemRefType, Alloc
 
 t_uint32: IntegerType = IntegerType.from_width(32, Signedness.UNSIGNED)
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNED)
@@ -125,40 +125,6 @@ class Wait(MPIBaseOp):
         return cls.build(operands=[request], result_types=[t_int])
 
 
-if __name__ == '__main__':
-    printer = Printer(target=Printer.Target.MLIR)
-
-    # yapf: ignore
-    reg = Region.from_operation_list([
-        memref := Alloc.get(f64, 32, [100, 14, 14]),
-        dest := Constant.from_int_and_width(1,t_int),
-        req := ISend.get(memref, dest, 1),
-        res := IRecv.get(dest, memref.results[0].typ, 1),
-        test_res := Test.get(res.results[1]),
-        flag := StatusGetFlag.get(test_res),
-        code := StatusGetStatus.get(test_res),
-        code2 := Wait.get(res.results[1])
-    ])  # yapf: disable
-
-    printer.print_region(reg)
-"""
-// Example isend
-// %in is the input memref
-// %dest is a destination rank (si32)
-%request = "mpi.isend"(%in, %dest) {"tag" = 1} : (!memref<3x2x2xi64>, !si32) -> (!mpi.request) 
-
-
-// example irecv
-// %source is the source rank (si32)
-%data, %request = "mpi.irecv"(%source) {"tag" = 1} : (!si32) -> (!memref<3x2x2xi64>, !mpi.request)
-
-// example test
-// %request is an !mpi.request
-%status_obj = "mpi.test"(%request) : (!mpi.request) -> !mpi.status
-%flag = "mpi.get_status_flag"(%status_obj) : (!mpi.status) -> i1
-%status = "mpi.get_status_code"(%status_obj) : (!mpi.status) -> si32
-
-// example wait
-// %request is an !mpi.request
-%status = "mpi.wait"(%request) : (!mpi.request) -> si32
-"""
+MPI = Dialect(
+    [MPIBaseOp, Alloc, ISend, IRecv, Test, StatusGetFlag, StatusGetStatus],
+    [RequestType, StatusType])
