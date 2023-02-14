@@ -31,9 +31,9 @@ def test_mpi_combo():
   %1 = "arith.constant"() {"value" = 1 : si32} : () -> si32
   %2 = "mpi.isend"(%0, %1) {"tag" = 1 : si32} : (memref<100x14x14xf64>, si32) -> #mpi.request
   %3, %4 = "mpi.irecv"(%1) {"tag" = 1 : si32} : (si32) -> (memref<100x14x14xf64>, #mpi.request)
-  %5, %6 = "mpi.test"(%4) : (#mpi.request) -> (i1, si32)
-  %7 = "mpi.status_get_flag"(%6) : (si32) -> i1
-  %8 = "mpi.status_get_status"(%6) : (si32) -> si32
+  %5, %6 = "mpi.test"(%4) : (#mpi.request) -> (i1, #mpi.status)
+  %7 = "mpi.status_get_flag"(%6) : (#mpi.status) -> i1
+  %8 = "mpi.status_get_status"(%6) : (#mpi.status) -> si32
   %9 = "mpi.wait"(%4) : (#mpi.request) -> si32
 }) : () -> ()
 """
@@ -71,11 +71,11 @@ def test_mpi_baseop():
     alloc0 = Alloc.get(f64, 32, [100, 14, 14])
     dest = Constant.from_int_and_width(1, t_int)
     send = ISend.get(alloc0, dest, 1)
-    recv = IRecv.get(dest, alloc0.results[0].typ, 1)
+    recv = IRecv.get(dest, alloc0.memref.typ, 1)
     test_res = Test.get(recv.results[1])
-    status_flag = StatusGetFlag.get(test_res.results[1])
-    status = StatusGetStatus.get(test_res.results[1])
-    code2 = Wait.get(recv.results[1])
+    status_flag = StatusGetFlag.get(test_res.status)
+    status = StatusGetStatus.get(test_res.status)
+    code2 = Wait.get(recv.request)
 
     assert send.operands[0] is alloc0.results[0]
     assert send.operands[1] is dest.results[0]

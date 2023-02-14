@@ -142,12 +142,12 @@ class Test(MPIBaseOp):
     name = "mpi.test"
 
     flag: Annotated[OpResult, t_bool]
-    status: Annotated[OpResult, t_int]
+    status: Annotated[OpResult, StatusType()]
     request: Annotated[Operand, RequestType()]
 
     @classmethod
     def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_bool, t_int])
+        return cls.build(operands=[request], result_types=[t_bool, StatusType()])
 
 
 @irdl_op_definition
