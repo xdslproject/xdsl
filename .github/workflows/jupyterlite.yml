@@ -38,7 +38,7 @@ jobs:
         with:
           repository: pyodide/pyodide
           path: pyodide
-          ref: ${{ env.PYODIDE.VERSION }}
+          ref: 'tag: ${{ env.PYODIDE.VERSION }}'
 
       - name: Setup Python
         uses: actions/setup-python@v4
