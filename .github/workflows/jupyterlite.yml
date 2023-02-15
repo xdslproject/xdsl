@@ -34,8 +34,11 @@ jobs:
           
       - name: Clone pyodide if not cached
         if: steps.cache-pyodide.outputs.cache-hit != 'true'
-        run: git clone https://github.com/pyodide/pyodide.git
-        ref: ${{ env.PYODIDE.VERSION }}
+        uses: actions/checkout@v3
+        with:
+          repository: pyodide/pyodide
+          path: pyodide
+          ref: ${{ env.PYODIDE.VERSION }}
 
       - name: Setup Python
         uses: actions/setup-python@v4
