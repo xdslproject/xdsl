@@ -42,5 +42,4 @@ jobs:
 
     - name: Execute lit tests
       run: |
-        export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/
