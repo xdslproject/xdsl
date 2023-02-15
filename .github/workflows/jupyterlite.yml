@@ -55,11 +55,10 @@ jobs:
           cd pyodide
           git fetch --all
           git checkout 0.22.0a3
-          python -m pip install -r requirements.txt
+          python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
           
-          rm packages/xdsl -rf
-          pyodide skeleton pypi xdsl
+          pyodide skeleton pypi --update xdsl
           
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
           
