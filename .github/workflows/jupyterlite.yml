@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+env:
+  PYODIDE_VERSION: 0.22.0a3
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,10 +22,33 @@ jobs:
         with:
           path: xdsl
 
+      # Pyodide is cached, so cloned only if not present in the cache, otherwise
+      # just checked out to whatever desired version and partially rebuilt.
+
+      - name: Try to restore the pyodide cache
+        id: cache-pyodide
+        uses: actions/cache@v3
+        with:
+          path: pyodide
+          key: pyodide-${{ env.PYODIDE.VERSION }}
+          
+      - name: Clone pyodide if not cached
+        if: steps.cache-pyodide.outputs.cache-hit != 'true'
+        run: git clone https://github.com/pyodide/pyodide.git
+        ref: ${{ env.PYODIDE.VERSION }}
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: |
+            xdsl/requirements.txt
+            xdsl/requirements-optional.txt
+            xdsl/setup.py
+            xdsl/.github/workflows/jupyterlite.yml
+            pyodide/requirements.txt
+
 
       - name: Install dependencies
         run: |
@@ -32,33 +58,16 @@ jobs:
         run: |
           cd xdsl
           python setup.py sdist
-
-      # Pyodide is cached, so cloned only if not present in the cache, otherwise
-      # just checked out to whatever desired version and partially rebuilt.
-
-      - name: Restore cached Pyodide tree
-        id: cache-pyodide
-        uses: actions/cache@v3
-        with:
-          path: pyodide
-          key: pyodide
-          
-      - name: Clone pyodide if not cached
-        if: steps.cache-pyodide.outputs.cache-hit != 'true'
-        run: git clone https://github.com/pyodide/pyodide.git
-
       # Clean the xDSL package folder, generate the skeletons
       # and do the necessary updates before building.
       - name: Build custom Pyodide distribution
         run: |
           
           cd pyodide
-          git fetch --all
-          git checkout 0.22.0a3
           python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
           
-          pyodide skeleton pypi --update xdsl
+          pyodide skeleton pypi --update xdsl || pyodide skeleton pypi xdsl
           
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
           
