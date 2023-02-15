@@ -1,4 +1,5 @@
 yapf<0.33
 toml<0.11
 pytest-cov
+coverage<8.0.0
 ipykernel
