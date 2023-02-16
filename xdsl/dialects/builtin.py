@@ -139,13 +139,15 @@ class SymbolRefAttr(ParametrizedAttribute):
 
     @staticmethod
     @builder
-    def from_str(data: str) -> SymbolRefAttr:
-        return SymbolRefAttr([StringAttr(data), ArrayAttr([])])
+    def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
+        return SymbolRefAttr.from_string_attr(StringAttr(root),
+                                              [StringAttr(x) for x in nested])
 
     @staticmethod
     @builder
-    def from_string_attr(data: StringAttr) -> SymbolRefAttr:
-        return SymbolRefAttr([data, ArrayAttr([])])
+    def from_string_attr(root: StringAttr,
+                         nested: List[StringAttr] = []) -> SymbolRefAttr:
+        return SymbolRefAttr([root, ArrayAttr(nested)])
 
 
 @irdl_attr_definition
