@@ -70,7 +70,6 @@ class Call(Operation):
     def get(callee: Union[str, FlatSymbolRefAttr], ops: List[Union[SSAValue,
                                                                    Operation]],
             return_types: List[Attribute]) -> Call:
-        ops = list(ops)
         return Call.build(operands=[ops],
                           result_types=[return_types],
                           attributes={"callee": callee})
