@@ -1,7 +1,8 @@
 import ast
+from typing import Any
 
 
-def block(*params):
+def block(*params: Any):
     """
     Decorator used to mark function as a basic block.
     ```
@@ -20,7 +21,7 @@ def block(*params):
     ```
     """
 
-    def decorate(*params):
+    def decorate(*params: Any):
         return None
 
     return decorate
