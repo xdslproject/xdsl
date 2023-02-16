@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -f mlir | xdsl-opt -t mlir -f mlir | FileCheck %s
+// RUN: xdsl-opt %s -t mlir -f mlir | xdsl-opt -t mlir -f mlir | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
