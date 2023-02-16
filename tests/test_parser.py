@@ -66,14 +66,8 @@ def test_parsing():
 
 @pytest.mark.parametrize("ref,expected", [
     ("@foo", SymbolRefAttr.from_str("foo")),
-    ("@foo::@bar",
-     SymbolRefAttr([StringAttr("foo"),
-                    ArrayAttr([StringAttr("bar")])])),
-    ("@foo::@bar::@baz",
-     SymbolRefAttr([
-         StringAttr("foo"),
-         ArrayAttr([StringAttr("bar"), StringAttr("baz")])
-     ])),
+    ("@foo::@bar", SymbolRefAttr.from_str("foo", ["bar"])),
+    ("@foo::@bar::@baz", SymbolRefAttr.from_str("foo", ["bar", "baz"])),
 ])
 def test_symref(ref: str, expected: Attribute | None):
     """
