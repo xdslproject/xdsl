@@ -92,9 +92,8 @@ class Return(Operation):
             )
 
     @staticmethod
-    def get(*ops: Union[Operation, SSAValue]) -> Return:
-        ops = [op for op in ops] if ops != () else []
-        return Return.build(operands=[ops])
+    def get(*ops: Operation | SSAValue) -> Return:
+        return Return.build(operands=[list(ops)])
 
 
 Func = Dialect([FuncOp, Call, Return], [])

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import Annotated, TypeVar, Optional, List, TypeAlias
+from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    IndexType, ArrayAttr, IntegerType,
-                                   FlatSymbolRefAttr, StringAttr,
-                                   DenseArrayBase, UnitAttr)
+                                   FlatSymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
-                       builder, ParameterDef, Generic, Attribute, AnyAttr,
-                       Operand, VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
+                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
+                       VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.utils.exceptions import VerifyException
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -86,7 +86,12 @@ class Load(Operation):
     # which is subject to change
 
     def verify_(self):
-        if self.memref.typ.element_type != self.res.typ:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memreftype")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if memref_typ.element_type != self.res.typ:
             raise Exception(
                 "expected return type to match the MemRef element type")
 
@@ -96,8 +101,12 @@ class Load(Operation):
     @staticmethod
     def get(ref: SSAValue | Operation,
             indices: List[SSAValue | Operation]) -> Load:
+        ssa_value = SSAValue.get(ref)
+        typ = ssa_value.typ
+        assert isinstance(typ, MemRefType)
+        typ = cast(MemRefType[Attribute], typ)
         return Load.build(operands=[ref, indices],
-                          result_types=[SSAValue.get(ref).typ.element_type])
+                          result_types=[typ.element_type])
 
 
 @irdl_op_definition
@@ -108,7 +117,12 @@ class Store(Operation):
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
-        if self.memref.typ.element_type != self.value.typ:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memreftype")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if memref_typ.element_type != self.value.typ:
             raise Exception(
                 "Expected value type to match the MemRef element type")
 

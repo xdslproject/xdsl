@@ -438,6 +438,7 @@ class Printer:
             shape = attribute.shape if attribute.shape_is_complete else [
                 len(data)
             ]
+            assert shape is not None, "If shape is complete, then it cannot be None"
             print_dense_list(data, shape)
             self.print("> : ")
             self.print(attribute.type)

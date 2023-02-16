@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Annotated, List
+from typing import Annotated, List, cast
 
 from xdsl.dialects.builtin import IndexType, VectorType, i1
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
 from xdsl.utils.exceptions import VerifyException
 
@@ -16,7 +16,17 @@ class Load(Operation):
     res: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        if self.memref.typ.element_type != self.res.typ.element_type:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memref type")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if not isinstance(self.res.typ, VectorType):
+            raise VerifyException("expected a vector type")
+
+        res_typ = cast(VectorType[Attribute], self.res.typ)
+
+        if memref_typ.element_type != res_typ.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type.")
 
@@ -41,7 +51,17 @@ class Store(Operation):
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
-        if self.memref.typ.element_type != self.vector.typ.element_type:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memref type")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if not isinstance(self.vector.typ, VectorType):
+            raise VerifyException("expected a vector type")
+
+        vector_typ = cast(VectorType[Attribute], self.vector.typ)
+
+        if memref_typ.element_type != vector_typ.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type.")
 
@@ -61,7 +81,12 @@ class Broadcast(Operation):
     vector: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        if self.source.typ != self.vector.typ.element_type:
+        if not isinstance(self.vector.typ, VectorType):
+            raise VerifyException("expected a vector type")
+
+        vector_typ = cast(VectorType[Attribute], self.vector.typ)
+
+        if self.source.typ != vector_typ.element_type:
             raise VerifyException(
                 "Source operand and result vector must have the same element type."
             )

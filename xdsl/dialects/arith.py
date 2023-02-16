@@ -5,7 +5,7 @@ from typing import Annotated, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute, AnyFloat)
+                                   Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
@@ -423,8 +423,8 @@ class Cmpi(Operation):
     -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
     -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
     """
+    predicate: OpAttr[AnyIntegerAttr]
     name: str = "arith.cmpi"
-    predicate: OpAttr[IntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType.from_width(1)]

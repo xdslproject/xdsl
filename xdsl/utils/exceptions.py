@@ -61,8 +61,6 @@ class ParseError(Exception):
         preamble = ""
         if history:
             preamble = history.error.args[0] + '\n'
-        if span is None:
-            raise ValueError("Span can't be None!")
         super().__init__(preamble + span.print_with_context(msg))
         self.span = span
         self.msg = msg

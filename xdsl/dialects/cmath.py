@@ -26,6 +26,8 @@ class Norm(Operation):
 
     # TODO replace with trait
     def verify_(self) -> None:
+        if not isinstance(self.op.typ, ComplexType):
+            raise VerifyException("Expected complex type")
         if self.op.typ.data != self.res.typ:
             raise VerifyException(
                 "expect all input and output types to be equal")
