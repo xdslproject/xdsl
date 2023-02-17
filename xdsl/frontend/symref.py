@@ -41,7 +41,7 @@ class Update(Operation):
     def get(symbol: str | SymbolRefAttr,
             value: Operation | SSAValue) -> Update:
         if isinstance(symbol, str):
-            symbol = FlatSymbolRefAttr.from_str(symbol)
+            symbol = SymbolRefAttr.from_str(symbol)
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
