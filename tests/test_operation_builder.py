@@ -2,8 +2,7 @@ from __future__ import annotations
 from typing import Annotated
 import pytest
 
-from xdsl.dialects.builtin import (DenseArrayBase, Operation, StringAttr, i32,
-                                   IntAttr)
+from xdsl.dialects.builtin import DenseArrayBase, Operation, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region
@@ -12,7 +11,6 @@ from xdsl.irdl import (OptOpResult, OptOperand, OptRegion,
                        VarOpResult, VarRegion, VarSingleBlockRegion,
                        irdl_op_definition, AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
-from xdsl.utils.exceptions import VerifyException
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -269,13 +267,6 @@ def test_attr_new_attr_op():
     op.verify()
     assert op.attr == StringAttr.from_int(0)
     assert op.attributes["new_attr"] == StringAttr.from_int(1)
-
-
-def test_attr_verify():
-    with pytest.raises(VerifyException) as e:
-        op = AttrOp.create(attributes={"attr": IntAttr.from_int(1)})
-        op.verify()
-    assert e.value.args[0] == "!int<1> should be of base attribute string"
 
 
 @irdl_op_definition

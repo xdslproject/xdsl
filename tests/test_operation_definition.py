@@ -1,10 +1,11 @@
 from __future__ import annotations
 import pytest
+from xdsl.dialects.builtin import IntAttr, StringAttr
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
 from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
                        AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
-from xdsl.utils.exceptions import PyRDLOpDefinitionError
+from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 
 @irdl_op_definition
@@ -53,3 +54,16 @@ def test_invalid_field():
     """Check that untyped fields are not allowed"""
     with pytest.raises(PyRDLOpDefinitionError):
         irdl_op_definition(InvalidFieldTestOp)
+
+
+@irdl_op_definition
+class AttrOp(Operation):
+    name: str = "test.two_var_result_op"
+    attr: OpAttr[StringAttr]
+
+
+def test_attr_verify():
+    op = AttrOp.create(attributes={"attr": IntAttr.from_int(1)})
+    with pytest.raises(VerifyException) as e:
+        op.verify()
+    assert e.value.args[0] == "!int<1> should be of base attribute string"
