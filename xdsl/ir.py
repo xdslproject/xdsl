@@ -291,9 +291,6 @@ class Attribute(ABC):
         printer.print_attribute(self)
         return res.getvalue()
 
-    def __format__(self, __format_spec: str) -> str:
-        return f'{self.__class__.__qualname__}({str(self)})'
-
 
 DataElement = TypeVar("DataElement")
 
