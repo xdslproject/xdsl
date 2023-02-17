@@ -69,6 +69,7 @@ class For(Operation):
     iter_args: Annotated[VarOperand, AnyAttr()]
 
     res: Annotated[VarOpResult, AnyAttr()]
+
     body: Region
 
     def verify_(self):
@@ -120,10 +121,10 @@ class For(Operation):
         step: IndexType | Operation,
         iter_args: List[Attribute],
         body: Region | List[Operation] | List[Block],
-    ) -> While:
-        op = While.build(
-            operands=[lb, ub, step] + iter_args,
-            result_types=iter_args,
+    ) -> For:
+        op = For.build(
+            operands=[lb, ub, step, iter_args],
+            result_types=[list(map(lambda a: a.result.typ, iter_args))],
             regions=[body],
         )
         return op
