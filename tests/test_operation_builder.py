@@ -2,8 +2,7 @@ from __future__ import annotations
 from typing import Annotated
 import pytest
 
-from xdsl.dialects.builtin import (DenseArrayBase, VectorType, IntegerType,
-                                   Operation, StringAttr, i32)
+from xdsl.dialects.builtin import DenseArrayBase, Operation, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region

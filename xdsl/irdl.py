@@ -640,6 +640,25 @@ class OpDef:
 
         return op_def
 
+    def verify(self, op: Operation):
+        """Given an IRDL definition, verify that an operation satisfies its invariants."""
+
+        # Verify operands.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND)
+
+        # Verify results.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT)
+
+        # Verify regions.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
+
+        for attr_name, attr_def in self.attributes.items():
+            if attr_name not in op.attributes:
+                if isinstance(attr_def, OptAttributeDef):
+                    continue
+                raise VerifyException(f"attribute {attr_name} expected")
+            attr_def.constr.verify(op.attributes[attr_name])
+
 
 class VarIRConstruct(Enum):
     """
@@ -872,26 +891,6 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
-def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
-    """Given an IRDL definition, verify that an operation satisfies its invariants."""
-
-    # Verify operands.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.OPERAND)
-
-    # Verify results.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.RESULT)
-
-    # Verify regions.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.REGION)
-
-    for attr_name, attr_def in op_def.attributes.items():
-        if attr_name not in op.attributes:
-            if isinstance(attr_def, OptAttributeDef):
-                continue
-            raise VerifyException(f"attribute {attr_name} expected")
-        attr_def.constr.verify(op.attributes[attr_name])
-
-
 def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     if isinstance(irdl_def, BaseAttr):
         if isinstance(result, tuple):
@@ -1076,18 +1075,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         else:
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes[name])
-
-    new_attrs["verify_"] = lambda op: irdl_op_verify(op, op_def)
-    if "verify_" in clsdict:
-        custom_verifier = clsdict["verify_"]
-
-        def new_verifier(verifier, op):
-            verifier(op)
-            custom_verifier(op)
-
-        new_attrs["verify_"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_attrs["verify_"])
 
     def builder(cls,
                 operands=[],
