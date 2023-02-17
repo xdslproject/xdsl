@@ -21,6 +21,76 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
+@dataclass
+class ArrayOfConstraint(AttrConstraint):
+    """
+    A constraint that enforces an ArrayData whose elements all satisfy
+    the elem_constr.
+    """
+    elem_constr: AttrConstraint
+
+    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+        self.elem_constr = attr_constr_coercion(constr)
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, Data):
+            raise Exception(f"expected data ArrayData but got {attr}")
+        for e in cast(ArrayAttr[Attribute], attr).data:
+            self.elem_constr.verify(e)
+
+
+_ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
+
+
+@irdl_attr_definition
+class ArrayAttr(GenericData[List[_ArrayAttrT]]):
+    name: str = "array"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
+        parser.parse_char("[")
+        data = parser.parse_list(parser.parse_optional_attribute)
+        parser.parse_char("]")
+        # the type system can't ensure that the elements are of type A
+        # and not just of type Attribute, therefore, the following cast
+        return cast(List[_ArrayAttrT], data)
+
+    @staticmethod
+    def print_parameter(data: List[_ArrayAttrT], printer: Printer) -> None:
+        printer.print_string("[")
+        printer.print_list(data, printer.print_attribute)
+        printer.print_string("]")
+
+    @staticmethod
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+        if len(args) == 1:
+            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
+        if len(args) == 0:
+            return ArrayOfConstraint(AnyAttr())
+        raise TypeError(f"Attribute ArrayAttr expects at most type"
+                        f" parameter, but {len(args)} were given")
+
+    def verify(self) -> None:
+        if not isinstance(self.data, list):
+            raise VerifyException(
+                f"Wrong type given to attribute {self.name}: got"
+                f" {type(self.data)}, but expected list of"
+                " attributes")
+        for idx, val in enumerate(self.data):
+            if not isinstance(val, Attribute):
+                raise VerifyException(
+                    f"{self.name} data expects attribute list, but {idx} "
+                    f"element is of type {type(val)}")
+
+    @staticmethod
+    @builder
+    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
+        return ArrayAttr(data)
+
+
+AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
+
+
 @irdl_attr_definition
 class StringAttr(Data[str]):
     name: str = "string"
@@ -62,19 +132,22 @@ class SymbolNameAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class FlatSymbolRefAttr(ParametrizedAttribute):
-    name: str = "flat_symbol_ref"
-    data: ParameterDef[StringAttr]
+class SymbolRefAttr(ParametrizedAttribute):
+    name = "symbol_ref"
+    root_reference: ParameterDef[StringAttr]
+    nested_references: ParameterDef[ArrayAttr[StringAttr]]
 
     @staticmethod
     @builder
-    def from_str(data: str) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([StringAttr(data)])
+    def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
+        return SymbolRefAttr.from_string_attr(StringAttr(root),
+                                              [StringAttr(x) for x in nested])
 
     @staticmethod
     @builder
-    def from_string_attr(data: StringAttr) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([data])
+    def from_string_attr(root: StringAttr,
+                         nested: List[StringAttr] = []) -> SymbolRefAttr:
+        return SymbolRefAttr([root, ArrayAttr(nested)])
 
 
 @irdl_attr_definition
@@ -274,76 +347,6 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
-
-
-@dataclass
-class ArrayOfConstraint(AttrConstraint):
-    """
-    A constraint that enforces an ArrayData whose elements all satisfy
-    the elem_constr.
-    """
-    elem_constr: AttrConstraint
-
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, Data):
-            raise Exception(f"expected data ArrayData but got {attr}")
-        for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e)
-
-
-_ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
-
-
-@irdl_attr_definition
-class ArrayAttr(GenericData[List[_ArrayAttrT]]):
-    name: str = "array"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
-        parser.parse_char("[")
-        data = parser.parse_list(parser.parse_optional_attribute)
-        parser.parse_char("]")
-        # the type system can't ensure that the elements are of type A
-        # and not just of type Attribute, therefore, the following cast
-        return cast(List[_ArrayAttrT], data)
-
-    @staticmethod
-    def print_parameter(data: List[_ArrayAttrT], printer: Printer) -> None:
-        printer.print_string("[")
-        printer.print_list(data, printer.print_attribute)
-        printer.print_string("]")
-
-    @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        if len(args) == 1:
-            return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
-        if len(args) == 0:
-            return ArrayOfConstraint(AnyAttr())
-        raise TypeError(f"Attribute ArrayAttr expects at most type"
-                        f" parameter, but {len(args)} were given")
-
-    def verify(self) -> None:
-        if not isinstance(self.data, list):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected list of"
-                " attributes")
-        for idx, val in enumerate(self.data):
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}")
-
-    @staticmethod
-    @builder
-    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        return ArrayAttr(data)
-
-
-AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
@@ -828,7 +831,7 @@ Builtin = Dialect(
     [ModuleOp, UnregisteredOp],
     [
         StringAttr,
-        FlatSymbolRefAttr,
+        SymbolRefAttr,
         SymbolNameAttr,
         IntAttr,
         IntegerAttr,

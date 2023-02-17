@@ -4,7 +4,7 @@ from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    IndexType, ArrayAttr, IntegerType,
-                                   FlatSymbolRefAttr, StringAttr, UnitAttr)
+                                   SymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
@@ -226,15 +226,13 @@ class GetGlobal(Operation):
         if 'name' not in self.attributes:
             raise Exception("GetGlobal requires a 'name' attribute")
 
-        if not isinstance(self.attributes['name'], FlatSymbolRefAttr):
-            raise Exception(
-                "expected 'name' attribute to be a FlatSymbolRefAttr")
+        if not isinstance(self.attributes['name'], SymbolRefAttr):
+            raise Exception("expected 'name' attribute to be a SymbolRefAttr")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
-        return GetGlobal.build(
-            result_types=[return_type],
-            attributes={"name": FlatSymbolRefAttr.build(name)})
+        return GetGlobal.build(result_types=[return_type],
+                               attributes={"name": SymbolRefAttr.build(name)})
 
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit

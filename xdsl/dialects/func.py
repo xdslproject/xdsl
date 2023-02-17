@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated, List, Union
 
-from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
+from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
                        OpAttr, OptOpAttr)
@@ -60,15 +60,15 @@ class FuncOp(Operation):
 class Call(Operation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
-    callee: OpAttr[FlatSymbolRefAttr]
+    callee: OpAttr[SymbolRefAttr]
 
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyAttr()]
     # TODO how do we verify that the types are correct?
 
     @staticmethod
-    def get(callee: Union[str, FlatSymbolRefAttr], ops: List[Union[SSAValue,
-                                                                   Operation]],
+    def get(callee: Union[str, SymbolRefAttr], ops: List[Union[SSAValue,
+                                                               Operation]],
             return_types: List[Attribute]) -> Call:
         return Call.build(operands=[ops],
                           result_types=[return_types],
