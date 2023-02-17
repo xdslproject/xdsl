@@ -1,7 +1,8 @@
 from xdsl.ir import OpResult
 from xdsl.dialects.builtin import i32, IntegerType, IndexType
+from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
-                                  Load, Store)
+                                  Load, Store, Dim)
 
 
 def test_memreftype():
@@ -114,3 +115,13 @@ def test_memref_dealloca():
     dealloc0 = Dealloca.get(alloc0)
 
     assert type(dealloc0.memref) is OpResult
+
+
+def test_memref_dim():
+    idx = Constant.from_int_and_width(1, IndexType())
+    alloc0 = Alloc.get(i32, 64, [3, 1, 2])
+    get_op = Dim.from_source_and_index(alloc0, idx)
+
+    assert get_op.source is alloc0.memref
+    assert get_op.index is idx.result
+    assert isinstance(get_op.result.typ, IndexType)

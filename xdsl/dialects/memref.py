@@ -271,5 +271,20 @@ class Global(Operation):
             })
 
 
-MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
+@irdl_op_definition
+class Dim(Operation):
+    name = "memref.dim"
+
+    source: Annotated[Operand, MemRefType]
+    index: Annotated[Operand, IndexType]
+
+    result: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def from_source_and_index(cls, source: Operand | Operation,
+                              index: Operand | Operation):
+        return cls.build(operands=[source, index], result_types=[IndexType()])
+
+
+MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global, Dim],
                  [MemRefType, UnrankedMemrefType])
