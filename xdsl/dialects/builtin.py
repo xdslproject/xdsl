@@ -5,8 +5,8 @@ from enum import Enum
 from typing import (TypeAlias, List, cast, Type, Sequence, TYPE_CHECKING, Any,
                     TypeVar)
 
-from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation, Region,
-                     Attribute, Dialect)
+from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
+                     Operation, Region, Attribute, Dialect, SSAValue)
 from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -551,13 +551,15 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     # The type stores the shape data
     @property
-    def shape(self) -> List[int]:
+    def shape(self) -> List[int] | None:
+        if isinstance(self.type, UnrankedTensorType):
+            return None
         return self.type.get_shape()
 
     @property
     def shape_is_complete(self) -> bool:
         shape = self.shape
-        if not len(shape):
+        if shape is None or not len(shape):
             return False
 
         n = 1
@@ -778,8 +780,14 @@ class UnregisteredOp(Operation):
         class UnregisteredOpWithName(UnregisteredOp):
 
             @classmethod
-            def create(cls, **kwargs):
-                op = super().create(**kwargs)
+            def create(cls,
+                       operands: Sequence[SSAValue] | None = None,
+                       result_types: Sequence[Attribute] | None = None,
+                       attributes: dict[str, Attribute] | None = None,
+                       successors: Sequence[Block] | None = None,
+                       regions: Sequence[Region] | None = None):
+                op = super().create(operands, result_types, attributes,
+                                    successors, regions)
                 op.attributes['op_name__'] = StringAttr.build(name)
                 return op
 

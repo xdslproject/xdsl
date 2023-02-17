@@ -87,12 +87,13 @@ def attr_constr_coercion(attr: (Attribute | type[Attribute]
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
+    if isinstance(attr, AttrConstraint):
+        return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
         return BaseAttr(attr)
-    assert (isinstance(attr, AttrConstraint))
-    return attr
+    assert False
 
 
 @dataclass

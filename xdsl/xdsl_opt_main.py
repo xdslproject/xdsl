@@ -21,7 +21,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
-from typing import IO, Dict, Callable, List
+from typing import IO, Dict, Callable, List, Sequence
 
 
 class xDSLOptMain:
@@ -54,7 +54,7 @@ class xDSLOptMain:
 
     def __init__(self,
                  description: str = 'xDSL modular optimizer driver',
-                 args=None):
+                 args: Sequence[str] | None = None):
         self.available_frontends = {}
         self.available_passes = {}
         self.available_targets = {}
