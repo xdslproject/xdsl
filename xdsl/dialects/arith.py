@@ -423,8 +423,8 @@ class Cmpi(Operation):
     -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
     -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
     """
-    predicate: OpAttr[AnyIntegerAttr]
     name: str = "arith.cmpi"
+    predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType.from_width(1)]
