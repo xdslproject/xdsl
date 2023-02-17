@@ -67,8 +67,8 @@ class Call(Operation):
     # TODO how do we verify that the types are correct?
 
     @staticmethod
-    def get(callee: Union[str, SymbolRefAttr],
-            ops: List[Union[SSAValue, Operation]],
+    def get(callee: Union[str, SymbolRefAttr], ops: List[Union[SSAValue,
+                                                               Operation]],
             return_types: List[Attribute]) -> Call:
         return Call.build(operands=[ops],
                           result_types=[return_types],
