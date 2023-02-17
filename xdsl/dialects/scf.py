@@ -62,9 +62,9 @@ class Condition(Operation):
 class For(Operation):
     name: str = "scf.for"
 
-    lb: Annotated[Operand, IndexType()]
-    ub: Annotated[Operand, IndexType()]
-    step: Annotated[Operand, IndexType()]
+    lb: Annotated[Operand, IndexType]
+    ub: Annotated[Operand, IndexType]
+    step: Annotated[Operand, IndexType]
 
     iter_args: Annotated[VarOperand, AnyAttr()]
 
@@ -119,12 +119,13 @@ class For(Operation):
         lb: IndexType | Operation,
         ub: IndexType | Operation,
         step: IndexType | Operation,
-        iter_args: List[Attribute],
+        iter_args: List[Attribute | Operation],
+        result_types: List[Attribute],
         body: Region | List[Operation] | List[Block],
     ) -> For:
         op = For.build(
             operands=[lb, ub, step, iter_args],
-            result_types=[list(map(lambda a: a.result.typ, iter_args))],
+            result_types=[result_types],
             regions=[body],
         )
         return op

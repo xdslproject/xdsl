@@ -1,5 +1,3 @@
-from pytest import raises
-
 from xdsl.dialects.arith import Constant, IndexType
 from xdsl.dialects.builtin import Region
 from xdsl.dialects.cf import Block
@@ -13,7 +11,7 @@ def test_for():
     carried = Constant.from_int_and_width(1, IndexType())
     bodyblock = Block.from_arg_types([IndexType()])
     body = Region.from_block_list([bodyblock])
-    f = For.get(lb, ub, step, [carried], body)
+    f = For.get(lb, ub, step, [carried], [carried.result.typ], body)
 
     assert f.lb is lb.result
     assert f.ub is ub.result
