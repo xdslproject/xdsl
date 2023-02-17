@@ -82,11 +82,6 @@ class For(Operation):
             raise VerifyException(
                 "Expected at least 3 arguments. A scf.for must have a lower- and "
                 "upper-bound, and a step.")
-        if self.body.blocks[0].args[0].typ != IndexType():
-            raise VerifyException(
-                f"Block argument with wrong type, expected {IndexType()}, "
-                f"got {self.body.blocks[0].args[0].typ}. The first "
-                f"argument of the body must be the induction variable.")
         for idx, arg in enumerate(self.iter_args):
             if self.body.blocks[0].args[idx + 1].typ != arg.typ:
                 raise VerifyException(
