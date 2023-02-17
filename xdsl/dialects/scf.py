@@ -7,6 +7,8 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import AnyAttr, Operand, VarOperand, VarOpResult, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
+# TODO custom syntax
+
 
 @irdl_op_definition
 class If(Operation):
@@ -69,9 +71,8 @@ class For(Operation):
     res: Annotated[VarOpResult, AnyAttr()]
     body: Region
 
-    # TODO verify dependencies between scf.yield and the region
     def verify_(self):
-        if len(self.iter_args) + 1 != len(self.body.blocks[0].args):
+        if (len(self.iter_args) + 1) != len(self.body.blocks[0].args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
                 f"{len(self.body.blocks[0].args)}. The body must have the induction "
@@ -89,7 +90,28 @@ class For(Operation):
             if self.body.blocks[0].args[idx + 1].typ != arg.typ:
                 raise VerifyException(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.body.blocks[0].args[idx].typ}")
+                    f"got {self.body.blocks[0].args[idx].typ}. Arguments after the "
+                    f"induction variable must match the carried variables.")
+        if len(self.iter_args) > 0:
+            if len(self.body.blocks[0].ops) == 0 or not isinstance(
+                    self.body.blocks[0].ops[-1], Yield):
+                raise VerifyException(
+                    "The scf.for's body does not end with a scf.yield. A scf.for loop "
+                    "with loop-carried variables must yield their values at the end of "
+                    "its body.")
+        if len(self.body.blocks[0].ops) > 0 and isinstance(
+                self.body.blocks[0].ops[-1], Yield):
+            yieldop = self.body.blocks[0].ops[-1]
+            if len(yieldop.arguments) != len(self.iter_args):
+                raise VerifyException(
+                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
+                    f"The scf.for must yield its carried variables.")
+            for idx, arg in enumerate(yieldop.arguments):
+                if self.iter_args[idx].typ != arg.typ:
+                    raise VerifyException(
+                        f"Expected {self.iter_args[idx].typ}, got {arg.typ}. The "
+                        f"scf.for's scf.yield must match carried variables types."
+                    )
 
     @staticmethod
     def get(
@@ -97,12 +119,11 @@ class For(Operation):
         ub: IndexType | Operation,
         step: IndexType | Operation,
         iter_args: List[Attribute],
-        result_types: List[Attribute],
         body: Region | List[Operation] | List[Block],
     ) -> While:
         op = While.build(
             operands=[lb, ub, step] + iter_args,
-            result_types=result_types,
+            result_types=iter_args,
             regions=[body],
         )
         return op
