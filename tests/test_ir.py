@@ -1,3 +1,4 @@
+from typing import Any, cast
 import pytest
 
 from xdsl.ir import MLContext, Operation, Block, Region
@@ -104,9 +105,13 @@ def test_op_clone():
     a = Constant.from_int_and_width(1, 32)
     b = a.clone()
 
+    b_value = b.value
+    assert isinstance(b_value, IntegerAttr)
+    b_value = cast(IntegerAttr[Any], b_value)
+
     assert a is not b
-    assert b.value.value.data == 1
-    assert b.value.typ.width.data == 32
+    assert b_value.value.data == 1
+    assert b_value.typ.width.data == 32
 
 
 def test_op_clone_with_regions():
@@ -232,7 +237,9 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     ctx.register_dialect(Cf)
 
     parser = XDSLParser(ctx, program_func)
-    program: ModuleOp = parser.parse_operation()
+    program = parser.parse_operation()
+
+    assert isinstance(program, ModuleOp)
 
     assert program.is_structurally_equivalent(program.regions[0]) == False
     assert program.is_structurally_equivalent(
@@ -245,3 +252,27 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
             program.ops[0].regions[0].blocks[0].ops[1]) == False
     assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
         program.ops[0].regions[0].blocks[1]) == False
+
+
+def test_descriptions():
+    a = Constant.from_int_and_width(1, 32)
+
+    assert str(a.value) == '1 : !i32'
+    assert f'{a.value}' == 'IntegerAttr(1 : !i32)'
+
+    assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
+    assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
+
+    m = ModuleOp.from_region_or_ops([a])
+
+    assert str(m) == '''\
+builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+}'''
+
+    assert f'{m}' == '''\
+ModuleOp(
+\tbuiltin.module() {
+\t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+\t}
+)'''
