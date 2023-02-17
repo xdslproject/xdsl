@@ -1,0 +1,14 @@
+// RUN: xdsl-opt -f mlir -t mlir %s --verify-diagnostics | filecheck %s
+"builtin.module"() ({
+  %lb = "arith.constant"() {"value" = 0 : i32} : () -> index
+  %ub = "arith.constant"() {"value" = 42 : index} : () -> index
+  %step = "arith.constant"() {"value" = 7 : index} : () -> index
+  %lbi = "arith.constant"() {"value" = 0 : i32} : () -> i32
+  %ubi = "arith.constant"() {"value" = 42 : index} : () -> i32
+  %stepi = "arith.constant"() {"value" = 7 : index} : () -> i32
+// CHECK: Expected attribute !index but got !i32
+  "scf.for"(%lbi, %ub, %step) ({
+  ^0(%iv : index):
+    "scf.yield"() : () -> ()
+  }) : (index, index, index) -> ()
+}) : () -> ()
