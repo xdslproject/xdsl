@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 @irdl_attr_definition
 class StringAttr(Data[str]):
-    name = "string"
+    name: str = "string"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> str:
@@ -47,7 +47,7 @@ class StringAttr(Data[str]):
 
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
-    name = "symbol_name"
+    name: str = "symbol_name"
     data: ParameterDef[StringAttr]
 
     @staticmethod
@@ -63,7 +63,7 @@ class SymbolNameAttr(ParametrizedAttribute):
 
 @irdl_attr_definition
 class FlatSymbolRefAttr(ParametrizedAttribute):
-    name = "flat_symbol_ref"
+    name: str = "flat_symbol_ref"
     data: ParameterDef[StringAttr]
 
     @staticmethod
@@ -79,7 +79,7 @@ class FlatSymbolRefAttr(ParametrizedAttribute):
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
-    name = "int"
+    name: str = "int"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> int:
@@ -108,7 +108,7 @@ class Signedness(Enum):
 
 @irdl_data_definition
 class SignednessAttr(Data[Signedness]):
-    name = "signedness"
+    name: str = "signedness"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Signedness:
@@ -141,7 +141,7 @@ class SignednessAttr(Data[Signedness]):
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute):
-    name = "integer_type"
+    name: str = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
 
@@ -177,7 +177,7 @@ _IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
 
 @irdl_attr_definition
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
-    name = "integer"
+    name: str = "integer"
     value: ParameterDef[IntAttr]
     typ: ParameterDef[_IntegerAttrTyp]
 
@@ -209,16 +209,16 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 @irdl_attr_definition
 class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
+    name: str = "f16"
 
 
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute, MLIRType):
-    name = "f32"
+    name: str = "f32"
 
 
 class Float64Type(ParametrizedAttribute, MLIRType):
-    name = "f64"
+    name: str = "f64"
 
 
 AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
@@ -249,7 +249,7 @@ _FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
-    name = "float"
+    name: str = "float"
 
     value: ParameterDef[FloatData]
     type: ParameterDef[_FloatAttrTyp]
@@ -299,7 +299,7 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[List[_ArrayAttrT]]):
-    name = "array"
+    name: str = "array"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
@@ -348,7 +348,7 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 @irdl_attr_definition
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
-    name = "dictionary"
+    name: str = "dictionary"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
@@ -402,7 +402,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
-    name = "tuple"
+    name: str = "tuple"
 
     types: ParameterDef[ArrayAttr[Attribute]]
 

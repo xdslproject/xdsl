@@ -101,7 +101,7 @@ class FuncOp(Operation):
     }
     ```
     """
-    name = 'toy.func'
+    name: str = 'toy.func'
     body: Region
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
