@@ -132,4 +132,4 @@ def test_memref_rank():
     dim_1 = Rank.from_memref(alloc0)
 
     assert dim_1.source is alloc0.memref
-    assert isinstance(dim_1.result.typ, IndexType)
+    assert isinstance(dim_1.rank.typ, IndexType)
