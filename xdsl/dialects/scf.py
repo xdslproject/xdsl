@@ -114,15 +114,14 @@ class For(Operation):
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
         step: SSAValue | Operation,
-        iter_args: List[Attribute | Operation],
-        result_types: List[Attribute],
+        iter_args: List[SSAValue | Operation],
         body: Region | List[Operation] | List[Block] | Block,
     ) -> For:
         if isinstance(body, Block):
             body = [body]
         op = For.build(
             operands=[lb, ub, step, iter_args],
-            result_types=[result_types],
+            result_types=[[SSAValue.get(a).typ for a in iter_args]],
             regions=[body],
         )
         return op

@@ -11,7 +11,7 @@ def test_for():
     carried = Constant.from_int_and_width(1, IndexType())
     bodyblock = Block.from_arg_types([IndexType()])
     body = Region.from_block_list([bodyblock])
-    f = For.get(lb, ub, step, [carried], [carried.result.typ], body)
+    f = For.get(lb, ub, step, [carried], body)
 
     assert f.lb is lb.result
     assert f.ub is ub.result
