@@ -7,9 +7,9 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    SymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
+                       Generic, Attribute, AnyAttr, Operand, VarOperand,
+                       AttrSizedOperandSegments, OpAttr)
 from xdsl.utils.exceptions import VerifyException
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -31,18 +31,18 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
-    @builder
     def from_element_type_and_shape(
             referenced_type: _MemRefTypeElement,
             shape: List[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
-            ArrayAttr[AnyIntegerAttr].from_list(
-                [IntegerAttr.build(d) for d in shape]), referenced_type
+            ArrayAttr[AnyIntegerAttr].from_list([
+                d if isinstance(d, IntegerAttr) else
+                IntegerAttr.from_index_int_value(d) for d in shape
+            ]), referenced_type
         ])
 
     @staticmethod
-    @builder
     def from_params(
         referenced_type: _MemRefTypeElement,
         shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr.from_list(
@@ -64,7 +64,6 @@ class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
     element_type: ParameterDef[_UnrankedMemrefTypeElems]
 
     @staticmethod
-    @builder
     def from_type(
         referenced_type: _UnrankedMemrefTypeElems
     ) -> UnrankedMemrefType[_UnrankedMemrefTypeElems]:

@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
-                       irdl_attr_definition, irdl_op_definition, builder)
+                       irdl_attr_definition, irdl_op_definition)
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -24,7 +24,6 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
     #  bitmask = ParameterDef(StringAttr)
 
     @staticmethod
-    @builder
     def from_type_list(types: list[Attribute]) -> LLVMStructType:
         return LLVMStructType(
             [StringAttr.from_str(""),

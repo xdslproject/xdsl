@@ -10,9 +10,8 @@ from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
 from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
-                       irdl_op_definition, builder, ParameterDef,
-                       SingleBlockRegion, Generic, GenericData, AttrConstraint,
-                       AnyAttr)
+                       irdl_op_definition, ParameterDef, SingleBlockRegion,
+                       Generic, GenericData, AttrConstraint, AnyAttr)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -83,7 +82,6 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
                     f"element is of type {type(val)}")
 
     @staticmethod
-    @builder
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
         return ArrayAttr(data)
 
@@ -105,12 +103,10 @@ class StringAttr(Data[str]):
         printer.print_string(f'"{data}"')
 
     @staticmethod
-    @builder
     def from_str(data: str) -> StringAttr:
         return StringAttr(data)
 
     @staticmethod
-    @builder
     def from_int(data: int) -> StringAttr:
         return StringAttr(str(data))
 
@@ -121,12 +117,10 @@ class SymbolNameAttr(ParametrizedAttribute):
     data: ParameterDef[StringAttr]
 
     @staticmethod
-    @builder
     def from_str(data: str) -> SymbolNameAttr:
         return SymbolNameAttr([StringAttr.from_str(data)])
 
     @staticmethod
-    @builder
     def from_string_attr(data: StringAttr) -> SymbolNameAttr:
         return SymbolNameAttr([data])
 
@@ -138,13 +132,11 @@ class SymbolRefAttr(ParametrizedAttribute):
     nested_references: ParameterDef[ArrayAttr[StringAttr]]
 
     @staticmethod
-    @builder
     def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
         return SymbolRefAttr.from_string_attr(StringAttr(root),
                                               [StringAttr(x) for x in nested])
 
     @staticmethod
-    @builder
     def from_string_attr(root: StringAttr,
                          nested: List[StringAttr] = []) -> SymbolRefAttr:
         return SymbolRefAttr([root, ArrayAttr(nested)])
@@ -164,7 +156,6 @@ class IntAttr(Data[int]):
         printer.print_string(f'{data}')
 
     @staticmethod
-    @builder
     def from_int(data: int) -> IntAttr:
         return IntAttr(data)
 
@@ -207,7 +198,6 @@ class SignednessAttr(Data[Signedness]):
             raise ValueError(f"Invalid signedness {data}")
 
     @staticmethod
-    @builder
     def from_enum(signedness: Signedness) -> SignednessAttr:
         return SignednessAttr(signedness)
 
@@ -219,7 +209,6 @@ class IntegerType(ParametrizedAttribute):
     signedness: ParameterDef[SignednessAttr]
 
     @staticmethod
-    @builder
     def from_width(
             width: int,
             signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
@@ -255,25 +244,23 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     typ: ParameterDef[_IntegerAttrTyp]
 
     @staticmethod
-    @builder
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
         return IntegerAttr(
             [IntAttr.from_int(value),
              IntegerType.from_width(width)])
 
     @staticmethod
-    @builder
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr([IntAttr.from_int(value), IndexType()])
 
     @staticmethod
-    @builder
     def from_params(
-            value: int | IntAttr,
-            typ: int | Attribute) -> IntegerAttr[IntegerType | IndexType]:
-        value = IntAttr.build(value)
-        if not isinstance(typ, IndexType):
-            typ = IntegerType.build(typ)
+        value: int | IntAttr, typ: int | IntegerType | IndexType
+    ) -> IntegerAttr[IntegerType | IndexType]:
+        if isinstance(value, int):
+            value = IntAttr(value)
+        if isinstance(typ, int):
+            typ = IntegerType.from_width(typ)
         return IntegerAttr([value, typ])
 
 
@@ -310,7 +297,6 @@ class FloatData(Data[float]):
         printer.print_string(f'{data}')
 
     @staticmethod
-    @builder
     def from_float(data: float) -> FloatData:
         return FloatData(data)
 
@@ -328,14 +314,12 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     type: ParameterDef[_FloatAttrTyp]
 
     @staticmethod
-    @builder
     def from_value(
         value: float, type: _FloatAttrTypContr = Float32Type()
     ) -> FloatAttr[_FloatAttrTypContr]:
         return FloatAttr([FloatData.from_float(value), type])
 
     @staticmethod
-    @builder
     def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
         if width == 16:
             return FloatAttr([FloatData.from_float(value), Float16Type()])
@@ -387,7 +371,6 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
                     f"element is of type {type(val)}")
 
     @staticmethod
-    @builder
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
         to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
@@ -410,7 +393,6 @@ class TupleType(ParametrizedAttribute):
     types: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    @builder
     def from_type_list(types: List[Attribute]) -> TupleType:
         return TupleType([ArrayAttr.from_list(types)])
 
@@ -432,19 +414,18 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
-    @builder
     def from_element_type_and_shape(
         referenced_type: _VectorTypeElems,
         shape: List[int | IntegerAttr[IndexType]]
     ) -> VectorType[_VectorTypeElems]:
         return VectorType([
-            ArrayAttr.from_list(
-                [IntegerAttr[IntegerType].build(d) for d in shape]),
-            referenced_type
+            ArrayAttr.from_list([
+                IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
+                    d, int) else d for d in shape
+            ]), referenced_type
         ])
 
     @staticmethod
-    @builder
     def from_params(
         referenced_type: _VectorTypeElems,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr.from_list(
@@ -472,7 +453,6 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
-    @builder
     def from_type_and_list(
         referenced_type: _TensorTypeElems,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None
@@ -480,13 +460,13 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
         if shape is None:
             shape = [1]
         return TensorType([
-            ArrayAttr.from_list(
-                [IntegerAttr[IndexType].build(d) for d in shape]),
-            referenced_type
+            ArrayAttr.from_list([
+                IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
+                    d, int) else d for d in shape
+            ]), referenced_type
         ])
 
     @staticmethod
-    @builder
     def from_params(
         referenced_type: _VectorTypeElems,
         shape: AnyArrayAttr = AnyArrayAttr.from_list(
@@ -510,7 +490,6 @@ class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
     element_type: ParameterDef[_UnrankedTensorTypeElems]
 
     @staticmethod
-    @builder
     def from_type(
         referenced_type: _UnrankedTensorTypeElems
     ) -> UnrankedTensorType[_UnrankedTensorTypeElems]:
@@ -576,7 +555,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return n == len(self.data.data)
 
     @staticmethod
-    @builder
     def create_dense_index(
             type: VectorOrTensorOf[IndexType],
             data: List[int | IntegerAttr[IndexType]]
@@ -588,7 +566,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(attr_list)])
 
     @staticmethod
-    @builder
     def create_dense_int(
         type: VectorOrTensorOf[IntegerType],
         data: List[int | IntegerAttr[IntegerType]]
@@ -600,7 +577,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(attr_list)])
 
     @staticmethod
-    @builder
     def create_dense_float(
             type: VectorOrTensorOf[AnyFloat],
             data: List[int | float | AnyFloatAttr]
@@ -612,7 +588,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr([type, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
-    @builder
     def from_list(
         type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
         | List[int | float | AnyFloatAttr]
@@ -627,7 +602,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {type.element_type}")
 
     @staticmethod
-    @builder
     def vector_from_list(
             data: List[int] | List[float],
             typ: IntegerType | IndexType | AnyFloat
@@ -636,7 +610,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
-    @builder
     def tensor_from_list(data: List[int] | List[float],
                          typ: IntegerType | IndexType | AnyFloat,
                          shape: List[int] = []) -> DenseIntOrFPElementsAttr:
@@ -655,7 +628,6 @@ class DenseResourceAttr(ParametrizedAttribute):
     type: ParameterDef[Attribute]
 
     @staticmethod
-    @builder
     def from_params(handle: str | StringAttr,
                     type: Attribute) -> DenseResourceAttr:
         if isinstance(handle, str):
@@ -685,7 +657,6 @@ class DenseArrayBase(ParametrizedAttribute):
                                           "should only contain floats")
 
     @staticmethod
-    @builder
     def create_dense_int_or_index(typ: IntegerType | IndexType,
                                   data: List[int | IntAttr]) -> DenseArrayBase:
         attr_list = [
@@ -694,7 +665,6 @@ class DenseArrayBase(ParametrizedAttribute):
         return DenseArrayBase([typ, ArrayAttr.from_list(attr_list)])
 
     @staticmethod
-    @builder
     def create_dense_float(
             typ: Float16Type | Float32Type | Float64Type,
             data: List[int | float | FloatData]) -> DenseArrayBase:
@@ -705,7 +675,6 @@ class DenseArrayBase(ParametrizedAttribute):
         return DenseArrayBase([typ, ArrayAttr.from_list(data_attr)])
 
     @staticmethod
-    @builder
     def from_list(
         type: Attribute, data: List[int | AnyIntegerAttr]
         | List[int | float | AnyFloatAttr]
@@ -726,7 +695,6 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    @builder
     def from_lists(inputs: List[Attribute],
                    outputs: List[Attribute]) -> FunctionType:
         return FunctionType(
@@ -734,7 +702,6 @@ class FunctionType(ParametrizedAttribute, MLIRType):
              ArrayAttr.from_list(outputs)])
 
     @staticmethod
-    @builder
     def from_attrs(inputs: ArrayAttr[Attribute],
                    outputs: ArrayAttr[Attribute]) -> FunctionType:
         return FunctionType([inputs, outputs])
@@ -791,7 +758,7 @@ class UnregisteredOp(Operation):
                        regions: Sequence[Region] | None = None):
                 op = super().create(operands, result_types, attributes,
                                     successors, regions)
-                op.attributes['op_name__'] = StringAttr.build(name)
+                op.attributes['op_name__'] = StringAttr(name)
                 return op
 
         ctx.registered_unregistered_ops[name] = UnregisteredOpWithName

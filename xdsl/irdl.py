@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
 from inspect import isclass
-from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Generic, Sequence, TypeAlias, TypeVar,
+                    Union, cast, get_args, get_origin, get_type_hints)
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import (BuilderNotFoundException,
-                                   PyRDLAttrDefinitionError,
+from xdsl.utils.exceptions import (PyRDLAttrDefinitionError,
                                    PyRDLOpDefinitionError, VerifyException)
-from xdsl.utils.hints import is_satisfying_hint, PropertyType
+from xdsl.utils.hints import PropertyType
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -891,16 +889,6 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
-def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
-    if isinstance(irdl_def, BaseAttr):
-        if isinstance(result, tuple):
-            return irdl_def.attr.build(*result)
-        return irdl_def.attr.build(result)
-    if isinstance(result, Attribute):
-        return result
-    raise Exception(f"builder expected an attribute, got {result}")
-
-
 def irdl_build_arg_list(construct: VarIRConstruct,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
@@ -912,8 +900,10 @@ def irdl_build_arg_list(construct: VarIRConstruct,
         if construct == VarIRConstruct.OPERAND:
             return SSAValue.get(arg)
         elif construct == VarIRConstruct.RESULT:
-            assert isinstance(arg_def, ResultDef)
-            return irdl_build_attribute(arg_def.constr, arg)
+            if not isinstance(arg, Attribute):
+                raise ValueError(error_prefix +
+                                 f"expected Attribute, but got {type(arg)}")
+            return arg
         elif construct == VarIRConstruct.REGION:
             assert isinstance(arg_def, RegionDef)
             return Region.get(arg)
@@ -980,19 +970,13 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
     built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions,
                                            op_def.regions, error_prefix)
 
-    # Build attributes by forwarding the values to the attribute builders
-    attr_defs = {name: def_ for (name, def_) in op_def.attributes.items()}
-
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
-        if attr_name not in attr_defs:
-            if isinstance(attr, Attribute):
-                built_attributes[attr_name] = attr
-                continue
+        if not isinstance(attr, Attribute):
             raise ValueError(error_prefix +
-                             f"unexpected attribute name {attr_name}.")
-        built_attributes[attr_name] = irdl_build_attribute(
-            attr_defs[attr_name].constr, attr)
+                             f"{attr_name} is expected to be an "
+                             "attribute, but got {type(attr)}.")
+        built_attributes[attr_name] = attr
 
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in op_def.options:
@@ -1091,44 +1075,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
 
-#     _   _   _        _ _           _
-#    / \ | |_| |_ _ __(_) |__  _   _| |_ ___
-#   / _ \| __| __| '__| | '_ \| | | | __/ _ \
-#  / ___ \ |_| |_| |  | | |_) | |_| | ||  __/
-# /_/   \_\__|\__|_|  |_|_.__/ \__,_|\__\___|
-#
-
-_AttrT = TypeVar('_AttrT', bound=Attribute)
-
-_BuilderTyT = TypeVar("_BuilderTyT", bound=Attribute)
-
-BuilderTy: TypeAlias = Callable[..., _BuilderTyT]
-
-IRDL_IS_BUILDER = '__irdl_is_builder'
-
-
-def builder(f: BuilderTy[_AttrT]) -> BuilderTy[_AttrT]:
-    """
-    Annotate a function and mark it as an IRDL builder.
-    This should only be used as decorator in classes decorated by irdl_attr_builder.
-    """
-    setattr(f, IRDL_IS_BUILDER, True)
-    return f
-
-
-def irdl_get_builders(cls: type[_AttrT]) -> list[BuilderTy[_AttrT]]:
-    """Get functions decorated with 'builder' in a class."""
-    builders = list[BuilderTy[_AttrT]]()
-    for field_name in cls.__dict__:
-        field_ = cls.__dict__[field_name]
-        # Builders are staticmethods, so we need to get back the original function
-        # with __func__
-        if hasattr(field_, "__func__") and hasattr(field_.__func__,
-                                                   IRDL_IS_BUILDER):
-            builders.append(field_.__func__)
-    return builders
-
-
 #  ____        _
 # |  _ \  __ _| |_ __ _
 # | | | |/ _` | __/ _` |
@@ -1172,14 +1118,6 @@ T = TypeVar('T', bound=Data[Any])
 def irdl_data_definition(cls: type[T]) -> type[T]:
     """Decorator to transform an IRDL Data definition to a Python class."""
     new_attrs = dict[str, Any]()
-
-    # Build method is added for all definitions.
-    if "build" in cls.__dict__:
-        raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, '
-            f'and should not be defined.')
-    builders = irdl_get_builders(cls)
-    new_attrs["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
 
     # Verify method is added if not redefined by the user.
     if "verify" not in cls.__dict__:
@@ -1313,37 +1251,6 @@ def irdl_attr_verify(attr: ParametrizedAttribute, attr_def: ParamAttrDef):
 _PAttrT = TypeVar('_PAttrT', bound=ParametrizedAttribute)
 
 
-def irdl_attr_try_builder(
-        builder: BuilderTy[_PAttrT],
-        *args: tuple[Any, ...]) -> ParametrizedAttribute | None:
-    params_dict = get_type_hints(builder)
-    builder_params = inspect.signature(builder).parameters
-    params = [params_dict[param.name] for param in builder_params.values()]
-    defaults = [param.default for param in builder_params.values()]
-    num_non_defaults = defaults.count(inspect.Signature.empty)
-    if num_non_defaults > len(args):
-        return None
-    if len(params) < len(args):
-        return None
-    for arg, param in zip(args, params[:len(args)]):
-        if not is_satisfying_hint(arg, param):
-            return None
-    return builder(*args, *defaults[len(args):])
-
-
-def irdl_attr_builder(cls: type[_PAttrT],
-                      builders: Sequence[BuilderTy[_PAttrT]],
-                      *args: tuple[Any, ...]):
-    """Try to apply all builders to construct an attribute instance."""
-    if len(args) == 1 and isinstance(args[0], cls):
-        return args[0]
-    for builder in builders:
-        res = irdl_attr_try_builder(builder, *args)
-        if res:
-            return res
-    raise BuilderNotFoundException(cls, args)
-
-
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     """Decorator used on classes to define a new attribute definition."""
 
@@ -1374,19 +1281,15 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
             lambda verifier: lambda op: new_verifier(verifier, op))(
                 new_fields["verify"])
 
-    builders = irdl_get_builders(cls)
-    if "build" in cls.__dict__:
-        raise Exception(
-            f'"build" method for {cls.__name__} is reserved for IRDL, ' +
-            'and should not be defined.')
-    new_fields["build"] = lambda *args: irdl_attr_builder(cls, builders, *args)
-
     new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
 
     return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
         **new_fields
     }))
+
+
+_AttrT = TypeVar('_AttrT', bound=Attribute)
 
 
 def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:

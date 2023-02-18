@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Any, TypeVar, Iterable, IO
+from typing import Any, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
@@ -888,14 +888,14 @@ class BaseParser(ABC):
         # Pass the task of parsing parameters on to the attribute/type definition
         if issubclass(type_def, ParametrizedAttribute):
             param_list = type_def.parse_parameters(self)
-        elif issubclass(type_def, Data):
+            return type_def.new(param_list)
+        if issubclass(type_def, Data):
             self.parse_characters("<", "This attribute must be parametrized!")
-            param_list = type_def.parse_parameter(self)
+            param: Any = type_def.parse_parameter(self)
             self.parse_characters(
                 ">", "Invalid attribute parametrization, expected `>`!")
-        else:
-            assert False, "Mathieu said this cannot be."
-        return type_def(param_list)
+            return cast(Data[Any], type_def(param))
+        assert False, "Attributes are either ParametrizedAttribute or Data."
 
     @abstractmethod
     def try_parse_builtin_type(self) -> Attribute | None:

@@ -30,7 +30,7 @@ class TwoResultOp(Operation):
 
 
 def test_var_mixed_builder():
-    op = TwoResultOp.build(result_types=[0, 2])
+    op = TwoResultOp.build(result_types=[StringAttr("0"), StringAttr("2")])
     b = OpResult(i32, [], [])
 
     with pytest.raises(ValueError):

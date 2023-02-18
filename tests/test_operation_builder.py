@@ -28,9 +28,9 @@ class ResultOp(Operation):
 
 
 def test_result_builder():
-    op = ResultOp.build(result_types=[0])
+    op = ResultOp.build(result_types=[StringAttr("")])
     op.verify()
-    assert [res.typ for res in op.results] == [StringAttr.from_int(0)]
+    assert [res.typ for res in op.results] == [StringAttr("")]
 
 
 def test_result_builder_exception():
@@ -46,17 +46,17 @@ class OptResultOp(Operation):
 
 
 def test_opt_result_builder():
-    op1 = OptResultOp.build(result_types=[[0]])
+    op1 = OptResultOp.build(result_types=[[StringAttr("")]])
     op2 = OptResultOp.build(result_types=[[]])
     op1.verify()
     op2.verify()
-    assert [res.typ for res in op1.results] == [StringAttr.from_int(0)]
+    assert [res.typ for res in op1.results] == [StringAttr("")]
     assert len(op2.results) == 0
 
 
 def test_opt_result_builder_two_args():
     with pytest.raises(ValueError) as _:
-        OptResultOp.build(result_types=[[0, 0]])
+        OptResultOp.build(result_types=[[StringAttr(""), StringAttr("")]])
 
 
 @irdl_op_definition
@@ -67,11 +67,11 @@ class VarResultOp(Operation):
 
 
 def test_var_result_builder():
-    op = VarResultOp.build(result_types=[[0, 1]])
+    op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.typ for res in op.results
-            ] == [StringAttr.from_int(0),
-                  StringAttr.from_int(1)]
+    assert [res.typ
+            for res in op.results] == [StringAttr("0"),
+                                       StringAttr("1")]
 
 
 @irdl_op_definition
@@ -84,13 +84,15 @@ class TwoVarResultOp(Operation):
 
 
 def test_two_var_result_builder():
-    op = TwoVarResultOp.build(result_types=[[0, 1], [2, 3]])
+    op = TwoVarResultOp.build(
+        result_types=[[StringAttr("0"), StringAttr("1")],
+                      [StringAttr("2"), StringAttr("3")]])
     op.verify()
     assert [res.typ for res in op.results] == [
-        StringAttr.from_int(0),
-        StringAttr.from_int(1),
-        StringAttr.from_int(2),
-        StringAttr.from_int(3)
+        StringAttr("0"),
+        StringAttr("1"),
+        StringAttr("2"),
+        StringAttr("3")
     ]
 
     assert op.attributes[
@@ -99,13 +101,16 @@ def test_two_var_result_builder():
 
 
 def test_two_var_result_builder2():
-    op = TwoVarResultOp.build(result_types=[[0], [1, 2, 3]])
+    op = TwoVarResultOp.build(result_types=[[StringAttr(
+        "0")], [StringAttr("1"),
+                StringAttr("2"),
+                StringAttr("3")]])
     op.verify()
     assert [res.typ for res in op.results] == [
-        StringAttr.from_int(0),
-        StringAttr.from_int(1),
-        StringAttr.from_int(2),
-        StringAttr.from_int(3)
+        StringAttr("0"),
+        StringAttr("1"),
+        StringAttr("2"),
+        StringAttr("3")
     ]
     assert op.attributes[
         AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
@@ -123,14 +128,17 @@ class MixedResultOp(Operation):
 
 
 def test_var_mixed_builder():
-    op = MixedResultOp.build(result_types=[[0, 1], 2, [3, 4]])
+    op = MixedResultOp.build(
+        result_types=[[StringAttr("0"), StringAttr("1")],
+                      StringAttr("2"), [StringAttr("3"),
+                                        StringAttr("4")]])
     op.verify()
     assert [res.typ for res in op.results] == [
-        StringAttr.from_int(0),
-        StringAttr.from_int(1),
-        StringAttr.from_int(2),
-        StringAttr.from_int(3),
-        StringAttr.from_int(4)
+        StringAttr("0"),
+        StringAttr("1"),
+        StringAttr("2"),
+        StringAttr("3"),
+        StringAttr("4")
     ]
 
     assert op.attributes[
@@ -155,14 +163,14 @@ class OperandOp(Operation):
 
 
 def test_operand_builder_operation():
-    op1 = ResultOp.build(result_types=[0])
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1])
     op2.verify()
     assert op2.operands == (op1.res, )
 
 
 def test_operand_builder_value():
-    op1 = ResultOp.build(result_types=[0])
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1.res])
     op2.verify()
     assert op2.operands == (op1.res, )
@@ -181,7 +189,7 @@ class OptOperandOp(Operation):
 
 
 def test_opt_operand_builder():
-    op = ResultOp.build(result_types=[0])
+    op = ResultOp.build(result_types=[StringAttr("0")])
     op1 = OptOperandOp.build(operands=[[op]])
     op2 = OptOperandOp.build(operands=[[]])
     op1.verify()
@@ -191,7 +199,7 @@ def test_opt_operand_builder():
 
 
 def test_opt_operand_builder_two_args():
-    op = ResultOp.build(result_types=[0])
+    op = ResultOp.build(result_types=[StringAttr("0")])
     with pytest.raises(ValueError) as _:
         OptOperandOp.build(operands=[[op, op]])
 
@@ -204,7 +212,7 @@ class VarOperandOp(Operation):
 
 
 def test_var_operand_builder():
-    op1 = ResultOp.build(result_types=[0])
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = VarOperandOp.build(operands=[[op1, op1]])
     op2.verify()
     assert op2.operands == (op1.res, op1.res)
@@ -220,7 +228,7 @@ class TwoVarOperandOp(Operation):
 
 
 def test_two_var_operand_builder():
-    op1 = ResultOp.build(result_types=[0])
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
@@ -230,7 +238,7 @@ def test_two_var_operand_builder():
 
 
 def test_two_var_operand_builder2():
-    op1 = ResultOp.build(result_types=[0])
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
@@ -254,19 +262,19 @@ class AttrOp(Operation):
 
 
 def test_attr_op():
-    op = AttrOp.build(attributes={"attr": 0})
+    op = AttrOp.build(attributes={"attr": StringAttr("0")})
     op.verify()
-    assert op.attr == StringAttr.from_int(0)
+    assert op.attr == StringAttr("0")
 
 
 def test_attr_new_attr_op():
     op = AttrOp.build(attributes={
-        "attr": 0,
-        "new_attr": StringAttr.from_int(1)
+        "attr": StringAttr("0"),
+        "new_attr": StringAttr("1")
     })
     op.verify()
-    assert op.attr == StringAttr.from_int(0)
-    assert op.attributes["new_attr"] == StringAttr.from_int(1)
+    assert op.attr == StringAttr("0")
+    assert op.attributes["new_attr"] == StringAttr("1")
 
 
 @irdl_op_definition
@@ -420,7 +428,7 @@ def test_var_sbregion_one_block():
 
 
 def test_parent_pointers():
-    op = ResultOp.build(result_types=[0])
+    op = ResultOp.build(result_types=[StringAttr("0")])
     block = Block.from_ops([op])
     reg = Region.from_block_list([block])
     reg_op = RegionOp.build(regions=[reg])

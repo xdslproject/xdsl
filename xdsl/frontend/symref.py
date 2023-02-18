@@ -12,6 +12,8 @@ class Declare(Operation):
 
     @staticmethod
     def get(sym_name: str | StringAttr) -> Declare:
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
         return Declare.build(attributes={"sym_name": sym_name})
 
 
@@ -23,6 +25,8 @@ class Fetch(Operation):
 
     @staticmethod
     def get(symbol: str | SymbolRefAttr, result_type: Attribute) -> Fetch:
+        if isinstance(symbol, str):
+            symbol = SymbolRefAttr.from_str(symbol)
         return Fetch.build(attributes={"symbol": symbol},
                            result_types=[result_type])
 
@@ -36,6 +40,8 @@ class Update(Operation):
     @staticmethod
     def get(symbol: str | SymbolRefAttr,
             value: Operation | SSAValue) -> Update:
+        if isinstance(symbol, str):
+            symbol = SymbolRefAttr.from_str(symbol)
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
