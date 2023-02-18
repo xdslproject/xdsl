@@ -185,7 +185,7 @@ class Alloca(Operation):
     def get(return_type: Attribute,
             alignment: int,
             shape: Optional[List[int | AnyIntegerAttr]] = None,
-            dynamic_sizes: list[SSAValue, Operation] = None) -> Alloca:
+            dynamic_sizes: list[SSAValue | Operation] | None = None) -> Alloca:
         if shape is None:
             shape = [1]
 
