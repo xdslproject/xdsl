@@ -184,10 +184,15 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[int | AnyIntegerAttr]] = None,
+            dynamic_sizes: list[SSAValue, Operation] = None) -> Alloca:
         if shape is None:
             shape = [1]
-        return Alloca.build(operands=[[], []],
+
+        if dynamic_sizes is None:
+            dynamic_sizes = []
+
+        return Alloca.build(operands=[dynamic_sizes, []],
                             result_types=[
                                 MemRefType.from_element_type_and_shape(
                                     return_type, shape)
