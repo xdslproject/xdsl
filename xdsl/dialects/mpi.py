@@ -309,7 +309,7 @@ class GetStatusField(MPIBaseOp):
     @classmethod
     def get(cls, status_obj: Operand, field: StatusTypeField):
         return cls.build(operands=[status_obj],
-                         attributes={'field': field.value},
+                         attributes={'field': StringAttr(field.value)},
                          result_types=[t_int])
 
 
