@@ -1,12 +1,10 @@
 import argparse
 import sys
 import os
-from io import IOBase, StringIO
-import coverage
-from typing.io import IO
+from io import StringIO
 
 from xdsl.ir import MLContext
-from xdsl.parser import XDSLParser, MLIRParser
+from xdsl.parser import XDSLParser, MLIRParser, ParseError
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -23,7 +21,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
-from typing import Dict, Callable, List
+from typing import IO, Dict, Callable, List, Sequence
 
 
 class xDSLOptMain:
@@ -34,7 +32,7 @@ class xDSLOptMain:
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IOBase], ModuleOp]]
+    available_frontends: Dict[str, Callable[[IO[str]], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
@@ -45,7 +43,7 @@ class xDSLOptMain:
     A mapping from pass names to functions that apply the pass to a  ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IOBase], None]]
+    available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
     stream.
@@ -56,7 +54,7 @@ class xDSLOptMain:
 
     def __init__(self,
                  description: str = 'xDSL modular optimizer driver',
-                 args=None):
+                 args: Sequence[str] | None = None):
         self.available_frontends = {}
         self.available_passes = {}
         self.available_targets = {}
@@ -78,17 +76,15 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        if self.args.generate_coverage:
-            if self.args.exec_root:
-                os.chdir(self.args.exec_root)
-            cov = coverage.Coverage(config_file='.coveragerc',
-                                    auto_data=True,
-                                    data_file='.coverage',
-                                    data_suffix=True)
+        if not self.args.parsing_diagnostics:
+            module = self.parse_input()
+        else:
+            try:
+                module = self.parse_input()
+            except ParseError as e:
+                print(e)
+                exit(0)
 
-            cov.start()
-
-        module = self.parse_input()
         if not self.args.verify_diagnostics:
             self.apply_passes(module)
         else:
@@ -100,9 +96,6 @@ class xDSLOptMain:
 
         contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
-
-        if self.args.generate_coverage:
-            cov.stop()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -162,35 +155,19 @@ class xDSLOptMain:
                                 default=False,
                                 action='store_true',
                                 help="Prints the content of a triggered "
-                                "exception and exits with code 0")
+                                "verifier exception and exits with code 0")
 
-        arg_parser.add_argument(
-            "--use-mlir-bindings",
-            default=False,
-            action='store_true',
-            help="Use the MLIR bindings for printing MLIR. "
-            "This requires the MLIR Python bindings to be installed.")
+        arg_parser.add_argument("--parsing-diagnostics",
+                                default=False,
+                                action='store_true',
+                                help="Prints the content of a triggered "
+                                "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
             "--allow-unregistered-ops",
             default=False,
             action='store_true',
             help="Allow the parsing of unregistered operations.")
-
-        arg_parser.add_argument(
-            "--generate-coverage",
-            default=False,
-            action='store_true',
-            help="Generate the xDSL code coverage for this run.")
-
-        arg_parser.add_argument(
-            "--exec-root",
-            type=str,
-            default=False,
-            required=False,
-            help="Defines the directory xdsl-opt will be run in."
-            "This flag only takes effect if `--generate-config` was specified."
-        )
 
     def register_all_dialects(self):
         """
@@ -217,11 +194,11 @@ class xDSLOptMain:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_xdsl(io: IOBase):
+        def parse_xdsl(io: IO[str]):
             return XDSLParser(self.ctx, io.read(), self.get_input_name(),
                               self.args.allow_unregistered_ops).parse_module()
 
-        def parse_mlir(io: IOBase):
+        def parse_mlir(io: IO[str]):
             return MLIRParser(self.ctx, io.read(), self.get_input_name(),
                               self.args.allow_unregistered_ops).parse_module()
 
@@ -243,21 +220,15 @@ class xDSLOptMain:
         Add other/additional targets by overloading this function.
         """
 
-        def _output_xdsl(prog: ModuleOp, output: IOBase):
+        def _output_xdsl(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output)
             printer.print_op(prog)
 
-        def _output_mlir(prog: ModuleOp, output: IOBase):
-            if self.args.use_mlir_bindings:
-                from xdsl.mlir_converter import MLIRConverter
-                converter = MLIRConverter(self.ctx)
-                mlir_module = converter.convert_module(prog)
-                print(mlir_module, file=output)
-            else:
-                printer = Printer(stream=output, target=Printer.Target.MLIR)
-                printer.print_op(prog)
+        def _output_mlir(prog: ModuleOp, output: IO[str]):
+            printer = Printer(stream=output, target=Printer.Target.MLIR)
+            printer.print_op(prog)
 
-        def _output_irdl(prog: ModuleOp, output: IOBase):
+        def _output_irdl(prog: ModuleOp, output: IO[str]):
             irdl_to_mlir = IRDLPrinter(stream=output)
             irdl_to_mlir.print_module(prog)
 

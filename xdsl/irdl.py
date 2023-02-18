@@ -8,13 +8,15 @@ from functools import reduce
 from inspect import isclass
 from typing import (Annotated, Any, Callable, Generic, Sequence, TypeAlias,
                     TypeVar, Union, cast, get_args, get_origin, get_type_hints)
-from types import UnionType, GenericAlias
+from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import BuilderNotFoundException, VerifyException
-from xdsl.utils.hints import is_satisfying_hint
+from xdsl.utils.exceptions import (BuilderNotFoundException,
+                                   PyRDLAttrDefinitionError,
+                                   PyRDLOpDefinitionError, VerifyException)
+from xdsl.utils.hints import is_satisfying_hint, PropertyType
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -85,12 +87,13 @@ def attr_constr_coercion(attr: (Attribute | type[Attribute]
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
+    if isinstance(attr, AttrConstraint):
+        return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
         return BaseAttr(attr)
-    assert (isinstance(attr, AttrConstraint))
-    return attr
+    assert False
 
 
 @dataclass
@@ -492,6 +495,36 @@ class OpDef:
         for parent_cls in pyrdl_def.mro()[::-1]:
             clsdict = {**clsdict, **parent_cls.__dict__}
 
+        type_hints = get_type_hints(pyrdl_def, include_extras=True)
+
+        # Get all fields of the Operation class, including their parents classes
+        opdict: dict[str, Any] = dict()
+        for parent_cls in Operation.mro()[::-1]:
+            opdict = {**opdict, **parent_cls.__dict__}
+
+        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
+            raise PyRDLOpDefinitionError(
+                f"{field_name} is neither a function, or an "
+                "operand, result, region, or attribute definition. "
+                "Operands should be defined with type hints of "
+                "Annotated[Operand, <Constraint>], results with "
+                "Annotated[OpResult, <Constraint>], regions with "
+                "Region, and attributes with "
+                "OpAttr[<Constraint>]")
+
+        # Check that all fields of the operation definition are either already
+        # in Operation, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            if field_name in opdict:
+                continue
+            if field_name == "irdl_options":
+                continue
+            if isinstance(
+                    value,
+                (FunctionType, PropertyType, classmethod, staticmethod)):
+                continue
+            raise wrong_field_exception(field_name)
+
         if "name" not in clsdict:
             raise Exception(
                 f"pyrdl operation definition '{pyrdl_def.__name__}' does not "
@@ -499,8 +532,8 @@ class OpDef:
                 "adding a 'name' field.")
 
         op_def = OpDef(clsdict["name"])
-        for field_name, field_type in get_type_hints(
-                pyrdl_def, include_extras=True).items():
+
+        for field_name, field_type in type_hints.items():
 
             if field_name in get_type_hints(Operation).keys():
                 continue
@@ -600,10 +633,31 @@ class OpDef:
                         (field_name, OptSingleBlockRegionDef()))
                 else:
                     op_def.regions.append((field_name, OptRegionDef()))
+            else:
+                raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
 
         return op_def
+
+    def verify(self, op: Operation):
+        """Given an IRDL definition, verify that an operation satisfies its invariants."""
+
+        # Verify operands.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND)
+
+        # Verify results.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT)
+
+        # Verify regions.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
+
+        for attr_name, attr_def in self.attributes.items():
+            if attr_name not in op.attributes:
+                if isinstance(attr_def, OptAttributeDef):
+                    continue
+                raise VerifyException(f"attribute {attr_name} expected")
+            attr_def.constr.verify(op.attributes[attr_name])
 
 
 class VarIRConstruct(Enum):
@@ -680,8 +734,8 @@ def get_variadic_sizes_from_attr(op: Operation,
     Get the sizes of the variadic definitions
     from the corresponding attribute.
     """
-    # Circular import because DenseIntOrFPElementsAttr is defined using IRDL
-    from xdsl.dialects.builtin import DenseIntOrFPElementsAttr
+    # Circular import because DenseArrayBase is defined using IRDL
+    from xdsl.dialects.builtin import DenseArrayBase, i32
 
     # Check that the attribute is present
     if size_attribute_name not in op.attributes:
@@ -689,12 +743,17 @@ def get_variadic_sizes_from_attr(op: Operation,
             f"Expected {size_attribute_name} attribute in {op.name} operation."
         )
     attribute = op.attributes[size_attribute_name]
-    if not isinstance(attribute, DenseIntOrFPElementsAttr):
+    if not isinstance(attribute, DenseArrayBase):
         raise VerifyException(f"{size_attribute_name} attribute is expected "
-                              "to be a DenseIntOrFPElementsAttr.")
-    def_sizes: list[int] = [
-        size_attr.value.data for size_attr in attribute.data.data
-    ]
+                              "to be a DenseArrayBase.")
+
+    if attribute.elt_type != i32:
+        raise VerifyException(
+            f"{size_attribute_name} attribute is expected to "
+            "be a DenseArrayBase of i32")
+    def_sizes = cast(list[int],
+                     [size_attr.data for size_attr in attribute.data.data])
+
     if len(def_sizes) != len(defs):
         raise VerifyException(
             f"expected {len(defs)} values in "
@@ -832,26 +891,6 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
-def irdl_op_verify(op: Operation, op_def: OpDef) -> None:
-    """Given an IRDL definition, verify that an operation satisfies its invariants."""
-
-    # Verify operands.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.OPERAND)
-
-    # Verify results.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.RESULT)
-
-    # Verify regions.
-    irdl_op_verify_arg_list(op, op_def, VarIRConstruct.REGION)
-
-    for attr_name, attr_def in op_def.attributes.items():
-        if attr_name not in op.attributes:
-            if isinstance(attr_def, OptAttributeDef):
-                continue
-            raise VerifyException(f"attribute {attr_name} expected")
-        attr_def.constr.verify(op.attributes[attr_name])
-
-
 def irdl_build_attribute(irdl_def: AttrConstraint, result: Any) -> Attribute:
     if isinstance(irdl_def, BaseAttr):
         if isinstance(result, tuple):
@@ -922,10 +961,10 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
                     regions: Sequence[Any | None]) -> _OpT:
     """Builder for an irdl operation."""
 
-    # We need irdl to define DenseIntOrFPElementsAttr, but here we need
-    # DenseIntOrFPElementsAttr.
+    # We need irdl to define DenseArrayBase, but here we need
+    # DenseArrayBase.
     # So we have a circular dependency that we solve by importing in this function.
-    from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, i32)
+    from xdsl.dialects.builtin import (DenseArrayBase, i32)
 
     error_prefix = f"Error in {op_def.name} builder: "
 
@@ -959,12 +998,12 @@ def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
     if AttrSizedOperandSegments() in op_def.options:
         sizes = operand_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
+            DenseArrayBase.from_list(i32, sizes)
 
     if AttrSizedResultSegments() in op_def.options:
         sizes = result_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseIntOrFPElementsAttr.vector_from_list(sizes, i32)
+            DenseArrayBase.from_list(i32, sizes)
 
     return cls.create(operands=built_operands,
                       result_types=built_res_types,
@@ -1036,18 +1075,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         else:
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes[name])
-
-    new_attrs["verify_"] = lambda op: irdl_op_verify(op, op_def)
-    if "verify_" in clsdict:
-        custom_verifier = clsdict["verify_"]
-
-        def new_verifier(verifier, op):
-            verifier(op)
-            custom_verifier(op)
-
-        new_attrs["verify_"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_attrs["verify_"])
 
     def builder(cls,
                 operands=[],
@@ -1210,10 +1237,10 @@ def irdl_param_attr_get_param_type_hints(
         origin = get_origin(field_type)
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
-            raise ValueError(
+            raise PyRDLAttrDefinitionError(
                 f"In attribute {cls.__name__} definition: Parameter " +
                 f"definition {field_name} should be defined with " +
-                f"type `ParameterDef`, got type {field_type}.")
+                f"type `ParameterDef[<Constraint>]`, got type {field_type}.")
 
         res.append((field_name, field_type))
     return res
@@ -1231,6 +1258,25 @@ class ParamAttrDef:
         clsdict = dict[str, Any]()
         for parent_cls in pyrdl_def.mro()[::-1]:
             clsdict = {**clsdict, **parent_cls.__dict__}
+
+        # Get all fields of the ParametrizedAttribute class, including their
+        # parents classes
+        attrdict: dict[str, Any] = dict()
+        for parent_cls in ParametrizedAttribute.mro()[::-1]:
+            attrdict = {**attrdict, **parent_cls.__dict__}
+        attrdict = {**attrdict, **Generic.__dict__, **GenericData.__dict__}
+
+        # Check that all fields of the attribute definition are either already
+        # in ParametrizedAttribute, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            if field_name in attrdict:
+                continue
+            if isinstance(
+                    value,
+                (FunctionType, PropertyType, classmethod, staticmethod)):
+                continue
+            raise PyRDLAttrDefinitionError(
+                f"{field_name} is not a parameter definition.")
 
         if "name" not in clsdict:
             raise Exception(

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import Annotated, TypeVar, Optional, List, TypeAlias
+from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
-from xdsl.dialects.builtin import (IntegerAttr, IndexType, ArrayAttr,
-                                   IntegerType, FlatSymbolRefAttr, StringAttr,
-                                   DenseIntOrFPElementsAttr)
+from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
+                                   IndexType, ArrayAttr, IntegerType,
+                                   SymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (OptOpAttr, irdl_attr_definition, irdl_op_definition,
-                       builder, ParameterDef, Generic, Attribute, AnyAttr,
-                       Operand, VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
+                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
+                       VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.utils.exceptions import VerifyException
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -85,7 +86,12 @@ class Load(Operation):
     # which is subject to change
 
     def verify_(self):
-        if self.memref.typ.element_type != self.res.typ:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memreftype")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if memref_typ.element_type != self.res.typ:
             raise Exception(
                 "expected return type to match the MemRef element type")
 
@@ -95,8 +101,12 @@ class Load(Operation):
     @staticmethod
     def get(ref: SSAValue | Operation,
             indices: List[SSAValue | Operation]) -> Load:
+        ssa_value = SSAValue.get(ref)
+        typ = ssa_value.typ
+        assert isinstance(typ, MemRefType)
+        typ = cast(MemRefType[Attribute], typ)
         return Load.build(operands=[ref, indices],
-                          result_types=[SSAValue.get(ref).typ.element_type])
+                          result_types=[typ.element_type])
 
 
 @irdl_op_definition
@@ -107,7 +117,12 @@ class Store(Operation):
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
-        if self.memref.typ.element_type != self.value.typ:
+        if not isinstance(self.memref.typ, MemRefType):
+            raise VerifyException("expected a memreftype")
+
+        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+
+        if memref_typ.element_type != self.value.typ:
             raise Exception(
                 "Expected value type to match the MemRef element type")
 
@@ -211,15 +226,13 @@ class GetGlobal(Operation):
         if 'name' not in self.attributes:
             raise Exception("GetGlobal requires a 'name' attribute")
 
-        if not isinstance(self.attributes['name'], FlatSymbolRefAttr):
-            raise Exception(
-                "expected 'name' attribute to be a FlatSymbolRefAttr")
+        if not isinstance(self.attributes['name'], SymbolRefAttr):
+            raise Exception("expected 'name' attribute to be a SymbolRefAttr")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
-        return GetGlobal.build(
-            result_types=[return_type],
-            attributes={"name": FlatSymbolRefAttr.build(name)})
+        return GetGlobal.build(result_types=[return_type],
+                               attributes={"name": SymbolRefAttr.build(name)})
 
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
@@ -232,17 +245,16 @@ class Global(Operation):
     sym_name: OpAttr[StringAttr]
     sym_visibility: OpAttr[StringAttr]
     type: OpAttr[Attribute]
-    initial_value: OptOpAttr[Attribute]
+    initial_value: OpAttr[Attribute]
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
             raise Exception("Global expects a MemRefType")
 
-        if self.initial_value and not isinstance(self.initial_value,
-                                                 DenseIntOrFPElementsAttr):
-            raise Exception(
-                "Global expects an initial value with type DenseIntOrFPElementsAttr"
-            )
+        if not isinstance(self.initial_value,
+                          UnitAttr | DenseIntOrFPElementsAttr):
+            raise Exception("Global initial value is expected to be a "
+                            "dense type or an unit attribute")
 
     @staticmethod
     def get(sym_name: str | StringAttr,

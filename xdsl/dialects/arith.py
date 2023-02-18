@@ -5,7 +5,7 @@ from typing import Annotated, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute, AnyFloat)
+                                   Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
@@ -49,7 +49,9 @@ class BinaryOperation(Operation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+        if len(self.operands) != 2 or len(self.results) != 1:
+            raise VerifyException("Binary operation expects 2 operands and 1 result.")
+        if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
             raise VerifyException(
                 "expect all input and result types to be equal")
 
@@ -422,7 +424,7 @@ class Cmpi(Operation):
     -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
     """
     name: str = "arith.cmpi"
-    predicate: OpAttr[IntegerAttr]
+    predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType.from_width(1)]

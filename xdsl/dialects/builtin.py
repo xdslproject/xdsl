@@ -5,8 +5,8 @@ from enum import Enum
 from typing import (TypeAlias, List, cast, Type, Sequence, TYPE_CHECKING, Any,
                     TypeVar)
 
-from xdsl.ir import (Data, MLIRType, ParametrizedAttribute, Operation, Region,
-                     Attribute, Dialect)
+from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
+                     Operation, Region, Attribute, Dialect, SSAValue)
 from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -19,260 +19,6 @@ if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from utils.exceptions import ParseError
     from xdsl.printer import Printer
-
-
-@irdl_attr_definition
-class StringAttr(Data[str]):
-    name = "string"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
-        data = parser.parse_str_literal()
-        return data
-
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        printer.print_string(f'"{data}"')
-
-    @staticmethod
-    @builder
-    def from_str(data: str) -> StringAttr:
-        return StringAttr(data)
-
-    @staticmethod
-    @builder
-    def from_int(data: int) -> StringAttr:
-        return StringAttr(str(data))
-
-
-@irdl_attr_definition
-class SymbolNameAttr(ParametrizedAttribute):
-    name = "symbol_name"
-    data: ParameterDef[StringAttr]
-
-    @staticmethod
-    @builder
-    def from_str(data: str) -> SymbolNameAttr:
-        return SymbolNameAttr([StringAttr.from_str(data)])
-
-    @staticmethod
-    @builder
-    def from_string_attr(data: StringAttr) -> SymbolNameAttr:
-        return SymbolNameAttr([data])
-
-
-@irdl_attr_definition
-class FlatSymbolRefAttr(ParametrizedAttribute):
-    name = "flat_symbol_ref"
-    data: ParameterDef[StringAttr]
-
-    @staticmethod
-    @builder
-    def from_str(data: str) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([StringAttr(data)])
-
-    @staticmethod
-    @builder
-    def from_string_attr(data: StringAttr) -> FlatSymbolRefAttr:
-        return FlatSymbolRefAttr([data])
-
-
-@irdl_attr_definition
-class IntAttr(Data[int]):
-    name = "int"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> int:
-        data = parser.parse_int_literal()
-        return data
-
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print_string(f'{data}')
-
-    @staticmethod
-    @builder
-    def from_int(data: int) -> IntAttr:
-        return IntAttr(data)
-
-
-class Signedness(Enum):
-    "Signedness semantics for integer"
-
-    SIGNLESS = 0
-    "No signedness semantics"
-
-    SIGNED = 1
-    UNSIGNED = 2
-
-
-@irdl_data_definition
-class SignednessAttr(Data[Signedness]):
-    name = "signedness"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> Signedness:
-        # Is this ever used? TOADD tests?
-        if parser.parse_optional_string("signless") is not None:
-            return Signedness.SIGNLESS
-        elif parser.parse_optional_string("signed") is not None:
-            return Signedness.SIGNED
-        elif parser.parse_optional_string("unsigned") is not None:
-            return Signedness.UNSIGNED
-        raise ParseError(parser.get_pos(), "Expected signedness")
-
-    @staticmethod
-    def print_parameter(data: Signedness, printer: Printer) -> None:
-        if data == Signedness.SIGNLESS:
-            printer.print_string("signless")
-        elif data == Signedness.SIGNED:
-            printer.print_string("signed")
-        elif data == Signedness.UNSIGNED:
-            printer.print_string("unsigned")
-        else:
-            raise ValueError(f"Invalid signedness {data}")
-
-    @staticmethod
-    @builder
-    def from_enum(signedness: Signedness) -> SignednessAttr:
-        return SignednessAttr(signedness)
-
-
-@irdl_attr_definition
-class IntegerType(ParametrizedAttribute):
-    name = "integer_type"
-    width: ParameterDef[IntAttr]
-    signedness: ParameterDef[SignednessAttr]
-
-    @staticmethod
-    @builder
-    def from_width(
-            width: int,
-            signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
-        return IntegerType(
-            [IntAttr.from_int(width),
-             SignednessAttr.from_enum(signedness)])
-
-
-i64 = IntegerType.from_width(64)
-i32 = IntegerType.from_width(32)
-i1 = IntegerType.from_width(1)
-
-
-@irdl_attr_definition
-class UnitAttr(ParametrizedAttribute):
-    name = "unit"
-
-
-@irdl_attr_definition
-class IndexType(ParametrizedAttribute):
-    name = "index"
-
-
-_IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
-                          bound=IntegerType | IndexType,
-                          covariant=True)
-
-
-@irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
-    name = "integer"
-    value: ParameterDef[IntAttr]
-    typ: ParameterDef[_IntegerAttrTyp]
-
-    @staticmethod
-    @builder
-    def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
-        return IntegerAttr(
-            [IntAttr.from_int(value),
-             IntegerType.from_width(width)])
-
-    @staticmethod
-    @builder
-    def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
-        return IntegerAttr([IntAttr.from_int(value), IndexType()])
-
-    @staticmethod
-    @builder
-    def from_params(
-            value: int | IntAttr,
-            typ: int | Attribute) -> IntegerAttr[IntegerType | IndexType]:
-        value = IntAttr.build(value)
-        if not isinstance(typ, IndexType):
-            typ = IntegerType.build(typ)
-        return IntegerAttr([value, typ])
-
-
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
-
-
-@irdl_attr_definition
-class Float16Type(ParametrizedAttribute, MLIRType):
-    name = "f16"
-
-
-@irdl_attr_definition
-class Float32Type(ParametrizedAttribute, MLIRType):
-    name = "f32"
-
-
-class Float64Type(ParametrizedAttribute, MLIRType):
-    name = "f64"
-
-
-AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
-
-
-@irdl_attr_definition
-class FloatData(Data[float]):
-    name = "float_data"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> float:
-        return parser.parse_float_literal()
-
-    @staticmethod
-    def print_parameter(data: float, printer: Printer) -> None:
-        printer.print_string(f'{data}')
-
-    @staticmethod
-    @builder
-    def from_float(data: float) -> FloatData:
-        return FloatData(data)
-
-
-_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
-
-_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
-
-
-@irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
-    name = "float"
-
-    value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrTyp]
-
-    @staticmethod
-    @builder
-    def from_value(
-        value: float, type: _FloatAttrTypContr = Float32Type()
-    ) -> FloatAttr[_FloatAttrTypContr]:
-        return FloatAttr([FloatData.from_float(value), type])
-
-    @staticmethod
-    @builder
-    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
-        if width == 16:
-            return FloatAttr([FloatData.from_float(value), Float16Type()])
-        if width == 32:
-            return FloatAttr([FloatData.from_float(value), Float32Type()])
-        if width == 64:
-            return FloatAttr([FloatData.from_float(value), Float64Type()])
-        raise ValueError(f"Invalid bitwidth: {width}")
-
-
-AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
 
 @dataclass
@@ -298,7 +44,7 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[List[_ArrayAttrT]]):
-    name = "array"
+    name: str = "array"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
@@ -346,8 +92,266 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
+class StringAttr(Data[str]):
+    name: str = "string"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> str:
+        data = parser.parse_str_literal()
+        return data
+
+    @staticmethod
+    def print_parameter(data: str, printer: Printer) -> None:
+        printer.print_string(f'"{data}"')
+
+    @staticmethod
+    @builder
+    def from_str(data: str) -> StringAttr:
+        return StringAttr(data)
+
+    @staticmethod
+    @builder
+    def from_int(data: int) -> StringAttr:
+        return StringAttr(str(data))
+
+
+@irdl_attr_definition
+class SymbolNameAttr(ParametrizedAttribute):
+    name: str = "symbol_name"
+    data: ParameterDef[StringAttr]
+
+    @staticmethod
+    @builder
+    def from_str(data: str) -> SymbolNameAttr:
+        return SymbolNameAttr([StringAttr.from_str(data)])
+
+    @staticmethod
+    @builder
+    def from_string_attr(data: StringAttr) -> SymbolNameAttr:
+        return SymbolNameAttr([data])
+
+
+@irdl_attr_definition
+class SymbolRefAttr(ParametrizedAttribute):
+    name = "symbol_ref"
+    root_reference: ParameterDef[StringAttr]
+    nested_references: ParameterDef[ArrayAttr[StringAttr]]
+
+    @staticmethod
+    @builder
+    def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
+        return SymbolRefAttr.from_string_attr(StringAttr(root),
+                                              [StringAttr(x) for x in nested])
+
+    @staticmethod
+    @builder
+    def from_string_attr(root: StringAttr,
+                         nested: List[StringAttr] = []) -> SymbolRefAttr:
+        return SymbolRefAttr([root, ArrayAttr(nested)])
+
+
+@irdl_attr_definition
+class IntAttr(Data[int]):
+    name: str = "int"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> int:
+        data = parser.parse_int_literal()
+        return data
+
+    @staticmethod
+    def print_parameter(data: int, printer: Printer) -> None:
+        printer.print_string(f'{data}')
+
+    @staticmethod
+    @builder
+    def from_int(data: int) -> IntAttr:
+        return IntAttr(data)
+
+
+class Signedness(Enum):
+    "Signedness semantics for integer"
+
+    SIGNLESS = 0
+    "No signedness semantics"
+
+    SIGNED = 1
+    UNSIGNED = 2
+
+
+@irdl_data_definition
+class SignednessAttr(Data[Signedness]):
+    name: str = "signedness"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> Signedness:
+        value = parser.expect(parser.try_parse_bare_id,
+                              "Expected `signless`, `signed`, or `unsigned`.")
+        if value.text == "signless":
+            return Signedness.SIGNLESS
+        elif value.text == "signed":
+            return Signedness.SIGNED
+        elif value.text == "unsigned":
+            return Signedness.UNSIGNED
+        raise ParseError(value, "Expected signedness")
+
+    @staticmethod
+    def print_parameter(data: Signedness, printer: Printer) -> None:
+        if data == Signedness.SIGNLESS:
+            printer.print_string("signless")
+        elif data == Signedness.SIGNED:
+            printer.print_string("signed")
+        elif data == Signedness.UNSIGNED:
+            printer.print_string("unsigned")
+        else:
+            raise ValueError(f"Invalid signedness {data}")
+
+    @staticmethod
+    @builder
+    def from_enum(signedness: Signedness) -> SignednessAttr:
+        return SignednessAttr(signedness)
+
+
+@irdl_attr_definition
+class IntegerType(ParametrizedAttribute):
+    name: str = "integer_type"
+    width: ParameterDef[IntAttr]
+    signedness: ParameterDef[SignednessAttr]
+
+    @staticmethod
+    @builder
+    def from_width(
+            width: int,
+            signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
+        return IntegerType(
+            [IntAttr.from_int(width),
+             SignednessAttr.from_enum(signedness)])
+
+
+i64 = IntegerType.from_width(64)
+i32 = IntegerType.from_width(32)
+i1 = IntegerType.from_width(1)
+
+
+@irdl_attr_definition
+class UnitAttr(ParametrizedAttribute):
+    name = "unit"
+
+
+@irdl_attr_definition
+class IndexType(ParametrizedAttribute):
+    name = "index"
+
+
+_IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
+                          bound=IntegerType | IndexType,
+                          covariant=True)
+
+
+@irdl_attr_definition
+class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
+    name: str = "integer"
+    value: ParameterDef[IntAttr]
+    typ: ParameterDef[_IntegerAttrTyp]
+
+    @staticmethod
+    @builder
+    def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
+        return IntegerAttr(
+            [IntAttr.from_int(value),
+             IntegerType.from_width(width)])
+
+    @staticmethod
+    @builder
+    def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
+        return IntegerAttr([IntAttr.from_int(value), IndexType()])
+
+    @staticmethod
+    @builder
+    def from_params(
+            value: int | IntAttr,
+            typ: int | Attribute) -> IntegerAttr[IntegerType | IndexType]:
+        value = IntAttr.build(value)
+        if not isinstance(typ, IndexType):
+            typ = IntegerType.build(typ)
+        return IntegerAttr([value, typ])
+
+
+AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+
+
+@irdl_attr_definition
+class Float16Type(ParametrizedAttribute, MLIRType):
+    name: str = "f16"
+
+
+@irdl_attr_definition
+class Float32Type(ParametrizedAttribute, MLIRType):
+    name: str = "f32"
+
+
+class Float64Type(ParametrizedAttribute, MLIRType):
+    name: str = "f64"
+
+
+AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+
+
+@irdl_attr_definition
+class FloatData(Data[float]):
+    name = "float_data"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> float:
+        return parser.parse_float_literal()
+
+    @staticmethod
+    def print_parameter(data: float, printer: Printer) -> None:
+        printer.print_string(f'{data}')
+
+    @staticmethod
+    @builder
+    def from_float(data: float) -> FloatData:
+        return FloatData(data)
+
+
+_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+
+_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
+
+
+@irdl_attr_definition
+class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
+    name: str = "float"
+
+    value: ParameterDef[FloatData]
+    type: ParameterDef[_FloatAttrTyp]
+
+    @staticmethod
+    @builder
+    def from_value(
+        value: float, type: _FloatAttrTypContr = Float32Type()
+    ) -> FloatAttr[_FloatAttrTypContr]:
+        return FloatAttr([FloatData.from_float(value), type])
+
+    @staticmethod
+    @builder
+    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
+        if width == 16:
+            return FloatAttr([FloatData.from_float(value), Float16Type()])
+        if width == 32:
+            return FloatAttr([FloatData.from_float(value), Float32Type()])
+        if width == 64:
+            return FloatAttr([FloatData.from_float(value), Float64Type()])
+        raise ValueError(f"Invalid bitwidth: {width}")
+
+
+AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+
+
+@irdl_attr_definition
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
-    name = "dictionary"
+    name: str = "dictionary"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
@@ -401,7 +405,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
-    name = "tuple"
+    name: str = "tuple"
 
     types: ParameterDef[ArrayAttr[Attribute]]
 
@@ -550,13 +554,15 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     # The type stores the shape data
     @property
-    def shape(self) -> List[int]:
+    def shape(self) -> List[int] | None:
+        if isinstance(self.type, UnrankedTensorType):
+            return None
         return self.type.get_shape()
 
     @property
     def shape_is_complete(self) -> bool:
         shape = self.shape
-        if not len(shape):
+        if shape is None or not len(shape):
             return False
 
         n = 1
@@ -640,6 +646,79 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class DenseResourceAttr(ParametrizedAttribute):
+    name = "dense_resource"
+
+    resource_handle: ParameterDef[StringAttr]
+
+    # Should be a ShapedType, but this is not defined yet in xDSL
+    type: ParameterDef[Attribute]
+
+    @staticmethod
+    @builder
+    def from_params(handle: str | StringAttr,
+                    type: Attribute) -> DenseResourceAttr:
+        if isinstance(handle, str):
+            handle = StringAttr.from_str(handle)
+        return DenseResourceAttr([handle, type])
+
+
+@irdl_attr_definition
+class DenseArrayBase(ParametrizedAttribute):
+    name = "array"
+
+    elt_type: ParameterDef[IntegerType | Float16Type | Float32Type
+                           | Float64Type]
+    data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
+
+    def verify(self):
+        if isinstance(self.elt_type, IntegerType):
+            for d in self.data.data:
+                if isinstance(d, FloatData):
+                    raise VerifyException(
+                        "dense array of integer element type "
+                        "should only contain integers")
+        else:
+            for d in self.data.data:
+                if isinstance(d, IntAttr):
+                    raise VerifyException("dense array of float element type "
+                                          "should only contain floats")
+
+    @staticmethod
+    @builder
+    def create_dense_int_or_index(typ: IntegerType | IndexType,
+                                  data: List[int | IntAttr]) -> DenseArrayBase:
+        attr_list = [
+            IntAttr.from_int(d) if isinstance(d, int) else d for d in data
+        ]
+        return DenseArrayBase([typ, ArrayAttr.from_list(attr_list)])
+
+    @staticmethod
+    @builder
+    def create_dense_float(
+            typ: Float16Type | Float32Type | Float64Type,
+            data: List[int | float | FloatData]) -> DenseArrayBase:
+        data_attr = [
+            FloatData.from_float(float(d)) if isinstance(d, float | int) else d
+            for d in data
+        ]
+        return DenseArrayBase([typ, ArrayAttr.from_list(data_attr)])
+
+    @staticmethod
+    @builder
+    def from_list(
+        type: Attribute, data: List[int | AnyIntegerAttr]
+        | List[int | float | AnyFloatAttr]
+    ) -> DenseArrayBase:
+        if isinstance(type, IndexType | IntegerType):
+            return DenseArrayBase.create_dense_int_or_index(type, data)
+        elif isinstance(type, AnyFloat):
+            return DenseArrayBase.create_dense_float(type, data)
+        else:
+            raise TypeError(f"Unsupported element type {type}")
+
+
+@irdl_attr_definition
 class FunctionType(ParametrizedAttribute, MLIRType):
     name = "fun"
 
@@ -704,8 +783,14 @@ class UnregisteredOp(Operation):
         class UnregisteredOpWithName(UnregisteredOp):
 
             @classmethod
-            def create(cls, **kwargs):
-                op = super().create(**kwargs)
+            def create(cls,
+                       operands: Sequence[SSAValue] | None = None,
+                       result_types: Sequence[Attribute] | None = None,
+                       attributes: dict[str, Attribute] | None = None,
+                       successors: Sequence[Block] | None = None,
+                       regions: Sequence[Region] | None = None):
+                op = super().create(operands, result_types, attributes,
+                                    successors, regions)
                 op.attributes['op_name__'] = StringAttr.build(name)
                 return op
 
@@ -746,13 +831,14 @@ Builtin = Dialect(
     [ModuleOp, UnregisteredOp],
     [
         StringAttr,
-        FlatSymbolRefAttr,
+        SymbolRefAttr,
         SymbolNameAttr,
         IntAttr,
         IntegerAttr,
         ArrayAttr,
         DictionaryAttr,
         DenseIntOrFPElementsAttr,
+        DenseResourceAttr,
         UnitAttr,
         FloatData,
         NoneAttr,
@@ -764,6 +850,7 @@ Builtin = Dialect(
         Float32Type,
         Float64Type,
         FloatAttr,
+        SignednessAttr,
         TupleType,
         IntegerType,
         IndexType,

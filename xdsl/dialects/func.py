@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated, List, Union
 
-from xdsl.dialects.builtin import StringAttr, FunctionType, FlatSymbolRefAttr
+from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
                        OpAttr, OptOpAttr)
@@ -23,8 +23,8 @@ class FuncOp(Operation):
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != block_arg_types:
             raise VerifyException(
-                "Expected entry block arguments to have the same types as the function input types"
-            )
+                "Expected entry block arguments to have the same types as the function "
+                "input types")
 
     @staticmethod
     def from_callable(name: str, input_types: List[Attribute],
@@ -60,17 +60,17 @@ class FuncOp(Operation):
 class Call(Operation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
-    callee: OpAttr[FlatSymbolRefAttr]
+    callee: OpAttr[SymbolRefAttr]
 
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyAttr()]
     # TODO how do we verify that the types are correct?
 
     @staticmethod
-    def get(callee: Union[str, FlatSymbolRefAttr],
-            operands: List[Union[SSAValue, Operation]],
+    def get(callee: Union[str, SymbolRefAttr], ops: List[Union[SSAValue,
+                                                               Operation]],
             return_types: List[Attribute]) -> Call:
-        return Call.build(operands=[operands],
+        return Call.build(operands=[ops],
                           result_types=[return_types],
                           attributes={"callee": callee})
 
@@ -92,9 +92,8 @@ class Return(Operation):
             )
 
     @staticmethod
-    def get(*ops: Union[Operation, SSAValue]) -> Return:
-        ops = [op for op in ops] if ops != () else []
-        return Return.build(operands=[ops])
+    def get(*ops: Operation | SSAValue) -> Return:
+        return Return.build(operands=[list(ops)])
 
 
 Func = Dialect([FuncOp, Call, Return], [])

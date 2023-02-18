@@ -22,76 +22,87 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 74992f4a5bb79e2084abdef406ef2e5aa2024368
+      MLIR-Version: 89996621de073e43de7bed552037b10d2a0fdf80
     steps:
     - uses: actions/checkout@v3
+      with:
+        path: xdsl
 
     - name: Python Setup
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Clang Setup
-      uses: egor-tensin/setup-clang@v1
+    - name: Upgrade pip
+      run: |
+        pip install --upgrade pip
 
-    - name: Ninja Setup
-      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
+    - name: Install the package locally
+      run: |
+        # Change directory so that xdsl-opt can be found during installation.
+        cd xdsl
+        pip install -e .[extras]
 
-    - name: CCache Setup (C++ compilation)
-      uses: hendrikmuhs/ccache-action@v1.2.5
+    - name: Install CI dependencies
+      run: |
+        pip install codecov
+
+    - name: Cache binaries
+      id: cache-binary
+      uses: actions/cache@v3
       with:
-        key: ${{ runner.os }}-${{ env.MLIR-Version }}
-        restore-keys: ${{ runner.os }}-${{ env.MLIR-Version }}
-        # LLVM needs serious cache size
-        max-size: 6G
-
-    - name: Checkout project
-      uses: actions/checkout@v3
-      with:
-        path: xdsl
+        path: llvm-project/build
+        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
+        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
+        append-timestamp: false
 
     - name: Checkout MLIR
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: llvm/llvm-project.git
         path: llvm-project
         ref: ${{ env.MLIR-Version }}
 
-    - name: Upgrade pip
-      run: |
-        pip install --upgrade pip
+    - name: Clang Setup
+      if: steps.cache-binary.outputs.cache-hit != 'true'
+      uses: egor-tensin/setup-clang@v1
 
-    - name: Install the package locally
-      run: pip install -e .[extras]
+    - name: Ninja Setup
+      if: steps.cache-binary.outputs.cache-hit != 'true'
+      uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
     - name: MLIR Build Setup
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
-        pip install -r ${GITHUB_WORKSPACE}/llvm-project/mlir/python/requirements.txt
         mkdir llvm-project/build
         cd llvm-project/build
-        cmake -G Ninja ../llvm -DLLVM_ENABLE_PROJECTS=mlir -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_ENABLE_LLD=ON -DMLIR_ENABLE_BINDINGS_PYTHON=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        cmake -G Ninja ../llvm \
+          -DLLVM_ENABLE_PROJECTS=mlir \
+          -DLLVM_TARGETS_TO_BUILD="X86" \
+          -DLLVM_ENABLE_LLD=ON \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DLLVM_ENABLE_ASSERTIONS=ON
 
     - name: MLIR Build
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt MLIRPythonModules
+        cmake --build . --target mlir-opt
 
     - name: Test with pytest and generate code coverage
       run: |
         cd xdsl
-        # Add the MLIR Python bindings to the PYTHONPATH
-        export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
         pytest --cov --cov-config=.coveragerc .
 
     - name: Execute lit tests
       run: |
         cd xdsl
-        export PYTHONPATH=$(pwd)
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        # Add the MLIR Python bindings to the PYTHONPATH
-        export PYTHONPATH=$PYTHONPATH:${GITHUB_WORKSPACE}/llvm-project/build/tools/mlir/python_packages/mlir_core
-        lit -v tests/filecheck/ -DCOVERAGE -DEXEC_DIR=$(pwd)
+        lit -v tests/filecheck/ -DCOVERAGE
 
     - name: Combine coverage data
       run: |

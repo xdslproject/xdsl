@@ -1,16 +1,11 @@
 from __future__ import annotations
-from typing import Annotated
+import pytest
+from xdsl.dialects.builtin import IntAttr, StringAttr
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
 from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
                        AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
-
-#  ___ ____  ____  _     ____        __
-# |_ _|  _ \|  _ \| |   |  _ \  ___ / _|
-#  | || |_) | | | | |   | | | |/ _ \ |_
-#  | ||  _ <| |_| | |___| |_| |  __/  _|
-# |___|_| \_\____/|_____|____/ \___|_|
-#
+from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 
 @irdl_op_definition
@@ -22,6 +17,10 @@ class OpDefTestOp(Operation):
     attr: OpAttr[Attribute]
     region: Region
 
+    # Check that we can define methods in operation definitions
+    def test(self):
+        pass
+
 
 def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
@@ -31,3 +30,40 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={"attr": AttributeDef(AnyAttr())},
         regions=[("region", RegionDef())])
+
+
+class InvalidTypedFieldTestOp(Operation):
+    name = "test.invalid_typed_field"
+
+    field: int
+
+
+def test_invalid_typed_field():
+    """Check that typed fields are not allowed"""
+    with pytest.raises(PyRDLOpDefinitionError):
+        irdl_op_definition(InvalidTypedFieldTestOp)
+
+
+class InvalidFieldTestOp(Operation):
+    name = "test.invalid_field"
+
+    field = 2
+
+
+def test_invalid_field():
+    """Check that untyped fields are not allowed"""
+    with pytest.raises(PyRDLOpDefinitionError):
+        irdl_op_definition(InvalidFieldTestOp)
+
+
+@irdl_op_definition
+class AttrOp(Operation):
+    name: str = "test.two_var_result_op"
+    attr: OpAttr[StringAttr]
+
+
+def test_attr_verify():
+    op = AttrOp.create(attributes={"attr": IntAttr.from_int(1)})
+    with pytest.raises(VerifyException) as e:
+        op.verify()
+    assert e.value.args[0] == "!int<1> should be of base attribute string"

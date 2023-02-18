@@ -37,10 +37,10 @@ builtin.module() {
   // CHECK-NEXT:  %{{.*}} = "arith.constant"() {"value" = 1 : i32} : () -> i32
     %3 : !llvm.struct<(!i32)> = llvm.mlir.undef()
   // CHECK-NEXT: %{{.*}} = "llvm.mlir.undef"() : () -> !llvm.struct<(i32)>
-    %4 : !llvm.struct<(!i32)> = llvm.insertvalue(%3 : !llvm.struct<(!i32)>, %2 : !i32) ["position" = [0 : !index]]
-  // CHECK-NEXT: %{{.*}} = "llvm.insertvalue"(%{{.*}}, %{{.*}}) {"position" = [0 : index]} : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
-    %5 : !i32 = llvm.extractvalue(%4 : !llvm.struct<(!i32)>) ["position" = [0 : !index]]
-  // CHECK-NEXT: %{{.*}} = "llvm.extractvalue"(%{{.*}}) {"position" = [0 : index]} : (!llvm.struct<(i32)>) -> i32
+    %4 : !llvm.struct<(!i32)> = llvm.insertvalue(%3 : !llvm.struct<(!i32)>, %2 : !i32) ["position" = array<!i64: 0>]
+  // CHECK-NEXT: %{{.*}} = "llvm.insertvalue"(%{{.*}}, %{{.*}}) {"position" = array<i64: 0>} : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
+    %5 : !i32 = llvm.extractvalue(%4 : !llvm.struct<(!i32)>) ["position" = array<!i64: 0>]
+  // CHECK-NEXT: %{{.*}} = "llvm.extractvalue"(%{{.*}}) {"position" = array<i64: 0>} : (!llvm.struct<(i32)>) -> i32
     func.return()
   // CHECK-NEXT:  return
   }

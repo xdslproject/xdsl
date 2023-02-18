@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
-from xdsl.dialects.builtin import StringAttr, ArrayAttr, AnyArrayAttr
+from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -51,7 +51,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
 class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
-    position: OpAttr[AnyArrayAttr]
+    position: OpAttr[DenseArrayBase]
     container: Annotated[Operand, AnyAttr()]
 
     res: Annotated[OpResult, AnyAttr()]
@@ -61,7 +61,7 @@ class LLVMExtractValue(Operation):
 class LLVMInsertValue(Operation):
     name = "llvm.insertvalue"
 
-    position: OpAttr[AnyArrayAttr]
+    position: OpAttr[DenseArrayBase]
     container: Annotated[Operand, AnyAttr()]
     value: Annotated[Operand, AnyAttr()]
 

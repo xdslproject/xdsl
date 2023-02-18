@@ -11,11 +11,11 @@ from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseIntOrFPElementsAttr, Float16Type, Float32Type, Float64Type, FloatAttr,
-    IndexType, IntegerType, NoneAttr, OpaqueAttr, Signedness, StringAttr,
-    FlatSymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredOp, VectorType,
-    DictionaryAttr)
+    DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
+    Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
+    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
+    ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
+    UnregisteredOp, VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -58,7 +58,7 @@ class Printer:
                 self.print_region(arg)
                 continue
             if isinstance(arg, Block):
-                self.print_block_name(arg)
+                self.print_block(arg)
                 continue
             if isinstance(arg, Operation):
                 self.print_op(arg)
@@ -225,7 +225,10 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def _print_named_block(self, block: Block) -> None:
+    def print_block(self, block: Block) -> None:
+        if not isinstance(block, Block):
+            raise TypeError('Expected a Block; got %s' % type(block).__name__)
+
         self.print_block_name(block)
         if len(block.args) > 0:
             self.print("(")
@@ -245,6 +248,9 @@ class Printer:
         self.print_attribute(arg.typ)
 
     def print_region(self, region: Region) -> None:
+        if not isinstance(region, Region):
+            raise TypeError('Expected a Region; got %s' %
+                            type(region).__name__)
         if len(region.blocks) == 0:
             self.print("{}")
             return
@@ -258,7 +264,7 @@ class Printer:
         self.print("{")
         self._print_new_line()
         for block in region.blocks:
-            self._print_named_block(block)
+            self.print_block(block)
         self.print("}")
 
     def print_regions(self, regions: List[Region]) -> None:
@@ -329,8 +335,10 @@ class Printer:
             self.print_string_literal(attribute.data)
             return
 
-        if isinstance(attribute, FlatSymbolRefAttr):
-            self.print(f'@{attribute.data.data}')
+        if isinstance(attribute, SymbolRefAttr):
+            self.print(f'@{attribute.root_reference.data}')
+            for ref in attribute.nested_references.data:
+                self.print(f'::@{ref.data}')
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -365,6 +373,17 @@ class Printer:
                 attribute.data,  # type: ignore
                 self.print_attribute)
             self.print_string("]")
+            return
+
+        if isinstance(attribute, DenseArrayBase):
+            self.print("array<", attribute.elt_type)
+            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
+            if len(data.data) == 0:
+                self.print(">")
+                return
+            self.print(": ")
+            self.print_list(data.data, lambda x: self.print(x.data))
+            self.print(">")
             return
 
         if isinstance(attribute, DictionaryAttr):
@@ -421,9 +440,16 @@ class Printer:
             shape = attribute.shape if attribute.shape_is_complete else [
                 len(data)
             ]
+            assert shape is not None, "If shape is complete, then it cannot be None"
             print_dense_list(data, shape)
             self.print("> : ")
             self.print(attribute.type)
+            return
+
+        # Dense resources have an alias in MLIR, but not in xDSL
+        if isinstance(attribute, DenseResourceAttr):
+            handle = attribute.resource_handle.data
+            self.print(f"dense_resource<{handle}> : ", attribute.type)
             return
 
         # vector types have an alias in MLIR, but not in xDSL
@@ -585,6 +611,9 @@ class Printer:
                 self.print(")")
 
     def _print_op(self, op: Operation) -> None:
+        if not isinstance(op, Operation):
+            raise TypeError('Expected an Operation; got %s' %
+                            type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         if isinstance(op, UnregisteredOp):

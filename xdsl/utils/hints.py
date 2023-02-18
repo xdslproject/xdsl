@@ -45,3 +45,14 @@ def is_satisfying_hint(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
 annotated_type = type(Annotated[int, 0])
 """This is the type of an Annotated object."""
+
+
+class _Class:
+
+    @property
+    def property(self):
+        pass
+
+
+PropertyType = type(_Class.property)
+"""The type of a property method."""
