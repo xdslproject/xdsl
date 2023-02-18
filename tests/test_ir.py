@@ -1,9 +1,9 @@
-from typing import Any, cast
+from typing import cast
 import pytest
 
 from xdsl.ir import MLContext, Operation, Block, Region
 from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import i32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
 from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import Builtin
@@ -105,10 +105,11 @@ def test_op_clone():
     a = Constant.from_int_and_width(1, 32)
     b = a.clone()
 
-    assert isinstance(b.value, IntegerAttr)
-    b_value = cast(IntegerAttr[Any], b.value)
-
     assert a is not b
+
+    assert isinstance(b.value, IntegerAttr)
+    b_value = cast(IntegerAttr[IntegerType], b.value)
+
     assert b_value.value.data == 1
     assert b_value.typ.width.data == 32
 
