@@ -105,9 +105,8 @@ def test_op_clone():
     a = Constant.from_int_and_width(1, 32)
     b = a.clone()
 
-    b_value = b.value
-    assert isinstance(b_value, IntegerAttr)
-    b_value = cast(IntegerAttr[Any], b_value)
+    assert isinstance(b.value, IntegerAttr)
+    b_value = cast(IntegerAttr[Any], b.value)
 
     assert a is not b
     assert b_value.value.data == 1
