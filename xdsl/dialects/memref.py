@@ -51,7 +51,9 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
         return MemRefType([shape, referenced_type])
 
 
-_UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems", bound=Attribute)
+_UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems",
+                                   bound=Attribute,
+                                   covariant=True)
 
 
 @irdl_attr_definition
