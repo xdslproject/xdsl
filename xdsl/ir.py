@@ -681,6 +681,29 @@ class Operation(IRNode):
     def __hash__(self) -> int:
         return id(self)
 
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_op(self)
+        desc = res.getvalue()
+        # Printer currently prints a new line when printing an operation.
+        # We don't want this behaviour when printing ops inline, so remove
+        # the trailing newline for now
+        last_char_is_newline = not desc or desc[-1] == "\n"
+        assert last_char_is_newline, "If the format changes, update this function"
+        desc = desc[:-1]
+        return desc
+
+    def __format__(self, __format_spec: str) -> str:
+        desc = str(self)
+        if '\n' in desc:
+            # Description is multi-line, indent each line
+            desc = '\n'.join('\t' + line for line in desc.splitlines())
+            # Add newline before and after
+            desc = f'\n{desc}\n'
+        return f'{self.__class__.__qualname__}({desc})'
+
     @classmethod
     @property
     def irdl_definition(cls) -> OpDef | None:
