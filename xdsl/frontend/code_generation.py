@@ -49,8 +49,17 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    file: str = field(default=None)
+    _file: str | None = field(default=None)
     """Path of the file containing the program being processed."""
+
+    @property
+    def file(self) -> str:
+        assert self._file is not None
+        return self._file
+
+    @file.setter
+    def file(self, file: str):
+        self._file = file
 
     def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
                  file: str) -> None:
@@ -60,6 +69,14 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.blocks[0])
+
+    def get_symbol(self, node: ast.Name) -> Attribute:
+        assert self.symbol_table is not None
+        if node.id not in self.symbol_table:
+            raise CodeGenerationException(
+                self.file, node.lineno, node.col_offset,
+                f"Symbol '{node.id}' is not defined.")
+        return self.symbol_table[node.id]
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -121,8 +138,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
+        overload_name = python_AST_operator_to_python_overload[op_name]
         try:
-            overload_name = python_AST_operator_to_python_overload[op_name]
             op = OpResolver.resolve_op_overload(overload_name,
                                                 frontend_type)(lhs, rhs)
             self.inserter.insert_op(op)
@@ -264,12 +281,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_op(parent_op)
 
     def visit_Name(self, node: ast.Name):
-        if node.id not in self.symbol_table:
-            raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                f"Symbol '{node.id}' is not defined.")
-
-        fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
+        fetch_op = symref.Fetch.get(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
@@ -281,7 +293,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             return_types = parent_op.function_type.outputs.data
 
             if len(return_types) != 0:
-                function_name = parent_op.attributes["sym_name"].data
+                function_name = parent_op.sym_name.data
                 raise CodeGenerationException(
                     self.file, node.lineno, node.col_offset,
                     f"Expected '{function_name}' to return a type.")
@@ -305,7 +317,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 "Return statement should be placed only at the end of the "
                 "function body.")
 
-        func_name = parent_op.attributes["sym_name"].data
+        func_name = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
         if node.value is None:

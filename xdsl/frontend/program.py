@@ -27,8 +27,17 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    file: str | None = field(default=None)
+    _file: str | None = field(default=None)
     """Path to the file that contains the program."""
+
+    @property
+    def file(self):
+        assert self._file is not None
+        return self._file
+
+    @file.setter
+    def file(self, file: str):
+        self._file = file
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -40,7 +49,7 @@ Cannot compile program without the code context. Try to use:
         # Your code here."""
             raise FrontendProgramException(msg)
 
-    def compile(self, desymref=True) -> None:
+    def compile(self, desymref: bool = True) -> None:
         """Generates xDSL from the source program."""
 
         # Both statements and globals msut be initialized from within the
@@ -78,7 +87,7 @@ Cannot print the program IR without compiling it first. Make sure to use:
     p.compile()"""
             raise FrontendProgramException(msg)
 
-    def _print(self, target) -> str:
+    def _print(self, target: Printer.Target) -> str:
         self._check_can_print()
         assert self.xdsl_program is not None
 

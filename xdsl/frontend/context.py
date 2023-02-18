@@ -3,14 +3,15 @@ import ast
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from inspect import getsource
-from sys import _getframe
+from sys import _getframe  #type: ignore
+from typing import Any  # type: ignore
 
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.python_code_check import PythonCodeCheck
 
 
 @dataclass
-class CodeContext(AbstractContextManager):
+class CodeContext(AbstractContextManager[Any]):
     """
     The CodeContext with block marks the scope in which the code in the custom
     DSL can be written. This code will be translated to xDSL/MLIR.
@@ -42,7 +43,7 @@ class CodeContext(AbstractContextManager):
                 # execution.
                 self.program.stmts = node.body
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any):
         # Having proccessed all the code in the context, check it is well-formed
         # and can be compiled/executed.
         assert self.program.stmts is not None

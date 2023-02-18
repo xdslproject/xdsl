@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import ast
-from sys import _getframe
+from sys import _getframe  # type: ignore
 from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
 import pytest
 
-from xdsl.frontend.dialects.builtin import _FrontendType
+from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
@@ -57,6 +57,7 @@ globals = _getframe(0).f_globals
 
 def test_raises_exception_on_unknown_type():
     type_converter = TypeConverter(globals)
+    type_converter.file = 'file'
     type_hint = ast.Name("unknown", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -66,6 +67,7 @@ def test_raises_exception_on_unknown_type():
 
 def test_raises_exception_on_non_frontend_type_I():
     type_converter = TypeConverter(globals)
+    type_converter.file = 'file'
     type_hint = ast.Name("b", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -75,6 +77,7 @@ def test_raises_exception_on_non_frontend_type_I():
 
 def test_raises_exception_on_non_frontend_type_II():
     type_converter = TypeConverter(globals)
+    type_converter.file = 'file'
     type_hint = ast.Name("c2", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -84,6 +87,7 @@ def test_raises_exception_on_non_frontend_type_II():
 
 def test_raises_exception_on_nontrivial_generics():
     type_converter = TypeConverter(globals)
+    type_converter.file = 'file'
     type_hint = ast.Name("d12", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:

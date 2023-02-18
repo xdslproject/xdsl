@@ -69,11 +69,20 @@ class CheckStructure:
 @dataclass
 class SingleScopeVisitor(ast.NodeVisitor):
 
-    file: str = field(default=None)
+    _file: str | None = field(default=None)
     """File path for error reporting."""
 
     block_names: Set[str] = field(default_factory=set)
     """Tracks duplicate block labels."""
+
+    @property
+    def file(self) -> str:
+        assert self._file is not None
+        return self._file
+
+    @file.setter
+    def file(self, file: str):
+        self._file = file
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -104,10 +113,19 @@ class SingleScopeVisitor(ast.NodeVisitor):
 @dataclass
 class MultipleScopeVisitor(ast.NodeVisitor):
 
-    file: str = field(default=None)
+    _file: str | None = field(default=None)
 
     function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
     """Tracks duplicate function names and duplicate block labels."""
+
+    @property
+    def file(self) -> str:
+        assert self._file is not None
+        return self._file
+
+    @file.setter
+    def file(self, file: str):
+        self._file = file
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -264,8 +282,17 @@ class ConstantInliner(ast.NodeTransformer):
     new_node: ast.Constant
     """New AST node to inline."""
 
-    file: str = field(default=None)
+    _file: str | None = field(default=None)
     """Path to the file containing the program."""
+
+    @property
+    def file(self) -> str:
+        assert self._file is not None
+        return self._file
+
+    @file.setter
+    def file(self, file: str):
+        self._file = file
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
         if len(node.targets) == 1 and isinstance(
