@@ -1,9 +1,11 @@
+from io import StringIO
+
 from xdsl.ir import OpResult
 from xdsl.dialects.builtin import i32, IntegerType, IndexType
-from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
-                                  Load, Store, Dim, Rank)
-
+                                  Load, Store)
+from xdsl.dialects import builtin, memref, func, arith
+from xdsl.printer import Printer
 
 def test_memreftype():
     mem1 = MemRefType.from_element_type_and_shape(i32, [1])
@@ -118,9 +120,9 @@ def test_memref_dealloca():
 
 
 def test_memref_dim():
-    idx = Constant.from_int_and_width(1, IndexType())
+    idx = arith.Constant.from_int_and_width(1, IndexType())
     alloc0 = Alloc.get(i32, 64, [3, 1, 2])
-    dim_1 = Dim.from_source_and_index(alloc0, idx)
+    dim_1 = memref.Dim.from_source_and_index(alloc0, idx)
 
     assert dim_1.source is alloc0.memref
     assert dim_1.index is idx.result
@@ -129,7 +131,50 @@ def test_memref_dim():
 
 def test_memref_rank():
     alloc0 = Alloc.get(i32, 64, [3, 1, 2])
-    dim_1 = Rank.from_memref(alloc0)
+    dim_1 = memref.Rank.from_memref(alloc0)
 
     assert dim_1.source is alloc0.memref
     assert isinstance(dim_1.rank.typ, IndexType)
+
+def test_memref_matmul():
+    memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(builtin.f64, [-1, -1])
+
+    module = builtin.ModuleOp.from_region_or_ops([
+        func.FuncOp.from_callable(
+            'matmul',
+            [memref_f64_rank2, memref_f64_rank2],
+            [memref_f64_rank2],
+            lambda a, b: [
+                lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
+                lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+                dim_a0 := memref.Dim.from_source_and_index(a, lit0),
+                dim_a1 := memref.Dim.from_source_and_index(a, lit1),
+                dim_b0 := memref.Dim.from_source_and_index(b, lit0),
+                dim_b1 := memref.Dim.from_source_and_index(b, lit1),
+                out := memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]),
+                # TODO: assert dim_a0 == dim_b1
+                lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
+                func.Return.get(out)
+            ]
+        )
+    ])
+
+    io = StringIO()
+    p = Printer(target=Printer.Target.MLIR, stream=io)
+    p.print(module)
+
+    assert io.getvalue() == """"builtin.module"() ({
+  "func.func"() ({
+  ^0(%0 : memref<?x?xf64>, %1 : memref<?x?xf64>):
+    %2 = "arith.constant"() {"value" = 0 : index} : () -> index
+    %3 = "arith.constant"() {"value" = 1 : index} : () -> index
+    %4 = "memref.dim"(%0, %2) : (memref<?x?xf64>, index) -> index
+    %5 = "memref.dim"(%0, %3) : (memref<?x?xf64>, index) -> index
+    %6 = "memref.dim"(%1, %2) : (memref<?x?xf64>, index) -> index
+    %7 = "memref.dim"(%1, %3) : (memref<?x?xf64>, index) -> index
+    %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xf64>
+    %9 = "arith.constant"() {"value" = 0.0 : f64} : () -> f64
+    "func.return"(%8) : (memref<?x?xf64>) -> ()
+  }) {"sym_name" = "matmul", "function_type" = (memref<?x?xf64>, memref<?x?xf64>) -> memref<?x?xf64>, "sym_visibility" = "private"} : () -> ()
+}) : () -> ()
+"""
