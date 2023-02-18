@@ -3,4 +3,5 @@
 builtin.module () ["test" = array<!i32: "", 3>]{
 }
 
-// CHECK: Expected >
+// CHECK: Parsing of Builtin attribute array failed:
+// CHECK: Malformed dense array
