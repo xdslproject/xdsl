@@ -33,4 +33,5 @@ jobs:
         run: pip install -e .[extras]
       - name: Pyright
         uses: jakebailey/pyright-action@v1
-        extra-args: -p .github/pyproject-pyright-ci.json
+        with:
+          extra-args: -p .github/pyproject-pyright-ci.json
