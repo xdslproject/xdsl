@@ -325,6 +325,7 @@ class ConstantInliner(ast.NodeTransformer):
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
         if node.id == self.name:
+            # TODO: @George what should the type be?
             return self.new_node
         else:
             return node
