@@ -7,6 +7,7 @@ from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
 from xdsl.dialects import builtin, memref, func, arith
 from xdsl.printer import Printer
 
+
 def test_memreftype():
     mem1 = MemRefType.from_element_type_and_shape(i32, [1])
 
@@ -136,8 +137,10 @@ def test_memref_rank():
     assert dim_1.source is alloc0.memref
     assert isinstance(dim_1.rank.typ, IndexType)
 
+
 def test_memref_matmul():
-    memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(builtin.f64, [-1, -1])
+    memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(
+        builtin.f64, [-1, -1])
 
     module = builtin.ModuleOp.from_region_or_ops([
         func.FuncOp.from_callable(
@@ -157,7 +160,7 @@ def test_memref_matmul():
                 func.Return.get(out)
             ]
         )
-    ])
+    ])  # yapf: disable
 
     io = StringIO()
     p = Printer(target=Printer.Target.MLIR, stream=io)
