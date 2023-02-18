@@ -27,20 +27,20 @@ class CodeGeneration:
         return module
 
 
-@dataclass
+@dataclass(init=False)
 class CodegGenerationVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the Python AST."""
 
-    type_converter: TypeConverter = field(init=False)
+    type_converter: TypeConverter
     """Used for type conversion during code generation."""
 
-    globals: Dict[str, Any] = field(init=False)
+    globals: Dict[str, Any]
     """
     Imports and other global information from the module, useful for looking
     up classes, etc.
     """
 
-    inserter: OpInserter = field(init=False)
+    inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
     symbol_table: Dict[str, Attribute] | None = field(default=None)
@@ -49,17 +49,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    _file: str | None = field(default=None)
+    file: str
     """Path of the file containing the program being processed."""
-
-    @property
-    def file(self) -> str:
-        assert self._file is not None
-        return self._file
-
-    @file.setter
-    def file(self, file: str):
-        self._file = file
 
     def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
                  file: str) -> None:
