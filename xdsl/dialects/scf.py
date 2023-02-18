@@ -111,13 +111,15 @@ class For(Operation):
 
     @staticmethod
     def get(
-        lb: IndexType | Operation,
-        ub: IndexType | Operation,
-        step: IndexType | Operation,
+        lb: SSAValue | Operation,
+        ub: SSAValue | Operation,
+        step: SSAValue | Operation,
         iter_args: List[Attribute | Operation],
         result_types: List[Attribute],
-        body: Region | List[Operation] | List[Block],
+        body: Region | List[Operation] | List[Block] | Block,
     ) -> For:
+        if isinstance(body, Block):
+            body = [body]
         op = For.build(
             operands=[lb, ub, step, iter_args],
             result_types=[result_types],
