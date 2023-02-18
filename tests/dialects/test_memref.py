@@ -120,8 +120,8 @@ def test_memref_dealloca():
 def test_memref_dim():
     idx = Constant.from_int_and_width(1, IndexType())
     alloc0 = Alloc.get(i32, 64, [3, 1, 2])
-    get_op = Dim.from_source_and_index(alloc0, idx)
+    dim_1 = Dim.from_source_and_index(alloc0, idx)
 
-    assert get_op.source is alloc0.memref
-    assert get_op.index is idx.result
-    assert isinstance(get_op.result.typ, IndexType)
+    assert dim_1.source is alloc0.memref
+    assert dim_1.index is idx.result
+    assert isinstance(dim_1.result.typ, IndexType)
