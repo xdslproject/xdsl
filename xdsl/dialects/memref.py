@@ -281,9 +281,22 @@ class Dim(Operation):
     result: Annotated[OpResult, IndexType]
 
     @classmethod
-    def from_source_and_index(cls, source: Operand | Operation,
+    def from_source_and_index(cls, source: SSAValue | Operation,
                               index: Operand | Operation):
         return cls.build(operands=[source, index], result_types=[IndexType()])
+
+
+@irdl_op_definition
+class Rank(Operation):
+    name = "memref.rank"
+
+    source: Annotated[Operand, MemRefType]
+
+    rank: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def from_memref(cls, memref: Operation | SSAValue):
+        return cls.build(operands=[memref], result_types=[IndexType()])
 
 
 MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global, Dim],
