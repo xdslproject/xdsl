@@ -11,7 +11,7 @@ from xdsl.dialects import affine, scf
 #
 # Promoters are extremely important for desymrification of an operation - they
 # dictate how an operation updates values. Generally speaking, for any operation
-# in the form that uses some symbols @a, @b and @c:
+# in the form that uses some symbols `@a`, `@b` and `@c`:
 #
 # ```
 # dialect.op {
@@ -51,23 +51,18 @@ def is_read_only(symbol: str, block: Block) -> bool:
     """
     Returns true if the symbol is never updated.
     """
-    for op in block.ops:
-        if isinstance(
-                op,
-                symref.Update) and op.attributes["symbol"].data.data == symbol:
-            return False
-    return True
+    return all([isinstance(op, symref.Update) and op.symbol.data.data == symbol for op in block.ops])
 
 
 def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
     """
     Returns a fetch of this symbol in this block. Should be used when the symbol
-    is used fetched in the block.
+    is used fetched in the block. Returns None if the symbol is not found.
     """
     for op in block.ops:
         if isinstance(
                 op,
-                symref.Fetch) and op.attributes["symbol"].data.data == symbol:
+                symref.Fetch) and op.symbol.data.data == symbol:
             return op
     return None
 
@@ -75,12 +70,13 @@ def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
 def get_update_op(symbol: str, block: Block) -> None | symref.Update:
     """
     Returns an update to this symbol in this block. Should be used when the
-    symbol is updated once in the block.
+    symbol is updated once in the block. Returns None if the symbol is not
+    found.
     """
     for op in block.ops:
         if isinstance(
                 op,
-                symref.Update) and op.attributes["symbol"].data.data == symbol:
+                symref.Update) and op.symbol.data.data == symbol:
             return op
     return None
 
@@ -103,7 +99,7 @@ class Promoter:
                 for op in block.ops:
                     if isinstance(op, symref.Fetch) or isinstance(
                             op, symref.Update):
-                        symbol = op.attributes["symbol"].data.data
+                        symbol = op.symbol.data.data
                         if symbol not in symbols:
                             symbols.append(symbol)
         return symbols
@@ -150,6 +146,8 @@ class Promoter:
             if is_read_only(symbol, body_block):
                 # Read-only symbols can be hoisted outside of the loop.
                 fetch_op = get_fetch_op(symbol, body_block)
+                assert fetch_op is not None
+
                 new_fetch_op = fetch_op.clone()
                 insert_before(for_op, new_fetch_op)
                 rewriter.replace_op(fetch_op, [], [new_fetch_op.results[0]])
@@ -158,6 +156,7 @@ class Promoter:
                 # value and must be recorded as a block argument.
                 fetch_op = get_fetch_op(symbol, body_block)
                 update_op = get_update_op(symbol, body_block)
+                assert fetch_op is not None and update_op is not None
 
                 yield_value = update_op.operands[0]
                 yield_operands.append(yield_value)
@@ -184,8 +183,7 @@ class Promoter:
         rewriter.replace_op(body_block.ops[-1],
                             affine.Yield.get(*yield_operands))
 
-        new_body = Region()
-        for_op.body.clone_into(new_body)
+        new_body = rewriter.move_region_contents_to_new_regions(for_op.body)
         new_for_op = affine.For.from_region(for_operands, for_op.lower_bound,
                                             for_op.upper_bound, new_body,
                                             for_op.step)
@@ -302,11 +300,8 @@ class Promoter:
                             scf.Yield.get(*false_block_yield_operands))
         return_types = list(map(lambda op: op.typ, true_block_yield_operands))
 
-        new_true_region = Region()
-        if_op.true_region.clone_into(new_true_region)
-        new_false_region = Region()
-        if_op.false_region.clone_into(new_false_region)
-
+        new_true_region = rewriter.move_region_contents_to_new_regions(if_op.true_region)
+        new_false_region = rewriter.move_region_contents_to_new_regions(if_op.false_region)
         new_if_op = scf.If.get(if_op.cond, return_types, new_true_region,
                                new_false_region)
         insert_after(if_op, new_if_op)

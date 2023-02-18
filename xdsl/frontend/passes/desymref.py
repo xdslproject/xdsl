@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.passes.promote import Promoter
+from xdsl.frontend.passes.promoters import Promoter
 from xdsl.ir import Block, Operation, Region
 from xdsl.rewriter import Rewriter
 
@@ -21,9 +21,9 @@ from xdsl.rewriter import Rewriter
 # ```
 #
 # The solution is to have a `symref` dialect: it uses declare, fetch and store
-# operations (for those familiar with LLVM, these correspond to alloca, load and
-# store but based on symbols instead of memory locations). Each symref operation
-# is defined by the programmer with a simple mapping:
+# operations (for those familiar with LLVM, these correspond to `alloca`, `load`
+# and `store` but based on symbols instead of memory locations). Each symref
+# operation is defined by the programmer with a simple mapping:
 #
 # 1. variable declaration, e.g. `a: i32 = 0` maps to `declare @a`
 # 2. variable use, e.g. `... = a` maps to `... = fetch @a`
@@ -107,8 +107,13 @@ class SymbolInfo:
     update: symref.Update | None = field(default=None)
     """Update to this symbol if it exists in this region."""
 
-    def_blocks: List[Block] = field(default_factory=list)
-    """List of blocks that define the symbol."""
+    update_blocks: List[Block] = field(default_factory=list)
+    """
+    List of blocks that update the symbol.
+    
+    TODO: This is not used in the current implementation of the algorithm
+    because symbols over multiple blocks are not yet supported.
+    """
 
     single_block: Block | None = field(default=None)
     """Set if the symbol is used in a single block only."""
@@ -129,7 +134,7 @@ class SymbolInfo:
         if self.never_fetched and isinstance(op, symref.Fetch):
             self.never_fetched = False
         if isinstance(op, symref.Update):
-            self.def_blocks.append(op.parent_block())
+            self.update_blocks.append(op.parent_block())
             self.update = op
 
         if self.used_in_single_block:
@@ -142,11 +147,11 @@ class SymbolInfo:
 
     @staticmethod
     def from_declare(op: symref.Declare) -> 'SymbolInfo':
-        return SymbolInfo(op)
+        return SymbolInfo(declare=op)
 
     @staticmethod
     def from_fetch_or_update(op: symref.Fetch | symref.Update) -> 'SymbolInfo':
-        info = SymbolInfo(None)
+        info = SymbolInfo()
         info.add_user(op)
         return info
 
@@ -170,19 +175,19 @@ class Desymrefier:
         # Otherwise, there is a region containing a CFG and we have to desymrefy
         # it.
         for region in op.regions:
-            self.run_on_region(region)
+            self.prepare_region(region)
 
         # Some regions were not fully desymrefied, so use the definition of the
         # operation to decide what to do.
         Promoter(op).promote()
 
-    def run_on_region(self, region: Region):
-        """Desymrefies a region."""
+    def prepare_region(self, region: Region):
+        """Prepares the region for desymrefication."""
         num_blocks = len(region.blocks)
         if num_blocks == 1:
             # If there is only one block, desymrefication is significantly
             # easier.
-            self._run_on_single_block(region.blocks[0])
+            self._prepare_single_block(region.blocks[0])
         else:
             # TODO: Support regions with multiple blocks. This is not trivial,
             # particularly when the symbol is declared in one of the parent
@@ -191,8 +196,8 @@ class Desymrefier:
                 f"Running desymrefier on region with {num_blocks} > 1 blocks is "
                 "not supported.")
 
-    def _run_on_single_block(self, block: Block):
-        """Desymrefies a single block inside a region."""
+    def _prepare_single_block(self, block: Block):
+        """Prepares a single block inside a region for desymrefication."""
 
         # First, we desymrefy nested regions.
         for op in block.ops:
