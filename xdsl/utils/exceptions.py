@@ -115,14 +115,14 @@ class ParseError(Exception):
     def print_with_history(self, file: IO[str] = sys.stderr):
         if self.history is not None:
             for h in sorted(self.history.iterate(), key=lambda h: -h.pos):
-                h.print()
+                h.print(file)
         else:
             self.print_pretty(file)
 
     def __repr__(self):
         io = StringIO()
         self.print_with_history(io)
-        return "{}:\n{}".format(self.__class__.__name__, io.getvalue())
+        return io.getvalue()
 
 
 class MultipleSpansParseError(ParseError):
