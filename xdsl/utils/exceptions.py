@@ -42,12 +42,9 @@ class DeferredExceptionMessage:
     This class can be used to defer exception message generation to the
     time when the message is printed.
 
-    We saw a problem with our parser where parse times in specific
-    scenarios went from seconds to minutes, due to errors that were
-    created in backtracking taking a long time to format their error
-    messages. The problem was, that all those backtracking errors
-    were never shown to the user, and the effort of printing them
-    was thus wasted.
+    The generation of parser exception messages that were caught and
+    not printed (due to backtracking) caused a significant performance
+    decrease.
 
     This class provides a wrapper around a callable that produces
     the formatted error message, but which is only called when it's
