@@ -34,4 +34,4 @@ jobs:
       - name: Pyright
         uses: jakebailey/pyright-action@v1
         with:
-          extra-args: -p .github/pyproject-pyright-ci.json
+          extra-args: -p pyright-ci.json
