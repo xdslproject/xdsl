@@ -25,6 +25,8 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
+    file: str
+
     name_to_xdsl_type_map: Dict[TypeName,
                                 Attribute] = field(default_factory=dict)
     """
@@ -38,17 +40,6 @@ class TypeConverter:
     Map to lookup frontend types based on xDSL type. Useful if we want to see
     what overloaded Python operations does this xDSL type support.
     """
-
-    _file: str | None = field(default=None)
-
-    @property
-    def file(self) -> str:
-        assert self._file is not None
-        return self._file
-
-    @file.setter
-    def file(self, file: str):
-        self._file = file
 
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and

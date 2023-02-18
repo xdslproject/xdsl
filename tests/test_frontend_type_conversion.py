@@ -56,8 +56,7 @@ globals = _getframe(0).f_globals
 
 
 def test_raises_exception_on_unknown_type():
-    type_converter = TypeConverter(globals)
-    type_converter.file = 'file'
+    type_converter = TypeConverter(globals, 'file')
     type_hint = ast.Name("unknown", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -66,8 +65,7 @@ def test_raises_exception_on_unknown_type():
 
 
 def test_raises_exception_on_non_frontend_type_I():
-    type_converter = TypeConverter(globals)
-    type_converter.file = 'file'
+    type_converter = TypeConverter(globals, 'file')
     type_hint = ast.Name("b", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -76,8 +74,7 @@ def test_raises_exception_on_non_frontend_type_I():
 
 
 def test_raises_exception_on_non_frontend_type_II():
-    type_converter = TypeConverter(globals)
-    type_converter.file = 'file'
+    type_converter = TypeConverter(globals, 'file')
     type_hint = ast.Name("c2", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -86,8 +83,7 @@ def test_raises_exception_on_non_frontend_type_II():
 
 
 def test_raises_exception_on_nontrivial_generics():
-    type_converter = TypeConverter(globals)
-    type_converter.file = 'file'
+    type_converter = TypeConverter(globals, 'file')
     type_hint = ast.Name("d12", lineno=0, col_offset=0)
 
     with pytest.raises(CodeGenerationException) as err:
@@ -96,7 +92,7 @@ def test_raises_exception_on_nontrivial_generics():
 
 
 def test_type_conversion_caches_type():
-    type_converter = TypeConverter(globals)
+    type_converter = TypeConverter(globals, 'file')
     type_hint = ast.Name("a", lineno=0, col_offset=0)
 
     assert "a" not in type_converter.name_to_xdsl_type_map
