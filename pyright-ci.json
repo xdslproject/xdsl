@@ -19,7 +19,6 @@
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
     "xdsl/irdl.py",
-    "xdsl/ir.py",
-    "xdsl/_version.py"
+    "xdsl/ir.py"
   ]
 }
