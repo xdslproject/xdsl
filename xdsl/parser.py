@@ -1422,9 +1422,12 @@ class BaseParser(ABC):
             )
             # If we don't see a ':' indicating a type signature
             if not self.tokenizer.starts_with(":"):
-                return FloatAttr(float(value.text))
+                return FloatAttr(float(value.text), Float32Type())
 
             type = self._parse_attribute_type()
+            if not isinstance(type, AnyFloat):
+                self.raise_error(
+                    "Float attribute must be typed with a float type!")
             return FloatAttr(float(value.text), type)
 
     def try_parse_builtin_boolean_attr(self) -> IntegerAttr | None:
