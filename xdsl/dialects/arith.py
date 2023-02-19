@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Union
+from typing import Annotated, TypeVar, Union
 
-from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
+from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, IntAttr,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
                                    Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
@@ -14,6 +14,7 @@ from xdsl.utils.exceptions import VerifyException
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
+_FloatTypeT = TypeVar('_FloatTypeT', bound=AnyFloat)
 
 @irdl_op_definition
 class Constant(Operation):
@@ -26,8 +27,8 @@ class Constant(Operation):
         return Constant.create(result_types=[typ], attributes={"value": attr})
 
     @staticmethod
-    def from_int_and_width(val: Union[int, Attribute],
-                           typ: Union[int, Attribute]) -> Constant:
+    def from_int_and_width(val: int | IntAttr,
+                           typ: int | IntegerType | IndexType) -> Constant:
         if isinstance(typ, int):
             typ = IntegerType.from_width(typ)
         return Constant.create(
@@ -36,11 +37,13 @@ class Constant(Operation):
 
     # To add tests for this constructor
     @staticmethod
-    def from_float_and_width(val: Union[float, Attribute],
-                             typ: AnyFloat) -> Constant:
+    def from_float_and_width(val: float | FloatAttr[_FloatTypeT],
+                             typ: _FloatTypeT) -> Constant:
+        if isinstance(val, float):
+            val = FloatAttr.from_value(val, typ)
         return Constant.create(
             result_types=[typ],
-            attributes={"value": FloatAttr.from_value(val, typ)})
+            attributes={"value": val})
 
 
 @dataclass
