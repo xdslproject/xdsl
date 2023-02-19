@@ -54,6 +54,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 _UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems",
                                    bound=Attribute,
                                    covariant=True)
+_UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit",
+                                       bound=Attribute)
 
 
 @irdl_attr_definition
@@ -65,8 +67,8 @@ class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedMemrefTypeElems
-    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElems]:
+        referenced_type: _UnrankedMemrefTypeElemsInit
+    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
         return UnrankedMemrefType([referenced_type])
 
 
