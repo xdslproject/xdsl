@@ -16,7 +16,6 @@
     "xdsl/dialects/affine.py",
     "xdsl/dialects/builtin.py",
     "xdsl/dialects/arith.py",
-    "xdsl/dialects/mpi.py",
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
     "xdsl/irdl.py",
