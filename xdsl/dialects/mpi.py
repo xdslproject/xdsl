@@ -1,7 +1,7 @@
 from abc import ABC
 from enum import Enum
 
-from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, Operation
+from xdsl.ir import Attribute, OpResult, ParametrizedAttribute, Dialect, Operation
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OptOpAttr, OpAttr)
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
@@ -51,15 +51,13 @@ class MPIBaseOp(Operation, ABC):
     pass
 
 
-def _build_attr_dict_with_optional_tag(tag: int | None = None):
+def _build_attr_dict_with_optional_tag(
+        tag: int | None = None) -> dict[str, Attribute]:
     """
     Helper function for building attribute dicts that have an optional `tag` entry
     """
 
-    attrs = {}
-    if tag is not None:
-        attrs['tag'] = IntegerAttr.from_params(tag, t_int)
-    return attrs
+    return {} if tag is None else {'tag': IntegerAttr.from_params(tag, t_int)}
 
 
 @irdl_op_definition

@@ -250,8 +250,14 @@ class xDSLOptMain:
             if p not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
 
-        self.pipeline = [(p, lambda op, p=p: self.available_passes[p]
-                          (self.ctx, op)) for p in pipeline]
+        def make_pass(p: str):
+
+            def pipeline_pass(op: ModuleOp):
+                return self.available_passes[p](self.ctx, op)
+
+            return pipeline_pass
+
+        self.pipeline = [(p, make_pass(p)) for p in pipeline]
 
     def parse_input(self) -> ModuleOp:
         """

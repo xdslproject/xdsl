@@ -2,6 +2,7 @@
   "include": ["xdsl"],
   "reportImportCycles": false,
   "reportUnnecessaryIsInstance": false,
+  "typeCheckingMode": "strict",
   "exclude": [
     "xdsl/dialects/vector.py",
     "xdsl/frontend/dialects/builtin.py",
@@ -12,14 +13,10 @@
     "xdsl/frontend/op_resolver.py",
     "xdsl/frontend/context.py",
     "xdsl/frontend/code_generation.py",
-    "xdsl/dialects/memref.py",
-    "xdsl/dialects/affine.py",
     "xdsl/dialects/builtin.py",
-    "xdsl/dialects/arith.py",
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
     "xdsl/irdl.py",
-    "xdsl/ir.py",
-    "xdsl/_version.py"
+    "xdsl/ir.py"
   ]
 }

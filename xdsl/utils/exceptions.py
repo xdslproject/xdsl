@@ -89,7 +89,7 @@ class DeferredExceptionMessage:
     def __repr__(self):
         return self._get_msg()
 
-    def __contains__(self, item):
+    def __contains__(self, item: str):
         return item in self._get_msg()
 
 
@@ -102,8 +102,6 @@ class ParseError(Exception):
                  span: 'Span',
                  msg: str,
                  history: 'BacktrackingHistory' | None = None):
-        if span is None:
-            raise ValueError("Span can't be None!")
         super().__init__(DeferredExceptionMessage(lambda: repr(self)))
         self.span = span
         self.msg = msg
