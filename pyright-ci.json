@@ -2,6 +2,7 @@
   "include": ["xdsl"],
   "reportImportCycles": false,
   "reportUnnecessaryIsInstance": false,
+  "typeCheckingMode": "strict",
   "exclude": [
     "xdsl/dialects/vector.py",
     "xdsl/frontend/dialects/builtin.py",
