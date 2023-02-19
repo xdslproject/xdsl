@@ -465,10 +465,10 @@ class CustomFormatAttr(ParametrizedAttribute):
             re.compile('(zero|one)'))
         if value and value.text == "zero":
             parser.parse_char(">")
-            return [IntAttr.from_int(0)]
+            return [IntAttr(0)]
         if value and value.text == "one":
             parser.parse_char(">")
-            return [IntAttr.from_int(1)]
+            return [IntAttr(1)]
         assert False
 
     def print_parameters(self, printer: Printer) -> None:

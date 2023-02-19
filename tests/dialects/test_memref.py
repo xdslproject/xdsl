@@ -23,7 +23,7 @@ def test_memreftype():
     assert mem2.get_shape() == [3, 3, 3]
     assert mem2.element_type is i32
 
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     mem3 = MemRefType.from_params(my_i32)
 
     assert mem3.get_num_dims() == 1
@@ -80,7 +80,7 @@ def test_memref_store_i32_with_dimensions():
 
 
 def test_memref_alloc():
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
 
@@ -94,7 +94,7 @@ def test_memref_alloc():
 
 
 def test_memref_alloca():
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloca.get(my_i32, 64)
 
@@ -107,7 +107,7 @@ def test_memref_alloca():
 
 
 def test_memref_dealloc():
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     dealloc0 = Dealloc.get(alloc0)
 
@@ -115,7 +115,7 @@ def test_memref_dealloc():
 
 
 def test_memref_dealloca():
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     dealloc0 = Dealloca.get(alloc0)
 

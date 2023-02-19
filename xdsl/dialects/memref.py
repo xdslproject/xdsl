@@ -37,7 +37,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
             shape: List[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
-            ArrayAttr[AnyIntegerAttr].from_list([
+            ArrayAttr[AnyIntegerAttr]([
                 d if isinstance(d, IntegerAttr) else
                 IntegerAttr.from_index_int_value(d) for d in shape
             ]), referenced_type
@@ -46,7 +46,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
     @staticmethod
     def from_params(
         referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr.from_list(
+        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type])

@@ -27,9 +27,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_list(types: list[Attribute]) -> LLVMStructType:
-        return LLVMStructType(
-            [StringAttr.from_str(""),
-             ArrayAttr.from_list(types)])
+        return LLVMStructType([StringAttr(""), ArrayAttr(types)])
 
     def print_parameters(self, printer: Printer) -> None:
         assert self.struct_name.data == ""
@@ -45,7 +43,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
             "Malformed LLVM struct, expected attribute definition here!")
         parser.parse_characters(
             ")>", "Unexpected input, expected end of LLVM struct!")
-        return [StringAttr.from_str(""), ArrayAttr.from_list(params)]
+        return [StringAttr(""), ArrayAttr(params)]
 
 
 @irdl_attr_definition

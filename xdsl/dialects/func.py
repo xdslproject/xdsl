@@ -84,7 +84,7 @@ class Call(Operation):
                                                                Operation]],
             return_types: List[Attribute]) -> Call:
         if isinstance(callee, str):
-            callee = SymbolRefAttr.from_str(callee)
+            callee = SymbolRefAttr(callee)
         return Call.build(operands=[ops],
                           result_types=[return_types],
                           attributes={"callee": callee})

@@ -1394,10 +1394,9 @@ class BaseParser(ABC):
         refs = self.parse_reference()
 
         if len(refs) >= 1:
-            return SymbolRefAttr([
+            return SymbolRefAttr(
                 StringAttr(refs[0].text),
-                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]])
-            ])
+                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]]))
         else:
             return None
 
@@ -1423,10 +1422,10 @@ class BaseParser(ABC):
             )
             # If we don't see a ':' indicating a type signature
             if not self.tokenizer.starts_with(":"):
-                return FloatAttr.from_value(float(value.text))
+                return FloatAttr(float(value.text))
 
             type = self._parse_attribute_type()
-            return FloatAttr.from_value(float(value.text), type)
+            return FloatAttr(float(value.text), type)
 
     def try_parse_builtin_boolean_attr(self) -> IntegerAttr | None:
         span = self.try_parse_boolean_literal()
@@ -1435,7 +1434,7 @@ class BaseParser(ABC):
             return None
 
         int_val = ["false", "true"].index(span.text)
-        return IntegerAttr.from_params(int_val, IntegerType.from_width(1))
+        return IntegerAttr.from_params(int_val, IntegerType(1))
 
     def try_parse_builtin_str_attr(self):
         if not self.tokenizer.starts_with('"'):
@@ -1445,7 +1444,7 @@ class BaseParser(ABC):
             literal = self.try_parse_string_literal()
             if literal is None:
                 self.raise_error("Invalid string literal")
-            return StringAttr.from_str(literal.string_contents)
+            return StringAttr(literal.string_contents)
 
     def try_parse_builtin_arr_attr(self) -> ArrayAttr | None:
         if not self.tokenizer.starts_with("["):
@@ -1456,7 +1455,7 @@ class BaseParser(ABC):
                                        "Expected array entry!")
             self.parse_characters(
                 "]", "Malformed array contents (expected end of array here!")
-            return ArrayAttr.from_list(attrs)
+            return ArrayAttr(attrs)
 
     @abstractmethod
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
@@ -1555,8 +1554,8 @@ class BaseParser(ABC):
                 "u": Signedness.UNSIGNED,
                 "i": Signedness.SIGNLESS,
             }
-            return IntegerType.from_width(int(re_match.group(1)),
-                                          signedness[name.text[0]])
+            return IntegerType(int(re_match.group(1)),
+                               signedness[name.text[0]])
 
         if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
             width = int(re_match.group(1))
