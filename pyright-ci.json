@@ -13,7 +13,6 @@
     "xdsl/frontend/op_resolver.py",
     "xdsl/frontend/context.py",
     "xdsl/frontend/code_generation.py",
-    "xdsl/dialects/affine.py",
     "xdsl/dialects/builtin.py",
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
