@@ -120,6 +120,45 @@ class IntToPtrOp(Operation):
 
 
 @irdl_op_definition
+class LoadOp(Operation):
+    name = "llvm.load"
+
+    ptr: Annotated[Operand, LLVMPointerType]
+
+    dereferenced_value: Annotated[OpResult, Attribute]
+
+    @classmethod
+    def get(cls,
+            ptr: SSAValue | Operation,
+            result_type: Attribute | None = None):
+        if result_type is None:
+            ptr = SSAValue.get(ptr)
+            assert isinstance(ptr.typ, LLVMPointerType)
+
+            if isinstance(ptr.typ.type, NoneAttr):
+                raise ValueError(
+                    "llvm.load requires either a result type or a typed pointer!"
+                )
+            result_type = ptr.typ.type
+
+        return cls.build(operands=[ptr], result_types=[result_type])
+
+
+@irdl_op_definition
+class NullOp(Operation):
+    name = "llvm.mlir.null"
+
+    nullptr: Annotated[OpResult, LLVMPointerType]
+
+    @classmethod
+    def get(cls, ptr_type: LLVMPointerType | None):
+        if ptr_type is None:
+            ptr_type = LLVMPointerType.untyped()
+
+        return cls.build(result_types=[ptr_type])
+
+
+@irdl_op_definition
 class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
