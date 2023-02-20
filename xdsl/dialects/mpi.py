@@ -8,8 +8,7 @@ from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
 from xdsl.dialects.memref import MemRefType, Alloc
 
-t_uint32: IntegerType = IntegerType.from_width(32, Signedness.UNSIGNED)
-t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNED)
+t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
 t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
 
 AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
@@ -322,15 +321,7 @@ class Finalize(MPIBaseOp):
 
 
 MPI = Dialect([
-    MPIBaseOp,
-    Alloc,
-    ISend,
-    IRecv,
-    Test,
-    Recv,
-    Send,
-    GetStatusField,
-    Init,
+    MPIBaseOp, Alloc, ISend, IRecv, Test, Recv, Send, GetStatusField, Init,
     Finalize
 ], [
     RequestType,

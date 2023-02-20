@@ -284,5 +284,7 @@ class ExtractAlignedPointerAsIndexOp(Operation):
         return cls.build(operands=[source], result_types=[IndexType()])
 
 
-MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
-                 [MemRefType, UnrankedMemrefType])
+MemRef = Dialect([
+    Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global,
+    ExtractAlignedPointerAsIndexOp
+], [MemRefType, UnrankedMemrefType])

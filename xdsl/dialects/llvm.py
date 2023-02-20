@@ -147,5 +147,6 @@ class LLVMMLIRUndef(Operation):
     res: Annotated[OpResult, AnyAttr()]
 
 
-LLVM = Dialect([LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef],
-               [LLVMStructType])
+LLVM = Dialect(
+    [LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef, AllocaOp, IntToPtrOp],
+    [LLVMStructType, LLVMPointerType])
