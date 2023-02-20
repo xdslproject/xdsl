@@ -7,8 +7,6 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import AnyAttr, Operand, VarOperand, VarOpResult, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
-# TODO custom syntax
-
 
 @irdl_op_definition
 class If(Operation):
