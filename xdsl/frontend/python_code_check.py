@@ -10,7 +10,7 @@ from xdsl.frontend.exception import CodeGenerationException
 class PythonCodeCheck:
 
     @staticmethod
-    def run(stmts: List[ast.stmt], file: str) -> None:
+    def run(stmts: List[ast.stmt], file: str | None) -> None:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
         cases, an exception is raised. Particularly, the check is used for
@@ -57,7 +57,7 @@ class CheckStructure:
 
     @staticmethod
     def run_with_scope(single_scope: bool, stmts: List[ast.stmt],
-                       file: str) -> None:
+                       file: str | None) -> None:
         if single_scope:
             visitor = SingleScopeVisitor(file)
         else:
@@ -69,7 +69,7 @@ class CheckStructure:
 @dataclass
 class SingleScopeVisitor(ast.NodeVisitor):
 
-    file: str
+    file: str | None = field(default=None)
     """File path for error reporting."""
 
     block_names: Set[str] = field(default_factory=set)
@@ -104,7 +104,7 @@ class SingleScopeVisitor(ast.NodeVisitor):
 @dataclass
 class MultipleScopeVisitor(ast.NodeVisitor):
 
-    file: str
+    file: str | None = field(default=None)
 
     function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
     """Tracks duplicate function names and duplicate block labels."""
@@ -174,12 +174,12 @@ class CheckAndInlineConstants:
     """
 
     @staticmethod
-    def run(stmts: List[ast.stmt], file: str) -> None:
+    def run(stmts: List[ast.stmt], file: str | None) -> None:
         CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
     def run_with_variables(stmts: List[ast.stmt], defined_variables: Set[str],
-                           file: str) -> None:
+                           file: str | None) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
             # we have to keep track of these to raise an exception.
@@ -264,7 +264,7 @@ class ConstantInliner(ast.NodeTransformer):
     new_node: ast.Constant
     """New AST node to inline."""
 
-    file: str
+    file: str | None = field(default=None)
     """Path to the file containing the program."""
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:

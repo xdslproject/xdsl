@@ -27,17 +27,8 @@ class FrontendProgram:
     xdsl_program: ModuleOp | None = field(default=None)
     """Generated xDSL program when AST is compiled."""
 
-    _file: str | None = field(default=None)
+    file: str | None = field(default=None)
     """Path to the file that contains the program."""
-
-    @property
-    def file(self):
-        assert self._file is not None
-        return self._file
-
-    @file.setter
-    def file(self, file: str):
-        self._file = file
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -58,7 +49,7 @@ Cannot compile program without the code context. Try to use:
         assert self.globals is not None
         assert self.stmts is not None
 
-        type_converter = TypeConverter(self.globals, self.file)
+        type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter, self.stmts, self.file)
         self.xdsl_program.verify()

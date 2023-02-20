@@ -18,7 +18,7 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(type_converter: TypeConverter,
                                 stmts: List[ast.stmt],
-                                file: str) -> builtin.ModuleOp:
+                                file: str | None) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
         visitor = CodegGenerationVisitor(type_converter, module, file)
@@ -49,11 +49,11 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    file: str
+    file: str | None
     """Path of the file containing the program being processed."""
 
     def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
-                 file: str) -> None:
+                 file: str | None) -> None:
         self.type_converter = type_converter
         self.globals = type_converter.globals
         self.file = file
