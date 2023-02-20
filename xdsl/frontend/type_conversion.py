@@ -72,7 +72,7 @@ class TypeConverter:
         # First, type can be generic, e.g. `class _Integer(Generic[_W, _S])`.
         if isinstance(type_class, _GenericAlias):
             generic_type_arguments = type_class.__args__
-            arguments_for_constructor = list[Any]()
+            arguments_for_constructor: list[Any] = []
             for type_argument in generic_type_arguments:
 
                 # Convert Literal[...] to concrete values.
