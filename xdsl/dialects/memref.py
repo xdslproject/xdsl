@@ -156,10 +156,11 @@ class Alloc(Operation):
             shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
+        if not isinstance(return_type, MemRefType):
+            return_type = MemRefType.from_element_type_and_shape(return_type, shape)
         return Alloc.build(operands=[[], []],
                            result_types=[
-                               MemRefType.from_element_type_and_shape(
-                                   return_type, shape)
+                               return_type
                            ],
                            attributes={
                                "alignment":
