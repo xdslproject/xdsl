@@ -62,9 +62,10 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
-pip install --editable .
-# Optional installation of extra requirements
-pip install --requirement requirements-optional.txt
+# We currently support Python 3.10 and 3.11
+python3.10 -m venv venv
+source venv/bin/activate
+make install
 ```
 
 ### Testing
@@ -73,17 +74,19 @@ The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
 
 ```bash
-# Executes pytests which are located in tests/
-pytest
-
-# Executes filecheck tests
-lit tests/filecheck
+make test
 ```
 
 ### Formatting
 
 All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
 format the code in a uniform manner.
+
+To format manually, run:
+
+```bash
+make format
+```
 
 To automate the formatting within vim, one can use
 https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
