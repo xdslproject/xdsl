@@ -1,7 +1,7 @@
 from abc import ABC
 from enum import Enum
 
-from xdsl.ir import Attribute, OpResult, ParametrizedAttribute, Dialect, Operation
+from xdsl.ir import Attribute, OpResult, ParametrizedAttribute, Dialect, Operation, MLIRType
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OptOpAttr, OpAttr)
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
@@ -15,7 +15,7 @@ AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
 
 
 @irdl_attr_definition
-class RequestType(ParametrizedAttribute):
+class RequestType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Request type.
 
@@ -25,7 +25,7 @@ class RequestType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class StatusType(ParametrizedAttribute):
+class StatusType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Status type.
 
