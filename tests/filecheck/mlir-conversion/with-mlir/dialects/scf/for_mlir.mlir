@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt -f mlir -t mlir | filecheck %s
+// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt | filecheck %s
 
 "builtin.module"() ({
   %lb = "arith.constant"() {"value" = 0 : index} : () -> index

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -f mlir -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 "builtin.module"() ({
   %lb = "arith.constant"() {"value" = 0 : i32} : () -> index
   %ub = "arith.constant"() {"value" = 42 : index} : () -> index
