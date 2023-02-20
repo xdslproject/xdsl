@@ -311,6 +311,16 @@ class GetStatusField(MPIBaseOp):
                          result_types=[t_int])
 
 
+@irdl_op_definition
+class Init(MPIBaseOp):
+    name = "mpi.init"
+
+
+@irdl_op_definition
+class Finalize(MPIBaseOp):
+    name = "mpi.finalize"
+
+
 MPI = Dialect([
     MPIBaseOp,
     Alloc,
@@ -320,6 +330,8 @@ MPI = Dialect([
     Recv,
     Send,
     GetStatusField,
+    Init,
+    Finalize
 ], [
     RequestType,
 ])
