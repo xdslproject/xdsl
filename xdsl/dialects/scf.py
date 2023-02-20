@@ -4,7 +4,14 @@ from typing import Annotated, List
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import AnyAttr, Operand, VarOperand, VarOpResult, irdl_op_definition
+from xdsl.irdl import (
+    AnyAttr,
+    Operand,
+    SingleBlockRegion,
+    VarOperand,
+    VarOpResult,
+    irdl_op_definition,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -68,7 +75,7 @@ class For(Operation):
 
     res: Annotated[VarOpResult, AnyAttr()]
 
-    body: Region
+    body: SingleBlockRegion
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.blocks[0].args):
@@ -87,15 +94,14 @@ class For(Operation):
                     f"got {self.body.blocks[0].args[idx].typ}. Arguments after the "
                     f"induction variable must match the carried variables.")
         if len(self.iter_args) > 0:
-            if len(self.body.blocks[0].ops) == 0 or not isinstance(
-                    self.body.blocks[0].ops[-1], Yield):
+            if (len(self.body.ops) == 0
+                    or not isinstance(self.body.ops[-1], Yield)):
                 raise VerifyException(
                     "The scf.for's body does not end with a scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body.")
-        if len(self.body.blocks[0].ops) > 0 and isinstance(
-                self.body.blocks[0].ops[-1], Yield):
-            yieldop = self.body.blocks[0].ops[-1]
+        if (len(self.body.ops) > 0 and isinstance(self.body.ops[-1], Yield)):
+            yieldop = self.body.ops[-1]
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
