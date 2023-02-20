@@ -311,6 +311,16 @@ class GetStatusField(MPIBaseOp):
 
 
 @irdl_op_definition
+class CommRank(MPIBaseOp):
+    name = "mpi.comm.rank"
+
+    rank: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls):
+        return cls.build(result_types=[t_int])
+
+@irdl_op_definition
 class Init(MPIBaseOp):
     name = "mpi.init"
 
