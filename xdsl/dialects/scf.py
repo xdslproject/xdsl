@@ -4,14 +4,8 @@ from typing import Annotated, List
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (
-    AnyAttr,
-    Operand,
-    SingleBlockRegion,
-    VarOperand,
-    VarOpResult,
-    irdl_op_definition,
-)
+from xdsl.irdl import (AnyAttr, Operand, SingleBlockRegion, VarOperand,
+                       VarOpResult, irdl_op_definition)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -26,12 +20,9 @@ class If(Operation):
     false_region: Region
 
     @staticmethod
-    def get(
-        cond: SSAValue | Operation,
-        return_types: List[Attribute],
-        true_region: Region | List[Block] | List[Operation],
-        false_region: Region | List[Block] | List[Operation],
-    ) -> If:
+    def get(cond: SSAValue | Operation, return_types: List[Attribute],
+            true_region: Region | List[Block] | List[Operation],
+            false_region: Region | List[Block] | List[Operation]) -> If:
         return If.build(
             operands=[cond],
             result_types=[return_types],
@@ -83,10 +74,6 @@ class For(Operation):
                 f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
                 f"{len(self.body.blocks[0].args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments.")
-        if len(self.operands) < 3:
-            raise VerifyException(
-                "Expected at least 3 arguments. A scf.for must have a lower- and "
-                "upper-bound, and a step.")
         for idx, arg in enumerate(self.iter_args):
             if self.body.blocks[0].args[idx + 1].typ != arg.typ:
                 raise VerifyException(
@@ -155,12 +142,10 @@ class While(Operation):
                     f"got {self.after_region.blocks[0].args[idx].typ}")
 
     @staticmethod
-    def get(
-        operands: List[SSAValue | Operation],
-        result_types: List[Attribute],
-        before: Region | List[Operation] | List[Block],
-        after: Region | List[Operation] | List[Block],
-    ) -> While:
+    def get(operands: List[SSAValue | Operation],
+            result_types: List[Attribute],
+            before: Region | List[Operation] | List[Block],
+            after: Region | List[Operation] | List[Block]) -> While:
         op = While.build(operands=operands,
                          result_types=result_types,
                          regions=[before, after])
