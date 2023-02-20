@@ -45,7 +45,7 @@ class FuncOp(Operation):
 
     @staticmethod
     def external(name: str, input_types: List[Attribute],
-                      return_types: List[Attribute]) -> FuncOp:
+                 return_types: List[Attribute]) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes = {
             "sym_name": StringAttr(name),
@@ -53,9 +53,7 @@ class FuncOp(Operation):
             "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes,
-                          regions=[
-                              Region.from_operation_list([])
-                          ])
+                          regions=[Region.from_operation_list([])])
         return op
 
     @staticmethod
