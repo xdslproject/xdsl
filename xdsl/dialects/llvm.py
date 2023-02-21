@@ -149,7 +149,7 @@ class LoadOp(Operation):
 
     ptr: Annotated[Operand, LLVMPointerType]
 
-    dereferenced_value: Annotated[OpResult, Attribute]
+    dereferenced_value: OpResult
 
     @classmethod
     def get(cls,
