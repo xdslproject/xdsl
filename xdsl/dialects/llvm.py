@@ -92,7 +92,9 @@ class AllocaOp(Operation):
             elem_type: Attribute,
             alignment: int = 32,
             as_untyped_ptr: bool = False):
-        attrs: dict[str, Attribute] = {'alignment': IntegerAttr.from_int_and_width(alignment, 64)}
+        attrs: dict[str, Attribute] = {
+            'alignment': IntegerAttr.from_int_and_width(alignment, 64)
+        }
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.untyped()
             attrs['elem_type'] = elem_type
