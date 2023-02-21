@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr)
+                                   AnyIntegerAttr, IndexType)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -66,6 +66,21 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
             printer.print_attribute(self.addr_space)
 
         printer.print_string(">")
+
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        if not parser.tokenizer.starts_with('<'):
+            return [NoneAttr(), NoneAttr()]
+        parser.parse_characters('<', "llvm.ptr parameters expected")
+        type = parser.try_parse_type()
+        if type is None:
+            parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
+        if not parser.tokenizer.starts_with(','):
+            parser.parse_characters('>', "End of llvm.ptr parameters expected!")
+            return [type, NoneAttr()]
+        parser.parse_characters(',', "llvm.ptr args must be separated by `,`")
+        addr_space = parser.parse_int_literal()
+        parser.parse_characters('>', "End of llvm.ptr parameters expected!")
+        return [type, IntegerAttr.from_int_and_width(addr_space, IndexType())]
 
     @classmethod
     def untyped(cls):
