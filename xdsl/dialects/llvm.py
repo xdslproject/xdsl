@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
-                                   IntAttr, NoneAttr, IntegerType, IntegerAttr)
+                                   IntAttr, NoneAttr, IntegerType, IntegerAttr,
+                                   AnyIntegerAttr)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -81,7 +82,7 @@ class AllocaOp(Operation):
 
     size: Annotated[Operand, IntegerType]
 
-    alignment: OpAttr[IntegerAttr]
+    alignment: OpAttr[AnyIntegerAttr]
 
     res: Annotated[OpResult, LLVMPointerType]
 
