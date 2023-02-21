@@ -1,12 +1,20 @@
+import dataclasses
 from abc import ABC
 from enum import Enum
 
-from xdsl.ir import Attribute, OpResult, ParametrizedAttribute, Dialect, Operation, MLIRType
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OptOpAttr, OpAttr)
+from xdsl.dialects import llvm
+from xdsl.dialects import builtin, arith, memref, func
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
 from xdsl.dialects.memref import MemRefType, Alloc
+from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, MLIRType
+from xdsl.ir import Operation, Attribute, SSAValue
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
+                       irdl_attr_definition, OptOpAttr, OpAttr)
+
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+
+f64 = builtin.f64
 
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
 t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
@@ -320,6 +328,7 @@ class CommRank(MPIBaseOp):
     def get(cls):
         return cls.build(result_types=[t_int])
 
+
 @irdl_op_definition
 class Init(MPIBaseOp):
     name = "mpi.init"
@@ -336,3 +345,192 @@ MPI = Dialect([
 ], [
     RequestType,
 ])
+
+
+@dataclasses.dataclass
+class MpiLibraryInfo:
+    mpi_comm_world_val: int = 0x44000000
+
+    MPI_INT: int = 0x4c000405
+    MPI_UNSIGNED: int = 0x4c000406
+    MPI_LONG: int = 0x4c000807
+    MPI_UNSIGNED_LONG: int = 0x4c000808
+    MPI_FLOAT: int = 0x4c00040a
+    MPI_DOUBLE: int = 0x4c00080b
+    MPI_STATUS_IGNORE: int = 1
+
+    request_size: int = 4
+    status_size: int = 4
+    mpi_comm_size: int = 4
+
+
+class MpiLowerings(RewritePattern):
+    _emitted_function_calls: dict[str, tuple[list[Attribute], list[Attribute]]]
+
+    MPI_SYMBOL_NAMES = {
+        'mpi.init': 'MPI_Init',
+        'mpi.finalize': 'MPI_Finalize',
+        'mpi.irecv': 'MPI_Irecv',
+        'mpi.isend': 'MPI_Isend',
+        'mpi.wait': 'MPI_Wait',
+        'mpi.comm.rank': 'MPI_Comm_rank',
+    }
+
+    def __init__(self, info: MpiLibraryInfo):
+        self.info = info
+        self._emitted_function_calls = dict()
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        if not isinstance(op, MPIBaseOp):
+            return
+
+        field = "lower_{}".format(op.name.replace('.', '_'))
+
+        if hasattr(self, field):
+            new_ops, *other = getattr(self, field)(op)
+            rewriter.replace_matched_op(new_ops, *other)
+
+            for op in new_ops:
+                if not isinstance(op, func.Call) or not op.callee.string_value(
+                ).startswith('MPI_'):
+                    continue
+                self._emitted_function_calls[op.callee.string_value()] = (
+                    [x.typ for x in op.arguments],
+                    [x.typ for x in op.results],
+                )
+        else:
+            print("Missing lowering for {}".format(op.name))
+
+    # Individual lowerings:
+
+    def lower_mpi_init(self, op: Init):
+        # and then we emit a func.call op
+        return [
+            nullptr := llvm.NullOp.get(t_int),
+            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
+        ], []
+
+    def lower_mpi_finalize(self, op: Init):
+        return [
+            func.Call.get(self._mpi_name(op), [], [t_int]),
+        ], []
+
+    def lower_mpi_wait(self, op: Wait):
+        if len(op.status.uses) == 0:
+            pass
+            # TODO: emit MPI_STATUS_IGNORE
+
+        return [
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            res := llvm.AllocaOp.get(
+                lit1,
+                builtin.IntegerType.from_width(8 * self.info.status_size)
+            ),
+            func.Call.get(self._mpi_name(op), [op.request, res], [t_int])
+        ], [res]  # yapf: disable
+
+    def lower_mpi_isend(self, op: ISend):
+        """
+        int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
+              int tag, MPI_Comm comm, MPI_Request *request)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+        # TODO: correctly infer mpi type from memref
+
+        return [
+            *count_ops,
+            datatype := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            request := llvm.AllocaOp.get(
+                lit1,
+                builtin.IntegerType.from_width(8 * self.info.request_size)
+            ),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
+                request
+            ], [t_int])
+        ], [request.results[0]]  # yapf: disable
+
+    def lower_mpi_irecv(self, op: IRecv):
+        """
+        int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+              MPI_Comm comm, MPI_Request *request)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        return [
+            *count_ops,
+            buffer      := memref.Alloc.get(op.buffer.typ, 32),
+            *(ptr       := self._memref_get_llvm_ptr(buffer))[0],
+            datatype    := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
+            request     := llvm.AllocaOp.get(
+                lit1,
+                builtin.IntegerType.from_width(8 * self.info.request_size)
+            ),
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
+                request
+            ], [t_int])
+        ], [buffer.memref, request.res] # yapf: disable
+
+    def lower_mpi_comm_rank(self, op: CommRank):
+        return [
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            lit1    := arith.Constant.from_int_and_width(1, 64),
+            int_ptr := llvm.AllocaOp.get(lit1, t_int),
+            func.Call.get(
+                self._mpi_name(op),
+                [comm_global, int_ptr],
+                [t_int]
+            ),
+            rank    := llvm.LoadOp.get(int_ptr)
+        ], [rank.dereferenced_value]  # yapf: disable
+
+    # Miscellaneous
+
+    def _emit_memref_counts(
+            self, ssa_val: SSAValue) -> tuple[list[Operation], SSAValue]:
+        # Note: we only allow MemRef, not UnrankedMemref!
+        # TODO: handle -1 in sizes
+        assert isinstance(ssa_val.typ, memref.MemRefType)
+        size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
+
+        literal = arith.Constant.from_int_and_width(size, builtin.i64)
+        return [literal], literal.result
+
+    def _mpi_name(self, op):
+        if op.name not in self.MPI_SYMBOL_NAMES:
+            print("unknown MPI op:  {}".format(op.name))
+        return self.MPI_SYMBOL_NAMES[op.name]
+
+    def _emit_external_funcs(self):
+        return [
+            func.FuncOp.external(name, *args)
+            for name, args in self._emitted_function_calls.items()
+        ]
+
+    def _memref_get_llvm_ptr(self, ref: SSAValue):
+        """
+          %0 = memref.extract_aligned_pointer_as_index %arg : memref<4x4xf32> -> index
+          %1 = arith.index_cast %0 : index to i64
+          %2 = llvm.inttoptr %1 : i64 to !llvm.ptr<f32>
+        """
+        return [
+            index := memref.ExtractAlignedPointerAsIndexOp.get(ref),
+            i64 := arith.IndexCastOp.get(index, builtin.i64),
+            ptr := llvm.IntToPtrOp.get(i64)
+        ], ptr  # yapf: disable
+
+    def _alloc_type(self, size: int):
+        return llvm.LLVMPointerType.typed(
+            builtin.IntegerType.from_width(size * 8))
+
+    def insert_externals_into_module(self, op: builtin.ModuleOp):
+        for func in self._emit_external_funcs():
+            op.regions[0].blocks[0].insert_op(func, 0)
