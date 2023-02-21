@@ -82,8 +82,7 @@ class AllocaOp(Operation):
 
     size: Annotated[Operand, AnyIntegerAttr]
 
-    alignment: OpAttr[IntegerType.from_width(64)]
-    #elem_type: OpAttr[Attribute]
+    alignment: OpAttr[IntegerType]
 
     res: Annotated[OpResult, LLVMPointerType]
 
@@ -93,12 +92,13 @@ class AllocaOp(Operation):
             elem_type: Attribute,
             alignment: int = 32,
             as_untyped_ptr: bool = False):
-        attrs = {'alignment': IntegerAttr.from_int_and_width(alignment, 64)}
+        attrs: dict[str, Attribute] = {'alignment': IntegerAttr.from_int_and_width(alignment, 64)}
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.untyped()
             attrs['elem_type'] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
+
         return cls.build(operands=[size],
                          attributes=attrs,
                          result_types=[ptr_type])
