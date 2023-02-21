@@ -10,7 +10,7 @@ from xdsl.dialects.memref import MemRefType, Alloc
 from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.ir import Operation, Attribute, SSAValue
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OptOpAttr, OpAttr)
+                       irdl_attr_definition, OptOpAttr, OpAttr, OptOpResult)
 
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 
@@ -177,20 +177,20 @@ class IRecv(MPIBaseOp):
     name = "mpi.irecv"
 
     source: Annotated[Operand, t_int]
+    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
     tag: OptOpAttr[AnyIntegerAttr]
 
-    buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
     request: Annotated[OpResult, RequestType()]
 
     @classmethod
     def get(cls,
             source: Operand,
-            dtype: MemRefType[AnyNumericAttr],
+            buffer: SSAValue | Operation,
             tag: int | None = None):
-        return cls.build(operands=[source],
+        return cls.build(operands=[source, buffer],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[dtype, RequestType()])
+                         result_types=[RequestType()])
 
 
 @irdl_op_definition
@@ -223,20 +223,22 @@ class Recv(MPIBaseOp):
     name = "mpi.recv"
 
     source: Annotated[Operand, t_int]
+    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
     tag: OptOpAttr[AnyIntegerAttr]
 
-    buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
-    status: Annotated[OpResult, StatusType]
+    status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls,
             source: Operand,
             dtype: MemRefType[AnyNumericAttr],
-            tag: int | None = None):
+            tag: int | None = None,
+            ignore_status: bool = True):
         return cls.build(operands=[source],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[dtype, StatusType()])
+                         result_types=[dtype] +
+                         ([[]] if ignore_status else [[StatusType()]]))
 
 
 @irdl_op_definition
@@ -284,11 +286,16 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType()]
-    status: Annotated[OpResult, t_int]
+    status: Annotated[OptOpResult, t_int]
 
     @classmethod
-    def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_int])
+    def get(cls, request: Operand, ignore_status: bool = True):
+        if ignore_status:
+            result_types = [[]]
+        else:
+            result_types = [[t_int]]
+
+        return cls.build(operands=[request], result_types=result_types)
 
 
 @irdl_op_definition
