@@ -91,13 +91,17 @@ class AllocaOp(Operation):
     def get(cls,
             size: SSAValue | Operation,
             elem_type: Attribute,
-            alignment: int = 32):
-        return cls.build(
-            operands=[size],
-            attributes={
-                'alignment': IntegerAttr.from_int_and_width(alignment, 64)
-            },
-            result_types=[LLVMPointerType([elem_type, NoneAttr()])])
+            alignment: int = 32,
+            as_untyped_ptr: bool = False):
+        attrs = {'alignment': IntegerAttr.from_int_and_width(alignment, 64)}
+        if as_untyped_ptr:
+            ptr_type = LLVMPointerType.untyped()
+            attrs['elem_type'] = elem_type
+        else:
+            ptr_type = LLVMPointerType.typed(elem_type)
+        return cls.build(operands=[size],
+                         attributes=attrs,
+                         result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -151,9 +155,10 @@ class NullOp(Operation):
     nullptr: Annotated[OpResult, LLVMPointerType]
 
     @classmethod
-    def get(cls, ptr_type: LLVMPointerType | None):
+    def get(cls, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.untyped()
+        assert isinstance(ptr_type, LLVMPointerType)
 
         return cls.build(result_types=[ptr_type])
 
