@@ -62,7 +62,10 @@ def test_mpi_combo():
 }) : () -> ()
 """
 
-    assert_print_op(module, expected, target=Printer.Target.MLIR, diagnostic=None)
+    assert_print_op(module,
+                    expected,
+                    target=Printer.Target.MLIR,
+                    diagnostic=None)
 
 
 def test_mpi_baseop():
