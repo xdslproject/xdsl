@@ -53,7 +53,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
-    target: ParameterDef[IntAttr | NoneAttr]
+    addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -61,9 +61,9 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
         printer.print_string("<")
         printer.print_attribute(self.type)
-        if not isinstance(self.target, NoneAttr):
+        if not isinstance(self.addr_space, NoneAttr):
             printer.print_string(", ")
-            printer.print_attribute(self.target)
+            printer.print_attribute(self.addr_space)
 
         printer.print_string(">")
 
@@ -80,9 +80,9 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 class AllocaOp(Operation):
     name = "llvm.alloca"
 
-    size: Annotated[Operand, AnyIntegerAttr]
+    size: Annotated[Operand, IntegerType]
 
-    alignment: OpAttr[IntegerType]
+    alignment: OpAttr[IntegerAttr]
 
     res: Annotated[OpResult, LLVMPointerType]
 
@@ -110,7 +110,7 @@ class AllocaOp(Operation):
 class IntToPtrOp(Operation):
     name = "llvm.inttoptr"
 
-    input: Annotated[Operand, AnyIntegerAttr]
+    input: Annotated[Operand, IntegerType]
 
     output: Annotated[OpResult, LLVMPointerType]
 
