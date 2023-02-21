@@ -200,6 +200,19 @@ def test_allof_verify_fail():
         0] == f"{IntData(0)} should hold a value greater than 0"
 
 
+def test_allof_verify_multiple_failures():
+    """
+    Check that an AllOf constraint provides verification info for all related constraints 
+    even when one of them fails.
+    """
+    constraint = AllOf([LessThan(5), GreaterThan(8)])
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(IntData(7))
+    assert e.value.args[
+        0] == f"{IntData(7)} should hold a value less than 5\n{IntData(7)} should hold a value greater than 8"
+
+
 def test_param_attr_verify():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(

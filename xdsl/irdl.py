@@ -142,9 +142,8 @@ class AllOf(AttrConstraint):
                 exc_bucket.append(e)
 
         if len(exc_bucket):
-            exc_msg = "".join([str(exc_bucket[0])
-                               ]) if len(exc_bucket) == 1 else "".join(
-                                   [str(e) + "\n" for e in exc_bucket])
+            exc_msg = "".join([str(e) + "\n" for e in exc_bucket[:-1]])
+            exc_msg += "".join([str(exc_bucket[-1])])
             raise VerifyException(exc_msg)
 
 
