@@ -143,7 +143,8 @@ class Send(MPIBaseOp):
     tag: OpAttr[Annotated[IntegerType, t_int]]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation, tag: int) -> Send:
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
+            tag: int) -> Send:
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[])
@@ -171,7 +172,6 @@ class IRecv(MPIBaseOp):
     ## Our Abstractions:
 
         - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume this type information is compile-time known
         - We assume tag is compile-time known
         - We omit the possibility of using multiple communicators
     """
@@ -237,9 +237,10 @@ class Recv(MPIBaseOp):
             buffer: SSAValue | Operation,
             tag: int | None = None,
             ignore_status: bool = True):
-        return cls.build(operands=[source, buffer],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[[]] if ignore_status else [[StatusType()]])
+        return cls.build(
+            operands=[source, buffer],
+            attributes=_build_attr_dict_with_optional_tag(tag),
+            result_types=[[]] if ignore_status else [[StatusType()]])
 
 
 @irdl_op_definition
@@ -348,11 +349,15 @@ class Finalize(MPIBaseOp):
 
 
 MPI = Dialect([
-    ISend, IRecv, Test, Recv, Send, GetStatusField, Init,
+    ISend,
+    IRecv,
+    Test,
+    Recv,
+    Send,
+    GetStatusField,
+    Init,
     Finalize,
-], [
-    RequestType, StatusType
-])
+], [RequestType, StatusType])
 
 
 @dataclasses.dataclass
@@ -438,11 +443,10 @@ class MpiLowerings(RewritePattern):
               int tag, MPI_Comm comm, MPI_Request *request)
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-        # TODO: correctly infer mpi type from memref
 
         return [
             *count_ops,
-            datatype := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            datatype := self._emit_mpi_type_load(op.buffer.typ.element_type),
             tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
@@ -463,11 +467,12 @@ class MpiLowerings(RewritePattern):
               MPI_Comm comm, MPI_Request *request)
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+        assert isinstance(op.buffer.typ, MemRefType)
 
         return [
             *count_ops,
             *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
@@ -500,11 +505,10 @@ class MpiLowerings(RewritePattern):
                  int tag, MPI_Comm comm)
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-        # TODO: correctly infer mpi type from memref
 
         return [
             *count_ops,
-            datatype := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            datatype := self._emit_mpi_type_load(op.buffer.typ.element_type),
             tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
@@ -520,13 +524,14 @@ class MpiLowerings(RewritePattern):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
-        ops, new_results, status = self._emit_mpi_status_obj(len(op.results) == 0)
+        ops, new_results, status = self._emit_mpi_status_obj(
+            len(op.results) == 0)
 
         return [
             *count_ops,
             *ops,
             *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             func.Call.get(self._mpi_name(op), [
@@ -551,7 +556,7 @@ class MpiLowerings(RewritePattern):
                    builtin.IntegerType.from_width(8 * self.info.status_size),
                    as_untyped_ptr=True
                ),
-           ], [res], res  # yapf: disable
+            ], [res], res  # yapf: disable
 
     def _emit_memref_counts(
             self, ssa_val: SSAValue) -> tuple[list[Operation], SSAValue]:
@@ -563,16 +568,48 @@ class MpiLowerings(RewritePattern):
         literal = arith.Constant.from_int_and_width(size, t_int)
         return [literal], literal.result
 
+    def _emit_mpi_type_load(self, type: Attribute):
+        return arith.Constant.from_int_and_width(
+            self._translate_to_mpi_type(type), t_int)
+
+    def _translate_to_mpi_type(self, typ: Attribute):
+        static_conversions = {
+            builtin.Float32Type: self.info.MPI_FLOAT,
+            builtin.Float64Type: self.info.MPI_DOUBLE,
+        }
+        if type(typ) in static_conversions:
+            return static_conversions[type(typ)]
+        if isinstance(typ, IntegerType):
+            width: int = typ.width.data
+            if typ.signedness.data == Signedness.UNSIGNED:
+                # unsigned branch
+                if width == 8:
+                    return self.info.MPI_UNSIGNED_CHAR
+                if width == 16:
+                    return self.info.MPI_UNSIGNED_SHORT
+                if width == 32:
+                    return self.info.MPI_UNSIGNED
+                if width == 64:
+                    return self.info.MPI_UNSIGNED_LONG_LONG
+            else:
+                if width == 8:
+                    return self.info.MPI_CHAR
+                if width == 16:
+                    return self.info.MPI_SHORT
+                if width == 32:
+                    return self.info.MPI_INT
+                if width == 64:
+                    return self.info.MPI_LONG_LONG_INT
+            raise ValueError(
+                "MPI Datatype Conversion: Unsupported integer bitwidth: {}".
+                format(width))
+        raise ValueError(
+            "MPI Datatype Conversion: Unsupported type {}".format(typ))
+
     def _mpi_name(self, op):
         if op.name not in self.MPI_SYMBOL_NAMES:
             print("unknown MPI op:  {}".format(op.name))
         return self.MPI_SYMBOL_NAMES[op.name]
-
-    def _emit_external_funcs(self):
-        return [
-            func.FuncOp.external(name, *args)
-            for name, args in self._emitted_function_calls.items()
-        ]
 
     def _memref_get_llvm_ptr(self, ref: SSAValue):
         """
@@ -586,9 +623,11 @@ class MpiLowerings(RewritePattern):
             ptr := llvm.IntToPtrOp.get(i64)
         ], ptr  # yapf: disable
 
-    def _alloc_type(self, size: int):
-        return llvm.LLVMPointerType.typed(
-            builtin.IntegerType.from_width(size * 8))
+    def _emit_external_funcs(self):
+        return [
+            func.FuncOp.external(name, *args)
+            for name, args in self._emitted_function_calls.items()
+        ]
 
     def insert_externals_into_module(self, op: builtin.ModuleOp):
         for func in self._emit_external_funcs():
