@@ -67,15 +67,18 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
         printer.print_string(">")
 
+    @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
         if not parser.tokenizer.starts_with('<'):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters('<', "llvm.ptr parameters expected")
         type = parser.try_parse_type()
         if type is None:
-            parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
+            parser.raise_error(
+                "Expected first parameter of llvm.ptr to be a type!")
         if not parser.tokenizer.starts_with(','):
-            parser.parse_characters('>', "End of llvm.ptr parameters expected!")
+            parser.parse_characters('>',
+                                    "End of llvm.ptr parameters expected!")
             return [type, NoneAttr()]
         parser.parse_characters(',', "llvm.ptr args must be separated by `,`")
         addr_space = parser.parse_int_literal()
@@ -99,7 +102,7 @@ class AllocaOp(Operation):
 
     alignment: OpAttr[AnyIntegerAttr]
 
-    res: Annotated[OpResult, LLVMPointerType]
+    res: OpResult
 
     @classmethod
     def get(cls,
