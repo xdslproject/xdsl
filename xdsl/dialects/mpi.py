@@ -284,7 +284,7 @@ class Wait(MPIBaseOp):
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
-        result_types = [[StatusType()]]
+        result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
 
