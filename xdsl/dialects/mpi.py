@@ -292,10 +292,9 @@ class Wait(MPIBaseOp):
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
+        result_types = [[t_int]]
         if ignore_status:
             result_types = [[]]
-        else:
-            result_types = [[t_int]]
 
         return cls.build(operands=[request], result_types=result_types)
 
@@ -370,6 +369,13 @@ class MpiLibraryInfo:
     MPI_UNSIGNED_LONG: int = 0x4c000808
     MPI_FLOAT: int = 0x4c00040a
     MPI_DOUBLE: int = 0x4c00080b
+    MPI_UNSIGNED_CHAR = -1
+    MPI_UNSIGNED_SHORT = -1
+    MPI_UNSIGNED_LONG_LONG = -1
+    MPI_CHAR = -1
+    MPI_SHORT = -1
+    MPI_LONG_LONG_INT = -1
+
     MPI_STATUS_IGNORE: int = 1
 
     request_size: int = 4
@@ -418,26 +424,26 @@ class MpiLowerings(RewritePattern):
 
     # Individual lowerings:
 
-    def lower_mpi_init(self, op: Init):
+    def lower_mpi_init(self, op: Init) -> tuple[list[Operation], list[Attribute]]:
         # and then we emit a func.call op
         return [
             nullptr := llvm.NullOp.get(),
             func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
         ], []
 
-    def lower_mpi_finalize(self, op: Init):
+    def lower_mpi_finalize(self, op: Init) -> tuple[list[Operation], list[Attribute]]:
         return [
             func.Call.get(self._mpi_name(op), [], [t_int]),
         ], []
 
-    def lower_mpi_wait(self, op: Wait):
+    def lower_mpi_wait(self, op: Wait) -> tuple[list[Operation], list[Attribute]]:
         ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
             *ops,
             func.Call.get(self._mpi_name(op), [op.request, res], [t_int])
         ], new_results  # yapf: disable
 
-    def lower_mpi_isend(self, op: ISend):
+    def lower_mpi_isend(self, op: ISend) -> tuple[list[Operation], list[Attribute]]:
         """
         int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
               int tag, MPI_Comm comm, MPI_Request *request)
@@ -461,7 +467,7 @@ class MpiLowerings(RewritePattern):
             ], [t_int])
         ], [request.results[0]]  # yapf: disable
 
-    def lower_mpi_irecv(self, op: IRecv):
+    def lower_mpi_irecv(self, op: IRecv) -> tuple[list[Operation], list[Attribute]]:
         """
         int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
               MPI_Comm comm, MPI_Request *request)
@@ -486,7 +492,7 @@ class MpiLowerings(RewritePattern):
             ], [t_int])
         ], [request.res]  # yapf: disable
 
-    def lower_mpi_comm_rank(self, op: CommRank):
+    def lower_mpi_comm_rank(self, op: CommRank) -> tuple[list[Operation], list[Attribute]]:
         return [
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             lit1    := arith.Constant.from_int_and_width(1, 64),
@@ -499,7 +505,7 @@ class MpiLowerings(RewritePattern):
             rank    := llvm.LoadOp.get(int_ptr)
         ], [rank.dereferenced_value]  # yapf: disable
 
-    def lower_mpi_send(self, op: Send):
+    def lower_mpi_send(self, op: Send) -> tuple[list[Operation], list[Attribute]]:
         """
         int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
                  int tag, MPI_Comm comm)
@@ -517,7 +523,7 @@ class MpiLowerings(RewritePattern):
             ], [t_int])
         ], []  # yapf: disable
 
-    def lower_mpi_recv(self, op: Recv):
+    def lower_mpi_recv(self, op: Recv) -> tuple[list[Operation], list[Attribute]]:
         """
         int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
@@ -542,7 +548,7 @@ class MpiLowerings(RewritePattern):
 
     # Miscellaneous
 
-    def _emit_mpi_status_obj(self, mpi_status_none: bool):
+    def _emit_mpi_status_obj(self, mpi_status_none: bool) -> tuple[list[Operation], list[Attribute], Operation]:
         if mpi_status_none:
             return [
                 lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
@@ -568,11 +574,11 @@ class MpiLowerings(RewritePattern):
         literal = arith.Constant.from_int_and_width(size, t_int)
         return [literal], literal.result
 
-    def _emit_mpi_type_load(self, type: Attribute):
+    def _emit_mpi_type_load(self, type: Attribute) -> Operation:
         return arith.Constant.from_int_and_width(
             self._translate_to_mpi_type(type), t_int)
 
-    def _translate_to_mpi_type(self, typ: Attribute):
+    def _translate_to_mpi_type(self, typ: Attribute) -> int:
         static_conversions = {
             builtin.Float32Type: self.info.MPI_FLOAT,
             builtin.Float64Type: self.info.MPI_DOUBLE,
@@ -606,12 +612,12 @@ class MpiLowerings(RewritePattern):
         raise ValueError(
             "MPI Datatype Conversion: Unsupported type {}".format(typ))
 
-    def _mpi_name(self, op: MPIBaseOp):
+    def _mpi_name(self, op: MPIBaseOp) -> str:
         if op.name not in self.MPI_SYMBOL_NAMES:
             print("unknown MPI op:  {}".format(op.name))
         return self.MPI_SYMBOL_NAMES[op.name]
 
-    def _memref_get_llvm_ptr(self, ref: SSAValue):
+    def _memref_get_llvm_ptr(self, ref: SSAValue) -> tuple[list[Operation], Operation]:
         """
           %0 = memref.extract_aligned_pointer_as_index %arg : memref<4x4xf32> -> index
           %1 = arith.index_cast %0 : index to i64
@@ -623,7 +629,7 @@ class MpiLowerings(RewritePattern):
             ptr := llvm.IntToPtrOp.get(i64)
         ], ptr  # yapf: disable
 
-    def _emit_external_funcs(self):
+    def _emit_external_funcs(self) -> list[Operation]:
         return [
             func.FuncOp.external(name, *args)
             for name, args in self._emitted_function_calls.items()
