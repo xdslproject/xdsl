@@ -382,6 +382,8 @@ class MpiLowerings(RewritePattern):
         'mpi.isend': 'MPI_Isend',
         'mpi.wait': 'MPI_Wait',
         'mpi.comm.rank': 'MPI_Comm_rank',
+        'mpi.recv': 'MPI_Recv',
+        'mpi.send': 'MPI_Send'
     }
 
     def __init__(self, info: MpiLibraryInfo):
@@ -424,22 +426,7 @@ class MpiLowerings(RewritePattern):
         ], []
 
     def lower_mpi_wait(self, op: Wait):
-        if len(op.results) == 1:
-            ops = [
-                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-                res := llvm.AllocaOp.get(
-                    lit1,
-                    builtin.IntegerType.from_width(8 * self.info.status_size),
-                    as_untyped_ptr=True
-                ),
-            ]  # yapf: disable
-            new_results = [res]
-        else:
-            ops = [
-                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-                res := llvm.IntToPtrOp.get(lit1)
-            ]  # yapf: disable
-            new_results = []
+        ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
             *ops,
             func.Call.get(self._mpi_name(op), [op.request, res], [t_int])
@@ -507,10 +494,64 @@ class MpiLowerings(RewritePattern):
             rank    := llvm.LoadOp.get(int_ptr)
         ], [rank.dereferenced_value]  # yapf: disable
 
+    def lower_mpi_send(self, op: Send):
+        """
+        int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
+                 int tag, MPI_Comm comm)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+        # TODO: correctly infer mpi type from memref
 
+        return [
+            *count_ops,
+            datatype := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
+            ], [t_int])
+        ], []  # yapf: disable
 
+    def lower_mpi_recv(self, op: Recv):
+        """
+        int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+             MPI_Comm comm, MPI_Status *status)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        ops, new_results, status = self._emit_mpi_status_obj(len(op.results) == 0)
+
+        return [
+            *count_ops,
+            *ops,
+            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype    := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
+            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
+                status
+            ], [t_int])
+        ], new_results  # yapf: disable
 
     # Miscellaneous
+
+    def _emit_mpi_status_obj(self, mpi_status_none: bool):
+        if mpi_status_none:
+            return [
+                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+                res := llvm.IntToPtrOp.get(lit1)
+            ], [], res  # yapf: disable
+        else:
+            return [
+               lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+               res := llvm.AllocaOp.get(
+                   lit1,
+                   builtin.IntegerType.from_width(8 * self.info.status_size),
+                   as_untyped_ptr=True
+               ),
+           ], [res], res  # yapf: disable
 
     def _emit_memref_counts(
             self, ssa_val: SSAValue) -> tuple[list[Operation], SSAValue]:
