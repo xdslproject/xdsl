@@ -606,7 +606,7 @@ class MpiLowerings(RewritePattern):
         raise ValueError(
             "MPI Datatype Conversion: Unsupported type {}".format(typ))
 
-    def _mpi_name(self, op):
+    def _mpi_name(self, op: MPIBaseOp):
         if op.name not in self.MPI_SYMBOL_NAMES:
             print("unknown MPI op:  {}".format(op.name))
         return self.MPI_SYMBOL_NAMES[op.name]
