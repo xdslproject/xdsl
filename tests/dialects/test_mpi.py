@@ -15,28 +15,28 @@ def test_mpi_combo():
     printer = Printer(target=Printer.Target.MLIR)
 
     module = ModuleOp.from_region_or_ops([
-    func.FuncOp.from_callable('main', [], [], lambda: [
-        mpi.Init.build(),
-        rank := mpi.CommRank.get(),
-        lit0 := arith.Constant.from_int_and_width(0, 32),
-        cond := arith.Cmpi.from_mnemonic(rank, lit0, 'eq'),
-        buff := memref.Alloc.get(f64, 32, [100, 14, 14]),
-        scf.If.get(cond, [], [  # if rank == 0
-            dest := arith.Constant.from_int_and_width(1, mpi.t_int),
-            mpi.Send.get(buff, dest, 1),
-            # mpi.Wait.get(req, ignore_status=False),
-            scf.Yield.get(),
-        ], [  # else
-            source := arith.Constant.from_int_and_width(0, mpi.t_int),
-            status := mpi.Recv.get(source, buff, 1, ignore_status=False),
-            GetStatusField.get(status, StatusTypeField.MPI_TAG),
-            #mpi.Wait.get(recv.request),
-            scf.Yield.get(),
-        ]),
-        mpi.Finalize.build(),
-        func.Return.get()
-    ])
-])  # yapf: disable
+        func.FuncOp.from_callable('main', [], [], lambda: [
+            mpi.Init.build(),
+            rank := mpi.CommRank.get(),
+            lit0 := arith.Constant.from_int_and_width(0, 32),
+            cond := arith.Cmpi.from_mnemonic(rank, lit0, 'eq'),
+            buff := memref.Alloc.get(f64, 32, [100, 14, 14]),
+            scf.If.get(cond, [], [  # if rank == 0
+                dest := arith.Constant.from_int_and_width(1, mpi.t_int),
+                mpi.Send.get(buff, dest, 1),
+                # mpi.Wait.get(req, ignore_status=False),
+                scf.Yield.get(),
+            ], [  # else
+                source := arith.Constant.from_int_and_width(0, mpi.t_int),
+                status := mpi.Recv.get(source, buff, 1, ignore_status=False),
+                GetStatusField.get(status, StatusTypeField.MPI_TAG),
+                #mpi.Wait.get(recv.request),
+                scf.Yield.get(),
+            ]),
+            mpi.Finalize.build(),
+            func.Return.get()
+        ])
+    ])  # yapf: disable
 
     expected = \
         """"builtin.module"() ({
