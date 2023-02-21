@@ -99,7 +99,7 @@ class ISend(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OpAttr[Annotated[IntegerType, t_int]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     request: Annotated[OpResult, RequestType()]
 
@@ -140,7 +140,7 @@ class Send(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OpAttr[Annotated[IntegerType, t_int]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     @classmethod
     def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
@@ -181,7 +181,7 @@ class IRecv(MPIBaseOp):
     source: Annotated[Operand, t_int]
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OpAttr[Annotated[IntegerType, t_int]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     request: Annotated[OpResult, RequestType()]
 
@@ -227,7 +227,7 @@ class Recv(MPIBaseOp):
     source: Annotated[Operand, t_int]
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OpAttr[Annotated[IntegerType, t_int]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     status: Annotated[OptOpResult, StatusType]
 
