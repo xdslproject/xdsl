@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 from abc import ABC
 from enum import Enum
@@ -6,11 +8,11 @@ from xdsl.dialects import llvm
 from xdsl.dialects import builtin, arith, memref, func
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
-from xdsl.dialects.memref import MemRefType, Alloc
+from xdsl.dialects.memref import MemRefType
 from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.ir import Operation, Attribute, SSAValue
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OptOpAttr, OpAttr, OptOpResult)
+                       irdl_attr_definition, OpAttr, OptOpResult)
 
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 
@@ -97,7 +99,7 @@ class ISend(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[t_int]
 
     request: Annotated[OpResult, RequestType()]
 
@@ -138,13 +140,13 @@ class Send(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[t_int]
 
     @classmethod
-    def get(cls, buff: Operand, dest: Operand, tag: int | None):
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation, tag: int) -> Send:
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+                         result_types=[])
 
 
 @irdl_op_definition
@@ -179,7 +181,7 @@ class IRecv(MPIBaseOp):
     source: Annotated[Operand, t_int]
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[t_int]
 
     request: Annotated[OpResult, RequestType()]
 
@@ -225,20 +227,19 @@ class Recv(MPIBaseOp):
     source: Annotated[Operand, t_int]
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[t_int]
 
     status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls,
-            source: Operand,
-            dtype: MemRefType[AnyNumericAttr],
+            source: SSAValue | Operation,
+            buffer: SSAValue | Operation,
             tag: int | None = None,
             ignore_status: bool = True):
-        return cls.build(operands=[source],
+        return cls.build(operands=[source, buffer],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[dtype] +
-                         ([[]] if ignore_status else [[StatusType()]]))
+                         result_types=[[]] if ignore_status else [[StatusType()]])
 
 
 @irdl_op_definition
