@@ -1,22 +1,23 @@
+from __future__ import annotations
+
 from abc import ABC
 from enum import Enum
 
-from xdsl.ir import Attribute, OpResult, ParametrizedAttribute, Dialect, Operation
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OptOpAttr, OpAttr)
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
-from xdsl.dialects.memref import MemRefType, Alloc
+from xdsl.dialects.memref import MemRefType
+from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
+                       irdl_attr_definition, OpAttr, OptOpResult)
 
-t_uint32: IntegerType = IntegerType.from_width(32, Signedness.UNSIGNED)
-t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNED)
+t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
 t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
 
 AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
 
 
 @irdl_attr_definition
-class RequestType(ParametrizedAttribute):
+class RequestType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Request type.
 
@@ -26,7 +27,7 @@ class RequestType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class StatusType(ParametrizedAttribute):
+class StatusType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Status type.
 
@@ -90,7 +91,7 @@ class ISend(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     request: Annotated[OpResult, RequestType()]
 
@@ -131,13 +132,14 @@ class Send(MPIBaseOp):
     buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
     dest: Annotated[Operand, t_int]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
     @classmethod
-    def get(cls, buff: Operand, dest: Operand, tag: int | None):
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
+            tag: int) -> Send:
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+                         result_types=[])
 
 
 @irdl_op_definition
@@ -162,7 +164,6 @@ class IRecv(MPIBaseOp):
     ## Our Abstractions:
 
         - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume this type information is compile-time known
         - We assume tag is compile-time known
         - We omit the possibility of using multiple communicators
     """
@@ -170,20 +171,20 @@ class IRecv(MPIBaseOp):
     name = "mpi.irecv"
 
     source: Annotated[Operand, t_int]
+    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
-    buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
     request: Annotated[OpResult, RequestType()]
 
     @classmethod
     def get(cls,
             source: Operand,
-            dtype: MemRefType[AnyNumericAttr],
+            buffer: SSAValue | Operation,
             tag: int | None = None):
-        return cls.build(operands=[source],
+        return cls.build(operands=[source, buffer],
                          attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[dtype, RequestType()])
+                         result_types=[RequestType()])
 
 
 @irdl_op_definition
@@ -216,20 +217,22 @@ class Recv(MPIBaseOp):
     name = "mpi.recv"
 
     source: Annotated[Operand, t_int]
+    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
 
-    tag: OptOpAttr[AnyIntegerAttr]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
-    buffer: Annotated[OpResult, MemRefType[AnyNumericAttr]]
-    status: Annotated[OpResult, StatusType]
+    status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls,
-            source: Operand,
-            dtype: MemRefType[AnyNumericAttr],
-            tag: int | None = None):
-        return cls.build(operands=[source],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[dtype, StatusType()])
+            source: SSAValue | Operation,
+            buffer: SSAValue | Operation,
+            tag: int | None = None,
+            ignore_status: bool = True):
+        return cls.build(
+            operands=[source, buffer],
+            attributes=_build_attr_dict_with_optional_tag(tag),
+            result_types=[[]] if ignore_status else [[StatusType()]])
 
 
 @irdl_op_definition
@@ -277,11 +280,15 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType()]
-    status: Annotated[OpResult, t_int]
+    status: Annotated[OptOpResult, t_int]
 
     @classmethod
-    def get(cls, request: Operand):
-        return cls.build(operands=[request], result_types=[t_int])
+    def get(cls, request: Operand, ignore_status: bool = True):
+        result_types = [[t_int]]
+        if ignore_status:
+            result_types = [[]]
+
+        return cls.build(operands=[request], result_types=result_types)
 
 
 @irdl_op_definition
@@ -311,15 +318,34 @@ class GetStatusField(MPIBaseOp):
                          result_types=[t_int])
 
 
+@irdl_op_definition
+class CommRank(MPIBaseOp):
+    name = "mpi.comm.rank"
+
+    rank: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls):
+        return cls.build(result_types=[t_int])
+
+
+@irdl_op_definition
+class Init(MPIBaseOp):
+    name = "mpi.init"
+
+
+@irdl_op_definition
+class Finalize(MPIBaseOp):
+    name = "mpi.finalize"
+
+
 MPI = Dialect([
-    MPIBaseOp,
-    Alloc,
     ISend,
     IRecv,
     Test,
     Recv,
     Send,
     GetStatusField,
-], [
-    RequestType,
-])
+    Init,
+    Finalize,
+], [RequestType, StatusType])
