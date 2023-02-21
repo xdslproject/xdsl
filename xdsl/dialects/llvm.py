@@ -83,7 +83,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         parser.parse_characters(',', "llvm.ptr args must be separated by `,`")
         addr_space = parser.parse_int_literal()
         parser.parse_characters('>', "End of llvm.ptr parameters expected!")
-        return [type, IntegerAttr.from_int_and_width(addr_space, IndexType())]
+        return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
     @staticmethod
     def untyped():
