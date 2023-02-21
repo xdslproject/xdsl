@@ -347,10 +347,10 @@ class Finalize(MPIBaseOp):
 
 
 MPI = Dialect([
-    MPIBaseOp, Alloc, ISend, IRecv, Test, Recv, Send, GetStatusField, Init,
-    Finalize
+    ISend, IRecv, Test, Recv, Send, GetStatusField, Init,
+    Finalize,
 ], [
-    RequestType,
+    RequestType, StatusType
 ])
 
 
