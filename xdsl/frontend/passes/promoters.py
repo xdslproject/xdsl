@@ -51,7 +51,7 @@ def is_read_only(symbol: str, block: Block) -> bool:
     """
     Returns true if the symbol is never updated.
     """
-    return all([isinstance(op, symref.Update) and op.symbol.data.data == symbol for op in block.ops])
+    return all(isinstance(op, symref.Update) and op.symbol.data.data == symbol for op in block.ops)
 
 
 def get_fetch_op(symbol: str, block: Block) -> None | symref.Fetch:
