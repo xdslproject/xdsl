@@ -2,8 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
-                                   IntAttr, NoneAttr, IntegerType,
-                                   AnyIntegerAttr, IntegerAttr)
+                                   IntAttr, NoneAttr, IntegerType, IntegerAttr)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
