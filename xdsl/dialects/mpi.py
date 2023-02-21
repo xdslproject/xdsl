@@ -367,7 +367,7 @@ class MpiLibraryInfo:
     MPI_STATUS_IGNORE: int = 1
 
     request_size: int = 4
-    status_size: int = 4
+    status_size: int = 4 * 5
     mpi_comm_size: int = 4
 
 
@@ -413,7 +413,7 @@ class MpiLowerings(RewritePattern):
     def lower_mpi_init(self, op: Init):
         # and then we emit a func.call op
         return [
-            nullptr := llvm.NullOp.get(t_int),
+            nullptr := llvm.NullOp.get(),
             func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
         ], []
 
@@ -423,18 +423,26 @@ class MpiLowerings(RewritePattern):
         ], []
 
     def lower_mpi_wait(self, op: Wait):
-        if len(op.status.uses) == 0:
-            pass
-            # TODO: emit MPI_STATUS_IGNORE
-
+        if len(op.results) == 1:
+            ops = [
+                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+                res := llvm.AllocaOp.get(
+                    lit1,
+                    builtin.IntegerType.from_width(8 * self.info.status_size),
+                    as_untyped_ptr=True
+                ),
+            ]  # yapf: disable
+            new_results = [res]
+        else:
+            ops = [
+                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+                res := llvm.IntToPtrOp.get(lit1)
+            ]  # yapf: disable
+            new_results = []
         return [
-            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            res := llvm.AllocaOp.get(
-                lit1,
-                builtin.IntegerType.from_width(8 * self.info.status_size)
-            ),
+            *ops,
             func.Call.get(self._mpi_name(op), [op.request, res], [t_int])
-        ], [res]  # yapf: disable
+        ], new_results  # yapf: disable
 
     def lower_mpi_isend(self, op: ISend):
         """
@@ -470,8 +478,7 @@ class MpiLowerings(RewritePattern):
 
         return [
             *count_ops,
-            buffer      := memref.Alloc.get(op.buffer.typ, 32),
-            *(ptr       := self._memref_get_llvm_ptr(buffer))[0],
+            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
             datatype    := arith.Constant.from_int_and_width(self.info.MPI_DOUBLE, t_int),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
@@ -484,7 +491,7 @@ class MpiLowerings(RewritePattern):
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 request
             ], [t_int])
-        ], [buffer.memref, request.res] # yapf: disable
+        ], [request.res]  # yapf: disable
 
     def lower_mpi_comm_rank(self, op: CommRank):
         return [
@@ -499,6 +506,9 @@ class MpiLowerings(RewritePattern):
             rank    := llvm.LoadOp.get(int_ptr)
         ], [rank.dereferenced_value]  # yapf: disable
 
+
+
+
     # Miscellaneous
 
     def _emit_memref_counts(
@@ -508,7 +518,7 @@ class MpiLowerings(RewritePattern):
         assert isinstance(ssa_val.typ, memref.MemRefType)
         size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
 
-        literal = arith.Constant.from_int_and_width(size, builtin.i64)
+        literal = arith.Constant.from_int_and_width(size, t_int)
         return [literal], literal.result
 
     def _mpi_name(self, op):
