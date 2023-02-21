@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from csv import excel_tab
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
@@ -133,7 +134,8 @@ class AllOf(AttrConstraint):
     """The list of constraints that are checked."""
 
     def verify(self, attr: Attribute) -> None:
-        exc_bucket = []
+        exc_bucket: list[VerifyException] = []
+
         for attr_constr in self.attr_constrs:
             try:
                 attr_constr.verify(attr)
