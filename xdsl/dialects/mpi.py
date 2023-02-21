@@ -4,13 +4,11 @@ import dataclasses
 from abc import ABC
 from enum import Enum
 
-from xdsl.dialects import llvm
-from xdsl.dialects import builtin, arith, memref, func
+from xdsl.dialects import builtin, arith, memref, func, llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import OpResult, ParametrizedAttribute, Dialect, MLIRType
-from xdsl.ir import Operation, Attribute, SSAValue
+from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
