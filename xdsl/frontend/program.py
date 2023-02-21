@@ -61,6 +61,7 @@ Cannot compile program without the code context. Try to use:
 
     def desymref(self) -> None:
         """Desymrefy the generated xDSL."""
+        assert self.xdsl_program is not None
         DesymrefyPass.run(self.xdsl_program)
         self.xdsl_program.verify()
 

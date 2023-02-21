@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import List
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.passes.promoters import Promoter
 from xdsl.ir import Block, Operation, Region
 from xdsl.rewriter import Rewriter
 
@@ -91,8 +90,8 @@ from xdsl.rewriter import Rewriter
 # non-CFGs at the moment (i.e. single block regions). We observe that in general
 # every symbol can be simplified within a block to have at most one fetch (start
 # of the block) at most one update (end of the block). This means that using
-# specification of an operation we can promote these symbols outside. How we do
-# the promotion, is discussed in detail in `promote.py`.
+# specification of an operation we can promote these symbols outside.
+# TODO: Add op promotion.
 
 
 @dataclass
@@ -179,7 +178,8 @@ class Desymrefier:
 
         # Some regions were not fully desymrefied, so use the definition of the
         # operation to decide what to do.
-        Promoter(op).promote()
+
+        # TODO: Enable promotion of ops in the next patch.
 
     def prepare_region(self, region: Region):
         """Prepares the region for desymrefication."""
