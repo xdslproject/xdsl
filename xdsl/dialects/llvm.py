@@ -82,13 +82,13 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         parser.parse_characters('>', "End of llvm.ptr parameters expected!")
         return [type, IntegerAttr.from_int_and_width(addr_space, IndexType())]
 
-    @classmethod
-    def untyped(cls):
-        return cls([NoneAttr(), NoneAttr()])
+    @staticmethod
+    def untyped():
+        return LLVMPointerType([NoneAttr(), NoneAttr()])
 
-    @classmethod
-    def typed(cls, type: Attribute):
-        return cls([type, NoneAttr()])
+    @staticmethod
+    def typed(type: Attribute):
+        return LLVMPointerType([type, NoneAttr()])
 
 
 @irdl_op_definition
