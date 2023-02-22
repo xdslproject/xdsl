@@ -287,7 +287,7 @@ class Dim(Operation):
 
     @classmethod
     def from_source_and_index(cls, source: SSAValue | Operation,
-                              index: Operand | Operation):
+                              index: SSAValue | Operation):
         return cls.build(operands=[source, index], result_types=[IndexType()])
 
 
