@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, AnyIntegerAttr,
+from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, AnyIntegerAttr, IntegerAttr,
                                     Float64Type, f32, f64, IntegerType, IndexType)
 
 from xdsl.ir import MLContext, Operation
@@ -57,7 +57,7 @@ class FieldType(ParametrizedAttribute):
     def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> FieldType:
         return FieldType([
             ArrayAttr.from_list(
-                [IntegerAttr[IndexType].build(d) for d in shape])
+                [IntegerAttr[IndexType].from_params(d, 32) for d in shape])
         ])
 
 
@@ -78,7 +78,7 @@ class TempType(ParametrizedAttribute):
         if isinstance(shape[0], IntegerAttr):
             return TempType([ArrayAttr.from_list(shape)])
         return TempType(
-            [ArrayAttr.from_list([IntegerAttr.build(d, 64) for d in shape])])
+            [ArrayAttr.from_list([IntegerAttr.from_params(d, 64) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
@@ -97,7 +97,7 @@ class ResultType(ParametrizedAttribute):
     def from_type(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
         return TempType([
             ArrayAttr.from_list(
-                [IntegerAttr[IndexType].build(d) for d in shape])
+                [IntegerAttr[IndexType].from_params(d, 32) for d in shape])
         ])
 
 
