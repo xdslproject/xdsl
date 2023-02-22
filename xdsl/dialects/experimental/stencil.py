@@ -1,20 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from xdsl.ir import *
-from xdsl.irdl import *
-from xdsl.util import *
-from xdsl.dialects.builtin import *
+from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, AnyIntegerAttr,
+                                    Float64Type, f32, f64, IntegerType, IndexType)
 
-from typing import TypeAlias, List, cast, Type, Sequence, Optional
-
-from xdsl.ir import (MLContext, TYPE_CHECKING, Data, ParametrizedAttribute,
-                     Operation)
-from xdsl.irdl import (irdl_attr_definition, attr_constr_coercion,
-                       irdl_to_attr_constraint, irdl_op_definition, builder,
-                       ParameterDef, SingleBlockRegionDef, TypeVar, Generic,
-                       GenericData, AttrConstraint, Any, Attribute, Region,
-                       VerifyException, AnyAttr)
-
+from xdsl.ir import MLContext, Operation
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
+                       ParameterDef, AttrConstraint, Attribute, Region,
+                       VerifyException, AnyOf, Annotated, Operand,
+                       OpAttr, OpResult, VarOperand, VarOpResult)
 
 @dataclass
 class Stencil:
@@ -61,7 +54,6 @@ class FieldType(ParametrizedAttribute):
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
 
     @staticmethod
-    @builder
     def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> FieldType:
         return FieldType([
             ArrayAttr.from_list(
@@ -76,7 +68,6 @@ class TempType(ParametrizedAttribute):
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
 
     @staticmethod
-    @builder
     def from_shape(
         shape: ArrayAttr[IntegerAttr[IntegerType]]
         | Sequence[int | IntegerAttr[IndexType]]
@@ -103,7 +94,6 @@ class ResultType(ParametrizedAttribute):
     elem: ParameterDef[Float64Type]
 
     @staticmethod
-    @builder
     def from_type(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
         return TempType([
             ArrayAttr.from_list(
