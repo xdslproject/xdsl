@@ -143,9 +143,9 @@ class Cast(Operation):
       %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64>
     """
     name: str = "stencil.cast"
-    field: Annotated[Operand, FieldType]
-    lb: OpAttr[Stencil_Index]
-    ub: OpAttr[Stencil_Index]
+    field: Annotated[Operand, Attribute]
+    lb: OptOpAttr[Stencil_Index]
+    ub: OptOpAttr[Stencil_Index]
     result: Annotated[OpResult, FieldType]
 
 
@@ -208,7 +208,7 @@ class Load(Operation):
       %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
     """
     name: str = "stencil.load"
-    field: Annotated[Operand, Attribute]
+    field: Annotated[Operand, FieldType]
     lb: OptOpAttr[Stencil_Index]
     ub: OptOpAttr[Stencil_Index]
     res: Annotated[OpResult, TempType]
