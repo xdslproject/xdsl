@@ -208,6 +208,7 @@ class CheckAndInlineConstants:
 
                 name = stmt.target.id
                 try:
+                    assert stmt.value is not None
                     value = eval(ast.unparse(stmt.value))
                 except Exception:
                     # TODO: This error message can be improved by matching exact
@@ -282,6 +283,7 @@ class ConstantInliner(ast.NodeTransformer):
             raise CodeGenerationException(
                 self.file, node.lineno, node.col_offset,
                 f"Constant '{self.name}' is already defined.")
+        assert node.value is not None
         node.value = self.visit(node.value)
         return node
 
@@ -296,9 +298,8 @@ class ConstantInliner(ast.NodeTransformer):
             self.visit(stmt)
         return node
 
-    def visit_Name(self, node: ast.Name) -> ast.Name:
+    def visit_Name(self, node: ast.Name) -> ast.Name | ast.Constant:
         if node.id == self.name:
-            # TODO: @George what should the type be?
             return self.new_node
         else:
             return node

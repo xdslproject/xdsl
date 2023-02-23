@@ -5,7 +5,6 @@
   "typeCheckingMode": "strict",
   "exclude": [
     "xdsl/dialects/vector.py",
-    "xdsl/frontend/python_code_check.py",
     "xdsl/dialects/builtin.py",
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
