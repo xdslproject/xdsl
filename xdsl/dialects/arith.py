@@ -5,7 +5,7 @@ from typing import Annotated, TypeVar, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, IntAttr,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute, AnyFloat, AnyIntegerAttr, Signedness)
+                                   Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
@@ -649,5 +649,5 @@ Arith = Dialect([
         Maxf,
 
         # Casts
-        IndexCastOp],
-        [])
+        IndexCastOp,
+], [])
