@@ -78,7 +78,7 @@ class TempType(ParametrizedAttribute):
         if isinstance(shape[0], IntegerAttr):
             return TempType([ArrayAttr.from_list(shape)])
         return TempType(
-            [ArrayAttr.from_list([IntegerAttr.from_params(d, 64) for d in shape])])
+            [ArrayAttr.from_list([IntegerAttr.from_params(d, 32) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
