@@ -7,7 +7,7 @@ from xdsl.ir import MLContext, Operation
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
                        ParameterDef, AttrConstraint, Attribute, Region,
                        VerifyException, AnyOf, Annotated, Operand,
-                       OpAttr, OpResult, VarOperand, VarOpResult)
+                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr)
 
 @dataclass
 class Stencil:
@@ -209,8 +209,8 @@ class Load(Operation):
     """
     name: str = "stencil.load"
     field: Annotated[Operand, Attribute]
-    #lb = AttributeDef(Stencil_Index)
-    #ub = AttributeDef(Stencil_Index)
+    lb: OptOpAttr[Stencil_Index]
+    ub: OptOpAttr[Stencil_Index]
     res: Annotated[OpResult, TempType]
 
 
@@ -240,8 +240,8 @@ class Store(Operation):
     name: str = "stencil.store"
     temp: Annotated[Operand, TempType]
     field: Annotated[Operand, Attribute]
-    #lb = AttributeDef(Stencil_Index)
-    #ub = AttributeDef(Stencil_Index)
+    lb: OptOpAttr[Stencil_Index]
+    ub: OptOpAttr[Stencil_Index]
 
 
 @irdl_op_definition
@@ -258,8 +258,8 @@ class Apply(Operation):
     """
     name: str = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
-    #lb = AttributeDef(Stencil_Index)
-    #ub = AttributeDef(Stencil_Index)
+    lb: OptOpAttr[Stencil_Index]
+    ub: OptOpAttr[Stencil_Index]
     region: Region
     res: Annotated[VarOpResult, Attribute]
 
