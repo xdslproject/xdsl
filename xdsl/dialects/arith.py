@@ -5,7 +5,7 @@ from typing import Annotated, TypeVar, Union
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, IntAttr,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute, AnyFloat, AnyIntegerAttr)
+                                   Attribute, AnyFloat, AnyIntegerAttr, Signedness)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
@@ -593,14 +593,14 @@ class Minf(BinaryOperation):
 class IndexCastOp(Operation):
     name = "arith.index_cast"
 
-    index: Annotated[Operand, IndexType]
+    input: Operand
 
-    result: Annotated[OpResult, Attribute]
+    result: OpResult
 
     @classmethod
-    def get(cls, index: SSAValue | Operation, target_type: Attribute):
+    def get(cls, input: SSAValue | Operation, target_type: Attribute):
         return cls.build(
-            operands=[index],
+            operands=[input],
             result_types=[target_type]
         )
 
