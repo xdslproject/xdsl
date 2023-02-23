@@ -19,6 +19,8 @@ class Stencil:
         self.ctx.register_attr(ResultType)
 
         self.ctx.register_op(Cast)
+        self.ctx.register_op(External_Load)
+        self.ctx.register_op(External_Store)
         self.ctx.register_op(Index)
         self.ctx.register_op(Access)
         self.ctx.register_op(DynAccess)
@@ -143,10 +145,37 @@ class Cast(Operation):
       %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64>
     """
     name: str = "stencil.cast"
-    field: Annotated[Operand, Attribute]
+    field: Annotated[Operand, FieldType]
     lb: OptOpAttr[Stencil_Index]
     ub: OptOpAttr[Stencil_Index]
     result: Annotated[OpResult, FieldType]
+
+
+# Operations
+@irdl_op_definition
+class External_Load(Operation):
+    """
+    This operation loads from an external field type, e.g. to bring data into the stencil
+
+    Example:
+      %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64>
+    """
+    name: str = "stencil.external_load"
+    field: Annotated[Operand, Attribute]
+    result: Annotated[OpResult, FieldType]
+
+
+@irdl_op_definition
+class External_Store(Operation):
+    """
+    This operation takes a stencil field and then stores this to an external type
+
+    Example:
+      stencil.store %temp to %field : !stencil.field<128x128xf64> to !fir.array<128x128xf64>
+    """
+    name: str = "stencil.external_store"
+    temp: Annotated[Operand, FieldType]
+    field: Annotated[Operand, Attribute]
 
 
 @irdl_op_definition
@@ -239,7 +268,7 @@ class Store(Operation):
     """
     name: str = "stencil.store"
     temp: Annotated[Operand, TempType]
-    field: Annotated[Operand, Attribute]
+    field: Annotated[Operand, FieldType]
     lb: OptOpAttr[Stencil_Index]
     ub: OptOpAttr[Stencil_Index]
 
