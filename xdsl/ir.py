@@ -132,6 +132,10 @@ class SSAValue(ABC):
     @property
     @abstractmethod
     def definition(self) -> Operation | Block:
+        """
+        An SSA variable is either an operation result, or a basic block argument.
+        This property returns the Operation or Block that defined a specific value.
+        """
         pass
 
     @property
