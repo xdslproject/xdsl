@@ -1,4 +1,5 @@
-// RUN: xdsl-opt %s -t mlir | filecheck %s
+// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt -f mlir -t mlir | filecheck %s
+
 "builtin.module"() ({
   "func.func"() ({
   ^0(%0 : memref<?x?xf64>, %1 : memref<?x?xf64>):
@@ -29,6 +30,7 @@
     "func.return"(%8) : (memref<?x?xf64>) -> ()
   }) {"sym_name" = "matmul", "function_type" = (memref<?x?xf64>, memref<?x?xf64>) -> memref<?x?xf64>, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
+
 // CHECK: "builtin.module"() ({
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:   ^0(%0 : memref<?x?xf64>, %1 : memref<?x?xf64>):
