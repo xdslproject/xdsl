@@ -268,7 +268,8 @@ def test_annotated_constraint_fail():
     """Test that the verifier of an annotated constraint can fail."""
     with pytest.raises(Exception) as e:
         PositiveIntAttr([IntData(-42)])
-    assert e.value.args[0] == "Expected positive integer, got -42."
+    assert e.value.args[
+        0] == "The following constraints were not satisfied:\nExpected positive integer, got -42."
 
 
 ################################################################################
@@ -397,7 +398,8 @@ def test_nested_param_attr_constraint_fail():
     with pytest.raises(Exception) as e:
         NestedParamConstrAttr(
             [NestedParamWrapperAttr([ParamWrapperAttr([IntData(-42)])])])
-    assert e.value.args[0] == "Expected positive integer, got -42."
+    assert e.value.args[
+        0] == "The following constraints were not satisfied:\nExpected positive integer, got -42."
 
 
 ################################################################################
@@ -561,7 +563,7 @@ def test_generic_data_wrapper_verifier_failure():
             [ListData([BoolData(True),
                        ListData([BoolData(False)])])])
     assert e.value.args[
-        0] == "!list<[!bool<False>]> should be of base attribute bool"
+        0] == "The following constraints were not satisfied:\n!list<[!bool<False>]> should be of base attribute bool"
 
 
 @irdl_attr_definition
