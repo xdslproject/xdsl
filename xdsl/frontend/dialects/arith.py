@@ -4,11 +4,11 @@ from typing import Callable, TypeVar, Union
 from xdsl.frontend.dialects.builtin import index, i1, i32, i64, f16, f32, f64
 from xdsl.ir import Operation
 
-_Int = TypeVar("_Int", bound=Union[index, i1, i32, i64], covariant=True)
+_Int = TypeVar("_Int", bound=Union[index, i1, i32, i64])
 
 
 def addi(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_addi() -> Callable[..., Operation]:
@@ -16,7 +16,7 @@ def resolve_addi() -> Callable[..., Operation]:
 
 
 def andi(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_andi() -> Callable[..., Operation]:
@@ -24,7 +24,7 @@ def resolve_andi() -> Callable[..., Operation]:
 
 
 def cmpi(lhs: _Int, rhs: _Int, mnemonic: str) -> i1:
-    pass
+    ...
 
 
 def resolve_cmpi() -> Callable[..., Operation]:
@@ -32,7 +32,7 @@ def resolve_cmpi() -> Callable[..., Operation]:
 
 
 def muli(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_muli() -> Callable[..., Operation]:
@@ -40,7 +40,7 @@ def resolve_muli() -> Callable[..., Operation]:
 
 
 def shli(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_shli() -> Callable[..., Operation]:
@@ -48,7 +48,7 @@ def resolve_shli() -> Callable[..., Operation]:
 
 
 def shrsi(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_shrsi() -> Callable[..., Operation]:
@@ -56,18 +56,18 @@ def resolve_shrsi() -> Callable[..., Operation]:
 
 
 def subi(lhs: _Int, rhs: _Int) -> _Int:
-    pass
+    ...
 
 
 def resolve_subi() -> Callable[..., Operation]:
     return arith.Subi.get
 
 
-_Float = TypeVar("_Float", bound=Union[f16, f32, f64], covariant=True)
+_Float = TypeVar("_Float", bound=Union[f16, f32, f64])
 
 
 def addf(lhs: _Float, rhs: _Float) -> _Float:
-    pass
+    ...
 
 
 def resolve_addf() -> Callable[..., Operation]:
@@ -75,7 +75,7 @@ def resolve_addf() -> Callable[..., Operation]:
 
 
 def mulf(lhs: _Float, rhs: _Float) -> _Float:
-    pass
+    ...
 
 
 def resolve_mulf() -> Callable[..., Operation]:
@@ -83,7 +83,7 @@ def resolve_mulf() -> Callable[..., Operation]:
 
 
 def subf(lhs: _Float, rhs: _Float) -> _Float:
-    pass
+    ...
 
 
 def resolve_subf() -> Callable[..., Operation]:
