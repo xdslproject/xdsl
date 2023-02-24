@@ -26,15 +26,12 @@ def test_func():
 
     # Alternative generation of func0
     func1 = FuncOp.from_region(
-        "func1",
-        [],
-        [],
+        "func1", [], [],
         Region.from_operation_list([
             a := Constant.from_int_and_width(1, i32),
             b := Constant.from_int_and_width(2, i32),
-            Addi.get(a, b)
-        ]))  # yapf: disable
-    # yapf disabled for structured look of this test
+            Addi.get(a, b),
+        ]))
 
     assert len(func0.regions[0].ops) == 3
     assert len(func1.regions[0].ops) == 3
