@@ -44,7 +44,7 @@
 // CHECK-NEXT:     %6 = "memref.dim"(%1, %2) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %7 = "memref.dim"(%1, %3) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
-// CHECK-NEXT:     %9 = "arith.constant"() {"value" = 0.0 : i64} : () -> i64
+// CHECK-NEXT:     %9 = "arith.constant"() {"value" = 0 : i64} : () -> i64
 // CHECK-NEXT:     "scf.for"(%2, %4, %3) ({
 // CHECK-NEXT:     ^1(%10 : index):
 // CHECK-NEXT:       "scf.for"(%2, %6, %3) ({
