@@ -351,4 +351,5 @@ MPI = Dialect([
     GetStatusField,
     Init,
     Finalize,
+    CommRank,
 ], [RequestType, StatusType])
