@@ -20,8 +20,8 @@
         ^3(%12 : index):
           %13 = "memref.load"(%0, %10, %12) : (memref<?x?xf64>, index, index) -> f64
           %14 = "memref.load"(%1, %12, %11) : (memref<?x?xf64>, index, index) -> f64
-          %16 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
-          "memref.store"(%16, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
+          %15 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
+          "memref.store"(%15, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
           "scf.yield"() : () -> ()
         }) : (index, index, index) -> ()
         "scf.yield"() : () -> ()
@@ -52,8 +52,8 @@
 // CHECK-NEXT:         ^3(%12 : index):
 // CHECK-NEXT:           %13 = "memref.load"(%0, %10, %12) : (memref<?x?xf64>, index, index) -> f64
 // CHECK-NEXT:           %14 = "memref.load"(%1, %12, %11) : (memref<?x?xf64>, index, index) -> f64
-// CHECK-NEXT:           %16 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
-// CHECK-NEXT:           "memref.store"(%16, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
+// CHECK-NEXT:           %15 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
+// CHECK-NEXT:           "memref.store"(%15, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
 // CHECK-NEXT:           "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) : (index, index, index) -> ()
 // CHECK-NEXT:         "scf.yield"() : () -> ()
