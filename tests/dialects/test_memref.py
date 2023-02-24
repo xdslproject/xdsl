@@ -169,9 +169,12 @@ def test_memref_matmul_verify():
                             mul := arith.Mulf.get(elem_a_i_k, elem_b_k_j),
                             out_i_j := memref.Load.get(out, [i, j]),
                             new_out_val := arith.Addf.get(out_i_j, mul),
-                            memref.Store.get(new_out_val, out, [i, j])
-                        ]))
-                    ]))
+                            memref.Store.get(new_out_val, out, [i, j]),
+                            scf.Yield()
+                        ])),
+                        scf.Yield()
+                    ])),
+                    scf.Yield()
                 ])),
                 func.Return.get(out)
             ]

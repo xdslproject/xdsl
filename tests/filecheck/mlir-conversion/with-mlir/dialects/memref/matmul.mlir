@@ -24,8 +24,11 @@
           %16 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
           %17 = "arith.addf"(%16, %15) : (f64, f64) -> f64
           "memref.store"(%17, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
+          "scf.yield"() : () -> ()
         }) : (index, index, index) -> ()
+        "scf.yield"() : () -> ()
       }) : (index, index, index) -> ()
+      "scf.yield"() : () -> ()
     }) : (index, index, index) -> ()
     "func.return"(%8) : (memref<?x?xf64>) -> ()
   }) {"sym_name" = "matmul", "function_type" = (memref<?x?xf64>, memref<?x?xf64>) -> memref<?x?xf64>, "sym_visibility" = "private"} : () -> ()
@@ -55,8 +58,11 @@
 // CHECK-NEXT:           %16 = "memref.load"(%8, %10, %11) : (memref<?x?xf64>, index, index) -> f64
 // CHECK-NEXT:           %17 = "arith.addf"(%16, %15) : (f64, f64) -> f64
 // CHECK-NEXT:           "memref.store"(%17, %8, %10, %11) : (f64, memref<?x?xf64>, index, index) -> ()
+// CHECK-NEXT:           "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) : (index, index, index) -> ()
+// CHECK-NEXT:         "scf.yield"() : () -> ()
 // CHECK-NEXT:       }) : (index, index, index) -> ()
+// CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) : (index, index, index) -> ()
 // CHECK-NEXT:     "func.return"(%8) : (memref<?x?xf64>) -> ()
 // CHECK-NEXT:   }) {"sym_name" = "matmul", "function_type" = (memref<?x?xf64>, memref<?x?xf64>) -> memref<?x?xf64>, "sym_visibility" = "private"} : () -> ()
