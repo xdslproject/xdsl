@@ -30,8 +30,10 @@ def test_ops_accessor():
 
     assert d.results[0] != c.results[0]
 
-    assert c.lhs.definition is a and c.rhs.definition is b
-    assert d.lhs.definition is a and d.rhs.definition is b
+    assert c.lhs.definition is a
+    assert c.rhs.definition is b
+    assert d.lhs.definition is a
+    assert d.rhs.definition is b
 
 
 def test_ops_accessor_II():
