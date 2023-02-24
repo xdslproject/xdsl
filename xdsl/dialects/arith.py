@@ -589,6 +589,22 @@ class Minf(BinaryOperation):
         return Minf.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
 
+@irdl_op_definition
+class IndexCastOp(Operation):
+    name = "arith.index_cast"
+
+    input: Operand
+
+    result: OpResult
+
+    @classmethod
+    def get(cls, input: SSAValue | Operation, target_type: Attribute):
+        return cls.build(
+            operands=[input],
+            result_types=[target_type]
+        )
+
+
 Arith = Dialect([
         Constant,
 
@@ -630,5 +646,8 @@ Arith = Dialect([
 
         # Min/Max
         Minf,
-        Maxf],
-        [])
+        Maxf,
+
+        # Casts
+        IndexCastOp,
+], [])

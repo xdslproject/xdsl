@@ -3,7 +3,7 @@ import pytest
 from conftest import assert_print_op
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp
+from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -26,15 +26,12 @@ def test_func():
 
     # Alternative generation of func0
     func1 = FuncOp.from_region(
-        "func1",
-        [],
-        [],
+        "func1", [], [],
         Region.from_operation_list([
             a := Constant.from_int_and_width(1, i32),
             b := Constant.from_int_and_width(2, i32),
-            Addi.get(a, b)
-        ]))   # yapf: disable
-    # yapf disabled for structured look of this test
+            Addi.get(a, b),
+        ]))
 
     assert len(func0.regions[0].ops) == 3
     assert len(func1.regions[0].ops) == 3
@@ -125,7 +122,7 @@ def test_call():
     mod = ModuleOp.from_region_or_ops([func0, a, b, call0])
 
     expected = \
-"""
+        """
 builtin.module() {
   func.func() ["sym_name" = "func0", "function_type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
@@ -136,7 +133,7 @@ builtin.module() {
   %4 : !i32 = arith.constant() ["value" = 2 : !i32]
   %5 : !i32 = func.call(%3 : !i32, %4 : !i32) ["callee" = @func0]
 }
-""" # noqa
+"""  # noqa
     assert len(call0.operands) == 2
     assert len(func0.operands) == 0
 
@@ -173,7 +170,7 @@ def test_call_II():
     mod = ModuleOp.from_region_or_ops([func0, a, call0])
 
     expected = \
-"""
+        """
 builtin.module() {
   func.func() ["sym_name" = "func1", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32):
@@ -183,7 +180,7 @@ builtin.module() {
   %2 : !i32 = arith.constant() ["value" = 1 : !i32]
   %3 : !i32 = func.call(%2 : !i32) ["callee" = @func1]
 }
-""" # noqa
+"""  # noqa
     assert len(call0.operands) == 1
     assert len(func0.operands) == 0
 
@@ -199,3 +196,12 @@ def test_return():
     # Use these operations to create a Return operation
     ret0 = Return.get(a, b, c)
     assert len(ret0.operands) == 3
+
+
+def test_external_func_def():
+    # FuncOp.external must produce a function with an empty body
+    ext = FuncOp.external("testname", [i32, i32], [i64])
+
+    assert len(ext.regions) == 1
+    assert len(ext.regions[0].ops) == 0
+    assert ext.sym_name.data == "testname"
