@@ -78,7 +78,7 @@ AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
     res: Annotated[OpResult, AnyAttr()]
 
@@ -114,7 +114,7 @@ class Load(Operation):
 class Store(Operation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
@@ -143,7 +143,7 @@ class Alloc(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -174,7 +174,7 @@ class Alloca(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -206,7 +206,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -216,7 +216,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloca:
@@ -226,7 +226,7 @@ class Dealloca(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
@@ -280,7 +280,7 @@ class Global(Operation):
 class Dim(Operation):
     name = "memref.dim"
 
-    source: Annotated[Operand, MemRefType]
+    source: Annotated[Operand, MemRefType[Attribute]]
     index: Annotated[Operand, IndexType]
 
     result: Annotated[OpResult, IndexType]
@@ -295,7 +295,7 @@ class Dim(Operation):
 class Rank(Operation):
     name = "memref.rank"
 
-    source: Annotated[Operand, MemRefType]
+    source: Annotated[Operand, MemRefType[Attribute]]
 
     rank: Annotated[OpResult, IndexType]
 
