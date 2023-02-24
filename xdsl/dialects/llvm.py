@@ -86,7 +86,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
     @staticmethod
-    def untyped():
+    def opaque():
         return LLVMPointerType([NoneAttr(), NoneAttr()])
 
     @staticmethod
@@ -114,7 +114,7 @@ class AllocaOp(Operation):
             'alignment': IntegerAttr.from_int_and_width(alignment, 64)
         }
         if as_untyped_ptr:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
             attrs['elem_type'] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
@@ -137,7 +137,7 @@ class IntToPtrOp(Operation):
             input: SSAValue | Operation,
             ptr_type: Attribute | None = None):
         if ptr_type is None:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
         return cls.build(operands=[input], result_types=[ptr_type])
@@ -177,7 +177,7 @@ class NullOp(Operation):
     @classmethod
     def get(cls, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
         return cls.build(result_types=[ptr_type])
