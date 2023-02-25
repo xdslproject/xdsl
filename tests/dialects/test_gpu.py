@@ -1,5 +1,17 @@
 from xdsl.dialects.builtin import SymbolRefAttr
-from xdsl.dialects.gpu import ModuleEndOp, ModuleOp
+from xdsl.dialects.gpu import AllReduceOperationAttr, ModuleEndOp, ModuleOp, DimensionAttr
+
+
+def test_dimension():
+    dim = DimensionAttr.from_dimension("x")
+
+    assert dim.value.param.data == "x"
+
+
+def test_all_reduce_operation():
+    op = AllReduceOperationAttr.from_op("add")
+
+    assert op.value.param.data == "add"
 
 
 def test_gpu_module():
