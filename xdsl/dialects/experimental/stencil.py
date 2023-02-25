@@ -100,14 +100,11 @@ class TempType(ParametrizedAttribute):
 @irdl_attr_definition
 class ResultType(ParametrizedAttribute):
     name = "stencil.result"
-    elem: ParameterDef[Float64Type]
+    elem: ParameterDef[AnyFloat]
 
     @staticmethod
-    def from_type(shape: Sequence[int | IntegerAttr[IndexType]]) -> TempType:
-        return TempType([
-            ArrayAttr.from_list(
-                [IntegerAttr[IndexType].from_params(d, 32) for d in shape])
-        ])
+    def from_type(float_t: Float64Type):
+        return ResultType([float_t])
 
 
 @dataclass
