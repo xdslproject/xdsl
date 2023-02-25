@@ -1,15 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, AnyIntegerAttr, IntegerAttr,
-                                    Float64Type, f32, f64, IntegerType, IndexType)
+from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr,
+                                   AnyIntegerAttr, IntegerAttr, Float64Type,
+                                   f32, f64, IntegerType, IndexType)
 
 from xdsl.ir import MLContext, Operation
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
-                       ParameterDef, AttrConstraint, Attribute, Region,
-                       VerifyException, AnyOf, Annotated, Operand,
-                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr)
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
+                       AttrConstraint, Attribute, Region, VerifyException,
+                       AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
+                       VarOpResult, OptOpAttr)
 
 from typing import Sequence
+
 
 @dataclass
 class Stencil:
@@ -32,6 +34,7 @@ class Stencil:
         self.ctx.register_op(Apply)
         self.ctx.register_op(StoreResult)
         self.ctx.register_op(Return)
+
 
 # Types
 
@@ -81,8 +84,10 @@ class TempType(ParametrizedAttribute):
             return TempType([shape])
         if isinstance(shape[0], IntegerAttr):
             return TempType([ArrayAttr.from_list(shape)])
-        return TempType(
-            [ArrayAttr.from_list([IntegerAttr.from_params(d, 32) for d in shape])])
+        return TempType([
+            ArrayAttr.from_list(
+                [IntegerAttr.from_params(d, 32) for d in shape])
+        ])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
@@ -325,4 +330,3 @@ class Return(Operation):
     """
     name: str = "stencil.return"
     args: Annotated[VarOperand, Attribute]
-
