@@ -1,8 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr,
-                                   AnyIntegerAttr, IntegerAttr, Float64Type,
-                                   f32, f64, IntegerType, IndexType)
+                                   IntegerAttr, Float64Type, f32, f64,
+                                   IntegerType, IndexType, IntAttr, AnyFloat)
 
 from xdsl.ir import MLContext, Operation
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -10,7 +10,7 @@ from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
                        VarOpResult, OptOpAttr)
 
-from typing import Sequence
+from typing import Sequence, cast, Any
 
 
 @dataclass
@@ -48,6 +48,7 @@ class IntOrUnknown(AttrConstraint):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
 
+        attr = cast(ArrayAttr[Any], attr)
         if len(attr.data) != self.length:
             raise VerifyException(
                 f"Expected array of length {self.length}, got {len(attr.data)}."
@@ -58,13 +59,15 @@ class IntOrUnknown(AttrConstraint):
 class FieldType(ParametrizedAttribute):
     name = "stencil.field"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
 
     @staticmethod
     def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> FieldType:
         return FieldType([
-            ArrayAttr.from_list(
-                [IntegerAttr[IndexType].from_params(d, 32) for d in shape])
+            ArrayAttr.from_list([
+                IntegerAttr.from_params(d, IndexType())
+                if isinstance(d, int) else d for d in shape
+            ])
         ])
 
 
@@ -72,21 +75,28 @@ class FieldType(ParametrizedAttribute):
 class TempType(ParametrizedAttribute):
     name = "stencil.temp"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
 
     @staticmethod
     def from_shape(
-        shape: ArrayAttr[IntegerAttr[IntegerType]]
+        shape: ArrayAttr[IntegerAttr[IndexType]]
         | Sequence[int | IntegerAttr[IndexType]]
     ) -> TempType:
         assert len(shape) > 0
         if isinstance(shape, ArrayAttr):
             return TempType([shape])
-        if isinstance(shape[0], IntegerAttr):
-            return TempType([ArrayAttr.from_list(shape)])
+        # cast to list
+        shape = list(shape)
+        if all((isinstance(shape_elm, IntegerAttr)
+                and isinstance(shape_elm.typ, IndexType))
+               for shape_elm in shape):
+            # the if above is a sufficient type guard, but pyright does not understand :/
+            return TempType([ArrayAttr.from_list(shape)])  # type: ignore
         return TempType([
-            ArrayAttr.from_list(
-                [IntegerAttr.from_params(d, 32) for d in shape])
+            ArrayAttr.from_list([
+                IntegerAttr.from_params(d, IndexType())
+                if isinstance(d, int) else d for d in shape
+            ])
         ])
 
     def __repr__(self):
@@ -115,6 +125,7 @@ class ArrayLength(AttrConstraint):
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
+        attr = cast(ArrayAttr[Any], attr)
         if len(attr.data) != self.length:
             raise VerifyException(
                 f"Expected array of length {self.length}, got {len(attr.data)}."
@@ -130,13 +141,13 @@ class Stencil_Element(ParametrizedAttribute):
 @dataclass(frozen=True)
 class Stencil_Index(ParametrizedAttribute):
     name = "stencil.index"
-    shape = Annotated[ArrayAttr[IntegerType], ArrayLength(2)]
+    shape = Annotated[ArrayAttr[IntAttr], ArrayLength(2)]
 
 
 @dataclass(frozen=True)
 class Stencil_Loop(ParametrizedAttribute):
     name = "stencil.loop"
-    shape = Annotated[ArrayAttr[IntegerType], ArrayLength(4)]
+    shape = Annotated[ArrayAttr[IntAttr], ArrayLength(4)]
 
 
 # Operations
@@ -209,7 +220,7 @@ class Access(Operation):
     """
     name: str = "stencil.access"
     temp: Annotated[Operand, TempType]
-    offset: OpAttr[ArrayAttr]
+    offset: OpAttr[ArrayAttr[IntAttr]]
     res: Annotated[OpResult, Attribute]
 
 
