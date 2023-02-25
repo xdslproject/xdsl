@@ -9,6 +9,8 @@ from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
                        VerifyException, AnyOf, Annotated, Operand,
                        OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr)
 
+from typing import Sequence
+
 @dataclass
 class Stencil:
     ctx: MLContext
