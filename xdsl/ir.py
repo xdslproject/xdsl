@@ -131,7 +131,7 @@ class SSAValue(ABC):
 
     @property
     @abstractmethod
-    def definition(self) -> Operation | Block:
+    def defining_op_or_block(self) -> Operation | Block:
         """
         An SSA variable is either an operation result, or a basic block argument.
         This property returns the Operation or Block that defined a specific value.
@@ -199,7 +199,7 @@ class OpResult(SSAValue):
     """The index of the result in the defining operation."""
 
     @property
-    def definition(self) -> Operation:
+    def defining_op_or_block(self) -> Operation:
         return self.op
 
     def __repr__(self) -> str:
@@ -226,7 +226,7 @@ class BlockArgument(SSAValue):
     """The index of the variable in the block arguments."""
 
     @property
-    def definition(self) -> Block:
+    def defining_op_or_block(self) -> Block:
         return self.block
 
     def __repr__(self) -> str:
@@ -255,8 +255,8 @@ class ErasedSSAValue(SSAValue):
     old_value: SSAValue
 
     @property
-    def definition(self) -> Operation | Block:
-        return self.old_value.definition
+    def defining_op_or_block(self) -> Operation | Block:
+        return self.old_value.defining_op_or_block
 
     def __hash__(self) -> int:  # type: ignore
         return hash(id(self))

@@ -30,10 +30,10 @@ def test_ops_accessor():
 
     assert d.results[0] != c.results[0]
 
-    assert c.lhs.definition is a
-    assert c.rhs.definition is b
-    assert d.lhs.definition is a
-    assert d.rhs.definition is b
+    assert c.lhs.defining_op_or_block is a
+    assert c.rhs.defining_op_or_block is b
+    assert d.lhs.defining_op_or_block is a
+    assert d.rhs.defining_op_or_block is b
 
 
 def test_ops_accessor_II():
@@ -64,8 +64,8 @@ def test_ops_accessor_II():
 
     assert isinstance(c.lhs, ErasedSSAValue)
     assert isinstance(c.rhs, ErasedSSAValue)
-    assert c.lhs.definition is a
-    assert c.rhs.definition is b
+    assert c.lhs.defining_op_or_block is a
+    assert c.rhs.defining_op_or_block is b
 
     region2.detach_block(block0)
     region2.drop_all_references()
