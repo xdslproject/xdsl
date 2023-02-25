@@ -5,13 +5,13 @@ from xdsl.dialects.gpu import AllReduceOperationAttr, ModuleEndOp, ModuleOp, Dim
 def test_dimension():
     dim = DimensionAttr.from_dimension("x")
 
-    assert dim.value.param.data == "x"
+    assert dim.data == "x"
 
 
 def test_all_reduce_operation():
     op = AllReduceOperationAttr.from_op("add")
 
-    assert op.value.param.data == "add"
+    assert op.data == "add"
 
 
 def test_gpu_module():

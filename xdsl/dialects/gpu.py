@@ -75,6 +75,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
         return AllReduceOperationAttr(
             [_AllReduceOperationAttr([StringAttr(value)])])
 
+    @property
+    def data(self) -> str:
+        return self.value.param.data
+
     @classmethod
     def from_dimension(cls: Type[_GPUAttr[_DimensionAttr]],
                        value: str) -> DimensionAttr:
