@@ -45,3 +45,10 @@ def test_DenseArrayBase_verifier_failure():
         DenseArrayBase([i32, ArrayAttr.from_list([FloatData(0.0)])])
     assert err.value.args[0] == ("dense array of integer element type "
                                  "should only contain integers")
+
+
+def test_array_len_attr():
+    arr = ArrayAttr.from_list([IntAttr.from_int(i) for i in range(10)])
+
+    assert len(arr) == 10
+    assert len(arr.data) == len(arr)
