@@ -1,16 +1,15 @@
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.gpu import ModuleEndOp, ModuleOp
-from xdsl.ir import Region
 
 
 def test_gpu_module():
     name = SymbolRefAttr.from_str("gpu")
 
-    region = Region.get([])
+    ops = [ModuleEndOp.get()]
 
-    gpu_module = ModuleOp.get(name, region)
+    gpu_module = ModuleOp.get(name, ops)
 
-    assert gpu_module.body is region
+    assert gpu_module.body.ops == ops
     assert gpu_module.sym_name is name
 
 

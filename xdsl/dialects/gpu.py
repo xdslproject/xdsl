@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xdsl.ir import Operation, Region, Dialect
+from xdsl.ir import Operation, Dialect
 from xdsl.irdl import irdl_op_definition, SingleBlockRegion, OpAttr
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.utils.exceptions import VerifyException
@@ -14,13 +14,13 @@ class ModuleOp(Operation):
     sym_name: OpAttr[StringAttr]
 
     @staticmethod
-    def get(name: SymbolRefAttr, body: Region) -> ModuleOp:
-        op = ModuleOp.build(attributes={"sym_name": name}, regions=[body])
+    def get(name: SymbolRefAttr, ops: list[Operation]) -> ModuleOp:
+        op = ModuleOp.build(attributes={"sym_name": name}, regions=[ops])
         return op
 
     def verify_(self):
-        if (len(self.body.ops) > 0
-                and not isinstance(self.body.ops[-1], ModuleEndOp)):
+        if (len(self.body.ops) == 0
+                or not isinstance(self.body.ops[-1], ModuleEndOp)):
             raise VerifyException("gpu.module must end with gpu.module_end")
 
 

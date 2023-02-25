@@ -2,7 +2,6 @@
 
 "builtin.module"()({
     "gpu.module"()({
-        
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
