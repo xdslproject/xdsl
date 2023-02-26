@@ -359,7 +359,10 @@ MPI = Dialect([
     Init,
     Finalize,
     CommRank,
-], [RequestType, StatusType,])
+], [
+    RequestType,
+    StatusType,
+])
 
 
 @dataclasses.dataclass
@@ -492,8 +495,8 @@ class MpiLowerings(RewritePattern):
         ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
             *ops,
-            func.Call.get(self._mpi_name(op), [op.request, res], [t_int])
-        ], new_results  # yapf: disable
+            func.Call.get(self._mpi_name(op), [op.request, res], [t_int]),
+        ], new_results
 
     def lower_mpi_isend(self,
                         op: ISend) -> tuple[list[Operation], list[OpResult]]:
@@ -510,24 +513,26 @@ class MpiLowerings(RewritePattern):
         #       The _MemRefTypeElement is bound to Attribute, so
         #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
 
         return [
             *count_ops,
-            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            datatype    := self._emit_mpi_type_load(memref_elm_typ),
-            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
-            request     := llvm.AllocaOp.get(
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            request := llvm.AllocaOp.get(
                 lit1,
-                builtin.IntegerType.from_width(8 * self.info.request_size)
-            ),
-            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
+                builtin.IntegerType.from_width(8 * self.info.request_size)),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
                 request
-            ], [t_int])
-        ], [request.results[0]]  # yapf: disable
+            ], [t_int]),
+        ], [request.results[0]]
 
     def lower_mpi_irecv(self,
                         op: IRecv) -> tuple[list[Operation], list[OpResult]]:
@@ -544,24 +549,26 @@ class MpiLowerings(RewritePattern):
         #       The _MemRefTypeElement is bound to Attribute, so
         #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
 
         return [
             *count_ops,
-            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := self._emit_mpi_type_load(memref_elm_typ),
-            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
-            request     := llvm.AllocaOp.get(
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            request := llvm.AllocaOp.get(
                 lit1,
-                builtin.IntegerType.from_width(8 * self.info.request_size)
-            ),
+                builtin.IntegerType.from_width(8 * self.info.request_size)),
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 request
-            ], [t_int])
-        ], [request.res]  # yapf: disable
+            ], [t_int]),
+        ], [request.res]
 
     def lower_mpi_comm_rank(
             self, op: CommRank) -> tuple[list[Operation], list[OpResult]]:
@@ -571,16 +578,14 @@ class MpiLowerings(RewritePattern):
         int MPI_Comm_rank(MPI_Comm comm, int *rank)
         """
         return [
-            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            lit1        := arith.Constant.from_int_and_width(1, 64),
-            int_ptr     := llvm.AllocaOp.get(lit1, t_int),
-            func.Call.get(
-                self._mpi_name(op),
-                [comm_global, int_ptr],
-                [t_int]
-            ),
-            rank        := llvm.LoadOp.get(int_ptr)
-        ], [rank.dereferenced_value]  # yapf: disable
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            lit1 := arith.Constant.from_int_and_width(1, 64),
+            int_ptr := llvm.AllocaOp.get(lit1, t_int),
+            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [t_int]),
+            rank := llvm.LoadOp.get(int_ptr),
+        ], [rank.dereferenced_value]
 
     def lower_mpi_send(self,
                        op: Send) -> tuple[list[Operation], list[OpResult]]:
@@ -599,18 +604,26 @@ class MpiLowerings(RewritePattern):
         #       The _MemRefTypeElement is bound to Attribute, so
         #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
 
         return [
             *count_ops,
-            datatype    := self._emit_mpi_type_load(memref_elm_typ),
-            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
-            ], [t_int])
-        ], []  # yapf: disable
+                ptr[1],
+                count_ssa_val,
+                datatype,
+                op.dest,
+                tag,
+                comm_global,
+            ], [t_int]),
+        ], []
 
     def lower_mpi_recv(self,
                        op: Recv) -> tuple[list[Operation], list[OpResult]]:
@@ -632,20 +645,23 @@ class MpiLowerings(RewritePattern):
         #       The _MemRefTypeElement is bound to Attribute, so
         #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
 
         return [
             *count_ops,
             *ops,
-            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := self._emit_mpi_type_load(memref_elm_typ),
-            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 status
-            ], [t_int])
-        ], new_results  # yapf: disable
+            ], [t_int]),
+        ], new_results
 
     # Miscellaneous
 
@@ -662,18 +678,17 @@ class MpiLowerings(RewritePattern):
         """
         if mpi_status_none:
             return [
-                lit1    := arith.Constant.from_int_and_width(1, builtin.i64),
-                res     := llvm.IntToPtrOp.get(lit1)
-            ], [], res  # yapf: disable
+                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+                res := llvm.IntToPtrOp.get(lit1),
+            ], [], res
         else:
             return [
-               lit1     := arith.Constant.from_int_and_width(1, builtin.i64),
-               res      := llvm.AllocaOp.get(
-                   lit1,
-                   builtin.IntegerType.from_width(8 * self.info.status_size),
-                   as_untyped_ptr=True
-               ),
-            ], [res.res], res  # yapf: disable
+                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+                res := llvm.AllocaOp.get(lit1,
+                                         builtin.IntegerType.from_width(
+                                             8 * self.info.status_size),
+                                         as_untyped_ptr=True),
+            ], [res.res], res
 
     def _emit_memref_counts(
             self, ssa_val: SSAValue) -> tuple[list[Operation], OpResult]:
@@ -775,10 +790,10 @@ class MpiLowerings(RewritePattern):
         https://mlir.llvm.org/docs/Dialects/MemRef/#memrefextract_aligned_pointer_as_index-mlirmemrefextractalignedpointerasindexop
         """
         return [
-            index   := memref.ExtractAlignedPointerAsIndexOp.get(ref),
-            i64     := arith.IndexCastOp.get(index, builtin.i64),
-            ptr     := llvm.IntToPtrOp.get(i64)
-        ], ptr  # yapf: disable
+            index := memref.ExtractAlignedPointerAsIndexOp.get(ref),
+            i64 := arith.IndexCastOp.get(index, builtin.i64),
+            ptr := llvm.IntToPtrOp.get(i64),
+        ], ptr
 
     def _emit_external_funcs(self) -> list[Operation]:
         """
