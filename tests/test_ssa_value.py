@@ -21,7 +21,6 @@ def test_ssa():
         _ = a.get(b0)
 
 
-@irdl_op_definition
 class TwoResultOp(Operation):
     name: str = "test.tworesults"
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+                    Sequence, Type, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -405,6 +405,11 @@ class IRNode(ABC):
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
+
+    def __init_subclass__(cls: Type[Operation]) -> None:
+        from xdsl.irdl import irdl_op_definition
+        super().__init_subclass__()
+        irdl_op_definition(cls)
 
     name: str = field(default="", init=False)
     """The operation name. Should be a static member of the class"""

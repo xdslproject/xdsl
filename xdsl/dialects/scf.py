@@ -9,7 +9,6 @@ from xdsl.irdl import (AnyAttr, Operand, SingleBlockRegion, VarOperand,
 from xdsl.utils.exceptions import VerifyException
 
 
-@irdl_op_definition
 class If(Operation):
     name: str = "scf.if"
     output: Annotated[VarOpResult, AnyAttr()]
@@ -30,7 +29,6 @@ class If(Operation):
         )
 
 
-@irdl_op_definition
 class Yield(Operation):
     name: str = "scf.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -41,7 +39,6 @@ class Yield(Operation):
             operands=[SSAValue.get(operand) for operand in operands])
 
 
-@irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
     cond: Annotated[Operand, IntegerType.from_width(1)]
@@ -54,7 +51,6 @@ class Condition(Operation):
             operands=[cond, [output for output in output_ops]])
 
 
-@irdl_op_definition
 class For(Operation):
     name: str = "scf.for"
 
@@ -118,7 +114,6 @@ class For(Operation):
         return op
 
 
-@irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]

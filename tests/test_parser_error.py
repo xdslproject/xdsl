@@ -8,7 +8,6 @@ from xdsl.parser import XDSLParser
 from xdsl.utils.exceptions import ParseError
 
 
-@irdl_op_definition
 class UnkownOp(Operation):
     name = "unknown"
     ops: Annotated[VarOperand, AnyAttr()]

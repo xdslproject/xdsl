@@ -15,7 +15,6 @@ class ComplexType(ParametrizedAttribute, MLIRType):
     data: ParameterDef[Float64Type | Float32Type]
 
 
-@irdl_op_definition
 class Norm(Operation):
     name: str = "cmath.norm"
 
@@ -33,7 +32,6 @@ class Norm(Operation):
                 "expect all input and output types to be equal")
 
 
-@irdl_op_definition
 class Mul(Operation):
     name: str = "cmath.mul"
 

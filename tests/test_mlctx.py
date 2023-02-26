@@ -4,12 +4,10 @@ from xdsl.ir import MLContext, ParametrizedAttribute
 from xdsl.irdl import irdl_op_definition, irdl_attr_definition, Operation
 
 
-@irdl_op_definition
 class DummyOp(Operation):
     name = "dummy"
 
 
-@irdl_op_definition
 class DummyOp2(Operation):
     name = "dummy2"
 

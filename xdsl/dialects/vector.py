@@ -8,7 +8,6 @@ from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
 from xdsl.utils.exceptions import VerifyException
 
 
-@irdl_op_definition
 class Load(Operation):
     name = "vector.load"
     memref: Annotated[Operand, MemRefType]
@@ -43,7 +42,6 @@ class Load(Operation):
                           ])
 
 
-@irdl_op_definition
 class Store(Operation):
     name = "vector.store"
     vector: Annotated[Operand, VectorType]
@@ -74,7 +72,6 @@ class Store(Operation):
         return Store.build(operands=[vector, ref, indices])
 
 
-@irdl_op_definition
 class Broadcast(Operation):
     name = "vector.broadcast"
     source: Annotated[Operand, AnyAttr()]
@@ -100,7 +97,6 @@ class Broadcast(Operation):
                                ])
 
 
-@irdl_op_definition
 class FMA(Operation):
     name = "vector.fma"
     lhs: Annotated[Operand, VectorType]
@@ -148,7 +144,6 @@ class FMA(Operation):
                          ])
 
 
-@irdl_op_definition
 class Maskedload(Operation):
     name = "vector.maskedload"
     memref: Annotated[Operand, MemRefType]
@@ -194,7 +189,6 @@ class Maskedload(Operation):
                                 ])
 
 
-@irdl_op_definition
 class Maskedstore(Operation):
     name = "vector.maskedstore"
     memref: Annotated[Operand, MemRefType]
@@ -232,7 +226,6 @@ class Maskedstore(Operation):
             operands=[memref, indices, mask, value_to_store])
 
 
-@irdl_op_definition
 class Print(Operation):
     name = "vector.print"
     source: Annotated[Operand, AnyAttr()]
@@ -242,7 +235,6 @@ class Print(Operation):
         return Print.build(operands=[source])
 
 
-@irdl_op_definition
 class Createmask(Operation):
     name = "vector.create_mask"
     mask_operands: Annotated[VarOperand, IndexType]

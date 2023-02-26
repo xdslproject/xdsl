@@ -75,7 +75,6 @@ class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
 
 
-@irdl_op_definition
 class Load(Operation):
     name = "memref.load"
     memref: Annotated[Operand, MemRefType[Attribute]]
@@ -110,7 +109,6 @@ class Load(Operation):
                           result_types=[typ.element_type])
 
 
-@irdl_op_definition
 class Store(Operation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
@@ -136,7 +134,6 @@ class Store(Operation):
         return Store.build(operands=[value, ref, indices])
 
 
-@irdl_op_definition
 class Alloc(Operation):
     name = "memref.alloc"
 
@@ -167,7 +164,6 @@ class Alloc(Operation):
                            })
 
 
-@irdl_op_definition
 class Alloca(Operation):
     name = "memref.alloca"
 
@@ -203,7 +199,6 @@ class Alloca(Operation):
                             })
 
 
-@irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
     memref: Annotated[Operand, MemRefType[Attribute]]
@@ -213,7 +208,6 @@ class Dealloc(Operation):
         return Dealloc.build(operands=[operand])
 
 
-@irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
     memref: Annotated[Operand, MemRefType[Attribute]]
@@ -223,7 +217,6 @@ class Dealloca(Operation):
         return Dealloca.build(operands=[operand])
 
 
-@irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
     memref: Annotated[OpResult, MemRefType[Attribute]]
@@ -244,7 +237,6 @@ class GetGlobal(Operation):
     # compilation unit
 
 
-@irdl_op_definition
 class Global(Operation):
     name = "memref.global"
 
@@ -276,7 +268,6 @@ class Global(Operation):
             })
 
 
-@irdl_op_definition
 class Dim(Operation):
     name = "memref.dim"
 
@@ -291,7 +282,6 @@ class Dim(Operation):
         return cls.build(operands=[source, index], result_types=[IndexType()])
 
 
-@irdl_op_definition
 class Rank(Operation):
     name = "memref.rank"
 

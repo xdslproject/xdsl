@@ -8,7 +8,6 @@ from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 
-@irdl_op_definition
 class OpDefTestOp(Operation):
     name = "test.op_def_test"
 
@@ -32,31 +31,26 @@ def test_get_definition():
         regions=[("region", RegionDef())])
 
 
-class InvalidTypedFieldTestOp(Operation):
-    name = "test.invalid_typed_field"
-
-    field: int
-
-
 def test_invalid_typed_field():
     """Check that typed fields are not allowed"""
     with pytest.raises(PyRDLOpDefinitionError):
-        irdl_op_definition(InvalidTypedFieldTestOp)
 
+        class InvalidTypedFieldTestOp(Operation):
+            name = "test.invalid_typed_field"
 
-class InvalidFieldTestOp(Operation):
-    name = "test.invalid_field"
-
-    field = 2
+            field: int
 
 
 def test_invalid_field():
     """Check that untyped fields are not allowed"""
     with pytest.raises(PyRDLOpDefinitionError):
-        irdl_op_definition(InvalidFieldTestOp)
+
+        class InvalidFieldTestOp(Operation):
+            name = "test.invalid_field"
+
+            field = 2
 
 
-@irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
     attr: OpAttr[StringAttr]

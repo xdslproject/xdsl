@@ -69,7 +69,6 @@ builtin.module() {
     assert_print_op(mod, expected, None)
 
 
-@irdl_op_definition
 class UnitAttrOp(Operation):
     name = "unit_attr_op"
 
@@ -346,7 +345,6 @@ builtin.module() {
 #
 
 
-@irdl_op_definition
 class PlusCustomFormatOp(Operation):
     name = "test.add"
     lhs: Annotated[Operand, IntegerType]
@@ -476,7 +474,6 @@ class CustomFormatAttr(ParametrizedAttribute):
         printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
 
 
-@irdl_op_definition
 class AnyOp(Operation):
     name = "any"
 

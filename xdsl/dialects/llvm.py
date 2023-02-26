@@ -94,7 +94,6 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         return LLVMPointerType([type, NoneAttr()])
 
 
-@irdl_op_definition
 class AllocaOp(Operation):
     name = "llvm.alloca"
 
@@ -124,7 +123,6 @@ class AllocaOp(Operation):
                          result_types=[ptr_type])
 
 
-@irdl_op_definition
 class IntToPtrOp(Operation):
     name = "llvm.inttoptr"
 
@@ -143,7 +141,6 @@ class IntToPtrOp(Operation):
         return cls.build(operands=[input], result_types=[ptr_type])
 
 
-@irdl_op_definition
 class LoadOp(Operation):
     name = "llvm.load"
 
@@ -168,7 +165,6 @@ class LoadOp(Operation):
         return cls.build(operands=[ptr], result_types=[result_type])
 
 
-@irdl_op_definition
 class NullOp(Operation):
     name = "llvm.mlir.null"
 
@@ -183,7 +179,6 @@ class NullOp(Operation):
         return cls.build(result_types=[ptr_type])
 
 
-@irdl_op_definition
 class LLVMExtractValue(Operation):
     name = "llvm.extractvalue"
 
@@ -193,7 +188,6 @@ class LLVMExtractValue(Operation):
     res: Annotated[OpResult, AnyAttr()]
 
 
-@irdl_op_definition
 class LLVMInsertValue(Operation):
     name = "llvm.insertvalue"
 
@@ -204,7 +198,6 @@ class LLVMInsertValue(Operation):
     res: Annotated[OpResult, AnyAttr()]
 
 
-@irdl_op_definition
 class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 

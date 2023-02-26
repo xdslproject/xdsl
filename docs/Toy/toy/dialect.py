@@ -22,7 +22,6 @@ UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
 
 
-@irdl_op_definition
 class ConstantOp(Operation):
     """
     Constant operation turns a literal into an SSA value. The data is attached
@@ -51,7 +50,6 @@ class ConstantOp(Operation):
                 f"{self.res.typ}, {self.value.type}")
 
 
-@irdl_op_definition
 class AddOp(Operation):
     """
     The "add" operation performs element-wise addition between two tensors.
@@ -84,7 +82,6 @@ class AddOp(Operation):
                             "Expected AddOp args to have the same shape")
 
 
-@irdl_op_definition
 class FuncOp(Operation):
     """
     The "toy.func" operation represents a user defined function. These are
@@ -170,7 +167,6 @@ class FuncOp(Operation):
                 "Expected return value to match return type of function")
 
 
-@irdl_op_definition
 class GenericCallOp(Operation):
     name: str = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -191,7 +187,6 @@ class GenericCallOp(Operation):
                           attributes={"callee": callee})
 
 
-@irdl_op_definition
 class MulOp(Operation):
     """
     The "mul" operation performs element-wise multiplication between two
@@ -221,7 +216,6 @@ class MulOp(Operation):
                             "Expected MulOp args to have the same shape")
 
 
-@irdl_op_definition
 class PrintOp(Operation):
     """
     The "print" builtin operation prints a given input tensor, and produces
@@ -235,7 +229,6 @@ class PrintOp(Operation):
         return cls.create(operands=[input])
 
 
-@irdl_op_definition
 class ReturnOp(Operation):
     """
     The "return" operation represents a return operation within a function.
@@ -259,7 +252,6 @@ class ReturnOp(Operation):
         return cls.create(operands=[input] if input is not None else [])
 
 
-@irdl_op_definition
 class ReshapeOp(Operation):
     """
     Reshape operation is transforming its input tensor into a new tensor with
@@ -292,7 +284,6 @@ class ReshapeOp(Operation):
                 'Reshape operation result shape should be defined')
 
 
-@irdl_op_definition
 class TransposeOp(Operation):
     name: str = 'toy.transpose'
     arguments: Annotated[Operand, AnyTensorTypeF64]

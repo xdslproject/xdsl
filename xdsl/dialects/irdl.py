@@ -73,7 +73,6 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
                       self.params_constraints, ">")
 
 
-@irdl_op_definition
 class DialectOp(Operation):
     """
     Define a new dialect
@@ -100,7 +99,6 @@ class DialectOp(Operation):
         return [op for op in self.body.ops if isinstance(op, TypeOp)]
 
 
-@irdl_op_definition
 class ParametersOp(Operation):
     """
     Define the parameters of a type/attribute definition
@@ -109,7 +107,6 @@ class ParametersOp(Operation):
     params: OpAttr[AnyArrayAttr]
 
 
-@irdl_op_definition
 class TypeOp(Operation):
     """
     Defines new types belonging to previously defined dialect
@@ -128,7 +125,6 @@ class TypeOp(Operation):
             raise ValueError("name attribute must be a string attribute")
 
 
-@irdl_op_definition
 class ConstraintVarsOp(Operation):
     """
     Define constraint variables that can be used in the
@@ -138,7 +134,6 @@ class ConstraintVarsOp(Operation):
     constraints: OpAttr[Attribute]
 
 
-@irdl_op_definition
 class OperandsOp(Operation):
     """
     Define the operands of a parent operation
@@ -147,7 +142,6 @@ class OperandsOp(Operation):
     params: OpAttr[Attribute]
 
 
-@irdl_op_definition
 class ResultsOp(Operation):
     """
     Define results of parent operation
@@ -156,7 +150,6 @@ class ResultsOp(Operation):
     params: OpAttr[Attribute]
 
 
-@irdl_op_definition
 class OperationOp(Operation):
     """
     Define a new operation belonging to previously defined dialect

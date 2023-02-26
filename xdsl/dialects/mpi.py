@@ -61,7 +61,6 @@ def _build_attr_dict_with_optional_tag(
     return {} if tag is None else {'tag': IntegerAttr.from_params(tag, t_int)}
 
 
-@irdl_op_definition
 class ISend(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
@@ -102,7 +101,6 @@ class ISend(MPIBaseOp):
                          result_types=[RequestType()])
 
 
-@irdl_op_definition
 class Send(MPIBaseOp):
     """
     This wraps the MPI_Send function (blocking send)
@@ -142,7 +140,6 @@ class Send(MPIBaseOp):
                          result_types=[])
 
 
-@irdl_op_definition
 class IRecv(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
@@ -187,7 +184,6 @@ class IRecv(MPIBaseOp):
                          result_types=[RequestType()])
 
 
-@irdl_op_definition
 class Recv(MPIBaseOp):
     """
     This wraps the MPI_Recv function (blocking receive).
@@ -235,7 +231,6 @@ class Recv(MPIBaseOp):
             result_types=[[]] if ignore_status else [[StatusType()]])
 
 
-@irdl_op_definition
 class Test(MPIBaseOp):
     """
     Class for wrapping the MPI_Test function (test for completion of request)
@@ -263,7 +258,6 @@ class Test(MPIBaseOp):
                          result_types=[t_bool, StatusType()])
 
 
-@irdl_op_definition
 class Wait(MPIBaseOp):
     """
     Class for wrapping the MPI_Wait function (blocking wait for request)
@@ -291,7 +285,6 @@ class Wait(MPIBaseOp):
         return cls.build(operands=[request], result_types=result_types)
 
 
-@irdl_op_definition
 class GetStatusField(MPIBaseOp):
     """
     Accessors for the MPI_Status struct
@@ -318,7 +311,6 @@ class GetStatusField(MPIBaseOp):
                          result_types=[t_int])
 
 
-@irdl_op_definition
 class CommRank(MPIBaseOp):
     name = "mpi.comm.rank"
 
@@ -329,7 +321,6 @@ class CommRank(MPIBaseOp):
         return cls.build(result_types=[t_int])
 
 
-@irdl_op_definition
 class Init(MPIBaseOp):
     """
     This represents a bare MPI_Finalize call with both args being nullptr
@@ -337,7 +328,6 @@ class Init(MPIBaseOp):
     name = "mpi.init"
 
 
-@irdl_op_definition
 class Finalize(MPIBaseOp):
     name = "mpi.finalize"
 

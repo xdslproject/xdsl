@@ -8,7 +8,6 @@ from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
                        AnyAttr)
 
 
-@irdl_op_definition
 class For(Operation):
     name: str = "affine.for"
 
@@ -77,7 +76,6 @@ class For(Operation):
             step)
 
 
-@irdl_op_definition
 class Yield(Operation):
     name: str = "affine.yield"
     arguments: Annotated[VarOperand, AnyAttr()]

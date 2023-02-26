@@ -8,7 +8,6 @@ from xdsl.irdl import (irdl_op_definition, VarOperand, AnyAttr, Operand,
                        AttrSizedOperandSegments)
 
 
-@irdl_op_definition
 class Branch(Operation):
     name: str = "cf.br"
 
@@ -19,7 +18,6 @@ class Branch(Operation):
         return Branch.build(operands=[[op for op in ops]], successors=[block])
 
 
-@irdl_op_definition
 class ConditionalBranch(Operation):
     name: str = "cf.cond_br"
 

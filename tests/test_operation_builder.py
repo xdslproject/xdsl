@@ -20,7 +20,6 @@ from xdsl.irdl import (OptOpResult, OptOperand, OptRegion,
 #
 
 
-@irdl_op_definition
 class ResultOp(Operation):
     name: str = "test.result_op"
 
@@ -38,7 +37,6 @@ def test_result_builder_exception():
         ResultOp.build()
 
 
-@irdl_op_definition
 class OptResultOp(Operation):
     name: str = "test.opt_result_op"
 
@@ -59,7 +57,6 @@ def test_opt_result_builder_two_args():
         OptResultOp.build(result_types=[[StringAttr(""), StringAttr("")]])
 
 
-@irdl_op_definition
 class VarResultOp(Operation):
     name: str = "test.var_result_op"
 
@@ -74,7 +71,6 @@ def test_var_result_builder():
                                        StringAttr("1")]
 
 
-@irdl_op_definition
 class TwoVarResultOp(Operation):
     name: str = "test.two_var_result_op"
 
@@ -117,7 +113,6 @@ def test_two_var_result_builder2():
             i32, [1, 3])
 
 
-@irdl_op_definition
 class MixedResultOp(Operation):
     name: str = "test.mixed"
 
@@ -155,7 +150,6 @@ def test_var_mixed_builder():
 #
 
 
-@irdl_op_definition
 class OperandOp(Operation):
     name: str = "test.operand_op"
 
@@ -181,7 +175,6 @@ def test_operand_builder_exception():
         OperandOp.build()
 
 
-@irdl_op_definition
 class OptOperandOp(Operation):
     name: str = "test.opt_operand_op"
 
@@ -204,7 +197,6 @@ def test_opt_operand_builder_two_args():
         OptOperandOp.build(operands=[[op, op]])
 
 
-@irdl_op_definition
 class VarOperandOp(Operation):
     name: str = "test.var_operand_op"
 
@@ -218,7 +210,6 @@ def test_var_operand_builder():
     assert op2.operands == (op1.res, op1.res)
 
 
-@irdl_op_definition
 class TwoVarOperandOp(Operation):
     name: str = "test.two_var_operand_op"
 
@@ -255,7 +246,6 @@ def test_two_var_operand_builder2():
 #
 
 
-@irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
     attr: OpAttr[StringAttr]
@@ -277,7 +267,6 @@ def test_attr_new_attr_op():
     assert op.attributes["new_attr"] == StringAttr("1")
 
 
-@irdl_op_definition
 class OptionalAttrOp(Operation):
     name: str = "test.opt_attr_op"
 
@@ -299,7 +288,6 @@ def test_optional_attr_op_empty():
 #
 
 
-@irdl_op_definition
 class RegionOp(Operation):
     name: str = "test.region_op"
 
@@ -339,7 +327,6 @@ def test_singleop_region():
     assert type(region0.op) is Constant
 
 
-@irdl_op_definition
 class SBRegionOp(Operation):
     name: str = "test.sbregion_op"
 
@@ -352,7 +339,6 @@ def test_sbregion_one_block():
     assert len(op.region.blocks) == 1
 
 
-@irdl_op_definition
 class OptRegionOp(Operation):
     name: str = "test.opt_region_op"
 
@@ -371,7 +357,6 @@ def test_opt_region_builder_two_args():
         OptRegionOp.build(regions=[[Region(), Region()]])
 
 
-@irdl_op_definition
 class OptSBRegionOp(Operation):
     name: str = "test.sbregion_op"
 
@@ -387,7 +372,6 @@ def test_opt_sbregion_one_block():
     assert op2.region is None
 
 
-@irdl_op_definition
 class VarRegionOp(Operation):
     name: str = "test.var_operand_op"
 
@@ -401,7 +385,6 @@ def test_var_region_builder():
     assert len(op.regs[1].blocks) == 2  # type: ignore
 
 
-@irdl_op_definition
 class VarSBRegionOp(Operation):
     name: str = "test.sbregion_op"
 

@@ -9,14 +9,12 @@ from xdsl.parser import BaseParser, XDSLParser
 from xdsl.printer import Printer
 
 
-@irdl_op_definition
 class ModuleOp(Operation):
     """Module operation. Redefined to not depend on the builtin dialect."""
     name = "module"
     region: Region
 
 
-@irdl_op_definition
 class AnyOp(Operation):
     """Operation only used for testing."""
     name = "any"

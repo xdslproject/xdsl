@@ -729,7 +729,6 @@ class OpaqueAttr(ParametrizedAttribute):
              StringAttr.from_str(value), type])
 
 
-@irdl_op_definition
 class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
@@ -765,7 +764,6 @@ class UnregisteredOp(Operation):
         return UnregisteredOpWithName
 
 
-@irdl_op_definition
 class ModuleOp(Operation):
     name: str = "builtin.module"
 

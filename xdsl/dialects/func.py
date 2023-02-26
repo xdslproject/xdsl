@@ -8,7 +8,6 @@ from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
 from xdsl.utils.exceptions import VerifyException
 
 
-@irdl_op_definition
 class FuncOp(Operation):
     name: str = "func.func"
 
@@ -69,7 +68,6 @@ class FuncOp(Operation):
         return op
 
 
-@irdl_op_definition
 class Call(Operation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -90,7 +88,6 @@ class Call(Operation):
                           attributes={"callee": callee})
 
 
-@irdl_op_definition
 class Return(Operation):
     name: str = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
