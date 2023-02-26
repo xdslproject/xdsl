@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
-                                   IntAttr, NoneAttr, IntegerType,
-                                   AnyIntegerAttr, IntegerAttr)
+                                   IntAttr, NoneAttr, IntegerType, IntegerAttr,
+                                   AnyIntegerAttr, IndexType)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -53,7 +53,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
-    target: ParameterDef[IntAttr | NoneAttr]
+    addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -61,30 +61,48 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
         printer.print_string("<")
         printer.print_attribute(self.type)
-        if not isinstance(self.target, NoneAttr):
+        if not isinstance(self.addr_space, NoneAttr):
             printer.print_string(", ")
-            printer.print_attribute(self.target)
+            printer.print_attribute(self.addr_space)
 
         printer.print_string(">")
 
-    @classmethod
-    def untyped(cls):
-        return cls([NoneAttr(), NoneAttr()])
+    @staticmethod
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        if not parser.tokenizer.starts_with('<'):
+            return [NoneAttr(), NoneAttr()]
+        parser.parse_characters('<', "llvm.ptr parameters expected")
+        type = parser.try_parse_type()
+        if type is None:
+            parser.raise_error(
+                "Expected first parameter of llvm.ptr to be a type!")
+        if not parser.tokenizer.starts_with(','):
+            parser.parse_characters('>',
+                                    "End of llvm.ptr parameters expected!")
+            return [type, NoneAttr()]
+        parser.parse_characters(',', "llvm.ptr args must be separated by `,`")
+        addr_space = parser.parse_int_literal()
+        parser.parse_characters('>', "End of llvm.ptr parameters expected!")
+        return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
-    @classmethod
-    def typed(cls, type: Attribute):
-        return cls([type, NoneAttr()])
+    @staticmethod
+    def opaque():
+        return LLVMPointerType([NoneAttr(), NoneAttr()])
+
+    @staticmethod
+    def typed(type: Attribute):
+        return LLVMPointerType([type, NoneAttr()])
 
 
 @irdl_op_definition
 class AllocaOp(Operation):
     name = "llvm.alloca"
 
-    size: Annotated[Operand, AnyIntegerAttr]
+    size: Annotated[Operand, IntegerType]
 
-    alignment: OpAttr[IntegerType]
+    alignment: OpAttr[AnyIntegerAttr]
 
-    res: Annotated[OpResult, LLVMPointerType]
+    res: OpResult
 
     @classmethod
     def get(cls,
@@ -96,7 +114,7 @@ class AllocaOp(Operation):
             'alignment': IntegerAttr.from_int_and_width(alignment, 64)
         }
         if as_untyped_ptr:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
             attrs['elem_type'] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
@@ -110,7 +128,7 @@ class AllocaOp(Operation):
 class IntToPtrOp(Operation):
     name = "llvm.inttoptr"
 
-    input: Annotated[Operand, AnyIntegerAttr]
+    input: Annotated[Operand, IntegerType]
 
     output: Annotated[OpResult, LLVMPointerType]
 
@@ -119,7 +137,7 @@ class IntToPtrOp(Operation):
             input: SSAValue | Operation,
             ptr_type: Attribute | None = None):
         if ptr_type is None:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
         return cls.build(operands=[input], result_types=[ptr_type])
@@ -131,7 +149,7 @@ class LoadOp(Operation):
 
     ptr: Annotated[Operand, LLVMPointerType]
 
-    dereferenced_value: Annotated[OpResult, Attribute]
+    dereferenced_value: OpResult
 
     @classmethod
     def get(cls,
@@ -159,7 +177,7 @@ class NullOp(Operation):
     @classmethod
     def get(cls, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
-            ptr_type = LLVMPointerType.untyped()
+            ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
         return cls.build(result_types=[ptr_type])
@@ -193,6 +211,12 @@ class LLVMMLIRUndef(Operation):
     res: Annotated[OpResult, AnyAttr()]
 
 
-LLVM = Dialect(
-    [LLVMExtractValue, LLVMInsertValue, LLVMMLIRUndef, AllocaOp, IntToPtrOp],
-    [LLVMStructType, LLVMPointerType])
+LLVM = Dialect([
+    LLVMExtractValue,
+    LLVMInsertValue,
+    LLVMMLIRUndef,
+    AllocaOp,
+    IntToPtrOp,
+    NullOp,
+    LoadOp,
+], [LLVMStructType, LLVMPointerType])

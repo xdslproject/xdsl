@@ -73,4 +73,34 @@ builtin.module() {
   // CHECK-NEXT:  }
   // CHECK-NEXT:  func.return()
   // CHECK-NEXT:}
+
+  func.func() ["sym_name" = "for", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
+  {
+    %lb : !index = arith.constant()["value" = 0 : !index]
+    %ub : !index = arith.constant()["value" = 42 : !index]
+    %s : !index = arith.constant()["value" = 3 : !index]
+    %prod : !index = arith.constant()["value" = 1 : !index]
+
+    %res : !index = scf.for(%lb : !index, %ub : !index, %s : !index, %prod: !index)
+    {
+    ^0(%iv : !index, %prod_iter : !index):
+      %prod_new : !index = arith.muli(%prod_iter : !index, %iv : !index)
+      scf.yield(%prod_new : !index)
+    }
+
+    func.return()
+  }
+
+  // CHECK: func.func() ["sym_name" = "for"
+  // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
+  // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 42 : !index]
+  // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 3 : !index]
+  // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
+  // CHECK-NEXT:  %{{.*}} : !index = scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
+  // CHECK-NEXT:  ^{{.*}}(%{{.*}} : !index, %{{.*}} : !index):
+  // CHECK-NEXT:    %{{.*}} : !index = arith.muli(%{{.*}} : !index, %{{.*}} : !index)
+  // CHECK-NEXT:    scf.yield(%{{.*}} : !index)
+  // CHECK-NEXT:  }
+  // CHECK-NEXT:  func.return()
+  // CHECK-NEXT:}
 }

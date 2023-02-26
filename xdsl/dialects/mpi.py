@@ -100,7 +100,7 @@ class ISend(MPIBaseOp):
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
-    request: Annotated[OpResult, RequestType()]
+    request: Annotated[OpResult, RequestType]
 
     @classmethod
     def get(cls, buff: Operand, dest: Operand, tag: int | None):
@@ -182,7 +182,7 @@ class IRecv(MPIBaseOp):
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
-    request: Annotated[OpResult, RequestType()]
+    request: Annotated[OpResult, RequestType]
 
     @classmethod
     def get(cls,
@@ -286,7 +286,7 @@ class Wait(MPIBaseOp):
 
     name = "mpi.wait"
 
-    request: Annotated[Operand, RequestType()]
+    request: Annotated[Operand, RequestType]
     status: Annotated[OptOpResult, t_int]
 
     @classmethod
@@ -338,6 +338,9 @@ class CommRank(MPIBaseOp):
 
 @irdl_op_definition
 class Init(MPIBaseOp):
+    """
+    This represents a bare MPI_Init call with both args being nullptr
+    """
     name = "mpi.init"
 
 
@@ -355,7 +358,8 @@ MPI = Dialect([
     GetStatusField,
     Init,
     Finalize,
-], [RequestType, StatusType])
+    CommRank,
+], [RequestType, StatusType,])
 
 
 @dataclasses.dataclass

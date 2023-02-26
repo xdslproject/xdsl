@@ -593,14 +593,14 @@ class Minf(BinaryOperation):
 class IndexCastOp(Operation):
     name = "arith.index_cast"
 
-    index: Annotated[Operand, IndexType]
+    input: Annotated[Operand, Attribute]
 
     result: Annotated[OpResult, Attribute]
 
     @classmethod
-    def get(cls, index: SSAValue | Operation, target_type: Attribute):
+    def get(cls, input: SSAValue | Operation, target_type: Attribute):
         return cls.build(
-            operands=[index],
+            operands=[input],
             result_types=[target_type]
         )
 
@@ -649,5 +649,5 @@ Arith = Dialect([
         Maxf,
 
         # Casts
-        IndexCastOp],
-        [])
+        IndexCastOp,
+], [])

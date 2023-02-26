@@ -40,7 +40,7 @@ Cannot compile program without the code context. Try to use:
         # Your code here."""
             raise FrontendProgramException(msg)
 
-    def compile(self, desymref=True) -> None:
+    def compile(self, desymref: bool = True) -> None:
         """Generates xDSL from the source program."""
 
         # Both statements and globals msut be initialized from within the
@@ -78,7 +78,7 @@ Cannot print the program IR without compiling it first. Make sure to use:
     p.compile()"""
             raise FrontendProgramException(msg)
 
-    def _print(self, target) -> str:
+    def _print(self, target: Printer.Target) -> str:
         self._check_can_print()
         assert self.xdsl_program is not None
 

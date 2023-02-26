@@ -18,7 +18,7 @@ class CodeGeneration:
     @staticmethod
     def run_with_type_converter(type_converter: TypeConverter,
                                 stmts: List[ast.stmt],
-                                file: str) -> builtin.ModuleOp:
+                                file: str | None) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp.from_region_or_ops([])
         visitor = CodegGenerationVisitor(type_converter, module, file)
@@ -27,20 +27,20 @@ class CodeGeneration:
         return module
 
 
-@dataclass
+@dataclass(init=False)
 class CodegGenerationVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the Python AST."""
 
-    type_converter: TypeConverter = field(init=False)
+    type_converter: TypeConverter
     """Used for type conversion during code generation."""
 
-    globals: Dict[str, Any] = field(init=False)
+    globals: Dict[str, Any]
     """
     Imports and other global information from the module, useful for looking
     up classes, etc.
     """
 
-    inserter: OpInserter = field(init=False)
+    inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
     symbol_table: Dict[str, Attribute] | None = field(default=None)
@@ -49,17 +49,25 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     because inner functions and global variables are not allowed (yet).
     """
 
-    file: str = field(default=None)
+    file: str | None
     """Path of the file containing the program being processed."""
 
     def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
-                 file: str) -> None:
+                 file: str | None) -> None:
         self.type_converter = type_converter
         self.globals = type_converter.globals
         self.file = file
 
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.blocks[0])
+
+    def get_symbol(self, node: ast.Name) -> Attribute:
+        assert self.symbol_table is not None
+        if node.id not in self.symbol_table:
+            raise CodeGenerationException(
+                self.file, node.lineno, node.col_offset,
+                f"Symbol '{node.id}' is not defined.")
+        return self.symbol_table[node.id]
 
     def visit(self, node: ast.AST) -> None:
         super().visit(node)
@@ -121,8 +129,8 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[
             lhs.typ.__class__]
 
+        overload_name = python_AST_operator_to_python_overload[op_name]
         try:
-            overload_name = python_AST_operator_to_python_overload[op_name]
             op = OpResolver.resolve_op_overload(overload_name,
                                                 frontend_type)(lhs, rhs)
             self.inserter.insert_op(op)
@@ -264,12 +272,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.inserter.set_insertion_point_from_op(parent_op)
 
     def visit_Name(self, node: ast.Name):
-        if node.id not in self.symbol_table:
-            raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                f"Symbol '{node.id}' is not defined.")
-
-        fetch_op = symref.Fetch.get(node.id, self.symbol_table[node.id])
+        fetch_op = symref.Fetch.get(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
@@ -281,7 +284,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             return_types = parent_op.function_type.outputs.data
 
             if len(return_types) != 0:
-                function_name = parent_op.attributes["sym_name"].data
+                function_name = parent_op.sym_name.data
                 raise CodeGenerationException(
                     self.file, node.lineno, node.col_offset,
                     f"Expected '{function_name}' to return a type.")
@@ -305,7 +308,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 "Return statement should be placed only at the end of the "
                 "function body.")
 
-        func_name = parent_op.attributes["sym_name"].data
+        func_name = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
         if node.value is None:

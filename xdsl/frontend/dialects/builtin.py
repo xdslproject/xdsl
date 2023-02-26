@@ -15,10 +15,14 @@ class _FrontendType:
 
 
 # Type parameters for integers.
-_Width = TypeVar("_Width", bound=int, covariant=True)
-_Signedness = TypeVar("_Signedness", bound=Signedness, covariant=True)
+_Width = TypeVar("_Width", bound=int)
+_Signedness = TypeVar("_Signedness", bound=Signedness)
 
 
+# Note the types ignored below:
+# a) on each function, since the functions are constrained on a limited set of
+#    known types, and _Integer can represent types outside of that set.
+# b) on functions that return `bool` in object, instead of `i1`
 class _Integer(Generic[_Width, _Signedness], _FrontendType):
     """
     Represents an integer type in the frontend. Should not be used explicitly.
@@ -33,66 +37,68 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import addi
-        return addi(self, other)
+        return addi(self, other)  # type: ignore
 
     def __and__(
             self,
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import andi
-        return andi(self, other)
+        return andi(self, other)  # type: ignore
 
     def __lshift__(
             self,
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shli
-        return shli(self, other)
+        return shli(self, other)  # type: ignore
 
     def __mul__(
             self,
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import muli
-        return muli(self, other)
+        return muli(self, other)  # type: ignore
 
     def __rshift__(
             self,
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shrsi
-        return shrsi(self, other)
+        return shrsi(self, other)  # type: ignore
 
     def __sub__(
             self,
             other: _Integer[_Width,
                             _Signedness]) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import subi
-        return subi(self, other)
+        return subi(self, other)  # type: ignore
 
-    def __eq__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __eq__(  # type: ignore
+            self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "eq")
+        return cmpi(self, other, "eq")  # type: ignore
 
     def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sge")
+        return cmpi(self, other, "sge")  # type: ignore
 
     def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sgt")
+        return cmpi(self, other, "sgt")  # type: ignore
 
     def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sle")
+        return cmpi(self, other, "sle")  # type: ignore
 
     def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "slt")
+        return cmpi(self, other, "slt")  # type: ignore
 
-    def __ne__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __ne__(  # type: ignore
+            self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "ne")
+        return cmpi(self, other, "ne")  # type: ignore
 
 
 # Type aliases for signless integers.

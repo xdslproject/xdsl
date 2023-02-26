@@ -24,13 +24,13 @@ class CodeGenerationException(FrontendProgramException):
     user-facing errors, e.g. unsupported functionality or failed type checks.
     """
 
-    file: str
+    file: str | None
     line: int
     col: int
 
     def __init__(
         self,
-        file: str,
+        file: str | None,
         line: int,
         col: int,
         msg: str,

@@ -78,7 +78,7 @@ AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
     res: Annotated[OpResult, AnyAttr()]
 
@@ -114,7 +114,7 @@ class Load(Operation):
 class Store(Operation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
@@ -143,7 +143,7 @@ class Alloc(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -156,11 +156,11 @@ class Alloc(Operation):
             shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloc:
         if shape is None:
             shape = [1]
-        if not isinstance(return_type, MemRefType):
-            return_type = MemRefType.from_element_type_and_shape(
-                return_type, shape)
         return Alloc.build(operands=[[], []],
-                           result_types=[return_type],
+                           result_types=[
+                               MemRefType.from_element_type_and_shape(
+                                   return_type, shape)
+                           ],
                            attributes={
                                "alignment":
                                IntegerAttr.from_int_and_width(alignment, 64)
@@ -174,7 +174,7 @@ class Alloca(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -184,10 +184,15 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[int | AnyIntegerAttr]] = None,
+            dynamic_sizes: list[SSAValue | Operation] | None = None) -> Alloca:
         if shape is None:
             shape = [1]
-        return Alloca.build(operands=[[], []],
+
+        if dynamic_sizes is None:
+            dynamic_sizes = []
+
+        return Alloca.build(operands=[dynamic_sizes, []],
                             result_types=[
                                 MemRefType.from_element_type_and_shape(
                                     return_type, shape)
@@ -201,7 +206,7 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -211,7 +216,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloca:
@@ -221,7 +226,7 @@ class Dealloca(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
@@ -272,19 +277,32 @@ class Global(Operation):
 
 
 @irdl_op_definition
-class ExtractAlignedPointerAsIndexOp(Operation):
-    name = "memref.extract_aligned_pointer_as_index"
+class Dim(Operation):
+    name = "memref.dim"
 
-    source: Annotated[Operand, MemRefType]
+    source: Annotated[Operand, MemRefType[Attribute]]
+    index: Annotated[Operand, IndexType]
 
-    aligned_pointer: Annotated[OpResult, IndexType]
+    result: Annotated[OpResult, IndexType]
 
     @classmethod
-    def get(cls, source: SSAValue | Operation):
-        return cls.build(operands=[source], result_types=[IndexType()])
+    def from_source_and_index(cls, source: SSAValue | Operation,
+                              index: SSAValue | Operation):
+        return cls.build(operands=[source, index], result_types=[IndexType()])
 
 
-MemRef = Dialect([
-    Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global,
-    ExtractAlignedPointerAsIndexOp
-], [MemRefType, UnrankedMemrefType])
+@irdl_op_definition
+class Rank(Operation):
+    name = "memref.rank"
+
+    source: Annotated[Operand, MemRefType[Attribute]]
+
+    rank: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def from_memref(cls, memref: Operation | SSAValue):
+        return cls.build(operands=[memref], result_types=[IndexType()])
+
+
+MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global, Dim],
+                 [MemRefType, UnrankedMemrefType])

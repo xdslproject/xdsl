@@ -4,7 +4,7 @@ import inspect
 
 from dataclasses import dataclass
 from typing import Callable, Type
-from xdsl.frontend.dialects.builtin import _FrontendType
+from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
 
@@ -65,5 +65,6 @@ Internal failure while resolving '{python_op}'. Function AST for resolution is n
             raise FrontendProgramException(msg)
 
         module_name = func_ast.body[0].module
+        assert module_name is not None
         func_name = func_ast.body[1].value.func.id
         return OpResolver.resolve_op(module_name, func_name)
