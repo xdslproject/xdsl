@@ -3,7 +3,7 @@ from io import StringIO
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.builtin import i32, IntegerType, IndexType
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
-                                  Load, Store)
+                                  Load, Store, ExtractAlignedPointerAsIndexOp)
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.printer import Printer
 
@@ -136,6 +136,14 @@ def test_memref_rank():
 
     assert dim_1.source is alloc0.memref
     assert isinstance(dim_1.rank.typ, IndexType)
+
+
+def test_memref_ExtractAlignedPointerAsIndexOp():
+    ref = Alloc.get(i32, 64, [64, 64, 64])
+    ptr = ExtractAlignedPointerAsIndexOp.get(ref)
+
+    assert ptr.aligned_pointer.typ == IndexType()
+    assert ptr.source == ref.memref
 
 
 def test_memref_matmul_verify():

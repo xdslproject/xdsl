@@ -304,5 +304,27 @@ class Rank(Operation):
         return cls.build(operands=[memref], result_types=[IndexType()])
 
 
-MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global, Dim],
-                 [MemRefType, UnrankedMemrefType])
+@irdl_op_definition
+class ExtractAlignedPointerAsIndexOp(Operation):
+    name = "memref.extract_aligned_pointer_as_index"
+
+    source: Annotated[Operand, MemRefType]
+
+    aligned_pointer: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def get(cls, source: SSAValue | Operation):
+        return cls.build(operands=[source], result_types=[IndexType()])
+
+
+MemRef = Dialect([
+    Load,
+    Store,
+    Alloc,
+    Alloca,
+    Dealloc,
+    GetGlobal,
+    Global,
+    Dim,
+    ExtractAlignedPointerAsIndexOp,
+], [MemRefType, UnrankedMemrefType])
