@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 from abc import ABC
 from enum import Enum
+from typing import cast
 
 from xdsl.dialects import builtin, arith, memref, func, llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
@@ -290,7 +291,7 @@ class Wait(MPIBaseOp):
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
-        result_types = [[t_int]]
+        result_types: list[list[Attribute]] = [[t_int]]
         if ignore_status:
             result_types = [[]]
 
@@ -500,10 +501,17 @@ class MpiLowerings(RewritePattern):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+
         return [
             *count_ops,
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            datatype    := self._emit_mpi_type_load(memref_elm_typ),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
             request     := llvm.AllocaOp.get(
@@ -526,12 +534,18 @@ class MpiLowerings(RewritePattern):
               MPI_Comm comm, MPI_Request *request)
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
 
         return [
             *count_ops,
             *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            datatype    := self._emit_mpi_type_load(memref_elm_typ),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
@@ -576,9 +590,16 @@ class MpiLowerings(RewritePattern):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+
         return [
             *count_ops,
-            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            datatype    := self._emit_mpi_type_load(memref_elm_typ),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
@@ -602,11 +623,18 @@ class MpiLowerings(RewritePattern):
         ops, new_results, status = self._emit_mpi_status_obj(
             len(op.results) == 0)
 
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute], op.buffer.typ)
+
         return [
             *count_ops,
             *ops,
             *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            datatype    := self._emit_mpi_type_load(memref_elm_typ),
             tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
             func.Call.get(self._mpi_name(op), [
@@ -641,7 +669,7 @@ class MpiLowerings(RewritePattern):
                    builtin.IntegerType.from_width(8 * self.info.status_size),
                    as_untyped_ptr=True
                ),
-            ], [res], res  # yapf: disable
+            ], [res.res], res  # yapf: disable
 
     def _emit_memref_counts(
             self, ssa_val: SSAValue) -> tuple[list[Operation], OpResult]:
