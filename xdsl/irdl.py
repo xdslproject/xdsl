@@ -1071,6 +1071,10 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     new_attrs["build"] = classmethod(builder)
     new_attrs["irdl_definition"] = classmethod(property(lambda cls: op_def))
+    for key in new_attrs:
+        setattr(cls, key, new_attrs[key])
+    return cls
+    # return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
