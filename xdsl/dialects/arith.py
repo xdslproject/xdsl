@@ -593,9 +593,9 @@ class Minf(BinaryOperation):
 class IndexCastOp(Operation):
     name = "arith.index_cast"
 
-    input: Annotated[Operand, Attribute]
+    input: Operand
 
-    result: Annotated[OpResult, Attribute]
+    result: OpResult
 
     @classmethod
     def get(cls, input: SSAValue | Operation, target_type: Attribute):
