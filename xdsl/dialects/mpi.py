@@ -359,6 +359,19 @@ MPI = Dialect([
 
 @dataclasses.dataclass
 class MpiLibraryInfo:
+    """
+    This object is meant to capture characteristics of a specific MPI implementations.
+
+    It holds magic values, sizes of structs, field offsets and much more.
+
+    We need these as we currently cannot load these library headers into the programs we want to lower,
+    therefore we need to generate our own external stubs and load magic values directly.
+
+    This way of doing it is inherently fragile, but we don't know of any better way.
+    We plan to include a C file that automagically extracts all this information from MPI headers.
+
+    These defaults have been chosen to work with **our** version of OpenMPI. No guarantees of portability!
+    """
     mpi_comm_world_val: int = 0x44000000
 
     MPI_INT: int = 0x4c000405
@@ -382,7 +395,20 @@ class MpiLibraryInfo:
 
 
 class MpiLowerings(RewritePattern):
+    """
+    This rewrite pattern contains rules to lower the MPI dialect to llvm+func+builin
+
+    In order to lower that far, we require some information about the targeted MPI library
+    (magic values, struct sizes, field offsets, etc.). This information is provided using
+    the MpiLibraryInfo class.
+    """
+
     _emitted_function_calls: dict[str, tuple[list[Attribute], list[Attribute]]]
+    """
+    This object keeps track of all the functions we have emitted and their type signature.
+
+    This is done so we can later on add "external" function declarations so LLVM is happy :)
+    """
 
     MPI_SYMBOL_NAMES = {
         'mpi.init': 'MPI_Init',
@@ -394,12 +420,22 @@ class MpiLowerings(RewritePattern):
         'mpi.recv': 'MPI_Recv',
         'mpi.send': 'MPI_Send'
     }
+    """
+    Translation table for mpi operation names to their MPI library function names
+    """
 
     def __init__(self, info: MpiLibraryInfo):
         self.info = info
         self._emitted_function_calls = dict()
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        """
+        This method acts as a dispatcher to lower individual MPI operations.
+
+        It tries to dispatch calls for each mpi.<name> op to lower_mpi_<name> methods.
+
+        The methods each return the argument inputs to rewriter.replace_matched_op calls
+        """
         if not isinstance(op, MPIBaseOp):
             return
 
@@ -423,21 +459,31 @@ class MpiLowerings(RewritePattern):
     # Individual lowerings:
 
     def lower_mpi_init(self,
-                       op: Init) -> tuple[list[Operation], list[Attribute]]:
-        # and then we emit a func.call op
+                       op: Init) -> tuple[list[Operation], list[OpResult]]:
+        """
+        Relatively easy lowering of mpi.init operation.
+
+        We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
+        """
         return [
             nullptr := llvm.NullOp.get(),
             func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
         ], []
 
-    def lower_mpi_finalize(
-            self, op: Init) -> tuple[list[Operation], list[Attribute]]:
+    def lower_mpi_finalize(self,
+                           op: Init) -> tuple[list[Operation], list[OpResult]]:
+        """
+        Relatively easy lowering of mpi.finalize operation.
+        """
         return [
             func.Call.get(self._mpi_name(op), [], [t_int]),
         ], []
 
     def lower_mpi_wait(self,
-                       op: Wait) -> tuple[list[Operation], list[Attribute]]:
+                       op: Wait) -> tuple[list[Operation], list[OpResult]]:
+        """
+        Relatively easy lowering of mpi.wait operation.
+        """
         ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
             *ops,
@@ -445,8 +491,10 @@ class MpiLowerings(RewritePattern):
         ], new_results  # yapf: disable
 
     def lower_mpi_isend(self,
-                        op: ISend) -> tuple[list[Operation], list[Attribute]]:
+                        op: ISend) -> tuple[list[Operation], list[OpResult]]:
         """
+        This method lowers mpi.isend
+
         int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
               int tag, MPI_Comm comm, MPI_Request *request)
         """
@@ -454,15 +502,15 @@ class MpiLowerings(RewritePattern):
 
         return [
             *count_ops,
-            datatype := self._emit_mpi_type_load(op.buffer.typ.element_type),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request := llvm.AllocaOp.get(
+            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            lit1        := arith.Constant.from_int_and_width(1, builtin.i64),
+            request     := llvm.AllocaOp.get(
                 lit1,
                 builtin.IntegerType.from_width(8 * self.info.request_size)
             ),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
                 request
@@ -470,8 +518,10 @@ class MpiLowerings(RewritePattern):
         ], [request.results[0]]  # yapf: disable
 
     def lower_mpi_irecv(self,
-                        op: IRecv) -> tuple[list[Operation], list[Attribute]]:
+                        op: IRecv) -> tuple[list[Operation], list[OpResult]]:
         """
+        This method lowers mpi.irecv operations
+
         int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
               MPI_Comm comm, MPI_Request *request)
         """
@@ -496,22 +546,31 @@ class MpiLowerings(RewritePattern):
         ], [request.res]  # yapf: disable
 
     def lower_mpi_comm_rank(
-            self, op: CommRank) -> tuple[list[Operation], list[Attribute]]:
+            self, op: CommRank) -> tuple[list[Operation], list[OpResult]]:
+        """
+        This method lowers mpi.comm.rank operation
+
+        int MPI_Comm_rank(MPI_Comm comm, int *rank)
+        """
         return [
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            lit1    := arith.Constant.from_int_and_width(1, 64),
-            int_ptr := llvm.AllocaOp.get(lit1, t_int),
+            lit1        := arith.Constant.from_int_and_width(1, 64),
+            int_ptr     := llvm.AllocaOp.get(lit1, t_int),
             func.Call.get(
                 self._mpi_name(op),
                 [comm_global, int_ptr],
                 [t_int]
             ),
-            rank    := llvm.LoadOp.get(int_ptr)
+            rank        := llvm.LoadOp.get(int_ptr)
         ], [rank.dereferenced_value]  # yapf: disable
 
     def lower_mpi_send(self,
-                       op: Send) -> tuple[list[Operation], list[Attribute]]:
+                       op: Send) -> tuple[list[Operation], list[OpResult]]:
         """
+        This method lowers mpi.send operations
+
+        MPI_Send signature:
+
         int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
                  int tag, MPI_Comm comm)
         """
@@ -519,18 +578,22 @@ class MpiLowerings(RewritePattern):
 
         return [
             *count_ops,
-            datatype := self._emit_mpi_type_load(op.buffer.typ.element_type),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            datatype    := self._emit_mpi_type_load(op.buffer.typ.element_type),
+            tag         := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
             comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, t_int),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            *(ptr       := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
             ], [t_int])
         ], []  # yapf: disable
 
     def lower_mpi_recv(self,
-                       op: Recv) -> tuple[list[Operation], list[Attribute]]:
+                       op: Recv) -> tuple[list[Operation], list[OpResult]]:
         """
+        This method lowers mpi.recv operations
+
+        MPI_Recv signature:
+
         int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
         """
@@ -556,16 +619,24 @@ class MpiLowerings(RewritePattern):
 
     def _emit_mpi_status_obj(
         self, mpi_status_none: bool
-    ) -> tuple[list[Operation], list[Attribute], Operation]:
+    ) -> tuple[list[Operation], list[OpResult], Operation]:
+        """
+        This function create operations that instantiate a pointer to an MPI_Status-sized object.
+
+        If mpi_status_none = True is passed, it instead loads the magic value MPI_STATUS_IGNORE
+
+        This is currently OpenMPI specific code, as other implementations probably have a different
+        magic value for MPI_STATUS_NONE.
+        """
         if mpi_status_none:
             return [
-                lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-                res := llvm.IntToPtrOp.get(lit1)
+                lit1    := arith.Constant.from_int_and_width(1, builtin.i64),
+                res     := llvm.IntToPtrOp.get(lit1)
             ], [], res  # yapf: disable
         else:
             return [
-               lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-               res := llvm.AllocaOp.get(
+               lit1     := arith.Constant.from_int_and_width(1, builtin.i64),
+               res      := llvm.AllocaOp.get(
                    lit1,
                    builtin.IntegerType.from_width(8 * self.info.status_size),
                    as_untyped_ptr=True
@@ -573,20 +644,49 @@ class MpiLowerings(RewritePattern):
             ], [res], res  # yapf: disable
 
     def _emit_memref_counts(
-            self, ssa_val: SSAValue) -> tuple[list[Operation], SSAValue]:
+            self, ssa_val: SSAValue) -> tuple[list[Operation], OpResult]:
+        """
+        This takes in an SSA Value holding a memref, and creates operations
+        to calculate the number of elements in the memref.
+
+        It then returns a list of operations calculating that size, and
+        an OpResult containing the calculated value.
+        """
+        assert isinstance(ssa_val.typ, memref.MemRefType)
+
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        assert isinstance(ssa_val.typ, memref.MemRefType)
+        if not all(dim.value.data >= 0 for dim in ssa_val.typ.shape.data):
+            raise RuntimeError(
+                "MPI lowering does not support unknown-size memrefs!")
+
         size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, t_int)
         return [literal], literal.result
 
-    def _emit_mpi_type_load(self, type: Attribute) -> Operation:
+    def _emit_mpi_type_load(self, type_attr: Attribute) -> Operation:
+        """
+        This emits an instruction loading the correct magic MPI value for the
+        xDSL type of <type_attr> into an SSA Value.
+        """
         return arith.Constant.from_int_and_width(
-            self._translate_to_mpi_type(type), t_int)
+            self._translate_to_mpi_type(type_attr), t_int)
 
     def _translate_to_mpi_type(self, typ: Attribute) -> int:
+        """
+        This translates an xDSL type to a corresponding MPI type
+
+        Currently supported mappings are:
+            floats:
+                f32     -> MPI_FLOAT
+                f64     -> MPI_DOUBLR
+            ints:
+                [u]i8   -> MPI_[UNSIGNED]_CHAR
+                [u]i16  -> MPI_[UNSIGNED]_SHORT
+                [u]i32  -> MPI_UNSIGNED / MPI_INT
+                [u]i64  -> MPI_UNSIGNED_LONG_LONG / MPI_LONG_LONG_INT
+        """
         if isinstance(typ, builtin.Float32Type):
             return self.info.MPI_FLOAT
         if isinstance(typ, builtin.Float64Type):
@@ -619,29 +719,52 @@ class MpiLowerings(RewritePattern):
             "MPI Datatype Conversion: Unsupported type {}".format(typ))
 
     def _mpi_name(self, op: MPIBaseOp) -> str:
+        """
+        Convert the name of an mpi dialect operation to the corresponding MPI function call
+        """
         if op.name not in self.MPI_SYMBOL_NAMES:
-            print("unknown MPI op:  {}".format(op.name))
+            raise RuntimeError(
+                "Lowering of MPI Operations failed, missing lowering for {}!".
+                format(op.name))
         return self.MPI_SYMBOL_NAMES[op.name]
 
     def _memref_get_llvm_ptr(
             self, ref: SSAValue) -> tuple[list[Operation], Operation]:
         """
+        Converts an SSA Value holding a reference to a memref to llvm.ptr
+
+        The official way as per the documentations pecifies the following
+        sequence of operations:
+
           %0 = memref.extract_aligned_pointer_as_index %arg : memref<4x4xf32> -> index
           %1 = arith.index_cast %0 : index to i64
           %2 = llvm.inttoptr %1 : i64 to !llvm.ptr<f32>
+
+        https://mlir.llvm.org/docs/Dialects/MemRef/#memrefextract_aligned_pointer_as_index-mlirmemrefextractalignedpointerasindexop
         """
         return [
-            index := memref.ExtractAlignedPointerAsIndexOp.get(ref),
-            i64 := arith.IndexCastOp.get(index, builtin.i64),
-            ptr := llvm.IntToPtrOp.get(i64)
+            index   := memref.ExtractAlignedPointerAsIndexOp.get(ref),
+            i64     := arith.IndexCastOp.get(index, builtin.i64),
+            ptr     := llvm.IntToPtrOp.get(i64)
         ], ptr  # yapf: disable
 
     def _emit_external_funcs(self) -> list[Operation]:
+        """
+        This method generates external function definitions for all function calls to MPI
+        libraries generated using this instance of the lowering rewrites.
+        """
         return [
             func.FuncOp.external(name, *args)
             for name, args in self._emitted_function_calls.items()
         ]
 
     def insert_externals_into_module(self, op: builtin.ModuleOp):
-        for func in self._emit_external_funcs():
-            op.regions[0].blocks[0].insert_op(func, 0)
+        """
+        This function inserts all external function definitions for MPI function at the top of
+        the given module.
+
+        This can only be called AFTER you applied this rewrite to your module, otherwise no
+        external functions will be inserted!
+        """
+        for func_op in self._emit_external_funcs():
+            op.regions[0].blocks[0].insert_op(func_op, 0)
