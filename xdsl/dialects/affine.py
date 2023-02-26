@@ -4,8 +4,7 @@ from typing import Annotated
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Operation, SSAValue, Block, Region, Dialect
-from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
-                       AnyAttr)
+from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, AnyAttr)
 
 
 class For(Operation):

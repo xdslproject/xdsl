@@ -3,8 +3,7 @@ from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
-from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
-                       OpAttr, OptOpAttr)
+from xdsl.irdl import (VarOpResult, VarOperand, AnyAttr, OpAttr, OptOpAttr)
 from xdsl.utils.exceptions import VerifyException
 
 

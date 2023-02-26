@@ -9,7 +9,7 @@ from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (OptOpResult, OptOperand, OptRegion,
                        OptSingleBlockRegion, Operand, SingleBlockRegion,
                        VarOpResult, VarRegion, VarSingleBlockRegion,
-                       irdl_op_definition, AttrSizedResultSegments, VarOperand,
+                       AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
 
 #  ____                 _ _

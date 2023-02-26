@@ -3,8 +3,8 @@ import pytest
 from xdsl.dialects.builtin import IntAttr, StringAttr
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
-from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
-                       AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
+from xdsl.irdl import (Operand, OperandDef, ResultDef, AttributeDef, AnyAttr,
+                       OpDef, RegionDef, OpAttr)
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 

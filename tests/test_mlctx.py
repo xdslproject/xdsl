@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.ir import MLContext, ParametrizedAttribute
-from xdsl.irdl import irdl_op_definition, irdl_attr_definition, Operation
+from xdsl.irdl import irdl_attr_definition, Operation
 
 
 class DummyOp(Operation):

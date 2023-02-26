@@ -4,7 +4,7 @@ from typing import Annotated
 from xdsl.ir import (Attribute, Data, MLContext, MLIRType, Operation,
                      ParametrizedAttribute, Region)
 from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
-                       irdl_attr_definition, irdl_op_definition)
+                       irdl_attr_definition)
 from xdsl.parser import BaseParser, XDSLParser
 from xdsl.printer import Printer
 

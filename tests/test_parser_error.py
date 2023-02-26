@@ -3,7 +3,7 @@ from typing import Annotated
 from pytest import raises
 
 from xdsl.ir import MLContext
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operation, VarOperand, VarOpResult
+from xdsl.irdl import AnyAttr, Operation, VarOperand, VarOpResult
 from xdsl.parser import XDSLParser
 from xdsl.utils.exceptions import ParseError
 

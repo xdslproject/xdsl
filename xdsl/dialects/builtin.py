@@ -10,8 +10,8 @@ from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
 from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
-                       irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr)
+                       ParameterDef, SingleBlockRegion, Generic, GenericData,
+                       AttrConstraint, AnyAttr)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:

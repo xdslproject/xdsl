@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitA
 from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
-                       irdl_op_definition, Operation, Operand, OptAttributeDef)
+                       Operation, Operand, OptAttributeDef)
 from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic

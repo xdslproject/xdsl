@@ -13,8 +13,7 @@ from xdsl.dialects.builtin import (Float64Type, FunctionType, Attribute,
                                    DenseIntOrFPElementsAttr, AnyTensorType,
                                    StringAttr)
 from xdsl.irdl import (OpAttr, Operand, OptOpAttr, OptOperand, VarOpResult,
-                       VarOperand, irdl_op_definition, AnyAttr, Block, Region,
-                       Operation, OpResult)
+                       VarOperand, AnyAttr, Block, Region, Operation, OpResult)
 from xdsl.utils.exceptions import VerifyException
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]

@@ -5,7 +5,7 @@ from typing import Annotated, List
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (AnyAttr, Operand, SingleBlockRegion, VarOperand,
-                       VarOpResult, irdl_op_definition)
+                       VarOpResult)
 from xdsl.utils.exceptions import VerifyException
 
 

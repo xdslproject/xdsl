@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, Operation, OpResult, BlockArgument
-from xdsl.irdl import irdl_op_definition
 
 
 def test_ssa():

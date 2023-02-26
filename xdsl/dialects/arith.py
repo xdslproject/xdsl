@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexT
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
                                    Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
+from xdsl.irdl import (AnyOf, OpAttr, AnyAttr,
                        Operand)
 from xdsl.utils.exceptions import VerifyException
 

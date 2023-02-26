@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated
 from xdsl.ir import Attribute, Dialect, OpResult, SSAValue
-from xdsl.irdl import Operand, irdl_op_definition, OpAttr, AnyAttr, Operation
+from xdsl.irdl import Operand, OpAttr, AnyAttr, Operation
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
 

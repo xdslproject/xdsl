@@ -7,9 +7,9 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    SymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
-                       Generic, Attribute, AnyAttr, Operand, VarOperand,
-                       AttrSizedOperandSegments, OpAttr)
+from xdsl.irdl import (irdl_attr_definition, ParameterDef, Generic, Attribute,
+                       AnyAttr, Operand, VarOperand, AttrSizedOperandSegments,
+                       OpAttr)
 from xdsl.utils.exceptions import VerifyException
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
