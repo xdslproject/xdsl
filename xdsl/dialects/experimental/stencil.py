@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast, Any
 
-from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr,
-                                   f32, f64,
+from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, f32, f64,
                                    IntegerType, IndexType, IntAttr, AnyFloat)
 from xdsl.ir import Operation, Dialect
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -12,8 +11,6 @@ from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
                        VarOpResult, OptOpAttr)
 
-
-#
 
 @dataclass
 class IntOrUnknown(AttrConstraint):
@@ -45,11 +42,8 @@ class FieldType(ParametrizedAttribute):
             return FieldType([ArrayAttr.from_list(shape)])
 
         shape = cast(list[int], shape)
-        return FieldType([
-            ArrayAttr.from_list([
-                IntAttr.from_int(d) for d in shape
-            ])
-        ])
+        return FieldType(
+            [ArrayAttr.from_list([IntAttr.from_int(d) for d in shape])])
 
 
 @irdl_attr_definition
@@ -60,8 +54,7 @@ class TempType(ParametrizedAttribute):
 
     @staticmethod
     def from_shape(
-        shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]
-    ) -> TempType:
+            shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]) -> TempType:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
@@ -74,11 +67,8 @@ class TempType(ParametrizedAttribute):
             # the if above is a sufficient type guard, but pyright does not understand :/
             return TempType([ArrayAttr.from_list(shape)])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType([
-            ArrayAttr.from_list([
-                IntAttr.from_int(d) for d in shape
-            ])
-        ])
+        return TempType(
+            [ArrayAttr.from_list([IntAttr.from_int(d) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
@@ -121,6 +111,7 @@ class Stencil_Element(ParametrizedAttribute):
 
 @dataclass(frozen=True)
 class Stencil_Index(ParametrizedAttribute):
+    # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
     shape = Annotated[ArrayAttr[IntAttr], ArrayLength(2)]
 
@@ -320,9 +311,25 @@ class Return(Operation):
     name: str = "stencil.return"
     args: Annotated[VarOperand, Attribute]
 
-# TODO: create dialect
+
 Dialect([
-
+    Cast,
+    External_Load,
+    External_Store,
+    Index,
+    Access,
+    DynAccess,
+    Load,
+    Buffer,
+    Store,
+    Apply,
+    StoreResult,
+    Return,
 ], [
-
+    FieldType,
+    TempType,
+    ResultType,
+    Stencil_Element,
+    Stencil_Index,
+    Stencil_Loop,
 ])
