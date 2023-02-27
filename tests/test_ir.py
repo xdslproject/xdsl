@@ -1,7 +1,7 @@
 from typing import cast
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.dialects.arith import Addi, Subi, Constant
 from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
@@ -30,6 +30,11 @@ def test_ops_accessor():
 
     assert d.results[0] != c.results[0]
 
+    assert c.lhs.owner is a
+    assert c.rhs.owner is b
+    assert d.lhs.owner is a
+    assert d.rhs.owner is b
+
 
 def test_ops_accessor_II():
     a = Constant.from_int_and_width(1, i32)
@@ -56,6 +61,11 @@ def test_ops_accessor_II():
     region2.blocks[0].erase_op(a, safe_erase=False)
     region2.blocks[0].erase_op(b, safe_erase=False)
     region2.blocks[0].erase_op(c, safe_erase=False)
+
+    assert isinstance(c.lhs, ErasedSSAValue)
+    assert isinstance(c.rhs, ErasedSSAValue)
+    assert c.lhs.owner is a
+    assert c.rhs.owner is b
 
     region2.detach_block(block0)
     region2.drop_all_references()

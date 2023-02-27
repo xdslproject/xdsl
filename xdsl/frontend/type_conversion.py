@@ -4,7 +4,7 @@ import xdsl.frontend.dialects.builtin as frontend_builtin
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, _GenericAlias, Type, TypeAlias  # type: ignore
-from xdsl.frontend.dialects.builtin import _FrontendType
+from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.ir import Attribute
 
@@ -39,13 +39,13 @@ class TypeConverter:
     what overloaded Python operations does this xDSL type support.
     """
 
-    file: str = field(default=None)
+    file: str | None = field(default=None)
 
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and
         # many other IR constructs.
-        self._cache_type(frontend_builtin._Index, xdsl_builtin.IndexType(),
-                         "index")
+        index = frontend_builtin._Index  # type: ignore
+        self._cache_type(index, xdsl_builtin.IndexType(), "index")
 
     def _cache_type(self, frontend_type: Type[_FrontendType],
                     xdsl_type: Attribute, type_name: TypeName) -> None:
@@ -72,7 +72,7 @@ class TypeConverter:
         # First, type can be generic, e.g. `class _Integer(Generic[_W, _S])`.
         if isinstance(type_class, _GenericAlias):
             generic_type_arguments = type_class.__args__
-            arguments_for_constructor = []
+            arguments_for_constructor: list[Any] = []
             for type_argument in generic_type_arguments:
 
                 # Convert Literal[...] to concrete values.

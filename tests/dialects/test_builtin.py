@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData)
+                                   FloatData, SymbolRefAttr)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -52,3 +52,13 @@ def test_array_len_attr():
 
     assert len(arr) == 10
     assert len(arr.data) == len(arr)
+
+
+@pytest.mark.parametrize('ref,expected', (
+    (SymbolRefAttr.from_str('test'), 'test'),
+    (SymbolRefAttr.from_str('test', ["2"]), 'test.2'),
+    (SymbolRefAttr.from_str('test', ["2", "3"]), 'test.2.3'),
+))
+def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
+    assert ref.string_value() == expected
+

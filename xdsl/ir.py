@@ -130,6 +130,15 @@ class SSAValue(ABC):
         r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
 
     @property
+    @abstractmethod
+    def owner(self) -> Operation | Block:
+        """
+        An SSA variable is either an operation result, or a basic block argument.
+        This property returns the Operation or Block that currently defines a specific value.
+        """
+        pass
+
+    @property
     def name(self) -> str | None:
         return self._name
 
@@ -189,6 +198,10 @@ class OpResult(SSAValue):
     result_index: int
     """The index of the result in the defining operation."""
 
+    @property
+    def owner(self) -> Operation:
+        return self.op
+
     def __repr__(self) -> str:
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}, " + \
                f"op_name={repr(self.op.name)}, " + \
@@ -211,6 +224,10 @@ class BlockArgument(SSAValue):
 
     index: int
     """The index of the variable in the block arguments."""
+
+    @property
+    def owner(self) -> Block:
+        return self.block
 
     def __repr__(self) -> str:
         if isinstance(self.block, Block):
@@ -236,6 +253,10 @@ class ErasedSSAValue(SSAValue):
     """
 
     old_value: SSAValue
+
+    @property
+    def owner(self) -> Operation | Block:
+        return self.old_value.owner
 
     def __hash__(self) -> int:  # type: ignore
         return hash(id(self))
