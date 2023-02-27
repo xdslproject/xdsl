@@ -1,43 +1,19 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr,
-                                   IntegerAttr, Float64Type, f32, f64,
-                                   IntegerType, IndexType, IntAttr, AnyFloat)
 
-from xdsl.ir import MLContext, Operation
+from dataclasses import dataclass
+from typing import cast, Any
+
+from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr,
+                                   f32, f64,
+                                   IntegerType, IndexType, IntAttr, AnyFloat)
+from xdsl.ir import Operation, Dialect
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
                        VarOpResult, OptOpAttr)
 
-from typing import Sequence, cast, Any
 
-
-@dataclass
-class Stencil:
-    ctx: MLContext
-
-    def __post_init__(self):
-        self.ctx.register_attr(FieldType)
-        self.ctx.register_attr(TempType)
-        self.ctx.register_attr(ResultType)
-
-        self.ctx.register_op(Cast)
-        self.ctx.register_op(External_Load)
-        self.ctx.register_op(External_Store)
-        self.ctx.register_op(Index)
-        self.ctx.register_op(Access)
-        self.ctx.register_op(DynAccess)
-        self.ctx.register_op(Load)
-        self.ctx.register_op(Buffer)
-        self.ctx.register_op(Store)
-        self.ctx.register_op(Apply)
-        self.ctx.register_op(StoreResult)
-        self.ctx.register_op(Return)
-
-
-# Types
-
+#
 
 @dataclass
 class IntOrUnknown(AttrConstraint):
@@ -59,14 +35,19 @@ class IntOrUnknown(AttrConstraint):
 class FieldType(ParametrizedAttribute):
     name = "stencil.field"
 
-    shape: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
 
     @staticmethod
-    def from_shape(shape: Sequence[int | IntegerAttr[IndexType]]) -> FieldType:
+    def from_shape(shape: list[int] | list[IntAttr]) -> FieldType:
+        # TODO: why do we need all these casts here, can we tell pyright "trust me"
+        if all(isinstance(elm, IntAttr) for elm in shape):
+            shape = cast(list[IntAttr], shape)
+            return FieldType([ArrayAttr.from_list(shape)])
+
+        shape = cast(list[int], shape)
         return FieldType([
             ArrayAttr.from_list([
-                IntegerAttr.from_params(d, IndexType())
-                if isinstance(d, int) else d for d in shape
+                IntAttr.from_int(d) for d in shape
             ])
         ])
 
@@ -75,34 +56,34 @@ class FieldType(ParametrizedAttribute):
 class TempType(ParametrizedAttribute):
     name = "stencil.temp"
 
-    shape: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
 
     @staticmethod
     def from_shape(
-        shape: ArrayAttr[IntegerAttr[IndexType]]
-        | Sequence[int | IntegerAttr[IndexType]]
+        shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]
     ) -> TempType:
         assert len(shape) > 0
+
         if isinstance(shape, ArrayAttr):
             return TempType([shape])
+
         # cast to list
-        shape = list(shape)
-        if all((isinstance(shape_elm, IntegerAttr)
-                and isinstance(shape_elm.typ, IndexType))
-               for shape_elm in shape):
+        shape = cast(list[IntAttr] | list[int], shape)
+
+        if isinstance(shape[0], IntAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
             return TempType([ArrayAttr.from_list(shape)])  # type: ignore
+        shape = cast(list[int], shape)
         return TempType([
             ArrayAttr.from_list([
-                IntegerAttr.from_params(d, IndexType())
-                if isinstance(d, int) else d for d in shape
+                IntAttr.from_int(d) for d in shape
             ])
         ])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
         for size in self.shape.data:
-            repr += f"{size.value.data} "
+            repr += f"{size.data} "
         repr += "]>"
         return repr
 
@@ -113,7 +94,7 @@ class ResultType(ParametrizedAttribute):
     elem: ParameterDef[AnyFloat]
 
     @staticmethod
-    def from_type(float_t: Float64Type):
+    def from_type(float_t: AnyFloat):
         return ResultType([float_t])
 
 
@@ -338,3 +319,10 @@ class Return(Operation):
     """
     name: str = "stencil.return"
     args: Annotated[VarOperand, Attribute]
+
+# TODO: create dialect
+Dialect([
+
+], [
+
+])
