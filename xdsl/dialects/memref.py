@@ -312,9 +312,10 @@ class ExtractAlignedPointerAsIndexOp(Operation):
 
     aligned_pointer: Annotated[OpResult, IndexType]
 
-    @classmethod
-    def get(cls, source: SSAValue | Operation):
-        return cls.build(operands=[source], result_types=[IndexType()])
+    @staticmethod
+    def get(source: SSAValue | Operation):
+        return ExtractAlignedPointerAsIndexOp.build(operands=[source],
+                                                    result_types=[IndexType()])
 
 
 MemRef = Dialect([
