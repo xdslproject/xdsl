@@ -64,7 +64,7 @@ class BinaryOperation(Operation):
 
 
 @irdl_op_definition
-class Addi(BinaryOperation):
+class Addi(BinaryOperation, NoSideEffect):
     name: str = "arith.addi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
