@@ -5,7 +5,7 @@ from typing import cast, Any
 
 from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, f32, f64,
                                    IntegerType, IndexType, IntAttr, AnyFloat)
-from xdsl.ir import Operation, Dialect
+from xdsl.ir import Operation, Dialect, MLIRType
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
@@ -29,7 +29,7 @@ class IntOrUnknown(AttrConstraint):
 
 
 @irdl_attr_definition
-class FieldType(ParametrizedAttribute):
+class FieldType(ParametrizedAttribute, MLIRType):
     name = "stencil.field"
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
@@ -47,7 +47,7 @@ class FieldType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class TempType(ParametrizedAttribute):
+class TempType(ParametrizedAttribute, MLIRType):
     name = "stencil.temp"
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
@@ -79,7 +79,7 @@ class TempType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class ResultType(ParametrizedAttribute):
+class ResultType(ParametrizedAttribute, MLIRType):
     name = "stencil.result"
     elem: ParameterDef[AnyFloat]
 
@@ -104,7 +104,7 @@ class ArrayLength(AttrConstraint):
 
 
 @dataclass(frozen=True)
-class Stencil_Element(ParametrizedAttribute):
+class Stencil_Element(ParametrizedAttribute, MLIRType):
     name = "stencil.element"
     element = AnyOf([f32, f64])
 
@@ -273,11 +273,11 @@ class Apply(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, Attribute]
+    args: Annotated[VarOperand, FieldType]
     lb: OptOpAttr[Stencil_Index]
     ub: OptOpAttr[Stencil_Index]
     region: Region
-    res: Annotated[VarOpResult, Attribute]
+    res: Annotated[VarOpResult, FieldType]
 
 
 @irdl_op_definition
@@ -297,7 +297,7 @@ class StoreResult(Operation):
 @irdl_op_definition
 class Return(Operation):
     """
-    The return operation terminates the the stencil apply and writes
+    The return operation terminates the stencil apply and writes
     the results of the stencil operator to the temporary values returned
     by the stencil apply operation. The types and the number of operands
     must match the results of the stencil apply operation.
@@ -309,7 +309,7 @@ class Return(Operation):
       stencil.return %0 : !stencil.result<f64>
     """
     name: str = "stencil.return"
-    args: Annotated[VarOperand, Attribute]
+    args: Annotated[VarOperand, ResultType]
 
 
 @irdl_op_definition
@@ -325,7 +325,9 @@ class Combine(Operation):
       %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
     """
     name: str = "stencil.combine"
-    dim: Annotated[Operand, IntegerType]  # 0 <= dim <= 2
+    dim: Annotated[
+        Operand,
+        IntegerType]  # TODO: how to use the ArrayLength constraint here? 0 <= dim <= 2
     index: Annotated[Operand, IntegerType]
 
     lower: Annotated[VarOperand, TempType]
