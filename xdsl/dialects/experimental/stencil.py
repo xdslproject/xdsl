@@ -103,8 +103,9 @@ class ArrayLength(AttrConstraint):
             )
 
 
+# TODO: How can we inherit from MLIRType and ParametrizedAttribute?
 @dataclass(frozen=True)
-class Stencil_Element(ParametrizedAttribute, MLIRType):
+class Stencil_Element(ParametrizedAttribute):
     name = "stencil.element"
     element = AnyOf([f32, f64])
 
