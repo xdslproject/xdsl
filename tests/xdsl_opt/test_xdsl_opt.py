@@ -12,7 +12,7 @@ def test_opt():
     opt = xDSLOptMain(args=[])
     assert list(opt.available_frontends.keys()) == ['xdsl', 'mlir']
     assert list(opt.available_targets.keys()) == ['xdsl', 'irdl', 'mlir']
-    assert list(opt.available_passes.keys()) == []
+    assert list(opt.available_passes.keys()) == ['dce']
 
 
 def test_empty_program():
