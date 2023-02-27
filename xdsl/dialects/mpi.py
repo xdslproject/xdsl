@@ -477,7 +477,7 @@ class MpiLowerings(RewritePattern):
         ], []
 
     def lower_mpi_finalize(self,
-                           op: Init) -> tuple[list[Operation], list[OpResult]]:
+                           op: Finalize) -> tuple[list[Operation], list[OpResult]]:
         """
         Relatively easy lowering of mpi.finalize operation.
         """

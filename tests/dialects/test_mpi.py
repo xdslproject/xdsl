@@ -7,7 +7,6 @@ from xdsl.dialects.mpi import (ISend, IRecv, Test, Wait, t_int, GetStatusField,
                                StatusTypeField)
 from xdsl.dialects import func, arith, mpi, scf, memref
 
-from xdsl.ir import Region
 from xdsl.printer import Printer
 
 
