@@ -385,12 +385,12 @@ class MpiLibraryInfo:
     MPI_UNSIGNED_LONG: int = 0x4c000808
     MPI_FLOAT: int = 0x4c00040a
     MPI_DOUBLE: int = 0x4c00080b
-    MPI_UNSIGNED_CHAR = -1
-    MPI_UNSIGNED_SHORT = -1
-    MPI_UNSIGNED_LONG_LONG = -1
-    MPI_CHAR = -1
-    MPI_SHORT = -1
-    MPI_LONG_LONG_INT = -1
+    MPI_UNSIGNED_CHAR: int = -1
+    MPI_UNSIGNED_SHORT: int = -1
+    MPI_UNSIGNED_LONG_LONG: int = -1
+    MPI_CHAR: int = -1
+    MPI_SHORT: int = -1
+    MPI_LONG_LONG_INT: int = -1
 
     MPI_STATUS_IGNORE: int = 1
 
@@ -427,6 +427,11 @@ class MpiLowerings(RewritePattern):
     }
     """
     Translation table for mpi operation names to their MPI library function names
+    """
+
+    info: MpiLibraryInfo
+    """
+    This object carries information about the targeted MPI libraray
     """
 
     def __init__(self, info: MpiLibraryInfo):
@@ -476,8 +481,8 @@ class MpiLowerings(RewritePattern):
             func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
         ], []
 
-    def lower_mpi_finalize(self,
-                           op: Finalize) -> tuple[list[Operation], list[OpResult]]:
+    def lower_mpi_finalize(
+            self, op: Finalize) -> tuple[list[Operation], list[OpResult]]:
         """
         Relatively easy lowering of mpi.finalize operation.
         """
