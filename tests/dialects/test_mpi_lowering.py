@@ -1,14 +1,39 @@
 from xdsl.dialects import mpi, func, llvm, builtin
-from xdsl.ir import Operation, Attribute, OpResult
+from xdsl.ir import Operation, Attribute, OpResult, SSAValue
 from xdsl.irdl import irdl_op_definition, VarOpResult
 
 lowering = mpi.MpiLowerings(mpi.MpiLibraryInfo())
 
 
-def extract_func_call(ops: list[Operation]) -> func.Call | None:
+def extract_func_call(ops: list[Operation],
+                      name: str = 'MPI_') -> func.Call | None:
     for op in ops:
-        if isinstance(op, func.Call) and op.callee.string_value().startswith('MPI_'):
+        if isinstance(op,
+                      func.Call) and op.callee.string_value().startswith(name):
             return op
+
+
+def check_emitted_function_signature(ops: list[Operation],
+                                     name: str,
+                                     types: tuple[type[Attribute] | None, ...],
+                                     ignore_list: tuple[SSAValue] = tuple()):
+    call = extract_func_call(ops, name)
+    assert call is not None, "Missing func.Call op in output!"
+    assert len(call.arguments) == len(types)
+    for i, type_ in enumerate(types):
+        arg = call.arguments[i]
+
+        # check that the argument type is correct (if constraint present)
+        if type_ is not None:
+            assert isinstance(arg.typ, type_), f"Expected argument to be of type {type_} (got {arg.typ} instead)"
+
+        # check that all arguments originate in the emitted operations, except for the exceptions
+        if arg in ignore_list:
+            continue
+
+        assert isinstance(arg, OpResult)
+        assert arg.op in ops, f"Expected {arg.op} to be present in the emitted operations!"
+
 
 
 @irdl_op_definition
@@ -64,7 +89,8 @@ def test_lower_mpi_wait_no_status():
 def test_lower_mpi_wait_with_status():
     request, = TestOp.get(mpi.RequestType()).results
 
-    ops, result = lowering.lower_mpi_wait(mpi.Wait.get(request, ignore_status=False))
+    ops, result = lowering.lower_mpi_wait(
+        mpi.Wait.get(request, ignore_status=False))
 
     assert len(result) == 1
     assert isinstance(result[0].typ, llvm.LLVMPointerType)
@@ -76,12 +102,27 @@ def test_lower_mpi_wait_with_status():
     assert isinstance(call.arguments[1].op, llvm.AllocaOp)
 
 
+def test_lower_mpi_comm_rank():
+    ops, result = lowering.lower_mpi_comm_rank(mpi.CommRank.get())
+
+    assert len(result) == 1
+    assert result[0].typ == mpi.t_int
+
+    # check signature of emitted function call
+    # int MPI_Comm_rank(MPI_Comm comm, int *rank)
+    check_emitted_function_signature(
+        ops,
+        'MPI_Comm_rank',
+        (None, llvm.LLVMPointerType),
+    )
+
 
 def test_lower_mpi_send():
-    buff, dest = TestOp.get(mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32,32,32]), mpi.t_int).results
+    buff, dest = TestOp.get(
+        mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
+        mpi.t_int).results
 
     ops, result = lowering.lower_mpi_send(mpi.Send.get(buff, dest, 1))
-
     """
     Check for function with signature like:
     int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -91,34 +132,17 @@ def test_lower_mpi_send():
     # send has no return
     assert len(result) == 0
 
-    # get call op
-    call = extract_func_call(ops)
-    assert call is not None
-    assert call.callee.string_value() == 'MPI_Send'
-    assert len(call.arguments) == 6
-
-    # check arg types
-    types = (llvm.LLVMPointerType, type(mpi.t_int), None, type(mpi.t_int), type(mpi.t_int), None)
-    for i, type_ in enumerate(types):
-        arg = call.arguments[i]
-        assert isinstance(arg, OpResult)
-
-        # check that all arguments originate in the emitted operations
-        if arg != dest:  # (except for the dest arg)
-            assert arg.op in ops
-
-        if type_ is None:  # if no type info is given, that's enough
-            continue
-
-        assert isinstance(arg.typ, type_)
-
+    check_emitted_function_signature(
+        ops, 'MPI_Send', (llvm.LLVMPointerType, type(mpi.t_int), None,
+                          type(mpi.t_int), type(mpi.t_int), None), (dest, ))
 
 
 def test_lower_mpi_isend():
-    buff, dest = TestOp.get(mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32,32,32]), mpi.t_int).results
+    buff, dest = TestOp.get(
+        mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
+        mpi.t_int).results
 
     ops, result = lowering.lower_mpi_isend(mpi.ISend.get(buff, dest, 1))
-
     """
     Check for function with signature like:
     int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -128,24 +152,11 @@ def test_lower_mpi_isend():
     # send has no return
     assert len(result) == 1
 
-    # get call op
-    call = extract_func_call(ops)
-    assert call is not None
-    assert call.callee.string_value() == 'MPI_Isend'
-    assert len(call.arguments) == 7
+    check_emitted_function_signature(
+        ops, 'MPI_Isend',
+        (llvm.LLVMPointerType, type(mpi.t_int), None, type(
+            mpi.t_int), type(mpi.t_int), None, llvm.LLVMPointerType), (dest, ))
 
-    # check arg types
-    types = (llvm.LLVMPointerType, type(mpi.t_int), None, type(mpi.t_int), type(mpi.t_int), None, llvm.LLVMPointerType)
-    for i, type_ in enumerate(types):
-        arg = call.arguments[i]
-        assert isinstance(arg, OpResult)
 
-        # check that all arguments originate in the emitted operations
-        if arg != dest:  # (except for the dest arg)
-            assert arg.op in ops
 
-        if type_ is None:  # if no type info is given, that's enough
-            continue
-
-        assert isinstance(arg.typ, type_)
 
