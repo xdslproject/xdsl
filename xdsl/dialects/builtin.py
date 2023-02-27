@@ -85,9 +85,6 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
         return ArrayAttr(data)
 
-    def __len__(self):
-        return len(self.data)
-
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
