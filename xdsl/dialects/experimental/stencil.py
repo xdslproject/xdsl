@@ -326,7 +326,7 @@ class Combine(Operation):
     """
     name: str = "stencil.combine"
     dim: Annotated[Operand, IntegerType]  # 0 <= dim <= 2
-    index:  Annotated[Operand, IntegerType]
+    index: Annotated[Operand, IntegerType]
 
     lower: Annotated[VarOperand, TempType]
     upper: Annotated[VarOperand, TempType]
