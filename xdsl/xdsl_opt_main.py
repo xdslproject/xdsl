@@ -18,7 +18,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 
-from xdsl.transforms.DeadCodeElim import dce
+from xdsl.transforms.DeadCodeElimination import dce
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
