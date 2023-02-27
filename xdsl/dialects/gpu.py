@@ -42,7 +42,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
-        parser.parse_characters("<", f"Expected <. gpu attributes currently have the #gpu<name value> syntax.")
+        parser.parse_characters(
+            "<",
+            f"Expected <. gpu attributes currently have the #gpu<name value> syntax."
+        )
         ntok = parser.tokenizer.next_token()
 
         if ntok.text == "dim":
@@ -66,7 +69,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
             parser.raise_error(
                 f"Unexpected token {ntok.text}. Expected dim or all_reduce_op",
                 ntok)
-        parser.parse_characters(">", f"Expected >. gpu attributes currently have the #gpu<name value> syntax.")
+        parser.parse_characters(
+            ">",
+            f"Expected >. gpu attributes currently have the #gpu<name value> syntax."
+        )
         return [attrtype([StringAttr.from_str(vtok.text)])]
 
     @classmethod
