@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData)
+                                   FloatData, SymbolRefAttr)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -45,3 +45,12 @@ def test_DenseArrayBase_verifier_failure():
         DenseArrayBase([i32, ArrayAttr.from_list([FloatData(0.0)])])
     assert err.value.args[0] == ("dense array of integer element type "
                                  "should only contain integers")
+
+
+@pytest.mark.parametrize('ref,expected', (
+    (SymbolRefAttr.from_str('test'), 'test'),
+    (SymbolRefAttr.from_str('test', ["2"]), 'test.2'),
+    (SymbolRefAttr.from_str('test', ["2", "3"]), 'test.2.3'),
+))
+def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
+    assert ref.string_value() == expected

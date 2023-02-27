@@ -141,6 +141,12 @@ class SymbolRefAttr(ParametrizedAttribute):
                          nested: List[StringAttr] = []) -> SymbolRefAttr:
         return SymbolRefAttr([root, ArrayAttr(nested)])
 
+    def string_value(self):
+        root = self.root_reference.data
+        for ref in self.nested_references.data:
+            root += '.' + ref.data
+        return root
+
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
