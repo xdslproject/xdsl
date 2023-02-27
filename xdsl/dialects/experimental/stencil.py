@@ -9,7 +9,7 @@ from xdsl.ir import Operation, Dialect
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
-                       VarOpResult, OptOpAttr)
+                       VarOpResult, OptOpAttr, AttrSizedOperandSegments)
 
 
 @dataclass
@@ -312,6 +312,36 @@ class Return(Operation):
     args: Annotated[VarOperand, Attribute]
 
 
+@irdl_op_definition
+class Combine(Operation):
+    """
+    Combines the results computed on a lower with the results computed on
+    an upper domain. The operation combines the domain at a given index/offset
+    in a given dimension. Optional extra operands allow to combine values
+    that are only written / defined on the lower or upper subdomain. The result
+    values have the order upper/lower, lowerext, upperext.
+
+    Example:
+      %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
+    """
+    name: str = "stencil.combine"
+    dim: Annotated[Operand, IntegerType]  # 0 <= dim <= 2
+    index:  Annotated[Operand, IntegerType]
+
+    lower: Annotated[VarOperand, TempType]
+    upper: Annotated[VarOperand, TempType]
+    lower_ext: Annotated[VarOperand, TempType]
+    upper_ext: Annotated[VarOperand, TempType]
+
+    lb = OptOpAttr[Stencil_Index]
+    ub = OptOpAttr[Stencil_Index]
+
+    region: Region
+    res: VarOpResult
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
 Dialect([
     Cast,
     External_Load,
@@ -325,6 +355,7 @@ Dialect([
     Apply,
     StoreResult,
     Return,
+    Combine,
 ], [
     FieldType,
     TempType,
