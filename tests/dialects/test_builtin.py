@@ -61,4 +61,3 @@ def test_array_len_attr():
 ))
 def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
-
