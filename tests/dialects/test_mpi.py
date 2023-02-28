@@ -65,7 +65,7 @@ def test_mpi_combo():
 
 
 def test_mpi_baseop():
-    alloc0 = mpi.Alloc.get(f64, 32, [100, 14, 14])
+    alloc0 = memref.Alloc.get(f64, 32, [100, 14, 14])
     dest = Constant.from_int_and_width(1, mpi.t_int)
     send = mpi.ISend.get(alloc0, dest, 1)
     recv = mpi.IRecv.get(dest, alloc0.memref, 1)
