@@ -5,7 +5,7 @@ from typing import cast, Any
 
 from xdsl.dialects.builtin import (ParametrizedAttribute, ArrayAttr, f32, f64,
                                    IntegerType, IndexType, IntAttr, AnyFloat)
-from xdsl.ir import Operation, Dialect, MLIRType
+from xdsl.ir import Operation, MLIRType
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
                        AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
