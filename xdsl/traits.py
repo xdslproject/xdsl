@@ -7,7 +7,7 @@ class Trait(ABC):
     """
 
 
-class NoSideEffect(Trait):
+class Pure(Trait):
     """
     Defines that an Operation does not have side effects.
     """

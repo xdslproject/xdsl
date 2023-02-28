@@ -10,7 +10,7 @@ from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand)
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import NoSideEffect
+from xdsl.traits import Pure
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
@@ -18,7 +18,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 _FloatTypeT = TypeVar('_FloatTypeT', bound=AnyFloat)
 
 @irdl_op_definition
-class Constant(Operation, NoSideEffect):
+class Constant(Operation, Pure):
     name: str = "arith.constant"
     result: Annotated[OpResult, AnyAttr()]
     value: OpAttr[Attribute]
@@ -64,7 +64,7 @@ class BinaryOperation(Operation):
 
 
 @irdl_op_definition
-class Addi(BinaryOperation, NoSideEffect):
+class Addi(BinaryOperation, Pure):
     name: str = "arith.addi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
