@@ -50,7 +50,7 @@ setup(
     description="xDSL",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    scripts=['xdsl/tools/xdsl-opt'],
+    entry_points={"console_scripts": ["xdsl-opt = xdsl.tools.xdsl_opt:main"]},
     project_urls={
         "Source Code": "https://github.com/xdslproject/xdsl",
         "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
