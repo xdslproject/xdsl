@@ -192,13 +192,12 @@ def test_allof_verify_fail():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(IntData(10))
-    assert e.value.args[
-        0] == f"The following constraints were not satisfied:\n{IntData(10)} should hold a value less than 10"
+    assert e.value.args[0] == f"{IntData(10)} should hold a value less than 10"
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(IntData(0))
     assert e.value.args[
-        0] == f"The following constraints were not satisfied:\n{IntData(0)} should hold a value greater than 0"
+        0] == f"{IntData(0)} should hold a value greater than 0"
 
 
 def test_allof_verify_multiple_failures():
