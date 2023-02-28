@@ -1,7 +1,7 @@
-from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import SymbolRefAttr, i32
-from xdsl.dialects.gpu import AllReduceOperationAttr, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, ThreadIdOp
-from xdsl.ir import Operation
+from typing import List
+from xdsl.dialects import builtin, arith
+from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, ThreadIdOp, YieldOp
+from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 def test_dimension():
@@ -14,6 +14,38 @@ def test_all_reduce_operation():
     op = AllReduceOperationAttr.from_op("add")
 
     assert op.data == "add"
+
+
+def test_all_reduce():
+    op = AllReduceOperationAttr.from_op("add")
+
+    init = arith.Constant.from_int_and_width(0, builtin.IndexType())
+
+    all_reduce = AllReduceOp.from_op(op, init)
+
+    assert isinstance(all_reduce, AllReduceOp)
+    assert all_reduce.op is op
+    assert all_reduce.operand is init.result
+    assert all_reduce.uniform is None
+    assert all_reduce.result.typ is all_reduce.operand.typ
+
+    body_block = Block.from_arg_types(
+        [builtin.IndexType(), builtin.IndexType()])
+
+    ops: list[Operation] = [
+        sum := Operation.clone(arith.Addi.get(*body_block.args)),
+        YieldOp.get([sum])
+    ]
+
+    body = Region.from_operation_list(ops)
+
+    all_reduce_body = AllReduceOp.from_body(body, init)
+
+    assert isinstance(all_reduce_body, AllReduceOp)
+    assert all_reduce_body.op is None
+    assert all_reduce_body.operand is init.result
+    assert all_reduce_body.uniform is None
+    assert all_reduce_body.result.typ is all_reduce_body.operand.typ
 
 
 def test_barrier():
@@ -41,7 +73,7 @@ def test_block_id():
 
 
 def test_gpu_module():
-    name = SymbolRefAttr.from_str("gpu")
+    name = builtin.SymbolRefAttr.from_str("gpu")
 
     ops: list[Operation] = [ModuleEndOp.get()]
 
@@ -89,7 +121,7 @@ def test_num_subgroups():
 
 
 def test_set_default_device():
-    devIndex = Constant.from_int_and_width(0, i32)
+    devIndex = arith.Constant.from_int_and_width(0, builtin.i32)
 
     set_default_device = SetDefaultDeviceOp.get(devIndex)
 
@@ -116,3 +148,18 @@ def test_thread_id():
 
     assert isinstance(thread_id, ThreadIdOp)
     assert thread_id.dimension is dim
+
+
+def test_yield():
+
+    operands: list[SSAValue | Operation] = [
+        o for o in [
+            arith.Constant.from_int_and_width(42, builtin.i32),
+            arith.Constant.from_int_and_width(19, builtin.IndexType()),
+            arith.Constant.from_int_and_width(84, builtin.i64),
+        ]
+    ]
+    yield_op = YieldOp.get(operands)
+
+    assert isinstance(yield_op, YieldOp)
+    assert yield_op.operands == tuple([SSAValue.get(o) for o in operands])
