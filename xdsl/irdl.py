@@ -143,7 +143,7 @@ class AllOf(AttrConstraint):
 
         if len(exc_bucket):
             if len(exc_bucket) == 1:
-                raise VerifyException(str(exc_bucket[0]))
+                raise VerifyException(str(exc_bucket[0])) from exc_bucket[0]
             exc_msg = "The following constraints were not satisfied:\n"
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
