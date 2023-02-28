@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Generic, Type, TypeVar
+from typing import Annotated, Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, Operation, Dialect, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, SSAValue
+from xdsl.irdl import Operand, ParameterDef, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
+from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, i32
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -101,6 +101,39 @@ AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
 
 
 @irdl_op_definition
+class BarrierOp(Operation):
+    name = "gpu.barrier"
+
+    @staticmethod
+    def get() -> BarrierOp:
+        return BarrierOp.build()
+
+
+@irdl_op_definition
+class BlockDimOp(Operation):
+    name = "gpu.block_dim"
+    dimension: OpAttr[DimensionAttr]
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(dim: DimensionAttr) -> BlockDimOp:
+        return BlockDimOp.build(result_types=[IndexType()],
+                                attributes={"dimension": dim})
+
+
+@irdl_op_definition
+class BlockIdOp(Operation):
+    name = "gpu.block_id"
+    dimension: OpAttr[DimensionAttr]
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(dim: DimensionAttr) -> BlockIdOp:
+        return BlockIdOp.build(result_types=[IndexType()],
+                               attributes={"dimension": dim})
+
+
+@irdl_op_definition
 class ModuleOp(Operation):
     name = "gpu.module"
 
@@ -119,6 +152,40 @@ class ModuleOp(Operation):
 
 
 @irdl_op_definition
+class GlobalIdOp(Operation):
+    name = "gpu.global_id"
+    dimension: OpAttr[DimensionAttr]
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(dim: DimensionAttr) -> GlobalIdOp:
+        return GlobalIdOp.build(result_types=[IndexType()],
+                                attributes={"dimension": dim})
+
+
+@irdl_op_definition
+class GridDimOp(Operation):
+    name = "gpu.grid_dim"
+    dimension: OpAttr[DimensionAttr]
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(dim: DimensionAttr) -> GridDimOp:
+        return GridDimOp.build(result_types=[IndexType()],
+                               attributes={"dimension": dim})
+
+
+@irdl_op_definition
+class LaneIdOp(Operation):
+    name = "gpu.lane_id"
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get() -> LaneIdOp:
+        return LaneIdOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
 class ModuleEndOp(Operation):
     name = "gpu.module_end"
 
@@ -127,4 +194,64 @@ class ModuleEndOp(Operation):
         return ModuleEndOp.build()
 
 
-GPU = Dialect([ModuleOp, ModuleEndOp], [_GPUAttr])
+@irdl_op_definition
+class NumSubgroupsOp(Operation):
+    name = "gpu.num_subgroups"
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get() -> NumSubgroupsOp:
+        return NumSubgroupsOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class SetDefaultDeviceOp(Operation):
+    name = "gpu.set_default_device"
+    devIndex: Annotated[Operand, i32]
+
+    @staticmethod
+    def get(devIndex: SSAValue | Operation) -> SetDefaultDeviceOp:
+        return SetDefaultDeviceOp.build(operands=[SSAValue.get(devIndex)])
+
+
+@irdl_op_definition
+class SubgroupIdOp(Operation):
+    name = "gpu.subgroup_id"
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get() -> SubgroupIdOp:
+        return SubgroupIdOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class SubgroupSizeOp(Operation):
+    name = "gpu.subgroup_size"
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get() -> SubgroupSizeOp:
+        return SubgroupSizeOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class ThreadIdOp(Operation):
+    name = "gpu.thread_id"
+    dimension: OpAttr[DimensionAttr]
+    result: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(dim: DimensionAttr) -> ThreadIdOp:
+        return ThreadIdOp.build(result_types=[IndexType()],
+                                attributes={"dimension": dim})
+
+
+#_GPUAttr has to be registered instead of DimensionAttr and AllReduceOperationAttr here.
+# This is a hack to fit MLIR's syntax in xDSL's way of parsing attributes, without making GPU builtin.
+# Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
+# atrributes.
+GPU = Dialect([
+    BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp,
+    ModuleOp, ModuleEndOp, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp,
+    SubgroupSizeOp, ThreadIdOp
+], [_GPUAttr])
