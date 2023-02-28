@@ -187,25 +187,3 @@ class OperationOp(Operation):
             if isinstance(op, ResultsOp):
                 return op
         return None
-
-
-IRDL = Dialect(
-    [
-        DialectOp,
-        ParametersOp,
-        TypeOp,
-        ConstraintVarsOp,
-        OperandsOp,
-        ResultsOp,
-        OperationOp,
-    ],
-    [
-        AnyTypeConstraintAttr,
-        AnyOfTypeConstraintAttr,  #
-        EqTypeConstraintAttr,
-        VarTypeConstraintAttr,
-        TypeParamsConstraintAttr,
-        NamedTypeConstraintAttr,
-        DynTypeBaseConstraintAttr,
-        DynTypeParamsConstraintAttr
-    ])

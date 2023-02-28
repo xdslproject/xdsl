@@ -316,16 +316,3 @@ class ExtractAlignedPointerAsIndexOp(Operation):
     def get(source: SSAValue | Operation):
         return ExtractAlignedPointerAsIndexOp.build(operands=[source],
                                                     result_types=[IndexType()])
-
-
-MemRef = Dialect([
-    Load,
-    Store,
-    Alloc,
-    Alloca,
-    Dealloc,
-    GetGlobal,
-    Global,
-    Dim,
-    ExtractAlignedPointerAsIndexOp,
-], [MemRefType, UnrankedMemrefType])

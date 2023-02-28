@@ -43,7 +43,7 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[List[_ArrayAttrT]]):
-    name: str = "array"
+    name: str = "array_attr"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:

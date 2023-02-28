@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import inspect
 import re
 import sys
 
@@ -6,8 +8,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
+from types import ModuleType
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+                    Sequence, TypeVar, cast, Iterator, ClassVar, overload)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -54,8 +57,38 @@ class MLContext:
     registered_unregistered_ops: dict[str, type[Operation]] = field(
         default_factory=dict)
 
+    def _register_module(self, dialect: ModuleType):
+        for name, val in dialect.__dict__.items():
+            # skip non-class stuff, or abstract classes
+            if not inspect.isclass(val) or inspect.isabstract(val):
+                continue
+            # skip stuff not defined in this module
+            if val.__module__ != dialect.__name__:
+                continue
+            # skip private stuff
+            if name.startswith('_'):
+                continue
+            # register all operations
+            if issubclass(val, Operation):
+                self.register_op(val)
+            # register all attributes
+            if issubclass(val, Attribute):
+                self.register_attr(val)
+
+    @overload
+    def register_dialect(self, dialect: ModuleType):
+        pass
+
+    @overload
     def register_dialect(self, dialect: Dialect):
+        pass
+
+    def register_dialect(self, dialect: Dialect | ModuleType):
         """Register a dialect. Operation and Attribute names should be unique"""
+        if not isinstance(dialect, Dialect):
+            self._register_module(dialect)
+            return
+
         for op in dialect.operations:
             self.register_op(op)
 

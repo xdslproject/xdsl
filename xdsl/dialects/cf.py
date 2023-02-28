@@ -35,6 +35,3 @@ class ConditionalBranch(Operation):
             else_ops: List[Union[Operation, SSAValue]]) -> ConditionalBranch:
         return ConditionalBranch.build(operands=[cond, then_ops, else_ops],
                                        successors=[then_block, else_block])
-
-
-Cf = Dialect([Branch, ConditionalBranch], [])

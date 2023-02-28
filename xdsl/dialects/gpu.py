@@ -125,6 +125,3 @@ class ModuleEndOp(Operation):
     @staticmethod
     def get() -> ModuleEndOp:
         return ModuleEndOp.build()
-
-
-GPU = Dialect([ModuleOp, ModuleEndOp], [_GPUAttr])

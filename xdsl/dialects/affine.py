@@ -86,6 +86,3 @@ class Yield(Operation):
     def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(
             operands=[SSAValue.get(operand) for operand in operands])
-
-
-Affine = Dialect([For, Yield], [])

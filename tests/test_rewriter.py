@@ -1,10 +1,10 @@
 from typing import Callable
 from conftest import assert_print_op
 
-from xdsl.dialects.arith import Arith, Constant, Addi
-from xdsl.dialects.builtin import ModuleOp, Builtin, i32
-from xdsl.dialects.scf import Scf, Yield
-from xdsl.dialects.func import Func
+from xdsl.dialects.arith import Constant, Addi
+from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.scf import Yield
+from xdsl.dialects import func, scf, builtin, arith
 from xdsl.ir import MLContext, Block
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
@@ -13,10 +13,10 @@ from xdsl.rewriter import Rewriter
 def rewrite_and_compare(prog: str, expected_prog: str,
                         transformation: Callable[[ModuleOp, Rewriter], None]):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
-    ctx.register_dialect(Func)
+    ctx.register_dialect(builtin)
+    ctx.register_dialect(arith)
+    ctx.register_dialect(scf)
+    ctx.register_dialect(func)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()

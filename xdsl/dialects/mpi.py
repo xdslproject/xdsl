@@ -340,16 +340,3 @@ class Init(MPIBaseOp):
 @irdl_op_definition
 class Finalize(MPIBaseOp):
     name = "mpi.finalize"
-
-
-MPI = Dialect([
-    ISend,
-    IRecv,
-    Test,
-    Recv,
-    Send,
-    GetStatusField,
-    Init,
-    Finalize,
-    CommRank,
-], [RequestType, StatusType])

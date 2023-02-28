@@ -262,8 +262,3 @@ class Createmask(Operation):
         return Createmask.build(
             operands=[mask_operands],
             result_types=[VectorType.from_element_type_and_shape(i1, [1])])
-
-
-Vector = Dialect(
-    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask],
-    [])

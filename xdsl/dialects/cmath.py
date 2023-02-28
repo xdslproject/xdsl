@@ -59,6 +59,3 @@ class Mul(Operation):
         operand1 = SSAValue.get(operand1)
         return Mul.build(operands=[operand1, operand2],
                          result_types=[operand1.typ])
-
-
-CMath = Dialect([Norm, Mul], [ComplexType])

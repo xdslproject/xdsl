@@ -1,6 +1,7 @@
-from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
-from xdsl.dialects.scf import If, Scf
+from xdsl.dialects.arith import Constant, Addi, Muli
+from xdsl.dialects.builtin import i32, i64, IntegerAttr, ModuleOp
+from xdsl.dialects.scf import If
+from xdsl.dialects import scf, arith, builtin
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
@@ -14,9 +15,9 @@ from conftest import assert_print_op
 def rewrite_and_compare(prog: str, expected_prog: str,
                         walker: PatternRewriteWalker):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
+    ctx.register_dialect(builtin)
+    ctx.register_dialect(arith)
+    ctx.register_dialect(scf)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -446,8 +447,8 @@ def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
+    ctx.register_dialect(builtin)
+    ctx.register_dialect(arith)
 
     prog = \
 """builtin.module() {

@@ -209,14 +209,3 @@ class LLVMMLIRUndef(Operation):
     name = "llvm.mlir.undef"
 
     res: Annotated[OpResult, AnyAttr()]
-
-
-LLVM = Dialect([
-    LLVMExtractValue,
-    LLVMInsertValue,
-    LLVMMLIRUndef,
-    AllocaOp,
-    IntToPtrOp,
-    NullOp,
-    LoadOp,
-], [LLVMStructType, LLVMPointerType])

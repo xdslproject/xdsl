@@ -6,18 +6,8 @@ from io import StringIO
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
 from xdsl.printer import Printer
-from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf
-from xdsl.dialects.affine import Affine
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.dialects.cmath import CMath
-from xdsl.dialects.cf import Cf
-from xdsl.dialects.vector import Vector
-from xdsl.dialects.memref import MemRef
-from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.irdl import IRDL
-from xdsl.dialects.gpu import GPU
+from xdsl.dialects import affine, arith, builtin, cf, cmath, func, gpu, irdl, llvm, memref, scf, vector
+from xdsl.dialects.builtin import ModuleOp
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -176,18 +166,18 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        self.ctx.register_dialect(Builtin)
-        self.ctx.register_dialect(Func)
-        self.ctx.register_dialect(Arith)
-        self.ctx.register_dialect(MemRef)
-        self.ctx.register_dialect(Affine)
-        self.ctx.register_dialect(Scf)
-        self.ctx.register_dialect(Cf)
-        self.ctx.register_dialect(CMath)
-        self.ctx.register_dialect(IRDL)
-        self.ctx.register_dialect(LLVM)
-        self.ctx.register_dialect(Vector)
-        self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(builtin)
+        self.ctx.register_dialect(func)
+        self.ctx.register_dialect(arith)
+        self.ctx.register_dialect(memref)
+        self.ctx.register_dialect(affine)
+        self.ctx.register_dialect(scf)
+        self.ctx.register_dialect(cf)
+        self.ctx.register_dialect(cmath)
+        self.ctx.register_dialect(irdl)
+        self.ctx.register_dialect(llvm)
+        self.ctx.register_dialect(vector)
+        self.ctx.register_dialect(gpu)
 
     def register_all_frontends(self):
         """

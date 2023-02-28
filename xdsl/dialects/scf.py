@@ -150,6 +150,3 @@ class While(Operation):
                          result_types=result_types,
                          regions=[before, after])
         return op
-
-
-Scf = Dialect([If, For, Yield, Condition, While], [])

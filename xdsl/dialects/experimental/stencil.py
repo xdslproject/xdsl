@@ -343,27 +343,3 @@ class Combine(Operation):
     res: VarOpResult
 
     irdl_options = [AttrSizedOperandSegments()]
-
-
-Dialect([
-    Cast,
-    External_Load,
-    External_Store,
-    Index,
-    Access,
-    DynAccess,
-    Load,
-    Buffer,
-    Store,
-    Apply,
-    StoreResult,
-    Return,
-    Combine,
-], [
-    FieldType,
-    TempType,
-    ResultType,
-    Stencil_Element,
-    Stencil_Index,
-    Stencil_Loop,
-])

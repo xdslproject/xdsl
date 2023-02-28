@@ -6,10 +6,7 @@ from xdsl.dialects.arith import Addi, Subi, Constant
 from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
 from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import Builtin
-from xdsl.dialects.func import Func
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.cf import Cf
+from xdsl.dialects import cf, arith, func, builtin
 
 
 def test_ops_accessor():
@@ -213,10 +210,10 @@ program_successors = \
      ([program_successors, program_add], False)])
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.register_dialect(builtin)
+    ctx.register_dialect(func)
+    ctx.register_dialect(arith)
+    ctx.register_dialect(cf)
 
     parser = XDSLParser(ctx, args[0])
     lhs: Operation = parser.parse_op()
@@ -241,10 +238,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
   }
   """
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.register_dialect(builtin)
+    ctx.register_dialect(func)
+    ctx.register_dialect(arith)
+    ctx.register_dialect(cf)
 
     parser = XDSLParser(ctx, program_func)
     program = parser.parse_operation()
