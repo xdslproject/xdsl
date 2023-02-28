@@ -501,35 +501,24 @@ class MpiAddExternalFuncDefs(RewritePattern):
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
                                       module.body.blocks[0], 0)
 
-    @staticmethod
-    def apply(ctx: MLContext, module: builtin.ModuleOp):
-        # TODO: how to get the lib info in here?
-        lib_info = MpiLibraryInfo()
-
-        # lower to func.call
-        walker1 = PatternRewriteWalker(
-            GreedyRewritePatternApplier([
-                LowerMpiInit(lib_info),
-                LowerMpiFinalize(lib_info),
-                LowerMpiWait(lib_info),
-                LowerMpiISend(lib_info),
-                LowerMpiIRecv(lib_info),
-                LowerMpiCommRank(lib_info),
-                LowerMpiSend(lib_info),
-                LowerMpiRecv(lib_info),
-            ]))
-        walker1.rewrite_module(module)
-
-        # add func.func to declare external functions
-        walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
-        walker2.rewrite_module(module)
-
-
 def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
-    walker = PatternRewriteWalker(
+    # TODO: how to get the lib info in here?
+    lib_info = MpiLibraryInfo()
+
+    # lower to func.call
+    walker1 = PatternRewriteWalker(
         GreedyRewritePatternApplier([
-            # ...
-            MpiAddExternalFuncDefs()
-        ]),
-        apply_recursively=True)
-    walker.rewrite_module(module)
+            LowerMpiInit(lib_info),
+            LowerMpiFinalize(lib_info),
+            LowerMpiWait(lib_info),
+            LowerMpiISend(lib_info),
+            LowerMpiIRecv(lib_info),
+            LowerMpiCommRank(lib_info),
+            LowerMpiSend(lib_info),
+            LowerMpiRecv(lib_info),
+        ]))
+    walker1.rewrite_module(module)
+
+    # add func.func to declare external functions
+    walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
+    walker2.rewrite_module(module)
