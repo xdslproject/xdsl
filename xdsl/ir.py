@@ -65,9 +65,6 @@ class MLContext:
             # skip stuff not defined in this module
             if val.__module__ != dialect.__name__:
                 continue
-            # skip private stuff
-            if name.startswith('_'):
-                continue
             # register all operations
             if issubclass(val, Operation):
                 self.register_op(val)
