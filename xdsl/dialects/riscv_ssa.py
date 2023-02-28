@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+from abc import ABC
 from dataclasses import dataclass, field
 from typing import Type, Dict, Union, Optional, Any, List, TypeVar, Annotated
 
-from xdsl.parser import BaseParser
-from xdsl.printer import Printer
-from xdsl.dialects.builtin import StringAttr, IntegerAttr, AnyIntegerAttr
+from xdsl.dialects.builtin import StringAttr, IntegerAttr, AnyIntegerAttr, IntAttr
 from xdsl.ir import (Operation, ParametrizedAttribute, SSAValue, Dialect,
                      Attribute, Data, OpResult, Region)
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, OptOpResult,
                        VarOperand, SingleBlockRegion, OpAttr, OptOpAttr,
-                       OptOperand, Operand)
+                       OptOperand, Operand, ParameterDef)
+from xdsl.parser import BaseParser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -110,7 +111,10 @@ class RegisterAttr(Data[Register]):
 @irdl_attr_definition
 class LabelAttr(ParametrizedAttribute):
     name = "riscv.label"
-    label: Data[str]
+    label: ParameterDef[StringAttr]
+
+    def string_value(self):
+        return self.label.data
 
     @staticmethod
     def from_str(name: str) -> LabelAttr:
@@ -125,19 +129,19 @@ class RegisterType(ParametrizedAttribute):
     name = "riscv_ssa.reg"
 
 
-class Riscv1Rd1Rs1ImmOperation(Operation):
+class Riscv1Rd1Rs1ImmOperation(Operation, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: OpAttr[IntAttr | LabelAttr]
     comment: OptOpAttr[StringAttr]
 
     @classmethod
     def get(cls: Type[Op],
             rs1: Union[Operation, SSAValue],
-            immediate: Union[int, AnyIntegerAttr, str, LabelAttr],
+            immediate: Union[int, IntAttr, str, LabelAttr],
             comment: Optional[str] = None) -> Op:
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = IntAttr.from_int(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr.from_str(immediate)
 
@@ -151,20 +155,20 @@ class Riscv1Rd1Rs1ImmOperation(Operation):
                          attributes=attributes)
 
 
-class Riscv2Rs1ImmOperation(Operation):
+class Riscv2Rs1ImmOperation(Operation, ABC):
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: OpAttr[IntAttr | LabelAttr]
     comment: OptOpAttr[StringAttr]
 
     @classmethod
     def get(cls: Type[Op],
             rs1: Union[Operation, SSAValue],
             rs2: Union[Operation, SSAValue],
-            immediate: Union[int, AnyIntegerAttr, str, LabelAttr],
+            immediate: Union[int, IntAttr, str, LabelAttr],
             comment: Optional[str] = None) -> Op:
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = IntAttr.from_int(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr.from_str(immediate)
 
@@ -176,20 +180,20 @@ class Riscv2Rs1ImmOperation(Operation):
         return cls.build(operands=[rs1, rs2], attributes=attributes)
 
 
-class Riscv2Rs1OffOperation(Operation):
+class Riscv2Rs1OffOperation(Operation, ABC):
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr | LabelAttr]
+    offset: OpAttr[IntAttr | LabelAttr]
     comment: OptOpAttr[StringAttr]
 
     @classmethod
     def get(cls: Type[Op],
             rs1: Union[Operation, SSAValue],
             rs2: Union[Operation, SSAValue],
-            offset: Union[int, AnyIntegerAttr, LabelAttr],
+            offset: Union[int, IntAttr, LabelAttr, str],
             comment: Optional[str] = None) -> Op:
         if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
+            offset = IntAttr.from_int(offset)
         if isinstance(offset, str):
             offset = LabelAttr.from_str(offset)
 
@@ -201,7 +205,7 @@ class Riscv2Rs1OffOperation(Operation):
         return cls.build(operands=[rs1, rs2], attributes=attributes)
 
 
-class Riscv1Rd2RsOperation(Operation):
+class Riscv1Rd2RsOperation(Operation, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
@@ -215,44 +219,22 @@ class Riscv1Rd2RsOperation(Operation):
 
         attributes: Dict[str, Any] = {}
         if comment:
-            attributes["comment"] = comment
+            attributes["comment"] = StringAttr.from_str(comment)
         return cls.build(operands=[rs1, rs2],
                          attributes=attributes,
                          result_types=[RegisterType()])
 
 
-class Riscv1Rs1Rt1OffOperation(Operation):
-    rs: Annotated[OpResult, RegisterType]
-    rt: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr]
+class Riscv1OffOperation(Operation, ABC):
+    offset: OpAttr[IntAttr | LabelAttr]
     comment: OptOpAttr[StringAttr]
 
     @classmethod
     def get(cls: Type[Op],
-            rt: Union[Operation, SSAValue],
-            offset: Union[int, AnyIntegerAttr],
+            offset: Union[int, IntAttr, LabelAttr, str],
             comment: Optional[str] = None) -> Op:
         if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
-
-        attributes: Dict[str, Any] = {
-            "offset": offset,
-        }
-        if comment:
-            attributes["comment"] = comment
-        return cls.build(operands=[rt], attributes=attributes)
-
-
-class Riscv1OffOperation(Operation):
-    offset: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
-
-    @classmethod
-    def get(cls: Type[Op],
-            offset: Union[int, AnyIntegerAttr, LabelAttr],
-            comment: Optional[str] = None) -> Op:
-        if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
+            offset = IntAttr.from_int(offset)
         if isinstance(offset, str):
             offset = LabelAttr.from_str(offset)
 
@@ -264,17 +246,17 @@ class Riscv1OffOperation(Operation):
         return cls.build(attributes=attributes)
 
 
-class Riscv1Rd1ImmOperation(Operation):
+class Riscv1Rd1ImmOperation(Operation, ABC):
     rd: Annotated[OpResult, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: OpAttr[IntAttr | LabelAttr]
     comment: OptOpAttr[StringAttr]
 
     @classmethod
     def get(cls,
-            immediate: int | AnyIntegerAttr | str | LabelAttr,
+            immediate: int | IntAttr | str | LabelAttr,
             comment: Optional[str] = None) -> Riscv1Rd1ImmOperation:
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = IntAttr.from_int(immediate)
         if isinstance(immediate, str):
             immediate = LabelAttr.from_str(immediate)
 
@@ -284,77 +266,6 @@ class Riscv1Rd1ImmOperation(Operation):
         if comment:
             attributes["comment"] = comment
         return cls.build(result_types=[RegisterType()], attributes=attributes)
-
-
-class Riscv1Rd1OffOperation(Operation):
-    rd: Annotated[OpResult, RegisterType]
-    offset: OpAttr[AnyIntegerAttr]
-    comment: OptOpAttr[StringAttr]
-
-    @classmethod
-    def get(cls: Type[Op],
-            offset: Union[int, AnyIntegerAttr],
-            comment: Optional[str] = None) -> Op:
-        if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
-
-        attributes: Dict[str, Any] = {
-            "offset": offset,
-        }
-        if comment:
-            attributes["comment"] = comment
-        return cls.build(attributes=attributes, result_types=[RegisterType()])
-
-
-class Riscv1Rs1OffOperation(Operation):
-    rs: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr]
-    comment: OptOpAttr[StringAttr]
-
-    @classmethod
-    def get(cls: Type[Op],
-            rs: Union[Operation, SSAValue],
-            offset: Union[int, AnyIntegerAttr],
-            comment: Optional[str] = None) -> Op:
-        if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
-
-        attributes: Dict[str, Any] = {
-            "offset": offset,
-        }
-        if comment:
-            attributes["comment"] = comment
-        return cls.build(operands=[rs], attributes=attributes)
-
-
-class Riscv1Rd1RsOperation(Operation):
-    rd: Annotated[OpResult, RegisterType]
-    rs: Annotated[Operand, RegisterType]
-    comment: OptOpAttr[StringAttr]
-
-    @classmethod
-    def get(cls: Type[Op],
-            rs: Union[Operation, SSAValue],
-            comment: Optional[str] = None) -> Op:
-
-        attributes: Dict[str, Any] = {}
-        if comment:
-            attributes["comment"] = comment
-        return cls.build(operands=[rs],
-                         result_types=[RegisterType()],
-                         attributes=attributes)
-
-
-class RiscvNoParamsOperation(Operation):
-    comment: OptOpAttr[StringAttr]
-
-    @classmethod
-    def get(cls: Type[Op], comment: Optional[str] = None) -> Op:
-
-        attributes: Dict[str, Any] = {}
-        if comment:
-            attributes["comment"] = comment
-        return cls.build(attributes=attributes)
 
 
 @irdl_op_definition
@@ -712,16 +623,6 @@ class DirectiveOp(Operation):
 
 
 @irdl_op_definition
-class AllocOp(Operation):
-    name = "riscv_ssa.alloc"
-    rd: Annotated[OpResult, RegisterType]
-
-    @classmethod
-    def get(cls: Type[Op]) -> Op:
-        return cls.build(result_types=[RegisterType()])
-
-
-@irdl_op_definition
 class FuncOp(Operation):
     name = "riscv_ssa.func"
 
@@ -805,7 +706,6 @@ riscv_ssa_ops: List[Type[Operation]] = [
     BGEOp, BLTUOp, BGEUOp, AddOp, AddIOp, SubOp, LUIOp, LIOp, AUIPCOp, XOROp,
     XORIOp, OROp, ORIOp, ANDOp, ANDIOp, SLTOp, SLTIOp, SLTUOp, SLTIUOp, JOp,
     JALOp, JALROp, ECALLOp, EBREAKOp, MULOp, MULHOp, MULHSUOp, MULHUOp, DIVOp,
-    DIVUOp, REMOp, REMUOp, LabelOp, CallOp, AllocOp, FuncOp, ReturnOp,
-    SectionOp
+    DIVUOp, REMOp, REMUOp, LabelOp, CallOp, FuncOp, ReturnOp, SectionOp
 ]
 RISCVSSA = Dialect(riscv_ssa_ops, riscv_ssa_attrs)
