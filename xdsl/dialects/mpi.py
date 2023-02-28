@@ -1,18 +1,17 @@
-from __future__ import annotations
-
 import dataclasses
 from abc import ABC
 from enum import Enum
-from typing import cast
+from typing import cast, TypeVar
 
-from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.dialects import builtin, arith, func, memref, llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    AnyFloatAttr, AnyIntegerAttr, StringAttr)
-from xdsl.dialects import builtin, arith, func, memref, llvm
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
+from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType, MLContext
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult)
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern, PatternRewriteWalker, GreedyRewritePatternApplier, \
+    op_type_rewrite_pattern, AnonymousRewritePattern
 
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
 t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
@@ -140,7 +139,7 @@ class Send(MPIBaseOp):
 
     @classmethod
     def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int) -> Send:
+            tag: int) -> 'Send':
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[])
@@ -399,20 +398,17 @@ class MpiLibraryInfo:
     mpi_comm_size: int = 4
 
 
-class MpiLowerings(RewritePattern):
+_RewriteT = TypeVar('_RewriteT', bound=MPIBaseOp)
+
+
+class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     """
-    This rewrite pattern contains rules to lower the MPI dialect to llvm+func+builin
+    This base is used to convert a pure rewrite function `lower` into the impure
+    `match_and_rewrite` method used by xDSL.
 
     In order to lower that far, we require some information about the targeted MPI library
     (magic values, struct sizes, field offsets, etc.). This information is provided using
     the MpiLibraryInfo class.
-    """
-
-    _emitted_function_calls: dict[str, tuple[list[Attribute], list[Attribute]]]
-    """
-    This object keeps track of all the functions we have emitted and their type signature.
-
-    This is done so we can later on add "external" function declarations so LLVM is happy :)
     """
 
     MPI_SYMBOL_NAMES = {
@@ -436,237 +432,12 @@ class MpiLowerings(RewritePattern):
 
     def __init__(self, info: MpiLibraryInfo):
         self.info = info
-        self._emitted_function_calls = dict()
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        """
-        This method acts as a dispatcher to lower individual MPI operations.
-
-        It tries to dispatch calls for each mpi.<name> op to lower_mpi_<name> methods.
-
-        The methods each return the argument inputs to rewriter.replace_matched_op calls
-        """
-        if not isinstance(op, MPIBaseOp):
-            return
-
-        field = "lower_{}".format(op.name.replace('.', '_'))
-
-        if hasattr(self, field):
-            new_ops, *other = getattr(self, field)(op)
-            rewriter.replace_matched_op(new_ops, *other)
-
-            for op in new_ops:
-                if not isinstance(op, func.Call):
-                    continue
-                if not op.callee.string_value().startswith('MPI_'):
-                    continue
-                self._emitted_function_calls[op.callee.string_value()] = (
-                    [x.typ for x in op.arguments],
-                    [x.typ for x in op.results],
-                )
-        else:
-            print("Missing lowering for {}".format(op.name))
-
-    # Individual lowerings:
-
-    def lower_mpi_init(self,
-                       op: Init) -> tuple[list[Operation], list[OpResult]]:
-        """
-        Relatively easy lowering of mpi.init operation.
-
-        We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
-        """
-        return [
-            nullptr := llvm.NullOp.get(),
-            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
-        ], []
-
-    def lower_mpi_finalize(
-            self, op: Finalize) -> tuple[list[Operation], list[OpResult]]:
-        """
-        Relatively easy lowering of mpi.finalize operation.
-        """
-        return [
-            func.Call.get(self._mpi_name(op), [], [t_int]),
-        ], []
-
-    def lower_mpi_wait(self,
-                       op: Wait) -> tuple[list[Operation], list[OpResult]]:
-        """
-        Relatively easy lowering of mpi.wait operation.
-        """
-        ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
-        return [
-            *ops,
-            func.Call.get(self._mpi_name(op), [op.request, res], [t_int]),
-        ], new_results
-
-    def lower_mpi_isend(self,
-                        op: ISend) -> tuple[list[Operation], list[OpResult]]:
-        """
-        This method lowers mpi.isend
-
-        int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
-              int tag, MPI_Comm comm, MPI_Request *request)
-        """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
-        assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute],
-                              op.buffer.typ).element_type
-
-        return [
-            *count_ops,
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              t_int),
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request := llvm.AllocaOp.get(
-                lit1,
-                builtin.IntegerType.from_width(8 * self.info.request_size)),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
-                request
-            ], [t_int]),
-        ], [request.results[0]]
-
-    def lower_mpi_irecv(self,
-                        op: IRecv) -> tuple[list[Operation], list[OpResult]]:
-        """
-        This method lowers mpi.irecv operations
-
-        int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
-              MPI_Comm comm, MPI_Request *request)
-        """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
-        assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute],
-                              op.buffer.typ).element_type
-
-        return [
-            *count_ops,
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              t_int),
-            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request := llvm.AllocaOp.get(
-                lit1,
-                builtin.IntegerType.from_width(8 * self.info.request_size)),
-            func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
-                request
-            ], [t_int]),
-        ], [request.res]
-
-    def lower_mpi_comm_rank(
-            self, op: CommRank) -> tuple[list[Operation], list[OpResult]]:
-        """
-        This method lowers mpi.comm.rank operation
-
-        int MPI_Comm_rank(MPI_Comm comm, int *rank)
-        """
-        return [
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              t_int),
-            lit1 := arith.Constant.from_int_and_width(1, 64),
-            int_ptr := llvm.AllocaOp.get(lit1, t_int),
-            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [t_int]),
-            rank := llvm.LoadOp.get(int_ptr),
-        ], [rank.dereferenced_value]
-
-    def lower_mpi_send(self,
-                       op: Send) -> tuple[list[Operation], list[OpResult]]:
-        """
-        This method lowers mpi.send operations
-
-        MPI_Send signature:
-
-        int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
-                 int tag, MPI_Comm comm)
-        """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
-        assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute],
-                              op.buffer.typ).element_type
-
-        return [
-            *count_ops,
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              t_int),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            func.Call.get(
-                self._mpi_name(op),
-                [ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global],
-                [t_int]),
-        ], []
-
-    def lower_mpi_recv(self,
-                       op: Recv) -> tuple[list[Operation], list[OpResult]]:
-        """
-        This method lowers mpi.recv operations
-
-        MPI_Recv signature:
-
-        int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
-             MPI_Comm comm, MPI_Status *status)
-        """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        ops, new_results, status = self._emit_mpi_status_obj(
-            len(op.results) == 0)
-
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
-        assert isinstance(op.buffer.typ, MemRefType)
-        memref_elm_typ = cast(MemRefType[Attribute],
-                              op.buffer.typ).element_type
-
-        return [
-            *count_ops,
-            *ops,
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              t_int),
-            func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
-                status
-            ], [t_int]),
-        ], new_results
-
-    # Miscellaneous
+    # Helpers
 
     def _emit_mpi_status_obj(
         self, mpi_status_none: bool
-    ) -> tuple[list[Operation], list[OpResult], Operation]:
+    ) -> tuple[list[Operation], list[SSAValue | None], Operation]:
         """
         This function create operations that instantiate a pointer to an MPI_Status-sized object.
 
@@ -794,23 +565,309 @@ class MpiLowerings(RewritePattern):
             ptr := llvm.IntToPtrOp.get(i64),
         ], ptr
 
-    def _emit_external_funcs(self) -> list[Operation]:
+
+class LowerMpiInit(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Init, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self, op: Init) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        This method generates external function definitions for all function calls to MPI
-        libraries generated using this instance of the lowering rewrites.
+        Relatively easy lowering of mpi.init operation.
+
+        We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
         """
         return [
-            func.FuncOp.external(name, *args)
-            for name, args in self._emitted_function_calls.items()
-        ]
+            nullptr := llvm.NullOp.get(),
+            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [t_int]),
+        ], []
 
-    def insert_externals_into_module(self, op: builtin.ModuleOp):
-        """
-        This function inserts all external function definitions for MPI function at the top of
-        the given module.
 
-        This can only be called AFTER you applied this rewrite to your module, otherwise no
-        external functions will be inserted!
+class LowerMpiFinalize(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Finalize, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: Finalize) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        for func_op in self._emit_external_funcs():
-            op.regions[0].blocks[0].insert_op(func_op, 0)
+        Relatively easy lowering of mpi.finalize operation.
+        """
+        return [
+            func.Call.get(self._mpi_name(op), [], [t_int]),
+        ], []
+
+
+class LowerMpiWait(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Wait, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self, op: Wait) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Relatively easy lowering of mpi.wait operation.
+        """
+        ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
+        return [
+            *ops,
+            func.Call.get(self._mpi_name(op), [op.request, res], [t_int]),
+        ], new_results
+
+
+class LowerMpiISend(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ISend, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: ISend) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.isend
+
+        int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
+              int tag, MPI_Comm comm, MPI_Request *request)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
+
+        return [
+            *count_ops,
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            request := llvm.AllocaOp.get(
+                lit1,
+                builtin.IntegerType.from_width(8 * self.info.request_size)),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
+                request
+            ], [t_int]),
+        ], [request.results[0]]
+
+
+class LowerMpiIRecv(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: IRecv, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: IRecv) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.irecv operations
+
+        int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+              MPI_Comm comm, MPI_Request *request)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
+
+        return [
+            *count_ops,
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
+            request := llvm.AllocaOp.get(
+                lit1,
+                builtin.IntegerType.from_width(8 * self.info.request_size)),
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
+                request
+            ], [t_int]),
+        ], [request.res]
+
+
+class LowerMpiCommRank(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CommRank, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: CommRank) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.comm.rank operation
+
+        int MPI_Comm_rank(MPI_Comm comm, int *rank)
+        """
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            lit1 := arith.Constant.from_int_and_width(1, 64),
+            int_ptr := llvm.AllocaOp.get(lit1, t_int),
+            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [t_int]),
+            rank := llvm.LoadOp.get(int_ptr),
+        ], [rank.dereferenced_value]
+
+
+class LowerMpiSend(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Send, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self, op: Send) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.send operations
+
+        MPI_Send signature:
+
+        int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
+                 int tag, MPI_Comm comm)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
+
+        return [
+            *count_ops,
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            func.Call.get(
+                self._mpi_name(op),
+                [ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global],
+                [t_int]),
+        ], []
+
+
+class LowerMpiRecv(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Recv, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self, op: Recv) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.recv operations
+
+        MPI_Recv signature:
+
+        int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
+             MPI_Comm comm, MPI_Status *status)
+        """
+        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
+
+        ops, new_results, status = self._emit_mpi_status_obj(
+            len(op.results) == 0)
+
+        # TODO: I really hate this dance just to make pyright happy
+        #       imo this makes code *less* readable.
+        #       The _MemRefTypeElement is bound to Attribute, so
+        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
+        assert isinstance(op.buffer.typ, MemRefType)
+        memref_elm_typ = cast(MemRefType[Attribute],
+                              op.buffer.typ).element_type
+
+        return [
+            *count_ops,
+            *ops,
+            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
+            datatype := self._emit_mpi_type_load(memref_elm_typ),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, t_int),
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              t_int),
+            func.Call.get(self._mpi_name(op), [
+                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
+                status
+            ], [t_int]),
+        ], new_results
+
+    # Miscellaneous
+
+
+class MpiAddExternalFuncDefs(RewritePattern):
+    mpi_func_call_names = set(_MPIToLLVMRewriteBase.MPI_SYMBOL_NAMES.values())
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, module: builtin.ModuleOp,
+                          rewriter: PatternRewriter, /):
+        # collect all func calls to MPI functions
+        funcs_to_emit: dict[str, tuple[list[Attribute],
+                                       list[Attribute]]] = dict()
+
+        @op_type_rewrite_pattern
+        def match_func(op: func.Call, rewriter: PatternRewriter, /):
+            if op.callee.string_value() not in self.mpi_func_call_names:
+                return
+            funcs_to_emit[op.callee.string_value()] = (list(
+                arg.typ
+                for arg in op.arguments), list(res.typ for res in op.results))
+
+        PatternRewriteWalker(AnonymousRewritePattern(match_func))
+
+        # for each func found, add a FuncOp to the top of the module.
+        for name, types in funcs_to_emit.items():
+            arg, res = types
+            rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
+                                      module.body.blocks[0], 0)
+
+    @staticmethod
+    def apply(ctx: MLContext, module: builtin.ModuleOp):
+        # TODO: how to get the lib info in here?
+        lib_info = MpiLibraryInfo()
+
+        # lower to func.call
+        walker1 = PatternRewriteWalker(
+            GreedyRewritePatternApplier([
+                LowerMpiInit(lib_info),
+                LowerMpiFinalize(lib_info),
+                LowerMpiWait(lib_info),
+                LowerMpiISend(lib_info),
+                LowerMpiIRecv(lib_info),
+                LowerMpiCommRank(lib_info),
+                LowerMpiSend(lib_info),
+                LowerMpiRecv(lib_info),
+            ]))
+        walker1.rewrite_module(module)
+
+        # add func.func to declare external functions
+        walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
+        walker2.rewrite_module(module)
+
+
+def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
+    walker = PatternRewriteWalker(
+        GreedyRewritePatternApplier([
+            # ...
+            MpiAddExternalFuncDefs()
+        ]),
+        apply_recursively=True)
+    walker.rewrite_module(module)

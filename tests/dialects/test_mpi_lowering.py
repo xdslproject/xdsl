@@ -2,7 +2,7 @@ from xdsl.dialects import mpi, func, llvm, builtin
 from xdsl.ir import Operation, Attribute, OpResult, SSAValue
 from xdsl.irdl import irdl_op_definition, VarOpResult
 
-lowering = mpi.MpiLowerings(mpi.MpiLibraryInfo())
+info = mpi.MpiLibraryInfo()
 
 
 def extract_func_call(ops: list[Operation],
@@ -48,7 +48,7 @@ class TestOp(Operation):
 
 
 def test_lower_mpi_init():
-    ops, result = lowering.lower_mpi_init(mpi.Init.build())
+    ops, result = mpi.LowerMpiInit(info).lower(mpi.Init.build())
 
     assert len(result) == 0
     assert len(ops) == 2
@@ -63,7 +63,7 @@ def test_lower_mpi_init():
 
 
 def test_lower_mpi_finalize():
-    ops, result = lowering.lower_mpi_finalize(mpi.Finalize.build())
+    ops, result = mpi.LowerMpiFinalize(info).lower(mpi.Finalize.build())
 
     assert len(result) == 0
     assert len(ops) == 1
@@ -78,7 +78,7 @@ def test_lower_mpi_finalize():
 def test_lower_mpi_wait_no_status():
     request, = TestOp.get(mpi.RequestType()).results
 
-    ops, result = lowering.lower_mpi_wait(mpi.Wait.get(request))
+    ops, result = mpi.LowerMpiWait(info).lower(mpi.Wait.get(request))
 
     assert len(result) == 0
     call = extract_func_call(ops)
@@ -90,10 +90,11 @@ def test_lower_mpi_wait_no_status():
 def test_lower_mpi_wait_with_status():
     request, = TestOp.get(mpi.RequestType()).results
 
-    ops, result = lowering.lower_mpi_wait(
+    ops, result = mpi.LowerMpiWait(info).lower(
         mpi.Wait.get(request, ignore_status=False))
 
     assert len(result) == 1
+    assert result[0] is not None
     assert isinstance(result[0].typ, llvm.LLVMPointerType)
     call = extract_func_call(ops)
     assert call is not None
@@ -104,9 +105,10 @@ def test_lower_mpi_wait_with_status():
 
 
 def test_lower_mpi_comm_rank():
-    ops, result = lowering.lower_mpi_comm_rank(mpi.CommRank.get())
+    ops, result = mpi.LowerMpiCommRank(info).lower(mpi.CommRank.get())
 
     assert len(result) == 1
+    assert result[0] is not None
     assert result[0].typ == mpi.t_int
 
     # check signature of emitted function call
@@ -123,7 +125,7 @@ def test_lower_mpi_send():
         mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
         mpi.t_int).results
 
-    ops, result = lowering.lower_mpi_send(mpi.Send.get(buff, dest, 1))
+    ops, result = mpi.LowerMpiSend(info).lower(mpi.Send.get(buff, dest, 1))
     """
     Check for function with signature like:
     int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -143,7 +145,7 @@ def test_lower_mpi_isend():
         mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
         mpi.t_int).results
 
-    ops, result = lowering.lower_mpi_isend(mpi.ISend.get(buff, dest, 1))
+    ops, result = mpi.LowerMpiISend(info).lower(mpi.ISend.get(buff, dest, 1))
     """
     Check for function with signature like:
     int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -168,7 +170,7 @@ def test_lower_mpi_recv_no_status():
              MPI_Comm comm, MPI_Status *status)
     """
 
-    ops, result = lowering.lower_mpi_recv(
+    ops, result = mpi.LowerMpiRecv(info).lower(
         mpi.Recv.get(source, buff, tag=3, ignore_status=True))
 
     assert len(result) == 0
@@ -188,7 +190,7 @@ def test_lower_mpi_recv_with_status():
              MPI_Comm comm, MPI_Status *status)
     """
 
-    ops, result = lowering.lower_mpi_recv(
+    ops, result = mpi.LowerMpiRecv(info).lower(
         mpi.Recv.get(source, buff, tag=3, ignore_status=False))
 
     assert len(result) == 1
@@ -208,7 +210,8 @@ def test_lower_mpi_irecv():
             int source, int tag, MPI_Comm comm, MPI_Request *request)
     """
 
-    ops, result = lowering.lower_mpi_irecv(mpi.IRecv.get(source, buff, tag=3))
+    ops, result = mpi.LowerMpiIRecv(info).lower(
+        mpi.IRecv.get(source, buff, tag=3))
 
     assert len(result) == 1
 
@@ -223,28 +226,30 @@ def test_mpi_type_conversion():
     Test that each builtin datatype is correctly mapped to an MPI datatype
 
     """
-    lowering = mpi.MpiLowerings(
-        mpi.MpiLibraryInfo(
-            MPI_UNSIGNED_CHAR=1,
-            MPI_UNSIGNED_SHORT=2,
-            MPI_UNSIGNED=3,
-            MPI_UNSIGNED_LONG_LONG=4,
-            MPI_CHAR=5,
-            MPI_SHORT=6,
-            MPI_INT=7,
-            MPI_LONG_LONG_INT=8,
-        ))
+    info = mpi.MpiLibraryInfo(
+        MPI_UNSIGNED_CHAR=1,
+        MPI_UNSIGNED_SHORT=2,
+        MPI_UNSIGNED=3,
+        MPI_UNSIGNED_LONG_LONG=4,
+        MPI_CHAR=5,
+        MPI_SHORT=6,
+        MPI_INT=7,
+        MPI_LONG_LONG_INT=8,
+    )
+
+    lowering = mpi.LowerMpiRecv(info)
+
     from xdsl.dialects.builtin import f64, f32, IntegerType, i32, i64, Signedness
     u64 = IntegerType.from_width(64, Signedness.UNSIGNED)
     u32 = IntegerType.from_width(32, Signedness.UNSIGNED)
 
     checks = [
-        (f32, lowering.info.MPI_FLOAT),
-        (f64, lowering.info.MPI_DOUBLE),
-        (i32, lowering.info.MPI_INT),
-        (u32, lowering.info.MPI_UNSIGNED),
-        (i64, lowering.info.MPI_LONG_LONG_INT),
-        (u64, lowering.info.MPI_UNSIGNED_LONG_LONG),
+        (f32, info.MPI_FLOAT),
+        (f64, info.MPI_DOUBLE),
+        (i32, info.MPI_INT),
+        (u32, info.MPI_UNSIGNED),
+        (i64, info.MPI_LONG_LONG_INT),
+        (u64, info.MPI_UNSIGNED_LONG_LONG),
     ]
 
     for width in (8, 16):
@@ -253,8 +258,7 @@ def test_mpi_type_conversion():
             sign_str = 'UNSIGNED_' if sign == Signedness.UNSIGNED else ''
             name = 'CHAR' if width == 8 else 'SHORT'
             typ = IntegerType.from_width(width, sign)
-            checks.append((typ, getattr(lowering.info,
-                                        f'MPI_{sign_str}{name}')))
+            checks.append((typ, getattr(info, f'MPI_{sign_str}{name}')))
 
     for type, target in checks:
         # we test a private member function here, so we need to tell pyright that that's okay
