@@ -501,6 +501,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
                                       module.body.blocks[0], 0)
 
+
 def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
     # TODO: how to get the lib info in here?
     lib_info = MpiLibraryInfo()
