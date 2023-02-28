@@ -18,6 +18,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.riscv_ssa import RISCVSSA
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -188,6 +189,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(RISCVSSA)
 
     def register_all_frontends(self):
         """
