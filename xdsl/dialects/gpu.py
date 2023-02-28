@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, Operation, Dialect, ParametrizedAttribute
+from xdsl.ir import Attribute, Operation, ParametrizedAttribute
 from xdsl.irdl import ParameterDef, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.parser import BaseParser

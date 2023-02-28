@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated, List
 
 from xdsl.dialects.builtin import IndexType, IntegerType
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.irdl import (AnyAttr, Operand, SingleBlockRegion, VarOperand,
                        VarOpResult, irdl_op_definition)
 from xdsl.utils.exceptions import VerifyException

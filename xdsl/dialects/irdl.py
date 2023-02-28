@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-from xdsl.ir import (ParametrizedAttribute, Operation, Attribute, Dialect)
+from xdsl.ir import (ParametrizedAttribute, Operation, Attribute)
 from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition,
                        SingleBlockRegion, OpAttr)
 from xdsl.parser import BaseParser

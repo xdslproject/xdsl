@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import IntegerType
-from xdsl.ir import SSAValue, Operation, Block, Dialect
+from xdsl.ir import SSAValue, Operation, Block
 from xdsl.irdl import (irdl_op_definition, VarOperand, AnyAttr, Operand,
                        AttrSizedOperandSegments)
 
