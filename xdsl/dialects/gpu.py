@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Generic, List, Type, TypeVar
+from typing import Annotated, Generic, Type, TypeVar
 
 from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, SSAValue
 from xdsl.irdl import Operand, ParameterDef, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
@@ -251,7 +251,7 @@ class ThreadIdOp(Operation):
 # Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
 # atrributes.
 GPU = Dialect([
-    BarrierOp, BlockDimOp, GlobalIdOp, GridDimOp, LaneIdOp, ModuleOp,
-    ModuleEndOp, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp,
+    BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp,
+    ModuleOp, ModuleEndOp, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp,
     SubgroupSizeOp, ThreadIdOp
 ], [_GPUAttr])
