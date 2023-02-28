@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Annotated
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                    AnyIntegerAttr, IndexType)
-from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute,
-                     OpResult, Operation, SSAValue)
+from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, OpResult,
+                     Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
                        irdl_attr_definition, irdl_op_definition)
 

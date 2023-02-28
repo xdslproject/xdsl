@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    IndexType, ArrayAttr, IntegerType,
                                    SymbolRefAttr, StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
-                    OpResult)
+                     OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        Generic, Attribute, AnyAttr, Operand, VarOperand,
                        AttrSizedOperandSegments, OpAttr)
