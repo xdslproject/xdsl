@@ -264,7 +264,6 @@ class LaunchOp(Operation):
     body: Region
     irdl_options = [AttrSizedOperandSegments()]
 
-
     @staticmethod
     def get(
         body: Region,
