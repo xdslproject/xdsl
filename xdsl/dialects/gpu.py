@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, SSAValue
-from xdsl.irdl import Operand, ParameterDef, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
-from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, i32
+from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import Operand, OptOpAttr, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
+from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -98,6 +98,57 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
 DimensionAttr = _GPUAttr[_DimensionAttr]
 AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
+
+
+@irdl_op_definition
+class AllReduceOp(Operation):
+    name = "gpu.all_reduce"
+    op: OptOpAttr[AllReduceOperationAttr]
+    uniform: OptOpAttr[UnitAttr]
+    operand: Annotated[Operand, Attribute]
+    result: Annotated[OpResult, Attribute]
+    body: Region
+
+    @staticmethod
+    def from_op(op: AllReduceOperationAttr,
+                operand: SSAValue | Operation,
+                uniform: UnitAttr | None = None):
+        return AllReduceOp.build(operands=[operand],
+                                 result_types=[SSAValue.get(operand).typ],
+                                 attributes={"op": op}
+                                 | ({
+                                     "uniform": uniform
+                                 } if uniform is not None else {}),
+                                 regions=[Region()])
+
+    @staticmethod
+    def from_body(body: Region,
+                  operand: SSAValue | Operation,
+                  uniform: UnitAttr | None = None):
+        return AllReduceOp.build(
+            operands=[operand],
+            result_types=[SSAValue.get(operand).typ],
+            attributes={"uniform": uniform} if uniform is not None else {},
+            regions=[body])
+
+    def verify_(self) -> None:
+        if self.result.typ != self.operand.typ:
+            raise VerifyException(
+                f"Type mismatch: result type is {self.result.typ}, operand type is "
+                f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
+            )
+
+        non_empty_body = any([len(b.ops) > 0 for b in self.body.blocks])
+        op_attr = self.op is not None
+        if non_empty_body == op_attr:
+            if op_attr:
+                raise VerifyException(
+                    f"gpu.all_reduce can't have both a non-empty region and an op "
+                    "attribute.")
+            else:
+                raise VerifyException(
+                    f"gpu.all_reduce need either a non empty body or an op attribute."
+                )
 
 
 @irdl_op_definition
@@ -246,12 +297,49 @@ class ThreadIdOp(Operation):
                                 attributes={"dimension": dim})
 
 
+@irdl_op_definition
+class YieldOp(Operation):
+    name = "gpu.yield"
+    values: Annotated[VarOperand, Attribute]
+
+    @staticmethod
+    def get(operands: list[SSAValue | Operation]) -> YieldOp:
+        return YieldOp.build([operands])
+
+    def verify_(self) -> None:
+        block = self.parent_block()
+        op = self.parent_op()
+        if block is not None:
+            if self is not block.ops[-1]:
+                raise VerifyException(
+                    "A gpu.yield must terminate its parent block")
+        if op is not None:
+            yield_type = [o.typ for o in self.values]
+            result_type = [r.typ for r in op.results]
+            if yield_type != result_type:
+                raise VerifyException(
+                    f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values "
+                    "types must match its enclosing operation result types.")
+
+
 #_GPUAttr has to be registered instead of DimensionAttr and AllReduceOperationAttr here.
 # This is a hack to fit MLIR's syntax in xDSL's way of parsing attributes, without making GPU builtin.
 # Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
 # atrributes.
 GPU = Dialect([
-    BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp,
-    ModuleOp, ModuleEndOp, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp,
-    SubgroupSizeOp, ThreadIdOp
+    AllReduceOp,
+    BarrierOp,
+    BlockDimOp,
+    BlockIdOp,
+    GlobalIdOp,
+    GridDimOp,
+    LaneIdOp,
+    ModuleOp,
+    ModuleEndOp,
+    NumSubgroupsOp,
+    SetDefaultDeviceOp,
+    SubgroupIdOp,
+    SubgroupSizeOp,
+    ThreadIdOp,
+    YieldOp,
 ], [_GPUAttr])
