@@ -149,6 +149,14 @@ class AllReduceOp(Operation):
                 raise VerifyException(
                     f"gpu.all_reduce need either a non empty body or an op attribute."
                 )
+        if non_empty_body:
+            region_args = self.body.blocks[0].args
+            args_types = [r.typ for r in region_args]
+            if args_types != [self.result.typ, self.operand.typ]:
+                raise VerifyException(
+                    f"Expected {[str(t) for t in [self.result.typ, self.operand.typ]]}, "
+                    f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
+                    "have two arguments matching the result type.")
 
 
 @irdl_op_definition
