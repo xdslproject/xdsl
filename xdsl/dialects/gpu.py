@@ -1,12 +1,17 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import Operand, OptOpAttr, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
+from xdsl.ir import Attribute, MLIRType, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import AttrSizedOperandSegments, Operand, OptOpAttr, OptOpResult, OptOperand, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_attr_definition
+class AsyncTokenType(ParametrizedAttribute, MLIRType):
+    name = "gpu.async.token"
 
 
 @irdl_attr_definition
@@ -245,6 +250,73 @@ class LaneIdOp(Operation):
 
 
 @irdl_op_definition
+class LaunchOp(Operation):
+    name = "gpu.launch"
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    gridSizeX: Annotated[OptOperand, IndexType]
+    gridSizeY: Annotated[OptOperand, IndexType]
+    gridSizeZ: Annotated[OptOperand, IndexType]
+    blockSizeX: Annotated[OptOperand, IndexType]
+    blockSizeY: Annotated[OptOperand, IndexType]
+    blockSizeZ: Annotated[OptOperand, IndexType]
+    dynamicSharedMemorySize: Annotated[OptOperand, i32]
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+    body: Region
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(
+        body: Region,
+        gridSize: list[SSAValue | Operation],
+        blockSize: list[SSAValue | Operation],
+        async_launch: bool = False,
+        asyncDependencies: list[SSAValue | Operation] | None = None,
+        dynamicSharedMemorySize: SSAValue | Operation | None = None
+    ) -> LaunchOp:
+        if len(gridSize) != 3:
+            raise ValueError(
+                f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+        if len(blockSize) != 3:
+            raise ValueError(
+                f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        operands = [[] if asyncDependencies is None else
+                    [SSAValue.get(a) for a in asyncDependencies]]
+
+        operands += [[gs] for gs in gridSize]
+        operands += [[bs] for bs in blockSize]
+        operands += [[] if dynamicSharedMemorySize is None else
+                     [SSAValue.get(dynamicSharedMemorySize)]]
+        return LaunchOp.build(
+            operands=operands,
+            result_types=[[AsyncTokenType()] if async_launch else []],
+            regions=[body])
+
+    def verify_(self) -> None:
+        # Yes..
+        # So, basically, gpu.launch's *Size* arguments are *not* functionally optional,
+        # they *are* required. They are encodexd as such though, as is the case here.
+        # Thus I (feel like I?) have to encode them as such to have happy interoperability
+        # (It expects a consistent operand_segment_sizes)
+        if (self.gridSizeX is None) or (self.gridSizeY is None) or (
+                self.gridSizeZ is None) or (self.blockSizeX is None) or (
+                    self.blockSizeY is None) or (self.blockSizeZ is None):
+            raise VerifyException(
+                "gpu.launch requires 3 gridSize and blockSize arguments. Please "
+                "explicitely set the unused ones to 1")
+        if len(self.body.blocks) == 0 or all(
+            [len(b.ops) == 0 for b in self.body.blocks]):
+            raise VerifyException("gpu.launch requires a non-empty body.")
+        body_args = self.body.blocks[0].args
+        args_type = [a.typ for a in body_args]
+        if args_type != [IndexType()] * 12:
+            raise VerifyException(
+                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}."
+                "gpu.launch's body arguments are 12 index arguments, with 3 block "
+                "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
+            )
+
+
+@irdl_op_definition
 class ModuleEndOp(Operation):
     name = "gpu.module_end"
 
@@ -291,6 +363,26 @@ class SubgroupSizeOp(Operation):
     @staticmethod
     def get() -> SubgroupSizeOp:
         return SubgroupSizeOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class TerminatorOp(Operation):
+    name = "gpu.terminator"
+
+    @staticmethod
+    def get() -> TerminatorOp:
+        return TerminatorOp.build()
+
+    def verify_(self) -> None:
+        block = self.parent_block()
+        op = self.parent_op()
+        if block is not None:
+            if self is not block.ops[-1]:
+                raise VerifyException(
+                    "A gpu.terminator must terminate its parent block")
+        if op is not None and not isinstance(op, LaunchOp):
+            raise VerifyException(
+                "gpu.terminator is only meant to terminate gpu.launch")
 
 
 @irdl_op_definition
@@ -342,12 +434,14 @@ GPU = Dialect([
     GlobalIdOp,
     GridDimOp,
     LaneIdOp,
+    LaunchOp,
     ModuleOp,
     ModuleEndOp,
     NumSubgroupsOp,
     SetDefaultDeviceOp,
     SubgroupIdOp,
     SubgroupSizeOp,
+    TerminatorOp,
     ThreadIdOp,
     YieldOp,
 ], [_GPUAttr])
