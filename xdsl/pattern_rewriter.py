@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
                      SSAValue)
 from xdsl.rewriter import Rewriter
+from xdsl.traits import Trait
 
 
 @dataclass(eq=False)
@@ -318,11 +319,20 @@ class RewritePattern(ABC):
     A side-effect free rewrite pattern matching on a DAG.
     """
 
+    def traits(self) -> tuple[type[Trait], ...]:
+        return ()
+
+    def match_and_rewrite0(self, op: Operation,
+                           rewriter: PatternRewriter) -> None:
+        if all(isinstance(op, trait) for trait in self.traits()):
+            self.match_and_rewrite(op, rewriter)
+
     # The / in the function signature makes the previous arguments positional, see
     # https://peps.python.org/pep-0570/
     # This is used by the op_type_rewrite_pattern
     @abstractmethod
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter,
+                          /) -> None:
         """
         Match an operation, and optionally perform a rewrite using the rewriter.
         """
@@ -428,7 +438,7 @@ class GreedyRewritePatternApplier(RewritePattern):
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
         for pattern in self.rewrite_patterns:
-            pattern.match_and_rewrite(op, rewriter)
+            pattern.match_and_rewrite0(op, rewriter)
             if rewriter.has_done_action:
                 return
         return
@@ -476,7 +486,7 @@ class PatternRewriteWalker:
 
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
-        self.pattern.match_and_rewrite(op, rewriter)
+        self.pattern.match_and_rewrite0(op, rewriter)
 
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
