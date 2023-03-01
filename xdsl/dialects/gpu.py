@@ -253,12 +253,12 @@ class LaneIdOp(Operation):
 class LaunchOp(Operation):
     name = "gpu.launch"
     asyncDependencies: Annotated[VarOperand, AsyncTokenType]
-    gridSizeX: Annotated[OptOperand, IndexType]
-    gridSizeY: Annotated[OptOperand, IndexType]
-    gridSizeZ: Annotated[OptOperand, IndexType]
-    blockSizeX: Annotated[OptOperand, IndexType]
-    blockSizeY: Annotated[OptOperand, IndexType]
-    blockSizeZ: Annotated[OptOperand, IndexType]
+    gridSizeX: Annotated[Operand, IndexType]
+    gridSizeY: Annotated[Operand, IndexType]
+    gridSizeZ: Annotated[Operand, IndexType]
+    blockSizeX: Annotated[Operand, IndexType]
+    blockSizeY: Annotated[Operand, IndexType]
+    blockSizeZ: Annotated[Operand, IndexType]
     dynamicSharedMemorySize: Annotated[OptOperand, i32]
     asyncToken: Annotated[OptOpResult, AsyncTokenType]
     body: Region
