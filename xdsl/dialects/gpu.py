@@ -283,8 +283,8 @@ class LaunchOp(Operation):
         operands = [[] if asyncDependencies is None else
                     [SSAValue.get(a) for a in asyncDependencies]]
 
-        operands += [[gs] for gs in gridSize]
-        operands += [[bs] for bs in blockSize]
+        operands += [gs for gs in gridSize]
+        operands += [bs for bs in blockSize]
         operands += [[] if dynamicSharedMemorySize is None else
                      [SSAValue.get(dynamicSharedMemorySize)]]
         return LaunchOp.build(
