@@ -1076,10 +1076,12 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     def builder(
         cls: type[_OpT],
-        operands: list[Any] | None = None,
-        result_types: list[Any] | None = None,
+        operands: list[SSAValue | Operation
+                       | list[SSAValue | Operation]] | None = None,
+        result_types: list[Attribute | list[Attribute]] | list[Attribute]
+        | None = None,
         attributes: dict[str, Any] | None = None,
-        successors: list[Any] | None = None,
+        successors: list[Block] | None = None,
         regions: list[Region | list[Operation] | list[Block]] | None = None
     ) -> _OpT:
         if operands is None:

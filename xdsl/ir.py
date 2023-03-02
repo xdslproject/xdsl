@@ -522,10 +522,14 @@ class Operation(IRNode):
     @classmethod
     def build(
         cls: type[OpT],
-        operands: list[Any] | None = None,
-        result_types: list[Any] | None = None,
+        operands: list[SSAValue | Operation
+                       | list[SSAValue | Operation]]
+        | list[SSAValue | Operation] | None = None,
+        result_types: list[Attribute | list[Attribute]] | list[list[Attribute]]
+        | list[Attribute]
+        | None = None,
         attributes: dict[str, Any] | None = None,
-        successors: list[Any] | None = None,
+        successors: list[Block] | None = None,
         regions: list[Region | list[Operation] | list[Block]] | None = None
     ) -> OpT:
         """Create a new operation using builders."""
