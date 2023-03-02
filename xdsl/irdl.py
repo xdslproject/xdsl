@@ -1072,12 +1072,22 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes[name])
 
-    def builder(cls,
-                operands=[],
-                result_types=[],
-                attributes=dict(),
-                successors=[],
-                regions=[]):
+    def builder(cls: type[_OpT],
+                operands: list[Any] | None = None,
+                result_types: list[Any] | None = None,
+                attributes: dict[str, Any] | None = None,
+                successors: list[Any] | None = None,
+                regions: list[Any] | None = None) -> _OpT:
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
         return irdl_op_builder(cls, op_def, operands, result_types, attributes,
                                successors, regions)
 
