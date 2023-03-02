@@ -2,7 +2,7 @@
 
 builtin.module() {
   
-  memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !index], !i32>, [0 : !i64]>, "sym_visibility" = "public"]
+  memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !index], !index>, [0 : !i64]>, "sym_visibility" = "public"]
 
   func.func() ["sym_name" = "memref_test", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     %0 : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
@@ -18,7 +18,7 @@ builtin.module() {
     func.return()
   }
 
-  // CHECK: memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !index], !i32>, [0 : !i64]>, "sym_visibility" = "public"]
+  // CHECK: memref.global() ["sym_name" = "g", "type" = !memref<[1 : !i64], !index>, "initial_value" = !dense<!tensor<[1 : !index], !index>, [0 : !i64]>, "sym_visibility" = "public"]
   // CHECK-NEXT: func.func() ["sym_name" = "memref_test"
   // CHECK-NEXT:  %{{.*}} : !memref<[1 : !i64], !index> = memref.get_global() ["name" = @g]
   // CHECK-NEXT:  %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
