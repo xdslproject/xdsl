@@ -168,54 +168,6 @@ def lower_bound(ops: List[Operation], op: Operation, numbering: Callable[[Operat
 
 
 @dataclass
-class Symbol:
-    """
-    Encapsulates all information about this symbol, including its uses, etc.
-    """
-
-    definition: Definition | None = field(default=None)
-    """Definition of the symbol."""
-
-    write: Write | None = field(default=None)
-    """Write to the symbol."""
-
-    write_blocks: List[Block] = field(default_factory=list)
-    """List of blocks that write to the symbol."""
-
-    single_block: Block | None = field(default=None)
-    """Set if the symbol is only used in a single block."""
-
-    used_in_single_block: bool = field(default=True)
-    """True if the symbol is only used in a single block."""
-
-    never_read: bool = field(default=True)
-    """True if the symbol is never read."""
-
-    uses: List[Use] = field(default_factory=list)
-    """All uses of this symbol, i.e. all reads and writes."""
-
-    def add_use(self, op: Use):
-        # This use reads the symbol. 
-        if is_read(op) and self.never_read:
-            self.never_read = False
-
-        # Record a write to this symbol.
-        block = op.parent_block()
-        if is_write(op):
-            self.write_blocks.append(block)
-            self.write = op
-
-        # Update the flags depending whether the uses of the symbol are within
-        # the same block.
-        if self.used_in_single_block:
-            if self.single_block is None:
-                self.single_block = block
-            elif self.single_block != block:
-                self.used_in_single_block = False
-        self.uses.append(op)
-
-
-@dataclass
 class Desymrefier:
     """
     Rewrites the program by removing all reads/writes from/to symbols and symbol
