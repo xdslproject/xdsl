@@ -225,10 +225,12 @@ class xDSLOptMain:
         def _output_xdsl(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output)
             printer.print_op(prog)
+            print("\n", file=output)
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output, target=Printer.Target.MLIR)
             printer.print_op(prog)
+            print("\n", file=output)
 
         def _output_irdl(prog: ModuleOp, output: IO[str]):
             irdl_to_mlir = IRDLPrinter(stream=output)
@@ -297,7 +299,7 @@ class xDSLOptMain:
                 print(f"IR after {pass_name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(prog)
-                print("\n\n")
+                print("\n\n\n")
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""

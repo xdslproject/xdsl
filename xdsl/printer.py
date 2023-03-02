@@ -62,6 +62,7 @@ class Printer:
                 continue
             if isinstance(arg, Operation):
                 self.print_op(arg)
+                self._print_new_line()
                 continue
             text = str(arg)
             self.print_string(text)
@@ -214,7 +215,7 @@ class Printer:
         self._indent += 1
         for op in ops:
             self._print_new_line()
-            self._print_op(op)
+            self.print_op(op)
         self._indent -= 1
         if len(ops) > 0:
             self._print_new_line()
@@ -610,7 +611,7 @@ class Printer:
                     lambda result: self.print_attribute(result.typ))
                 self.print(")")
 
-    def _print_op(self, op: Operation) -> None:
+    def print_op(self, op: Operation) -> None:
         if not isinstance(op, Operation):
             raise TypeError('Expected an Operation; got %s' %
                             type(op).__name__)
@@ -636,7 +637,3 @@ class Printer:
             self.print_op_with_default_format(op)
         else:
             op.print(self)
-
-    def print_op(self, op: Operation) -> None:
-        self._print_op(op)
-        self._print_new_line()
