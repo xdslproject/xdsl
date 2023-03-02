@@ -94,34 +94,28 @@ from xdsl.rewriter import Rewriter
 # TODO: Add op promotion.
 
 
-Definition = symref.Declare
-Use: TypeAlias = symref.Fetch | symref.Update
-
 def is_definition(op: Operation) -> bool:
-    return isinstance(op, Definition)
+    return isinstance(op, symref.Declare)
 
 
-def is_use(op: Use) -> bool:
-    return isinstance(op, Use)
-
-
-Read: TypeAlias = symref.Fetch
-Write: TypeAlias = symref.Update
-
+def is_use(op: Operation) -> bool:
+    return isinstance(op, symref.Fetch) or isinstance(op, symref.Update)
 
 def is_read(op: Operation) -> bool:
-    return isinstance(op, Read)
+    return isinstance(op, symref.Fetch)
 
 
 def is_write(op: Operation) -> bool:
-    return isinstance(op, Write)
+    return isinstance(op, symref.Update)
 
 
-def get_symbol(op: Definition | Use) -> str:
-    if is_definition(op):
+def get_symbol(op: Operation) -> str:
+    if isinstance(op, symref.Declare):
         return op.sym_name.data
-    else:
+    elif isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
         return op.symbol.root_reference.data
+    else:
+        raise FrontendProgramException(f"Operation '{op.name}' does not have symbol attributes.")
 
 
 def get_symbols(block: Block) -> Set[str]:
@@ -259,7 +253,7 @@ class Desymrefier:
         while True:
             # Find all symbol definitions in this block. If no definitions
             # found, terminate.
-            definitions: List[Definition] = select_ops_by(block, is_definition)
+            definitions = select_ops_by(block, is_definition)
             if len(definitions) == 0:
                 return
 
@@ -268,8 +262,8 @@ class Desymrefier:
                 symbol = get_symbol(definition)
 
                 # Find all reads and writes for this symbol.
-                reads: List[Read] = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
-                writes: List[Write] = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
+                reads = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
  
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
@@ -311,8 +305,8 @@ class Desymrefier:
                 return
 
             for symbol in symbol_worklist:
-                reads: List[Read] = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
-                writes: List[Write] = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
+                reads = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
 
                 # There are no reads, so we can only keep the last write to the
                 # symbol.
@@ -353,6 +347,6 @@ class DesymrefyPass:
     """Pass which is called by the client to desymrefy xDSL code."""
 
     @staticmethod
-    def run(op: Operation) -> bool:
+    def run(op: Operation):
         rewriter = Rewriter()
         Desymrefier(rewriter).desymrefy(op)
