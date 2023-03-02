@@ -299,7 +299,7 @@ class LaunchOp(Operation):
         args_type = [a.typ for a in body_args]
         if args_type != [IndexType()] * 12:
             raise VerifyException(
-                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}."
+                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
                 "gpu.launch's body arguments are 12 index arguments, with 3 block "
                 "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
             )
