@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import Callable, List, Set, Tuple, TypeAlias
+from xdsl.dialects.builtin import IntAttr
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -94,314 +95,293 @@ from xdsl.rewriter import Rewriter
 # TODO: Add op promotion.
 
 
+Definition = symref.Declare
+Use: TypeAlias = symref.Fetch | symref.Update
+
+def is_definition(op: Operation) -> bool:
+    return isinstance(op, Definition)
+
+
+def is_use(op: Use) -> bool:
+    return isinstance(op, Use)
+
+
+Read: TypeAlias = symref.Fetch
+Write: TypeAlias = symref.Update
+
+
+def is_read(op: Operation) -> bool:
+    return isinstance(op, Read)
+
+
+def is_write(op: Operation) -> bool:
+    return isinstance(op, Write)
+
+
+def get_symbol(op: Definition | Use) -> str:
+    if is_definition(op):
+        return op.sym_name.data
+    else:
+        return op.symbol.root_reference.data
+
+
+def get_symbols(block: Block) -> Set[str]:
+    symbols: Set[str] = set()
+    for op in block.ops:
+        if is_definition(op) or is_use(op):
+            symbols.add(get_symbol(op))
+    return symbols
+
+
+def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
+    count = 0
+    for op in block.ops:
+        if cond(op):
+            count += 1
+    return count
+
+
+def select_ops_by(block: Block, cond: Callable[[Operation], bool]) -> List[Operation]:
+    selected: List[Operation] = []
+    for op in block.ops:
+        if cond(op):
+            selected.append(op)
+    return selected
+
+def lower_bound(ops: List[Operation], op: Operation, numbering: Callable[[Operation], int]) -> Operation | None:
+    idx = numbering(op)
+    low_idx = -1
+    high_idx = len(ops) - 1
+
+    while low_idx < high_idx:
+        mid_idx = (high_idx - low_idx + 1) // 2 + low_idx
+        user_idx = numbering(ops[mid_idx])
+
+        if user_idx < idx:
+            low_idx = mid_idx
+        else:
+            high_idx = mid_idx - 1
+
+    if low_idx == -1:
+        return None
+    return ops[low_idx]
+
+
 @dataclass
-class SymbolInfo:
+class Symbol:
     """
-    Encapsulates all information about this symbol, including uses, etc.
+    Encapsulates all information about this symbol, including its uses, etc.
     """
 
-    declare: symref.Declare | None = field(default=None)
-    """Declaration of this symbol."""
+    definition: Definition | None = field(default=None)
+    """Definition of the symbol."""
 
-    update: symref.Update | None = field(default=None)
-    """Update to this symbol if it exists in this region."""
+    write: Write | None = field(default=None)
+    """Write to the symbol."""
 
-    update_blocks: List[Block] = field(default_factory=list)
-    """
-    List of blocks that update the symbol.
-    
-    TODO: This is not used in the current implementation of the algorithm
-    because symbols over multiple blocks are not yet supported.
-    """
+    write_blocks: List[Block] = field(default_factory=list)
+    """List of blocks that write to the symbol."""
 
     single_block: Block | None = field(default=None)
-    """Set if the symbol is used in a single block only."""
+    """Set if the symbol is only used in a single block."""
 
     used_in_single_block: bool = field(default=True)
-    """Flag to check if the symbol is used in one block only."""
+    """True if the symbol is only used in a single block."""
 
-    never_fetched: bool = field(default=True)
-    """
-    Flag to check if the symbol is ever read. If not, it can be pruned
-    completely.
-    """
+    never_read: bool = field(default=True)
+    """True if the symbol is never read."""
 
-    users: List[symref.Fetch | symref.Update] = field(default_factory=list)
-    """List of users of this symbol (i.e. fetches and updates)."""
+    uses: List[Use] = field(default_factory=list)
+    """All uses of this symbol, i.e. all reads and writes."""
 
-    def add_user(self, op: symref.Fetch | symref.Update):
-        if self.never_fetched and isinstance(op, symref.Fetch):
-            self.never_fetched = False
-        if isinstance(op, symref.Update):
-            self.update_blocks.append(op.parent_block())
-            self.update = op
+    def add_use(self, op: Use):
+        # This use reads the symbol. 
+        if is_read(op) and self.never_read:
+            self.never_read = False
 
+        # Record a write to this symbol.
+        block = op.parent_block()
+        if is_write(op):
+            self.write_blocks.append(block)
+            self.write = op
+
+        # Update the flags depending whether the uses of the symbol are within
+        # the same block.
         if self.used_in_single_block:
-            if not self.single_block:
-                self.single_block = op.parent_block()
-            elif self.single_block != op.parent_block():
+            if self.single_block is None:
+                self.single_block = block
+            elif self.single_block != block:
                 self.used_in_single_block = False
-
-        self.users.append(op)
-
-    @staticmethod
-    def from_declare(op: symref.Declare) -> 'SymbolInfo':
-        return SymbolInfo(declare=op)
-
-    @staticmethod
-    def from_fetch_or_update(op: symref.Fetch | symref.Update) -> 'SymbolInfo':
-        info = SymbolInfo()
-        info.add_user(op)
-        return info
+        self.uses.append(op)
 
 
 @dataclass
 class Desymrefier:
     """
-    Class responsible for rewriting xDSL and removing symref operations.
+    Rewrites the program by removing all reads/writes from/to symbols and symbol
+    definitions.
     """
 
     rewriter: Rewriter
     """Rewriter to replace and erase operations."""
 
-    def run_on_operation(self, op: Operation):
-        """Desymrefies an operation."""
+    def desymrefy(self, op: Operation):
+        """
+        Desymrefy an operation. This method guarantees that the operation does
+        not have any symbols.
+        """ 
+        self.prepare_op(op)
+        self.promote_op(op)
+
+    def promote_op(self, op: Operation):
+        """
+        Promotes an operation. This method guarantees that the operation does
+        not have any symbols.
+        """
+        pass
+
+    def prepare_op(self, op: Operation):
+        """
+        Prepares an operation for promotion. This method guarantees that any
+        symbol in any region of this operation is read at most once and written
+        at most once.
+        """
 
         # For operation with no regions we don't have to do any work.
         if len(op.regions) == 0:
             return
 
-        # Otherwise, there is a region containing a CFG and we have to desymrefy
-        # it.
+        # Otherwise, we have to prepare regions.
         for region in op.regions:
             self.prepare_region(region)
 
-        # Some regions were not fully desymrefied, so use the definition of the
-        # operation to decide what to do.
-
-        # TODO: Enable promotion of ops in the next patch.
-
     def prepare_region(self, region: Region):
-        """Prepares the region for desymrefication."""
+        """
+        Prepares a region for promotion. This method guarantees that any symbol
+        in the region is read at most once and written at most once.
+        """
         num_blocks = len(region.blocks)
         if num_blocks == 1:
-            # If there is only one block, desymrefication is significantly
-            # easier.
-            self._prepare_single_block(region.blocks[0])
+            # If there is only one block, preparing region is easier, so we
+            # handle it seprately.
+            self.prepare_block(region.blocks[0])
         else:
-            # TODO: Support regions with multiple blocks. This is not trivial,
-            # particularly when the symbol is declared in one of the parent
-            # regions.
+            # TODO: Support regions with multiple blocks.
             raise FrontendProgramException(
                 f"Running desymrefier on region with {num_blocks} > 1 blocks is "
                 "not supported.")
 
-    def _prepare_single_block(self, block: Block):
-        """Prepares a single block inside a region for desymrefication."""
+    def prepare_block(self, block: Block):
+        """Prepares a block for promotion."""
 
-        # First, we desymrefy nested regions.
+        # First, desymrefy nested regions.
         for op in block.ops:
-            self.run_on_operation(op)
+            self.desymrefy(op)
 
-        # Case 1: symbol is declared in this region. Then,
-        # iterate until all symbols are destroyed.
-        self._remove_declared_symbols(block)
+        self.prune_definitions(block)
+        self.prune_uses_without_definitions(block)
 
-        # Case 2: some symbols are not declared in this region.
-        # For a single block, it is not that different!
-        self._remove_used_symbols(block)
+        symbols = get_symbols(block)
+        for symbol in symbols:
+            num_reads = count_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
+            num_writes = count_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
+            if  num_reads > 1 or num_writes > 1:
+                raise FrontendProgramException(
+                    f"Block {block} not ready for promotion: found {num_reads}"
+                    f" reads and {num_writes} writes.")
 
-        # Sanity check.
-        self._check_single_block_for_promotion(block)
-
-    def _remove_declared_symbols(self, block: Block):
-        """Removes all symbol declarations in a single block."""
+    def prune_definitions(self, block: Block):
+        """Removes all symbol definitions and their uses from the block."""
         while True:
-            # Get all symbol declarations in this block.
-            declare_ops: List[symref.Declare] = []
-            for op in block.ops:
-                if isinstance(op, symref.Declare):
-                    declare_ops.append(op)
-
-            # No declarations - we are done.
-            if len(declare_ops) == 0:
+            # Find all symbol definitions in this block. If no definitions
+            # found, terminate.
+            definitions: List[Definition] = select_ops_by(block, is_definition)
+            if len(definitions) == 0:
                 return
 
-            # Otherwise, some declarations are still alive and there is still
-            # some work to do.
-            for declare_op in declare_ops:
-                symbol = declare_op.sym_name.data
+            # Otherwise, some definitions are still alive.
+            for definition in definitions:
+                symbol = get_symbol(definition)
 
-                # Find all fetches and updates of this symbol.
-                fetch_ops: List[symref.Fetch] = []
-                update_ops: List[symref.Update] = []
-                for op in block.ops:
-                    if isinstance(op, symref.Fetch):
-                        op_symbol = op.symbol.root_reference.data
-                        if symbol == op_symbol:
-                            fetch_ops.append(op)
-                    elif isinstance(op, symref.Update):
-                        op_symbol = op.symbol.root_reference.data
-                        if symbol == op_symbol:
-                            update_ops.append(op)
-
-                # Declared symbol can be never read, and so all updates are
-                # dead.
-                if len(fetch_ops) == 0:
-                    for update_op in update_ops:
-                        self.rewriter.erase_op(update_op)
-                    self.rewriter.erase_op(declare_op)
+                # Find all reads and writes for this symbol.
+                reads: List[Read] = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes: List[Write] = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
+ 
+                # Symbol is never read, so remove its definition and any writes.
+                if len(reads) == 0:
+                    for write in writes:
+                        self.rewriter.erase_op(write)
+                    self.rewriter.erase_op(definition)
                     continue
 
-                # Otherwise, symbol is read and used. We can first check if it
-                # was updated once, since then we can replace every symbol fetch
-                # with updated value trivially (recall that we are in the same
-                # block, so no CFG and the dominance relations do not matter).
-                if len(update_ops) == 1:
-                    # Note that it is safe to repalce all fetches because
-                    # declared symbol is always initialized.
-                    for fetch_op in fetch_ops:
-                        self.rewriter.replace_op(fetch_op, [],
-                                                 [update_ops[0].operands[0]])
-                    self.rewriter.erase_op(declare_op)
-                    self.rewriter.erase_op(update_ops[0])
+                # For symbols which are written once, the write dominates all
+                # the uses and therefore can be trivially replaced.
+                if len(writes) == 1:
+                    write = writes[0]
+                    for read in reads:
+                        self.rewriter.replace_op(read, [], [write.operands[0]])
+                    self.rewriter.erase_op(write)
+                    self.rewriter.erase_op(definition)
                     continue
 
-                # If there are multiple fetches and updates, we repalce every
-                # fetch with the closest preceding update. This is easy and can
-                # be done with a binary search.
-                for fetch_op in fetch_ops:
-                    fetch_idx = block.get_operation_index(fetch_op)
+                # If there are multiple reads and writes, replace every
+                # read with the closest preceding write.
+                for read in reads:
+                    write = lower_bound(writes, read, block.get_operation_index)
+                    if write is not None:
+                        self.rewriter.replace_op(read, [], [write.operands[0]])
 
-                    # TODO: Actually use binary search here.
-                    prev_update_op = None
-                    for update_op in update_ops:
-                        update_idx = block.get_operation_index(update_op)
-                        if fetch_idx < update_idx:
-                            break
-                        prev_update_op = update_op
-
-                    # Replace the result of the fetch with update's operand.
-                    if prev_update_op is not None:
-                        self.rewriter.replace_op(fetch_op, [],
-                                                 [prev_update_op.operands[0]])
-
-    def _remove_used_symbols(self, block: Block):
+    def prune_uses_without_definitions(self, block: Block):
         """Removes all possible symbol uses in a single block."""
-
-        # List of symbols we successfully simplified.
-        ignore_symols = set()
+        prepared_symbols: Set[str] = set()
 
         while True:
-            # Immediately remove all unused fetches.
-            for op in block.ops:
-                if isinstance(op, symref.Fetch):
-                    if len(op.results[0].uses) == 0:
-                        self.rewriter.erase_op(op)
+            is_unused_read: Callable[[Operation], bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
+            unused_reads = select_ops_by(block, is_unused_read)
+            for read in unused_reads:
+                self.rewriter.erase_op(read)
 
             # Find all symbols that are still in use in this block.
-            symbols = set()
-            for op in block.ops:
-                if isinstance(op, symref.Fetch) or isinstance(
-                        op, symref.Update):
-                    symbol = op.symbol.root_reference.data
-                    if symbol not in ignore_symols:
-                        symbols.add(symbol)
-
-            if len(symbols) == 0:
+            symbol_worklist: Set[str] = set(map(get_symbol, select_ops_by(block, lambda op: is_use(op) and get_symbol(op) == symbol and symbol not in prepared_symbols)))
+            if len(symbol_worklist) == 0:
                 return
 
-            for symbol in symbols:
-                # First, get a list of fetces and updates.
-                fetch_ops: List[symref.Fetch] = []
-                update_ops: List[symref.Update] = []
-                for op in block.ops:
-                    if isinstance(op, symref.Fetch):
-                        op_symbol = op.symbol.root_reference.data
-                        if symbol == op_symbol:
-                            fetch_ops.append(op)
-                    elif isinstance(op, symref.Update):
-                        op_symbol = op.symbol.root_reference.data
-                        if symbol == op_symbol:
-                            update_ops.append(op)
+            for symbol in symbol_worklist:
+                reads: List[Read] = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes: List[Write] = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
 
-                # There is no fetches of this symbol. Then we can only keep the
-                # last update to that symbol.
-                if len(fetch_ops) == 0:
-                    for update_op in update_ops[:-1]:
-                        self.rewriter.erase_op(update_op)
-                    ignore_symols.add(symbol)
+                # There are no reads, so we can only keep the last write to the
+                # symbol.
+                if len(reads) == 0:
+                    for write in writes[:-1]:
+                        self.rewriter.erase_op(write)
+                    prepared_symbols.add(symbol)
                     continue
 
-                # There are no updates to this symbol. We can replace all
-                # fetches with this symbol.
-                if len(update_ops) == 0:
-                    for fetch_op in fetch_ops[1:]:
-                        self.rewriter.replace_op(fetch_op, [],
-                                                 [fetch_ops[0].results[0]])
-                    ignore_symols.add(symbol)
+                # There are no writes, so we can replace all reads with this
+                # symbol.
+                if len(writes) == 0:
+                    for read in reads[1:]:
+                        self.rewriter.replace_op(read, [], [reads[0].results[0]])
+                    prepared_symbols.add(symbol)
                     continue
 
-                # Otherwise, in general we are done if all fetches preceed all
-                # updates.
-                last_fetch_idx = block.get_operation_index(fetch_ops[-1])
-                first_update_idx = block.get_operation_index(update_ops[0])
-                if last_fetch_idx < first_update_idx:
-                    # Get rid of all but one fetches, and keep only the last
-                    # update.
-                    for fetch_op in fetch_ops[1:]:
-                        self.rewriter.replace_op(fetch_op, [],
-                                                 [fetch_ops[0].results[0]])
-                    for update_op in update_ops[:-1]:
-                        self.rewriter.erase_op(update_op)
-                    ignore_symols.add(symbol)
+                # Sets of reads and writes are disjoint.
+                last_read_idx = block.get_operation_index(reads[-1])
+                first_write_idx = block.get_operation_index(writes[0])
+                if last_read_idx < first_write_idx:
+                    for read in reads[1:]:
+                        self.rewriter.replace_op(read, [], [reads[0].results[0]])
+                    for write in writes[:-1]:
+                        self.rewriter.erase_op(write)
+                    prepared_symbols.add(symbol)
                     continue
 
-                # This symbol should still be processed then, and has a micture
-                # of fetches and updates. We can use the same strategy as with
-                # declared symbols and replace all fetches with updated value.
-                for fetch_op in fetch_ops:
-                    fetch_idx = block.get_operation_index(fetch_op)
-
-                    # TODO: Actually use binary search here.
-                    prev_update_op = None
-                    for update_op in update_ops:
-                        update_idx = block.get_operation_index(update_op)
-                        if fetch_idx < update_idx:
-                            break
-                        prev_update_op = update_op
-
-                    # Replace the result of the fetch with update's operand.
-                    if prev_update_op is not None:
-                        self.rewriter.replace_op(fetch_op, [],
-                                                 [prev_update_op.operands[0]])
-
-    def _check_single_block_for_promotion(self, block: Block):
-        """Raises exception if the block is not ready for promotion."""
-
-        symbols = set()
-        for op in block.ops:
-            if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
-                symbols.add(op.symbol.root_reference.data)
-
-        # Every symbol should be fetched and updated at most once.
-        for symbol in symbols:
-            fetch_cnt = 0
-            update_cnt = 0
-            for op in block.ops:
-                if isinstance(op, symref.Fetch):
-                    op_symbol = op.symbol.root_reference.data
-                    if op_symbol == symbol:
-                        fetch_cnt += 1
-                elif isinstance(op, symref.Update):
-                    op_symbol = op.symbol.root_reference.data
-                    if op_symbol == symbol:
-                        update_cnt += 1
-
-            if fetch_cnt > 1 or update_cnt > 1:
-                raise FrontendProgramException(
-                    f"Block {block} not ready for promotion: found {fetch_cnt}"
-                    f" fetches and {update_cnt} updates.")
+                # Otherwise, replace reads with the closest preceding write.
+                for read in reads:
+                    write = lower_bound(writes, read, block.get_operation_index)
+                    if write is not None:
+                        self.rewriter.replace_op(read, [], [write.operands[0]])
 
 
 @dataclass
@@ -411,4 +391,4 @@ class DesymrefyPass:
     @staticmethod
     def run(op: Operation) -> bool:
         rewriter = Rewriter()
-        Desymrefier(rewriter).run_on_operation(op)
+        Desymrefier(rewriter).desymrefy(op)

@@ -4,10 +4,9 @@ from conftest import assert_print_op
 
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
-from xdsl.frontend.passes import desymref
 from xdsl.frontend.passes.desymref import Desymrefier
 from xdsl.frontend.symref import Symref
-from xdsl.ir import Block, MLContext
+from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
 
@@ -21,11 +20,11 @@ def run_on_prog_and_compare(prog: str, expected_prog: str):
     parser = Parser(ctx, prog)
     desymrefier = Desymrefier(Rewriter())
     op = parser.parse_op()
-    desymrefier.run_on_operation(op)
+    desymrefier.desymrefy(op)
     assert_print_op(op, expected_prog, None)
 
 
-def test_run_on_operation_no_regions():
+def test_desymrefy_no_regions():
     prog = \
 """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 5 : !i32]
