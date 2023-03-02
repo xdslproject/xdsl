@@ -52,5 +52,5 @@ def assert_print_op(operation: Operation,
     else:
         printer = Printer(stream=file, diagnostic=diagnostic)
 
-    printer.print_op(operation)
+    printer.print(operation)
     assert file.getvalue().strip() == expected.strip()
