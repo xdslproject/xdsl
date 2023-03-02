@@ -275,7 +275,6 @@ def test_insert_block_after():
     rewrite_and_compare(prog, expected, transformation)
 
 
-
 def test_insert_op_before():
     """Test the insertion of an operation before another operation."""
     prog = \

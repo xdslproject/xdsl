@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, List, Set, TypeAlias
+from typing import Callable, List, Set
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, Operation, Region
@@ -101,6 +101,7 @@ def is_definition(op: Operation) -> bool:
 def is_use(op: Operation) -> bool:
     return isinstance(op, symref.Fetch) or isinstance(op, symref.Update)
 
+
 def is_read(op: Operation) -> bool:
     return isinstance(op, symref.Fetch)
 
@@ -115,7 +116,8 @@ def get_symbol(op: Operation) -> str:
     elif isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
         return op.symbol.root_reference.data
     else:
-        raise FrontendProgramException(f"Operation '{op.name}' does not have symbol attributes.")
+        raise FrontendProgramException(
+            f"Operation '{op.name}' does not have symbol attributes.")
 
 
 def get_symbols(block: Block) -> Set[str]:
@@ -126,7 +128,8 @@ def get_symbols(block: Block) -> Set[str]:
     return symbols
 
 
-def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
+def count_ops_by(block: Block, cond: Callable[[Operation],
+                                              bool]) -> int:
     """
     Returns the number of operations in the block satisfying the given
     condition.
@@ -148,7 +151,9 @@ def select_ops_by(block: Block, cond: Callable[[Operation], bool]) -> List[Opera
             selected.append(op)
     return selected
 
-def lower_bound(ops: List[Operation], op: Operation, numbering: Callable[[Operation], int]) -> Operation | None:
+
+def lower_bound(ops: List[Operation], op: Operation,
+                numbering: Callable[[Operation], int]) -> Operation | None:
     """
     Returns an operation which has the largest index value smaller than the vaue
     of the given operation. List `ops` is assumed to be sorted (or monotonic for
@@ -186,7 +191,7 @@ class Desymrefier:
         """
         Desymrefy an operation. This method guarantees that the operation does
         not have any symbols.
-        """ 
+        """
         self.prepare_op(op)
         self.promote_op(op)
 
@@ -241,9 +246,11 @@ class Desymrefier:
 
         symbols = get_symbols(block)
         for symbol in symbols:
-            num_reads = count_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
-            num_writes = count_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
-            if  num_reads > 1 or num_writes > 1:
+            num_reads = count_ops_by(
+                block, lambda op: is_read(op) and get_symbol(op) == symbol)
+            num_writes = count_ops_by(
+                block, lambda op: is_write(op) and get_symbol(op) == symbol)
+            if num_reads > 1 or num_writes > 1:
                 raise FrontendProgramException(
                     f"Block {block} not ready for promotion: found {num_reads}"
                     f" reads and {num_writes} writes.")
@@ -262,9 +269,12 @@ class Desymrefier:
                 symbol = get_symbol(definition)
 
                 # Find all reads and writes for this symbol.
-                reads = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
-                writes = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
- 
+                reads = select_ops_by(
+                    block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes = select_ops_by(
+                    block,
+                    lambda op: is_write(op) and get_symbol(op) == symbol)
+
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
                     for write in writes:
@@ -285,7 +295,8 @@ class Desymrefier:
                 # If there are multiple reads and writes, replace every
                 # read with the closest preceding write.
                 for read in reads:
-                    write = lower_bound(writes, read, block.get_operation_index)
+                    write = lower_bound(writes, read,
+                                        block.get_operation_index)
                     if write is not None:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 
@@ -294,19 +305,24 @@ class Desymrefier:
         prepared_symbols: Set[str] = set()
 
         while True:
-            is_unused_read: Callable[[Operation], bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
+            is_unused_read: Callable[
+                [Operation],
+                bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
             unused_reads = select_ops_by(block, is_unused_read)
             for read in unused_reads:
                 self.rewriter.erase_op(read)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: Set[str] = set(map(get_symbol, select_ops_by(block, lambda op: is_use(op) and get_symbol(op) == symbol and symbol not in prepared_symbols)))
+            symbol_worklist: Set[str] = set(filter(lambda symbol: symbol not in prepared_symbols, get_symbols(block)))
             if len(symbol_worklist) == 0:
                 return
 
             for symbol in symbol_worklist:
-                reads = select_ops_by(block, lambda op: is_read(op) and get_symbol(op) == symbol)
-                writes = select_ops_by(block, lambda op: is_write(op) and get_symbol(op) == symbol)
+                reads = select_ops_by(
+                    block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                writes = select_ops_by(
+                    block,
+                    lambda op: is_write(op) and get_symbol(op) == symbol)
 
                 # There are no reads, so we can only keep the last write to the
                 # symbol.
@@ -320,7 +336,8 @@ class Desymrefier:
                 # symbol.
                 if len(writes) == 0:
                     for read in reads[1:]:
-                        self.rewriter.replace_op(read, [], [reads[0].results[0]])
+                        self.rewriter.replace_op(read, [],
+                                                 [reads[0].results[0]])
                     prepared_symbols.add(symbol)
                     continue
 
@@ -329,7 +346,8 @@ class Desymrefier:
                 first_write_idx = block.get_operation_index(writes[0])
                 if last_read_idx < first_write_idx:
                     for read in reads[1:]:
-                        self.rewriter.replace_op(read, [], [reads[0].results[0]])
+                        self.rewriter.replace_op(read, [],
+                                                 [reads[0].results[0]])
                     for write in writes[:-1]:
                         self.rewriter.erase_op(write)
                     prepared_symbols.add(symbol)
@@ -337,7 +355,8 @@ class Desymrefier:
 
                 # Otherwise, replace reads with the closest preceding write.
                 for read in reads:
-                    write = lower_bound(writes, read, block.get_operation_index)
+                    write = lower_bound(writes, read,
+                                        block.get_operation_index)
                     if write is not None:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 
