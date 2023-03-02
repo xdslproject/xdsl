@@ -321,7 +321,7 @@ class RewritePattern(ABC):
 
     traits: ClassVar[tuple[type[Trait], ...]] = ()
 
-    def match_and_rewrite0(self, op: Operation,
+    def _match_and_rewrite(self, op: Operation,
                            rewriter: PatternRewriter) -> None:
         if all(isinstance(op, trait) for trait in self.traits):
             self.match_and_rewrite(op, rewriter)
@@ -437,7 +437,7 @@ class GreedyRewritePatternApplier(RewritePattern):
     def match_and_rewrite(self, op: Operation,
                           rewriter: PatternRewriter) -> None:
         for pattern in self.rewrite_patterns:
-            pattern.match_and_rewrite0(op, rewriter)
+            pattern._match_and_rewrite(op, rewriter)
             if rewriter.has_done_action:
                 return
         return
@@ -485,7 +485,9 @@ class PatternRewriteWalker:
 
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
-        self.pattern.match_and_rewrite0(op, rewriter)
+
+        self.pattern._match_and_rewrite(  # pyright: ignore [reportPrivateUsage]
+            op, rewriter)
 
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
