@@ -737,7 +737,8 @@ def get_attr_size_option(
 
 def get_variadic_sizes_from_attr(op: Operation,
                                  defs: Sequence[tuple[str,
-                                                      OperandDef | ResultDef]],
+                                                      OperandDef | ResultDef
+                                                      | RegionDef]],
                                  construct: VarIRConstruct,
                                  size_attribute_name: str) -> list[int]:
     """
@@ -955,12 +956,13 @@ def irdl_build_arg_list(construct: VarIRConstruct,
     return res, arg_sizes
 
 
-def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
-                    operands: Sequence[SSAValue | Operation
-                                       | list[SSAValue | Operation] | None],
-                    res_types: Sequence[Any | list[Any] | None],
-                    attributes: dict[str, Any], successors: Sequence[Block],
-                    regions: Sequence[Any | None]) -> _OpT:
+def irdl_op_builder(
+        cls: type[_OpT], op_def: OpDef,
+        operands: Sequence[SSAValue | Operation
+                           | list[SSAValue | Operation] | None],
+        res_types: Sequence[Any | list[Any] | None],
+        attributes: dict[str, Any], successors: Sequence[Block],
+        regions: Sequence[Region | list[Operation] | list[Block]]) -> _OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseArrayBase, but here we need
@@ -1072,12 +1074,14 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes[name])
 
-    def builder(cls: type[_OpT],
-                operands: list[Any] | None = None,
-                result_types: list[Any] | None = None,
-                attributes: dict[str, Any] | None = None,
-                successors: list[Any] | None = None,
-                regions: list[Any] | None = None) -> _OpT:
+    def builder(
+        cls: type[_OpT],
+        operands: list[Any] | None = None,
+        result_types: list[Any] | None = None,
+        attributes: dict[str, Any] | None = None,
+        successors: list[Any] | None = None,
+        regions: list[Region | list[Operation] | list[Block]] | None = None
+    ) -> _OpT:
         if operands is None:
             operands = []
         if result_types is None:

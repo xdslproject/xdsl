@@ -520,12 +520,14 @@ class Operation(IRNode):
         return cast(OpT, op)
 
     @classmethod
-    def build(cls: type[OpT],
-              operands: list[Any] | None = None,
-              result_types: list[Any] | None = None,
-              attributes: dict[str, Any] | None = None,
-              successors: list[Any] | None = None,
-              regions: list[Any] | None = None) -> OpT:
+    def build(
+        cls: type[OpT],
+        operands: list[Any] | None = None,
+        result_types: list[Any] | None = None,
+        attributes: dict[str, Any] | None = None,
+        successors: list[Any] | None = None,
+        regions: list[Region | list[Operation] | list[Block]] | None = None
+    ) -> OpT:
         """Create a new operation using builders."""
         ...
 
