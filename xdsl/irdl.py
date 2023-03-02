@@ -780,8 +780,7 @@ def get_variadic_sizes_from_attr(op: Operation,
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
                 f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
-                f"to be of size 1 in {size_attribute_name}, but got "
-                f"{arg_size}")
+                f"to be of size 1 in {size_attribute_name}, but got {arg_size}")
 
         if isinstance(arg_def, VariadicDef):
             variadic_sizes.append(arg_size)
