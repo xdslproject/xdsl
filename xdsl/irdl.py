@@ -133,8 +133,20 @@ class AllOf(AttrConstraint):
     """The list of constraints that are checked."""
 
     def verify(self, attr: Attribute) -> None:
+        exc_bucket: list[VerifyException] = []
+
         for attr_constr in self.attr_constrs:
-            attr_constr.verify(attr)
+            try:
+                attr_constr.verify(attr)
+            except VerifyException as e:
+                exc_bucket.append(e)
+
+        if len(exc_bucket):
+            if len(exc_bucket) == 1:
+                raise VerifyException(str(exc_bucket[0])) from exc_bucket[0]
+            exc_msg = "The following constraints were not satisfied:\n"
+            exc_msg += "\n".join([str(e) for e in exc_bucket])
+            raise VerifyException(exc_msg)
 
 
 @dataclass(init=False)
