@@ -1,9 +1,8 @@
-from dataclasses import dataclass, field
-from typing import Callable, List, Set, Tuple, TypeAlias
-from xdsl.dialects.builtin import IntAttr
+from dataclasses import dataclass
+from typing import Callable, List, Set, TypeAlias
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -134,6 +133,10 @@ def get_symbols(block: Block) -> Set[str]:
 
 
 def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
+    """
+    Returns the number of operations in the block satisfying the given
+    condition.
+    """
     count = 0
     for op in block.ops:
         if cond(op):
@@ -142,6 +145,9 @@ def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
 
 
 def select_ops_by(block: Block, cond: Callable[[Operation], bool]) -> List[Operation]:
+    """
+    Returns a list of operations in the block satisfying the given condition.
+    """
     selected: List[Operation] = []
     for op in block.ops:
         if cond(op):
@@ -149,6 +155,11 @@ def select_ops_by(block: Block, cond: Callable[[Operation], bool]) -> List[Opera
     return selected
 
 def lower_bound(ops: List[Operation], op: Operation, numbering: Callable[[Operation], int]) -> Operation | None:
+    """
+    Returns an operation which has the largest index value smaller than the vaue
+    of the given operation. List `ops` is assumed to be sorted (or monotonic for
+    the provided numbering).
+    """
     idx = numbering(op)
     low_idx = -1
     high_idx = len(ops) - 1
@@ -190,6 +201,7 @@ class Desymrefier:
         Promotes an operation. This method guarantees that the operation does
         not have any symbols.
         """
+        # TODO: Add promoters in the next patch.
         pass
 
     def prepare_op(self, op: Operation):
