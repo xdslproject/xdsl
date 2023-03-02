@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+from typing import Callable, ClassVar, TypeVar
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
@@ -319,12 +319,11 @@ class RewritePattern(ABC):
     A side-effect free rewrite pattern matching on a DAG.
     """
 
-    def traits(self) -> tuple[type[Trait], ...]:
-        return ()
+    traits: ClassVar[tuple[type[Trait], ...]] = ()
 
     def match_and_rewrite0(self, op: Operation,
                            rewriter: PatternRewriter) -> None:
-        if all(isinstance(op, trait) for trait in self.traits()):
+        if all(isinstance(op, trait) for trait in self.traits):
             self.match_and_rewrite(op, rewriter)
 
     # The / in the function signature makes the previous arguments positional, see

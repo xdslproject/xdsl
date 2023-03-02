@@ -1,4 +1,4 @@
-from xdsl.traits import Pure, Trait
+from xdsl.traits import Pure
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier)
 from xdsl.ir import MLContext, Operation
@@ -7,8 +7,7 @@ from xdsl.dialects.builtin import ModuleOp
 
 class UnusedOperationRemover(RewritePattern):
 
-    def traits(self) -> tuple[type[Trait], ...]:
-        return (Pure, )
+    traits = (Pure, )
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if all(len(res.uses) == 0 for res in op.results):
