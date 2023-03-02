@@ -292,17 +292,6 @@ class LaunchOp(Operation):
             regions=[body])
 
     def verify_(self) -> None:
-        # Yes..
-        # So, basically, gpu.launch's *Size* arguments are *not* functionally optional,
-        # they *are* required. They are encodexd as such though, as is the case here.
-        # Thus I (feel like I?) have to encode them as such to have happy interoperability
-        # (It expects a consistent operand_segment_sizes)
-        if (self.gridSizeX is None) or (self.gridSizeY is None) or (
-                self.gridSizeZ is None) or (self.blockSizeX is None) or (
-                    self.blockSizeY is None) or (self.blockSizeZ is None):
-            raise VerifyException(
-                "gpu.launch requires 3 gridSize and blockSize arguments. Please "
-                "explicitely set the unused ones to 1")
         if len(self.body.blocks) == 0 or all(
             [len(b.ops) == 0 for b in self.body.blocks]):
             raise VerifyException("gpu.launch requires a non-empty body.")
