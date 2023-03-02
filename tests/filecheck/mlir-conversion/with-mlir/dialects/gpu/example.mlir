@@ -3,6 +3,9 @@
 "builtin.module"() ({
     "gpu.module"() ({
         "func.func"() ({
+            %n = "arith.constant"() {"value" = 13 : index} : () -> index
+            %one = "arith.constant"() {"value" = 1 : index} : () -> index
+
             %threadidx = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
             %threadidy = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
             %threadidz = "gpu.thread_id"() {"dimension" = #gpu<dim z>} : () -> index
@@ -40,6 +43,16 @@
                 "gpu.yield"(%sum) : (index) -> ()
             }) : (index) -> index
 
+            "gpu.launch"(%one, %one, %one, %n, %one, %one) ({
+            ^bb0(%bx : index, %by : index, %bz : index,
+                %tx : index, %ty : index, %tz : index,
+                %num_bx : index, %num_by : index, %num_bz : index,
+                %num_tx : index, %num_ty : index, %num_tz : index):
+                %sum = "gpu.all_reduce"(%tx) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+                %final = "arith.muli"(%sum, %one) : (index, index) -> index    
+                "gpu.terminator"() : () -> ()
+            }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
+
             "func.return"() : () -> ()
         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
         "gpu.module_end"() : () -> ()
@@ -49,6 +62,9 @@
 // CHECK:      "builtin.module"() ({
 // CHECK-NEXT:     "gpu.module"() ({
 // CHECK-NEXT:         "func.func"() ({
+// CHECK-NEXT:             %{{.*}} = "arith.constant"() {"value" = 13 : index} : () -> index
+// CHECK-NEXT:             %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() {"dimension" = #gpu<dim z>} : () -> index
@@ -85,6 +101,16 @@
 // CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (index, index) -> index
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:             }) : (index) -> index
+
+// CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
+// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
+// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
+// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index    
+// CHECK-NEXT:                 "gpu.terminator"() : () -> ()
+// CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()

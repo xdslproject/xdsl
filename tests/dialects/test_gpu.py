@@ -1,6 +1,6 @@
 from typing import List
 from xdsl.dialects import builtin, arith
-from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, ThreadIdOp, YieldOp
+from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp, LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -114,6 +114,46 @@ def test_lane_id():
     assert isinstance(lane_id, LaneIdOp)
 
 
+def test_launch():
+    body = Region.get([])
+    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    gridSize: list[Operation | SSAValue] = [ten, ten, ten]
+    blockSize: list[Operation | SSAValue] = [ten, ten, ten]
+    launch = LaunchOp.get(body, gridSize, blockSize)
+
+    assert isinstance(launch, LaunchOp)
+    assert launch.body is body
+    assert launch.gridSizeX is ten.result
+    assert launch.gridSizeY is ten.result
+    assert launch.gridSizeZ is ten.result
+    assert launch.blockSizeX is ten.result
+    assert launch.blockSizeY is ten.result
+    assert launch.blockSizeZ is ten.result
+    assert launch.asyncToken is None
+    assert launch.asyncDependencies == tuple()
+    assert launch.dynamicSharedMemorySize is None
+
+    asyncDependencies = []
+
+    body2 = Region()
+
+    nd_launch = LaunchOp.get(body2, gridSize, blockSize, True,
+                             asyncDependencies, ten)
+
+    assert isinstance(launch, LaunchOp)
+    assert nd_launch.body is body2
+    assert nd_launch.gridSizeX is ten.result
+    assert nd_launch.gridSizeY is ten.result
+    assert nd_launch.gridSizeZ is ten.result
+    assert nd_launch.blockSizeX is ten.result
+    assert nd_launch.blockSizeY is ten.result
+    assert nd_launch.blockSizeZ is ten.result
+    assert nd_launch.asyncToken is not None
+    assert nd_launch.asyncToken.typ == AsyncTokenType()
+    assert nd_launch.asyncDependencies == tuple()
+    assert nd_launch.dynamicSharedMemorySize is ten.result
+
+
 def test_num_subgroups():
     num_subgroups = NumSubgroupsOp.get()
 
@@ -148,6 +188,12 @@ def test_thread_id():
 
     assert isinstance(thread_id, ThreadIdOp)
     assert thread_id.dimension is dim
+
+
+def test_terminator():
+    terminator = TerminatorOp.get()
+
+    assert isinstance(terminator, TerminatorOp)
 
 
 def test_yield():

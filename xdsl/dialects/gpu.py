@@ -1,12 +1,17 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import Operand, OptOpAttr, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
+from xdsl.ir import Attribute, MLIRType, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.irdl import AttrSizedOperandSegments, Operand, OptOpAttr, OptOpResult, OptOperand, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_attr_definition
+class AsyncTokenType(ParametrizedAttribute, MLIRType):
+    name = "gpu.async.token"
 
 
 @irdl_attr_definition
@@ -149,6 +154,14 @@ class AllReduceOp(Operation):
                 raise VerifyException(
                     f"gpu.all_reduce need either a non empty body or an op attribute."
                 )
+        if non_empty_body:
+            region_args = self.body.blocks[0].args
+            args_types = [r.typ for r in region_args]
+            if args_types != [self.result.typ, self.operand.typ]:
+                raise VerifyException(
+                    f"Expected {[str(t) for t in [self.result.typ, self.operand.typ]]}, "
+                    f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
+                    "have two arguments matching the result type.")
 
 
 @irdl_op_definition
@@ -237,6 +250,62 @@ class LaneIdOp(Operation):
 
 
 @irdl_op_definition
+class LaunchOp(Operation):
+    name = "gpu.launch"
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    gridSizeX: Annotated[Operand, IndexType]
+    gridSizeY: Annotated[Operand, IndexType]
+    gridSizeZ: Annotated[Operand, IndexType]
+    blockSizeX: Annotated[Operand, IndexType]
+    blockSizeY: Annotated[Operand, IndexType]
+    blockSizeZ: Annotated[Operand, IndexType]
+    dynamicSharedMemorySize: Annotated[OptOperand, i32]
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+    body: Region
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(
+        body: Region,
+        gridSize: list[SSAValue | Operation],
+        blockSize: list[SSAValue | Operation],
+        async_launch: bool = False,
+        asyncDependencies: list[SSAValue | Operation] | None = None,
+        dynamicSharedMemorySize: SSAValue | Operation | None = None
+    ) -> LaunchOp:
+        if len(gridSize) != 3:
+            raise ValueError(
+                f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+        if len(blockSize) != 3:
+            raise ValueError(
+                f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        operands = [[] if asyncDependencies is None else
+                    [SSAValue.get(a) for a in asyncDependencies]]
+
+        operands += [gs for gs in gridSize]
+        operands += [bs for bs in blockSize]
+        operands += [[] if dynamicSharedMemorySize is None else
+                     [SSAValue.get(dynamicSharedMemorySize)]]
+        return LaunchOp.build(
+            operands=operands,
+            result_types=[[AsyncTokenType()] if async_launch else []],
+            regions=[body])
+
+    def verify_(self) -> None:
+        if len(self.body.blocks) == 0 or all(
+            [len(b.ops) == 0 for b in self.body.blocks]):
+            raise VerifyException("gpu.launch requires a non-empty body.")
+        body_args = self.body.blocks[0].args
+        args_type = [a.typ for a in body_args]
+        if args_type != [IndexType()] * 12:
+            raise VerifyException(
+                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
+                "gpu.launch's body arguments are 12 index arguments, with 3 block "
+                "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
+            )
+
+
+@irdl_op_definition
 class ModuleEndOp(Operation):
     name = "gpu.module_end"
 
@@ -283,6 +352,26 @@ class SubgroupSizeOp(Operation):
     @staticmethod
     def get() -> SubgroupSizeOp:
         return SubgroupSizeOp.build(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class TerminatorOp(Operation):
+    name = "gpu.terminator"
+
+    @staticmethod
+    def get() -> TerminatorOp:
+        return TerminatorOp.build()
+
+    def verify_(self) -> None:
+        block = self.parent_block()
+        op = self.parent_op()
+        if block is not None:
+            if self is not block.ops[-1]:
+                raise VerifyException(
+                    "A gpu.terminator must terminate its parent block")
+        if op is not None and not isinstance(op, LaunchOp):
+            raise VerifyException(
+                "gpu.terminator is only meant to terminate gpu.launch")
 
 
 @irdl_op_definition
@@ -334,12 +423,14 @@ GPU = Dialect([
     GlobalIdOp,
     GridDimOp,
     LaneIdOp,
+    LaunchOp,
     ModuleOp,
     ModuleEndOp,
     NumSubgroupsOp,
     SetDefaultDeviceOp,
     SubgroupIdOp,
     SubgroupSizeOp,
+    TerminatorOp,
     ThreadIdOp,
     YieldOp,
 ], [_GPUAttr])
