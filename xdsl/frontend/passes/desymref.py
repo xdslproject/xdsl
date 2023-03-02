@@ -230,18 +230,18 @@ class Desymrefier:
             # Otherwise, some declarations are still alive and there is still
             # some work to do.
             for declare_op in declare_ops:
-                symbol = declare_op.attributes["sym_name"].data
+                symbol = declare_op.sym_name.data
 
                 # Find all fetches and updates of this symbol.
                 fetch_ops: List[symref.Fetch] = []
                 update_ops: List[symref.Update] = []
                 for op in block.ops:
                     if isinstance(op, symref.Fetch):
-                        op_symbol = op.attributes["symbol"].data.data
+                        op_symbol = op.symbol.root_reference.data
                         if symbol == op_symbol:
                             fetch_ops.append(op)
                     elif isinstance(op, symref.Update):
-                        op_symbol = op.attributes["symbol"].data.data
+                        op_symbol = op.symbol.root_reference.data
                         if symbol == op_symbol:
                             update_ops.append(op)
 
@@ -254,10 +254,12 @@ class Desymrefier:
                     continue
 
                 # Otherwise, symbol is read and used. We can first check if it
-                # was updated once, sunce then we can replace every symbol fetch
+                # was updated once, since then we can replace every symbol fetch
                 # with updated value trivially (recall that we are in the same
                 # block, so no CFG and the dominance relations do not matter).
                 if len(update_ops) == 1:
+                    # Note that it is safe to repalce all fetches because
+                    # declared symbol is always initialized.
                     for fetch_op in fetch_ops:
                         self.rewriter.replace_op(fetch_op, [],
                                                  [update_ops[0].operands[0]])
@@ -302,7 +304,7 @@ class Desymrefier:
             for op in block.ops:
                 if isinstance(op, symref.Fetch) or isinstance(
                         op, symref.Update):
-                    symbol = op.attributes["symbol"].data.data
+                    symbol = op.symbol.root_reference.data
                     if symbol not in ignore_symols:
                         symbols.add(symbol)
 
@@ -315,11 +317,11 @@ class Desymrefier:
                 update_ops: List[symref.Update] = []
                 for op in block.ops:
                     if isinstance(op, symref.Fetch):
-                        op_symbol = op.attributes["symbol"].data.data
+                        op_symbol = op.symbol.root_reference.data
                         if symbol == op_symbol:
                             fetch_ops.append(op)
                     elif isinstance(op, symref.Update):
-                        op_symbol = op.attributes["symbol"].data.data
+                        op_symbol = op.symbol.root_reference.data
                         if symbol == op_symbol:
                             update_ops.append(op)
 
@@ -380,7 +382,7 @@ class Desymrefier:
         symbols = set()
         for op in block.ops:
             if isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
-                symbols.add(op.attributes["symbol"].data.data)
+                symbols.add(op.symbol.root_reference.data)
 
         # Every symbol should be fetched and updated at most once.
         for symbol in symbols:
@@ -388,11 +390,11 @@ class Desymrefier:
             update_cnt = 0
             for op in block.ops:
                 if isinstance(op, symref.Fetch):
-                    op_symbol = op.attributes["symbol"].data.data
+                    op_symbol = op.symbol.root_reference.data
                     if op_symbol == symbol:
                         fetch_cnt += 1
                 elif isinstance(op, symref.Update):
-                    op_symbol = op.attributes["symbol"].data.data
+                    op_symbol = op.symbol.root_reference.data
                     if op_symbol == symbol:
                         update_cnt += 1
 
