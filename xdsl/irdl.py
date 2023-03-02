@@ -961,7 +961,7 @@ def irdl_op_builder(
         operands: Sequence[SSAValue | Operation
                            | list[SSAValue | Operation] | None],
         res_types: Sequence[Any | list[Any] | None],
-        attributes: dict[str, Any], successors: Sequence[Block],
+        attributes: dict[str, Attribute], successors: Sequence[Block],
         regions: Sequence[Region | list[Operation] | list[Block]]) -> _OpT:
     """Builder for an irdl operation."""
 
@@ -1080,7 +1080,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                        | list[SSAValue | Operation]] | None = None,
         result_types: list[Attribute | list[Attribute]] | list[Attribute]
         | None = None,
-        attributes: dict[str, Any] | None = None,
+        attributes: dict[str, Attribute] | None = None,
         successors: list[Block] | None = None,
         regions: list[Region | list[Operation] | list[Block]] | None = None
     ) -> _OpT:

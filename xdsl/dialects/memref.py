@@ -263,10 +263,12 @@ class Global(Operation):
                             "dense type or an unit attribute")
 
     @staticmethod
-    def get(sym_name: str | StringAttr,
-            typ: Attribute,
-            initial_value: Optional[Attribute],
-            sym_visibility: str = "private") -> Global:
+    def get(
+        sym_name: StringAttr,
+        typ: Attribute,
+        initial_value: Attribute,
+        sym_visibility: StringAttr = StringAttr("private")
+    ) -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,

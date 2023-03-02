@@ -528,7 +528,7 @@ class Operation(IRNode):
         result_types: list[Attribute | list[Attribute]] | list[list[Attribute]]
         | list[Attribute]
         | None = None,
-        attributes: dict[str, Any] | None = None,
+        attributes: dict[str, Attribute] | None = None,
         successors: list[Block] | None = None,
         regions: list[Region | list[Operation] | list[Block]] | None = None
     ) -> OpT:
