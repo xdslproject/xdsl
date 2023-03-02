@@ -959,7 +959,8 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 def irdl_op_builder(
         cls: type[_OpT], op_def: OpDef,
         operands: Sequence[SSAValue | Operation
-                           | list[SSAValue | Operation] | None],
+                           | list[SSAValue | Operation] | list[SSAValue]
+                           | None],
         res_types: Sequence[Any | list[Any] | None],
         attributes: dict[str, Attribute], successors: Sequence[Block],
         regions: Sequence[Region | list[Operation] | list[Block]]) -> _OpT:
@@ -1077,7 +1078,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     def builder(
         cls: type[_OpT],
         operands: list[SSAValue | Operation
-                       | list[SSAValue | Operation]] | None = None,
+                       | list[SSAValue | Operation]]
+        | list[SSAValue | list[SSAValue]] | None = None,
         result_types: list[Attribute | list[Attribute]] | list[Attribute]
         | None = None,
         attributes: dict[str, Attribute] | None = None,

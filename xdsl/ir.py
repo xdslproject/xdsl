@@ -524,7 +524,8 @@ class Operation(IRNode):
         cls: type[OpT],
         operands: list[SSAValue | Operation
                        | list[SSAValue | Operation]]
-        | list[SSAValue | Operation] | None = None,
+        | list[SSAValue | Operation] | list[SSAValue | list[SSAValue]]
+        | None = None,
         result_types: list[Attribute | list[Attribute]] | list[list[Attribute]]
         | list[Attribute]
         | None = None,
