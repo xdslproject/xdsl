@@ -78,7 +78,7 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
             ">",
             f"Expected >. gpu attributes currently have the #gpu<name value> syntax."
         )
-        return [attrtype([StringAttr.from_str(vtok.text)])]
+        return [attrtype([StringAttr(vtok.text)])]
 
     @classmethod
     def from_op(cls: Type[_GPUAttr[_AllReduceOperationAttr]],

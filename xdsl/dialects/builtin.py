@@ -740,7 +740,7 @@ class DenseArrayBase(ParametrizedAttribute):
             typ: Float16Type | Float32Type | Float64Type,
             data: List[int | float | FloatData]) -> DenseArrayBase:
         data_attr = [
-            FloatData.from_float(float(d)) if isinstance(d, float | int) else d
+            FloatData(float(d)) if isinstance(d, float | int) else d
             for d in data
         ]
         return DenseArrayBase([typ, ArrayAttr(data_attr)])
