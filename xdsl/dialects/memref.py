@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   AnyArrayAttr, DenseArrayBase, IndexType,
-                                   ArrayAttr, IntegerType, SymbolRefAttr,
-                                   StringAttr, UnitAttr)
+                                   DenseArrayBase, IndexType, ArrayAttr,
+                                   IntegerType, SymbolRefAttr, StringAttr,
+                                   UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
