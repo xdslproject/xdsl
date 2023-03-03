@@ -20,6 +20,9 @@ class FuncOp(Operation):
     def verify_(self) -> None:
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
+        # If this is an empty block (external function) then return
+        if len(entry_block.args) == 0 and len(entry_block.ops) == 0:
+            return
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != block_arg_types:
             raise VerifyException(
