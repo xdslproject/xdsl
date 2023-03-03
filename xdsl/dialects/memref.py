@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   IndexType, ArrayAttr, IntegerType,
-                                   SymbolRefAttr, StringAttr, UnitAttr)
+                                   AnyArrayAttr, DenseArrayBase, IndexType,
+                                   ArrayAttr, IntegerType, SymbolRefAttr,
+                                   StringAttr, UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -318,6 +319,48 @@ class ExtractAlignedPointerAsIndexOp(Operation):
                                                     result_types=[IndexType()])
 
 
+@irdl_op_definition
+class Subview(Operation):
+    name = "memref.subview"
+
+    source: Annotated[Operand, MemRefType]
+    offsets: Annotated[VarOperand, IndexType]
+    sizes: Annotated[VarOperand, IndexType]
+    strides: Annotated[VarOperand, IndexType]
+    static_offsets: OpAttr[DenseArrayBase]
+    static_sizes: OpAttr[DenseArrayBase]
+    static_strides: OpAttr[DenseArrayBase]
+    result: Annotated[OpResult, MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(source: SSAValue | Operation, offsets: SSAValue | Operation,
+            sizes: SSAValue | Operation, strides: SSAValue | Operation,
+            static_offsets: SSAValue | Attribute,
+            static_sizes: SSAValue | Attribute,
+            static_strides: SSAValue | Attribute) -> Subview:
+        return Subview.build(operands=[source, offsets, sizes, strides],
+                             attributes={
+                                 "static_offsets": static_offsets,
+                                 "static_sizes": static_sizes,
+                                 "static_strides": static_strides
+                             },
+                             result_types=[MemRefType])
+
+
+@irdl_op_definition
+class Cast(Operation):
+    name = "memref.cast"
+
+    source: Annotated[Operand, MemRefType]
+    dest: Annotated[OpResult, MemRefType]
+
+    @staticmethod
+    def get(source: SSAValue | Operation) -> Cast:
+        return Cast.build(operands=[source], result_types=[MemRefType])
+
+
 MemRef = Dialect([
     Load,
     Store,
@@ -328,4 +371,6 @@ MemRef = Dialect([
     Global,
     Dim,
     ExtractAlignedPointerAsIndexOp,
+    Subview,
+    Cast,
 ], [MemRefType, UnrankedMemrefType])
