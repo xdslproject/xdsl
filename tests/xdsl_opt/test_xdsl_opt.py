@@ -12,7 +12,9 @@ def test_opt():
     opt = xDSLOptMain(args=[])
     assert list(opt.available_frontends.keys()) == ['xdsl', 'mlir']
     assert list(opt.available_targets.keys()) == ['xdsl', 'irdl', 'mlir']
-    assert list(opt.available_passes.keys()) == ['lower-mpi']
+    assert list(opt.available_passes.keys()) == [
+        'lower-mpi', 'convert-stencil-to-ll-mlir-pass'
+    ]
 
 
 def test_empty_program():

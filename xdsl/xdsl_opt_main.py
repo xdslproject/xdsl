@@ -23,6 +23,8 @@ from xdsl.dialects.gpu import GPU
 
 from xdsl.dialects.experimental.stencil import Stencil
 
+from xdsl.transforms.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR
+
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -220,6 +222,8 @@ class xDSLOptMain:
         Add other/additional passes by overloading this function.
         """
         self.available_passes['lower-mpi'] = lower_mpi
+        self.available_passes[
+            'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
 
     def register_all_targets(self):
         """
