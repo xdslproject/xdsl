@@ -72,8 +72,6 @@ class CastOpLowering(RewritePattern):
                                            result_types=[res_memref_type])
 
             rewriter.replace_op(op, memref_cast)
-            # rewriter.insert_op_before(op, memref_cast)
-            # rewriter.insert_op_after(op, memref_cast)
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):

@@ -1,0 +1,18 @@
+// RUN: xdsl-opt -p convert-stencil-to-ll-mlir %s | xdsl-opt | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "test_funcop_lowering", "function_type" = !fun<[!stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, %1 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>):
+
+    func.return()
+  }
+
+// CHECK: builtin.module() {
+// CHECK-NEXT: func.func() ["sym_name" = "test_funcop_lowering", "function_type" = !fun<[!memref<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, !memref<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>], []>, "sym_visibility" = "private"] {
+// CHECK-NEXT: ^{{.*}}(%{{.*}} : !memref<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, %{{.*}} : !memref<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>):
+// CHECK-NEXT: func.return()
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+
+}
