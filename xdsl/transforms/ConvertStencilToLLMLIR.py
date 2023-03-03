@@ -2,14 +2,13 @@ from typing import TypeVar
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier)
-from xdsl.ir import MLContext, OpResult, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects.memref import Cast as MemRefCast
 
-from xdsl.dialects.experimental.stencil import FieldType, Cast, IndexType
+from xdsl.dialects.experimental.stencil import FieldType, IndexType
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -46,7 +45,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _MemRefTypeElement,
     return MemRefType.from_params(memref_element_type, memref_shape_array_attr)
 
 
-class StencilTypeConversionLowering(RewritePattern):
+class StencilTypeConversionFuncOp(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if (isinstance(op, FuncOp)):
@@ -58,25 +57,9 @@ class StencilTypeConversionLowering(RewritePattern):
                 op.function_type.parameters[0].data[i] = memref_type_equiv
 
 
-class CastOpLowering(RewritePattern):
-
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if (isinstance(op, Cast)):
-            res_memref_type = GetMemRefFromFieldWithLBAndUB(
-                op.result.typ.element_type, op.lb, op.ub)
-
-            dynamic_dim_memref_type = GetMemRefFromField(op.field.typ)
-            dynamic_dim_memref = OpResult(dynamic_dim_memref_type, [], [])
-
-            memref_cast = MemRefCast.build(operands=[dynamic_dim_memref],
-                                           result_types=[res_memref_type])
-
-            rewriter.replace_op(op, memref_cast)
-
-
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
     walker = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilTypeConversionLowering(), CastOpLowering()]),
+        [StencilTypeConversionFuncOp()]),
                                   walk_regions_first=True,
                                   apply_recursively=False,
                                   walk_reverse=True)
