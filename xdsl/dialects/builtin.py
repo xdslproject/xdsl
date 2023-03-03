@@ -12,7 +12,7 @@ from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
                        Generic, GenericData, AttrConstraint, AnyAttr)
-from xdsl.utils.deprecation import deprecated
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -83,7 +83,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
                     f"element is of type {type(val)}")
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
         return ArrayAttr(data)
 
@@ -108,12 +108,12 @@ class StringAttr(Data[str]):
         printer.print_string(f'"{data}"')
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_str(data: str) -> StringAttr:
         return StringAttr(data)
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_int(data: int) -> StringAttr:
         return StringAttr(str(data))
 
@@ -129,12 +129,12 @@ class SymbolNameAttr(ParametrizedAttribute):
         super().__init__([data])
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_str(data: str) -> SymbolNameAttr:
         return SymbolNameAttr(data)
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_string_attr(data: StringAttr) -> SymbolNameAttr:
         return SymbolNameAttr(data)
 
@@ -158,12 +158,12 @@ class SymbolRefAttr(ParametrizedAttribute):
         super().__init__([root, nested])
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
         return SymbolRefAttr(root, nested)
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_string_attr(root: StringAttr,
                          nested: List[StringAttr] = []) -> SymbolRefAttr:
         return SymbolRefAttr(root, nested)
@@ -189,7 +189,7 @@ class IntAttr(Data[int]):
         printer.print_string(f'{data}')
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_int(data: int) -> IntAttr:
         return IntAttr(data)
 
@@ -232,7 +232,7 @@ class SignednessAttr(Data[Signedness]):
             raise ValueError(f"Invalid signedness {data}")
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_enum(signedness: Signedness) -> SignednessAttr:
         return SignednessAttr(signedness)
 
@@ -255,7 +255,7 @@ class IntegerType(ParametrizedAttribute):
         super().__init__([data, signedness])
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_width(
             width: int,
             signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
@@ -344,7 +344,7 @@ class FloatData(Data[float]):
         printer.print_string(f'{data}')
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_float(data: float) -> FloatData:
         return FloatData(data)
 
@@ -385,13 +385,13 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
         super().__init__([data, type])
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_value(value: float,
                    type: _FloatAttrTypContr) -> FloatAttr[_FloatAttrTypContr]:
         return FloatAttr(FloatData.from_float(value), type)
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
         return FloatAttr(value, width)
 
@@ -437,7 +437,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
                     f"element is of type {type(val)}")
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
         to_add_data: dict[str, Attribute] = {}
         for k, v in data.items():
@@ -465,7 +465,7 @@ class TupleType(ParametrizedAttribute):
         super().__init__([types])
 
     @staticmethod
-    @deprecated("__init__ should be used instead")
+    @deprecated_constructor
     def from_type_list(types: List[Attribute]) -> TupleType:
         return TupleType(types)
 

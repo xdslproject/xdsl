@@ -18,3 +18,7 @@ def deprecated(reason: str):
         return new_func
 
     return decorator
+
+
+def deprecated_constructor(func: Callable[_P, _T]) -> Callable[_P, _T]:
+    return deprecated(f'use the constructor (`ClassName(...)`) instead.')(func)
