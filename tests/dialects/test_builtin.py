@@ -48,9 +48,9 @@ def test_DenseArrayBase_verifier_failure():
 
 
 @pytest.mark.parametrize('ref,expected', (
-    (SymbolRefAttr.from_str('test'), 'test'),
-    (SymbolRefAttr.from_str('test', ["2"]), 'test.2'),
-    (SymbolRefAttr.from_str('test', ["2", "3"]), 'test.2.3'),
+    (SymbolRefAttr('test'), 'test'),
+    (SymbolRefAttr('test', ["2"]), 'test.2'),
+    (SymbolRefAttr('test', ["2", "3"]), 'test.2.3'),
 ))
 def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
