@@ -1,0 +1,64 @@
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+
+builtin.module() {
+
+func.func() ["sym_name" = "stencil_laplace", "function_type" = !fun<[!stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, %1 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>):
+    %2 : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64> = stencil.cast(%0 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>) ["lb" = !stencil.index<[-4 : !i32, -4 : !i32, -4 : !i32]>, "ub" = !stencil.index<[68 : !i32, 68 : !i32, 68 : !i32]>]
+    %3 : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64> = stencil.cast(%1 : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>) ["lb" = !stencil.index<[-4 : !i32, -4 : !i32, -4 : !i32]>, "ub" = !stencil.index<[68 : !i32, 68 : !i32, 68 : !i32]>]
+
+    %4 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64> = stencil.load(%2 : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64>) ["lb" = !stencil.index<[-1 : !i32, -1 : !i32, 0 : !i32]>, "ub" = !stencil.index<[65 : !i32, 65 : !i32, 64 : !i32]>]
+
+    %5 : !stencil.temp<[64 : !i32, 64 : !i32, 64 : !i32], !f64> = stencil.apply(%4 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["lb" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>, "ub" = !stencil.index<[64 : !i32, 64 : !i32, 64 : !i32]>] {
+      ^bb0(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>):
+        %7 : !f64 = stencil.access(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[-1 : !i32, 0 : !i32, 0 : !i32]>]
+        %8 : !f64 = stencil.access(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[1 : !i32, 0 : !i32, 0 : !i32]>]
+        %9 : !f64 = stencil.access(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, 1 : !i32, 0 : !i32]>]
+        %10 : !f64 = stencil.access(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, -1 : !i32, 0 : !i32]>]
+        %11 : !f64 = stencil.access(%6 : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>]
+
+        %12 : !f64 = arith.addf(%7 : !f64, %8 : !f64)
+        %13 : !f64 = arith.addf(%9 : !f64, %10 : !f64)
+        %14 : !f64 = arith.addf(%12 : !f64, %13 : !f64)
+
+        %15 : !f64 = arith.constant() ["value" = -4.00 : !f64]
+
+        %16 : !f64 = arith.mulf(%11 : !f64, %15 : !f64)
+        %17 : !f64 = arith.mulf(%16 : !f64, %13 : !f64)
+
+        %18 : !stencil.result<!f64> = stencil.store_result(%17 : !f64)
+        stencil.return(%18 : !stencil.result<!f64>)
+    }
+    stencil.store(%5 : !stencil.temp<[64 : !i32, 64 : !i32, 64 : !i32], !f64>, %3 : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64>) ["lb" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>, "ub" = !stencil.index<[64 : !i32, 64 : !i32, 64 : !i32]>]
+
+    func.return()
+  }
+
+// CHECK: builtin.module() {
+// CHECK-NEXT: func.func() ["sym_name" = "stencil_laplace", "function_type" = !fun<[!stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>], []>, "sym_visibility" = "private"] {
+// CHECK-NEXT: ^0(%{{.*}} : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>, %{{.*}} : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>):
+// CHECK-NEXT: %{{.*}} : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64> = stencil.cast(%{{.*}} : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>) ["lb" = !stencil.index<[-4 : !i32, -4 : !i32, -4 : !i32]>, "ub" = !stencil.index<[68 : !i32, 68 : !i32, 68 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64> = stencil.cast(%{{.*}} : !stencil.field<[-1 : !i32, -1 : !i32, -1 : !i32], !f64>) ["lb" = !stencil.index<[-4 : !i32, -4 : !i32, -4 : !i32]>, "ub" = !stencil.index<[68 : !i32, 68 : !i32, 68 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64> = stencil.load(%{{.*}} : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64>) ["lb" = !stencil.index<[-1 : !i32, -1 : !i32, 0 : !i32]>, "ub" = !stencil.index<[65 : !i32, 65 : !i32, 64 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !stencil.temp<[64 : !i32, 64 : !i32, 64 : !i32], !f64> = stencil.apply(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["lb" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>, "ub" = !stencil.index<[64 : !i32, 64 : !i32, 64 : !i32]>] {
+// CHECK-NEXT: ^1(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>):
+// CHECK-NEXT: %{{.*}} : !f64 = stencil.access(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[-1 : !i32, 0 : !i32, 0 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !f64 = stencil.access(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[1 : !i32, 0 : !i32, 0 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !f64 = stencil.access(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, 1 : !i32, 0 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !f64 = stencil.access(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, -1 : !i32, 0 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !f64 = stencil.access(%{{.*}} : !stencil.temp<[66 : !i32, 66 : !i32, 64 : !i32], !f64>) ["offset" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>]
+// CHECK-NEXT: %{{.*}} : !f64 = arith.addf(%{{.*}} : !f64, %{{.*}} : !f64)
+// CHECK-NEXT: %{{.*}} : !f64 = arith.addf(%{{.*}} : !f64, %{{.*}} : !f64)
+// CHECK-NEXT: %{{.*}} : !f64 = arith.addf(%{{.*}} : !f64, %{{.*}} : !f64)
+// CHECK-NEXT: %{{.*}} : !f64 = arith.constant() ["value" = -4.0 : !f64]
+// CHECK-NEXT: %{{.*}} : !f64 = arith.mulf(%{{.*}} : !f64, %{{.*}} : !f64)
+// CHECK-NEXT: %{{.*}} : !f64 = arith.mulf(%{{.*}} : !f64, %{{.*}} : !f64)
+// CHECK-NEXT: %{{.*}} : !stencil.result<!f64> = stencil.store_result(%{{.*}} : !f64)
+// CHECK-NEXT: stencil.return(%{{.*}} : !stencil.result<!f64>)
+// CHECK-NEXT: }
+// CHECK-NEXT: stencil.store(%{{.*}} : !stencil.temp<[64 : !i32, 64 : !i32, 64 : !i32], !f64>, %{{.*}} : !stencil.field<[72 : !i32, 72 : !i32, 72 : !i32], !f64>) ["lb" = !stencil.index<[0 : !i32, 0 : !i32, 0 : !i32]>, "ub" = !stencil.index<[64 : !i32, 64 : !i32, 64 : !i32]>]
+// CHECK-NEXT: func.return()
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+
+}
