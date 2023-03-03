@@ -338,20 +338,6 @@ class Subview(Operation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    @staticmethod
-    def get(source: SSAValue | Operation, offsets: SSAValue | Operation,
-            sizes: SSAValue | Operation, strides: SSAValue | Operation,
-            static_offsets: SSAValue | Attribute,
-            static_sizes: SSAValue | Attribute,
-            static_strides: SSAValue | Attribute) -> Subview:
-        return Subview.build(operands=[source, offsets, sizes, strides],
-                             attributes={
-                                 "static_offsets": static_offsets,
-                                 "static_sizes": static_sizes,
-                                 "static_strides": static_strides
-                             },
-                             result_types=[MemRefType])
-
 
 @irdl_op_definition
 class Cast(Operation):
@@ -359,10 +345,6 @@ class Cast(Operation):
 
     source: Annotated[Operand, MemRefType | UnrankedMemrefType]
     dest: Annotated[OpResult, MemRefType | UnrankedMemrefType]
-
-    @staticmethod
-    def get(source: SSAValue | Operation) -> Cast:
-        return Cast.build(operands=[source], result_types=[MemRefType])
 
 
 MemRef = Dialect([
