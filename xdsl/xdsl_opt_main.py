@@ -23,7 +23,7 @@ from xdsl.dialects.gpu import GPU
 
 from xdsl.dialects.experimental.stencil import Stencil
 
-from xdsl.transforms.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
