@@ -57,7 +57,7 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
 
 
 def test_array_len_attr():
-    arr = ArrayAttr.from_list([IntAttr.from_int(i) for i in range(10)])
+    arr = ArrayAttr([IntAttr(i) for i in range(10)])
 
     assert len(arr) == 10
     assert len(arr.data) == len(arr)
