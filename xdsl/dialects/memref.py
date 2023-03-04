@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   IndexType, ArrayAttr, IntegerType,
-                                   SymbolRefAttr, StringAttr, UnitAttr)
+                                   DenseArrayBase, IndexType, ArrayAttr,
+                                   IntegerType, SymbolRefAttr, StringAttr,
+                                   UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -318,6 +319,30 @@ class ExtractAlignedPointerAsIndexOp(Operation):
                                                     result_types=[IndexType()])
 
 
+@irdl_op_definition
+class Subview(Operation):
+    name = "memref.subview"
+
+    source: Annotated[Operand, MemRefType]
+    offsets: Annotated[VarOperand, IndexType]
+    sizes: Annotated[VarOperand, IndexType]
+    strides: Annotated[VarOperand, IndexType]
+    static_offsets: OpAttr[DenseArrayBase]
+    static_sizes: OpAttr[DenseArrayBase]
+    static_strides: OpAttr[DenseArrayBase]
+    result: Annotated[OpResult, MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class Cast(Operation):
+    name = "memref.cast"
+
+    source: Annotated[Operand, MemRefType]
+    dest: Annotated[OpResult, MemRefType]
+
+
 MemRef = Dialect([
     Load,
     Store,
@@ -328,4 +353,6 @@ MemRef = Dialect([
     Global,
     Dim,
     ExtractAlignedPointerAsIndexOp,
+    Subview,
+    Cast,
 ], [MemRefType, UnrankedMemrefType])
