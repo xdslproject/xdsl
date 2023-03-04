@@ -1,6 +1,10 @@
 from typing import Callable, ParamSpec, TypeVar
 import warnings
 
+# We could use the `decorated` library, but it did not seem necessary for
+# this simple use case.
+# If we ever need more features from the library, we can switch to it.
+
 _T = TypeVar('_T')
 _P = ParamSpec('_P')
 
