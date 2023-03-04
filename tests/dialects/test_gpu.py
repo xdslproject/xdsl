@@ -73,7 +73,7 @@ def test_block_id():
 
 
 def test_gpu_module():
-    name = builtin.SymbolRefAttr.from_str("gpu")
+    name = builtin.SymbolRefAttr("gpu")
 
     ops: list[Operation] = [ModuleEndOp.get()]
 

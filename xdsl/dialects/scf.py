@@ -13,7 +13,7 @@ from xdsl.utils.exceptions import VerifyException
 class If(Operation):
     name: str = "scf.if"
     output: Annotated[VarOpResult, AnyAttr()]
-    cond: Annotated[Operand, IntegerType.from_width(1)]
+    cond: Annotated[Operand, IntegerType(1)]
 
     true_region: Region
     # TODO this should be optional under certain conditions
@@ -44,7 +44,7 @@ class Yield(Operation):
 @irdl_op_definition
 class Condition(Operation):
     name: str = "scf.condition"
-    cond: Annotated[Operand, IntegerType.from_width(1)]
+    cond: Annotated[Operand, IntegerType(1)]
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod

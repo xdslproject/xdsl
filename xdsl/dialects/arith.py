@@ -35,7 +35,7 @@ class Constant(Operation):
     def from_int_and_width(val: int | IntAttr,
                            typ: int | IntegerType | IndexType) -> Constant:
         if isinstance(typ, int):
-            typ = IntegerType.from_width(typ)
+            typ = IntegerType(typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
@@ -45,7 +45,7 @@ class Constant(Operation):
     def from_float_and_width(val: float | FloatAttr[_FloatTypeT],
                              typ: _FloatTypeT) -> Constant:
         if isinstance(val, float):
-            val = FloatAttr.from_value(val, typ)
+            val = FloatAttr(val, typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": val})
@@ -435,14 +435,14 @@ class Cmpi(Operation):
     predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType.from_width(1)]
+    result: Annotated[OpResult, IntegerType(1)]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue], arg: int) -> Cmpi:
         return Cmpi.build(
             operands=[operand1, operand2],
-            result_types=[IntegerType.from_width(1)],
+            result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
     @staticmethod
@@ -483,14 +483,14 @@ class Select(Operation):
     The second and the third operand must have the same type.
     """
     name: str = "arith.select"
-    cond: Annotated[Operand, IntegerType.from_width(1)]  # should be unsigned
+    cond: Annotated[Operand, IntegerType(1)]  # should be unsigned
     lhs: Annotated[Operand, Attribute]
     rhs: Annotated[Operand, Attribute]
     result: Annotated[OpResult, Attribute]
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.cond.typ != IntegerType.from_width(1):
+        if self.cond.typ != IntegerType(1):
             raise VerifyException("Condition has to be of type !i1")
         if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
             raise VerifyException(
