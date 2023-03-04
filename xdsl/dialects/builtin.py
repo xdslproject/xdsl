@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (TypeAlias, List, cast, Type, Sequence, TYPE_CHECKING, Any,
-                    TypeVar, overload)
+from typing import (TypeAlias, List, cast, Type, TypeGuard, Sequence,
+                    TYPE_CHECKING, Any, TypeVar, overload)
 
 from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
                      Operation, Region, Attribute, Dialect, SSAValue)
@@ -40,11 +40,41 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
+_ArrayAttrInvT = TypeVar("_ArrayAttrInvT", bound=Attribute)
 
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     name: str = "array"
+
+    @overload
+    @staticmethod
+    def is_array_of(value: Any) -> TypeGuard[ArrayAttr[Attribute]]:
+        ...
+
+    @overload
+    @staticmethod
+    def is_array_of(
+            value: Any, type: type[_ArrayAttrInvT]
+    ) -> TypeGuard[ArrayAttr[_ArrayAttrInvT]]:
+        ...
+
+    @staticmethod
+    def is_array_of(
+        value: Any,
+        type: type[_ArrayAttrInvT] = Attribute
+    ) -> TypeGuard[ArrayAttr[_ArrayAttrInvT]]:
+        # Check if the base type is correct
+        if not isinstance(value, ArrayAttr):
+            return False
+        value = cast(ArrayAttr[Attribute], value)
+
+        # ArrayAttr only contains attributes
+        if type == Attribute:
+            return True
+
+        # Check the element types
+        return all(isinstance(e, type) for e in value.data)
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:

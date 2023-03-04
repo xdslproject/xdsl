@@ -17,15 +17,14 @@ class IntOrUnknown(AttrConstraint):
     length: int = 0
 
     def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
+        if not ArrayAttr.is_array_of(attr):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
-
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
+        if ArrayAttr.is_array_of(attr, Attribute):
+            if len(attr.data) != self.length:
+                raise VerifyException(
+                    f"Expected array of length {self.length}, got {len(attr.data)}."
+                )
 
 
 @irdl_attr_definition
@@ -60,9 +59,6 @@ class TempType(ParametrizedAttribute, MLIRType):
         if isinstance(shape, ArrayAttr):
             return TempType([shape])
 
-        # cast to list
-        shape = cast(list[IntAttr] | list[int], shape)
-
         if isinstance(shape[0], IntAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
             return TempType([ArrayAttr.from_list(shape)])  # type: ignore
@@ -93,7 +89,7 @@ class ArrayLength(AttrConstraint):
     length: int = 0
 
     def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
+        if ArrayAttr.is_array_of(attr):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
         attr = cast(ArrayAttr[Any], attr)
