@@ -663,7 +663,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
         elif len(data.flags) == len(FastMathFlag):
             printer.print("fast")
         else:
-            # make sure we emits flags in a consistent order
+            # make sure we emit flags in a consistent order
             printer.print(",".join(flag.value for flag in FastMathFlag if flag in data))
 
     @staticmethod
@@ -717,5 +717,5 @@ Arith = Dialect([
         # Casts
         IndexCastOp,
 ], [
-        FastMathFlagsAttr
+        FastMathFlagsAttr,
 ])
