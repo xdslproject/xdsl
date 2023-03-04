@@ -3,6 +3,7 @@ import pytest
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
                                    FloatData, SymbolRefAttr)
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -61,3 +62,13 @@ def test_array_len_attr():
 
     assert len(arr) == 10
     assert len(arr.data) == len(arr)
+
+
+def test_is_array_of():
+    arr = ArrayAttr([IntAttr(i) for i in range(2)])
+
+    assert ArrayAttr.is_array_of(arr)
+    assert ArrayAttr.is_array_of(arr, Attribute)
+    assert ArrayAttr.is_array_of(arr, IntAttr)
+    assert ArrayAttr.is_array_of(arr, IntAttr | FloatAttr)
+    assert not ArrayAttr.is_array_of(arr, FloatAttr)
