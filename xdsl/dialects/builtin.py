@@ -47,31 +47,18 @@ _ArrayAttrInvT = TypeVar("_ArrayAttrInvT", bound=Attribute)
 class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     name: str = "array"
 
-    @overload
     @staticmethod
-    def is_array_of(value: Any) -> TypeGuard[ArrayAttr[Attribute]]:
-        ...
+    def is_array(value: Any) -> TypeGuard[ArrayAttr[Attribute]]:
+        return isinstance(value, ArrayAttr)
 
-    @overload
     @staticmethod
     def is_array_of(
             value: Any, type: type[_ArrayAttrInvT]
-    ) -> TypeGuard[ArrayAttr[_ArrayAttrInvT]]:
-        ...
-
-    @staticmethod
-    def is_array_of(
-        value: Any,
-        type: type[_ArrayAttrInvT] = Attribute
     ) -> TypeGuard[ArrayAttr[_ArrayAttrInvT]]:
         # Check if the base type is correct
         if not isinstance(value, ArrayAttr):
             return False
         value = cast(ArrayAttr[Attribute], value)
-
-        # ArrayAttr only contains attributes
-        if type == Attribute:
-            return True
 
         # Check the element types
         return all(isinstance(e, type) for e in value.data)

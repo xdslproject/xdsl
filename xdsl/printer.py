@@ -368,7 +368,7 @@ class Printer:
             self.print_attribute(typ)
             return
 
-        if ArrayAttr.is_array_of(attribute):
+        if ArrayAttr.is_array(attribute):
             self.print_string("[")
             self.print_list(attribute.data, self.print_attribute)
             self.print_string("]")

@@ -17,14 +17,13 @@ class IntOrUnknown(AttrConstraint):
     length: int = 0
 
     def verify(self, attr: Attribute) -> None:
-        if not ArrayAttr.is_array_of(attr):
+        if not ArrayAttr.is_array(attr):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
-        if ArrayAttr.is_array_of(attr, Attribute):
-            if len(attr.data) != self.length:
-                raise VerifyException(
-                    f"Expected array of length {self.length}, got {len(attr.data)}."
-                )
+        if len(attr.data) != self.length:
+            raise VerifyException(
+                f"Expected array of length {self.length}, got {len(attr.data)}."
+            )
 
 
 @irdl_attr_definition
@@ -89,7 +88,7 @@ class ArrayLength(AttrConstraint):
     length: int = 0
 
     def verify(self, attr: Attribute) -> None:
-        if ArrayAttr.is_array_of(attr):
+        if ArrayAttr.is_array(attr):
             raise VerifyException(
                 f"Expected {ArrayAttr} attribute, but got {attr.name}.")
         attr = cast(ArrayAttr[Any], attr)

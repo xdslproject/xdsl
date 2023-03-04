@@ -67,8 +67,18 @@ def test_array_len_attr():
 def test_is_array_of():
     arr = ArrayAttr([IntAttr(i) for i in range(2)])
 
-    assert ArrayAttr.is_array_of(arr)
     assert ArrayAttr.is_array_of(arr, Attribute)
     assert ArrayAttr.is_array_of(arr, IntAttr)
     assert ArrayAttr.is_array_of(arr, IntAttr | FloatAttr)
     assert not ArrayAttr.is_array_of(arr, FloatAttr)
+
+    int_arr = IntAttr(0)
+    assert not ArrayAttr.is_array_of(int_arr, Attribute)
+
+
+def test_is_array():
+    arr = ArrayAttr([IntAttr(i) for i in range(2)])
+    assert ArrayAttr.is_array(arr)
+
+    int_attr = IntAttr(0)
+    assert not ArrayAttr.is_array(int_attr)
