@@ -214,12 +214,9 @@ def test_memref_subview():
     stride_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64),
                                      i64)
 
-    operand_segment_sizes = ArrayAttr.from_list([
-        IntAttr.from_int(1),
-        IntAttr.from_int(2),
-        IntAttr.from_int(2),
-        IntAttr.from_int(2)
-    ])
+    operand_segment_sizes = ArrayAttr(
+        [IntAttr(1), IntAttr(2),
+         IntAttr(2), IntAttr(2)])
 
     static_offsets = DenseArrayBase.from_list(i64, [0, 0])
     static_sizes = DenseArrayBase.from_list(i64, [1, 1])
