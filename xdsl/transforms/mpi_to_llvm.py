@@ -493,7 +493,8 @@ class MpiAddExternalFuncDefs(RewritePattern):
                 arg.typ
                 for arg in op.arguments), list(res.typ for res in op.results))
 
-        PatternRewriteWalker(AnonymousRewritePattern(match_func))
+        rewriter=PatternRewriteWalker(AnonymousRewritePattern(match_func))
+        rewriter.rewrite_module(module)
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
