@@ -1,5 +1,9 @@
-from xdsl.utils.hints import isa
 from typing import Any, TypeAlias
+
+from xdsl.ir import Attribute
+from xdsl.utils.hints import isa
+
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, FloatData, IntegerAttr, IntegerType
 
 
 class Class1:
@@ -202,8 +206,6 @@ def test_dict_hint_nested():
 
 
 def test_generic_data():
-    from xdsl.dialects.builtin import ArrayAttr, IntAttr, FloatData
-
     attr = ArrayAttr([IntAttr(0)])
 
     assert isa(attr, ArrayAttr[IntAttr])
@@ -215,3 +217,12 @@ def test_generic_data():
     assert not isa(attr2, ArrayAttr[IntAttr])
     assert isa(attr2, ArrayAttr[IntAttr | FloatData])
     assert not isa(attr2, ArrayAttr[FloatData])
+
+
+def test_nested_generic_data():
+    attr = ArrayAttr([IntegerAttr.from_index_int_value(0)])
+
+    assert isa(attr, ArrayAttr[Attribute])
+    assert isa(attr, ArrayAttr[IntegerAttr[IndexType]])
+    assert isa(attr, ArrayAttr[IntegerAttr[IndexType | IntegerType]])
+    assert not isa(attr, ArrayAttr[IntegerAttr[IntegerType]])
