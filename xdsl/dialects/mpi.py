@@ -3,11 +3,12 @@ from __future__ import annotations
 from abc import ABC
 from enum import Enum
 
-from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   AnyFloatAttr, AnyIntegerAttr, StringAttr)
+from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr, Float16Type, Float32Type,
+                                   Float64Type, AnyFloatAttr, AnyIntegerAttr, StringAttr)
+from xdsl.dialects.llvm import LLVMPointerType
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition, ParameterDef, AnyOf, AnyAttr,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
@@ -35,6 +36,12 @@ class StatusType(ParametrizedAttribute, MLIRType):
     """
     name = 'mpi.status'
 
+@irdl_attr_definition
+class DataType(ParametrizedAttribute, MLIRType):
+    name = 'mpi.datatype'
+
+    type: ParameterDef[AnyOf([IntegerType, Float16Type, Float32Type, Float64Type])]
+
 
 class StatusTypeField(Enum):
     """
@@ -50,6 +57,8 @@ class MPIBaseOp(Operation, ABC):
     Base class for MPI Operations
     """
     pass
+
+MPI_INT=DataType([IntegerType.from_width(32)])
 
 
 def _build_attr_dict_with_optional_tag(
@@ -129,16 +138,20 @@ class Send(MPIBaseOp):
 
     name = 'mpi.send'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, t_int]
+    data_type: OpAttr[DataType]
     dest: Annotated[Operand, t_int]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
+    tag: Annotated[Operand, t_int]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int) -> Send:
-        return cls.build(operands=[buff, dest],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
+    def get(cls, buffer: SSAValue | Operation,
+            count: SSAValue | Operation,
+            datatype: DataType,
+            dest: SSAValue | Operation,
+            tag: SSAValue | Operation) -> Send:
+        return cls.build(operands=[buffer, count, dest, tag],
+                        attributes={"data_type": datatype},
                          result_types=[])
 
 
@@ -216,22 +229,25 @@ class Recv(MPIBaseOp):
 
     name = "mpi.recv"
 
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, t_int]
+    data_type: OpAttr[DataType]
     source: Annotated[Operand, t_int]
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
+    tag: Annotated[Operand, t_int]
 
     status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls,
-            source: SSAValue | Operation,
             buffer: SSAValue | Operation,
-            tag: int | None = None,
+            count: SSAValue | Operation,
+            datatype: DataType,
+            source: SSAValue | Operation,
+            tag: SSAValue | Operation,
             ignore_status: bool = True):
         return cls.build(
-            operands=[source, buffer],
-            attributes=_build_attr_dict_with_optional_tag(tag),
+            operands=[buffer, count, source, tag],
+            attributes={"data_type": datatype},
             result_types=[[]] if ignore_status else [[StatusType()]])
 
 
