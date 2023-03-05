@@ -500,7 +500,8 @@ class MpiAddExternalFuncDefs(RewritePattern):
         for name, types in funcs_to_emit.items():
             arg, res = types
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
-                                      module.body.blocks[0], 0)
+                                      module.body.blocks[0],
+                                      len(module.body.blocks[0].ops))
 
 
 def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
