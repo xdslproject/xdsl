@@ -42,7 +42,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if origin in [Union, UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
 
-    from xdsl.dialects.builtin import GenericData
+    from xdsl.irdl import GenericData
     if (origin is not None) and issubclass(origin, GenericData):
         try:
             constraint = origin.generic_constraint_coercion(get_args(hint))
