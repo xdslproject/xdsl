@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from xdsl.dialects.builtin import Signedness, IntegerType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
 
-from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, op_type_rewrite_pattern, PatternRewriteWalker, \
-    AnonymousRewritePattern, GreedyRewritePatternApplier
+from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
+                                   op_type_rewrite_pattern,
+                                   PatternRewriteWalker,
+                                   AnonymousRewritePattern,
+                                   GreedyRewritePatternApplier)
 from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
 
 
