@@ -476,9 +476,10 @@ class MpiAddExternalFuncDefs(RewritePattern):
         def match_func(op: func.Call, rewriter: PatternRewriter, /):
             if op.callee.string_value() not in self.mpi_func_call_names:
                 return
-            funcs_to_emit[op.callee.string_value()] = (list(
-                arg.typ
-                for arg in op.arguments), list(res.typ for res in op.results))
+            funcs_to_emit[op.callee.string_value()] = (
+                [arg.typ for arg in op.arguments],
+                [res.typ for res in op.results],
+            )
 
         PatternRewriteWalker(
             AnonymousRewritePattern(match_func)).rewrite_module(module)
