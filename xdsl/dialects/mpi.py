@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from abc import ABC
 from enum import Enum
 
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   AnyFloatAttr, AnyIntegerAttr, StringAttr, AnyFloat)
+                                   StringAttr, AnyFloat)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
