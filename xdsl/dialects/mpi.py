@@ -3,7 +3,7 @@ from abc import ABC
 from enum import Enum
 
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   AnyFloatAttr, AnyIntegerAttr, StringAttr)
+                                   AnyFloatAttr, AnyIntegerAttr, StringAttr, AnyFloat)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
@@ -12,7 +12,7 @@ from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
 t_int: IntegerType = IntegerType(32, Signedness.SIGNLESS)
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
-AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
+AnyNumericType = AnyFloat | IntegerType
 
 
 @irdl_attr_definition
@@ -87,7 +87,7 @@ class ISend(MPIBaseOp):
 
     name = 'mpi.isend'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
     dest: Annotated[Operand, t_int]
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
@@ -128,7 +128,7 @@ class Send(MPIBaseOp):
 
     name = 'mpi.send'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
     dest: Annotated[Operand, t_int]
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
@@ -170,7 +170,7 @@ class IRecv(MPIBaseOp):
     name = "mpi.irecv"
 
     source: Annotated[Operand, t_int]
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
@@ -216,7 +216,7 @@ class Recv(MPIBaseOp):
     name = "mpi.recv"
 
     source: Annotated[Operand, t_int]
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
 
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
 
