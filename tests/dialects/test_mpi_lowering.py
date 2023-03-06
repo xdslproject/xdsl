@@ -244,8 +244,8 @@ def test_mpi_type_conversion():
     lowering = mpi_to_llvm.LowerMpiRecv(info)
 
     from xdsl.dialects.builtin import f64, f32, IntegerType, i32, i64, Signedness
-    u64 = IntegerType.from_width(64, Signedness.UNSIGNED)
-    u32 = IntegerType.from_width(32, Signedness.UNSIGNED)
+    u64 = IntegerType(64, Signedness.UNSIGNED)
+    u32 = IntegerType(32, Signedness.UNSIGNED)
 
     checks = [
         (f32, info.MPI_FLOAT),
@@ -261,7 +261,7 @@ def test_mpi_type_conversion():
                      Signedness.SIGNED):
             sign_str = 'UNSIGNED_' if sign == Signedness.UNSIGNED else ''
             name = 'CHAR' if width == 8 else 'SHORT'
-            typ = IntegerType.from_width(width, sign)
+            typ = IntegerType(width, sign)
             checks.append((typ, getattr(info, f'MPI_{sign_str}{name}')))
 
     for type, target in checks:
