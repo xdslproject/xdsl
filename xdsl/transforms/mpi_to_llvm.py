@@ -149,7 +149,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         Currently supported mappings are:
             floats:
                 f32     -> MPI_FLOAT
-                f64     -> MPI_DOUBLR
+                f64     -> MPI_DOUBLE
             ints:
                 [u]i8   -> MPI_[UNSIGNED]_CHAR
                 [u]i16  -> MPI_[UNSIGNED]_SHORT
