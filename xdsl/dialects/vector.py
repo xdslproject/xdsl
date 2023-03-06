@@ -195,15 +195,20 @@ class Maskedload(Operation):
         memref_element_type = memref_typ.element_type
 
         res_typ = self.res.typ
-        assert isinstance(res_typ, MemRefType)
+        assert isinstance(res_typ, VectorType)
         res_typ = cast(VectorType[Any], res_typ)
         res_element_type = res_typ.element_type
+
+        passthrough_typ = self.passthrough.typ
+        assert isinstance(passthrough_typ, VectorType)
+        passthrough_typ = cast(VectorType[Any], passthrough_typ)
+        passthrough_element_type = passthrough_typ.element_type
 
         if memref_element_type != res_element_type:
             raise VerifyException(
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
             )
-        elif memref_element_type != res_element_type:
+        elif memref_element_type != passthrough_element_type:
             raise VerifyException(
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
             )
