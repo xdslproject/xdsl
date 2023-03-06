@@ -286,10 +286,6 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, memref.MemRefType)
         memref_elm_typ = cast(memref.MemRefType[Attribute],
                               op.buffer.typ).element_type
@@ -330,10 +326,6 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, memref.MemRefType)
         memref_elm_typ = cast(memref.MemRefType[Attribute],
                               op.buffer.typ).element_type
@@ -403,10 +395,6 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
         """
         count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, memref.MemRefType)
         memref_elm_typ = cast(memref.MemRefType[Attribute],
                               op.buffer.typ).element_type
@@ -448,10 +436,6 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
         ops, new_results, status = self._emit_mpi_status_obj(
             len(op.results) == 0)
 
-        # TODO: I really hate this dance just to make pyright happy
-        #       imo this makes code *less* readable.
-        #       The _MemRefTypeElement is bound to Attribute, so
-        #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
         assert isinstance(op.buffer.typ, memref.MemRefType)
         memref_elm_typ = cast(memref.MemRefType[Attribute],
                               op.buffer.typ).element_type
