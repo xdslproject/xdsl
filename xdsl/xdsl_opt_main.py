@@ -216,7 +216,7 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        self.available_passes['mpi-to-llvm'] = mpi_to_llvm_lowering
+        self.available_passes['lower-mpi'] = mpi_to_llvm_lowering
 
     def register_all_targets(self):
         """
