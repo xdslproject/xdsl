@@ -227,8 +227,6 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
     def lower(self,
               op: mpi.Init) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        Relatively easy lowering of mpi.init operation.
-
         We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
         """
         return [
@@ -264,7 +262,7 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
     def lower(self,
               op: mpi.Wait) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        Relatively easy lowering of mpi.wait operation.
+        Relatively straight forward lowering of mpi.wait operation.
         """
         ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
