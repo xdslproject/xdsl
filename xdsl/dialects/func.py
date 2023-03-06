@@ -31,7 +31,7 @@ class FuncOp(Operation):
                       return_types: List[Attribute],
                       func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
+        attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")
@@ -47,7 +47,7 @@ class FuncOp(Operation):
     def external(name: str, input_types: List[Attribute],
                  return_types: List[Attribute]) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
+        attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")
@@ -60,7 +60,7 @@ class FuncOp(Operation):
     def from_region(name: str, input_types: List[Attribute],
                     return_types: List[Attribute], region: Region) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
+        attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")

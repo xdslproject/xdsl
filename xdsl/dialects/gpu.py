@@ -118,12 +118,13 @@ class AllReduceOp(Operation):
     def from_op(op: AllReduceOperationAttr,
                 operand: SSAValue | Operation,
                 uniform: UnitAttr | None = None):
+        attributes: dict[str, Attribute] = {"op": op}
+        if uniform is not None:
+            attributes["uniform"] = uniform
+
         return AllReduceOp.build(operands=[operand],
                                  result_types=[SSAValue.get(operand).typ],
-                                 attributes={"op": op}
-                                 | ({
-                                     "uniform": uniform
-                                 } if uniform is not None else {}),
+                                 attributes=attributes,
                                  regions=[Region()])
 
     @staticmethod
@@ -282,8 +283,8 @@ class LaunchOp(Operation):
         operands = [[] if asyncDependencies is None else
                     [SSAValue.get(a) for a in asyncDependencies]]
 
-        operands += [gs for gs in gridSize]
-        operands += [bs for bs in blockSize]
+        operands += [SSAValue.get(gs) for gs in gridSize]
+        operands += [SSAValue.get(bs) for bs in blockSize]
         operands += [[] if dynamicSharedMemorySize is None else
                      [SSAValue.get(dynamicSharedMemorySize)]]
         return LaunchOp.build(
