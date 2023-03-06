@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import TypeVar, Any
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier)
@@ -10,10 +10,10 @@ from xdsl.dialects.memref import MemRefType
 
 from xdsl.dialects.experimental.stencil import FieldType, IndexType
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+_TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 
-def GetMemRefFromField(inputFieldType: FieldType) -> MemRefType:
+def GetMemRefFromField(inputFieldType: FieldType[_TypeElement]) -> MemRefType[_TypeElement]:
     memref_shape_integer_attr_list = []
     for i in range(len(inputFieldType.parameters[0].data)):
         memref_shape_integer_attr_list.append(
@@ -28,8 +28,8 @@ def GetMemRefFromField(inputFieldType: FieldType) -> MemRefType:
                                   memref_shape_array_attr)
 
 
-def GetMemRefFromFieldWithLBAndUB(memref_element_type: _MemRefTypeElement,
-                                  lb: IndexType, ub: IndexType) -> MemRefType:
+def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
+                                  lb: IndexType, ub: IndexType) -> MemRefType[_TypeElement]:
     # Assumes lb and ub are of same size and same underlying element types.
     memref_shape_integer_attr_list = []
     for i in range(len(lb.parameters[0].data)):
