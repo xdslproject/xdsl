@@ -16,11 +16,6 @@ class OperationType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class RangeType(ParametrizedAttribute):
-    name = "range"
-
-
-@irdl_attr_definition
 class TypeType(ParametrizedAttribute):
     name = "type"
 
@@ -28,6 +23,40 @@ class TypeType(ParametrizedAttribute):
 @irdl_attr_definition
 class ValueType(ParametrizedAttribute):
     name = "value"
+
+
+AnyPDLType = AttributeType | OperationType | TypeType | ValueType
+
+_RangeT = TypeVar("_RangeT",
+                  bound=AttributeType | OperationType | TypeType | ValueType,
+                  covariant=True)
+
+
+@irdl_attr_definition
+class RangeType(Generic[_RangeT], ParametrizedAttribute):
+    name = "range"
+    element_type: ParameterDef[_RangeT]
+
+
+@irdl_op_definition
+class ApplyNativeConstraintOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop
+    """
+    name: str = "pdl.apply_native_constraint"
+    name_: OpAttr[StringAttr]
+    args: Annotated[VarOperand, AnyPDLType]
+
+
+@irdl_op_definition
+class ApplyNativeRewriteOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop
+    """
+    name: str = "pdl.apply_native_rewrite"
+    name_: OpAttr[StringAttr]
+    args: Annotated[VarOperand, AnyPDLType]
+    results: Annotated[VarOpResult, AnyPDLType]
 
 
 @irdl_op_definition
@@ -66,11 +95,136 @@ class OperandsOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop
     """
     name: str = "pdl.operands"
-    value_type: Annotated[Operand,
-                          RangeType]  # Range of Types can we parametrize this?
-    output: Annotated[OpResult,
-                      RangeType]  # Range of Values can we parametrize this?
+    value_type: Annotated[Operand, RangeType[TypeType]]
+    output: Annotated[OpResult, RangeType[ValueType]]
 
 
-Pdl = Dialect([AttributeOp, OperandOp, EraseOp, OperandsOp],
-              [AttributeType, OperationType, RangeType, TypeType, ValueType])
+@irdl_op_definition
+class OperationOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop
+    """
+    name: str = "pdl.operation"
+    opName: OpAttr[StringAttr]
+    attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
+    operandValues: Annotated[Operand, ValueType | RangeType[ValueType]]
+    # in PDL docs, this is just a handle to AttributeType, not a range.
+    # Why is it different to operandvalues
+    attributeValues: Annotated[Operand,
+                               AttributeType | RangeType[AttributeType]]
+    typeValues: Annotated[Operand, TypeType | RangeType[TypeType]]
+    op: Annotated[OpResult, OperationType]
+
+
+@irdl_op_definition
+class PatternOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop
+    """
+    name: str = "pdl.pattern"
+    benefit: OpAttr[IntegerType]
+    sym_name: OpAttr[StringAttr]
+    body: Region
+
+
+@irdl_op_definition
+class RangeOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop
+    """
+    name: str = "pdl.range"
+    arguments: Annotated[VarOperand, AnyPDLType | RangeType[AnyPDLType]]
+    result: Annotated[OpResult, RangeType[AnyPDLType]]
+
+    def verify_(self) -> None:
+
+        def get_type_or_elem_type(arg: SSAValue) -> Attribute:
+            if isinstance(arg.typ, RangeType):
+                return arg.typ.element_type  # type: ignore
+            else:
+                return arg.typ
+
+        if len(self.arguments) > 0:
+            elem_type = get_type_or_elem_type(self.result)
+
+            for arg in self.arguments:
+                if cur_elem_type := get_type_or_elem_type(arg) != elem_type:
+                    raise VerifyException(
+                        f"All arguments must have the same type or be an array  \
+                          of the corresponding element type. First element type:\
+                          {elem_type}, current element type: {cur_elem_type}")
+
+
+@irdl_op_definition
+class ReplaceOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
+    """
+    name: str = "pdl.replace"
+    opValue: Annotated[Operand, OperationType]
+    replOperation: Annotated[OptOperand, OperationType]
+    replValues: Annotated[VarOperand, ValueType | ArrayAttr[ValueType]]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class ResultOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop
+    """
+    name: str = "pdl.result"
+    index: OpAttr[IntegerType]
+    parent_: Annotated[Operand, OperationType]
+    val: Annotated[OpResult, ValueType]
+
+
+@irdl_op_definition
+class ResultsOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop
+    """
+    name: str = "pdl.results"
+    index: OpAttr[IntegerType]
+    parent_: Annotated[Operand, OperationType]
+    val: Annotated[OpResult, ValueType | ArrayAttr[ValueType]]
+
+
+@irdl_op_definition
+class RewriteOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop
+    """
+    name: str = "pdl.rewrite"
+    root: Annotated[Operand, OperationType]
+    # name of external rewriter function
+    name_: OptOpAttr[StringAttr]
+    externalArgs: Annotated[VarOperand, AnyPDLType]
+    body: OptRegion
+
+
+@irdl_op_definition
+class TypeOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
+    """
+    name: str = "pdl.type"
+    constant_type: Annotated[OptOperand, TypeType]
+    result: Annotated[OpResult, TypeType]
+
+
+@irdl_op_definition
+class TypesOp(Operation):
+    """
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop
+    """
+    name: str = "pdl.types"
+    constant_types: Annotated[OptOperand, ArrayAttr[TypeType]]
+    result: Annotated[OpResult, ArrayAttr[TypeType]]
+
+
+PDL = Dialect([
+    ApplyNativeConstraintOp, ApplyNativeRewriteOp, AttributeOp, OperandOp,
+    EraseOp, OperandsOp, OperationOp, PatternOp, RangeOp, ReplaceOp, ResultOp,
+    ResultsOp, RewriteOp, TypeOp, TypesOp
+], [AttributeType, OperationType, TypeType, ValueType, RangeType])
