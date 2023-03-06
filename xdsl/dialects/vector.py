@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, List, cast
+from typing import Annotated, Any, List, cast
 
 from xdsl.dialects.builtin import IndexType, VectorType, i1
 from xdsl.dialects.memref import MemRefType
@@ -36,10 +36,15 @@ class Load(Operation):
     @staticmethod
     def get(ref: SSAValue | Operation,
             indices: List[SSAValue | Operation]) -> Load:
+        ref = SSAValue.get(ref)
+        ref_typ = ref.typ
+        assert isinstance(ref_typ, MemRefType)
+        ref_typ = cast(MemRefType[Any], ref_typ)
+
         return Load.build(operands=[ref, indices],
                           result_types=[
                               VectorType.from_element_type_and_shape(
-                                  SSAValue.get(ref).typ.element_type, [1])
+                                  ref_typ.element_type, [1])
                           ])
 
 
@@ -109,31 +114,47 @@ class FMA(Operation):
     res: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        res_element_type = self.res.typ.element_type
-        res_shape = self.res.typ.get_shape()
+        lhs_typ = self.lhs.typ
+        assert isinstance(lhs_typ, VectorType)
+        lhs_typ = cast(VectorType[Any], lhs_typ)
 
-        if res_element_type != self.lhs.typ.element_type:
+        rhs_typ = self.rhs.typ
+        assert isinstance(rhs_typ, VectorType)
+        rhs_typ = cast(VectorType[Any], rhs_typ)
+
+        acc_typ = self.acc.typ
+        assert isinstance(acc_typ, VectorType)
+        acc_typ = cast(VectorType[Any], acc_typ)
+
+        res_typ = self.res.typ
+        assert isinstance(res_typ, VectorType)
+        res_typ = cast(VectorType[Any], res_typ)
+        res_element_type = res_typ.element_type
+
+        res_shape = res_typ.get_shape()
+
+        if res_element_type != lhs_typ.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
             )
-        elif res_element_type != self.rhs.typ.element_type:
+        elif res_element_type != rhs_typ.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
             )
-        elif res_element_type != self.acc.typ.element_type:
+        elif res_element_type != acc_typ.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
             )
 
-        if res_shape != self.lhs.typ.get_shape():
+        if res_shape != lhs_typ.get_shape():
             raise VerifyException(
                 "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
             )
-        elif res_shape != self.rhs.typ.get_shape():
+        elif res_shape != rhs_typ.get_shape():
             raise VerifyException(
                 "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
             )
-        elif res_shape != self.acc.typ.get_shape():
+        elif res_shape != acc_typ.get_shape():
             raise VerifyException(
                 "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
             )
@@ -141,10 +162,17 @@ class FMA(Operation):
     @staticmethod
     def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue,
             acc: Operation | SSAValue) -> FMA:
+        lhs = SSAValue.get(lhs)
+
+        lhs_typ = lhs.typ
+        assert isinstance(lhs_typ, VectorType)
+        lhs_typ = cast(VectorType[Any], lhs_typ)
+        lhs_element_type = lhs_typ.element_type
+
         return FMA.build(operands=[lhs, rhs, acc],
                          result_types=[
                              VectorType.from_element_type_and_shape(
-                                 SSAValue.get(lhs).typ.element_type, [1])
+                                 lhs_element_type, [1])
                          ])
 
 
@@ -158,27 +186,39 @@ class Maskedload(Operation):
     res: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        memref_element_type = self.memref.typ.element_type
+        memref_typ = self.memref.typ
+        assert isinstance(memref_typ, MemRefType)
+        memref_typ = cast(MemRefType[Any], memref_typ)
+        memref_element_type = memref_typ.element_type
 
-        if memref_element_type != self.res.typ.element_type:
+        res_typ = self.res.typ
+        assert isinstance(res_typ, MemRefType)
+        res_typ = cast(VectorType[Any], res_typ)
+        res_element_type = res_typ.element_type
+
+        mask_typ = self.mask.typ
+        assert isinstance(mask_typ, VectorType)
+        mask_typ = cast(VectorType[Any], mask_typ)
+
+        if memref_element_type != res_element_type:
             raise VerifyException(
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
             )
-        elif memref_element_type != self.passthrough.typ.element_type:
+        elif memref_element_type != res_element_type:
             raise VerifyException(
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
             )
 
-        if len(self.res.typ.get_shape()) != 1:
+        if len(res_typ.get_shape()) != 1:
             raise VerifyException("Expected a rank 1 result vector.")
 
-        if len(self.mask.typ.get_shape()) != 1:
+        if len(mask_typ.get_shape()) != 1:
             raise VerifyException("Expected a rank 1 mask vector.")
 
-        if self.mask.typ.element_type != i1:
+        if mask_typ.element_type != i1:
             raise VerifyException("Expected mask element type to be i1.")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if memref_typ.get_num_dims() != len(self.indices):
             raise VerifyException(
                 "Expected an index for each memref dimension.")
 
@@ -186,11 +226,17 @@ class Maskedload(Operation):
     def get(memref: SSAValue | Operation, indices: List[SSAValue | Operation],
             mask: SSAValue | Operation,
             passthrough: SSAValue | Operation) -> Maskedload:
+        memref = SSAValue.get(memref)
+
+        memref_typ = memref.typ
+        assert isinstance(memref_typ, MemRefType)
+        memref_typ = cast(MemRefType[Any], memref_typ)
+        memref_element_type = memref_typ.element_type
+
         return Maskedload.build(operands=[memref, indices, mask, passthrough],
                                 result_types=[
                                     VectorType.from_element_type_and_shape(
-                                        SSAValue.get(memref).typ.element_type,
-                                        [1])
+                                        memref_element_type, [1])
                                 ])
 
 
@@ -203,24 +249,35 @@ class Maskedstore(Operation):
     value_to_store: Annotated[Operand, VectorType]
 
     def verify_(self):
-        memref_element_type = self.memref.typ.element_type
+        memref_typ = self.memref.typ
+        assert isinstance(memref_typ, MemRefType)
+        memref_typ = cast(MemRefType[Any], memref_typ)
+        memref_element_type = memref_typ.element_type
 
-        if memref_element_type != self.value_to_store.typ.element_type:
+        value_to_store_typ = self.value_to_store.typ
+        assert isinstance(value_to_store_typ, VectorType)
+        value_to_store_typ = cast(VectorType[Any], value_to_store_typ)
+
+        mask_typ = self.mask.typ
+        assert isinstance(mask_typ, VectorType)
+        mask_typ = cast(VectorType[Any], mask_typ)
+
+        if memref_element_type != value_to_store_typ.element_type:
             raise VerifyException(
                 "MemRef element type should match the stored vector type. Obtained types were "
                 + str(memref_element_type) + " and " +
-                str(self.value_to_store.typ.element_type) + ".")
+                str(value_to_store_typ.element_type) + ".")
 
-        if len(self.value_to_store.typ.get_shape()) != 1:
+        if len(value_to_store_typ.get_shape()) != 1:
             raise VerifyException("Expected a rank 1 vector to be stored.")
 
-        if len(self.mask.typ.get_shape()) != 1:
+        if len(mask_typ.get_shape()) != 1:
             raise VerifyException("Expected a rank 1 mask vector.")
 
-        if self.mask.typ.element_type != i1:
+        if mask_typ.element_type != i1:
             raise VerifyException("Expected mask element type to be i1.")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if memref_typ.get_num_dims() != len(self.indices):
             raise VerifyException(
                 "Expected an index for each memref dimension.")
 
@@ -249,10 +306,14 @@ class Createmask(Operation):
     mask_vector: Annotated[OpResult, VectorType]
 
     def verify_(self):
-        if self.mask_vector.typ.element_type != i1:
+        typ = self.mask_vector.typ
+        assert isinstance(typ, VectorType)
+        typ = cast(VectorType[Any], typ)
+
+        if typ.element_type != i1:
             raise VerifyException("Expected mask element type to be i1.")
 
-        if self.mask_vector.typ.get_num_dims() != len(self.mask_operands):
+        if typ.get_num_dims() != len(self.mask_operands):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
             )
