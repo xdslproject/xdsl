@@ -1,6 +1,6 @@
-import dataclasses
 from abc import ABC
 from typing import TypeVar, cast
+from dataclasses import dataclass
 
 from xdsl.dialects.builtin import Signedness, IntegerType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, op_type_rewri
 from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
 
 
-@dataclasses.dataclass
+@dataclass
 class MpiLibraryInfo:
     """
     This object is meant to capture characteristics of a specific MPI implementations.
