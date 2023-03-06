@@ -2,7 +2,7 @@ from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import Signedness, IntegerType
+from xdsl.dialects.builtin import Signedness, IntegerType, i32
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
 
 from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
@@ -131,7 +131,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
 
         size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
 
-        literal = arith.Constant.from_int_and_width(size, mpi.t_int)
+        literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
 
     def _emit_mpi_type_load(self, type_attr: Attribute) -> Operation:
@@ -140,7 +140,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         xDSL type of <type_attr> into an SSA Value.
         """
         return arith.Constant.from_int_and_width(
-            self._translate_to_mpi_type(type_attr), mpi.t_int)
+            self._translate_to_mpi_type(type_attr), i32)
 
     def _translate_to_mpi_type(self, typ: Attribute) -> int:
         """
@@ -231,7 +231,7 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
         """
         return [
             nullptr := llvm.NullOp.get(),
-            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [mpi.t_int]),
+            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [i32]),
         ], []
 
 
@@ -249,7 +249,7 @@ class LowerMpiFinalize(_MPIToLLVMRewriteBase):
         Relatively easy lowering of mpi.finalize operation.
         """
         return [
-            func.Call.get(self._mpi_name(op), [], [mpi.t_int]),
+            func.Call.get(self._mpi_name(op), [], [i32]),
         ], []
 
 
@@ -267,7 +267,7 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
         ops, new_results, res = self._emit_mpi_status_obj(len(op.results) == 0)
         return [
             *ops,
-            func.Call.get(self._mpi_name(op), [op.request, res], [mpi.t_int]),
+            func.Call.get(self._mpi_name(op), [op.request, res], [i32]),
         ], new_results
 
 
@@ -295,10 +295,9 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
             *count_ops,
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              mpi.t_int),
+                                              i32),
             datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data,
-                                                     mpi.t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
             request :=
             llvm.AllocaOp.get(lit1,
@@ -307,7 +306,7 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
                 request
-            ], [mpi.t_int]),
+            ], [i32]),
         ], [request.results[0]]
 
 
@@ -335,11 +334,10 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
             *count_ops,
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data,
-                                                     mpi.t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              mpi.t_int),
+                                              i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
             request :=
             llvm.AllocaOp.get(lit1,
@@ -347,7 +345,7 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 request
-            ], [mpi.t_int]),
+            ], [i32]),
         ], [request.res]
 
 
@@ -369,11 +367,10 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
         return [
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              mpi.t_int),
+                                              i32),
             lit1 := arith.Constant.from_int_and_width(1, 64),
-            int_ptr := llvm.AllocaOp.get(lit1, mpi.t_int),
-            func.Call.get(self._mpi_name(op), [comm_global, int_ptr],
-                          [mpi.t_int]),
+            int_ptr := llvm.AllocaOp.get(lit1, i32),
+            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [i32]),
             rank := llvm.LoadOp.get(int_ptr),
         ], [rank.dereferenced_value]
 
@@ -403,16 +400,15 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
         return [
             *count_ops,
             datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data,
-                                                     mpi.t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              mpi.t_int),
+                                              i32),
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(
                 self._mpi_name(op),
                 [ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global],
-                [mpi.t_int]),
+                [i32]),
         ], []
 
 
@@ -446,15 +442,14 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
             *ops,
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data,
-                                                     mpi.t_int),
+            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              mpi.t_int),
+                                              i32),
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 status
-            ], [mpi.t_int]),
+            ], [i32]),
         ], new_results
 
     # Miscellaneous

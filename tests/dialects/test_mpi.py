@@ -1,7 +1,7 @@
 from conftest import assert_print_op
 
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import f64, ModuleOp
+from xdsl.dialects.builtin import f64, ModuleOp, i32
 from xdsl.dialects import func, arith, mpi, scf, memref
 
 from xdsl.printer import Printer
@@ -18,12 +18,12 @@ def test_mpi_combo():
             cond := arith.Cmpi.from_mnemonic(rank, lit0, 'eq'),
             buff := memref.Alloc.get(f64, 32, [100, 14, 14]),
             scf.If.get(cond, [], [  # if rank == 0
-                dest := arith.Constant.from_int_and_width(1, mpi.t_int),
+                dest := arith.Constant.from_int_and_width(1, i32),
                 mpi.Send.get(buff, dest, 1),
                 # mpi.Wait.get(req, ignore_status=False),
                 scf.Yield.get(),
             ], [  # else
-                source := arith.Constant.from_int_and_width(0, mpi.t_int),
+                source := arith.Constant.from_int_and_width(0, i32),
                 status := mpi.Recv.get(source, buff, 1, ignore_status=False),
                 mpi.GetStatusField.get(status, mpi.StatusTypeField.MPI_TAG),
                 #mpi.Wait.get(recv.request),
@@ -68,7 +68,7 @@ def test_mpi_combo():
 
 def test_mpi_baseop():
     alloc0 = memref.Alloc.get(f64, 32, [100, 14, 14])
-    dest = Constant.from_int_and_width(1, mpi.t_int)
+    dest = Constant.from_int_and_width(1, i32)
     send = mpi.ISend.get(alloc0, dest, 1)
     recv = mpi.IRecv.get(dest, alloc0.memref, 1)
     test_res = mpi.Test.get(recv.request)
