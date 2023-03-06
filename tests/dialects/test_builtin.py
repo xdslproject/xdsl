@@ -2,7 +2,11 @@ import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData, SymbolRefAttr)
+                                   FloatData, SymbolRefAttr, FloatData, VectorBaseTypeConstraint,
+                                   VectorRankConstraint,
+                                   VectorBaseTypeAndRankConstraint)
+from xdsl.dialects.builtin import i32, i64, VectorType
+from xdsl.dialects.memref import MemRefType
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -61,3 +65,91 @@ def test_array_len_attr():
 
     assert len(arr) == 10
     assert len(arr.data) == len(arr)
+
+
+def test_vector_rank_constraint_verify():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorRankConstraint(2)
+
+    constraint.verify(vector_type)
+
+
+def test_vector_rank_constraint_rank_mismatch():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorRankConstraint(3)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(vector_type)
+    assert e.value.args[0] == "Expected vector rank to be 3, got 2."
+
+
+def test_vector_rank_constraint_attr_mismatch():
+    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorRankConstraint(3)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(memref_type)
+    assert e.value.args[
+        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+
+
+def test_vector_base_type_constraint_verify():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeConstraint(i32)
+
+    constraint.verify(vector_type)
+
+
+def test_vector_base_type_constraint_type_mismatch():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeConstraint(i64)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(vector_type)
+    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+
+
+def test_vector_base_type_constraint_attr_mismatch():
+    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeConstraint(i32)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(memref_type)
+    assert e.value.args[
+        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+
+
+def test_vector_base_type_and_rank_constraint_verify():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeAndRankConstraint(i32, 2)
+
+    constraint.verify(vector_type)
+
+
+def test_vector_base_type_and_rank_constraint_base_type_mismatch():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeAndRankConstraint(i64, 2)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(vector_type)
+    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+
+
+def test_vector_base_type_and_rank_constraint_rank_mismatch():
+    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeAndRankConstraint(i32, 3)
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(vector_type)
+    assert e.value.args[0] == "Expected vector rank to be 3, got 2."
+
+
+def test_vector_base_type_and_rank_constraint_attr_mismatch():
+    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    constraint = VectorBaseTypeAndRankConstraint(i32, 2)
+
+    # constraint.verify(memref_type)
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(memref_type)
+    assert e.value.args[
+        0] == "The following constraints were not satisfied:\n!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType.\n!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
