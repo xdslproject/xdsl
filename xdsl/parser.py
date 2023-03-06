@@ -1540,7 +1540,7 @@ class BaseParser(ABC):
         """
         Parses a sequence of regions for as long as there is a `{` in the input.
         """
-        regions = []
+        regions: list[Region] = []
         while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
             regions.append(self.parse_region())
         return regions
@@ -1794,7 +1794,7 @@ class MLIRParser(BaseParser):
         """
         Parses a sequence of regions for as long as there is a `{` in the input.
         """
-        regions = []
+        regions: list[Region] = []
         while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
             regions.append(self.parse_region())
             if self.tokenizer.starts_with(','):
