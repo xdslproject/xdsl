@@ -1543,6 +1543,13 @@ class BaseParser(ABC):
         regions = []
         while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
             regions.append(self.parse_region())
+            if self.tokenizer.starts_with(','):
+                self.parse_characters(',',
+                                      msg='This error should never be printed')
+                if not self.tokenizer.starts_with('{'):
+                    self.raise_error(
+                        "Expected next region (because of `,` after region end)!"
+                    )
         return regions
 
     def _parse_builtin_type_with_name(self, name: Span):
