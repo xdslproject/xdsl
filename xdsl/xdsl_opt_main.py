@@ -281,9 +281,15 @@ class xDSLOptMain:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
+            f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        return self.available_frontends[file_extension](f)
+        try:
+            module = self.available_frontends[file_extension](f)
+        finally:
+            f.close()
+
+        return module
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
@@ -315,8 +321,8 @@ class xDSLOptMain:
         if self.args.output_file is None:
             print(contents)
         else:
-            output_stream = open(self.args.output_file, 'w')
-            output_stream.write(contents)
+            with open(self.args.output_file, 'w') as output_stream:
+                output_stream.write(contents)
 
     def get_input_name(self):
         return self.args.input_file or 'stdin'
