@@ -2,6 +2,8 @@ import dataclasses
 from abc import ABC
 from typing import TypeVar, cast
 
+from dialects.memref import MemRefType
+from dialects.mpi import UnwrapMemrefOp, GetDtypeOp
 from xdsl.dialects.builtin import Signedness, IntegerType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
 
@@ -408,14 +410,12 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
         #       op.buffer.typ.element_type is ALLWAYS at least Attribute!
 
         return [
-            datatype := self._emit_mpi_type_load(op.data_type.type),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
                                               mpi.t_int),
-            func.Call.get(
-                self._mpi_name(op),
-                [op.buffer, op.count, datatype, op.dest, op.tag, comm_global],
-                [mpi.t_int]),
+            func.Call.get(self._mpi_name(op), [
+                op.buffer, op.count, op.datatype, op.dest, op.tag, comm_global
+            ], [mpi.t_int]),
         ], []
 
 
@@ -446,17 +446,51 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
 
         return [
             *ops,
-            datatype := self._emit_mpi_type_load(op.data_type.type),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
                                               mpi.t_int),
             func.Call.get(self._mpi_name(op), [
-                op.buffer, op.count, datatype, op.source, op.tag, comm_global,
-                status
+                op.buffer, op.count, op.datatype, op.source, op.tag,
+                comm_global, status
             ], [mpi.t_int]),
         ], new_results
 
-    # Miscellaneous
+
+class LowerUnwrapMemrefOp(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.UnwrapMemrefOp,
+                          rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+            self, op: UnwrapMemrefOp
+    ) -> tuple[list[Operation], list[SSAValue | None]]:
+        count_ops, count_ssa_val = self._emit_memref_counts(op.ref)
+        extract_ptr_ops, ptr = self._memref_get_llvm_ptr(op.ref)
+
+        elem_typ = cast(MemRefType[mpi.AnyNumericAttr],
+                        op.ref.typ).element_type
+
+        return [
+            *extract_ptr_ops,
+            *count_ops,
+            typ := GetDtypeOp.get(elem_typ),
+        ], [ptr.results[0], count_ssa_val, typ.result]
+
+
+class LowerGetDtype(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.GetDtypeOp, rewriter: PatternRewriter,
+                          /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: GetDtypeOp) -> tuple[list[Operation], list[SSAValue | None]]:
+        return [
+            typ := self._emit_mpi_type_load(op.dtype),
+        ], [typ.results[0]]
 
 
 class MpiAddExternalFuncDefs(RewritePattern):
@@ -477,14 +511,15 @@ class MpiAddExternalFuncDefs(RewritePattern):
                 arg.typ
                 for arg in op.arguments), list(res.typ for res in op.results))
 
-        a=PatternRewriteWalker(AnonymousRewritePattern(match_func))
+        a = PatternRewriteWalker(AnonymousRewritePattern(match_func))
         a.rewrite_module(module)
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
             arg, res = types
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
-                                      module.body.blocks[0], len(module.body.blocks[0].ops))
+                                      module.body.blocks[0],
+                                      len(module.body.blocks[0].ops))
 
 
 def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
@@ -492,17 +527,17 @@ def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
     lib_info = MpiLibraryInfo()
 
     # lower to func.call
-    walker1 = PatternRewriteWalker(
-        GreedyRewritePatternApplier([
-            LowerMpiInit(lib_info),
-            LowerMpiFinalize(lib_info),
-            LowerMpiWait(lib_info),
-            LowerMpiISend(lib_info),
-            LowerMpiIRecv(lib_info),
-            LowerMpiCommRank(lib_info),
-            LowerMpiSend(lib_info),
-            LowerMpiRecv(lib_info),
-        ]))
+    walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
+        LowerMpiInit(lib_info),
+        LowerMpiFinalize(lib_info),
+        LowerMpiWait(lib_info),
+        LowerMpiISend(lib_info),
+        LowerMpiIRecv(lib_info),
+        LowerMpiCommRank(lib_info),
+        LowerMpiSend(lib_info),
+        LowerMpiRecv(lib_info),
+    ]),
+                                   apply_recursively=True)
     walker1.rewrite_module(module)
 
     # add func.func to declare external functions

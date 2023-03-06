@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
+from typing import cast
 
-from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr, Float16Type, Float32Type,
-                                   Float64Type, AnyFloatAttr, AnyIntegerAttr, StringAttr)
-from xdsl.dialects.llvm import LLVMPointerType
+from xdsl.dialects import llvm
+from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
+                                   AnyFloatAttr, AnyIntegerAttr, StringAttr)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition, ParameterDef, AnyOf, AnyAttr,
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
 t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
@@ -36,11 +37,10 @@ class StatusType(ParametrizedAttribute, MLIRType):
     """
     name = 'mpi.status'
 
+
 @irdl_attr_definition
 class DataType(ParametrizedAttribute, MLIRType):
     name = 'mpi.datatype'
-
-    type: ParameterDef[AnyOf([IntegerType, Float16Type, Float32Type, Float64Type])]
 
 
 class StatusTypeField(Enum):
@@ -57,8 +57,6 @@ class MPIBaseOp(Operation, ABC):
     Base class for MPI Operations
     """
     pass
-
-MPI_INT=DataType([IntegerType.from_width(32)])
 
 
 def _build_attr_dict_with_optional_tag(
@@ -140,18 +138,15 @@ class Send(MPIBaseOp):
 
     buffer: Annotated[Operand, AnyAttr()]
     count: Annotated[Operand, t_int]
-    data_type: OpAttr[DataType]
+    datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, t_int]
     tag: Annotated[Operand, t_int]
 
     @classmethod
-    def get(cls, buffer: SSAValue | Operation,
-            count: SSAValue | Operation,
-            datatype: DataType,
-            dest: SSAValue | Operation,
+    def get(cls, buffer: SSAValue | Operation, count: SSAValue | Operation,
+            datatype: SSAValue | Operation, dest: SSAValue | Operation,
             tag: SSAValue | Operation) -> Send:
-        return cls.build(operands=[buffer, count, dest, tag],
-                        attributes={"data_type": datatype},
+        return cls.build(operands=[buffer, count, datatype, dest, tag],
                          result_types=[])
 
 
@@ -231,7 +226,7 @@ class Recv(MPIBaseOp):
 
     buffer: Annotated[Operand, AnyAttr()]
     count: Annotated[Operand, t_int]
-    data_type: OpAttr[DataType]
+    datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, t_int]
     tag: Annotated[Operand, t_int]
 
@@ -241,13 +236,12 @@ class Recv(MPIBaseOp):
     def get(cls,
             buffer: SSAValue | Operation,
             count: SSAValue | Operation,
-            datatype: DataType,
+            datatype: SSAValue | Operation,
             source: SSAValue | Operation,
             tag: SSAValue | Operation,
             ignore_status: bool = True):
         return cls.build(
-            operands=[buffer, count, source, tag],
-            attributes={"data_type": datatype},
+            operands=[buffer, count, datatype, source, tag],
             result_types=[[]] if ignore_status else [[StatusType()]])
 
 
@@ -356,6 +350,44 @@ class Init(MPIBaseOp):
 @irdl_op_definition
 class Finalize(MPIBaseOp):
     name = "mpi.finalize"
+
+
+@irdl_op_definition
+class UnwrapMemrefOp(MPIBaseOp):
+    name = "mpi.unwrap_memref"
+
+    ref: Annotated[Operand, MemRefType[AnyNumericAttr]]
+
+    ptr: Annotated[OpResult, llvm.LLVMPointerType]
+    len: Annotated[OpResult, t_int]
+    typ: Annotated[OpResult, DataType]
+
+    @staticmethod
+    def get(ref: SSAValue | Operation):
+        ssa_val = SSAValue.get(ref)
+        assert isinstance(ssa_val.typ, MemRefType)
+        elem_typ = cast(MemRefType[AnyNumericAttr], ssa_val.typ).element_type
+
+        return UnwrapMemrefOp.build(operands=[ref],
+                                    result_types=[
+                                        llvm.LLVMPointerType.typed(elem_typ),
+                                        t_int,
+                                        DataType()
+                                    ])
+
+
+@irdl_op_definition
+class GetDtypeOp(MPIBaseOp):
+    name = "mpi.get_dtype"
+
+    dtype: OpAttr[Attribute]
+
+    result: Annotated[OpResult, DataType]
+
+    @staticmethod
+    def get(typ: Attribute):
+        return GetDtypeOp.build(result_types=[DataType()],
+                                attributes={'dtype': typ})
 
 
 MPI = Dialect([
