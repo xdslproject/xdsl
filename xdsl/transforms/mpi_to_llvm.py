@@ -302,9 +302,9 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
             tag := arith.Constant.from_int_and_width(op.tag.value.data,
                                                      mpi.t_int),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request := llvm.AllocaOp.get(
-                lit1,
-                builtin.IntegerType(8 * self.info.request_size)),
+            request :=
+            llvm.AllocaOp.get(lit1,
+                              builtin.IntegerType(8 * self.info.request_size)),
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
@@ -343,9 +343,9 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
                                               mpi.t_int),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request := llvm.AllocaOp.get(
-                lit1,
-                builtin.IntegerType(8 * self.info.request_size)),
+            request :=
+            llvm.AllocaOp.get(lit1,
+                              builtin.IntegerType(8 * self.info.request_size)),
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 request
