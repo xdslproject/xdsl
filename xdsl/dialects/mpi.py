@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC
 from enum import Enum
 
@@ -134,7 +135,7 @@ class Send(MPIBaseOp):
 
     @classmethod
     def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int) -> 'Send':
+            tag: int) -> Send:
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[])
