@@ -2,6 +2,7 @@ from inspect import isclass
 from types import UnionType
 from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
                     get_origin)
+from xdsl.ir import ParametrizedAttribute
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -42,10 +43,11 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if origin in [Union, UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
 
-    from xdsl.irdl import GenericData
-    if (origin is not None) and issubclass(origin, GenericData):
+    from xdsl.irdl import GenericData, irdl_to_attr_constraint
+    if (origin is not None) and issubclass(
+            origin, GenericData | ParametrizedAttribute):
+        constraint = irdl_to_attr_constraint(hint)
         try:
-            constraint = origin.generic_constraint_coercion(get_args(hint))
             constraint.verify(arg)
             return True
         except VerifyException:

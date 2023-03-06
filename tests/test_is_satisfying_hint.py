@@ -1,6 +1,7 @@
-from typing import Any, TypeAlias
+from typing import Any, Generic, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
 
 from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, FloatData, IntegerAttr, IntegerType
@@ -226,3 +227,26 @@ def test_nested_generic_data():
     assert isa(attr, ArrayAttr[IntegerAttr[IndexType]])
     assert isa(attr, ArrayAttr[IntegerAttr[IndexType | IntegerType]])
     assert not isa(attr, ArrayAttr[IntegerAttr[IntegerType]])
+
+
+################################################################################
+# ParametrizedAttribute
+################################################################################
+
+_T = TypeVar("_T", bound=Attribute)
+
+
+@irdl_attr_definition
+class MyParamAttr(Generic[_T], ParametrizedAttribute):
+    name = "test.param"
+
+    v: ParameterDef[_T]
+
+
+def test_parametrized_attribute():
+    attr = MyParamAttr[IntAttr]([IntAttr(0)])
+
+    assert isa(attr, MyParamAttr)
+    assert isa(attr, MyParamAttr[IntAttr])
+    assert isa(attr, MyParamAttr[IntAttr | FloatData])
+    assert not isa(attr, MyParamAttr[FloatData])
