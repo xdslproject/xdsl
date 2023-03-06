@@ -66,7 +66,7 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
         parser.parse_char(":")
         params_constraints = parser.parse_attribute()
         parser.parse_char(">")
-        return [StringAttr.from_str(type_name), params_constraints]
+        return [StringAttr(type_name), params_constraints]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<\"", self.type_name.data, "\" : ",

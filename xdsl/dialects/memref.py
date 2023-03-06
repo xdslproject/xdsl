@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   IndexType, ArrayAttr, IntegerType,
-                                   SymbolRefAttr, StringAttr, UnitAttr)
+                                   DenseArrayBase, IndexType, ArrayAttr,
+                                   IntegerType, SymbolRefAttr, StringAttr,
+                                   UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -36,7 +37,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
             shape: List[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
-            ArrayAttr[AnyIntegerAttr].from_list([
+            ArrayAttr[AnyIntegerAttr]([
                 d if isinstance(d, IntegerAttr) else
                 IntegerAttr.from_index_int_value(d) for d in shape
             ]), referenced_type
@@ -45,7 +46,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
     @staticmethod
     def from_params(
         referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr.from_list(
+        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type])
@@ -263,10 +264,12 @@ class Global(Operation):
                             "dense type or an unit attribute")
 
     @staticmethod
-    def get(sym_name: str | StringAttr,
-            typ: Attribute,
-            initial_value: Optional[Attribute],
-            sym_visibility: str = "private") -> Global:
+    def get(
+        sym_name: StringAttr,
+        typ: Attribute,
+        initial_value: Attribute,
+        sym_visibility: StringAttr = StringAttr("private")
+    ) -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,
@@ -318,6 +321,30 @@ class ExtractAlignedPointerAsIndexOp(Operation):
                                                     result_types=[IndexType()])
 
 
+@irdl_op_definition
+class Subview(Operation):
+    name = "memref.subview"
+
+    source: Annotated[Operand, MemRefType]
+    offsets: Annotated[VarOperand, IndexType]
+    sizes: Annotated[VarOperand, IndexType]
+    strides: Annotated[VarOperand, IndexType]
+    static_offsets: OpAttr[DenseArrayBase]
+    static_sizes: OpAttr[DenseArrayBase]
+    static_strides: OpAttr[DenseArrayBase]
+    result: Annotated[OpResult, MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class Cast(Operation):
+    name = "memref.cast"
+
+    source: Annotated[Operand, MemRefType]
+    dest: Annotated[OpResult, MemRefType]
+
+
 MemRef = Dialect([
     Load,
     Store,
@@ -328,4 +355,6 @@ MemRef = Dialect([
     Global,
     Dim,
     ExtractAlignedPointerAsIndexOp,
+    Subview,
+    Cast,
 ], [MemRefType, UnrankedMemrefType])

@@ -8,8 +8,8 @@ from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttrib
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
-t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
-t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
+t_int: IntegerType = IntegerType(32, Signedness.SIGNLESS)
+t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
 AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
 

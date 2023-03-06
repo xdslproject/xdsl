@@ -267,4 +267,32 @@ func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shrsi"]
 }
 
 // CHECK:   %{{.*}} !i32 = arith.shrsi(%{{.*}} : !i32, %{{.*}} : !i32)
+
+// fastmath single flag set
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_reassoc", "fastmath" = !arith.fastmath<reassoc>] {}
+// CHECK:   "fastmath" = !arith.fastmath<reassoc>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_nnan", "fastmath" = !arith.fastmath<nnan>] {}
+// CHECK:   "fastmath" = !arith.fastmath<nnan>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_ninf", "fastmath" = !arith.fastmath<ninf>] {}
+// CHECK:   "fastmath" = !arith.fastmath<ninf>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_nsz", "fastmath" = !arith.fastmath<nsz>] {}
+// CHECK:   "fastmath" = !arith.fastmath<nsz>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_arcp", "fastmath" = !arith.fastmath<arcp>] {}
+// CHECK:   "fastmath" = !arith.fastmath<arcp>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_contract", "fastmath" = !arith.fastmath<contract>] {}
+// CHECK:   "fastmath" = !arith.fastmath<contract>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_afn", "fastmath" = !arith.fastmath<afn>] {}
+// CHECK:   "fastmath" = !arith.fastmath<afn>
+
+// fastmath special cases
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_none", "fastmath" = !arith.fastmath<none>] {}
+// CHECK:   "fastmath" = !arith.fastmath<none>
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_fast", "fastmath" = !arith.fastmath<fast>] {}
+// CHECK:   "fastmath" = !arith.fastmath<fast>
+
+// fastmath combination
+func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_two", "fastmath" = !arith.fastmath<nnan,nsz>] {}
+// CHECK:   "fastmath" = !arith.fastmath<nnan,nsz>
+
+
 }

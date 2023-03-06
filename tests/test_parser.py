@@ -21,16 +21,14 @@ def test_int_list_parser(input: str, expected: list[int]):
 
 
 @pytest.mark.parametrize('data', [
-    dict(a=IntAttr.from_int(1), b=IntAttr.from_int(2), c=IntAttr.from_int(3)),
-    dict(a=StringAttr.from_str('hello'),
-         b=IntAttr.from_int(2),
-         c=ArrayAttr.from_list(
-             [IntAttr.from_int(2),
-              StringAttr.from_str('world')])),
+    dict(a=IntAttr(1), b=IntAttr(2), c=IntAttr(3)),
+    dict(a=StringAttr('hello'),
+         b=IntAttr(2),
+         c=ArrayAttr([IntAttr(2), StringAttr('world')])),
     dict(),
 ])
 def test_dictionary_attr(data: dict[str, Attribute]):
-    attr = DictionaryAttr.from_dict(data)
+    attr = DictionaryAttr(data)
 
     with StringIO() as io:
         Printer(io).print(attr)
@@ -65,9 +63,9 @@ def test_parsing():
 
 
 @pytest.mark.parametrize("ref,expected", [
-    ("@foo", SymbolRefAttr.from_str("foo")),
-    ("@foo::@bar", SymbolRefAttr.from_str("foo", ["bar"])),
-    ("@foo::@bar::@baz", SymbolRefAttr.from_str("foo", ["bar", "baz"])),
+    ("@foo", SymbolRefAttr("foo")),
+    ("@foo::@bar", SymbolRefAttr("foo", ["bar"])),
+    ("@foo::@bar::@baz", SymbolRefAttr("foo", ["bar", "baz"])),
 ])
 def test_symref(ref: str, expected: Attribute | None):
     """

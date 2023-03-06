@@ -30,7 +30,7 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
-        return builtin.IntegerType.from_width
+        return builtin.IntegerType
 
     def __add__(
             self,

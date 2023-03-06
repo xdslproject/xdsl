@@ -520,12 +520,18 @@ class Operation(IRNode):
         return cast(OpT, op)
 
     @classmethod
-    def build(cls: type[OpT],
-              operands: list[Any] | None = None,
-              result_types: list[Any] | None = None,
-              attributes: dict[str, Any] | None = None,
-              successors: list[Any] | None = None,
-              regions: list[Any] | None = None) -> OpT:
+    def build(
+        cls: type[OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        | None = None
+    ) -> OpT:
         """Create a new operation using builders."""
         ...
 
@@ -708,12 +714,6 @@ class Operation(IRNode):
         printer = Printer(stream=res)
         printer.print_op(self)
         desc = res.getvalue()
-        # Printer currently prints a new line when printing an operation.
-        # We don't want this behaviour when printing ops inline, so remove
-        # the trailing newline for now
-        last_char_is_newline = not desc or desc[-1] == "\n"
-        assert last_char_is_newline, "If the format changes, update this function"
-        desc = desc[:-1]
         return desc
 
     def __format__(self, __format_spec: str) -> str:
