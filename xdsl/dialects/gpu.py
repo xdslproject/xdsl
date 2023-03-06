@@ -210,7 +210,7 @@ class ModuleOp(Operation):
         return op
 
     def verify_(self):
-        if (len(self.body.ops) == 0
+        if (len(self.body.blocks) == 0 or len(self.body.ops) == 0
                 or not isinstance(self.body.ops[-1], ModuleEndOp)):
             raise VerifyException("gpu.module must end with gpu.module_end")
 

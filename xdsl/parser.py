@@ -1162,9 +1162,7 @@ class BaseParser(ABC):
 
         try:
             self.parse_characters("{", "Regions begin with `{`")
-            if self.tokenizer.starts_with("}"):
-                region.add_block(Block())
-            else:
+            if not self.tokenizer.starts_with("}"):
                 # Parse first block
                 block = self.parse_block()
                 region.add_block(block)

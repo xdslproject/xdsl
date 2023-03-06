@@ -18,11 +18,12 @@ class FuncOp(Operation):
     sym_visibility: OptOpAttr[StringAttr]
 
     def verify_(self) -> None:
+        # If this is an external functions, we do not need to verify block
+        # arguments.
+        if len(self.body.blocks) == 0:
+            return
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
-        # If this is an empty block (external function) then return
-        if len(entry_block.args) == 0 and len(entry_block.ops) == 0:
-            return
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != block_arg_types:
             raise VerifyException(
@@ -56,7 +57,7 @@ class FuncOp(Operation):
             "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes,
-                          regions=[Region.from_operation_list([])])
+                          regions=[Region.from_block_list([])])
         return op
 
     @staticmethod
