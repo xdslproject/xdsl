@@ -2,12 +2,11 @@ from io import StringIO
 
 import pytest
 
-from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin
-from xdsl.dialects.builtin import SymbolRefAttr
-from xdsl.ir import MLContext, Attribute, Operation, Region
-from xdsl.ir import ParametrizedAttribute
-from xdsl.irdl import irdl_attr_definition
-from xdsl.irdl import irdl_op_definition
+from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
+                                   ArrayAttr, Builtin, SymbolRefAttr)
+from xdsl.ir import (MLContext, Attribute, Operation, Region,
+                     ParametrizedAttribute)
+from xdsl.irdl import irdl_attr_definition, irdl_op_definition
 from xdsl.parser import XDSLParser, MLIRParser
 from xdsl.printer import Printer
 
