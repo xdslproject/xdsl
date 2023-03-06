@@ -959,11 +959,12 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 def irdl_op_builder(
         cls: type[_OpT], op_def: OpDef,
         operands: Sequence[SSAValue | Operation
-                           | list[SSAValue | Operation] | list[SSAValue]
+                           | Sequence[SSAValue | Operation]
                            | None],
         res_types: Sequence[Any | list[Any] | None],
         attributes: dict[str, Attribute], successors: Sequence[Block],
-        regions: Sequence[Region | list[Operation] | list[Block]]) -> _OpT:
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+) -> _OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseArrayBase, but here we need
@@ -1077,14 +1078,14 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     def builder(
         cls: type[_OpT],
-        operands: list[SSAValue | Operation
-                       | list[SSAValue | Operation]]
-        | list[SSAValue | list[SSAValue]] | None = None,
-        result_types: list[Attribute | list[Attribute]] | list[Attribute]
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
         | None = None,
         attributes: dict[str, Attribute] | None = None,
-        successors: list[Block] | None = None,
-        regions: list[Region | list[Operation] | list[Block]] | None = None
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        | None = None
     ) -> _OpT:
         if operands is None:
             operands = []
