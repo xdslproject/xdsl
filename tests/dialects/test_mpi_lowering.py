@@ -21,14 +21,14 @@ def check_emitted_function_signature(ops: list[Operation],
     call = extract_func_call(ops, name)
     assert call is not None, f"Missing func.Call op to {name} in output!"
     assert len(call.arguments) == len(types)
-    for i, type_ in enumerate(types):
+    for i, typ in enumerate(types):
         arg = call.arguments[i]
 
         # check that the argument type is correct (if constraint present)
-        if type_ is not None:
+        if typ is not None:
             assert isinstance(
-                arg.typ, type_
-            ), f"Expected argument to be of type {type_} (got {arg.typ} instead)"
+                arg.typ, typ
+            ), f"Expected argument to be of type {typ} (got {arg.typ} instead)"
 
         # check that all arguments originate in the emitted operations, except for the exceptions
         if arg in ignore_list:
