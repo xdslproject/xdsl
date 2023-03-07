@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from typing import Sequence, TypeGuard, Any
+from frozendict import frozendict
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
 from xdsl.utils.exceptions import InvalidIRException
 from xdsl.utils.immutable_list import IList
@@ -318,15 +319,14 @@ class IOperation:
                       "regions")
     name: str
     op_type: type[Operation]
-    attributes: dict[str, Attribute]
+    attributes: frozendict
     operands: IList[ISSAValue]
     results: IList[IOpResult]
     successors: IList[IBlock]
     regions: IList[IRegion]
 
     def __init__(self, name: str, op_type: type[Operation],
-                 attributes: dict[str,
-                                  Attribute], operands: Sequence[ISSAValue],
+                 attributes: frozendict, operands: Sequence[ISSAValue],
                  result_types: Sequence[Attribute],
                  successors: Sequence[IBlock],
                  regions: Sequence[IRegion]) -> None:
@@ -353,7 +353,7 @@ class IOperation:
     @classmethod
     def get(cls, name: str, op_type: type[Operation],
             operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
-            attributes: dict[str, Attribute], successors: Sequence[IBlock],
+            attributes: frozendict, successors: Sequence[IBlock],
             regions: Sequence[IRegion]) -> IOperation:
         return cls(name, op_type, attributes, operands, result_types,
                    successors, regions)
@@ -491,7 +491,7 @@ class IOperation:
         else:
             operands.extend(existing_operands)
 
-        attributes: dict[str, Attribute] = op.attributes.copy()
+        attributes: frozendict = frozendict(op.attributes)
 
         successors: list[IBlock] = []
         for successor in op.successors:
@@ -517,7 +517,7 @@ class IOperation:
         return immutable_op
 
     def get_attribute(self, name: str) -> Attribute:
-        return self.attributes[name]
+        return self.attributes[name]  # type: ignore
 
     def get_attributes_copy(self) -> dict[str, Attribute]:
         return self.attributes.copy()
