@@ -36,14 +36,14 @@ class ISSAValue(ABC):
 class IOpResult(ISSAValue):
     """Represents an immutable SSA variable defined by an operation result."""
     op: IOperation
-    result_index: int
+    index: int
 
     def __hash__(self) -> int:
-        return hash(id(self.op)) + hash(self.result_index)
+        return hash(id(self.op)) + hash(self.index)
 
     def __eq__(self, __o: IOpResult) -> bool:
         if isinstance(__o, IOpResult):
-            return self.op == __o.op and self.result_index == __o.result_index
+            return self.op == __o.op and self.index == __o.index
         return False
 
 
@@ -125,6 +125,11 @@ class IRegion:
         if block_map is None:
             block_map = {}
 
+        if blocks[0].parent is None:
+            raise InvalidIRException(
+                "Cannot create an IRegion from a mutable Block "
+                "that is not attached to a Region.")
+
         # adding dummy block mappings so that ops have a successor to reference
         # when the actual block is created all successor references will be moved
         # to the correct block
@@ -136,7 +141,6 @@ class IRegion:
             for block in blocks
         ]
 
-        assert (blocks[0].parent is not None)
         region = IRegion(immutable_blocks)
 
         # clean up successor references to blocks for ops inside this region
@@ -144,15 +148,13 @@ class IRegion:
             dummy_block = block_map[block]
             for block in region.blocks:
                 for op in block.ops:
-                    try:
+                    if dummy_block in op.successors:
                         dummy_index = op.successors.index(dummy_block)
-                    except ValueError:
-                        continue
-                    # replace dummy successor with actual successor
-                    object.__setattr__(
-                        op, "successors",
-                        IList(op.successors[:dummy_index] + [imm_block] +
-                              op.successors[dummy_index + 1:]))
+                        # replace dummy successor with actual successor
+                        object.__setattr__(
+                            op, "successors",
+                            IList(op.successors[:dummy_index] + [imm_block] +
+                                  op.successors[dummy_index + 1:]))
 
         return region
 
@@ -214,8 +216,6 @@ class IBlock:
         # Type Guards:
         def is_iblock_arg_seq(
                 list: Sequence[Any]) -> TypeGuard[Sequence[IBlockArg]]:
-            if len(list) == 0:
-                return False
             return all([isinstance(elem, IBlockArg) for elem in list])
 
         def is_type_seq(list: Sequence[Any]) -> TypeGuard[Sequence[Attribute]]:
@@ -307,20 +307,7 @@ class IBlock:
 
 
 def get_immutable_copy(op: Operation) -> IOperation:
-    return IOperation.from_mutable(op, {})
-
-
-@dataclass(frozen=True)
-class OpData:
-    """
-    Represents split off fields of IOp to its own class because they are
-    often preserved during rewriting. A new operation of the same type, e.g.
-    with changed operands can still use the same OpData instance. This design
-    increases sharing in the IR.
-    """
-    name: str
-    op_type: type[Operation]
-    attributes: dict[str, Attribute]
+    return IOperation.from_mutable(op)
 
 
 @dataclass(frozen=True)
@@ -329,17 +316,23 @@ class IOperation:
 
     __match_args__ = ("op_type", "operands", "results", "successors",
                       "regions")
-    _op_data: OpData
+    name: str
+    op_type: type[Operation]
+    attributes: dict[str, Attribute]
     operands: IList[ISSAValue]
     results: IList[IOpResult]
     successors: IList[IBlock]
     regions: IList[IRegion]
 
-    def __init__(self, op_data: OpData, operands: Sequence[ISSAValue],
+    def __init__(self, name: str, op_type: type[Operation],
+                 attributes: dict[str,
+                                  Attribute], operands: Sequence[ISSAValue],
                  result_types: Sequence[Attribute],
                  successors: Sequence[IBlock],
                  regions: Sequence[IRegion]) -> None:
-        object.__setattr__(self, "_op_data", op_data)
+        object.__setattr__(self, "name", name)
+        object.__setattr__(self, "op_type", op_type)
+        object.__setattr__(self, "attributes", attributes)
         object.__setattr__(self, "operands", IList(operands))
         for operand in operands:
             operand._add_user(self)  # type: ignore
@@ -362,7 +355,7 @@ class IOperation:
             operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
             attributes: dict[str, Attribute], successors: Sequence[IBlock],
             regions: Sequence[IRegion]) -> IOperation:
-        return cls(OpData(name, op_type, attributes), operands, result_types,
+        return cls(name, op_type, attributes, operands, result_types,
                    successors, regions)
 
     def __hash__(self) -> int:
@@ -370,18 +363,6 @@ class IOperation:
 
     def __eq__(self, __o: object) -> bool:
         return self is __o
-
-    @property
-    def name(self) -> str:
-        return self._op_data.name
-
-    @property
-    def op_type(self) -> Type[Operation]:
-        return self._op_data.op_type
-
-    @property
-    def attributes(self) -> dict[str, Attribute]:
-        return self._op_data.attributes
 
     @property
     def result(self) -> IOpResult:
@@ -460,6 +441,8 @@ class IOperation:
             successors=mutable_successors,
             regions=mutable_regions)
 
+        # Add the results of this operation to the value mapping
+        # so other operations can use them as operands.
         for idx, result in enumerate(self.results):
             m_result = new_op.results[idx]
             value_mapping[result] = m_result
