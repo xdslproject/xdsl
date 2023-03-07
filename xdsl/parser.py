@@ -1469,8 +1469,7 @@ class BaseParser(ABC):
             return dict()
 
         self.parse_characters(
-            "{",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
+            "{", "Attribute dictionary must be enclosed in curly brackets")
 
         attrs = []
         if not self.tokenizer.starts_with('}'):
@@ -1478,8 +1477,7 @@ class BaseParser(ABC):
                                        "Expected attribute entry")
 
         self.parse_characters(
-            "}",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
+            "}", "Attribute dictionary must be enclosed in curly brackets")
 
         return self._attr_dict_from_tuple_list(attrs)
 
