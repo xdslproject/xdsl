@@ -13,7 +13,8 @@ from xdsl.dialects.experimental.stencil import FieldType, IndexType
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 
-def GetMemRefFromField(inputFieldType: FieldType[_TypeElement]) -> MemRefType[_TypeElement]:
+def GetMemRefFromField(
+        inputFieldType: FieldType[_TypeElement]) -> MemRefType[_TypeElement]:
     memref_shape_integer_attr_list = []
     for i in range(len(inputFieldType.parameters[0].data)):
         memref_shape_integer_attr_list.append(
@@ -29,7 +30,8 @@ def GetMemRefFromField(inputFieldType: FieldType[_TypeElement]) -> MemRefType[_T
 
 
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
-                                  lb: IndexType, ub: IndexType) -> MemRefType[_TypeElement]:
+                                  lb: IndexType,
+                                  ub: IndexType) -> MemRefType[_TypeElement]:
     # Assumes lb and ub are of same size and same underlying element types.
     memref_shape_integer_attr_list = []
     for i in range(len(lb.parameters[0].data)):

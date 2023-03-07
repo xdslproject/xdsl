@@ -3,13 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, TypeVar, Any, cast
 
-from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute, ArrayAttr, f32, f64,
-                                   IntegerType, IndexType, IntAttr, AnyFloat)
+from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
+                                   ArrayAttr, f32, f64, IntegerType, IndexType,
+                                   IntAttr, AnyFloat)
 from xdsl.ir import Operation, Dialect, MLIRType
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
-                       AttrConstraint, Attribute, Region, VerifyException, Generic,
-                       AnyOf, Annotated, Operand, OpAttr, OpResult, VarOperand,
-                       VarOpResult, OptOpAttr, AttrSizedOperandSegments)
+                       AttrConstraint, Attribute, Region, VerifyException,
+                       Generic, AnyOf, Annotated, Operand, OpAttr, OpResult,
+                       VarOperand, VarOpResult, OptOpAttr,
+                       AttrSizedOperandSegments)
 
 
 @dataclass
@@ -27,7 +29,9 @@ class IntOrUnknown(AttrConstraint):
                 f"Expected array of length {self.length}, got {len(attr.data)}."
             )
 
+
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
+
 
 @irdl_attr_definition
 class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
