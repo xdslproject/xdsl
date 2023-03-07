@@ -2,7 +2,8 @@ import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData, SymbolRefAttr, FloatData, VectorBaseTypeConstraint,
+                                   FloatData, SymbolRefAttr, FloatData,
+                                   VectorBaseTypeConstraint,
                                    VectorRankConstraint,
                                    VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.builtin import i32, i64, VectorType

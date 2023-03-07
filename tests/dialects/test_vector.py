@@ -2,7 +2,7 @@ import pytest
 
 from typing import TypeVar, List
 
-from xdsl.dialects.builtin import IntegerAttr, i1, i32, i64, IntegerType, IndexType, VectorType
+from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
 from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
 from xdsl.ir import OpResult
