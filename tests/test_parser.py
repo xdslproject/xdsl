@@ -1,12 +1,14 @@
-import pytest
-
 from io import StringIO
 
+import pytest
+
+from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
+                                   ArrayAttr, Builtin, SymbolRefAttr)
+from xdsl.ir import (MLContext, Attribute, Operation, Region,
+                     ParametrizedAttribute)
+from xdsl.irdl import irdl_attr_definition, irdl_op_definition
+from xdsl.parser import XDSLParser, MLIRParser
 from xdsl.printer import Printer
-from xdsl.ir import MLContext, Attribute, ParametrizedAttribute
-from xdsl.irdl import irdl_attr_definition
-from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import IntAttr, DictionaryAttr, StringAttr, ArrayAttr, Builtin, SymbolRefAttr, SymbolRefAttr
 
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
@@ -78,3 +80,44 @@ def test_symref(ref: str, expected: Attribute | None):
     parsed_ref = parser.try_parse_ref_attr()
 
     assert parsed_ref == expected
+
+
+@irdl_op_definition
+class MultiRegionOp(Operation):
+    name = "test.multi_region"
+    r1: Region
+    r2: Region
+
+
+def test_parse_multi_region_mlir():
+    ctx = MLContext()
+    ctx.register_op(MultiRegionOp)
+
+    op_str = """
+    "test.multi_region" () ({
+    }, {
+    }) : () -> ()
+    """
+
+    parser = MLIRParser(ctx, op_str)
+
+    op = parser.parse_op()
+
+    assert len(op.regions) == 2
+
+
+def test_parse_multi_region_xdsl():
+    ctx = MLContext()
+    ctx.register_op(MultiRegionOp)
+
+    op_str = """
+    "test.multi_region" () {
+    } {
+    }
+    """
+
+    parser = XDSLParser(ctx, op_str)
+
+    op = parser.parse_op()
+
+    assert len(op.regions) == 2
