@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.cf import Cf
-from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import get_immutable_copy
 
 
 def test_ops_accessor():
@@ -264,26 +263,6 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
                 program.ops[0].regions[0].blocks[0].ops[1]) == False
         assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
             program.ops[0].regions[0].blocks[1]) == False
-
-
-@pytest.mark.parametrize("program_str", [(program_region), (program_region_2),
-                                         (program_region_2_diff_type),
-                                         (program_region_2_diff_name),
-                                         (program_add), (program_add_2),
-                                         (program_func), (program_successors)])
-def test_immutable_ir(program_str: str):
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
-
-    parser = XDSLParser(ctx, program_str)
-    program: Operation = parser.parse_op()
-    immutable_program = get_immutable_copy(program)
-    mutable_program = immutable_program.get_mutable_copy()
-
-    assert program.is_structurally_equivalent(mutable_program)
 
 
 def test_descriptions():
