@@ -95,9 +95,7 @@ def test_parse_multi_region_mlir():
 
     op_str = """
     "test.multi_region" () ({
-        ^bb0:
     }, {
-        ^bb1:
     }) : () -> ()
     """
 
@@ -114,9 +112,7 @@ def test_parse_multi_region_xdsl():
 
     op_str = """
     "test.multi_region" () {
-        ^bb0:
     } {
-        ^bb1:
     }
     """
 
