@@ -109,9 +109,8 @@ class StringAttr(Data[str]):
         data = parser.parse_str_literal()
         return data
 
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        printer.print_string(f'"{data}"')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'"{self.data}"')
 
     @staticmethod
     @deprecated_constructor
@@ -190,9 +189,8 @@ class IntAttr(Data[int]):
         data = parser.parse_int_literal()
         return data
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print_string(f'{data}')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
 
     @staticmethod
     @deprecated_constructor
@@ -226,8 +224,8 @@ class SignednessAttr(Data[Signedness]):
             return Signedness.UNSIGNED
         raise ParseError(value, "Expected signedness")
 
-    @staticmethod
-    def print_parameter(data: Signedness, printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
+        data = self.data
         if data == Signedness.SIGNLESS:
             printer.print_string("signless")
         elif data == Signedness.SIGNED:
@@ -345,9 +343,8 @@ class FloatData(Data[float]):
     def parse_parameter(parser: BaseParser) -> float:
         return parser.parse_float_literal()
 
-    @staticmethod
-    def print_parameter(data: float, printer: Printer) -> None:
-        printer.print_string(f'{data}')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
 
     @staticmethod
     @deprecated_constructor
@@ -415,10 +412,9 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         from xdsl.parser import MLIRParser
         return MLIRParser.parse_optional_attr_dict(parser)
 
-    @staticmethod
-    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(data, printer.print_string_literal,
+        printer.print_dictionary(self.data, printer.print_string_literal,
                                  printer.print_attribute)
         printer.print_string("}")
 

@@ -521,7 +521,7 @@ class Printer:
             if isinstance(attribute, Data):
                 self.print("<")
                 attribute = cast(Data[Any], attribute)
-                attribute.print_parameter(attribute.data, self)
+                attribute.print_parameter(self)
                 self.print(">")
                 return
 
@@ -533,7 +533,7 @@ class Printer:
         if isinstance(attribute, Data):
             self.print(f'!{attribute.name}<')
             attribute = cast(Data[Any], attribute)
-            attribute.print_parameter(attribute.data, self)
+            attribute.print_parameter(self)
             self.print(">")
             return
 

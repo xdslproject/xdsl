@@ -33,9 +33,8 @@ class DataAttr(Data[int]):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print(data)
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(self.data)
 
 
 @irdl_attr_definition
@@ -47,9 +46,8 @@ class DataType(Data[int], MLIRType):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print(data)
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(self.data)
 
 
 @irdl_attr_definition
