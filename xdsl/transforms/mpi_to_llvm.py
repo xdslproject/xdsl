@@ -2,8 +2,8 @@ import dataclasses
 from abc import ABC
 from typing import TypeVar, cast
 
-from dialects.memref import MemRefType
-from dialects.mpi import UnwrapMemrefOp, GetDtypeOp
+from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.mpi import UnwrapMemrefOp, GetDtypeOp
 from xdsl.dialects.builtin import Signedness, IntegerType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
 
@@ -536,6 +536,8 @@ def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiCommRank(lib_info),
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
+        LowerUnwrapMemrefOp(lib_info),
+        LowerGetDtype(lib_info),
     ]),
                                    apply_recursively=True)
     walker1.rewrite_module(module)
