@@ -18,7 +18,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
-from xdsl.transforms.lower_mpi import mpi_to_llvm_lowering
+from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
@@ -216,7 +216,7 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        self.available_passes['lower-mpi'] = mpi_to_llvm_lowering
+        self.available_passes['lower-mpi'] = lower_mpi
 
     def register_all_targets(self):
         """

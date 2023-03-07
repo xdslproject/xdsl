@@ -482,7 +482,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
                                       len(module.body.blocks[0].ops))
 
 
-def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
+def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
     # TODO: how to get the lib info in here?
     lib_info = MpiLibraryInfo()
 
