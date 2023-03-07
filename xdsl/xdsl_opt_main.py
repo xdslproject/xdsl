@@ -18,7 +18,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
-from xdsl.transforms.mpi_to_llvm import mpi_to_llvm_lowering
+from xdsl.transforms.lower_mpi import mpi_to_llvm_lowering
 from xdsl.dialects.gpu import GPU
 
 from xdsl.irdl_mlir_printer import IRDLPrinter

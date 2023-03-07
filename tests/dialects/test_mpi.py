@@ -34,8 +34,6 @@ def test_mpi_combo():
         ])
     ])  # yapf: disable
 
-    printer.print(module)
-
     expected = \
         """"builtin.module"() ({
   "func.func"() ({
