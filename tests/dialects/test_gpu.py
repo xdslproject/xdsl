@@ -1,6 +1,6 @@
 from typing import List
-from xdsl.dialects import builtin, arith
-from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, LaneIdOp, LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp
+from xdsl.dialects import builtin, arith, memref
+from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp, LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -106,6 +106,21 @@ def test_grid_dim():
 
     assert isinstance(grid_dim, GridDimOp)
     assert grid_dim.dimension is dim
+
+
+def test_host_register():
+    memref_type = memref.MemRefType.from_element_type_and_shape(
+        builtin.i32, [10, 10])
+    ref = memref.Alloca.get(memref_type, 0)
+
+    unranked = memref.Cast.build(
+        operands=[ref],
+        result_types=[memref.UnrankedMemrefType.from_type(builtin.i32)])
+
+    register = HostRegisterOp.from_memref(unranked)
+
+    assert isinstance(register, HostRegisterOp)
+    assert register.value is unranked.results[0]
 
 
 def test_lane_id():

@@ -4,6 +4,7 @@ from typing import Annotated, Generic, Type, TypeVar
 from xdsl.ir import Attribute, MLIRType, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import AttrSizedOperandSegments, Operand, OptOpAttr, OptOpResult, OptOperand, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
+from xdsl.dialects import memref
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -241,6 +242,17 @@ class GridDimOp(Operation):
 
 
 @irdl_op_definition
+class HostRegisterOp(Operation):
+    name = "gpu.host_register"
+
+    value: Annotated[Operand, memref.UnrankedMemrefType]
+
+    @staticmethod
+    def from_memref(memref: SSAValue | Operation):
+        return HostRegisterOp.build(operands=[SSAValue.get(memref)])
+
+
+@irdl_op_definition
 class LaneIdOp(Operation):
     name = "gpu.lane_id"
     result: Annotated[OpResult, IndexType]
@@ -423,6 +435,7 @@ GPU = Dialect([
     BlockIdOp,
     GlobalIdOp,
     GridDimOp,
+    HostRegisterOp,
     LaneIdOp,
     LaunchOp,
     ModuleOp,
