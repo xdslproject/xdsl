@@ -81,3 +81,4 @@ def test_immutable_ir(program_str: str):
     mutable_program = immutable_program.to_mutable()
 
     assert program.is_structurally_equivalent(mutable_program)
+    
