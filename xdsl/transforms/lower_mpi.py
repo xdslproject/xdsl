@@ -52,6 +52,7 @@ class MpiLibraryInfo:
 _RewriteT = TypeVar('_RewriteT', bound=mpi.MPIBaseOp)
 
 
+@dataclass
 class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     """
     This base is used to convert a pure rewrite function `lower` into the impure
@@ -80,9 +81,6 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     """
     This object carries information about the targeted MPI libraray
     """
-
-    def __init__(self, info: MpiLibraryInfo):
-        self.info = info
 
     # Helpers
 
