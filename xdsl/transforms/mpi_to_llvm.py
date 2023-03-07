@@ -246,7 +246,7 @@ class LowerMpiFinalize(_MPIToLLVMRewriteBase):
             self,
             op: mpi.Finalize) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        Relatively easy lowering of mpi.finalize operation.
+        Relatively straight forward lowering of mpi.finalize operation.
         """
         return [
             func.Call.get(self._mpi_name(op), [], [i32]),
