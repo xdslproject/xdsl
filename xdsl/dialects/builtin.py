@@ -1,5 +1,4 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
 from dataclasses import dataclass
 from enum import Enum
@@ -90,8 +89,7 @@ class ArrayAttr(GenericData[tuple[_ArrayAttrT]]):
     @staticmethod
     @deprecated_constructor
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        d: Iterable[_ArrayAttrT] = data
-        return ArrayAttr[_ArrayAttrT](d)
+        return ArrayAttr[_ArrayAttrT](data)
 
     def __len__(self):
         return len(self.data)
