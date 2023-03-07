@@ -20,7 +20,7 @@ def check_emitted_function_signature(ops: list[Operation],
                                      types: tuple[type[Attribute] | None, ...],
                                      ignore_list: tuple[SSAValue] = tuple()):
     call = extract_func_call(ops, name)
-    assert call is not None, f"Missing func.Call op to {name} in output!"
+    assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
     for i, typ in enumerate(types):
         arg = call.arguments[i]
