@@ -1798,8 +1798,10 @@ class MLIRParser(BaseParser):
         while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
             regions.append(self.parse_region())
             if self.tokenizer.starts_with(','):
-                self.parse_characters(',',
-                                      msg='This error should never be printed')
+                self.parse_characters(
+                    ',',
+                    msg='This error should never be printed, please open '
+                    'an issue at github.com/xdslproject/xdsl')
                 if not self.tokenizer.starts_with('{'):
                     self.raise_error(
                         "Expected next region (because of `,` after region end)!"
