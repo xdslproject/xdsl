@@ -53,12 +53,12 @@ class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
     @staticmethod
     def parse_parameter(parser: BaseParser) -> tuple[_ArrayAttrT]:
         parser.parse_char("[")
-        data: list[_ArrayAttrT] = parser.parse_list(
-            parser.parse_optional_attribute)
+        data = parser.parse_list_of(parser.try_parse_attribute,
+                                    "Expected attribute")
         parser.parse_char("]")
-        # the type system can't ensure that the elements are of type A
-        # and not just of type Attribute, therefore, the following cast
-        return tuple(data)
+        # the type system can't ensure that the elements are of type _ArrayAttrT
+        result: tuple[_ArrayAttrT] = tuple(data)  # type: ignore
+        return result
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
@@ -339,7 +339,9 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> float:
-        return parser.parse_float_literal()
+        span = parser.expect(parser.try_parse_float_literal,
+                             "Expect float literal")
+        return float(span.text)
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'{self.data}')
@@ -508,6 +510,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
 _TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
+_TensorTypeInitElems = TypeVar("_TensorTypeInitElems", bound=Attribute)
 
 
 @irdl_attr_definition
@@ -525,9 +528,9 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_and_list(
-        referenced_type: _TensorTypeElems,
+        referenced_type: _TensorTypeInitElems,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None
-    ) -> TensorType[_TensorTypeElems]:
+    ) -> TensorType[_TensorTypeInitElems]:
         if shape is None:
             shape = [1]
         return TensorType([
@@ -552,6 +555,9 @@ _UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
                                    bound=Attribute,
                                    covariant=True)
 
+_UnrankedTensorTypeInitElems = TypeVar("_UnrankedTensorTypeInitElems",
+                                       bound=Attribute)
+
 
 @irdl_attr_definition
 class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
@@ -562,8 +568,8 @@ class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedTensorTypeElems
-    ) -> UnrankedTensorType[_UnrankedTensorTypeElems]:
+        referenced_type: _UnrankedTensorTypeInitElems
+    ) -> UnrankedTensorType[_UnrankedTensorTypeInitElems]:
         return UnrankedTensorType([referenced_type])
 
 
@@ -682,49 +688,45 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return n == len(self.data.data)
 
     @staticmethod
-    def create_dense_index(
-            type: VectorOrTensorOf[IndexType],
-            data: List[int | IntegerAttr[IndexType]]
-    ) -> DenseIntOrFPElementsAttr:
-        attr_list = [
-            IntegerAttr.from_index_int_value(d) if isinstance(d, int) else d
-            for d in data
-        ]
+    def create_dense_index(type: VectorOrTensorOf[IndexType],
+                           data: List[int]) -> DenseIntOrFPElementsAttr:
+        attr_list = [IntegerAttr.from_index_int_value(d) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
 
     @staticmethod
-    def create_dense_int(
-        type: VectorOrTensorOf[IntegerType],
-        data: List[int | IntegerAttr[IntegerType]]
-    ) -> DenseIntOrFPElementsAttr:
+    def create_dense_int(type: VectorOrTensorOf[IntegerType],
+                         data: Sequence[int]) -> DenseIntOrFPElementsAttr:
         attr_list = [
-            IntegerAttr.from_params(d, type.element_type) if isinstance(
-                d, int) else d for d in data
+            IntegerAttr.from_params(d, type.element_type) for d in data
         ]
         return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_float(
             type: VectorOrTensorOf[AnyFloat],
-            data: List[int | float | AnyFloatAttr]
-    ) -> DenseIntOrFPElementsAttr:
-        data_attr = [
-            FloatAttr(float(d), type.element_type)
-            if not isinstance(d, FloatAttr) else d for d in data
-        ]
+            data: Sequence[int | float]) -> DenseIntOrFPElementsAttr:
+        data_attr = [FloatAttr(float(d), type.element_type) for d in data]
         return DenseIntOrFPElementsAttr([type, ArrayAttr(data_attr)])
 
     @staticmethod
-    def from_list(
-        type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
-        | List[int | float | AnyFloatAttr]
-    ) -> DenseIntOrFPElementsAttr:
+    def from_list(type: VectorOrTensorOf[Attribute],
+                  data: Sequence[int | float]) -> DenseIntOrFPElementsAttr:
+
+        def type_map(el: int | float) -> int:
+            assert isinstance(el, int)
+            return el
+
         if isinstance(type.element_type, IntegerType):
-            return DenseIntOrFPElementsAttr.create_dense_int(type, data)
+            _type = cast(VectorOrTensorOf[IntegerType], type)
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                _type, [type_map(d) for d in data])
         elif isinstance(type.element_type, IndexType):
-            return DenseIntOrFPElementsAttr.create_dense_index(type, data)
+            _type = cast(VectorOrTensorOf[IndexType], type)
+            return DenseIntOrFPElementsAttr.create_dense_index(
+                _type, [type_map(d) for d in data])
         elif isinstance(type.element_type, AnyFloat):
-            return DenseIntOrFPElementsAttr.create_dense_float(type, data)
+            _type = cast(VectorOrTensorOf[AnyFloat], type)
+            return DenseIntOrFPElementsAttr.create_dense_float(_type, data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
@@ -785,27 +787,27 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_int_or_index(typ: IntegerType | IndexType,
-                                  data: List[int | IntAttr]) -> DenseArrayBase:
-        attr_list = [IntAttr(d) if isinstance(d, int) else d for d in data]
+                                  data: Sequence[int]) -> DenseArrayBase:
+        attr_list = [IntAttr(d) for d in data]
         return DenseArrayBase([typ, ArrayAttr(attr_list)])
 
     @staticmethod
-    def create_dense_float(
-            typ: Float16Type | Float32Type | Float64Type,
-            data: List[int | float | FloatData]) -> DenseArrayBase:
-        data_attr = [
-            FloatData(float(d)) if isinstance(d, float | int) else d
-            for d in data
-        ]
+    def create_dense_float(typ: Float16Type | Float32Type | Float64Type,
+                           data: Sequence[int | float]) -> DenseArrayBase:
+        data_attr = [FloatData(float(d)) for d in data]
         return DenseArrayBase([typ, ArrayAttr(data_attr)])
 
     @staticmethod
-    def from_list(
-        type: Attribute, data: List[int | AnyIntegerAttr]
-        | List[int | float | AnyFloatAttr]
-    ) -> DenseArrayBase:
+    def from_list(type: Attribute,
+                  data: Sequence[int | float]) -> DenseArrayBase:
         if isinstance(type, IndexType | IntegerType):
-            return DenseArrayBase.create_dense_int_or_index(type, data)
+
+            def type_map(el: int | float) -> int:
+                assert isinstance(el, int)
+                return el
+
+            return DenseArrayBase.create_dense_int_or_index(
+                type, [type_map(d) for d in data])
         elif isinstance(type, AnyFloat):
             return DenseArrayBase.create_dense_float(type, data)
         else:
