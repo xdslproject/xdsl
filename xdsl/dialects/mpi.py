@@ -338,6 +338,16 @@ class CommRank(MPIBaseOp):
     def get(cls):
         return cls.build(result_types=[t_int])
 
+@irdl_op_definition
+class CommSize(MPIBaseOp):
+    name = "mpi.comm.size"
+
+    size: Annotated[OpResult, t_int]
+
+    @classmethod
+    def get(cls):
+        return cls.build(result_types=[t_int])
+
 
 @irdl_op_definition
 class Init(MPIBaseOp):
@@ -400,4 +410,5 @@ MPI = Dialect([
     Init,
     Finalize,
     CommRank,
+    CommSize,
 ], [RequestType, StatusType])

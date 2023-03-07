@@ -69,6 +69,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.isend': 'MPI_Isend',
         'mpi.wait': 'MPI_Wait',
         'mpi.comm.rank': 'MPI_Comm_rank',
+        'mpi.comm.size': 'MPI_Comm_size',
         'mpi.recv': 'MPI_Recv',
         'mpi.send': 'MPI_Send'
     }
@@ -386,6 +387,32 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
             rank := llvm.LoadOp.get(int_ptr),
         ], [rank.dereferenced_value]
 
+class LowerMpiCommSize(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.CommSize, rewriter: PatternRewriter,
+                          /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+            self,
+            op: mpi.CommSize) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.comm.rank operation
+
+        int MPI_Comm_size(MPI_Comm comm, int *rank)
+        """
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
+                                              mpi.t_int),
+            lit1 := arith.Constant.from_int_and_width(1, 64),
+            int_ptr := llvm.AllocaOp.get(lit1, mpi.t_int),
+            func.Call.get(self._mpi_name(op), [comm_global, int_ptr],
+                          [mpi.t_int]),
+            rank := llvm.LoadOp.get(int_ptr),
+        ], [rank.dereferenced_value]
+
 
 class LowerMpiSend(_MPIToLLVMRewriteBase):
 
@@ -534,6 +561,7 @@ def mpi_to_llvm_lowering(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiISend(lib_info),
         LowerMpiIRecv(lib_info),
         LowerMpiCommRank(lib_info),
+        LowerMpiCommSize(lib_info),
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
         LowerUnwrapMemrefOp(lib_info),
