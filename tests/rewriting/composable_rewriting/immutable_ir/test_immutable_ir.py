@@ -78,6 +78,6 @@ def test_immutable_ir(program_str: str):
     parser = XDSLParser(ctx, program_str)
     program: Operation = parser.parse_op()
     immutable_program = get_immutable_copy(program)
-    mutable_program = immutable_program.get_mutable_copy()
+    mutable_program = immutable_program.to_mutable()
 
     assert program.is_structurally_equivalent(mutable_program)

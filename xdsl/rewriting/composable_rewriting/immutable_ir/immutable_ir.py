@@ -3,6 +3,7 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Sequence, Type, TypeGuard, Any
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
+from xdsl.utils.exceptions import InvalidIRException
 from xdsl.utils.immutable_list import IList
 
 
@@ -155,10 +156,9 @@ class IRegion:
 
         return region
 
-    def get_mutable_copy(
-            self,
-            value_mapping: dict[ISSAValue, SSAValue] | None = None,
-            block_mapping: dict[IBlock, Block] | None = None) -> Region:
+    def to_mutable(self,
+                   value_mapping: dict[ISSAValue, SSAValue] | None = None,
+                   block_mapping: dict[IBlock, Block] | None = None) -> Region:
         """
         Returns a mutable region that is a copy of this immutable region.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -177,8 +177,8 @@ class IRegion:
             block_mapping[block] = mutable_block
         for block in self.blocks:
             # This will use the already created Block and populate it
-            block.get_mutable_copy(value_mapping=value_mapping,
-                                   block_mapping=block_mapping)
+            block.to_mutable(value_mapping=value_mapping,
+                             block_mapping=block_mapping)
         return Region.from_block_list(mutable_blocks)
 
 
@@ -277,10 +277,9 @@ class IBlock:
 
         return IBlock(args, immutable_ops)
 
-    def get_mutable_copy(
-            self,
-            value_mapping: dict[ISSAValue, SSAValue] | None = None,
-            block_mapping: dict[IBlock, Block] | None = None) -> Block:
+    def to_mutable(self,
+                   value_mapping: dict[ISSAValue, SSAValue] | None = None,
+                   block_mapping: dict[IBlock, Block] | None = None) -> Block:
         """
         Returns a mutable block that is a copy of this immutable block.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -302,8 +301,8 @@ class IBlock:
 
         for immutable_op in self.ops:
             mutable_block.add_op(
-                immutable_op.get_mutable_copy(value_mapping=value_mapping,
-                                              block_mapping=block_mapping))
+                immutable_op.to_mutable(value_mapping=value_mapping,
+                                        block_mapping=block_mapping))
         return mutable_block
 
 
@@ -412,7 +411,7 @@ class IOperation:
     def result_types(self) -> list[Attribute]:
         return [result.typ for result in self.results]
 
-    def get_mutable_copy(
+    def to_mutable(
             self,
             value_mapping: dict[ISSAValue, SSAValue] | None = None,
             block_mapping: dict[IBlock, Block] | None = None) -> Operation:
@@ -445,13 +444,14 @@ class IOperation:
             if successor in block_mapping:
                 mutable_successors.append(block_mapping[successor])
             else:
-                raise Exception("Block used before definition")
+                raise InvalidIRException(
+                    "Invalid IR: Block is not defined in the current region")
 
         mutable_regions: list[Region] = []
         for region in self.regions:
             mutable_regions.append(
-                region.get_mutable_copy(value_mapping=value_mapping,
-                                        block_mapping=block_mapping))
+                region.to_mutable(value_mapping=value_mapping,
+                                  block_mapping=block_mapping))
 
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
@@ -515,10 +515,9 @@ class IOperation:
             if successor in block_map:
                 successors.append(block_map[successor])
             else:
-                # TODO: I think this is not right, build tests with successors
-                newImmutableSuccessor = IBlock.from_mutable(successor)
-                block_map[successor] = newImmutableSuccessor
-                successors.append(newImmutableSuccessor)
+                raise Exception(
+                    "Successor not defined in current region, `from_mutable`\
+                          probably has to be called on the parent operation.")
 
         regions: list[IRegion] = []
         for region in op.regions:
