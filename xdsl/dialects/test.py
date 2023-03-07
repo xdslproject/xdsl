@@ -33,7 +33,7 @@ class ProduceValuesOp(Operation):
 class TestType(Data[str], MLIRType):
     """
     This attribute is used for testing in places where any attribute can be
-    used. This allows reducing the artificial dependencies on attributes fom
+    used. This allows reducing the artificial dependencies on attributes from
     other dialects.
     """
     name: str = "test.type"
