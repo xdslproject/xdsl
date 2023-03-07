@@ -596,7 +596,7 @@ VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
                                | UnrankedTensorType[_VectorOrTensorElem])
 
 
-@dataclass(init=False)
+@dataclass
 class VectorRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank.
@@ -605,20 +605,16 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def __init__(self, expected_rank: int):
-        self.expected_rank = expected_rank
-
-    def verify(self, vector_type: Attribute) -> None:
-        if not isinstance(vector_type, VectorType):
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.get_num_dims() != self.expected_rank:
             raise VerifyException(
-                f"{vector_type} should be of type VectorType.")
-        if vector_type.get_num_dims() != self.expected_rank:
-            raise VerifyException(
-                f"Expected vector rank to be {self.expected_rank}, got {vector_type.get_num_dims()}."
+                f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
             )
 
 
-@dataclass(init=False)
+@dataclass
 class VectorBaseTypeConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given base type.
@@ -627,20 +623,16 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def __init__(self, expected_type: Attribute):
-        self.expected_type = expected_type
-
-    def verify(self, vector_type: Attribute) -> None:
-        if not isinstance(vector_type, VectorType):
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.element_type != self.expected_type:  # type: ignore
             raise VerifyException(
-                f"{vector_type} should be of type VectorType.")
-        if vector_type.element_type != self.expected_type:
-            raise VerifyException(
-                f"Expected vector type to be {self.expected_type}, got {vector_type.element_type}."
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
             )
 
 
-@dataclass(init=False)
+@dataclass
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank and base type.
@@ -652,16 +644,12 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def __init__(self, expected_type: Attribute, expected_rank: int):
-        self.expected_type = expected_type
-        self.expected_rank = expected_rank
-
-    def verify(self, vector: Attribute) -> None:
+    def verify(self, attr: Attribute) -> None:
         constraint = AllOf([
             VectorBaseTypeConstraint(self.expected_type),
             VectorRankConstraint(self.expected_rank)
         ])
-        constraint.verify(vector)
+        constraint.verify(attr)
 
 
 @irdl_attr_definition
