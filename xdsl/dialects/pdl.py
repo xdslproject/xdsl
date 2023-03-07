@@ -7,22 +7,22 @@ from xdsl.utils import *
 
 @irdl_attr_definition
 class AttributeType(ParametrizedAttribute):
-    name = "attribute"
+    name = "pdl.attribute"
 
 
 @irdl_attr_definition
 class OperationType(ParametrizedAttribute):
-    name = "operation"
+    name = "pdl.operation"
 
 
 @irdl_attr_definition
 class TypeType(ParametrizedAttribute):
-    name = "type"
+    name = "pdl.type"
 
 
 @irdl_attr_definition
 class ValueType(ParametrizedAttribute):
-    name = "value"
+    name = "pdl.value"
 
 
 AnyPDLType = AttributeType | OperationType | TypeType | ValueType
