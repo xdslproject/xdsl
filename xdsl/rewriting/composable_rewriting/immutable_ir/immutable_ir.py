@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence, Type, TypeGuard, Any
+from typing import Sequence, TypeGuard, Any
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
 from xdsl.utils.exceptions import InvalidIRException
 from xdsl.utils.immutable_list import IList
