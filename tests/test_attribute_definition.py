@@ -454,7 +454,7 @@ class DataListAttr(AttrConstraint):
 
 
 @irdl_attr_definition
-class ListData(GenericData[[A]]):
+class ListData(GenericData[A]):
     name = "list"
 
     @staticmethod
