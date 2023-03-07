@@ -537,11 +537,13 @@ class BaseParser(ABC):
             block.declared_at = block_id
         else:
             if block_id.text in self.blocks:
+                block = self.blocks[block_id.text]
+                assert block.declared_at is not None, "Parsed block must have a span"
                 raise MultipleSpansParseError(
                     block_id,
                     "Re-declaration of block {}".format(block_id.text),
                     "Originally declared here:",
-                    [(self.blocks[block_id.text].declared_at, None)],
+                    [(block.declared_at, None)],
                     self.tokenizer.history,
                 )
             block = Block(block_id)
@@ -626,14 +628,13 @@ class BaseParser(ABC):
         as it will read [3,4,4], then see another separator, and expects the next
         `try_parse` call to succeed (which won't as i32 is not a valid integer literal)
         """
-        items = list()
         first_item = try_parse()
         if first_item is None:
             if allow_empty:
-                return items
+                return []
             self.raise_error(error_msg)
-
-        items.append(first_item)
+        else:
+            items = [first_item]
 
         while (match := self.tokenizer.next_token_of_pattern(separator_pattern)
                ) is not None:
@@ -812,9 +813,11 @@ class BaseParser(ABC):
     def parse_complex_attrs(self):
         self.raise_error("ComplexType is unimplemented!")
 
-    def parse_memref_attrs(self) -> MemRefType | UnrankedMemrefType:
+    def parse_memref_attrs(
+            self) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
         dims = self._parse_tensor_or_memref_dims()
         type = self.try_parse_type()
+        assert type is not None
         if dims is None:
             return UnrankedMemrefType.from_type(type)
         return MemRefType.from_element_type_and_shape(type, dims)
@@ -974,6 +977,10 @@ class BaseParser(ABC):
         # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
+            assert isinstance(
+                self, XDSLParser
+            ), "Only xDSL format currently supports custom op parsing"
+            assert ret_types is not None, "Return types must be in xDSL format"
             op_type = self._get_op_by_name(op_name)
             op = op_type.parse(ret_types, self)
         else:
@@ -984,7 +991,7 @@ class BaseParser(ABC):
                     "Expected an operation name here, either a bare-id, or a string "
                     "literal!")
 
-            args, successors, attrs, regions, func_type = self._parse_operation_details(
+            args, successors, attrs, regions, func_type = self.parse_operation_details(
             )
 
             if ret_types is None:
@@ -1173,6 +1180,11 @@ class BaseParser(ABC):
         self.parse_characters(":", err_msg)
         type = self.expect(self.try_parse_type,
                            "Dense attribute must be typed!")
+
+        # Make sure type is AnyTensorType
+        assert isinstance(type, VectorType | TensorType | UnrankedTensorType)
+        type = cast(AnyTensorType, type)
+
         return DenseIntOrFPElementsAttr.from_list(type, info)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
@@ -1279,7 +1291,8 @@ class BaseParser(ABC):
         else:
             return None
 
-    def try_parse_builtin_int_attr(self) -> IntegerAttr | None:
+    def try_parse_builtin_int_attr(
+            self) -> IntegerAttr[IntegerType | IndexType] | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
@@ -1291,9 +1304,14 @@ class BaseParser(ABC):
             if self.tokenizer.next_token(peek=True).text != ':':
                 return IntegerAttr.from_params(int(value.text), i64)
             type = self._parse_attribute_type()
+
+            if not isinstance(type, IntegerType | IndexType):
+                self.raise_error(
+                    f"Expected IntegerType | IndexType, got {type}")
+
             return IntegerAttr.from_params(int(value.text), type)
 
-    def try_parse_builtin_float_attr(self) -> FloatAttr | None:
+    def try_parse_builtin_float_attr(self) -> FloatAttr[AnyFloat] | None:
         with self.tokenizer.backtracking("float literal"):
             value = self.expect(
                 self.try_parse_float_literal,
@@ -1309,7 +1327,8 @@ class BaseParser(ABC):
                     "Float attribute must be typed with a float type!")
             return FloatAttr(float(value.text), type)
 
-    def try_parse_builtin_boolean_attr(self) -> IntegerAttr | None:
+    def try_parse_builtin_boolean_attr(
+            self) -> IntegerAttr[IntegerType | IndexType] | None:
         span = self.try_parse_boolean_literal()
 
         if span is None:
@@ -1328,7 +1347,7 @@ class BaseParser(ABC):
                 self.raise_error("Invalid string literal")
             return StringAttr(literal.string_contents)
 
-    def try_parse_builtin_arr_attr(self) -> ArrayAttr | None:
+    def try_parse_builtin_arr_attr(self) -> ArrayAttr[Attribute] | None:
         if not self.tokenizer.starts_with("["):
             return None
         with self.tokenizer.backtracking("array literal"):
@@ -1406,7 +1425,7 @@ class BaseParser(ABC):
         return FunctionType.from_lists(args,
                                        self._parse_type_or_type_list_parens())
 
-    def _parse_type_or_type_list_parens(self) -> list[Attribute | None]:
+    def _parse_type_or_type_list_parens(self) -> list[Attribute]:
         """
         Parses type-or-type-list-parens, which is used in function-type.
 
@@ -1415,15 +1434,15 @@ class BaseParser(ABC):
         type-list-no-parens      ::=  type (`,` type)*
         """
         if self.tokenizer.next_token_of_pattern("(") is not None:
-            args: list[Attribute | None] = self.parse_list_of(
-                self.try_parse_type, "Expected type here!")
+            args = self.parse_list_of(self.try_parse_type,
+                                      "Expected type here!")
             self.parse_characters(")", "Unclosed function type argument list!")
         else:
-            args = [self.try_parse_type()]
-            if args[0] is None:
-                self.raise_error(
-                    "Function type must either be single type or list of types in"
-                    " parenthesis!")
+            arg = self.expect(
+                self.try_parse_type,
+                "Function type must either be single type or list of types in parentheses"
+            )
+            args = [arg]
         return args
 
     def try_parse_function_type(self) -> FunctionType | None:
@@ -1471,7 +1490,7 @@ class BaseParser(ABC):
         return self._parse_builtin_parametrized_type(name)
 
     @abstractmethod
-    def _parse_operation_details(
+    def parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
@@ -1511,7 +1530,7 @@ class BaseParser(ABC):
         """
         # TODO: remove this function and restructure custom op / irdl parsing
         assert isinstance(self, XDSLParser)
-        args, successors, attributes, regions, _ = self._parse_operation_details(
+        args, successors, attributes, regions, _ = self.parse_operation_details(
         )
 
         for x in args:
@@ -1625,7 +1644,7 @@ class MLIRParser(BaseParser):
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         return self.parse_optional_dictionary_attr_dict()
 
-    def _parse_operation_details(
+    def parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
@@ -1771,7 +1790,7 @@ class XDSLParser(BaseParser):
 
         return self._attr_dict_from_tuple_list(attrs)
 
-    def _parse_operation_details(
+    def parse_operation_details(
         self,
     ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
@@ -1854,7 +1873,7 @@ def Parser(ctx: MLContext,
            prog: str,
            source: Source = Source.XDSL,
            filename: str = '<unknown>',
-           allow_unregistered_ops=False) -> BaseParser:
+           allow_unregistered_ops: bool = False) -> BaseParser:
     selected_parser = {
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser
