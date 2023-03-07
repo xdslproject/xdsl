@@ -2,9 +2,17 @@
 
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = false} : () -> i1
-  "scf.if"(%0) ({}, {}) : (i1) -> ()
+  "scf.if"(%0) ({
+    "scf.yield"() : () -> ()
+  }, {
+    "scf.yield"() : () -> ()
+  }) : (i1) -> ()
 }) : () -> ()
 
-// CHECK: "scf.if"({{%\d+}}) ({}, {}) : (i1) -> ()
+// CHECK:        "scf.if"(%{{\d+}}) ({
+// CHECK-NEXT:     "scf.yield"() : () -> ()
+// CHECK-NEXT:   }, {
+// CHECK-NEXT:     "scf.yield"() : () -> ()
+// CHECK-NEXT:   }) : (i1) -> ()
 
 
