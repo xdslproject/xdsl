@@ -224,7 +224,25 @@ class TypesOp(Operation):
 
 
 PDL = Dialect([
-    ApplyNativeConstraintOp, ApplyNativeRewriteOp, AttributeOp, OperandOp,
-    EraseOp, OperandsOp, OperationOp, PatternOp, RangeOp, ReplaceOp, ResultOp,
-    ResultsOp, RewriteOp, TypeOp, TypesOp
-], [AttributeType, OperationType, TypeType, ValueType, RangeType])
+    ApplyNativeConstraintOp,
+    ApplyNativeRewriteOp,
+    AttributeOp,
+    OperandOp,
+    EraseOp,
+    OperandsOp,
+    OperationOp,
+    PatternOp,
+    RangeOp,
+    ReplaceOp,
+    ResultOp,
+    ResultsOp,
+    RewriteOp,
+    TypeOp,
+    TypesOp,
+], [
+    AttributeType,
+    OperationType,
+    TypeType,
+    ValueType,
+    RangeType,
+])
