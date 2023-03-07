@@ -10,8 +10,8 @@ info = lower_mpi.MpiLibraryInfo()
 def extract_func_call(ops: list[Operation],
                       name: str = 'MPI_') -> func.Call | None:
     for op in ops:
-        if isinstance(op,
-                      func.Call) and op.callee.string_value().startswith(name):
+        if (isinstance(op, func.Call)
+                and op.callee.string_value().startswith(name)):
             return op
 
 
@@ -22,9 +22,7 @@ def check_emitted_function_signature(ops: list[Operation],
     call = extract_func_call(ops, name)
     assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
-    for i, typ in enumerate(types):
-        arg = call.arguments[i]
-
+    for arg, typ in zip(call.arguments, types):
         # check that the argument type is correct (if constraint present)
         if typ is not None:
             assert isinstance(
