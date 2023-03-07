@@ -24,8 +24,8 @@ class ProduceValuesOp(Operation):
 
 
 @irdl_attr_definition
-class StrType(Data[str], MLIRType):
-    name: str = "test.str"
+class TestType(Data[str], MLIRType):
+    name: str = "test.type"
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> str:
@@ -36,4 +36,4 @@ class StrType(Data[str], MLIRType):
         printer.print_string_literal(data)
 
 
-Test = Dialect([ProduceValuesOp], [StrType])
+Test = Dialect([ProduceValuesOp], [TestType])
