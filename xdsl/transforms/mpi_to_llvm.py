@@ -465,8 +465,9 @@ class MpiAddExternalFuncDefs(RewritePattern):
         funcs_to_emit: dict[str, tuple[list[Attribute],
                                        list[Attribute]]] = dict()
 
-        @op_type_rewrite_pattern
-        def match_func(op: func.Call, rewriter: PatternRewriter, /):
+        def match_func(op: Operation):
+            if not isinstance(op, func.Call):
+                return
             if op.callee.string_value() not in self.mpi_func_call_names:
                 return
             funcs_to_emit[op.callee.string_value()] = (
@@ -474,8 +475,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
                 [res.typ for res in op.results],
             )
 
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_func)).rewrite_module(module)
+        module.walk(match_func)
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
