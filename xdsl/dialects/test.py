@@ -8,6 +8,12 @@ from xdsl.printer import Printer
 
 @irdl_op_definition
 class ProduceValuesOp(Operation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    """
     name: str = "test.produce_values"
 
     res: VarOpResult
@@ -25,6 +31,11 @@ class ProduceValuesOp(Operation):
 
 @irdl_attr_definition
 class TestType(Data[str], MLIRType):
+    """
+    This attribute is used for testing in places where any attribute can be
+    used. This allows reducing the artificial dependencies on attributes fom
+    other dialects.
+    """
     name: str = "test.type"
 
     @staticmethod
