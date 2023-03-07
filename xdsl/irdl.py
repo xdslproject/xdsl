@@ -1113,7 +1113,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 # |____/ \__,_|\__\__,_|
 #
 
-_DataElement = TypeVar("_DataElement")
+_DataElement = TypeVar("_DataElement", covariant=True)
 
 
 @dataclass(frozen=True)

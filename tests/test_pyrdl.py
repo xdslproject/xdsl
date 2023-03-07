@@ -21,9 +21,8 @@ class BoolData(Data[bool]):
     def parse_parameter(parser: BaseParser) -> bool:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: bool, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -35,9 +34,8 @@ class IntData(Data[int]):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition

@@ -313,7 +313,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
-DataElement = TypeVar("DataElement")
+DataElement = TypeVar("DataElement", covariant=True)
 
 _D = TypeVar("_D", bound="Data[Any]")
 
@@ -348,9 +348,8 @@ class Data(Generic[DataElement], Attribute, ABC):
     def parse_parameter(parser: BaseParser) -> DataElement:
         """Parse the attribute parameter."""
 
-    @staticmethod
     @abstractmethod
-    def print_parameter(data: DataElement, printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
 
 

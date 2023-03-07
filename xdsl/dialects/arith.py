@@ -656,8 +656,8 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
         result = functools.reduce(FastMathFlags.__or__, flags, FastMathFlags(set()))
         return result
 
-    @staticmethod
-    def print_parameter(data: FastMathFlags, printer: Printer):
+    def print_parameter(self, printer: Printer):
+        data = self.data
         if len(data.flags) == 0:
             printer.print("none")
         elif len(data.flags) == len(FastMathFlag):

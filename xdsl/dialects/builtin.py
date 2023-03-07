@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (TypeAlias, List, cast, Type, Sequence, TYPE_CHECKING, Any,
-                    TypeVar, overload)
+from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
+                    TYPE_CHECKING, Any, TypeVar, overload)
 
 from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
                      Operation, Region, Attribute, Dialect, SSAValue)
@@ -43,22 +43,26 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[List[_ArrayAttrT]]):
+class ArrayAttr(GenericData[tuple[_ArrayAttrT]]):
     name: str = "array"
 
+    def __init__(self: ArrayAttr[_ArrayAttrT],
+                 param: Iterable[_ArrayAttrT]) -> None:
+        super().__init__(tuple(param))
+
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> List[_ArrayAttrT]:
+    def parse_parameter(parser: BaseParser) -> tuple[_ArrayAttrT]:
         parser.parse_char("[")
-        data = parser.parse_list(parser.parse_optional_attribute)
+        data: list[_ArrayAttrT] = parser.parse_list(
+            parser.parse_optional_attribute)
         parser.parse_char("]")
         # the type system can't ensure that the elements are of type A
         # and not just of type Attribute, therefore, the following cast
-        return cast(List[_ArrayAttrT], data)
+        return tuple(data)
 
-    @staticmethod
-    def print_parameter(data: List[_ArrayAttrT], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
-        printer.print_list(data, printer.print_attribute)
+        printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")
 
     @staticmethod
@@ -71,7 +75,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
                         f" parameter, but {len(args)} were given")
 
     def verify(self) -> None:
-        if not isinstance(self.data, list):
+        if not isinstance(self.data, tuple):
             raise VerifyException(
                 f"Wrong type given to attribute {self.name}: got"
                 f" {type(self.data)}, but expected list of"
@@ -85,7 +89,7 @@ class ArrayAttr(GenericData[List[_ArrayAttrT]]):
     @staticmethod
     @deprecated_constructor
     def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        return ArrayAttr(data)
+        return ArrayAttr[_ArrayAttrT](data)
 
     def __len__(self):
         return len(self.data)
@@ -103,9 +107,8 @@ class StringAttr(Data[str]):
         data = parser.parse_str_literal()
         return data
 
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        printer.print_string(f'"{data}"')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'"{self.data}"')
 
     @staticmethod
     @deprecated_constructor
@@ -184,9 +187,8 @@ class IntAttr(Data[int]):
         data = parser.parse_int_literal()
         return data
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer) -> None:
-        printer.print_string(f'{data}')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
 
     @staticmethod
     @deprecated_constructor
@@ -220,8 +222,8 @@ class SignednessAttr(Data[Signedness]):
             return Signedness.UNSIGNED
         raise ParseError(value, "Expected signedness")
 
-    @staticmethod
-    def print_parameter(data: Signedness, printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
+        data = self.data
         if data == Signedness.SIGNLESS:
             printer.print_string("signless")
         elif data == Signedness.SIGNED:
@@ -339,9 +341,8 @@ class FloatData(Data[float]):
     def parse_parameter(parser: BaseParser) -> float:
         return parser.parse_float_literal()
 
-    @staticmethod
-    def print_parameter(data: float, printer: Printer) -> None:
-        printer.print_string(f'{data}')
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'{self.data}')
 
     @staticmethod
     @deprecated_constructor
@@ -409,10 +410,9 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         from xdsl.parser import MLIRParser
         return MLIRParser.parse_optional_attr_dict(parser)
 
-    @staticmethod
-    def print_parameter(data: dict[str, Attribute], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(data, printer.print_string_literal,
+        printer.print_dictionary(self.data, printer.print_string_literal,
                                  printer.print_attribute)
         printer.print_string("}")
 

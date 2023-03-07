@@ -36,9 +36,8 @@ class BoolData(Data[bool]):
             return True
         return False
 
-    @staticmethod
-    def print_parameter(data: bool, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -50,9 +49,8 @@ class IntData(Data[int]):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -64,9 +62,8 @@ class StringData(Data[str]):
     def parse_parameter(parser: BaseParser) -> str:
         return parser.parse_str_literal()
 
-    @staticmethod
-    def print_parameter(data: str, printer: Printer):
-        printer.print_string(data)
+    def print_parameter(self, printer: Printer):
+        printer.print_string(self.data)
 
 
 def test_simple_data():
@@ -101,8 +98,7 @@ class IntListMissingVerifierData(Data[list[int]]):
     def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[int], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         raise NotImplementedError()
 
 
@@ -133,10 +129,9 @@ class IntListData(Data[list[int]]):
     def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[int], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
-        printer.print_list(data, lambda x: printer.print_string(str(x)))
+        printer.print_list(self.data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
 
     def verify(self) -> None:
@@ -415,9 +410,7 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
     def parse_parameter(parser: BaseParser) -> _MissingGenericDataData:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: _MissingGenericDataData,
-                        printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         raise NotImplementedError()
 
     def verify(self) -> None:
@@ -468,10 +461,9 @@ class ListData(GenericData[list[A]]):
     def parse_parameter(parser: BaseParser) -> list[A]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[A], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
-        printer.print_list(data, printer.print_attribute)
+        printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")
 
     @staticmethod
