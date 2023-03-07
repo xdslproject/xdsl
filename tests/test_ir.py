@@ -278,7 +278,7 @@ def test_immutable_ir(program_str: str):
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = Parser(ctx, program_str)
+    parser = XDSLParser(ctx, program_str)
     program: Operation = parser.parse_op()
     immutable_program = get_immutable_copy(program)
     mutable_program = immutable_program.get_mutable_copy()
