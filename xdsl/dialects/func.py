@@ -21,7 +21,7 @@ class FuncOp(Operation):
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [arg.typ for arg in entry_block.args]
-        if self.function_type.inputs.data != block_arg_types:
+        if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
                 "input types")
@@ -100,7 +100,7 @@ class Return(Operation):
         assert isinstance(func_op, FuncOp)
 
         function_return_types = func_op.function_type.outputs.data
-        return_types = [arg.typ for arg in self.arguments]
+        return_types = tuple(arg.typ for arg in self.arguments)
         if function_return_types != return_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"

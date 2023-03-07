@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
+from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
@@ -413,8 +413,8 @@ class Printer:
         if (isinstance(attribute, DenseIntOrFPElementsAttr)
                 and self.target == self.Target.MLIR):
 
-            def print_dense_list(array: List[AnyIntegerAttr]
-                                 | List[AnyFloatAttr], shape: List[int]):
+            def print_dense_list(array: Sequence[AnyIntegerAttr]
+                                 | Sequence[AnyFloatAttr], shape: List[int]):
 
                 def print_one_elem(val: Attribute):
                     if isinstance(val, IntegerAttr):
