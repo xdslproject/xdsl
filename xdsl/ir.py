@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
+    from xdsl.utils.span import Span
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -735,7 +736,7 @@ class Operation(IRNode):
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: 'Span' | None = None
+    declared_at: Span | None = None
 
     _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
                                              init=False)

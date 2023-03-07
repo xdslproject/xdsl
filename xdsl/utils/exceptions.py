@@ -94,12 +94,12 @@ class DeferredExceptionMessage:
 
 
 class ParseError(Exception):
-    span: 'Span'
+    span: Span
     msg: str
     history: 'BacktrackingHistory' | None
 
     def __init__(self,
-                 span: 'Span',
+                 span: Span,
                  msg: str,
                  history: 'BacktrackingHistory' | None = None):
         super().__init__(DeferredExceptionMessage(lambda: repr(self)))
@@ -125,14 +125,14 @@ class ParseError(Exception):
 
 class MultipleSpansParseError(ParseError):
     ref_text: str | None
-    refs: list[tuple['Span', str | None]]
+    refs: list[tuple[Span, str | None]]
 
     def __init__(
         self,
-        span: 'Span',
+        span: Span,
         msg: str,
         ref_text: str,
-        refs: list[tuple['Span', str | None]],
+        refs: list[tuple[Span, str | None]],
         history: 'BacktrackingHistory' | None = None,
     ):
         super(MultipleSpansParseError, self).__init__(span, msg, history)
