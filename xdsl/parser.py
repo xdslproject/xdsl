@@ -1464,6 +1464,23 @@ class BaseParser(ABC):
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         raise NotImplementedError()
 
+    def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
+        if not self.tokenizer.starts_with("{"):
+            return dict()
+
+        self.parse_characters(
+            "{", "Attribute dictionary must be enclosed in curly brackets")
+
+        attrs = []
+        if not self.tokenizer.starts_with('}'):
+            attrs = self.parse_list_of(self._parse_attribute_entry,
+                                       "Expected attribute entry")
+
+        self.parse_characters(
+            "}", "Attribute dictionary must be enclosed in curly brackets")
+
+        return self._attr_dict_from_tuple_list(attrs)
+
     def _attr_dict_from_tuple_list(
             self, tuple_list: list[tuple[Span,
                                          Attribute]]) -> dict[str, Attribute]:
@@ -1727,23 +1744,7 @@ class MLIRParser(BaseParser):
         )
 
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
-            return dict()
-
-        self.parse_characters(
-            "{",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
-
-        attrs = []
-        if not self.tokenizer.starts_with('}'):
-            attrs = self.parse_list_of(self._parse_attribute_entry,
-                                       "Expected attribute entry")
-
-        self.parse_characters(
-            "}",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
-
-        return self._attr_dict_from_tuple_list(attrs)
+        return self.parse_optional_dictionary_attr_dict()
 
     def _parse_operation_details(
         self,

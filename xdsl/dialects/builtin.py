@@ -406,9 +406,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
-        # force MLIR style parsing of attribute
-        from xdsl.parser import MLIRParser
-        return MLIRParser.parse_optional_attr_dict(parser)
+        return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("{")
