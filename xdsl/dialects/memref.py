@@ -207,7 +207,8 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[Operand, MemRefType[Attribute]]
+    memref: Annotated[Operand,
+                      MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -283,7 +284,8 @@ class Global(Operation):
 class Dim(Operation):
     name = "memref.dim"
 
-    source: Annotated[Operand, MemRefType[Attribute]]
+    source: Annotated[Operand,
+                      MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
     index: Annotated[Operand, IndexType]
 
     result: Annotated[OpResult, IndexType]
@@ -341,8 +343,8 @@ class Subview(Operation):
 class Cast(Operation):
     name = "memref.cast"
 
-    source: Annotated[Operand, MemRefType]
-    dest: Annotated[OpResult, MemRefType]
+    source: Annotated[Operand, MemRefType | UnrankedMemrefType]
+    dest: Annotated[OpResult, MemRefType | UnrankedMemrefType]
 
 
 MemRef = Dialect([

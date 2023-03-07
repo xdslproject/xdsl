@@ -4,8 +4,9 @@ from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
-                                  Load, Store, ExtractAlignedPointerAsIndexOp,
-                                  Subview, Cast)
+                                  Load, Store, UnrankedMemrefType,
+                                  ExtractAlignedPointerAsIndexOp, Subview,
+                                  Cast)
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.printer import Printer
 
@@ -248,7 +249,7 @@ def test_memref_cast():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
     memref_ssa_value = OpResult(i32_memref_type, [], [])
 
-    res_type = MemRefType.from_element_type_and_shape(i32, [-1, -1])
+    res_type = UnrankedMemrefType.from_type(i32)
 
     cast = Cast.build(operands=[memref_ssa_value], result_types=[res_type])
 
