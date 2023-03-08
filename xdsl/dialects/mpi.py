@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
+from typing import cast
 
+from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
                                    StringAttr, AnyFloat, i32)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -33,6 +35,14 @@ class StatusType(ParametrizedAttribute, MLIRType):
     It's a struct containing status information for requests.
     """
     name = 'mpi.status'
+
+
+@irdl_attr_definition
+class DataType(ParametrizedAttribute, MLIRType):
+    """
+    This type represents MPI_Datatype
+    """
+    name = 'mpi.datatype'
 
 
 class StatusTypeField(Enum):
@@ -95,7 +105,8 @@ class ISend(MPIBaseOp):
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls, buff: Operand, dest: Operand, tag: int | None):
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
+            tag: int | None):
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[RequestType()])
@@ -128,16 +139,17 @@ class Send(MPIBaseOp):
 
     name = 'mpi.send'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int) -> Send:
-        return cls.build(operands=[buff, dest],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
+    def get(cls, buffer: SSAValue | Operation, count: SSAValue | Operation,
+            datatype: SSAValue | Operation, dest: SSAValue | Operation,
+            tag: SSAValue | Operation) -> Send:
+        return cls.build(operands=[buffer, count, datatype, dest, tag],
                          result_types=[])
 
 
@@ -171,14 +183,13 @@ class IRecv(MPIBaseOp):
 
     source: Annotated[Operand, i32]
     buffer: Annotated[Operand, MemRefType[AnyNumericType]]
-
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
 
     request: Annotated[OpResult, RequestType]
 
     @classmethod
     def get(cls,
-            source: Operand,
+            source: SSAValue | Operation,
             buffer: SSAValue | Operation,
             tag: int | None = None):
         return cls.build(operands=[source, buffer],
@@ -215,22 +226,24 @@ class Recv(MPIBaseOp):
 
     name = "mpi.recv"
 
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls,
-            source: SSAValue | Operation,
             buffer: SSAValue | Operation,
-            tag: int | None = None,
+            count: SSAValue | Operation,
+            datatype: SSAValue | Operation,
+            source: SSAValue | Operation,
+            tag: SSAValue | Operation,
             ignore_status: bool = True):
         return cls.build(
-            operands=[source, buffer],
-            attributes=_build_attr_dict_with_optional_tag(tag),
+            operands=[buffer, count, datatype, source, tag],
             result_types=[[]] if ignore_status else [[StatusType()]])
 
 
@@ -319,9 +332,30 @@ class GetStatusField(MPIBaseOp):
 
 @irdl_op_definition
 class CommRank(MPIBaseOp):
+    """
+    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns the rank of the communicator
+
+    Currently limited to COMM_WORLD
+    """
     name = "mpi.comm.rank"
 
     rank: Annotated[OpResult, i32]
+
+    @classmethod
+    def get(cls):
+        return cls.build(result_types=[i32])
+
+
+@irdl_op_definition
+class CommSize(MPIBaseOp):
+    """
+    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns the size of the communicator
+
+    Currently limited to COMM_WORLD
+    """
+    name = "mpi.comm.size"
+
+    size: Annotated[OpResult, i32]
 
     @classmethod
     def get(cls):
@@ -338,7 +372,63 @@ class Init(MPIBaseOp):
 
 @irdl_op_definition
 class Finalize(MPIBaseOp):
+    """
+    This represents an MPI_Finalize call with both args being nullptr
+    """
     name = "mpi.finalize"
+
+
+@irdl_op_definition
+class UnwrapMemrefOp(MPIBaseOp):
+    """
+    This Op can be used as a helper to get memrefs into MPI calls.
+
+    It takes any MemRef as input, and returns an llvm.ptr, element count and MPI_Datatype.
+    """
+    name = "mpi.unwrap_memref"
+
+    ref: Annotated[Operand, MemRefType[AnyNumericType]]
+
+    ptr: Annotated[OpResult, llvm.LLVMPointerType]
+    len: Annotated[OpResult, i32]
+    typ: Annotated[OpResult, DataType]
+
+    @staticmethod
+    def get(ref: SSAValue | Operation):
+        ssa_val = SSAValue.get(ref)
+        assert isinstance(ssa_val.typ, MemRefType)
+        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
+
+        return UnwrapMemrefOp.build(operands=[ref],
+                                    result_types=[
+                                        llvm.LLVMPointerType.typed(elem_typ),
+                                        i32,
+                                        DataType()
+                                    ])
+
+
+@irdl_op_definition
+class GetDtypeOp(MPIBaseOp):
+    """
+    This op is used to convert MLIR types to MPI_Datatype constants.
+
+    So, e.g. if you want to get the `MPI_Datatype` for an `i32` you can use
+
+        %dtype = "mpi.get_dtype"() {"dtype" = i32} : () -> mpi.datatype
+
+    to get the magic constant. See `_MPIToLLVMRewriteBase._translate_to_mpi_type`
+    docstring for more detail on which types are supported.
+    """
+    name = "mpi.get_dtype"
+
+    dtype: OpAttr[Attribute]
+
+    result: Annotated[OpResult, DataType]
+
+    @staticmethod
+    def get(typ: Attribute):
+        return GetDtypeOp.build(result_types=[DataType()],
+                                attributes={'dtype': typ})
 
 
 MPI = Dialect([
@@ -351,7 +441,10 @@ MPI = Dialect([
     Init,
     Finalize,
     CommRank,
+    UnwrapMemrefOp,
+    GetDtypeOp,
 ], [
     RequestType,
     StatusType,
+    DataType,
 ])
