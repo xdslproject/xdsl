@@ -328,6 +328,11 @@ class GetStatusField(MPIBaseOp):
 
 @irdl_op_definition
 class CommRank(MPIBaseOp):
+    """
+    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns the rank of the communicator
+
+    Currently limited to COMM_WORLD
+    """
     name = "mpi.comm.rank"
 
     rank: Annotated[OpResult, i32]
@@ -339,6 +344,11 @@ class CommRank(MPIBaseOp):
 
 @irdl_op_definition
 class CommSize(MPIBaseOp):
+    """
+    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns the size of the communicator
+
+    Currently limited to COMM_WORLD
+    """
     name = "mpi.comm.size"
 
     size: Annotated[OpResult, i32]
@@ -358,11 +368,19 @@ class Init(MPIBaseOp):
 
 @irdl_op_definition
 class Finalize(MPIBaseOp):
+    """
+    This represents an MPI_Finalize call with both args being nullptr
+    """
     name = "mpi.finalize"
 
 
 @irdl_op_definition
 class UnwrapMemrefOp(MPIBaseOp):
+    """
+    This Op can be used as a helper to get memrefs into MPI calls.
+
+    It takes any MemRef as input, and returns an llvm.ptr, element count and MPI_Datatype.
+    """
     name = "mpi.unwrap_memref"
 
     ref: Annotated[Operand, MemRefType[AnyNumericType]]
@@ -387,6 +405,9 @@ class UnwrapMemrefOp(MPIBaseOp):
 
 @irdl_op_definition
 class GetDtypeOp(MPIBaseOp):
+    """
+    This op is used to convert MLIR types to MPI_Datatype constants.
+    """
     name = "mpi.get_dtype"
 
     dtype: OpAttr[Attribute]

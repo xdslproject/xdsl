@@ -481,9 +481,9 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
             self,
             op: mpi.CommSize) -> tuple[list[Operation], list[SSAValue | None]]:
         """
-        This method lowers mpi.comm.rank operation
+        This method lowers mpi.comm.size operation
 
-        int MPI_Comm_size(MPI_Comm comm, int *rank)
+        int MPI_Comm_size(MPI_Comm comm, int *size)
         """
         return [
             comm_global :=
@@ -497,6 +497,15 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
 
 
 class MpiAddExternalFuncDefs(RewritePattern):
+    """
+    This rewriter adds all external function definitions for MPI calls to the module.
+
+    It does so by first walking the whole module to discover MPI_ calls. Then
+    it inserts a `func.Func.external()` op with the correct types at the end of the module.
+
+    Make sure to apply this *in a separate pass after the lowerings*, otherwise
+    this will match first and find no inserted MPI calls.
+    """
     mpi_func_call_names = set(_MPIToLLVMRewriteBase.MPI_SYMBOL_NAMES.values())
 
     @op_type_rewrite_pattern
@@ -506,7 +515,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
         funcs_to_emit: dict[str, tuple[list[Attribute],
                                        list[Attribute]]] = dict()
 
-        def match_func(op: Operation):
+        def walker(op: Operation):
             if not isinstance(op, func.Call):
                 return
             if op.callee.string_value() not in self.mpi_func_call_names:
@@ -516,7 +525,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
                 [res.typ for res in op.results],
             )
 
-        module.walk(match_func)
+        module.walk(walker)
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
