@@ -39,6 +39,9 @@ class StatusType(ParametrizedAttribute, MLIRType):
 
 @irdl_attr_definition
 class DataType(ParametrizedAttribute, MLIRType):
+    """
+    This type represents MPI_Datatype
+    """
     name = 'mpi.datatype'
 
 
