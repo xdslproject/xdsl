@@ -406,7 +406,7 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
         ], new_results
 
 
-class LowerUnwrapMemrefOp(_MPIToLLVMRewriteBase):
+class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.UnwrapMemrefOp,
@@ -429,7 +429,7 @@ class LowerUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         ], [ptr.results[0], count_ssa_val, typ.result]
 
 
-class LowerGetDtype(_MPIToLLVMRewriteBase):
+class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.GetDtypeOp, rewriter: PatternRewriter,
@@ -541,8 +541,8 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiIRecv(lib_info),
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
-        LowerUnwrapMemrefOp(lib_info),
-        LowerGetDtype(lib_info),
+        LowerMpiUnwrapMemrefOp(lib_info),
+        LowerMpiGetDtype(lib_info),
     ]),
                                    apply_recursively=True)
     walker1.rewrite_module(module)
