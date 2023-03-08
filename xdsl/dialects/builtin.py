@@ -57,7 +57,7 @@ class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
                                     "Expected attribute")
         parser.parse_char("]")
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result: tuple[_ArrayAttrT] = tuple(data)  # type: ignore
+        result = cast(tuple[_ArrayAttrT], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
