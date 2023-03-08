@@ -43,7 +43,7 @@ _ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[_ArrayAttrT]]):
+class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
     name: str = "array"
 
     def __init__(self: ArrayAttr[_ArrayAttrT],
