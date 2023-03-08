@@ -1,5 +1,5 @@
 from xdsl.dialects import mpi, func, llvm, builtin
-from xdsl.ir import Operation, Attribute, OpResult, SSAValue
+from xdsl.ir import Operation, Attribute, OpResult
 from xdsl.irdl import irdl_op_definition, VarOpResult
 from xdsl.transforms import lower_mpi
 from xdsl.dialects.builtin import i32
@@ -15,9 +15,11 @@ def extract_func_call(ops: list[Operation],
             return op
 
 
-def check_emitted_function_signature(ops: list[Operation],
-                                     name: str,
-                                     types: tuple[type[Attribute] | None, ...],):
+def check_emitted_function_signature(
+    ops: list[Operation],
+    name: str,
+    types: tuple[type[Attribute] | None, ...],
+):
     call = extract_func_call(ops, name)
     assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
@@ -144,9 +146,10 @@ def test_lower_mpi_send():
     assert len(result) == 0
 
     check_emitted_function_signature(
-        ops, 'MPI_Send',
+        ops,
+        'MPI_Send',
         (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None),
-        )
+    )
 
 
 def test_lower_mpi_isend():
@@ -166,14 +169,16 @@ def test_lower_mpi_isend():
     assert len(result) == 1
 
     check_emitted_function_signature(
-        ops, 'MPI_Isend', (llvm.LLVMPointerType, type(i32), None, type(i32),
-                           type(i32), None, llvm.LLVMPointerType), )
+        ops,
+        'MPI_Isend',
+        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
+         llvm.LLVMPointerType),
+    )
 
 
 def test_lower_mpi_recv_no_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(),
-        i32, i32).results
+        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
@@ -185,14 +190,16 @@ def test_lower_mpi_recv_no_status():
     assert len(result) == 0
 
     check_emitted_function_signature(
-        ops, 'MPI_Recv', (llvm.LLVMPointerType, type(i32), None, type(i32),
-                          type(i32), None, llvm.LLVMPointerType), )
+        ops,
+        'MPI_Recv',
+        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
+         llvm.LLVMPointerType),
+    )
 
 
 def test_lower_mpi_recv_with_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(),
-        i32, i32).results
+        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
@@ -204,8 +211,11 @@ def test_lower_mpi_recv_with_status():
     assert len(result) == 1
 
     check_emitted_function_signature(
-        ops, 'MPI_Recv', (llvm.LLVMPointerType, type(i32), None, type(i32),
-                          type(i32), None, llvm.LLVMPointerType), )
+        ops,
+        'MPI_Recv',
+        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
+         llvm.LLVMPointerType),
+    )
 
 
 def test_lower_mpi_irecv():
@@ -223,8 +233,11 @@ def test_lower_mpi_irecv():
     assert len(result) == 1
 
     check_emitted_function_signature(
-        ops, 'MPI_Irecv', (llvm.LLVMPointerType, type(i32), None, type(i32),
-                           type(i32), None, llvm.LLVMPointerType), )
+        ops,
+        'MPI_Irecv',
+        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
+         llvm.LLVMPointerType),
+    )
 
 
 def test_mpi_type_conversion():

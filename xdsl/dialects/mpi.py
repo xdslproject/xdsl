@@ -105,7 +105,7 @@ class ISend(MPIBaseOp):
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls, buff: Operand, dest: Operand, tag: int | None):
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation, tag: int | None):
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[RequestType()])
@@ -188,7 +188,7 @@ class IRecv(MPIBaseOp):
 
     @classmethod
     def get(cls,
-            source: Operand,
+            source: SSAValue | Operation,
             buffer: SSAValue | Operation,
             tag: int | None = None):
         return cls.build(operands=[source, buffer],
