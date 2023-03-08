@@ -94,20 +94,8 @@ from xdsl.rewriter import Rewriter
 # TODO: Add op promotion.
 
 
-def is_definition(op: Operation) -> bool:
-    return isinstance(op, symref.Declare)
-
-
-def is_use(op: Operation) -> bool:
-    return isinstance(op, symref.Fetch) or isinstance(op, symref.Update)
-
-
-def is_read(op: Operation) -> bool:
-    return isinstance(op, symref.Fetch)
-
-
-def is_write(op: Operation) -> bool:
-    return isinstance(op, symref.Update)
+def has_symbol(op: Operation) -> bool:
+    return isinstance(op, symref.Declare) or isinstance(op, symref.Fetch) or isinstance(op, symref.Update)
 
 
 def get_symbol(op: Operation) -> str:
@@ -128,7 +116,7 @@ def get_symbols(block: Block) -> Set[str]:
     """Returns a set of all symbols defined/used in a basic block."""
     symbols: Set[str] = set()
     for op in block.ops:
-        if is_definition(op) or is_use(op):
+        if has_symbol(op):
             symbols.add(get_symbol(op))
     return symbols
 
@@ -157,7 +145,7 @@ def select_ops_by(block: Block, cond: Callable[[Operation],
     return selected
 
 
-def lower_bound(ops: List[Operation], op: Operation) -> Operation | None:
+def lower_positional_bound(ops: List[Operation], op: Operation) -> Operation | None:
     """
     Returns an operation from `ops` which is a lower bound for `op`. If there is
     no such operation, `None` is returned.
@@ -261,9 +249,9 @@ class Desymrefier:
         symbols = get_symbols(block)
         for symbol in symbols:
             num_reads = count_ops_by(
-                block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
             num_writes = count_ops_by(
-                block, lambda op: is_write(op) and get_symbol(op) == symbol)
+                block, lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
             if num_reads > 1 or num_writes > 1:
                 raise FrontendProgramException(
                     f"Block {block} not ready for promotion: found {num_reads}"
@@ -274,7 +262,7 @@ class Desymrefier:
         while True:
             # Find all symbol definitions in this block. If no definitions
             # found, terminate.
-            definitions = select_ops_by(block, is_definition)
+            definitions = select_ops_by(block, lambda op: isinstance(op, symref.Declare))
             if len(definitions) == 0:
                 return
 
@@ -284,10 +272,10 @@ class Desymrefier:
 
                 # Find all reads and writes for this symbol.
                 reads = select_ops_by(
-                    block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                    block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
                 writes = select_ops_by(
                     block,
-                    lambda op: is_write(op) and get_symbol(op) == symbol)
+                    lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
 
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
@@ -309,14 +297,14 @@ class Desymrefier:
                 # If there are multiple reads and writes, replace every
                 # read with the closest preceding write.
                 for read in reads:
-                    write = lower_bound(writes, read)
+                    write = lower_positional_bound(writes, read)
                     if write is not None:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
         is_unused_read: Callable[
             [Operation],
-            bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
+            bool] = lambda op: isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
         unused_reads = select_ops_by(block, is_unused_read)
         for read in unused_reads:
             self.rewriter.erase_op(read)
@@ -337,10 +325,10 @@ class Desymrefier:
 
             for symbol in symbol_worklist:
                 reads = select_ops_by(
-                    block, lambda op: is_read(op) and get_symbol(op) == symbol)
+                    block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
                 writes = select_ops_by(
                     block,
-                    lambda op: is_write(op) and get_symbol(op) == symbol)
+                    lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
                 assert len(reads) > 0 or len(writes) > 0
 
                 # There are no reads, so we can only keep the last write to the
@@ -374,7 +362,7 @@ class Desymrefier:
 
                 # Otherwise, replace reads with the closest preceding write.
                 for read in reads:
-                    write = lower_bound(writes, read)
+                    write = lower_positional_bound(writes, read)
                     if write is not None:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 

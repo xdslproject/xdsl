@@ -146,7 +146,7 @@ class Rewriter:
         """Inserts a new operation after another operation."""
         if op.parent is None:
             raise Exception(
-                "Cannot inline a block before a toplevel operation")
+                "Cannot insert an operation after a toplevel operation")
         op_idx = op.parent.get_operation_index(op)
         op.parent.insert_op(new_op, op_idx + 1)
 
@@ -155,7 +155,7 @@ class Rewriter:
         """Inserts a new operation before another operation."""
         if op.parent is None:
             raise Exception(
-                "Cannot inline a block before a toplevel operation")
+                "Cannot insert an operation before a toplevel operation")
         op_idx = op.parent.get_operation_index(op)
         op.parent.insert_op(new_op, op_idx)
 
