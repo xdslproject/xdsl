@@ -114,7 +114,7 @@ def test_lower_mpi_comm_rank():
     )
 
 
-def test_lower_mpi_comm_sizek():
+def test_lower_mpi_comm_size():
     ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSize.get())
 
     assert len(result) == 1
@@ -122,7 +122,7 @@ def test_lower_mpi_comm_sizek():
     assert result[0].typ == i32
 
     # check signature of emitted function call
-    # int MPI_Comm_rank(MPI_Comm comm, int *rank)
+    # int MPI_Comm_size(MPI_Comm comm, int *size)
     check_emitted_function_signature(
         ops,
         'MPI_Comm_size',
