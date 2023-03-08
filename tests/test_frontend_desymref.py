@@ -163,7 +163,7 @@ def test_prune_definitions_II():
   %5 : !i32 = arith.addi(%4 : !i32, %2 : !i32)
 }"""
     run_on_prog_and_compare(prog, expected)
-  
+
 
 def test_prune_unused_reads():
     prog = \

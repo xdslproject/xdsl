@@ -133,8 +133,7 @@ def get_symbols(block: Block) -> Set[str]:
     return symbols
 
 
-def count_ops_by(block: Block, cond: Callable[[Operation],
-                                              bool]) -> int:
+def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
     """
     Returns the number of operations in the block satisfying the given
     condition.
@@ -315,7 +314,9 @@ class Desymrefier:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
-        is_unused_read: Callable[[Operation], bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
+        is_unused_read: Callable[
+            [Operation],
+            bool] = lambda op: is_read(op) and len(op.results[0].uses) == 0
         unused_reads = select_ops_by(block, is_unused_read)
         for read in unused_reads:
             self.rewriter.erase_op(read)
