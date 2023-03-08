@@ -6,14 +6,16 @@
     %0 = "mpi.comm.rank"() : () -> i32
     %1 = "arith.constant"() {"value" = 0 : i32} : () -> i32
     %2 = "arith.cmpi"(%0, %1) {"predicate" = 0 : i64} : (i32, i32) -> i1
-    %3 = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+    %ref = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+    %tag = "arith.constant"() {"value" = 1 : i32} : () -> i32
+    %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
     "scf.if"(%2) ({
-      %4 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-      "mpi.send"(%3, %4) {"tag" = 1 : i32} : (memref<100x14x14xf64>, i32) -> ()
+      %dest = "arith.constant"() {"value" = 1 : i32} : () -> i32
+      "mpi.send"(%buff, %count, %dtype, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
       "scf.yield"() : () -> ()
     }, {
-      %5 = "arith.constant"() {"value" = 0 : i32} : () -> i32
-      %6 = "mpi.recv"(%5, %3) {"tag" = 1 : i32} : (i32, memref<100x14x14xf64>) -> !mpi.status
+      %source = "arith.constant"() {"value" = 0 : i32} : () -> i32
+      %6 = "mpi.recv"(%buff, %count, %dtype, %source, %tag) {"tag" = 1 : i32} : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.status
       "scf.yield"() : () -> ()
     }) : (i1) -> ()
     "mpi.finalize"() : () -> ()

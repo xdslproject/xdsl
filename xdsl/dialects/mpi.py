@@ -138,9 +138,8 @@ class Send(MPIBaseOp):
     buffer: Annotated[Operand, AnyAttr()]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
-    tag: Annotated[Operand, i32]
-
     dest: Annotated[Operand, i32]
+    tag: Annotated[Operand, i32]
 
     @classmethod
     def get(cls, buffer: SSAValue | Operation, count: SSAValue | Operation,
@@ -180,7 +179,6 @@ class IRecv(MPIBaseOp):
 
     source: Annotated[Operand, i32]
     buffer: Annotated[Operand, MemRefType[AnyNumericType]]
-
     tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
 
     request: Annotated[OpResult, RequestType]
@@ -338,6 +336,7 @@ class CommRank(MPIBaseOp):
     def get(cls):
         return cls.build(result_types=[i32])
 
+
 @irdl_op_definition
 class CommSize(MPIBaseOp):
     name = "mpi.comm.size"
@@ -415,4 +414,5 @@ MPI = Dialect([
 ], [
     RequestType,
     StatusType,
+    DataType,
 ])
