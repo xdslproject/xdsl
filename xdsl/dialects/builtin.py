@@ -726,7 +726,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [
-                FloatAttr(d, type.element_type)
+                FloatAttr(float(d), type.element_type)
                 for d in cast(Sequence[int | float], data)
             ]
         else:
