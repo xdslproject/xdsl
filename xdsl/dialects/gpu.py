@@ -243,6 +243,15 @@ class GridDimOp(Operation):
 
 @irdl_op_definition
 class HostRegisterOp(Operation):
+    """
+    This op maps the provided host buffer into the device address space.
+
+    This operation may not be supported in every environment, there is not yet a way to
+    check at runtime whether this feature is supported.
+    Writes from the host are guaranteed to be visible to device kernels that are launched
+    afterwards. Writes from the device are guaranteed to be visible on the host after
+    synchronizing with the device kernel completion.
+    """
     name = "gpu.host_register"
 
     value: Annotated[Operand, memref.UnrankedMemrefType]
