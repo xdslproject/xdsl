@@ -388,23 +388,14 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
         int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
                  int tag, MPI_Comm comm)
         """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        assert isinstance(op.buffer.typ, memref.MemRefType)
-        memref_elm_typ = cast(memref.MemRefType[Attribute],
-                              op.buffer.typ).element_type
 
         return [
-            *count_ops,
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
                                               i32),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(
                 self._mpi_name(op),
-                [ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global],
+                [op.buffer, op.count, op.datatype, op.dest, op.tag, comm_global],
                 [i32]),
         ], []
 
@@ -425,27 +416,15 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
         int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
         """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
 
-        ops, new_results, status = self._emit_mpi_status_obj(
-            len(op.results) == 0)
+        mpi_status_ops, new_results, status = self._emit_mpi_status_obj(len(op.results) == 0)
 
-        assert isinstance(op.buffer.typ, memref.MemRefType)
-        memref_elm_typ = cast(memref.MemRefType[Attribute],
-                              op.buffer.typ).element_type
 
         return [
-            *count_ops,
-            *ops,
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            *mpi_status_ops,
+            comm_global := arith.Constant.from_int_and_width(self.info.mpi_comm_world_val, i32),
             func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
-                status
+                op.buffer, op.count, op.datatype, op.source, op.tag, comm_global, status
             ], [i32]),
         ], new_results
 
