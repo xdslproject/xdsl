@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   IndexType, ArrayAttr, IntegerType,
-                                   SymbolRefAttr, StringAttr, UnitAttr)
+                                   DenseArrayBase, IndexType, ArrayAttr,
+                                   IntegerType, SymbolRefAttr, StringAttr,
+                                   UnitAttr)
 from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, builder,
-                       ParameterDef, Generic, Attribute, AnyAttr, Operand,
-                       VarOperand, AttrSizedOperandSegments, OpAttr)
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
+                       Generic, Attribute, AnyAttr, Operand, VarOperand,
+                       AttrSizedOperandSegments, OpAttr)
 from xdsl.utils.exceptions import VerifyException
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -31,21 +32,21 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
         return [i.value.data for i in self.shape.data]
 
     @staticmethod
-    @builder
     def from_element_type_and_shape(
             referenced_type: _MemRefTypeElement,
             shape: List[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
-            ArrayAttr[AnyIntegerAttr].from_list(
-                [IntegerAttr.build(d) for d in shape]), referenced_type
+            ArrayAttr[AnyIntegerAttr]([
+                d if isinstance(d, IntegerAttr) else
+                IntegerAttr.from_index_int_value(d) for d in shape
+            ]), referenced_type
         ])
 
     @staticmethod
-    @builder
     def from_params(
         referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr.from_list(
+        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type])
@@ -54,6 +55,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 _UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems",
                                    bound=Attribute,
                                    covariant=True)
+_UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit",
+                                       bound=Attribute)
 
 
 @irdl_attr_definition
@@ -64,10 +67,9 @@ class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
     element_type: ParameterDef[_UnrankedMemrefTypeElems]
 
     @staticmethod
-    @builder
     def from_type(
-        referenced_type: _UnrankedMemrefTypeElems
-    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElems]:
+        referenced_type: _UnrankedMemrefTypeElemsInit
+    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
         return UnrankedMemrefType([referenced_type])
 
 
@@ -77,7 +79,7 @@ AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
 @irdl_op_definition
 class Load(Operation):
     name = "memref.load"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
     res: Annotated[OpResult, AnyAttr()]
 
@@ -113,7 +115,7 @@ class Load(Operation):
 class Store(Operation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
 
     def verify_(self):
@@ -142,7 +144,7 @@ class Alloc(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -173,7 +175,7 @@ class Alloca(Operation):
     dynamic_sizes: Annotated[VarOperand, IndexType]
     symbol_operands: Annotated[VarOperand, IndexType]
 
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
     alignment: OpAttr[AnyIntegerAttr]
@@ -183,10 +185,15 @@ class Alloca(Operation):
     @staticmethod
     def get(return_type: Attribute,
             alignment: int,
-            shape: Optional[List[int | AnyIntegerAttr]] = None) -> Alloca:
+            shape: Optional[List[int | AnyIntegerAttr]] = None,
+            dynamic_sizes: list[SSAValue | Operation] | None = None) -> Alloca:
         if shape is None:
             shape = [1]
-        return Alloca.build(operands=[[], []],
+
+        if dynamic_sizes is None:
+            dynamic_sizes = []
+
+        return Alloca.build(operands=[dynamic_sizes, []],
                             result_types=[
                                 MemRefType.from_element_type_and_shape(
                                     return_type, shape)
@@ -200,7 +207,8 @@ class Alloca(Operation):
 @irdl_op_definition
 class Dealloc(Operation):
     name = "memref.dealloc"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand,
+                      MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -210,7 +218,7 @@ class Dealloc(Operation):
 @irdl_op_definition
 class Dealloca(Operation):
     name = "memref.dealloca"
-    memref: Annotated[Operand, MemRefType]
+    memref: Annotated[Operand, MemRefType[Attribute]]
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloca:
@@ -220,7 +228,7 @@ class Dealloca(Operation):
 @irdl_op_definition
 class GetGlobal(Operation):
     name = "memref.get_global"
-    memref: Annotated[OpResult, MemRefType]
+    memref: Annotated[OpResult, MemRefType[Attribute]]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
@@ -257,10 +265,12 @@ class Global(Operation):
                             "dense type or an unit attribute")
 
     @staticmethod
-    def get(sym_name: str | StringAttr,
-            typ: Attribute,
-            initial_value: Optional[Attribute],
-            sym_visibility: str = "private") -> Global:
+    def get(
+        sym_name: StringAttr,
+        typ: Attribute,
+        initial_value: Attribute,
+        sym_visibility: StringAttr = StringAttr("private")
+    ) -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,
@@ -270,5 +280,83 @@ class Global(Operation):
             })
 
 
-MemRef = Dialect([Load, Store, Alloc, Alloca, Dealloc, GetGlobal, Global],
-                 [MemRefType, UnrankedMemrefType])
+@irdl_op_definition
+class Dim(Operation):
+    name = "memref.dim"
+
+    source: Annotated[Operand,
+                      MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
+    index: Annotated[Operand, IndexType]
+
+    result: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def from_source_and_index(cls, source: SSAValue | Operation,
+                              index: SSAValue | Operation):
+        return cls.build(operands=[source, index], result_types=[IndexType()])
+
+
+@irdl_op_definition
+class Rank(Operation):
+    name = "memref.rank"
+
+    source: Annotated[Operand, MemRefType[Attribute]]
+
+    rank: Annotated[OpResult, IndexType]
+
+    @classmethod
+    def from_memref(cls, memref: Operation | SSAValue):
+        return cls.build(operands=[memref], result_types=[IndexType()])
+
+
+@irdl_op_definition
+class ExtractAlignedPointerAsIndexOp(Operation):
+    name = "memref.extract_aligned_pointer_as_index"
+
+    source: Annotated[Operand, MemRefType]
+
+    aligned_pointer: Annotated[OpResult, IndexType]
+
+    @staticmethod
+    def get(source: SSAValue | Operation):
+        return ExtractAlignedPointerAsIndexOp.build(operands=[source],
+                                                    result_types=[IndexType()])
+
+
+@irdl_op_definition
+class Subview(Operation):
+    name = "memref.subview"
+
+    source: Annotated[Operand, MemRefType]
+    offsets: Annotated[VarOperand, IndexType]
+    sizes: Annotated[VarOperand, IndexType]
+    strides: Annotated[VarOperand, IndexType]
+    static_offsets: OpAttr[DenseArrayBase]
+    static_sizes: OpAttr[DenseArrayBase]
+    static_strides: OpAttr[DenseArrayBase]
+    result: Annotated[OpResult, MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class Cast(Operation):
+    name = "memref.cast"
+
+    source: Annotated[Operand, MemRefType | UnrankedMemrefType]
+    dest: Annotated[OpResult, MemRefType | UnrankedMemrefType]
+
+
+MemRef = Dialect([
+    Load,
+    Store,
+    Alloc,
+    Alloca,
+    Dealloc,
+    GetGlobal,
+    Global,
+    Dim,
+    ExtractAlignedPointerAsIndexOp,
+    Subview,
+    Cast,
+], [MemRefType, UnrankedMemrefType])

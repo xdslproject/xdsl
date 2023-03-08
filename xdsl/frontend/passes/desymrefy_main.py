@@ -1,4 +1,3 @@
-
 import io
 import os
 import sys
@@ -14,6 +13,7 @@ from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser
 from xdsl.printer import Printer
 
+
 class DesymrefyMain:
     ctx: MLContext
     args: Namespace
@@ -25,9 +25,17 @@ class DesymrefyMain:
         self.ctx.register_dialect(Arith)
         self.ctx.register_dialect(Symref)
 
-        arg_parser = ArgumentParser(description="Driver to test desymrefication pass.")
-        arg_parser.add_argument("input_file", type=str, nargs="?", help="Path to input file.")
-        arg_parser.add_argument("-o", "--output-file", type=str, required=False, help="Path to output file.")
+        arg_parser = ArgumentParser(
+            description="Driver to test desymrefication pass.")
+        arg_parser.add_argument("input_file",
+                                type=str,
+                                nargs="?",
+                                help="Path to input file.")
+        arg_parser.add_argument("-o",
+                                "--output-file",
+                                type=str,
+                                required=False,
+                                help="Path to output file.")
         self.args = arg_parser.parse_args()
 
     def run(self):
@@ -41,13 +49,14 @@ class DesymrefyMain:
             file_extension = file_extension.replace(".", "")
 
         # Parse xDSL module.
-        module = XDSLParser(self.ctx, f.read(), self.args.input_file or "stdin").parse_module()
+        module = XDSLParser(self.ctx, f.read(), self.args.input_file
+                            or "stdin").parse_module()
         assert isinstance(module, ModuleOp)
 
         # Run desymrefication and verify the module is correct.
         DesymrefyPass.run(module)
         module.verify()
-        
+
         # Process the output.
         output = io.StringIO()
         Printer(stream=output).print_op(module)

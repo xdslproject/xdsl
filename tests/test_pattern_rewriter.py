@@ -19,9 +19,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     ctx.register_dialect(Scf)
 
     parser = Parser(ctx, prog)
-    module = parser.parse_op()
-
-    assert isinstance(module, ModuleOp)
+    module = parser.parse_module()
 
     walker.rewrite_module(module)
 
@@ -460,7 +458,7 @@ def test_operation_deletion_failure():
         rewriter.erase_matched_op()
 
     parser = Parser(ctx, prog)
-    module = parser.parse_op()
+    module = parser.parse_module()
     walker = PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
 
     # Check that the rewrite fails

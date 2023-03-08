@@ -33,7 +33,7 @@ def test_for_mismatch_operands_results_types():
         "upper_bound": IntegerAttr.from_index_int_value(5),
         "step": IntegerAttr.from_index_int_value(1)
     }
-    inp = OpResult(IntegerType.from_width(32), [], [])
+    inp = OpResult(IntegerType(32), [], [])
     f = For.create(operands=[inp],
                    regions=[Region.from_block_list([])],
                    attributes=attributes,

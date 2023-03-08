@@ -110,9 +110,9 @@ class FuncOp(Operation):
     @staticmethod
     def from_region(name: str, ftype: FunctionType, region: Region):
         return FuncOp.create(attributes={
-            "sym_name": StringAttr.from_str(name),
+            "sym_name": StringAttr(name),
             "function_type": ftype,
-            "sym_visibility": StringAttr.from_str("private"),
+            "sym_visibility": StringAttr("private"),
         },
                              regions=[region])
 
@@ -184,7 +184,7 @@ class GenericCallOp(Operation):
             operands: List[Union[SSAValue, OpResult]],
             return_types: List[Attribute]) -> GenericCallOp:
         if isinstance(callee, str):
-            callee = SymbolRefAttr.from_str(callee)
+            callee = SymbolRefAttr(callee)
 
         return cls.create(operands=operands,
                           result_types=return_types,

@@ -130,6 +130,15 @@ class SSAValue(ABC):
         r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
 
     @property
+    @abstractmethod
+    def owner(self) -> Operation | Block:
+        """
+        An SSA variable is either an operation result, or a basic block argument.
+        This property returns the Operation or Block that currently defines a specific value.
+        """
+        pass
+
+    @property
     def name(self) -> str | None:
         return self._name
 
@@ -189,6 +198,10 @@ class OpResult(SSAValue):
     result_index: int
     """The index of the result in the defining operation."""
 
+    @property
+    def owner(self) -> Operation:
+        return self.op
+
     def __repr__(self) -> str:
         return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}, " + \
                f"op_name={repr(self.op.name)}, " + \
@@ -211,6 +224,10 @@ class BlockArgument(SSAValue):
 
     index: int
     """The index of the variable in the block arguments."""
+
+    @property
+    def owner(self) -> Block:
+        return self.block
 
     def __repr__(self) -> str:
         if isinstance(self.block, Block):
@@ -236,6 +253,10 @@ class ErasedSSAValue(SSAValue):
     """
 
     old_value: SSAValue
+
+    @property
+    def owner(self) -> Operation | Block:
+        return self.old_value.owner
 
     def __hash__(self) -> int:  # type: ignore
         return hash(id(self))
@@ -292,7 +313,9 @@ class Attribute(ABC):
         return res.getvalue()
 
 
-DataElement = TypeVar("DataElement")
+DataElement = TypeVar("DataElement", covariant=True)
+
+_D = TypeVar("_D", bound="Data[Any]")
 
 
 @dataclass(frozen=True)
@@ -300,21 +323,61 @@ class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
     data: DataElement
 
+    @classmethod
+    def new(cls: type[_D], params: Any) -> _D:
+        """
+        Create a new `Data` given its parameter.
+
+        The `params` argument should be of the same type as the `Data` generic
+        argument.
+
+        This function should be preferred over `__init__` when instantiating
+        attributes in a generic way (i.e., without knowing their concrete type
+        statically).
+        """
+        # Create the new attribute object, without calling its __init__.
+        # We do this to allow users to redefine their own __init__.
+        attr = cls.__new__(cls)
+
+        # Call the __init__ of Data, which will set the parameters field.
+        Data[Any].__init__(attr, params)
+        return attr
+
     @staticmethod
     @abstractmethod
     def parse_parameter(parser: BaseParser) -> DataElement:
         """Parse the attribute parameter."""
 
-    @staticmethod
     @abstractmethod
-    def print_parameter(data: DataElement, printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
+
+
+_PA = TypeVar("_PA", bound="ParametrizedAttribute")
 
 
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
     parameters: list[Attribute] = field(default_factory=list)
+
+    @classmethod
+    def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+        """
+        Create a new `ParametrizedAttribute` given its parameters.
+
+        This function should be preferred over `__init__` when instantiating
+        attributes in a generic way (i.e., without knowing their concrete type
+        statically).
+        """
+        # Create the new attribute object, without calling its __init__.
+        # We do this to allow users to redefine their own __init__.
+        attr = cls.__new__(cls)
+
+        # Call the __init__ of ParametrizedAttribute, which will set the
+        # parameters field.
+        ParametrizedAttribute.__init__(attr, params)
+        return attr
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
@@ -456,12 +519,18 @@ class Operation(IRNode):
         return cast(OpT, op)
 
     @classmethod
-    def build(cls: type[OpT],
-              operands: list[Any] | None = None,
-              result_types: list[Any] | None = None,
-              attributes: dict[str, Any] | None = None,
-              successors: list[Any] | None = None,
-              regions: list[Any] | None = None) -> OpT:
+    def build(
+        cls: type[OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        | None = None
+    ) -> OpT:
         """Create a new operation using builders."""
         ...
 
@@ -637,6 +706,23 @@ class Operation(IRNode):
 
     def __hash__(self) -> int:
         return id(self)
+
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_op(self)
+        desc = res.getvalue()
+        return desc
+
+    def __format__(self, __format_spec: str) -> str:
+        desc = str(self)
+        if '\n' in desc:
+            # Description is multi-line, indent each line
+            desc = '\n'.join('\t' + line for line in desc.splitlines())
+            # Add newline before and after
+            desc = f'\n{desc}\n'
+        return f'{self.__class__.__qualname__}({desc})'
 
     @classmethod
     @property

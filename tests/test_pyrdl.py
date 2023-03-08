@@ -21,9 +21,8 @@ class BoolData(Data[bool]):
     def parse_parameter(parser: BaseParser) -> bool:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: bool, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -35,9 +34,8 @@ class IntData(Data[int]):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -198,6 +196,19 @@ def test_allof_verify_fail():
         constraint.verify(IntData(0))
     assert e.value.args[
         0] == f"{IntData(0)} should hold a value greater than 0"
+
+
+def test_allof_verify_multiple_failures():
+    """
+    Check that an AllOf constraint provides verification info for all related constraints 
+    even when one of them fails.
+    """
+    constraint = AllOf([LessThan(5), GreaterThan(8)])
+
+    with pytest.raises(VerifyException) as e:
+        constraint.verify(IntData(7))
+    assert e.value.args[
+        0] == f"The following constraints were not satisfied:\n{IntData(7)} should hold a value less than 5\n{IntData(7)} should hold a value greater than 8"
 
 
 def test_param_attr_verify():

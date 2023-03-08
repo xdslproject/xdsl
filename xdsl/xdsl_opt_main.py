@@ -17,6 +17,9 @@ from xdsl.dialects.vector import Vector
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.mpi import MPI
+from xdsl.transforms.lower_mpi import lower_mpi
+from xdsl.dialects.gpu import GPU
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -186,6 +189,8 @@ class xDSLOptMain:
         self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
+        self.ctx.register_dialect(MPI)
+        self.ctx.register_dialect(GPU)
 
     def register_all_frontends(self):
         """
@@ -211,7 +216,7 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        pass
+        self.available_passes['lower-mpi'] = lower_mpi
 
     def register_all_targets(self):
         """
@@ -223,10 +228,12 @@ class xDSLOptMain:
         def _output_xdsl(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output)
             printer.print_op(prog)
+            print("\n", file=output)
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output, target=Printer.Target.MLIR)
             printer.print_op(prog)
+            print("\n", file=output)
 
         def _output_irdl(prog: ModuleOp, output: IO[str]):
             irdl_to_mlir = IRDLPrinter(stream=output)
@@ -250,8 +257,14 @@ class xDSLOptMain:
             if p not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
 
-        self.pipeline = [(p, lambda op, p=p: self.available_passes[p]
-                          (self.ctx, op)) for p in pipeline]
+        def make_pass(p: str):
+
+            def pipeline_pass(op: ModuleOp):
+                return self.available_passes[p](self.ctx, op)
+
+            return pipeline_pass
+
+        self.pipeline = [(p, make_pass(p)) for p in pipeline]
 
     def parse_input(self) -> ModuleOp:
         """
@@ -271,9 +284,15 @@ class xDSLOptMain:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
+            f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        return self.available_frontends[file_extension](f)
+        try:
+            module = self.available_frontends[file_extension](f)
+        finally:
+            f.close()
+
+        return module
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
@@ -289,7 +308,7 @@ class xDSLOptMain:
                 print(f"IR after {pass_name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(prog)
-                print("\n\n")
+                print("\n\n\n")
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
@@ -305,8 +324,8 @@ class xDSLOptMain:
         if self.args.output_file is None:
             print(contents)
         else:
-            output_stream = open(self.args.output_file, 'w')
-            output_stream.write(contents)
+            with open(self.args.output_file, 'w') as output_stream:
+                output_stream.write(contents)
 
     def get_input_name(self):
         return self.args.input_file or 'stdin'

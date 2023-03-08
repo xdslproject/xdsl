@@ -30,10 +30,8 @@ def test_operation_accessors():
     results definition.
     """
 
-    operands = OperandsOp.create(
-        attributes={"params": AnyArrayAttr.from_list([])})
-    results = ResultsOp.create(
-        attributes={"params": AnyArrayAttr.from_list([])})
+    operands = OperandsOp.create(attributes={"params": AnyArrayAttr([])})
+    results = ResultsOp.create(attributes={"params": AnyArrayAttr([])})
 
     # Check it on an operation that has operands and results
     op = OperationOp.create(

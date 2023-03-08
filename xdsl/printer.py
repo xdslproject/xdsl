@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable, TypeVar, Any, Dict, Optional, List, cast
+from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
@@ -62,6 +62,7 @@ class Printer:
                 continue
             if isinstance(arg, Operation):
                 self.print_op(arg)
+                self._print_new_line()
                 continue
             text = str(arg)
             self.print_string(text)
@@ -214,7 +215,7 @@ class Printer:
         self._indent += 1
         for op in ops:
             self._print_new_line()
-            self._print_op(op)
+            self.print_op(op)
         self._indent -= 1
         if len(ops) > 0:
             self._print_new_line()
@@ -412,8 +413,8 @@ class Printer:
         if (isinstance(attribute, DenseIntOrFPElementsAttr)
                 and self.target == self.Target.MLIR):
 
-            def print_dense_list(array: List[AnyIntegerAttr]
-                                 | List[AnyFloatAttr], shape: List[int]):
+            def print_dense_list(array: Sequence[AnyIntegerAttr]
+                                 | Sequence[AnyFloatAttr], shape: List[int]):
 
                 def print_one_elem(val: Attribute):
                     if isinstance(val, IntegerAttr):
@@ -520,7 +521,7 @@ class Printer:
             if isinstance(attribute, Data):
                 self.print("<")
                 attribute = cast(Data[Any], attribute)
-                attribute.print_parameter(attribute.data, self)
+                attribute.print_parameter(self)
                 self.print(">")
                 return
 
@@ -532,7 +533,7 @@ class Printer:
         if isinstance(attribute, Data):
             self.print(f'!{attribute.name}<')
             attribute = cast(Data[Any], attribute)
-            attribute.print_parameter(attribute.data, self)
+            attribute.print_parameter(self)
             self.print(">")
             return
 
@@ -610,7 +611,7 @@ class Printer:
                     lambda result: self.print_attribute(result.typ))
                 self.print(")")
 
-    def _print_op(self, op: Operation) -> None:
+    def print_op(self, op: Operation) -> None:
         if not isinstance(op, Operation):
             raise TypeError('Expected an Operation; got %s' %
                             type(op).__name__)
@@ -636,7 +637,3 @@ class Printer:
             self.print_op_with_default_format(op)
         else:
             op.print(self)
-
-    def print_op(self, op: Operation) -> None:
-        self._print_op(op)
-        self._print_new_line()

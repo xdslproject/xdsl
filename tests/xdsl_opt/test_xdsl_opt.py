@@ -1,18 +1,18 @@
-import pytest
-from xdsl.xdsl_opt_main import xDSLOptMain
 from contextlib import redirect_stdout
 from io import StringIO
-import os
-from xdsl.ir import MLContext
+
+import pytest
+
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.rewriter import Rewriter
+from xdsl.ir import MLContext
+from xdsl.xdsl_opt_main import xDSLOptMain
 
 
 def test_opt():
     opt = xDSLOptMain(args=[])
     assert list(opt.available_frontends.keys()) == ['xdsl', 'mlir']
     assert list(opt.available_targets.keys()) == ['xdsl', 'irdl', 'mlir']
-    assert list(opt.available_passes.keys()) == []
+    assert list(opt.available_passes.keys()) == ['lower-mpi']
 
 
 def test_empty_program():
@@ -23,8 +23,9 @@ def test_empty_program():
     with redirect_stdout(f):
         opt.run()
 
-    expected = open(filename, 'r').read()
-    assert f.getvalue().strip() == expected.strip()
+    with open(filename, 'r') as file:
+        expected = file.read()
+        assert f.getvalue().strip() == expected.strip()
 
 
 @pytest.mark.parametrize(
@@ -67,11 +68,14 @@ def test_wrong_target():
 def test_print_to_file():
     filename_in = 'tests/xdsl_opt/empty_program.xdsl'
     filename_out = 'tests/xdsl_opt/empty_program.out'
-    opt = xDSLOptMain(args=[filename_in, '-o', filename_out])
 
-    inp = open(filename_in, 'r').read()
+    opt = xDSLOptMain(args=[filename_in, '-o', filename_out])
     opt.run()
-    expected = open(filename_out, 'r').read()
+
+    with open(filename_in, 'r') as file:
+        inp = file.read()
+    with open(filename_out, 'r') as file:
+        expected = file.read()
 
     assert inp.strip() == expected.strip()
 
@@ -94,6 +98,7 @@ def test_operation_deletion():
     f = StringIO("")
     with redirect_stdout(f):
         opt.run()
-    expected = open(filename_out, 'r').read()
+    with open(filename_out, 'r') as file:
+        expected = file.read()
 
     assert f.getvalue().strip() == expected.strip()

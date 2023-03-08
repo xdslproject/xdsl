@@ -8,3 +8,4 @@ requires = [
 include = ["xdsl"]
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
+typeCheckingMode = "strict"

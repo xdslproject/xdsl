@@ -1,8 +1,9 @@
+from typing import cast
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import i32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
 from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import Builtin
@@ -28,6 +29,11 @@ def test_ops_accessor():
     d = Subi.get(a, b)
 
     assert d.results[0] != c.results[0]
+
+    assert c.lhs.owner is a
+    assert c.rhs.owner is b
+    assert d.lhs.owner is a
+    assert d.rhs.owner is b
 
 
 def test_ops_accessor_II():
@@ -55,6 +61,11 @@ def test_ops_accessor_II():
     region2.blocks[0].erase_op(a, safe_erase=False)
     region2.blocks[0].erase_op(b, safe_erase=False)
     region2.blocks[0].erase_op(c, safe_erase=False)
+
+    assert isinstance(c.lhs, ErasedSSAValue)
+    assert isinstance(c.rhs, ErasedSSAValue)
+    assert c.lhs.owner is a
+    assert c.rhs.owner is b
 
     region2.detach_block(block0)
     region2.drop_all_references()
@@ -105,8 +116,12 @@ def test_op_clone():
     b = a.clone()
 
     assert a is not b
-    assert b.value.value.data == 1
-    assert b.value.typ.width.data == 32
+
+    assert isinstance(b.value, IntegerAttr)
+    b_value = cast(IntegerAttr[IntegerType], b.value)
+
+    assert b_value.value.data == 1
+    assert b_value.typ.width.data == 32
 
 
 def test_op_clone_with_regions():
@@ -232,7 +247,9 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     ctx.register_dialect(Cf)
 
     parser = XDSLParser(ctx, program_func)
-    program: ModuleOp = parser.parse_operation()
+    program = parser.parse_operation()
+
+    assert isinstance(program, ModuleOp)
 
     assert program.is_structurally_equivalent(program.regions[0]) == False
     assert program.is_structurally_equivalent(
@@ -245,3 +262,27 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
             program.ops[0].regions[0].blocks[0].ops[1]) == False
     assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
         program.ops[0].regions[0].blocks[1]) == False
+
+
+def test_descriptions():
+    a = Constant.from_int_and_width(1, 32)
+
+    assert str(a.value) == '1 : !i32'
+    assert f'{a.value}' == '1 : !i32'
+
+    assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
+    assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
+
+    m = ModuleOp.from_region_or_ops([a])
+
+    assert str(m) == '''\
+builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+}'''
+
+    assert f'{m}' == '''\
+ModuleOp(
+\tbuiltin.module() {
+\t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
+\t}
+)'''

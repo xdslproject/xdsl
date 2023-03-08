@@ -22,12 +22,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
           python -m pip install jupyterlite[all]==0.1.0b17 libarchive-c build pyodide-build
-          
+
       - name: Build xDSL source distribution
         run: |
           cd xdsl
@@ -42,7 +42,7 @@ jobs:
         with:
           path: pyodide
           key: pyodide
-          
+
       - name: Clone pyodide if not cached
         if: steps.cache-pyodide.outputs.cache-hit != 'true'
         run: git clone https://github.com/pyodide/pyodide.git
@@ -51,28 +51,28 @@ jobs:
       # and do the necessary updates before building.
       - name: Build custom Pyodide distribution
         run: |
-          
+
           cd pyodide
           git fetch --all
           git checkout 0.22.0a3
           python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
-          
-          pyodide skeleton pypi --update xdsl
-          
+
+          pyodide skeleton pypi --update xdsl || pyodide skeleton pypi xdsl
+
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
-          
+
           PYODIDE_PACKAGES="xdsl" make
 
       - name: Build the JupyterLite site
         run: |
           mkdir content
           cp xdsl/docs/* content -r
-          
+
           rm -rf pyodide/pyodide
           mkdir pyodide/pyodide
           mv pyodide/dist pyodide/pyodide/pyodide
-          
+
           python -m jupyter lite build --contents content --pyodide pyodide/pyodide
 
       - name: Upload artifact
@@ -96,4 +96,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
-

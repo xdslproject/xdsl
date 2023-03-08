@@ -11,18 +11,15 @@ import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AttrConstraint, GenericData, ParameterDef,
-                       irdl_attr_definition, builder, irdl_to_attr_constraint,
-                       AnyAttr, BaseAttr, ParamAttrDef)
+                       irdl_attr_definition, irdl_to_attr_constraint, AnyAttr,
+                       BaseAttr, ParamAttrDef)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
-#  ____        _
-# |  _ \  __ _| |_ __ _
-# | | | |/ _` | __/ _` |
-# | |_| | (_| | || (_| |
-# |____/ \__,_|\__\__,_|
-#
+################################################################################
+# Data attributes
+################################################################################
 
 
 @irdl_attr_definition
@@ -39,9 +36,8 @@ class BoolData(Data[bool]):
             return True
         return False
 
-    @staticmethod
-    def print_parameter(data: bool, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -53,9 +49,8 @@ class IntData(Data[int]):
     def parse_parameter(parser: BaseParser) -> int:
         return parser.parse_int_literal()
 
-    @staticmethod
-    def print_parameter(data: int, printer: Printer):
-        printer.print_string(str(data))
+    def print_parameter(self, printer: Printer):
+        printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -67,9 +62,8 @@ class StringData(Data[str]):
     def parse_parameter(parser: BaseParser) -> str:
         return parser.parse_str_literal()
 
-    @staticmethod
-    def print_parameter(data: str, printer: Printer):
-        printer.print_string(data)
+    def print_parameter(self, printer: Printer):
+        printer.print_string(self.data)
 
 
 def test_simple_data():
@@ -104,8 +98,7 @@ class IntListMissingVerifierData(Data[list[int]]):
     def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[int], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         raise NotImplementedError()
 
 
@@ -136,10 +129,9 @@ class IntListData(Data[list[int]]):
     def parse_parameter(parser: BaseParser) -> list[int]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[int], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
-        printer.print_list(data, lambda x: printer.print_string(str(x)))
+        printer.print_list(self.data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
 
     def verify(self) -> None:
@@ -170,12 +162,9 @@ def test_simple_data_constructor_failure():
     assert e.value.args[0] == "int_list list elements should be integers."
 
 
-#  ____                  ____                _             _       _
-# | __ )  __ _ ___  ___ / ___|___  _ __  ___| |_ _ __ __ _(_)_ __ | |_
-# |  _ \ / _` / __|/ _ \ |   / _ \| '_ \/ __| __| '__/ _` | | '_ \| __|
-# | |_) | (_| \__ \  __/ |__| (_) | | | \__ \ |_| | | (_| | | | | | |_
-# |____/ \__,_|___/\___|\____\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__|
-#
+################################################################################
+# PyRDL Base constraints
+################################################################################
 
 
 @irdl_attr_definition
@@ -201,12 +190,9 @@ def test_base_constraint_fail():
     assert e.value.args[0] == "!str<foo> should be of base attribute bool"
 
 
-#  _   _       _              ____                _             _       _
-# | | | |_ __ (_) ___  _ __  / ___|___  _ __  ___| |_ _ __ __ _(_)_ __ | |_
-# | | | | '_ \| |/ _ \| '_ \| |   / _ \| '_ \/ __| __| '__/ _` | | '_ \| __|
-# | |_| | | | | | (_) | | | | |__| (_) | | | \__ \ |_| | | (_| | | | | | |_
-#  \___/|_| |_|_|\___/|_| |_|\____\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__|
-#
+################################################################################
+# PyRDL union constraints
+################################################################################
 
 
 @irdl_attr_definition
@@ -241,11 +227,9 @@ def test_union_constraint_fail():
     assert e.value.args[0] == "Unexpected attribute !str<foo>"
 
 
-#     _                      _    ____                _
-#    / \   _ __  _ __   ___ | |_ / ___|___  _ __  ___| |_ _ __
-#   / _ \ | '_ \| '_ \ / _ \| __| |   / _ \| '_ \/ __| __| '__|
-#  / ___ \| | | | | | | (_) | |_| |__| (_) | | | \__ \ |_| |
-# /_/   \_\_| |_|_| |_|\___/ \__|\____\___/|_| |_|___/\__|_|
+################################################################################
+# PyRDL Annotated constraints
+################################################################################
 
 
 class PositiveIntConstr(AttrConstraint):
@@ -282,13 +266,9 @@ def test_annotated_constraint_fail():
     assert e.value.args[0] == "Expected positive integer, got -42."
 
 
-#  _____               __     __          ____                _
-# |_   _|   _ _ __   __\ \   / /_ _ _ __ / ___|___  _ __  ___| |_ _ __
-#   | || | | | '_ \ / _ \ \ / / _` | '__| |   / _ \| '_ \/ __| __| '__|
-#   | || |_| | |_) |  __/\ V / (_| | |  | |__| (_) | | | \__ \ |_| |
-#   |_| \__, | .__/ \___| \_/ \__,_|_|   \____\___/|_| |_|___/\__|_|
-#       |___/|_|
-#
+################################################################################
+# PyRDL Generic constraints
+################################################################################
 
 _T = TypeVar("_T", bound=BoolData | IntData)
 
@@ -415,12 +395,9 @@ def test_nested_param_attr_constraint_fail():
     assert e.value.args[0] == "Expected positive integer, got -42."
 
 
-#   ____                      _      ____        _
-#  / ___| ___ _ __   ___ _ __(_) ___|  _ \  __ _| |_ __ _
-# | |  _ / _ \ '_ \ / _ \ '__| |/ __| | | |/ _` | __/ _` |
-# | |_| |  __/ | | |  __/ |  | | (__| |_| | (_| | || (_| |
-#  \____|\___|_| |_|\___|_|  |_|\___|____/ \__,_|\__\__,_|
-#
+################################################################################
+# GenericData definition
+################################################################################
 
 _MissingGenericDataData = TypeVar("_MissingGenericDataData")
 
@@ -433,9 +410,7 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
     def parse_parameter(parser: BaseParser) -> _MissingGenericDataData:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: _MissingGenericDataData,
-                        printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         raise NotImplementedError()
 
     def verify(self) -> None:
@@ -486,10 +461,9 @@ class ListData(GenericData[list[A]]):
     def parse_parameter(parser: BaseParser) -> list[A]:
         raise NotImplementedError()
 
-    @staticmethod
-    def print_parameter(data: list[A], printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
-        printer.print_list(data, printer.print_attribute)
+        printer.print_list(self.data, printer.print_attribute)
         printer.print_string("]")
 
     @staticmethod
@@ -498,7 +472,6 @@ class ListData(GenericData[list[A]]):
         return DataListAttr(irdl_to_attr_constraint(args[0]))
 
     @staticmethod
-    @builder
     def from_list(data: list[A]) -> ListData[A]:
         return ListData(data)
 
@@ -603,12 +576,9 @@ def test_generic_data_no_generics_wrapper_verifier():
     ) == "!list_no_generics_wrapper<!list<[!bool<True>, !list<[!bool<False>]>]>>"
 
 
-#  ____                              _   _   _        ____        __
-# |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __|  _ \  ___ / _|
-# | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__| | | |/ _ \ |_
-# |  __/ (_| | | | (_| | | | | | |/ ___ \ |_| |_| |  | |_| |  __/  _|
-# |_|   \__,_|_|  \__,_|_| |_| |_/_/   \_\__|\__|_|  |____/ \___|_|
-#
+################################################################################
+# Parametrized attribute definition
+################################################################################
 
 
 @irdl_attr_definition
@@ -653,3 +623,36 @@ def test_invalid_field():
     """Check that untyped fields are not allowed."""
     with pytest.raises(PyRDLAttrDefinitionError):
         irdl_attr_definition(InvalidUntypedFieldTestAttr)
+
+
+@irdl_attr_definition
+class OveriddenInitAttr(ParametrizedAttribute):
+    name = "test.overidden_init"
+
+    param: ParameterDef[Attribute]
+
+    def __init__(self, param: int | str):
+        if isinstance(param, int):
+            super().__init__([IntData(param)])
+        elif isinstance(param, str):
+            super().__init__([StringData(param)])
+        else:
+            raise TypeError("Expected `int` or `str` type in "
+                            "OveriddenInitAttr constructor")
+
+
+def test_generic_constructor():
+    """Test the generic constructor of a ParametrizedAttribute."""
+
+    param = IntData(42)
+    attr = OveriddenInitAttr.new([param])
+
+    assert isinstance(attr, OveriddenInitAttr)
+    assert attr.param == param
+
+
+def test_custom_constructor():
+    """Test the use of custom constructors in ParametrizedAttribute."""
+
+    assert OveriddenInitAttr.new([IntData(42)]) == OveriddenInitAttr(42)
+    assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")

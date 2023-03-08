@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
-from xdsl.ir import Operation, SSAValue, Block, Region, Dialect
+from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
 from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
                        AnyAttr)
 
@@ -47,11 +47,17 @@ class For(Operation):
                     upper_bound: int | AnyIntegerAttr,
                     region: Region,
                     step: int | AnyIntegerAttr = 1) -> For:
+        if isinstance(lower_bound, int):
+            lower_bound = IntegerAttr.from_index_int_value(lower_bound)
+        if isinstance(upper_bound, int):
+            upper_bound = IntegerAttr.from_index_int_value(upper_bound)
+        if isinstance(step, int):
+            step = IntegerAttr.from_index_int_value(step)
         result_types = [SSAValue.get(op).typ for op in operands]
-        attributes = {
-            "lower_bound": IntegerAttr.from_index_int_value(lower_bound),
-            "upper_bound": IntegerAttr.from_index_int_value(upper_bound),
-            "step": IntegerAttr.from_index_int_value(step),
+        attributes: dict[str, Attribute] = {
+            "lower_bound": lower_bound,
+            "upper_bound": upper_bound,
+            "step": step,
         }
         return For.build(operands=[[operand for operand in operands]],
                          result_types=[result_types],

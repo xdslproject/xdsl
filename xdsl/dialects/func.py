@@ -20,8 +20,11 @@ class FuncOp(Operation):
     def verify_(self) -> None:
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
+        # If this is an empty block (external function) then return
+        if len(entry_block.args) == 0 and len(entry_block.ops) == 0:
+            return
         block_arg_types = [arg.typ for arg in entry_block.args]
-        if self.function_type.inputs.data != block_arg_types:
+        if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
                 "input types")
@@ -31,10 +34,10 @@ class FuncOp(Operation):
                       return_types: List[Attribute],
                       func: Block.BlockCallback) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
-            "sym_name": name,
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": "private"
+            "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes,
                           regions=[
@@ -44,13 +47,26 @@ class FuncOp(Operation):
         return op
 
     @staticmethod
+    def external(name: str, input_types: List[Attribute],
+                 return_types: List[Attribute]) -> FuncOp:
+        type_attr = FunctionType.from_lists(input_types, return_types)
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(name),
+            "function_type": type_attr,
+            "sym_visibility": StringAttr("private")
+        }
+        op = FuncOp.build(attributes=attributes,
+                          regions=[Region.from_operation_list([])])
+        return op
+
+    @staticmethod
     def from_region(name: str, input_types: List[Attribute],
                     return_types: List[Attribute], region: Region) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
-            "sym_name": name,
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": "private"
+            "sym_visibility": StringAttr("private")
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op
@@ -70,6 +86,8 @@ class Call(Operation):
     def get(callee: Union[str, SymbolRefAttr], ops: List[Union[SSAValue,
                                                                Operation]],
             return_types: List[Attribute]) -> Call:
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
         return Call.build(operands=[ops],
                           result_types=[return_types],
                           attributes={"callee": callee})
@@ -85,7 +103,7 @@ class Return(Operation):
         assert isinstance(func_op, FuncOp)
 
         function_return_types = func_op.function_type.outputs.data
-        return_types = [arg.typ for arg in self.arguments]
+        return_types = tuple(arg.typ for arg in self.arguments)
         if function_return_types != return_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"

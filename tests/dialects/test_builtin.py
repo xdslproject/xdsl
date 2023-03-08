@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData)
+                                   FloatData, SymbolRefAttr)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -18,8 +18,8 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert type(value2) == float
     assert value2 == 5.0
 
-    t1 = FloatAttr.from_value(4.0, f32)
-    t2 = FloatAttr.from_value(5.0, f32)
+    t1 = FloatAttr(4.0, f32)
+    t2 = FloatAttr(5.0, f32)
 
     check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32)
 
@@ -37,11 +37,27 @@ def test_DenseArrayBase_verifier_failure():
     # Check that a malformed attribute raises a verify error
 
     with pytest.raises(VerifyException) as err:
-        DenseArrayBase([f32, ArrayAttr.from_list([IntAttr(0)])])
+        DenseArrayBase([f32, ArrayAttr([IntAttr(0)])])
     assert err.value.args[0] == ("dense array of float element type "
                                  "should only contain floats")
 
     with pytest.raises(VerifyException) as err:
-        DenseArrayBase([i32, ArrayAttr.from_list([FloatData(0.0)])])
+        DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
     assert err.value.args[0] == ("dense array of integer element type "
                                  "should only contain integers")
+
+
+@pytest.mark.parametrize('ref,expected', (
+    (SymbolRefAttr('test'), 'test'),
+    (SymbolRefAttr('test', ["2"]), 'test.2'),
+    (SymbolRefAttr('test', ["2", "3"]), 'test.2.3'),
+))
+def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
+    assert ref.string_value() == expected
+
+
+def test_array_len_attr():
+    arr = ArrayAttr([IntAttr(i) for i in range(10)])
+
+    assert len(arr) == 10
+    assert len(arr.data) == len(arr)
