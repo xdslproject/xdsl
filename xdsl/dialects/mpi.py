@@ -105,7 +105,8 @@ class ISend(MPIBaseOp):
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation, tag: int | None):
+    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
+            tag: int | None):
         return cls.build(operands=[buff, dest],
                          attributes=_build_attr_dict_with_optional_tag(tag),
                          result_types=[RequestType()])
