@@ -34,7 +34,7 @@ _RangeT = TypeVar("_RangeT",
 
 @irdl_attr_definition
 class RangeType(Generic[_RangeT], ParametrizedAttribute):
-    name = "range"
+    name = "pdl.range"
     element_type: ParameterDef[_RangeT]
 
 
