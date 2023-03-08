@@ -90,17 +90,17 @@ class ISend(MPIBaseOp):
 
     ## Our Abstraction:
 
-        - We Summarize buf, count and datatype by using memrefs
-        - We assume that tag is compile-time constant
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = 'mpi.isend'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     request: Annotated[OpResult, RequestType]
 
@@ -132,9 +132,8 @@ class Send(MPIBaseOp):
 
     ## Our Abstraction:
 
-        - We Summarize buf, count and datatype by using memrefs
-        - We assume that tag is compile-time constant
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = 'mpi.send'
@@ -174,16 +173,17 @@ class IRecv(MPIBaseOp):
 
     ## Our Abstractions:
 
-        - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume tag is compile-time known
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = "mpi.irecv"
 
+    buffer: Annotated[Operand, AnyAttr()]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     request: Annotated[OpResult, RequestType]
 
@@ -218,10 +218,8 @@ class Recv(MPIBaseOp):
 
     ## Our Abstractions:
 
-        - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume this type information is compile-time known
-        - We assume tag is compile-time known
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = "mpi.recv"
@@ -292,11 +290,11 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType]
-    status: Annotated[OptOpResult, i32]
+    status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[i32]]
+        result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
 
