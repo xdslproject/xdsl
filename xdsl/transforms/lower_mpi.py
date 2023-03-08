@@ -71,6 +71,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.isend': 'MPI_Isend',
         'mpi.wait': 'MPI_Wait',
         'mpi.comm.rank': 'MPI_Comm_rank',
+        'mpi.comm.size': 'MPI_Comm_size',
         'mpi.recv': 'MPI_Recv',
         'mpi.send': 'MPI_Send'
     }

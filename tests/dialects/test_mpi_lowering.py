@@ -112,6 +112,22 @@ def test_lower_mpi_comm_rank():
     )
 
 
+def test_lower_mpi_comm_sizek():
+    ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSize.get())
+
+    assert len(result) == 1
+    assert result[0] is not None
+    assert result[0].typ == i32
+
+    # check signature of emitted function call
+    # int MPI_Comm_rank(MPI_Comm comm, int *rank)
+    check_emitted_function_signature(
+        ops,
+        'MPI_Comm_size',
+        (None, llvm.LLVMPointerType),
+    )
+
+
 def test_lower_mpi_send():
     buff, size, dtype, dest, tag = CreateTestValsOp.get(
         llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
