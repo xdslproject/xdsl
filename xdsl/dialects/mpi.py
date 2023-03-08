@@ -411,6 +411,13 @@ class UnwrapMemrefOp(MPIBaseOp):
 class GetDtypeOp(MPIBaseOp):
     """
     This op is used to convert MLIR types to MPI_Datatype constants.
+
+    So, e.g. if you want to get the `MPI_Datatype` for an `i32` you can use
+
+        %dtype = "mpi.get_dtype"() {"dtype" = i32} : () -> mpi.datatype
+
+    to get the magic constant. See `_MPIToLLVMRewriteBase._translate_to_mpi_type`
+    docstring for more detail on which types are supported.
     """
     name = "mpi.get_dtype"
 
