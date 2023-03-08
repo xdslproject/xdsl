@@ -50,7 +50,7 @@ setup(
     description="xDSL",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    scripts=['xdsl/tools/xdsl-opt'],
+    scripts=['xdsl/tools/xdsl-opt', 'xdsl/frontend/tools/desymrefy'],
     project_urls={
         "Source Code": "https://github.com/xdslproject/xdsl",
         "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
