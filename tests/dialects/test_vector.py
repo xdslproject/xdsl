@@ -45,7 +45,7 @@ def test_vectorType_with_dimensions():
 
 
 def test_vectorType_from_params():
-    my_i32 = IntegerType.from_width(32)
+    my_i32 = IntegerType(32)
     vec = VectorType.from_params(my_i32)
 
     assert vec.get_num_dims() == 1

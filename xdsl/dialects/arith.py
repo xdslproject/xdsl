@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
-from typing import Annotated, TypeVar, Union
+from enum import Enum
+from typing import Annotated, TypeVar, Union, Set, Optional
 
 from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, IntAttr,
                                    IntegerType, Float32Type, IntegerAttr, FloatAttr,
                                    Attribute, AnyFloat, AnyIntegerAttr)
-from xdsl.ir import Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
-                       Operand)
+                       Operand, irdl_attr_definition)
+from xdsl.parser import BaseParser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 _FloatTypeT = TypeVar('_FloatTypeT', bound=AnyFloat)
+
 
 @irdl_op_definition
 class Constant(Operation):
@@ -30,7 +35,7 @@ class Constant(Operation):
     def from_int_and_width(val: int | IntAttr,
                            typ: int | IntegerType | IndexType) -> Constant:
         if isinstance(typ, int):
-            typ = IntegerType.from_width(typ)
+            typ = IntegerType(typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
@@ -40,7 +45,7 @@ class Constant(Operation):
     def from_float_and_width(val: float | FloatAttr[_FloatTypeT],
                              typ: _FloatTypeT) -> Constant:
         if isinstance(val, float):
-            val = FloatAttr.from_value(val, typ)
+            val = FloatAttr(val, typ)
         return Constant.create(
             result_types=[typ],
             attributes={"value": val})
@@ -430,14 +435,14 @@ class Cmpi(Operation):
     predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType.from_width(1)]
+    result: Annotated[OpResult, IntegerType(1)]
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
             operand2: Union[Operation, SSAValue], arg: int) -> Cmpi:
         return Cmpi.build(
             operands=[operand1, operand2],
-            result_types=[IntegerType.from_width(1)],
+            result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
     @staticmethod
@@ -478,14 +483,14 @@ class Select(Operation):
     The second and the third operand must have the same type.
     """
     name: str = "arith.select"
-    cond: Annotated[Operand, IntegerType.from_width(1)]  # should be unsigned
+    cond: Annotated[Operand, IntegerType(1)]  # should be unsigned
     lhs: Annotated[Operand, Attribute]
     rhs: Annotated[Operand, Attribute]
     result: Annotated[OpResult, Attribute]
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.cond.typ != IntegerType.from_width(1):
+        if self.cond.typ != IntegerType(1):
             raise VerifyException("Condition has to be of type !i1")
         if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
             raise VerifyException(
@@ -589,6 +594,7 @@ class Minf(BinaryOperation):
         return Minf.build(operands=[operand1, operand2],
                           result_types=[operand1.typ])
 
+
 @irdl_op_definition
 class IndexCastOp(Operation):
     name = "arith.index_cast"
@@ -603,6 +609,66 @@ class IndexCastOp(Operation):
             operands=[input],
             result_types=[target_type]
         )
+
+
+class FastMathFlag(Enum):
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+
+@dataclass
+class FastMathFlags:
+    flags: Set[FastMathFlag]
+
+    # TODO should we implement all/more set operators?
+    def __or__(self, other: FastMathFlags):
+        return FastMathFlags(self.flags | other.flags)
+
+    def __contains__(self, item: FastMathFlag):
+        return item in self.flags
+
+    @staticmethod
+    def try_parse(parser: BaseParser) -> Optional[FastMathFlags]:
+        if parser.try_parse_characters("none") is not None:
+            return FastMathFlags(set())
+        if parser.try_parse_characters("fast") is not None:
+            return FastMathFlags(set(FastMathFlag))
+
+        for option in FastMathFlag:
+            if parser.try_parse_characters(option.value) is not None:
+                return FastMathFlags({option})
+
+        return None
+
+
+@irdl_attr_definition
+class FastMathFlagsAttr(Data[FastMathFlags]):
+    name: str = "arith.fastmath"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> FastMathFlags:
+        flags = parser.parse_list_of(lambda: FastMathFlags.try_parse(parser), "Expected fast math flags")
+        result = functools.reduce(FastMathFlags.__or__, flags, FastMathFlags(set()))
+        return result
+
+    def print_parameter(self, printer: Printer):
+        data = self.data
+        if len(data.flags) == 0:
+            printer.print("none")
+        elif len(data.flags) == len(FastMathFlag):
+            printer.print("fast")
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print(",".join(flag.value for flag in FastMathFlag if flag in data))
+
+    @staticmethod
+    def from_flags(flags: FastMathFlags):
+        return FastMathFlagsAttr(flags)
 
 
 Arith = Dialect([
@@ -650,4 +716,6 @@ Arith = Dialect([
 
         # Casts
         IndexCastOp,
-], [])
+], [
+        FastMathFlagsAttr,
+])

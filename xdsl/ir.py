@@ -313,7 +313,7 @@ class Attribute(ABC):
         return res.getvalue()
 
 
-DataElement = TypeVar("DataElement")
+DataElement = TypeVar("DataElement", covariant=True)
 
 _D = TypeVar("_D", bound="Data[Any]")
 
@@ -348,9 +348,8 @@ class Data(Generic[DataElement], Attribute, ABC):
     def parse_parameter(parser: BaseParser) -> DataElement:
         """Parse the attribute parameter."""
 
-    @staticmethod
     @abstractmethod
-    def print_parameter(data: DataElement, printer: Printer) -> None:
+    def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
 
 
@@ -520,12 +519,18 @@ class Operation(IRNode):
         return cast(OpT, op)
 
     @classmethod
-    def build(cls: type[OpT],
-              operands: list[Any] | None = None,
-              result_types: list[Any] | None = None,
-              attributes: dict[str, Any] | None = None,
-              successors: list[Any] | None = None,
-              regions: list[Any] | None = None) -> OpT:
+    def build(
+        cls: type[OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        | None = None
+    ) -> OpT:
         """Create a new operation using builders."""
         ...
 

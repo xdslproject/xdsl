@@ -26,7 +26,7 @@ class Fetch(Operation):
     @staticmethod
     def get(symbol: str | SymbolRefAttr, result_type: Attribute) -> Fetch:
         if isinstance(symbol, str):
-            symbol = SymbolRefAttr.from_str(symbol)
+            symbol = SymbolRefAttr(symbol)
         return Fetch.build(attributes={"symbol": symbol},
                            result_types=[result_type])
 
@@ -41,7 +41,7 @@ class Update(Operation):
     def get(symbol: str | SymbolRefAttr,
             value: Operation | SSAValue) -> Update:
         if isinstance(symbol, str):
-            symbol = SymbolRefAttr.from_str(symbol)
+            symbol = SymbolRefAttr(symbol)
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 

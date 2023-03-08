@@ -1394,10 +1394,9 @@ class BaseParser(ABC):
         refs = self.parse_reference()
 
         if len(refs) >= 1:
-            return SymbolRefAttr([
+            return SymbolRefAttr(
                 StringAttr(refs[0].text),
-                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]])
-            ])
+                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]]))
         else:
             return None
 
@@ -1423,10 +1422,13 @@ class BaseParser(ABC):
             )
             # If we don't see a ':' indicating a type signature
             if not self.tokenizer.starts_with(":"):
-                return FloatAttr.from_value(float(value.text))
+                return FloatAttr(float(value.text), Float32Type())
 
             type = self._parse_attribute_type()
-            return FloatAttr.from_value(float(value.text), type)
+            if not isinstance(type, AnyFloat):
+                self.raise_error(
+                    "Float attribute must be typed with a float type!")
+            return FloatAttr(float(value.text), type)
 
     def try_parse_builtin_boolean_attr(self) -> IntegerAttr | None:
         span = self.try_parse_boolean_literal()
@@ -1435,7 +1437,7 @@ class BaseParser(ABC):
             return None
 
         int_val = ["false", "true"].index(span.text)
-        return IntegerAttr.from_params(int_val, IntegerType.from_width(1))
+        return IntegerAttr.from_params(int_val, IntegerType(1))
 
     def try_parse_builtin_str_attr(self):
         if not self.tokenizer.starts_with('"'):
@@ -1445,7 +1447,7 @@ class BaseParser(ABC):
             literal = self.try_parse_string_literal()
             if literal is None:
                 self.raise_error("Invalid string literal")
-            return StringAttr.from_str(literal.string_contents)
+            return StringAttr(literal.string_contents)
 
     def try_parse_builtin_arr_attr(self) -> ArrayAttr | None:
         if not self.tokenizer.starts_with("["):
@@ -1456,11 +1458,28 @@ class BaseParser(ABC):
                                        "Expected array entry!")
             self.parse_characters(
                 "]", "Malformed array contents (expected end of array here!")
-            return ArrayAttr.from_list(attrs)
+            return ArrayAttr(attrs)
 
     @abstractmethod
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         raise NotImplementedError()
+
+    def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
+        if not self.tokenizer.starts_with("{"):
+            return dict()
+
+        self.parse_characters(
+            "{", "Attribute dictionary must be enclosed in curly brackets")
+
+        attrs = []
+        if not self.tokenizer.starts_with('}'):
+            attrs = self.parse_list_of(self._parse_attribute_entry,
+                                       "Expected attribute entry")
+
+        self.parse_characters(
+            "}", "Attribute dictionary must be enclosed in curly brackets")
+
+        return self._attr_dict_from_tuple_list(attrs)
 
     def _attr_dict_from_tuple_list(
             self, tuple_list: list[tuple[Span,
@@ -1538,7 +1557,7 @@ class BaseParser(ABC):
         """
         Parses a sequence of regions for as long as there is a `{` in the input.
         """
-        regions = []
+        regions: list[Region] = []
         while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
             regions.append(self.parse_region())
         return regions
@@ -1555,8 +1574,8 @@ class BaseParser(ABC):
                 "u": Signedness.UNSIGNED,
                 "i": Signedness.SIGNLESS,
             }
-            return IntegerType.from_width(int(re_match.group(1)),
-                                          signedness[name.text[0]])
+            return IntegerType(int(re_match.group(1)),
+                               signedness[name.text[0]])
 
         if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
             width = int(re_match.group(1))
@@ -1725,23 +1744,7 @@ class MLIRParser(BaseParser):
         )
 
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
-            return dict()
-
-        self.parse_characters(
-            "{",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
-
-        attrs = []
-        if not self.tokenizer.starts_with('}'):
-            attrs = self.parse_list_of(self._parse_attribute_entry,
-                                       "Expected attribute entry")
-
-        self.parse_characters(
-            "}",
-            "MLIR Attribute dictionary must be enclosed in curly brackets")
-
-        return self._attr_dict_from_tuple_list(attrs)
+        return self.parse_optional_dictionary_attr_dict()
 
     def _parse_operation_details(
         self,
@@ -1787,6 +1790,24 @@ class MLIRParser(BaseParser):
             ")", "Operation args list must be closed by a closing bracket")
         # TODO: check if type is correct here!
         return args
+
+    def parse_region_list(self) -> list[Region]:
+        """
+        Parses a sequence of regions for as long as there is a `{` in the input.
+        """
+        regions: list[Region] = []
+        while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
+            regions.append(self.parse_region())
+            if self.tokenizer.starts_with(','):
+                self.parse_characters(
+                    ',',
+                    msg='This error should never be printed, please open '
+                    'an issue at github.com/xdslproject/xdsl')
+                if not self.tokenizer.starts_with('{'):
+                    self.raise_error(
+                        "Expected next region (because of `,` after region end)!"
+                    )
+        return regions
 
 
 class XDSLParser(BaseParser):

@@ -6,16 +6,15 @@ from typing import cast
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   AnyFloatAttr, AnyIntegerAttr, StringAttr)
+                                   StringAttr, AnyFloat, i32)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
-t_int: IntegerType = IntegerType.from_width(32, Signedness.SIGNLESS)
-t_bool: IntegerType = IntegerType.from_width(1, Signedness.SIGNLESS)
+t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
-AnyNumericAttr = AnyFloatAttr | AnyIntegerAttr
+AnyNumericType = AnyFloat | IntegerType
 
 
 @irdl_attr_definition
@@ -65,7 +64,7 @@ def _build_attr_dict_with_optional_tag(
     Helper function for building attribute dicts that have an optional `tag` entry
     """
 
-    return {} if tag is None else {'tag': IntegerAttr.from_params(tag, t_int)}
+    return {} if tag is None else {'tag': IntegerAttr.from_params(tag, i32)}
 
 
 @irdl_op_definition
@@ -95,10 +94,10 @@ class ISend(MPIBaseOp):
 
     name = 'mpi.isend'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
-    dest: Annotated[Operand, t_int]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
+    dest: Annotated[Operand, i32]
 
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
 
     request: Annotated[OpResult, RequestType]
 
@@ -137,10 +136,11 @@ class Send(MPIBaseOp):
     name = 'mpi.send'
 
     buffer: Annotated[Operand, AnyAttr()]
-    count: Annotated[Operand, t_int]
+    count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
-    dest: Annotated[Operand, t_int]
-    tag: Annotated[Operand, t_int]
+    tag: Annotated[Operand, i32]
+
+    dest: Annotated[Operand, i32]
 
     @classmethod
     def get(cls, buffer: SSAValue | Operation, count: SSAValue | Operation,
@@ -178,10 +178,10 @@ class IRecv(MPIBaseOp):
 
     name = "mpi.irecv"
 
-    source: Annotated[Operand, t_int]
-    buffer: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    source: Annotated[Operand, i32]
+    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
 
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, t_int]]]
+    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
 
     request: Annotated[OpResult, RequestType]
 
@@ -225,10 +225,10 @@ class Recv(MPIBaseOp):
     name = "mpi.recv"
 
     buffer: Annotated[Operand, AnyAttr()]
-    count: Annotated[Operand, t_int]
+    count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
-    source: Annotated[Operand, t_int]
-    tag: Annotated[Operand, t_int]
+    source: Annotated[Operand, i32]
+    tag: Annotated[Operand, i32]
 
     status: Annotated[OptOpResult, StatusType]
 
@@ -290,11 +290,11 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType]
-    status: Annotated[OptOpResult, StatusType]
+    status: Annotated[OptOpResult, i32]
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[StatusType()]]
+        result_types: list[list[Attribute]] = [[i32]]
         if ignore_status:
             result_types = [[]]
 
@@ -319,40 +319,40 @@ class GetStatusField(MPIBaseOp):
 
     field: OpAttr[StringAttr]
 
-    result: Annotated[OpResult, t_int]
+    result: Annotated[OpResult, i32]
 
     @classmethod
     def get(cls, status_obj: Operand, field: StatusTypeField):
         return cls.build(operands=[status_obj],
                          attributes={'field': StringAttr(field.value)},
-                         result_types=[t_int])
+                         result_types=[i32])
 
 
 @irdl_op_definition
 class CommRank(MPIBaseOp):
     name = "mpi.comm.rank"
 
-    rank: Annotated[OpResult, t_int]
+    rank: Annotated[OpResult, i32]
 
     @classmethod
     def get(cls):
-        return cls.build(result_types=[t_int])
+        return cls.build(result_types=[i32])
 
 @irdl_op_definition
 class CommSize(MPIBaseOp):
     name = "mpi.comm.size"
 
-    size: Annotated[OpResult, t_int]
+    size: Annotated[OpResult, i32]
 
     @classmethod
     def get(cls):
-        return cls.build(result_types=[t_int])
+        return cls.build(result_types=[i32])
 
 
 @irdl_op_definition
 class Init(MPIBaseOp):
     """
-    This represents a bare MPI_Finalize call with both args being nullptr
+    This represents a bare MPI_Init call with both args being nullptr
     """
     name = "mpi.init"
 
@@ -366,22 +366,22 @@ class Finalize(MPIBaseOp):
 class UnwrapMemrefOp(MPIBaseOp):
     name = "mpi.unwrap_memref"
 
-    ref: Annotated[Operand, MemRefType[AnyNumericAttr]]
+    ref: Annotated[Operand, MemRefType[AnyNumericType]]
 
     ptr: Annotated[OpResult, llvm.LLVMPointerType]
-    len: Annotated[OpResult, t_int]
+    len: Annotated[OpResult, i32]
     typ: Annotated[OpResult, DataType]
 
     @staticmethod
     def get(ref: SSAValue | Operation):
         ssa_val = SSAValue.get(ref)
         assert isinstance(ssa_val.typ, MemRefType)
-        elem_typ = cast(MemRefType[AnyNumericAttr], ssa_val.typ).element_type
+        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
 
         return UnwrapMemrefOp.build(operands=[ref],
                                     result_types=[
                                         llvm.LLVMPointerType.typed(elem_typ),
-                                        t_int,
+                                        i32,
                                         DataType()
                                     ])
 
@@ -410,5 +410,9 @@ MPI = Dialect([
     Init,
     Finalize,
     CommRank,
-    CommSize,
-], [RequestType, StatusType])
+    UnwrapMemrefOp,
+    GetDtypeOp,
+], [
+    RequestType,
+    StatusType,
+])

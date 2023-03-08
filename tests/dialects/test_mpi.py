@@ -1,13 +1,9 @@
 from conftest import assert_print_op
 
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import f64, ModuleOp
-from xdsl.dialects.memref import Alloc
-from xdsl.dialects.mpi import (ISend, IRecv, Test, Wait, t_int, GetStatusField,
-                               StatusTypeField)
+from xdsl.dialects.builtin import f64, ModuleOp, i32
 from xdsl.dialects import func, arith, mpi, scf, memref
 
-from xdsl.ir import Region
 from xdsl.printer import Printer
 
 
@@ -22,18 +18,18 @@ def test_mpi_combo():
             cond := arith.Cmpi.from_mnemonic(rank, lit0, 'eq'),
             buff := memref.Alloc.get(f64, 32, [100, 14, 14]),
             scf.If.get(cond, [], [  # if rank == 0
-                dest := arith.Constant.from_int_and_width(1, mpi.t_int),
-                tag := arith.Constant.from_int_and_width(1, mpi.t_int),
+                dest := arith.Constant.from_int_and_width(1, i32),
+                tag := arith.Constant.from_int_and_width(1, i32),
                 conv := mpi.UnwrapMemrefOp.get(buff),
                 mpi.Send.get(conv.ptr, conv.len, conv.typ, dest, tag),
                 # mpi.Wait.get(req, ignore_status=False),
                 scf.Yield.get(),
             ], [  # else
-                source := arith.Constant.from_int_and_width(0, mpi.t_int),
-                tag := arith.Constant.from_int_and_width(1, mpi.t_int),
+                source := arith.Constant.from_int_and_width(0, i32),
+                tag := arith.Constant.from_int_and_width(1, i32),
                 conv := mpi.UnwrapMemrefOp.get(buff),
                 status := mpi.Recv.get(conv.ptr, conv.len, conv.typ, source, tag, ignore_status=False),
-                GetStatusField.get(status, StatusTypeField.MPI_TAG),
+                mpi.GetStatusField.get(status, mpi.StatusTypeField.MPI_TAG),
                 #mpi.Wait.get(recv.request),
                 scf.Yield.get(),
             ]),
@@ -70,12 +66,12 @@ def test_mpi_combo():
 
 
 def test_mpi_baseop():
-    alloc0 = Alloc.get(f64, 32, [100, 14, 14])
-    dest = Constant.from_int_and_width(1, t_int)
-    send = ISend.get(alloc0, dest, 1)
-    recv = IRecv.get(dest, alloc0.memref, 1)
-    test_res = Test.get(recv.request)
-    code2 = Wait.get(recv.request)
+    alloc0 = memref.Alloc.get(f64, 32, [100, 14, 14])
+    dest = Constant.from_int_and_width(1, i32)
+    send = mpi.ISend.get(alloc0, dest, 1)
+    recv = mpi.IRecv.get(dest, alloc0.memref, 1)
+    test_res = mpi.Test.get(recv.request)
+    code2 = mpi.Wait.get(recv.request)
 
     assert send.operands[0] is alloc0.results[0]
     assert send.operands[1] is dest.results[0]

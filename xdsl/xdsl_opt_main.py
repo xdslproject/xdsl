@@ -17,6 +17,8 @@ from xdsl.dialects.vector import Vector
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.mpi import MPI
+from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
@@ -187,6 +189,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
+        self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
 
     def register_all_frontends(self):
@@ -213,7 +216,7 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        pass
+        self.available_passes['lower-mpi'] = lower_mpi
 
     def register_all_targets(self):
         """
@@ -281,9 +284,15 @@ class xDSLOptMain:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
+            f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
-        return self.available_frontends[file_extension](f)
+        try:
+            module = self.available_frontends[file_extension](f)
+        finally:
+            f.close()
+
+        return module
 
     def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
@@ -315,8 +324,8 @@ class xDSLOptMain:
         if self.args.output_file is None:
             print(contents)
         else:
-            output_stream = open(self.args.output_file, 'w')
-            output_stream.write(contents)
+            with open(self.args.output_file, 'w') as output_stream:
+                output_stream.write(contents)
 
     def get_input_name(self):
         return self.args.input_file or 'stdin'

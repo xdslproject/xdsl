@@ -737,7 +737,8 @@ def get_attr_size_option(
 
 def get_variadic_sizes_from_attr(op: Operation,
                                  defs: Sequence[tuple[str,
-                                                      OperandDef | ResultDef]],
+                                                      OperandDef | ResultDef
+                                                      | RegionDef]],
                                  construct: VarIRConstruct,
                                  size_attribute_name: str) -> list[int]:
     """
@@ -955,12 +956,15 @@ def irdl_build_arg_list(construct: VarIRConstruct,
     return res, arg_sizes
 
 
-def irdl_op_builder(cls: type[_OpT], op_def: OpDef,
-                    operands: Sequence[SSAValue | Operation
-                                       | list[SSAValue | Operation] | None],
-                    res_types: Sequence[Any | list[Any] | None],
-                    attributes: dict[str, Any], successors: Sequence[Block],
-                    regions: Sequence[Any | None]) -> _OpT:
+def irdl_op_builder(
+        cls: type[_OpT], op_def: OpDef,
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]
+                           | None],
+        res_types: Sequence[Any | list[Any] | None],
+        attributes: dict[str, Attribute], successors: Sequence[Block],
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+) -> _OpT:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseArrayBase, but here we need
@@ -1072,12 +1076,27 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
             new_attrs[attribute_name] = property(
                 lambda self, name=attribute_name: self.attributes[name])
 
-    def builder(cls,
-                operands=[],
-                result_types=[],
-                attributes=dict(),
-                successors=[],
-                regions=[]):
+    def builder(
+        cls: type[_OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        | None = None
+    ) -> _OpT:
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
         return irdl_op_builder(cls, op_def, operands, result_types, attributes,
                                successors, regions)
 
@@ -1094,7 +1113,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 # |____/ \__,_|\__\__,_|
 #
 
-_DataElement = TypeVar("_DataElement")
+_DataElement = TypeVar("_DataElement", covariant=True)
 
 
 @dataclass(frozen=True)
