@@ -39,11 +39,11 @@ class FieldType(ParametrizedAttribute, MLIRType):
         # TODO: why do we need all these casts here, can we tell pyright "trust me"
         if all(isinstance(elm, IntAttr) for elm in shape):
             shape = cast(list[IntAttr], shape)
-            return FieldType([ArrayAttr.from_list(shape)])
+            return FieldType([ArrayAttr(shape)])
 
         shape = cast(list[int], shape)
         return FieldType(
-            [ArrayAttr.from_list([IntAttr.from_int(d) for d in shape])])
+            [ArrayAttr([IntAttr.from_int(d) for d in shape])])
 
 
 @irdl_attr_definition
@@ -65,10 +65,10 @@ class TempType(ParametrizedAttribute, MLIRType):
 
         if isinstance(shape[0], IntAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr.from_list(shape)])  # type: ignore
+            return TempType([ArrayAttr(shape)])  # type: ignore
         shape = cast(list[int], shape)
         return TempType(
-            [ArrayAttr.from_list([IntAttr.from_int(d) for d in shape])])
+            [ArrayAttr([IntAttr.from_int(d) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
