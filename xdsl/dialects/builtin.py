@@ -840,30 +840,54 @@ class DenseArrayBase(ParametrizedAttribute):
                                           "should only contain floats")
 
     @staticmethod
-    def create_dense_int_or_index(typ: IntegerType | IndexType,
-                                  data: Sequence[int]) -> DenseArrayBase:
-        attr_list = [IntAttr(d) for d in data]
+    def create_dense_int_or_index(
+            typ: IntegerType | IndexType,
+            data: Sequence[int] | Sequence[IntAttr]) -> DenseArrayBase:
+        if len(data) and isinstance(data[0], int):
+            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+        else:
+            attr_list = cast(Sequence[IntAttr], data)
+
         return DenseArrayBase([typ, ArrayAttr(attr_list)])
 
     @staticmethod
-    def create_dense_float(typ: Float16Type | Float32Type | Float64Type,
-                           data: Sequence[int | float]) -> DenseArrayBase:
-        data_attr = [FloatData(float(d)) for d in data]
-        return DenseArrayBase([typ, ArrayAttr(data_attr)])
+    def create_dense_float(
+            typ: Float16Type | Float32Type | Float64Type,
+            data: Sequence[int | float] | Sequence[FloatData]
+    ) -> DenseArrayBase:
+        if len(data) and isinstance(data[0], int | float):
+            attr_list = [
+                FloatData(float(d)) for d in cast(Sequence[int | float], data)
+            ]
+        else:
+            attr_list = cast(Sequence[FloatData], data)
+
+        return DenseArrayBase([typ, ArrayAttr(attr_list)])
+
+    @overload
+    @staticmethod
+    def from_list(type: IntegerType | IndexType, data: Sequence[int]
+                  | Sequence[IntAttr]) -> DenseArrayBase:
+        ...
+
+    @overload
+    @staticmethod
+    def from_list(
+            type: Attribute, data: Sequence[int | float]
+        | Sequence[FloatData]) -> DenseArrayBase:
+        ...
 
     @staticmethod
-    def from_list(type: Attribute,
-                  data: Sequence[int | float]) -> DenseArrayBase:
+    def from_list(
+        type: Attribute, data: Sequence[int] | Sequence[int | float]
+        | Sequence[IntAttr] | Sequence[FloatData]
+    ) -> DenseArrayBase:
         if isinstance(type, IndexType | IntegerType):
-
-            def type_map(el: int | float) -> int:
-                assert isinstance(el, int)
-                return el
-
-            return DenseArrayBase.create_dense_int_or_index(
-                type, [type_map(d) for d in data])
+            _data = cast(Sequence[int] | Sequence[IntAttr], data)
+            return DenseArrayBase.create_dense_int_or_index(type, _data)
         elif isinstance(type, AnyFloat):
-            return DenseArrayBase.create_dense_float(type, data)
+            _data = cast(Sequence[int | float] | Sequence[FloatData], data)
+            return DenseArrayBase.create_dense_float(type, _data)
         else:
             raise TypeError(f"Unsupported element type {type}")
 
