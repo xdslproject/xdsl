@@ -95,7 +95,8 @@ from xdsl.rewriter import Rewriter
 
 
 def has_symbol(op: Operation) -> bool:
-    return isinstance(op, symref.Declare) or isinstance(op, symref.Fetch) or isinstance(op, symref.Update)
+    return isinstance(op, symref.Declare) or isinstance(
+        op, symref.Fetch) or isinstance(op, symref.Update)
 
 
 def get_symbol(op: Operation) -> str:
@@ -121,31 +122,8 @@ def get_symbols(block: Block) -> Set[str]:
     return symbols
 
 
-def count_ops_by(block: Block, cond: Callable[[Operation], bool]) -> int:
-    """
-    Returns the number of operations in the block satisfying the given
-    condition.
-    """
-    count = 0
-    for op in block.ops:
-        if cond(op):
-            count += 1
-    return count
-
-
-def select_ops_by(block: Block, cond: Callable[[Operation],
-                                               bool]) -> List[Operation]:
-    """
-    Returns a list of operations in the block satisfying the given condition.
-    """
-    selected: List[Operation] = []
-    for op in block.ops:
-        if cond(op):
-            selected.append(op)
-    return selected
-
-
-def lower_positional_bound(ops: List[Operation], op: Operation) -> Operation | None:
+def lower_positional_bound(ops: List[Operation],
+                           op: Operation) -> Operation | None:
     """
     Returns an operation from `ops` which is a lower bound for `op`. If there is
     no such operation, `None` is returned.
@@ -248,10 +226,12 @@ class Desymrefier:
         # Ensure that each symbol is read/written at most once.
         symbols = get_symbols(block)
         for symbol in symbols:
-            num_reads = count_ops_by(
-                block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
-            num_writes = count_ops_by(
-                block, lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
+            num_reads = len(
+                block.select_ops(lambda op: isinstance(op, symref.Fetch) and
+                                 get_symbol(op) == symbol))
+            num_writes = len(
+                block.select_ops(lambda op: isinstance(op, symref.Update) and
+                                 get_symbol(op) == symbol))
             if num_reads > 1 or num_writes > 1:
                 raise FrontendProgramException(
                     f"Block {block} not ready for promotion: found {num_reads}"
@@ -262,7 +242,8 @@ class Desymrefier:
         while True:
             # Find all symbol definitions in this block. If no definitions
             # found, terminate.
-            definitions = select_ops_by(block, lambda op: isinstance(op, symref.Declare))
+            definitions = block.select_ops(
+                lambda op: isinstance(op, symref.Declare))
             if len(definitions) == 0:
                 return
 
@@ -271,11 +252,10 @@ class Desymrefier:
                 symbol = get_symbol(definition)
 
                 # Find all reads and writes for this symbol.
-                reads = select_ops_by(
-                    block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
-                writes = select_ops_by(
-                    block,
-                    lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
+                reads = block.select_ops(lambda op: isinstance(
+                    op, symref.Fetch) and get_symbol(op) == symbol)
+                writes = block.select_ops(lambda op: isinstance(
+                    op, symref.Update) and get_symbol(op) == symbol)
 
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
@@ -302,10 +282,9 @@ class Desymrefier:
                         self.rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
-        is_unused_read: Callable[
-            [Operation],
-            bool] = lambda op: isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
-        unused_reads = select_ops_by(block, is_unused_read)
+        is_unused_read: Callable[[Operation], bool] = lambda op: isinstance(
+            op, symref.Fetch) and len(op.results[0].uses) == 0
+        unused_reads = block.select_ops(is_unused_read)
         for read in unused_reads:
             self.rewriter.erase_op(read)
 
@@ -324,11 +303,10 @@ class Desymrefier:
                 return
 
             for symbol in symbol_worklist:
-                reads = select_ops_by(
-                    block, lambda op: isinstance(op, symref.Fetch) and get_symbol(op) == symbol)
-                writes = select_ops_by(
-                    block,
-                    lambda op: isinstance(op, symref.Update) and get_symbol(op) == symbol)
+                reads = block.select_ops(lambda op: isinstance(
+                    op, symref.Fetch) and get_symbol(op) == symbol)
+                writes = block.select_ops(lambda op: isinstance(
+                    op, symref.Update) and get_symbol(op) == symbol)
                 assert len(reads) > 0 or len(writes) > 0
 
                 # There are no reads, so we can only keep the last write to the

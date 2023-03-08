@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, List, Optional,
+                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -824,6 +824,12 @@ class Block(IRNode):
         """Call a function on all operations contained in the block."""
         for op in self.ops:
             op.walk(fun)
+
+    def select_ops(self, cond: Callable[[Operation], bool]) -> List[Operation]:
+        """
+        Returns a list of operations in the block satisfying the given condition.
+        """
+        return [op for op in self.ops if cond(op)]
 
     def verify(self) -> None:
         for operation in self.ops:
