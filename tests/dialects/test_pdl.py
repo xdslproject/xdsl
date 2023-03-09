@@ -27,6 +27,7 @@ def test_parse_pdl_0():
 
     parser = Parser(ctx=ctx, prog=test, source=Source.MLIR)
     _module = parser.parse_module()
+    _module.verify()
 
 
 def test_parse_pdl():
@@ -38,7 +39,7 @@ def test_parse_pdl():
         parser = Parser(ctx=ctx, prog=test, source=Source.MLIR)
         _module = parser.parse_module()
 
-        # printer = Printer(ctx)
+        _module.verify()
 
 
 def get_tests() -> list[str]:
