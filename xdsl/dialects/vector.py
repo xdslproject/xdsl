@@ -179,7 +179,7 @@ class Maskedload(Operation):
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
             )
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if memref_typ.get_num_dims() != len(self.indices):
             raise VerifyException(
                 "Expected an index for each memref dimension.")
 
@@ -222,7 +222,7 @@ class Maskedstore(Operation):
                 + str(memref_element_type) + " and " +
                 str(value_to_store_typ.element_type) + ".")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if memref_typ.get_num_dims() != len(self.indices):
             raise VerifyException(
                 "Expected an index for each memref dimension.")
 
@@ -251,6 +251,7 @@ class Createmask(Operation):
     mask_vector: Annotated[OpResult, VectorBaseTypeConstraint(i1)]
 
     def verify_(self):
+        assert isa(self.mask_vector.typ, VectorType[Attribute])
         if self.mask_vector.typ.get_num_dims() != len(self.mask_operands):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
