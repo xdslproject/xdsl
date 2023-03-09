@@ -512,7 +512,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
 _TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
-_TensorTypeInitElems = TypeVar("_TensorTypeInitElems", bound=Attribute)
+_TensorTypeInvElems = TypeVar("_TensorTypeInvElems", bound=Attribute)
 
 
 @irdl_attr_definition
@@ -530,9 +530,9 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_and_list(
-        referenced_type: _TensorTypeInitElems,
+        referenced_type: _TensorTypeInvElems,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None
-    ) -> TensorType[_TensorTypeInitElems]:
+    ) -> TensorType[_TensorTypeInvElems]:
         if shape is None:
             shape = [1]
         return TensorType([
@@ -557,8 +557,8 @@ _UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
                                    bound=Attribute,
                                    covariant=True)
 
-_UnrankedTensorTypeInitElems = TypeVar("_UnrankedTensorTypeInitElems",
-                                       bound=Attribute)
+_UnrankedTensorTypeInvElems = TypeVar("_UnrankedTensorTypeInvElems",
+                                      bound=Attribute)
 
 
 @irdl_attr_definition
@@ -570,8 +570,8 @@ class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedTensorTypeInitElems
-    ) -> UnrankedTensorType[_UnrankedTensorTypeInitElems]:
+        referenced_type: _UnrankedTensorTypeInvElems
+    ) -> UnrankedTensorType[_UnrankedTensorTypeInvElems]:
         return UnrankedTensorType([referenced_type])
 
 
@@ -738,15 +738,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     def from_list(
         type: VectorOrTensorOf[Attribute], data: Sequence[int]
-        | Sequence[IntegerAttr[IndexType]]
-    ) -> DenseIntOrFPElementsAttr:
-        ...
-
-    @overload
-    @staticmethod
-    def from_list(
-        type: VectorOrTensorOf[Attribute], data: Sequence[int]
-        | Sequence[IntegerAttr[IntegerType]]
+        | Sequence[IntegerAttr[IndexType]] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         ...
 
@@ -764,20 +756,23 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            _type = cast(VectorOrTensorOf[IntegerType], type)
-            _data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-                         data)
-            return DenseIntOrFPElementsAttr.create_dense_int(_type, _data)
+            new_type = cast(VectorOrTensorOf[IntegerType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
+                            data)
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                new_type, new_data)
         elif isinstance(type.element_type, IndexType):
-            _type = cast(VectorOrTensorOf[IndexType], type)
-            _data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
-                         data)
-            return DenseIntOrFPElementsAttr.create_dense_index(_type, _data)
+            new_type = cast(VectorOrTensorOf[IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
+                            data)
+            return DenseIntOrFPElementsAttr.create_dense_index(
+                new_type, new_data)
         elif isinstance(type.element_type, AnyFloat):
-            _type = cast(VectorOrTensorOf[AnyFloat], type)
-            _data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]],
-                         data)
-            return DenseIntOrFPElementsAttr.create_dense_float(_type, _data)
+            new_type = cast(VectorOrTensorOf[AnyFloat], type)
+            new_data = cast(
+                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                new_type, new_data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
