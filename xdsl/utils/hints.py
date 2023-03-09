@@ -63,9 +63,10 @@ def assert_isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     and non-generic classes are supported for type hints.
     """
 
-    assert isa(
-        arg, hint
-    ), f"Expected value of type {hint}, got value of type {type(arg).__name__}"
+    if not isa(arg, hint):
+        raise ValueError(
+            f"Expected value of type {hint}, got value of type {type(arg).__name__}"
+        )
     return True
 
 
