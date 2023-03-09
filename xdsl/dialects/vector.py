@@ -9,7 +9,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import assert_isa, isa
 
 
 @irdl_op_definition
@@ -34,7 +34,7 @@ class Load(Operation):
     def get(ref: SSAValue | Operation,
             indices: List[SSAValue | Operation]) -> Load:
         ref = SSAValue.get(ref)
-        assert isa(ref.typ, MemRefType[Attribute])
+        assert assert_isa(ref.typ, MemRefType[Attribute])
 
         return Load.build(operands=[ref, indices],
                           result_types=[
@@ -139,7 +139,7 @@ class FMA(Operation):
     def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue,
             acc: Operation | SSAValue) -> FMA:
         lhs = SSAValue.get(lhs)
-        assert isa(lhs.typ, VectorType[Attribute])
+        assert assert_isa(lhs.typ, VectorType[Attribute])
 
         return FMA.build(operands=[lhs, rhs, acc],
                          result_types=[
@@ -188,7 +188,7 @@ class Maskedload(Operation):
             mask: SSAValue | Operation,
             passthrough: SSAValue | Operation) -> Maskedload:
         memref = SSAValue.get(memref)
-        assert isa(memref.typ, MemRefType[Attribute])
+        assert assert_isa(memref.typ, MemRefType[Attribute])
 
         return Maskedload.build(operands=[memref, indices, mask, passthrough],
                                 result_types=[

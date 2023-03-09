@@ -56,6 +56,19 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     raise ValueError(f"isa: unsupported type hint '{hint}' {get_origin(hint)}")
 
 
+def assert_isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+    """
+    Check if `arg` is of the type described by `hint`.
+    For now, only lists, dictionaries, unions,
+    and non-generic classes are supported for type hints.
+    """
+
+    assert isa(
+        arg, hint
+    ), f"Expected value of type {hint}, got value of type {type(arg).__name__}"
+    return True
+
+
 annotated_type = type(Annotated[int, 0])
 """This is the type of an Annotated object."""
 
