@@ -85,7 +85,7 @@ class OperandOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop
     """
     name: str = "pdl.operand"
-    value_type: Annotated[Operand, TypeType]
+    value_type: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, ValueType]
 
 
@@ -105,15 +105,18 @@ class OperationOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop
     """
     name: str = "pdl.operation"
-    opName: OpAttr[StringAttr]
+    opName: OptOpAttr[StringAttr]
     attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
-    operandValues: Annotated[Operand, ValueType | RangeType[ValueType]]
+
+    operandValues: Annotated[VarOperand, ValueType | RangeType[ValueType]]
     # in PDL docs, this is just a handle to AttributeType, not a range.
     # Why is it different to operandvalues
-    attributeValues: Annotated[Operand,
+    attributeValues: Annotated[VarOperand,
                                AttributeType | RangeType[AttributeType]]
-    typeValues: Annotated[Operand, TypeType | RangeType[TypeType]]
+    typeValues: Annotated[OptOperand, TypeType | RangeType[TypeType]]
     op: Annotated[OpResult, OperationType]
+
+    irdl_options = [AttrSizedOperandSegments()]
 
 
 @irdl_op_definition
@@ -122,7 +125,7 @@ class PatternOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop
     """
     name: str = "pdl.pattern"
-    benefit: OpAttr[IntegerType]
+    benefit: OpAttr[IntegerAttr[IntegerType]]
     sym_name: OpAttr[StringAttr]
     body: Region
 
@@ -174,7 +177,7 @@ class ResultOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop
     """
     name: str = "pdl.result"
-    index: OpAttr[IntegerType]
+    index: OpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
     val: Annotated[OpResult, ValueType]
 
@@ -185,7 +188,7 @@ class ResultsOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop
     """
     name: str = "pdl.results"
-    index: OpAttr[IntegerType]
+    index: OpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
     val: Annotated[OpResult, ValueType | ArrayAttr[ValueType]]
 
