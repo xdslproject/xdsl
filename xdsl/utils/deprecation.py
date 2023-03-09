@@ -16,7 +16,8 @@ def deprecated(reason: str):
 
         def new_func(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             warnings.warn(
-                f'Call to deprecated method {str(func).split(" ")[1]}: {reason}')
+                f'Call to deprecated method {str(func).split(" ")[1]}: {reason}'
+            )
             return func(*args, **kwargs)
 
         return new_func
@@ -26,4 +27,5 @@ def deprecated(reason: str):
 
 def deprecated_constructor(func: Callable[_P, _T]) -> Callable[_P, _T]:
     # TOFIX: improve printing
-    return deprecated(f'{"use the constructor (`ClassName(...)`) instead."}')(func)
+    return deprecated(f'{"use the constructor (`ClassName(...)`) instead."}')(
+        func)

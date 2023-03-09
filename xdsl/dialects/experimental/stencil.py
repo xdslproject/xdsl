@@ -42,8 +42,7 @@ class FieldType(ParametrizedAttribute, MLIRType):
             return FieldType([ArrayAttr(shape)])
 
         shape = cast(list[int], shape)
-        return FieldType(
-            [ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return FieldType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
 
 
 @irdl_attr_definition
@@ -67,8 +66,7 @@ class TempType(ParametrizedAttribute, MLIRType):
             # the if above is a sufficient type guard, but pyright does not understand :/
             return TempType([ArrayAttr(shape)])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType(
-            [ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return TempType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
