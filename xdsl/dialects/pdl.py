@@ -113,7 +113,7 @@ class OperationOp(Operation):
     # Why is it different to operandvalues
     attributeValues: Annotated[VarOperand,
                                AttributeType | RangeType[AttributeType]]
-    typeValues: Annotated[OptOperand, TypeType | RangeType[TypeType]]
+    typeValues: Annotated[VarOperand, TypeType | RangeType[TypeType]]
     op: Annotated[OpResult, OperationType]
 
     irdl_options = [AttrSizedOperandSegments()]
@@ -199,11 +199,13 @@ class RewriteOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop
     """
     name: str = "pdl.rewrite"
-    root: Annotated[Operand, OperationType]
+    root: Annotated[OptOperand, OperationType]
     # name of external rewriter function
     name_: OptOpAttr[StringAttr]
     externalArgs: Annotated[VarOperand, AnyPDLType]
     body: OptRegion
+
+    irdl_options = [AttrSizedOperandSegments()]
 
 
 @irdl_op_definition
