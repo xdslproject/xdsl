@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Any, List, cast
+from typing import Annotated, List
 
 from xdsl.dialects.builtin import (IndexType, VectorType, i1,
                                    VectorRankConstraint,
