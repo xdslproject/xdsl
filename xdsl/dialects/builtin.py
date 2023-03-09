@@ -7,7 +7,7 @@ from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
 
 from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
                      Operation, Region, Attribute, Dialect, SSAValue)
-from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
+from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
@@ -592,6 +592,62 @@ _VectorOrTensorElem = TypeVar("_VectorOrTensorElem", bound=Attribute)
 VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
                                | TensorType[_VectorOrTensorElem]
                                | UnrankedTensorType[_VectorOrTensorElem])
+
+
+@dataclass
+class VectorRankConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given rank.
+    """
+
+    expected_rank: int
+    """The expected vector rank."""
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.get_num_dims() != self.expected_rank:
+            raise VerifyException(
+                f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
+            )
+
+
+@dataclass
+class VectorBaseTypeConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given base type.
+    """
+
+    expected_type: Attribute
+    """The expected vector base type."""
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.element_type != self.expected_type:  # type: ignore
+            raise VerifyException(
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
+            )
+
+
+@dataclass
+class VectorBaseTypeAndRankConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given rank and base type.
+    """
+
+    expected_type: Attribute
+    """The expected vector base type."""
+
+    expected_rank: int
+    """The expected vector rank."""
+
+    def verify(self, attr: Attribute) -> None:
+        constraint = AllOf([
+            VectorBaseTypeConstraint(self.expected_type),
+            VectorRankConstraint(self.expected_rank)
+        ])
+        constraint.verify(attr)
 
 
 @irdl_attr_definition

@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Annotated, List, cast
 
-from xdsl.dialects.builtin import IndexType, VectorType, i1
+from xdsl.dialects.builtin import (IndexType, VectorType, i1,
+                                   VectorRankConstraint,
+                                   VectorBaseTypeConstraint,
+                                   VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
@@ -153,9 +156,9 @@ class Maskedload(Operation):
     name = "vector.maskedload"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
-    mask: Annotated[Operand, VectorType]
+    mask: Annotated[Operand, VectorBaseTypeAndRankConstraint(i1, 1)]
     passthrough: Annotated[Operand, VectorType]
-    res: Annotated[OpResult, VectorType]
+    res: Annotated[OpResult, VectorRankConstraint(1)]
 
     def verify_(self):
         memref_element_type = self.memref.typ.element_type
@@ -168,15 +171,6 @@ class Maskedload(Operation):
             raise VerifyException(
                 "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
             )
-
-        if len(self.res.typ.get_shape()) != 1:
-            raise VerifyException("Expected a rank 1 result vector.")
-
-        if len(self.mask.typ.get_shape()) != 1:
-            raise VerifyException("Expected a rank 1 mask vector.")
-
-        if self.mask.typ.element_type != i1:
-            raise VerifyException("Expected mask element type to be i1.")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
             raise VerifyException(
@@ -199,8 +193,8 @@ class Maskedstore(Operation):
     name = "vector.maskedstore"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
-    mask: Annotated[Operand, VectorType]
-    value_to_store: Annotated[Operand, VectorType]
+    mask: Annotated[Operand, VectorBaseTypeAndRankConstraint(i1, 1)]
+    value_to_store: Annotated[Operand, VectorRankConstraint(1)]
 
     def verify_(self):
         memref_element_type = self.memref.typ.element_type
@@ -210,15 +204,6 @@ class Maskedstore(Operation):
                 "MemRef element type should match the stored vector type. Obtained types were "
                 + str(memref_element_type) + " and " +
                 str(self.value_to_store.typ.element_type) + ".")
-
-        if len(self.value_to_store.typ.get_shape()) != 1:
-            raise VerifyException("Expected a rank 1 vector to be stored.")
-
-        if len(self.mask.typ.get_shape()) != 1:
-            raise VerifyException("Expected a rank 1 mask vector.")
-
-        if self.mask.typ.element_type != i1:
-            raise VerifyException("Expected mask element type to be i1.")
 
         if self.memref.typ.get_num_dims() != len(self.indices):
             raise VerifyException(
@@ -246,12 +231,9 @@ class Print(Operation):
 class Createmask(Operation):
     name = "vector.create_mask"
     mask_operands: Annotated[VarOperand, IndexType]
-    mask_vector: Annotated[OpResult, VectorType]
+    mask_vector: Annotated[OpResult, VectorBaseTypeConstraint(i1)]
 
     def verify_(self):
-        if self.mask_vector.typ.element_type != i1:
-            raise VerifyException("Expected mask element type to be i1.")
-
         if self.mask_vector.typ.get_num_dims() != len(self.mask_operands):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
