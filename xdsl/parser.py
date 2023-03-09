@@ -829,10 +829,10 @@ class BaseParser(ABC):
             return value_id, type
 
     def try_parse_type(self) -> Attribute | None:
-        if not self.tokenizer.starts_with('!'):
-            return self.try_parse_builtin_type()
-        else:
+        if self.tokenizer.starts_with('!'):
             return self.try_parse_dialect_type()
+        else:
+            return self.try_parse_builtin_type()
 
     def try_parse_dialect_type_or_attribute(self) -> Attribute | None:
         """
