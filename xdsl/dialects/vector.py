@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Annotated, List, cast
 
-from xdsl.dialects.builtin import IndexType, VectorType, i1, VectorRankConstraint, VectorBaseTypeConstraint, VectorBaseTypeAndRankConstraint
+from xdsl.dialects.builtin import (IndexType, VectorType, i1,
+                                   VectorRankConstraint,
+                                   VectorBaseTypeConstraint,
+                                   VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand

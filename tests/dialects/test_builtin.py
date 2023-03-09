@@ -149,8 +149,10 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
     memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
-    # constraint.verify(memref_type)
+    error_msg = """The following constraints were not satisfied:
+!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType.
+!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."""
+
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
-    assert e.value.args[
-        0] == "The following constraints were not satisfied:\n!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType.\n!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+    assert e.value.args[0] == error_msg
