@@ -1,8 +1,12 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Type, TypeVar
 
-from xdsl.ir import Attribute, MLIRType, OpResult, Operation, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import AttrSizedOperandSegments, Operand, OptOpAttr, OptOpResult, OptOperand, ParameterDef, VarOperand, irdl_op_definition, irdl_attr_definition, SingleBlockRegion, OpAttr
+from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
+                     ParametrizedAttribute, Region, SSAValue)
+from xdsl.irdl import (AttrSizedOperandSegments, Operand, OptOpAttr,
+                       OptOpResult, OptOperand, ParameterDef, VarOperand,
+                       irdl_op_definition, irdl_attr_definition,
+                       SingleBlockRegion, OpAttr)
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
 from xdsl.parser import BaseParser

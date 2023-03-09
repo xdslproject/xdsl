@@ -1,6 +1,9 @@
-from typing import List
 from xdsl.dialects import builtin, arith, memref
-from xdsl.dialects.gpu import AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp, LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp
+from xdsl.dialects.gpu import (
+    AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp,
+    BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp, LaunchOp,
+    ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp,
+    SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp)
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
