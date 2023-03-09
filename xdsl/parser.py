@@ -829,11 +829,10 @@ class BaseParser(ABC):
             return value_id, type
 
     def try_parse_type(self) -> Attribute | None:
-        if (builtin_type := self.try_parse_builtin_type()) is not None:
-            return builtin_type
-        if (dialect_type := self.try_parse_dialect_type()) is not None:
-            return dialect_type
-        return None
+        if self.tokenizer.starts_with('!'):
+            return self.try_parse_dialect_type()
+        else:
+            return self.try_parse_builtin_type()
 
     def try_parse_dialect_type_or_attribute(self) -> Attribute | None:
         """
@@ -882,7 +881,7 @@ class BaseParser(ABC):
         type_def = self.ctx.get_optional_attr(type_name.text)
         if type_def is None:
             self.raise_error(
-                "'{}' is not a know attribute!".format(type_name.text),
+                "'{}' is not a known attribute!".format(type_name.text),
                 type_name)
 
         # Pass the task of parsing parameters on to the attribute/type definition
