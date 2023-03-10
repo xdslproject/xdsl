@@ -61,15 +61,6 @@ class MPIBaseOp(Operation, ABC):
     pass
 
 
-def _build_attr_dict_with_optional_tag(
-        tag: int | None = None) -> dict[str, Attribute]:
-    """
-    Helper function for building attribute dicts that have an optional `tag` entry
-    """
-
-    return {} if tag is None else {'tag': IntegerAttr.from_params(tag, i32)}
-
-
 @irdl_op_definition
 class ISend(MPIBaseOp):
     """
@@ -105,11 +96,18 @@ class ISend(MPIBaseOp):
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int | None):
-        return cls.build(operands=[buff, dest],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, dest, tag],
+            result_types=[RequestType()],
+        )
 
 
 @irdl_op_definition
@@ -188,13 +186,18 @@ class IRecv(MPIBaseOp):
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls,
-            source: SSAValue | Operation,
-            buffer: SSAValue | Operation,
-            tag: int | None = None):
-        return cls.build(operands=[source, buffer],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        source: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, source, tag],
+            result_types=[RequestType()],
+        )
 
 
 @irdl_op_definition
@@ -392,7 +395,7 @@ class UnwrapMemrefOp(MPIBaseOp):
     typ: Annotated[OpResult, DataType]
 
     @staticmethod
-    def get(ref: SSAValue | Operation):
+    def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
         assert isinstance(ssa_val.typ, MemRefType)
         elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
@@ -435,6 +438,7 @@ MPI = Dialect([
     Test,
     Recv,
     Send,
+    Wait,
     GetStatusField,
     Init,
     Finalize,

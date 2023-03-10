@@ -320,24 +320,15 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
         int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
               int tag, MPI_Comm comm, MPI_Request *request)
         """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        assert isinstance(op.buffer.typ, memref.MemRefType)
-        memref_elm_typ = cast(memref.MemRefType[Attribute],
-                              op.buffer.typ).element_type
 
         return [
-            *count_ops,
             comm_global :=
             arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
             request := llvm.AllocaOp.get(
                 lit1, builtin.IntegerType(8 * self.info.MPI_Request_size)),
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
+                op.buffer, op.count, op.datatype, op.dest, op.tag, comm_global,
                 request
             ], [i32]),
         ], [request.results[0]]
@@ -357,25 +348,16 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
         int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
               MPI_Comm comm, MPI_Request *request)
         """
-        count_ops, count_ssa_val = self._emit_memref_counts(op.buffer)
-
-        assert isinstance(op.buffer.typ, memref.MemRefType)
-        memref_elm_typ = cast(memref.MemRefType[Attribute],
-                              op.buffer.typ).element_type
 
         return [
-            *count_ops,
-            *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
-            datatype := self._emit_mpi_type_load(memref_elm_typ),
-            tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
             arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
             request := llvm.AllocaOp.get(
                 lit1, builtin.IntegerType(8 * self.info.MPI_Request_size)),
             func.Call.get(self._mpi_name(op), [
-                ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
-                request
+                op.buffer, op.count, op.datatype, op.source, op.tag,
+                comm_global, request
             ], [i32]),
         ], [request.res]
 
