@@ -11,7 +11,7 @@ void main() {
 
     printf("info = MpiLibraryInfo(\n");
 
-    // dump datatype consts
+    // Datatype
     printf("\t# MPI_Datatype\n");
     PRINT_GLOBAL_VAR_SIZE(MPI_Datatype);
     PRINT_GLOBAL_VAR(MPI_CHAR);
@@ -32,7 +32,7 @@ void main() {
     PRINT_GLOBAL_VAR(MPI_UNSIGNED_LONG_LONG);
     PRINT_GLOBAL_VAR(MPI_LONG_LONG);
 
-    //// dump collectives
+    // Collectives
     printf("\n\t# MPI_Op\n");
     PRINT_GLOBAL_VAR_SIZE(MPI_Op);
     PRINT_GLOBAL_VAR(MPI_MAX);
@@ -60,18 +60,17 @@ void main() {
     printf("\n\t# MPI_Request\n");
     PRINT_GLOBAL_VAR_SIZE(MPI_Request);
 
+    // Status
     printf("\n\t# MPI_Status\n");
     PRINT_GLOBAL_VAR_SIZE(MPI_Status);
     PRINT_GLOBAL_VAR(MPI_STATUS_IGNORE);
     PRINT_GLOBAL_VAR(MPI_STATUSES_IGNORE);
 
     MPI_Status status;
-    MPI_Status* base = &status;
     
     PRINT_STRUCT_FIELD_OFFSET(status, MPI_Status, MPI_SOURCE);
     PRINT_STRUCT_FIELD_OFFSET(status, MPI_Status, MPI_TAG);
     PRINT_STRUCT_FIELD_OFFSET(status, MPI_Status, MPI_ERROR);
-
 
     printf(")\n");
 }
