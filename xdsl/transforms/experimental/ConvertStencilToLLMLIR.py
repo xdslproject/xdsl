@@ -4,7 +4,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier)
 from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, AnyIntegerAttr
+from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, AnyIntegerAttr
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 
@@ -50,12 +50,14 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if (isinstance(op, FuncOp)):
-            for i, arg in enumerate(op.body.blocks[0].args):
+            inputs: list[Attribute] = []
+            for arg in op.body.blocks[0].args:
                 if isinstance(arg.typ, FieldType):
                     typ: FieldType[Attribute] = arg.typ
                     memreftyp = GetMemRefFromField(typ)
                     rewriter.modify_block_argument_type(arg, memreftyp)
-                    op.function_type.inputs.data[i] = memreftyp
+                    inputs.append(memreftyp)
+            op.function_type.inputs = ArrayAttr[Attribute].from_list(inputs)
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
