@@ -88,3 +88,7 @@ format the code in a uniform manner.
 To automate the formatting within vim, one can use
 https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
 save.
+
+### Discussion
+
+You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com), kindly supported by community hosting from [Zulip](https://zulip.com/).
