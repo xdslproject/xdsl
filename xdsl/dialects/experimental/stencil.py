@@ -41,7 +41,8 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     element_type: ParameterDef[_FieldTypeElement]
 
     @staticmethod
-    def from_shape(shape: list[int] | list[IntAttr]) -> FieldType:
+    def from_shape(
+            shape: list[int] | list[IntAttr]) -> FieldType[_FieldTypeElement]:
         # TODO: why do we need all these casts here, can we tell pyright "trust me"
         if all(isinstance(elm, IntAttr) for elm in shape):
             shape = cast(list[IntAttr], shape)
@@ -60,11 +61,12 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_shape(
-            shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]) -> TempType:
+        shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]
+    ) -> TempType[_FieldTypeElement]:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
-            return TempType([shape])
+            return TempType.new([shape])
 
         # cast to list
         shape = cast(list[IntAttr] | list[int], shape)
