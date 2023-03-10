@@ -7,6 +7,7 @@ from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
+from xdsl.passes.pdl_analysis import pdl_analysis_pass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -235,6 +236,7 @@ class xDSLOptMain:
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
         self.available_passes['frontend-desymrefy'] = Desymrefy
+        self.available_passes['pdl_analysis'] = pdl_analysis_pass
 
     def register_all_targets(self):
         """
