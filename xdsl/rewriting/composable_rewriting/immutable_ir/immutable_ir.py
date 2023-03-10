@@ -439,7 +439,7 @@ class IOperation:
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
             result_types=[result.typ for result in self.results],
-            attributes=self.attributes.copy(),
+            attributes=dict(self.attributes),
             successors=mutable_successors,
             regions=mutable_regions)
 
@@ -523,4 +523,4 @@ class IOperation:
         return self.attributes[name]
 
     def get_attributes_copy(self) -> dict[str, Attribute]:
-        return self.attributes.copy()
+        return dict(self.attributes)
