@@ -28,8 +28,8 @@ class MpiLibraryInfo:
     You can see the current C file used in this PR: https://github.com/xdslproject/xdsl/pull/526
     You can see the status of OpenMPI support here: https://github.com/xdslproject/xdsl/issues/523
 
-    These defaults have been chosen to work with a specific version of MPICH. We would suggest
-    running the mpi-info.c file yourself with your version of the library.
+    These defaults have been extracted from MPICH 3.3a2. We would highly suggest
+    running the mpi-info.c file yourself with your version of the library!
     """
 
     # MPI_Datatype
