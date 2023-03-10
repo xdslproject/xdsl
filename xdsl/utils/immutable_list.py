@@ -53,10 +53,6 @@ class IList(List[_T]):
         return super().__setitem__(__index, __object)
 
     def __add__(self, __x: Iterable[_T]) -> IList[_T]:
-        if self._frozen:
-            raise Exception("frozen list can not be modified")
-        if isinstance(__x, IList) and __x._frozen:
-            raise Exception("frozen list can not be modified")
         return IList(super().__add__(__x))  # type: ignore
 
     def __iadd__(self, __x: Iterable[_T]):
