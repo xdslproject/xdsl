@@ -43,6 +43,9 @@ jobs:
         cd xdsl
         pip install -e .[extras]
 
+    - name: Install nbval
+      run: pip install nbval
+
     - name: Install CI dependencies
       run: |
         pip install codecov
@@ -102,6 +105,13 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         lit -v tests/filecheck/ -DCOVERAGE
+
+    - name: Test MLIR dependent examples/tutorials
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Combine coverage data
       run: |

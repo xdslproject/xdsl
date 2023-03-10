@@ -172,11 +172,13 @@ class Maskedload(Operation):
 
         if memref_element_type != res_element_type:
             raise VerifyException(
-                "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+                "MemRef element type should match the result vector and passthrough vector "
+                "element type. Found different element types for memref and result."
             )
         elif memref_element_type != passthrough_element_type:
             raise VerifyException(
-                "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
+                "MemRef element type should match the result vector and passthrough vector "
+                "element type. Found different element types for memref and passthrough."
             )
 
         if memref_typ.get_num_dims() != len(self.indices):
@@ -218,9 +220,9 @@ class Maskedstore(Operation):
 
         if memref_element_type != value_to_store_typ.element_type:
             raise VerifyException(
-                "MemRef element type should match the stored vector type. Obtained types were "
-                + str(memref_element_type) + " and " +
-                str(value_to_store_typ.element_type) + ".")
+                "MemRef element type should match the stored vector type."
+                "Obtained types were " + str(memref_element_type) + " and "
+                + str(value_to_store_typ.element_type) + ".")
 
         if memref_typ.get_num_dims() != len(self.indices):
             raise VerifyException(

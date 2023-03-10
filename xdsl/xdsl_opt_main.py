@@ -47,7 +47,7 @@ class xDSLOptMain:
 
     available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]]
     """
-    A mapping from pass names to functions that apply the pass to a  ModuleOp.
+    A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
     available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
