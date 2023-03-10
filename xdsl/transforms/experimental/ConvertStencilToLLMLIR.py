@@ -50,12 +50,12 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
         if (isinstance(op, FuncOp)):
-            for i in range(len(op.body.blocks[0].args)):
-                memref_type_equiv = GetMemRefFromField(
-                    op.function_type.parameters[0].data[i])
-                rewriter.modify_block_argument_type(op.body.blocks[0].args[i],
-                                                    memref_type_equiv)
-                op.function_type.parameters[0].data[i] = memref_type_equiv
+            for i, arg in enumerate(op.body.blocks[0].args):
+                if isinstance(arg.typ, FieldType):
+                    typ: FieldType[Attribute] = arg.typ
+                    memreftyp = GetMemRefFromField(typ)
+                    rewriter.modify_block_argument_type(arg, memreftyp)
+                    op.function_type.inputs.data[i] = memreftyp
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):

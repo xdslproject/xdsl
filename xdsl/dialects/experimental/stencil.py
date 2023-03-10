@@ -80,7 +80,7 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     def __repr__(self):
         repr: str = "stencil.Temp<["
         for size in self.shape.data:
-            repr += f"{size.data} "
+            repr += f"{size.value.data} "
         repr += "]>"
         return repr
 
