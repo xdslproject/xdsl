@@ -749,6 +749,11 @@ class Operation(IRNode):
 
 
 @dataclass()
+class TerminatorOp(Operation):
+    pass
+
+
+@dataclass()
 class Block(IRNode):
     """A sequence of operations"""
 
