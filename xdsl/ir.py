@@ -827,6 +827,11 @@ OperationInvT = TypeVar('OperationInvT', bound=Operation)
 
 
 @dataclass()
+class TerminatorOp(Operation):
+    pass
+
+
+@dataclass()
 class Block(IRNode):
     """A sequence of operations"""
 

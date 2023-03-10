@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated, List, Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue, TerminatorOp
 from xdsl.irdl import (AnyAttr, AttrSizedOperandSegments, Operand,
                        SingleBlockRegion, VarOperand, VarOpResult,
                        irdl_op_definition)
@@ -32,7 +32,7 @@ class If(Operation):
 
 
 @irdl_op_definition
-class Yield(Operation):
+class Yield(TerminatorOp):
     name: str = "scf.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 

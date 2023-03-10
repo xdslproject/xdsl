@@ -13,11 +13,9 @@ def test_opt():
     assert list(opt.available_frontends.keys()) == ['xdsl', 'mlir']
     assert list(opt.available_targets.keys()) == ['xdsl', 'irdl', 'mlir']
     assert list(opt.available_passes.keys()) == [
-        'lower-mpi',
-        'convert-stencil-to-ll-mlir',
-        'convert-stencil-to-gpu',
-        'stencil-shape-inference',
-        'frontend-desymrefy',
+        'lower-mpi', 'convert-stencil-to-ll-mlir', 'convert-stencil-to-gpu',
+        'stencil-shape-inference', 'frontend-desymrefy', 'lower-mpi',
+        'convert-stencil-to-ll-mlir', 'pdl-analysis'
     ]
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
-from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect, TerminatorOp
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
                        OpAttr, OptOpAttr)
 from xdsl.utils.exceptions import VerifyException
@@ -94,7 +94,7 @@ class Call(Operation):
 
 
 @irdl_op_definition
-class Return(Operation):
+class Return(TerminatorOp):
     name: str = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
 
