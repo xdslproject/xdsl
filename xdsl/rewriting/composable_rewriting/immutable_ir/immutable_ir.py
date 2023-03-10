@@ -203,7 +203,7 @@ class IBlock:
         return self is __o
 
     def __repr__(self) -> str:
-        return "block of" + str(len(self.ops)) + " with args: " + str(
+        return "block of" + str(len(self.ops)) + " operations with args: " + str(
             self.args)
 
     def __post_init__(self):
