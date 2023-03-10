@@ -1,14 +1,34 @@
+/*
+    mpi-info: used to read information from MPI headers files and dump them in
+    an xDSL compatible format.
+
+    This C file expects an MPICH-like mpi library, meaning that:
+
+     - MPI_Datatype, MPI_Comm are integer-like (explicitly not struct pointers)
+     - MPI_STATUS_IGNORE is not a pointer to an actual struct but a magic value instead
+     - All magic values such as `MPI_INT` are constant between runs
+
+    If you are using openMPI, you will find that this script will fail. 
+    Please see the status of https://github.com/xdslproject/xdsl/issues/523
+    for openMPI support.
+
+    If your `MPI_Datatype` isn't `int`, you will need to change the printf
+    format strings below (only of the first two):
+*/
+
 #include <stdio.h>
 #include <mpi.h>
 
-#define PRINT_GLOBAL_VAR(name) (printf("\t" #name " = %ld,\n", (long) name))
+#define PRINT_GLOBAL_VAR(name) (printf("\t" #name " = 0x%08x,\n", name))
+
+#define PRINT_GLOBAL_VAR_PTR(name) (printf("\t" #name " = 0x%08lx,\n", (long int) name))
 
 #define PRINT_GLOBAL_VAR_SIZE(name) (printf("\t" #name "_size = %ld,\n", sizeof(name)))
 
 #define PRINT_STRUCT_FIELD_OFFSET(struct, name, field) (printf("\t" #name "_field_" #field " = %lld,    \t# offset of field " #field " in struct " #name "\n", (((long long int) &(struct.field)) - (long long int) &struct)))
 
-void main() {
 
+int main() {
     printf("info = MpiLibraryInfo(\n");
 
     // Datatype
@@ -63,8 +83,10 @@ void main() {
     // Status
     printf("\n\t# MPI_Status\n");
     PRINT_GLOBAL_VAR_SIZE(MPI_Status);
-    PRINT_GLOBAL_VAR(MPI_STATUS_IGNORE);
-    PRINT_GLOBAL_VAR(MPI_STATUSES_IGNORE);
+
+    PRINT_GLOBAL_VAR_PTR(MPI_STATUS_IGNORE);
+    PRINT_GLOBAL_VAR_PTR(MPI_STATUSES_IGNORE);
+
 
     MPI_Status status;
     
@@ -73,4 +95,6 @@ void main() {
     PRINT_STRUCT_FIELD_OFFSET(status, MPI_Status, MPI_ERROR);
 
     printf(")\n");
+
+    return 0;
 }
