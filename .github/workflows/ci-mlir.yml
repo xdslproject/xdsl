@@ -37,14 +37,12 @@ jobs:
       run: |
         pip install --upgrade pip
 
-    - name: Install the package locally
+    - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         pip install -e .[extras]
-
-    - name: Install nbval
-      run: pip install nbval
+        pip install nbval
 
     - name: Install CI dependencies
       run: |
