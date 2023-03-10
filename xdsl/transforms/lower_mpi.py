@@ -34,53 +34,53 @@ class MpiLibraryInfo:
 
     # MPI_Datatype
     MPI_Datatype_size: int = 4
-    MPI_CHAR: int = 1275068673
-    MPI_SIGNED_CHAR: int = 1275068696
-    MPI_UNSIGNED_CHAR: int = 1275068674
-    MPI_BYTE: int = 1275068685
-    MPI_WCHAR: int = 1275069454
-    MPI_SHORT: int = 1275068931
-    MPI_UNSIGNED_SHORT: int = 1275068932
-    MPI_INT: int = 1275069445
-    MPI_UNSIGNED: int = 1275069446
-    MPI_LONG: int = 1275070471
-    MPI_UNSIGNED_LONG: int = 1275070472
-    MPI_FLOAT: int = 1275069450
-    MPI_DOUBLE: int = 1275070475
-    MPI_LONG_DOUBLE: int = 1275072524
-    MPI_LONG_LONG_INT: int = 1275070473
-    MPI_UNSIGNED_LONG_LONG: int = 1275070489
-    MPI_LONG_LONG: int = 1275070473
+    MPI_CHAR: int = 0x4c000101
+    MPI_SIGNED_CHAR: int = 0x4c000118
+    MPI_UNSIGNED_CHAR: int = 0x4c000102
+    MPI_BYTE: int = 0x4c00010d
+    MPI_WCHAR: int = 0x4c00040e
+    MPI_SHORT: int = 0x4c000203
+    MPI_UNSIGNED_SHORT: int = 0x4c000204
+    MPI_INT: int = 0x4c000405
+    MPI_UNSIGNED: int = 0x4c000406
+    MPI_LONG: int = 0x4c000807
+    MPI_UNSIGNED_LONG: int = 0x4c000808
+    MPI_FLOAT: int = 0x4c00040a
+    MPI_DOUBLE: int = 0x4c00080b
+    MPI_LONG_DOUBLE: int = 0x4c00100c
+    MPI_LONG_LONG_INT: int = 0x4c000809
+    MPI_UNSIGNED_LONG_LONG: int = 0x4c000819
+    MPI_LONG_LONG: int = 0x4c000809
 
     # MPI_Op
     MPI_Op_size: int = 4
-    MPI_MAX: int = 1476395009
-    MPI_MIN: int = 1476395010
-    MPI_SUM: int = 1476395011
-    MPI_PROD: int = 1476395012
-    MPI_LAND: int = 1476395013
-    MPI_BAND: int = 1476395014
-    MPI_LOR: int = 1476395015
-    MPI_BOR: int = 1476395016
-    MPI_LXOR: int = 1476395017
-    MPI_BXOR: int = 1476395018
-    MPI_MINLOC: int = 1476395019
-    MPI_MAXLOC: int = 1476395020
-    MPI_REPLACE: int = 1476395021
-    MPI_NO_OP: int = 1476395022
+    MPI_MAX: int = 0x58000001
+    MPI_MIN: int = 0x58000002
+    MPI_SUM: int = 0x58000003
+    MPI_PROD: int = 0x58000004
+    MPI_LAND: int = 0x58000005
+    MPI_BAND: int = 0x58000006
+    MPI_LOR: int = 0x58000007
+    MPI_BOR: int = 0x58000008
+    MPI_LXOR: int = 0x58000009
+    MPI_BXOR: int = 0x5800000a
+    MPI_MINLOC: int = 0x5800000b
+    MPI_MAXLOC: int = 0x5800000c
+    MPI_REPLACE: int = 0x5800000d
+    MPI_NO_OP: int = 0x5800000e
 
     # MPI_Comm
     MPI_Comm_size: int = 4
-    MPI_COMM_WORLD: int = 1140850688
-    MPI_COMM_SELF: int = 1140850689
+    MPI_COMM_WORLD: int = 0x44000000
+    MPI_COMM_SELF: int = 0x44000001
 
     # MPI_Request
     MPI_Request_size: int = 4
 
     # MPI_Status
     MPI_Status_size: int = 20
-    MPI_STATUS_IGNORE: int = 1
-    MPI_STATUSES_IGNORE: int = 1
+    MPI_STATUS_IGNORE: int = 0x00000001
+    MPI_STATUSES_IGNORE: int = 0x00000001
     MPI_Status_field_MPI_SOURCE: int = 8  # offset of field MPI_SOURCE in struct MPI_Status
     MPI_Status_field_MPI_TAG: int = 12  # offset of field MPI_TAG in struct MPI_Status
     MPI_Status_field_MPI_ERROR: int = 16  # offset of field MPI_ERROR in struct MPI_Status
