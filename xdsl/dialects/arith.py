@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, TypeVar, Union, Set, Optional
 
-from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType, IntAttr,
-                                   IntegerType, Float32Type, IntegerAttr, FloatAttr,
-                                   Attribute, AnyFloat, AnyIntegerAttr)
+from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
+                                   IntAttr, IntegerType, Float32Type, IntegerAttr,
+                                   FloatAttr, Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
                        Operand, irdl_attr_definition)

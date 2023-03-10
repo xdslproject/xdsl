@@ -4,8 +4,6 @@
   "reportUnnecessaryIsInstance": false,
   "typeCheckingMode": "strict",
   "exclude": [
-    "xdsl/dialects/vector.py",
-    "xdsl/dialects/builtin.py",
     "xdsl/parser.py",
     "xdsl/irdl_mlir_printer.py",
     "xdsl/irdl.py",
