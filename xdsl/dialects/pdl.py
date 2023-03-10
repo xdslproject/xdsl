@@ -6,22 +6,22 @@ from xdsl.utils import *
 
 
 @irdl_attr_definition
-class AttributeType(ParametrizedAttribute):
+class AttributeType(ParametrizedAttribute, MLIRType):
     name = "pdl.attribute"
 
 
 @irdl_attr_definition
-class OperationType(ParametrizedAttribute):
+class OperationType(ParametrizedAttribute, MLIRType):
     name = "pdl.operation"
 
 
 @irdl_attr_definition
-class TypeType(ParametrizedAttribute):
+class TypeType(ParametrizedAttribute, MLIRType):
     name = "pdl.type"
 
 
 @irdl_attr_definition
-class ValueType(ParametrizedAttribute):
+class ValueType(ParametrizedAttribute, MLIRType):
     name = "pdl.value"
 
 
@@ -33,7 +33,7 @@ _RangeT = TypeVar("_RangeT",
 
 
 @irdl_attr_definition
-class RangeType(Generic[_RangeT], ParametrizedAttribute):
+class RangeType(Generic[_RangeT], ParametrizedAttribute, MLIRType):
     name = "pdl.range"
     element_type: ParameterDef[_RangeT]
 
