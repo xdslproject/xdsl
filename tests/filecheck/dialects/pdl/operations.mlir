@@ -13,7 +13,7 @@
   }) {benefit = 1 : i16, sym_name = "operations"} : () -> ()
 }) : () -> ()
 
-// CHECK-LABEL:   "pdl.pattern"() ({
+// CHECK:   "pdl.pattern"() ({
 // CHECK:           %[[VAL_0:.*]] = "pdl.attribute"() : () -> !pdl.attribute
 // CHECK:           %[[VAL_1:.*]] = "pdl.type"() : () -> !pdl.type
 // CHECK:           %[[VAL_2:.*]] = "pdl.operation"(%[[VAL_0]], %[[VAL_1]]) {attributeValueNames = ["attr"], operand_segment_sizes = array<i32: 0, 1, 1>} : (!pdl.attribute, !pdl.type) -> !pdl.operation
