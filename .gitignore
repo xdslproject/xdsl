@@ -149,3 +149,8 @@ tests/**/Output/*
 
 # Mac
 .DS_Store
+
+# Notebook files
+docs/opt-out.mlir
+docs/out.mlir
+docs/ret.xdsl
