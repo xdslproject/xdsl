@@ -54,7 +54,6 @@ jobs:
         path: llvm-project/build
         key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
         restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        append-timestamp: false
 
     - name: Checkout MLIR
       if: steps.cache-binary.outputs.cache-hit != 'true'
