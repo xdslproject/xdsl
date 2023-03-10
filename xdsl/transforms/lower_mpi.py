@@ -25,29 +25,65 @@ class MpiLibraryInfo:
 
     This way of doing it is inherently fragile, but we don't know of any better way.
     We plan to include a C file that automagically extracts all this information from MPI headers.
+    You can see the current C file used in this PR: https://github.com/xdslproject/xdsl/pull/526
+    You can see the status of OpenMPI support here: https://github.com/xdslproject/xdsl/issues/523
 
-    These defaults have been chosen to work with **our** version of OpenMPI. No guarantees of portability!
+    These defaults have been chosen to work with a specific version of MPICH. We would suggest
+    running the mpi-info.c file yourself with your version of the library.
     """
-    mpi_comm_world_val: int = 0x44000000
 
-    MPI_INT: int = 0x4c000405
-    MPI_UNSIGNED: int = 0x4c000406
-    MPI_LONG: int = 0x4c000807
-    MPI_UNSIGNED_LONG: int = 0x4c000808
-    MPI_FLOAT: int = 0x4c00040a
-    MPI_DOUBLE: int = 0x4c00080b
-    MPI_UNSIGNED_CHAR: int = -1
-    MPI_UNSIGNED_SHORT: int = -1
-    MPI_UNSIGNED_LONG_LONG: int = -1
-    MPI_CHAR: int = -1
-    MPI_SHORT: int = -1
-    MPI_LONG_LONG_INT: int = -1
+    # MPI_Datatype
+    MPI_Datatype_size: int = 4
+    MPI_CHAR: int = 1275068673
+    MPI_SIGNED_CHAR: int = 1275068696
+    MPI_UNSIGNED_CHAR: int = 1275068674
+    MPI_BYTE: int = 1275068685
+    MPI_WCHAR: int = 1275069454
+    MPI_SHORT: int = 1275068931
+    MPI_UNSIGNED_SHORT: int = 1275068932
+    MPI_INT: int = 1275069445
+    MPI_UNSIGNED: int = 1275069446
+    MPI_LONG: int = 1275070471
+    MPI_UNSIGNED_LONG: int = 1275070472
+    MPI_FLOAT: int = 1275069450
+    MPI_DOUBLE: int = 1275070475
+    MPI_LONG_DOUBLE: int = 1275072524
+    MPI_LONG_LONG_INT: int = 1275070473
+    MPI_UNSIGNED_LONG_LONG: int = 1275070489
+    MPI_LONG_LONG: int = 1275070473
 
+    # MPI_Op
+    MPI_Op_size: int = 4
+    MPI_MAX: int = 1476395009
+    MPI_MIN: int = 1476395010
+    MPI_SUM: int = 1476395011
+    MPI_PROD: int = 1476395012
+    MPI_LAND: int = 1476395013
+    MPI_BAND: int = 1476395014
+    MPI_LOR: int = 1476395015
+    MPI_BOR: int = 1476395016
+    MPI_LXOR: int = 1476395017
+    MPI_BXOR: int = 1476395018
+    MPI_MINLOC: int = 1476395019
+    MPI_MAXLOC: int = 1476395020
+    MPI_REPLACE: int = 1476395021
+    MPI_NO_OP: int = 1476395022
+
+    # MPI_Comm
+    MPI_Comm_size: int = 4
+    MPI_COMM_WORLD: int = 1140850688
+    MPI_COMM_SELF: int = 1140850689
+
+    # MPI_Request
+    MPI_Request_size: int = 4
+
+    # MPI_Status
+    MPI_Status_size: int = 20
     MPI_STATUS_IGNORE: int = 1
-
-    request_size: int = 4
-    status_size: int = 4 * 5
-    mpi_comm_size: int = 4
+    MPI_STATUSES_IGNORE: int = 1
+    MPI_Status_field_MPI_SOURCE: int = 8  # offset of field MPI_SOURCE in struct MPI_Status
+    MPI_Status_field_MPI_TAG: int = 12  # offset of field MPI_TAG in struct MPI_Status
+    MPI_Status_field_MPI_ERROR: int = 16  # offset of field MPI_ERROR in struct MPI_Status
 
 
 _RewriteT = TypeVar('_RewriteT', bound=mpi.MPIBaseOp)
@@ -107,7 +143,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                 lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
                 res := llvm.AllocaOp.get(lit1,
                                          builtin.IntegerType(
-                                             8 * self.info.status_size),
+                                             8 * self.info.MPI_Status_size),
                                          as_untyped_ptr=True),
             ], [res.res], res
 
@@ -293,14 +329,12 @@ class LowerMpiISend(_MPIToLLVMRewriteBase):
         return [
             *count_ops,
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             datatype := self._emit_mpi_type_load(memref_elm_typ),
             tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request :=
-            llvm.AllocaOp.get(lit1,
-                              builtin.IntegerType(8 * self.info.request_size)),
+            request := llvm.AllocaOp.get(
+                lit1, builtin.IntegerType(8 * self.info.MPI_Request_size)),
             *(ptr := self._memref_get_llvm_ptr(op.buffer))[0],
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.dest, tag, comm_global,
@@ -335,12 +369,10 @@ class LowerMpiIRecv(_MPIToLLVMRewriteBase):
             datatype := self._emit_mpi_type_load(memref_elm_typ),
             tag := arith.Constant.from_int_and_width(op.tag.value.data, i32),
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             lit1 := arith.Constant.from_int_and_width(1, builtin.i64),
-            request :=
-            llvm.AllocaOp.get(lit1,
-                              builtin.IntegerType(8 * self.info.request_size)),
+            request := llvm.AllocaOp.get(
+                lit1, builtin.IntegerType(8 * self.info.MPI_Request_size)),
             func.Call.get(self._mpi_name(op), [
                 ptr[1], count_ssa_val, datatype, op.source, tag, comm_global,
                 request
@@ -367,8 +399,7 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
 
         return [
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             func.Call.get(self._mpi_name(op), [
                 op.buffer, op.count, op.datatype, op.dest, op.tag, comm_global
             ], [i32]),
@@ -398,8 +429,7 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
         return [
             *mpi_status_ops,
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             func.Call.get(self._mpi_name(op), [
                 op.buffer, op.count, op.datatype, op.source, op.tag,
                 comm_global, status
@@ -462,8 +492,7 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
         """
         return [
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp.get(lit1, i32),
             func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [i32]),
@@ -488,8 +517,7 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
         """
         return [
             comm_global :=
-            arith.Constant.from_int_and_width(self.info.mpi_comm_world_val,
-                                              i32),
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp.get(lit1, i32),
             func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [i32]),
