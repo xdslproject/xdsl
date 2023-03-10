@@ -6,7 +6,9 @@ from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
 from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue)
+                     Operation, Region, Attribute, Dialect, SSAValue,
+                     AttributeTCov, AttributeT)
+
 from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
@@ -39,25 +41,22 @@ class ArrayOfConstraint(AttrConstraint):
             self.elem_constr.verify(e)
 
 
-_ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
-
-
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
+class ArrayAttr(GenericData[tuple[AttributeTCov, ...]]):
     name: str = "array"
 
-    def __init__(self: ArrayAttr[_ArrayAttrT],
-                 param: Iterable[_ArrayAttrT]) -> None:
+    def __init__(self: ArrayAttr[AttributeTCov],
+                 param: Iterable[AttributeTCov]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> tuple[_ArrayAttrT]:
+    def parse_parameter(parser: BaseParser) -> tuple[AttributeTCov]:
         parser.parse_char("[")
         data = parser.parse_list_of(parser.try_parse_attribute,
                                     "Expected attribute")
         parser.parse_char("]")
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[_ArrayAttrT], tuple(data))
+        result = cast(tuple[AttributeTCov], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -88,8 +87,8 @@ class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
 
     @staticmethod
     @deprecated_constructor
-    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        return ArrayAttr[_ArrayAttrT](data)
+    def from_list(data: List[AttributeTCov]) -> ArrayAttr[AttributeTCov]:
+        return ArrayAttr[AttributeTCov](data)
 
     def __len__(self):
         return len(self.data)
@@ -472,15 +471,12 @@ class TupleType(ParametrizedAttribute):
         return TupleType(types)
 
 
-_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
-
-
 @irdl_attr_definition
-class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
+class VectorType(Generic[AttributeT], ParametrizedAttribute, MLIRType):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_VectorTypeElems]
+    element_type: ParameterDef[AttributeT]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -490,9 +486,9 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_element_type_and_shape(
-        referenced_type: _VectorTypeElems,
-        shape: List[int | IntegerAttr[IndexType]]
-    ) -> VectorType[_VectorTypeElems]:
+            referenced_type: AttributeT,
+            shape: List[int | IntegerAttr[IndexType]]
+    ) -> VectorType[AttributeT]:
         return VectorType([
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
@@ -502,25 +498,22 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_params(
-        referenced_type: _VectorTypeElems,
+        referenced_type: AttributeT,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> VectorType[_VectorTypeElems]:
+    ) -> VectorType[AttributeT]:
         return VectorType([shape, referenced_type])
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
-_TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
-_TensorTypeInvElems = TypeVar("_TensorTypeInvElems", bound=Attribute)
-
 
 @irdl_attr_definition
-class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
+class TensorType(Generic[AttributeTCov], ParametrizedAttribute, MLIRType):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_TensorTypeElems]
+    element_type: ParameterDef[AttributeTCov]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -530,9 +523,9 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_and_list(
-        referenced_type: _TensorTypeInvElems,
+        referenced_type: AttributeT,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None
-    ) -> TensorType[_TensorTypeInvElems]:
+    ) -> TensorType[AttributeT]:
         if shape is None:
             shape = [1]
         return TensorType([
@@ -544,34 +537,26 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_params(
-        referenced_type: _VectorTypeElems,
+        referenced_type: AttributeT,
         shape: AnyArrayAttr = AnyArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> TensorType[_VectorTypeElems]:
+    ) -> TensorType[AttributeT]:
         return TensorType([shape, referenced_type])
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
-_UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
-                                   bound=Attribute,
-                                   covariant=True)
-
-_UnrankedTensorTypeInvElems = TypeVar("_UnrankedTensorTypeInvElems",
-                                      bound=Attribute)
-
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
-                         ParametrizedAttribute, MLIRType):
+class UnrankedTensorType(Generic[AttributeTCov], ParametrizedAttribute,
+                         MLIRType):
     name = "unranked_tensor"
 
-    element_type: ParameterDef[_UnrankedTensorTypeElems]
+    element_type: ParameterDef[AttributeTCov]
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedTensorTypeInvElems
-    ) -> UnrankedTensorType[_UnrankedTensorTypeInvElems]:
+            referenced_type: AttributeT) -> UnrankedTensorType[AttributeT]:
         return UnrankedTensorType([referenced_type])
 
 
@@ -595,11 +580,9 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
-_VectorOrTensorElem = TypeVar("_VectorOrTensorElem", bound=Attribute)
-
-VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
-                               | TensorType[_VectorOrTensorElem]
-                               | UnrankedTensorType[_VectorOrTensorElem])
+VectorOrTensorOf: TypeAlias = (VectorType[AttributeT]
+                               | TensorType[AttributeT]
+                               | UnrankedTensorType[AttributeT])
 
 
 @dataclass

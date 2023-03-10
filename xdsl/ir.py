@@ -317,6 +317,9 @@ DataElement = TypeVar("DataElement", covariant=True)
 
 _D = TypeVar("_D", bound="Data[Any]")
 
+AttributeTCov = TypeVar("AttributeTCov", bound=Attribute, covariant=True)
+AttributeT = TypeVar("AttributeT", bound=Attribute)
+
 
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
