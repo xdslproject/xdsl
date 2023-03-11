@@ -21,7 +21,7 @@ def GetMemRefFromField(
             IntegerAttr.from_params(inputFieldType.shape.data[i].value.data,
                                     inputFieldType.shape.data[i].typ))
 
-    memref_shape_array_attr = ArrayAttr[AnyIntegerAttr].from_list(
+    memref_shape_array_attr = ArrayAttr[AnyIntegerAttr](
         memref_shape_integer_attr_list)
 
     return MemRefType.from_params(inputFieldType.element_type,
@@ -40,8 +40,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
                 abs(ub.parameters[0].data[i].value.data),
                 lb.parameters[0].data[i].typ.width.data))
 
-    memref_shape_array_attr = ArrayAttr.from_list(
-        memref_shape_integer_attr_list)
+    memref_shape_array_attr = ArrayAttr(memref_shape_integer_attr_list)
 
     return MemRefType.from_params(memref_element_type, memref_shape_array_attr)
 
@@ -58,8 +57,9 @@ class StencilTypeConversionFuncOp(RewritePattern):
                     rewriter.modify_block_argument_type(arg, memreftyp)
                     inputs.append(memreftyp)
 
-            op.attributes["function_type"] = FunctionType.from_lists(
-                inputs, list(op.function_type.outputs.data))
+            op.attributes["function_type"] = FunctionType(
+                [ArrayAttr(inputs),
+                 ArrayAttr(op.function_type.outputs.data)])
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
