@@ -58,7 +58,8 @@ class Printer:
                 self.print_region(arg)
                 continue
             if isinstance(arg, Block):
-                self.print_block(arg)
+                self.print_block(arg, print_block_name=False)
+                self._print_new_line()
                 continue
             if isinstance(arg, Operation):
                 self.print_op(arg)
@@ -211,35 +212,32 @@ class Printer:
             self.print(" : ")
             self.print_attribute(operand.typ)
 
-    def _print_ops(self, ops: List[Operation]) -> None:
-        self._indent += 1
-        for op in ops:
-            self._print_new_line()
-            self.print_op(op)
-        self._indent -= 1
-        if len(ops) > 0:
-            self._print_new_line()
-
     def print_block_name(self, block: Block) -> None:
         self.print("^")
         if block not in self._block_names:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block) -> None:
+    def print_block(self, block: Block, print_block_name: bool) -> None:
         if not isinstance(block, Block):
             raise TypeError('Expected a Block; got %s' % type(block).__name__)
 
-        self.print_block_name(block)
-        if len(block.args) > 0:
+        print_block_args = len(block.args) > 0
+        if print_block_args or print_block_name:
+            self._print_new_line()
+            self.print_block_name(block)
+        if print_block_args:
             self.print("(")
             self.print_list(block.args, self._print_block_arg)
             self.print(")")
-        self.print(":")
-        if len(block.ops) > 0:
-            self._print_ops(block.ops)
-        else:
+        if print_block_args or print_block_name:
+            self.print(":")
+
+        self._indent += 1
+        for op in block.ops:
             self._print_new_line()
+            self.print_op(op)
+        self._indent -= 1
 
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self.print("%")
@@ -252,20 +250,13 @@ class Printer:
         if not isinstance(region, Region):
             raise TypeError('Expected a Region; got %s' %
                             type(region).__name__)
-        if len(region.blocks) == 0:
-            self.print("{}")
-            return
 
-        if len(region.blocks) == 1 and len(region.blocks[0].args) == 0:
-            self.print("{")
-            self._print_ops(region.blocks[0].ops)
-            self.print("}")
-            return
+        print_block_name = len(region.blocks) != 1
 
         self.print("{")
-        self._print_new_line()
         for block in region.blocks:
-            self.print_block(block)
+            self.print_block(block, print_block_name=print_block_name)
+        self._print_new_line()
         self.print("}")
 
     def print_regions(self, regions: List[Region]) -> None:
