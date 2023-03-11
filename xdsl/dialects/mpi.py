@@ -8,7 +8,8 @@ from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
                                    AnyFloat, i32)
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
+from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
+                     ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
