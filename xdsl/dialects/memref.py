@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, TypeVar, Optional, List, TypeAlias, cast
+from typing import Annotated, Sequence, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    DenseArrayBase, IndexType, ArrayAttr,
@@ -33,8 +33,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_element_type_and_shape(
-            referenced_type: _MemRefTypeElement,
-            shape: List[int | AnyIntegerAttr]
+        referenced_type: _MemRefTypeElement,
+        shape: Sequence[int | AnyIntegerAttr]
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
             ArrayAttr[AnyIntegerAttr]([

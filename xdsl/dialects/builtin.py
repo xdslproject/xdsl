@@ -491,7 +491,7 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: _VectorTypeElems,
-        shape: List[int | IntegerAttr[IndexType]]
+        shape: Sequence[int | IntegerAttr[IndexType]]
     ) -> VectorType[_VectorTypeElems]:
         return VectorType([
             ArrayAttr([
