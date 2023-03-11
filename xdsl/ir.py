@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
-    from xdsl.utils.span import Span
+    from xdsl.utils.lexer import Span
 
 OpT = TypeVar('OpT', bound='Operation')
 
