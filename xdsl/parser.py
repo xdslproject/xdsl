@@ -15,17 +15,18 @@ from io import StringIO
 from typing import Any, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.span import Input, Span
+from xdsl.utils.lexer import Input, Span
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
-    AnyFloat, AnyTensorType, AnyUnrankedTensorType, AnyVectorType,
-    DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type, Float64Type,
-    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
-    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, VectorType,
-    SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr, UnregisteredOp,
-    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
+    AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
+    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
+    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
+    VectorType, SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
+    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -633,8 +634,8 @@ class BaseParser(ABC):
             if allow_empty:
                 return []
             self.raise_error(error_msg)
-        else:
-            items = [first_item]
+
+        items = [first_item]
 
         while (match := self.tokenizer.next_token_of_pattern(separator_pattern)
                ) is not None:
@@ -816,8 +817,9 @@ class BaseParser(ABC):
     def parse_memref_attrs(
             self) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
         dims = self._parse_tensor_or_memref_dims()
-        type = self.try_parse_type()
-        assert type is not None
+        type = self.expect(
+            self.try_parse_type,
+            "Type cannot be nil when parsing memref attributes")
         if dims is None:
             return UnrankedMemrefType.from_type(type)
         return MemRefType.from_element_type_and_shape(type, dims)
@@ -1181,9 +1183,7 @@ class BaseParser(ABC):
         type = self.expect(self.try_parse_type,
                            "Dense attribute must be typed!")
 
-        # Make sure type is AnyTensorType
-        assert isinstance(type, VectorType | TensorType | UnrankedTensorType)
-        type = cast(AnyTensorType, type)
+        assert isa(type, AnyTensorType)
 
         return DenseIntOrFPElementsAttr.from_list(type, info)
 
@@ -1311,7 +1311,7 @@ class BaseParser(ABC):
 
             return IntegerAttr.from_params(int(value.text), type)
 
-    def try_parse_builtin_float_attr(self) -> FloatAttr[AnyFloat] | None:
+    def try_parse_builtin_float_attr(self) -> AnyFloatAttr | None:
         with self.tokenizer.backtracking("float literal"):
             value = self.expect(
                 self.try_parse_float_literal,
@@ -1347,7 +1347,7 @@ class BaseParser(ABC):
                 self.raise_error("Invalid string literal")
             return StringAttr(literal.string_contents)
 
-    def try_parse_builtin_arr_attr(self) -> ArrayAttr[Attribute] | None:
+    def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
             return None
         with self.tokenizer.backtracking("array literal"):
