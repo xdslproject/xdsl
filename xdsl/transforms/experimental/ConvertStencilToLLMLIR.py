@@ -57,7 +57,9 @@ class StencilTypeConversionFuncOp(RewritePattern):
                     memreftyp = GetMemRefFromField(typ)
                     rewriter.modify_block_argument_type(arg, memreftyp)
                     inputs.append(memreftyp)
-            op.function_type.inputs = ArrayAttr[Attribute].from_list(inputs)
+
+            op.attributes["function_type"] = FunctionType.from_lists(
+                inputs, list(op.function_type.outputs.data))
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
