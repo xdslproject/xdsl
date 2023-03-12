@@ -39,7 +39,8 @@
             %subgroupid = "gpu.subgroup_id"() : () -> index
             %subgroupsize = "gpu.subgroup_size"() : () -> index
 
-            %globalprodx = "gpu.all_reduce"(%globalidx) ({}) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
+            %globalprodx = "gpu.all_reduce"(%globalidx) ({
+            }) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
 
             %globalsumy = "gpu.all_reduce"(%globalidy) ({
             ^bb(%lhs : index, %rhs : index):
@@ -52,7 +53,8 @@
                 %tx : index, %ty : index, %tz : index,
                 %num_bx : index, %num_by : index, %num_bz : index,
                 %num_tx : index, %num_ty : index, %num_tz : index):
-                %sum = "gpu.all_reduce"(%tx) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+                %sum = "gpu.all_reduce"(%tx) ({
+                }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
                 %final = "arith.muli"(%sum, %one) : (index, index) -> index    
                 "gpu.terminator"() : () -> ()
             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
@@ -102,7 +104,8 @@
 // CHECK-NEXT:             %{{.*}} = "gpu.subgroup_id"() : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.subgroup_size"() : () -> index
 
-// CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({}) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
+// CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
+// CHECK-NEXT:             }) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
 // CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
@@ -115,7 +118,8 @@
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
-// CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+// CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
+// CHECK-NEXT:             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index    
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
