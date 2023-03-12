@@ -8,7 +8,8 @@
     %3 = "pdl.result"(%2) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
     %4 = "pdl.operand"() : () -> !pdl.value
     %5 = "pdl.operation"(%3, %4) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-    "pdl.rewrite"(%5) ({}) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    "pdl.rewrite"(%5) ({
+    }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
   }) {"benefit" = 1 : i16, "sym_name" = "operations"} : () -> ()
 }) : () -> ()
 
@@ -20,7 +21,8 @@
 // CHECK-NEXT:       %3 = "pdl.result"(%2) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
 // CHECK-NEXT:       %4 = "pdl.operand"() : () -> !pdl.value
 // CHECK-NEXT:       %5 = "pdl.operation"(%3, %4) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-// CHECK-NEXT:       "pdl.rewrite"(%5) ({}) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
+// CHECK-NEXT:       "pdl.rewrite"(%5) ({
+// CHECK-NEXT:       }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
 // CHECK-NEXT:     }) {"benefit" = 1 : i16, "sym_name" = "operations"} : () -> ()
 // CHECK-NEXT:   }) : () -> ()
 
