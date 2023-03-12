@@ -99,7 +99,7 @@ class PowFOp(Operation):
     @staticmethod
     def get(lhs: Union[Operation, SSAValue],
             rhs: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> IPowIOp:
+            fastmath: FastMathFlagsAttr | None = None) -> PowFOp:
         attributes: dict[str, Attribute] = {}
         if fastmath is not None:
             attributes["fastmath"] = fastmath
@@ -155,7 +155,7 @@ class SqrtOp(Operation):
 
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> IPowIOp:
+            fastmath: FastMathFlagsAttr | None = None) -> SqrtOp:
         attributes: dict[str, Attribute] = {}
         if fastmath is not None:
             attributes["fastmath"] = fastmath
