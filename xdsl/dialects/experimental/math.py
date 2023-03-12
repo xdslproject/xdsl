@@ -45,6 +45,7 @@ class FPowIOp(Operation):
         if fastmath is not None:
             attributes["fastmath"] = fastmath
 
+        lhs = SSAValue.get(lhs)
         return FPowIOp.build(attributes=attributes,
                              operands=[lhs, rhs],
                              result_types=[lhs.typ])
@@ -72,6 +73,7 @@ class IPowIOp(Operation):
     @staticmethod
     def get(lhs: Union[Operation, SSAValue], rhs: Union[Operation,
                                                         SSAValue]) -> IPowIOp:
+        lhs = SSAValue.get(lhs)
         return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.typ])
 
 
@@ -104,6 +106,7 @@ class PowFOp(Operation):
         if fastmath is not None:
             attributes["fastmath"] = fastmath
 
+        lhs = SSAValue.get(lhs)
         return PowFOp.build(attributes=attributes,
                             operands=[lhs, rhs],
                             result_types=[lhs.typ])
@@ -132,6 +135,7 @@ class RsqrtOp(Operation):
         if fastmath is not None:
             attributes["fastmath"] = fastmath
 
+        operand = SSAValue.get(operand)
         return RsqrtOp.build(attributes=attributes,
                              operands=[operand],
                              result_types=[operand.typ])
@@ -160,6 +164,7 @@ class SqrtOp(Operation):
         if fastmath is not None:
             attributes["fastmath"] = fastmath
 
+        operand = SSAValue.get(operand)
         return SqrtOp.build(attributes=attributes,
                             operands=[operand],
                             result_types=[operand.typ])
