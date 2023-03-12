@@ -231,13 +231,7 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        if isinstance(self.block, Block):
-            block_repr = f"Block(num_arguments={len(self.block.args)}, " + \
-                         f"num_blocks={len(self.block.ops)} ops)"
-        else:
-            block_repr = repr(self.block)
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-               f", block={block_repr}, index={repr(self.index)}"
+        return "{}<%{}: {}>(num_uses={})".format(self.__class__.__name__, self.index, self.typ, len(self.uses))
 
     def __eq__(self, other: object) -> bool:
         return self is other
