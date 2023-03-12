@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Annotated, TypeVar, Any, cast
 
 from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
-                                   ArrayAttr, f32, f64, IntegerType, IndexType,
-                                   IntAttr, AnyFloat)
+                                   ArrayAttr, f32, f64, IntegerType, IntAttr,
+                                   AnyFloat)
+from xdsl.dialects import builtin
 from xdsl.ir import Operation, Dialect, MLIRType
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
@@ -112,27 +113,27 @@ class ArrayLength(AttrConstraint):
 
 # TODO: How can we inherit from MLIRType and ParametrizedAttribute?
 @dataclass(frozen=True)
-class Stencil_Element(ParametrizedAttribute):
+class ElementType(ParametrizedAttribute):
     name = "stencil.element"
     element = AnyOf([f32, f64])
 
 
 @dataclass(frozen=True)
-class Stencil_Index(ParametrizedAttribute):
+class IndexAttr(ParametrizedAttribute):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
     shape = Annotated[ArrayAttr[AnyIntegerAttr], ArrayLength(2)]
 
 
 @dataclass(frozen=True)
-class Stencil_Loop(ParametrizedAttribute):
+class LoopAttr(ParametrizedAttribute):
     name = "stencil.loop"
     shape = Annotated[ArrayAttr[IntAttr], ArrayLength(4)]
 
 
 # Operations
 @irdl_op_definition
-class Cast(Operation):
+class CastOp(Operation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
 
@@ -141,14 +142,14 @@ class Cast(Operation):
     """
     name: str = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[Stencil_Index]
-    ub: OptOpAttr[Stencil_Index]
+    lb: OptOpAttr[IndexAttr]
+    ub: OptOpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
 
 # Operations
 @irdl_op_definition
-class External_Load(Operation):
+class ExternalLoadOp(Operation):
     """
     This operation loads from an external field type, e.g. to bring data into the stencil
 
@@ -161,7 +162,7 @@ class External_Load(Operation):
 
 
 @irdl_op_definition
-class External_Store(Operation):
+class ExternalStoreOp(Operation):
     """
     This operation takes a stencil field and then stores this to an external type
 
@@ -174,7 +175,7 @@ class External_Store(Operation):
 
 
 @irdl_op_definition
-class Index(Operation):
+class IndexOp(Operation):
     """
     This operation returns the index of the current loop iteration for the
     chosen direction (0, 1, or 2).
@@ -185,12 +186,12 @@ class Index(Operation):
     """
     name: str = "stencil.index"
     dim: OpAttr[IntegerType]
-    offset: OpAttr[Stencil_Index]
-    idx: Annotated[OpResult, IndexType]
+    offset: OpAttr[IndexAttr]
+    idx: Annotated[OpResult, builtin.IndexType]
 
 
 @irdl_op_definition
-class Access(Operation):
+class AccessOp(Operation):
     """
     This operation accesses a temporary element given a constant
     offset. The offset is specified relative to the current position.
@@ -200,12 +201,12 @@ class Access(Operation):
     """
     name: str = "stencil.access"
     temp: Annotated[Operand, TempType]
-    offset: OpAttr[Stencil_Index]
+    offset: OpAttr[IndexAttr]
     res: Annotated[OpResult, Attribute]
 
 
 @irdl_op_definition
-class DynAccess(Operation):
+class DynAccessOp(Operation):
     """
     This operation accesses a temporary element given a dynamic offset.
     The offset is specified in absolute coordinates. An additional
@@ -217,14 +218,14 @@ class DynAccess(Operation):
     """
     name: str = "stencil.dyn_access"
     temp: Annotated[Operand, TempType]
-    offset: OpAttr[Stencil_Index]
-    lb: OpAttr[Stencil_Index]
-    ub: OpAttr[Stencil_Index]
-    res: Annotated[OpResult, Stencil_Element]
+    offset: OpAttr[IndexAttr]
+    lb: OpAttr[IndexAttr]
+    ub: OpAttr[IndexAttr]
+    res: Annotated[OpResult, ElementType]
 
 
 @irdl_op_definition
-class Load(Operation):
+class LoadOp(Operation):
     """
     This operation takes a field and returns a temporary values.
 
@@ -233,13 +234,13 @@ class Load(Operation):
     """
     name: str = "stencil.load"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[Stencil_Index]
-    ub: OptOpAttr[Stencil_Index]
+    lb: OptOpAttr[IndexAttr]
+    ub: OptOpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
 
 @irdl_op_definition
-class Buffer(Operation):
+class BufferOp(Operation):
     """
     Prevents fusion of consecutive stencil.apply operations.
 
@@ -248,13 +249,13 @@ class Buffer(Operation):
     """
     name: str = "stencil.buffer"
     temp: Annotated[Operand, TempType]
-    lb: OpAttr[Stencil_Index]
-    ub: OpAttr[Stencil_Index]
+    lb: OpAttr[IndexAttr]
+    ub: OpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
 
 @irdl_op_definition
-class Store(Operation):
+class StoreOp(Operation):
     """
     This operation takes a temp and writes a field on a user defined range.
 
@@ -264,12 +265,12 @@ class Store(Operation):
     name: str = "stencil.store"
     temp: Annotated[Operand, TempType]
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[Stencil_Index]
-    ub: OptOpAttr[Stencil_Index]
+    lb: OptOpAttr[IndexAttr]
+    ub: OptOpAttr[IndexAttr]
 
 
 @irdl_op_definition
-class Apply(Operation):
+class ApplyOp(Operation):
     """
     This operation takes a stencil function plus parameters and applies
     the stencil function to the output temp.
@@ -282,14 +283,14 @@ class Apply(Operation):
     """
     name: str = "stencil.apply"
     args: Annotated[VarOperand, TempType]
-    lb: OptOpAttr[Stencil_Index]
-    ub: OptOpAttr[Stencil_Index]
+    lb: OptOpAttr[IndexAttr]
+    ub: OptOpAttr[IndexAttr]
     region: Region
     res: Annotated[VarOpResult, TempType]
 
 
 @irdl_op_definition
-class StoreResult(Operation):
+class StoreResultOp(Operation):
     """
     The store_result operation either stores an operand value or nothing.
 
@@ -303,7 +304,7 @@ class StoreResult(Operation):
 
 
 @irdl_op_definition
-class Return(Operation):
+class ReturnOp(Operation):
     """
     The return operation terminates the stencil apply and writes
     the results of the stencil operator to the temporary values returned
@@ -321,7 +322,7 @@ class Return(Operation):
 
 
 @irdl_op_definition
-class Combine(Operation):
+class CombineOp(Operation):
     """
     Combines the results computed on a lower with the results computed on
     an upper domain. The operation combines the domain at a given index/offset
@@ -343,8 +344,8 @@ class Combine(Operation):
     lower_ext: Annotated[VarOperand, TempType]
     upper_ext: Annotated[VarOperand, TempType]
 
-    lb: OptOpAttr[Stencil_Index]
-    ub: OptOpAttr[Stencil_Index]
+    lb: OptOpAttr[IndexAttr]
+    ub: OptOpAttr[IndexAttr]
 
     region: Region
     res: VarOpResult
@@ -353,24 +354,24 @@ class Combine(Operation):
 
 
 Stencil = Dialect([
-    Cast,
-    External_Load,
-    External_Store,
-    Index,
-    Access,
-    DynAccess,
-    Load,
-    Buffer,
-    Store,
-    Apply,
-    StoreResult,
-    Return,
-    Combine,
+    CastOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
+    IndexOp,
+    AccessOp,
+    DynAccessOp,
+    LoadOp,
+    BufferOp,
+    StoreOp,
+    ApplyOp,
+    StoreResultOp,
+    ReturnOp,
+    CombineOp,
 ], [
     FieldType,
     TempType,
     ResultType,
-    Stencil_Element,
-    Stencil_Index,
-    Stencil_Loop,
+    ElementType,
+    IndexAttr,
+    LoopAttr,
 ])

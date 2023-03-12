@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 
-from xdsl.dialects.experimental.stencil import FieldType, IndexType
+from xdsl.dialects.experimental.stencil import FieldType, IndexAttr
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -29,8 +29,8 @@ def GetMemRefFromField(
 
 
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
-                                  lb: IndexType,
-                                  ub: IndexType) -> MemRefType[_TypeElement]:
+                                  lb: IndexAttr,
+                                  ub: IndexAttr) -> MemRefType[_TypeElement]:
     # Assumes lb and ub are of same size and same underlying element types.
     memref_shape_integer_attr_list = []
     for i in range(len(lb.parameters[0].data)):

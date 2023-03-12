@@ -1,5 +1,5 @@
-from xdsl.dialects.arith import Constant, IndexType
-from xdsl.dialects.builtin import Region
+from xdsl.dialects.arith import Constant
+from xdsl.dialects.builtin import Region, IndexType
 from xdsl.dialects.cf import Block
 from xdsl.dialects.scf import For
 
