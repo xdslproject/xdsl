@@ -118,11 +118,18 @@ class ElementType(ParametrizedAttribute):
     element = AnyOf([f32, f64])
 
 
-@dataclass(frozen=True)
+@irdl_attr_definition
 class IndexAttr(ParametrizedAttribute):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
-    shape = Annotated[ArrayAttr[AnyIntegerAttr], ArrayLength(2)]
+
+    array: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+
+    def verify(self) -> None:
+        if len(self.array.data) != 3:
+            raise VerifyException(
+                f"Expected 3 indexes for stencil.index, got {len(self.array.data)}."
+            )
 
 
 @dataclass(frozen=True)
