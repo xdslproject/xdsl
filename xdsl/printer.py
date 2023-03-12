@@ -58,7 +58,7 @@ class Printer:
                 self.print_region(arg)
                 continue
             if isinstance(arg, Block):
-                self.print_block(arg, print_block_name=False)
+                self.print_block(arg)
                 self._print_new_line()
                 continue
             if isinstance(arg, Operation):
@@ -218,7 +218,7 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_name: bool) -> None:
+    def print_block(self, block: Block, print_block_name: bool = True) -> None:
         if not isinstance(block, Block):
             raise TypeError('Expected a Block; got %s' % type(block).__name__)
 
