@@ -610,6 +610,19 @@ class IndexCastOp(Operation):
             result_types=[target_type]
         )
 
+@irdl_op_definition
+class FpToSiOp(Operation):
+    name = "arith.fptosi"
+
+    input: Annotated[Operand, AnyFloat]
+    result: Annotated[OpResult, IntegerType]
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: IntegerType):
+        return FpToSiOp.build(
+            operands=[op],
+            result_types=[target_typ]
+        )
 
 class FastMathFlag(Enum):
     REASSOC = "reassoc"
