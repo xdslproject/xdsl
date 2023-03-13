@@ -225,7 +225,7 @@ class TypesOp(Operation):
     """
     name: str = "pdl.types"
     constant_types: Annotated[OptOperand, ArrayAttr[TypeType]]
-    result: Annotated[OpResult, ArrayAttr[TypeType]]
+    result: Annotated[OpResult, ArrayAttr[TypeType] | RangeType[TypeType]]
 
 
 PDL = Dialect([

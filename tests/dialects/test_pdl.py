@@ -9,15 +9,13 @@ def test_parse_pdl_0():
     test = """
 "builtin.module"() ({
   "pdl.pattern"() ({
-    %0 = "pdl.attribute"() : () -> !pdl.attribute
-    %1 = "pdl.type"() : () -> !pdl.type
-    %2 = "pdl.operation"(%0, %1) {attributeValueNames = ["attr"], operand_segment_sizes = array<i32: 0, 1, 1>} : (!pdl.attribute, !pdl.type) -> !pdl.operation
-    %3 = "pdl.result"(%2) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
-    %4 = "pdl.operand"() : () -> !pdl.value
-    %5 = "pdl.operation"(%3, %4) {attributeValueNames = [], operand_segment_sizes = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-    "pdl.rewrite"(%5) ({
-    }) {name = "rewriter", operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
-  }) {benefit = 1 : i16, sym_name = "operations"} : () -> ()
+    %0 = "pdl.types"() : () -> !pdl.range<!pdl.type>
+    %1 = "pdl.operation"(%0) {attributeValueNames = [], operand_segment_sizes = array<i32: 0, 0, 1>} : (!pdl.range<!pdl.type>) -> !pdl.operation
+    "pdl.rewrite"(%1) ({
+      %2 = "pdl.types"() {constantTypes = [i32, i64]} : () -> !pdl.range<!pdl.type>
+      %3 = "pdl.operation"(%0, %2) {attributeValueNames = [], opName = "foo.op", operand_segment_sizes = array<i32: 0, 0, 2>} : (!pdl.range<!pdl.type>, !pdl.range<!pdl.type>) -> !pdl.operation
+    }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+  }) {benefit = 1 : i16, sym_name = "infer_type_from_type_used_in_match"} : () -> ()
 }) : () -> ()
 """
 
