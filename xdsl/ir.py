@@ -204,10 +204,10 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return "<{}[{}: {}] from {} with {} uses>".format(
+        return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.result_index,
             self.typ,
+            self.result_index,
             self.op.name,
             len(self.uses),
         )
@@ -235,10 +235,10 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        return "<{}[{}: {}] with {} uses>".format(
+        return "<{}[{}] index: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.index,
             self.typ,
+            self.index,
             len(self.uses),
         )
 
