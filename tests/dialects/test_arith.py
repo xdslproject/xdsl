@@ -4,8 +4,9 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  FloorDivSI, CeilDivSI, CeilDivUI, RemUI,
                                  RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
-                                 Mulf, Divf, Maxf, Minf, IndexCastOp)
-from xdsl.dialects.builtin import i32, f32, IndexType
+                                 Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
+                                 SIToFPOp)
+from xdsl.dialects.builtin import i32, f32, IndexType, IntegerType, Float32Type
 
 
 class Test_integer_arith_construction:
@@ -58,3 +59,14 @@ def test_index_cast_op():
     assert cast.result.typ == IndexType()
     assert cast.input.typ == i32
     assert cast.input.op == a
+
+
+def test_cast_fp_si_ops():
+    a = Constant.from_int_and_width(0, 32)
+    fp = SIToFPOp.get(a, f32)
+    si = SIToFPOp.get(fp, i32)
+
+    assert fp.input == a.result
+    assert fp.result == si.input
+    assert isinstance(si.result.typ, IntegerType)
+    assert fp.result.typ == f32
