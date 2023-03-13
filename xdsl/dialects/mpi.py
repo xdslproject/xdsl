@@ -5,11 +5,12 @@ from enum import Enum
 from typing import cast
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import (IntegerType, Signedness, IntegerAttr,
-                                   StringAttr, AnyFloat, i32)
+from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
+                                   AnyFloat, i32)
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, Attribute, SSAValue, OpResult, ParametrizedAttribute, Dialect, MLIRType
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
+from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
+                     ParametrizedAttribute, Dialect, MLIRType)
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -61,15 +62,6 @@ class MPIBaseOp(Operation, ABC):
     pass
 
 
-def _build_attr_dict_with_optional_tag(
-        tag: int | None = None) -> dict[str, Attribute]:
-    """
-    Helper function for building attribute dicts that have an optional `tag` entry
-    """
-
-    return {} if tag is None else {'tag': IntegerAttr.from_params(tag, i32)}
-
-
 @irdl_op_definition
 class ISend(MPIBaseOp):
     """
@@ -90,26 +82,33 @@ class ISend(MPIBaseOp):
 
     ## Our Abstraction:
 
-        - We Summarize buf, count and datatype by using memrefs
-        - We assume that tag is compile-time constant
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = 'mpi.isend'
 
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
+    buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
-
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls, buff: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: int | None):
-        return cls.build(operands=[buff, dest],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, dest, tag],
+            result_types=[RequestType()],
+        )
 
 
 @irdl_op_definition
@@ -132,14 +131,13 @@ class Send(MPIBaseOp):
 
     ## Our Abstraction:
 
-        - We Summarize buf, count and datatype by using memrefs
-        - We assume that tag is compile-time constant
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = 'mpi.send'
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
@@ -174,27 +172,33 @@ class IRecv(MPIBaseOp):
 
     ## Our Abstractions:
 
-        - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume tag is compile-time known
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = "mpi.irecv"
 
+    buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
-    buffer: Annotated[Operand, MemRefType[AnyNumericType]]
-    tag: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    tag: Annotated[Operand, i32]
 
     request: Annotated[OpResult, RequestType]
 
     @classmethod
-    def get(cls,
-            source: SSAValue | Operation,
-            buffer: SSAValue | Operation,
-            tag: int | None = None):
-        return cls.build(operands=[source, buffer],
-                         attributes=_build_attr_dict_with_optional_tag(tag),
-                         result_types=[RequestType()])
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        source: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, source, tag],
+            result_types=[RequestType()],
+        )
 
 
 @irdl_op_definition
@@ -218,15 +222,13 @@ class Recv(MPIBaseOp):
 
     ## Our Abstractions:
 
-        - We bundle buf, count and datatype into the type definition and use `memref`
-        - We assume this type information is compile-time known
-        - We assume tag is compile-time known
-        - We omit the possibility of using multiple communicators
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
     """
 
     name = "mpi.recv"
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
@@ -292,11 +294,11 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType]
-    status: Annotated[OptOpResult, i32]
+    status: Annotated[OptOpResult, StatusType]
 
     @classmethod
     def get(cls, request: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[i32]]
+        result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
 
@@ -394,7 +396,7 @@ class UnwrapMemrefOp(MPIBaseOp):
     typ: Annotated[OpResult, DataType]
 
     @staticmethod
-    def get(ref: SSAValue | Operation):
+    def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
         assert isinstance(ssa_val.typ, MemRefType)
         elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
@@ -437,6 +439,7 @@ MPI = Dialect([
     Test,
     Recv,
     Send,
+    Wait,
     GetStatusField,
     Init,
     Finalize,
