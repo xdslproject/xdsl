@@ -746,6 +746,8 @@ Arith = Dialect([
 
         # Casts
         IndexCastOp,
+        FPToSIOp,
+        SIToFPOp,
 ], [
         FastMathFlagsAttr,
 ])
