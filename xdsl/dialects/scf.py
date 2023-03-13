@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, List
+from typing import Annotated, List, Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (AnyAttr, Operand, SingleBlockRegion, VarOperand,
-                       VarOpResult, irdl_op_definition)
+from xdsl.irdl import (AnyAttr, AttrSizedOperandSegments, Operand,
+                       SingleBlockRegion, VarOperand, VarOpResult,
+                       irdl_op_definition)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -119,6 +120,51 @@ class For(Operation):
 
 
 @irdl_op_definition
+class ParallelOp(Operation):
+    name = "scf.parallel"
+    lowerBound: Annotated[VarOperand, IndexType]
+    upperBound: Annotated[VarOperand, IndexType]
+    step: Annotated[VarOperand, IndexType]
+    initVals: Annotated[VarOperand, AnyAttr()]
+    results: Annotated[VarOpResult, AnyAttr()]
+
+    body: Region
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(
+        lowerBounds: Sequence[SSAValue | Operation],
+        upperBounds: Sequence[SSAValue | Operation],
+        steps: Sequence[SSAValue | Operation],
+        body: Region | list[Block] | list[Operation],
+    ):
+        return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
+                                regions=[Region.get(body)])
+
+    def verify_(self) -> None:
+        if len(self.lowerBound) != len(self.upperBound) or len(
+                self.lowerBound) != len(self.step):
+            raise VerifyException(
+                "Expected the same number of lower bounds, upper "
+                "bounds, and steps for scf.parallel. Got "
+                f"{len(self.lowerBound)}, {len(self.upperBound)} and "
+                f"{len(self.step)}.")
+        body_args = self.body.blocks[0].args if len(
+            self.body.blocks) != 0 else ()
+        if len(self.lowerBound) != len(body_args) or not all(
+            [isinstance(a.typ, IndexType) for a in body_args]):
+            raise VerifyException(
+                f"Expected {len(self.lowerBound)} index-typed region arguments, got "
+                f"{[str(a.typ) for a in body_args]}. scf.parallel's body must have an index "
+                "argument for each induction variable. ")
+        if len(self.initVals) != 0 or len(self.results) != 0:
+            raise VerifyException(
+                "scf.parallel loop-carried variables and reduction are not implemented yet."
+            )
+
+
+@irdl_op_definition
 class While(Operation):
     name: str = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -152,4 +198,4 @@ class While(Operation):
         return op
 
 
-Scf = Dialect([If, For, Yield, Condition, While], [])
+Scf = Dialect([If, For, Yield, Condition, ParallelOp, While], [])
