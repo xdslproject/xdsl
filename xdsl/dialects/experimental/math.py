@@ -46,6 +46,7 @@ class FPowIOp(Operation):
             attributes["fastmath"] = fastmath
 
         lhs = SSAValue.get(lhs)
+        rhs = SSAValue.get(rhs)
         return FPowIOp.build(attributes=attributes,
                              operands=[lhs, rhs],
                              result_types=[lhs.typ])
@@ -74,6 +75,7 @@ class IPowIOp(Operation):
     def get(lhs: Union[Operation, SSAValue], rhs: Union[Operation,
                                                         SSAValue]) -> IPowIOp:
         lhs = SSAValue.get(lhs)
+        rhs = SSAValue.get(rhs)
         return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.typ])
 
 
@@ -107,6 +109,7 @@ class PowFOp(Operation):
             attributes["fastmath"] = fastmath
 
         lhs = SSAValue.get(lhs)
+        rhs = SSAValue.get(rhs)
         return PowFOp.build(attributes=attributes,
                             operands=[lhs, rhs],
                             result_types=[lhs.typ])
