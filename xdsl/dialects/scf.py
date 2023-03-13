@@ -133,10 +133,9 @@ class ParallelOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
-    def from_bounds_and_body(lowerBounds: Sequence[SSAValue | Operation],
-                             upperBounds: Sequence[SSAValue | Operation],
-                             steps: Sequence[SSAValue | Operation],
-                             body: Region):
+    def get(lowerBounds: Sequence[SSAValue | Operation],
+            upperBounds: Sequence[SSAValue | Operation],
+            steps: Sequence[SSAValue | Operation], body: Region):
         return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
                                 regions=[body])
 

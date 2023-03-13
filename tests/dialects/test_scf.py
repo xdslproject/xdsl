@@ -45,7 +45,7 @@ def test_parallel():
     upperBounds = [ubi, ubj, ubk]
     steps = [si, sj, sk]
 
-    p = ParallelOp.from_bounds_and_body(lowerBounds, upperBounds, steps, body)
+    p = ParallelOp.get(lowerBounds, upperBounds, steps, body)
 
     assert isinstance(p, ParallelOp)
     assert p.lowerBound == tuple(l.result for l in lowerBounds)
