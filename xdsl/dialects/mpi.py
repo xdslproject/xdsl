@@ -88,7 +88,7 @@ class ISend(MPIBaseOp):
 
     name = 'mpi.isend'
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
@@ -137,7 +137,7 @@ class Send(MPIBaseOp):
 
     name = 'mpi.send'
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
@@ -178,7 +178,7 @@ class IRecv(MPIBaseOp):
 
     name = "mpi.irecv"
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
@@ -228,7 +228,7 @@ class Recv(MPIBaseOp):
 
     name = "mpi.recv"
 
-    buffer: Annotated[Operand, AnyAttr()]
+    buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
