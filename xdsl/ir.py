@@ -204,12 +204,12 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return "{}<%{}: {}>(num_uses={}, op_name={})".format(
+        return "<{}[{}: {}] from {} with {} uses>".format(
             self.__class__.__name__,
-            self.name or self.result_index,
+            self.result_index,
             self.typ,
-            len(self.uses),
             self.op.name,
+            len(self.uses),
         )
 
     def __eq__(self, other: object) -> bool:
@@ -235,7 +235,7 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        return "{}<%{}: {}>(num_uses={})".format(
+        return "<{}[{}: {}] with {} uses>".format(
             self.__class__.__name__,
             self.index,
             self.typ,
