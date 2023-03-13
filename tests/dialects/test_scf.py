@@ -1,7 +1,7 @@
-from xdsl.dialects.arith import Constant, IndexType
-from xdsl.dialects.builtin import Region
+from xdsl.dialects.arith import Constant
+from xdsl.dialects.builtin import Region, IndexType
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For
+from xdsl.dialects.scf import For, ParallelOp
 
 
 def test_for():
@@ -24,3 +24,31 @@ def test_for():
     assert f.operands == (lb.result, ub.result, step.result, carried.result)
     assert f.regions == [body]
     assert f.attributes == {}
+
+
+def test_parallel():
+    lbi = Constant.from_int_and_width(0, IndexType())
+    lbj = Constant.from_int_and_width(1, IndexType())
+    lbk = Constant.from_int_and_width(18, IndexType())
+
+    ubi = Constant.from_int_and_width(10, IndexType())
+    ubj = Constant.from_int_and_width(110, IndexType())
+    ubk = Constant.from_int_and_width(92, IndexType())
+
+    si = Constant.from_int_and_width(1, IndexType())
+    sj = Constant.from_int_and_width(3, IndexType())
+    sk = Constant.from_int_and_width(8, IndexType())
+
+    body = Region.from_block_list([])
+
+    lowerBounds = [lbi, lbj, lbk]
+    upperBounds = [ubi, ubj, ubk]
+    steps = [si, sj, sk]
+
+    p = ParallelOp.get(lowerBounds, upperBounds, steps, body)
+
+    assert isinstance(p, ParallelOp)
+    assert p.lowerBound == tuple(l.result for l in lowerBounds)
+    assert p.upperBound == tuple(l.result for l in upperBounds)
+    assert p.step == tuple(l.result for l in steps)
+    assert p.body is body

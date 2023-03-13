@@ -1,79 +1,35 @@
-from conftest import assert_print_op
-
+from xdsl.dialects import mpi, memref
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import f64, ModuleOp, i32
-from xdsl.dialects import func, arith, mpi, scf, memref
-
-from xdsl.printer import Printer
-
-
-def test_mpi_combo():
-    printer = Printer(target=Printer.Target.MLIR)
-
-    module = ModuleOp.from_region_or_ops([
-        func.FuncOp.from_callable('main', [], [], lambda: [
-            mpi.Init.build(),
-            rank := mpi.CommRank.get(),
-            lit0 := arith.Constant.from_int_and_width(0, 32),
-            cond := arith.Cmpi.from_mnemonic(rank, lit0, 'eq'),
-            buff := memref.Alloc.get(f64, 32, [100, 14, 14]),
-            scf.If.get(cond, [], [  # if rank == 0
-                dest := arith.Constant.from_int_and_width(1, i32),
-                mpi.Send.get(buff, dest, 1),
-                # mpi.Wait.get(req, ignore_status=False),
-                scf.Yield.get(),
-            ], [  # else
-                source := arith.Constant.from_int_and_width(0, i32),
-                status := mpi.Recv.get(source, buff, 1, ignore_status=False),
-                mpi.GetStatusField.get(status, mpi.StatusTypeField.MPI_TAG),
-                #mpi.Wait.get(recv.request),
-                scf.Yield.get(),
-            ]),
-            mpi.Finalize.build(),
-            func.Return.get()
-        ])
-    ])  # yapf: disable
-
-    expected = \
-        """"builtin.module"() ({
-  "func.func"() ({
-    "mpi.init"() : () -> ()
-    %0 = "mpi.comm.rank"() : () -> i32
-    %1 = "arith.constant"() {"value" = 0 : i32} : () -> i32
-    %2 = "arith.cmpi"(%0, %1) {"predicate" = 0 : i64} : (i32, i32) -> i1
-    %3 = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
-    "scf.if"(%2) ({
-      %4 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-      "mpi.send"(%3, %4) {"tag" = 1 : i32} : (memref<100x14x14xf64>, i32) -> ()
-      "scf.yield"() : () -> ()
-    }, {
-      %5 = "arith.constant"() {"value" = 0 : i32} : () -> i32
-      %6 = "mpi.recv"(%5, %3) {"tag" = 1 : i32} : (i32, memref<100x14x14xf64>) -> !mpi.status
-      %7 = "mpi.status.get"(%6) {"field" = "MPI_TAG"} : (!mpi.status) -> i32
-      "scf.yield"() : () -> ()
-    }) : (i1) -> ()
-    "mpi.finalize"() : () -> ()
-    "func.return"() : () -> ()
-  }) {"sym_name" = "main", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
-}) : () -> ()
-"""
-
-    assert_print_op(module,
-                    expected,
-                    target=Printer.Target.MLIR,
-                    diagnostic=None)
+from xdsl.dialects.builtin import f64, i32
 
 
 def test_mpi_baseop():
+    """
+    This test is used to track changes in `.get` and other accessors
+    """
     alloc0 = memref.Alloc.get(f64, 32, [100, 14, 14])
     dest = Constant.from_int_and_width(1, i32)
-    send = mpi.ISend.get(alloc0, dest, 1)
-    recv = mpi.IRecv.get(dest, alloc0.memref, 1)
+    unwrap = mpi.UnwrapMemrefOp.get(alloc0)
+    tag = Constant.from_int_and_width(1, i32)
+    send = mpi.ISend.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag)
+    wait = mpi.Wait.get(send.request, ignore_status=False)
+    recv = mpi.IRecv.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag)
     test_res = mpi.Test.get(recv.request)
-    code2 = mpi.Wait.get(recv.request)
+    source = mpi.GetStatusField.get(wait.status,
+                                    mpi.StatusTypeField.MPI_SOURCE)
 
-    assert send.operands[0] is alloc0.results[0]
-    assert send.operands[1] is dest.results[0]
-    assert recv.operands[0] is send.operands[1]
-    assert code2.operands[0] is recv.results[0]
-    assert test_res.operands[0] is recv.results[0]
+    assert unwrap.ref == alloc0.memref
+    assert send.buffer == unwrap.ptr
+    assert send.count == unwrap.len
+    assert send.datatype == unwrap.typ
+    assert send.dest == dest.result
+    assert send.tag == tag.result
+    assert wait.request == send.request
+    assert recv.buffer == unwrap.ptr
+    assert recv.count == unwrap.len
+    assert recv.datatype == unwrap.typ
+    assert recv.source == dest.result
+    assert recv.tag == tag.result
+    assert test_res.request == recv.request
+    assert source.status == wait.status
+    assert source.field.data == mpi.StatusTypeField.MPI_SOURCE.value

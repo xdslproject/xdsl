@@ -8,7 +8,8 @@
         "gpu.launch"(%one, %one, %n, %one, %one, %one) ({
         ^bb0(%bx : index, %by : index, %bz : index,
             %tx : index, %ty : index, %tz : index):
-            %sum = "gpu.all_reduce"(%tx) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+            %sum = "gpu.all_reduce"(%tx) ({
+            }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index    
             "gpu.terminator"() : () -> ()
         }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 

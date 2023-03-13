@@ -6,14 +6,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, List, Optional,
-                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
     from xdsl.irdl import OpDef, ParamAttrDef
+    from xdsl.utils.lexer import Span
 
 OpT = TypeVar('OpT', bound='Operation')
 
@@ -203,9 +204,13 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}, " + \
-               f"op_name={repr(self.op.name)}, " + \
-               f"result_index={repr(self.result_index)}, name={repr(self.name)})"
+        return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
+            self.__class__.__name__,
+            self.typ,
+            self.result_index,
+            self.op.name,
+            len(self.uses),
+        )
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -230,13 +235,12 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        if isinstance(self.block, Block):
-            block_repr = f"Block(num_arguments={len(self.block.args)}, " + \
-                         f"num_blocks={len(self.block.ops)} ops)"
-        else:
-            block_repr = repr(self.block)
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-               f", block={block_repr}, index={repr(self.index)}"
+        return "<{}[{}] index: {}, uses: {}>".format(
+            self.__class__.__name__,
+            self.typ,
+            self.index,
+            len(self.uses),
+        )
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -316,6 +320,9 @@ class Attribute(ABC):
 DataElement = TypeVar("DataElement", covariant=True)
 
 _D = TypeVar("_D", bound="Data[Any]")
+
+AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
+AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
 
 
 @dataclass(frozen=True)
@@ -735,7 +742,7 @@ class Operation(IRNode):
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: 'Span' | None = None
+    declared_at: Span | None = None
 
     _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
                                              init=False)
@@ -910,12 +917,6 @@ class Block(IRNode):
         """Call a function on all operations contained in the block."""
         for op in self.ops:
             op.walk(fun)
-
-    def select_ops(self, cond: Callable[[Operation], bool]) -> List[Operation]:
-        """
-        Returns a list of operations in the block satisfying the given condition.
-        """
-        return [op for op in self.ops if cond(op)]
 
     def verify(self) -> None:
         for operation in self.ops:

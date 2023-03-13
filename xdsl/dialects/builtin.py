@@ -6,8 +6,10 @@ from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
 from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue)
-from xdsl.irdl import (OpAttr, VarOpResult, VarOperand, VarRegion,
+                     Operation, Region, Attribute, Dialect, SSAValue,
+                     AttributeCovT, AttributeInvT)
+
+from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
@@ -39,26 +41,23 @@ class ArrayOfConstraint(AttrConstraint):
             self.elem_constr.verify(e)
 
 
-_ArrayAttrT = TypeVar("_ArrayAttrT", bound=Attribute, covariant=True)
-
-
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
+class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
     name: str = "array"
 
-    def __init__(self: ArrayAttr[_ArrayAttrT],
-                 param: Iterable[_ArrayAttrT]) -> None:
+    def __init__(self: ArrayAttr[AttributeCovT],
+                 param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> tuple[_ArrayAttrT]:
+    def parse_parameter(parser: BaseParser) -> tuple[AttributeCovT]:
         parser.parse_char("[")
-        data: list[_ArrayAttrT] = parser.parse_list(
-            parser.parse_optional_attribute)
+        data = parser.parse_list_of(parser.try_parse_attribute,
+                                    "Expected attribute")
         parser.parse_char("]")
-        # the type system can't ensure that the elements are of type A
-        # and not just of type Attribute, therefore, the following cast
-        return tuple(data)
+        # the type system can't ensure that the elements are of type _ArrayAttrT
+        result = cast(tuple[AttributeCovT], tuple(data))
+        return result
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
@@ -88,8 +87,8 @@ class ArrayAttr(GenericData[tuple[_ArrayAttrT, ...]]):
 
     @staticmethod
     @deprecated_constructor
-    def from_list(data: List[_ArrayAttrT]) -> ArrayAttr[_ArrayAttrT]:
-        return ArrayAttr[_ArrayAttrT](data)
+    def from_list(data: List[AttributeCovT]) -> ArrayAttr[AttributeCovT]:
+        return ArrayAttr[AttributeCovT](data)
 
     def __len__(self):
         return len(self.data)
@@ -282,6 +281,8 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
                           bound=IntegerType | IndexType,
                           covariant=True)
+_IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv",
+                             bound=IntegerType | IndexType)
 
 
 @irdl_attr_definition
@@ -339,7 +340,9 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> float:
-        return parser.parse_float_literal()
+        span = parser.expect(parser.try_parse_float_literal,
+                             "Expect float literal")
+        return float(span.text)
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'{self.data}')
@@ -352,7 +355,7 @@ class FloatData(Data[float]):
 
 _FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypContr = TypeVar("_FloatAttrTypContr", bound=AnyFloat)
+_FloatAttrTypInv = TypeVar("_FloatAttrTypInv", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -388,7 +391,7 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     @staticmethod
     @deprecated_constructor
     def from_value(value: float,
-                   type: _FloatAttrTypContr) -> FloatAttr[_FloatAttrTypContr]:
+                   type: _FloatAttrTypInv) -> FloatAttr[_FloatAttrTypInv]:
         return FloatAttr(FloatData.from_float(value), type)
 
     @staticmethod
@@ -468,15 +471,12 @@ class TupleType(ParametrizedAttribute):
         return TupleType(types)
 
 
-_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
-
-
 @irdl_attr_definition
-class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
+class VectorType(Generic[AttributeInvT], ParametrizedAttribute, MLIRType):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_VectorTypeElems]
+    element_type: ParameterDef[AttributeInvT]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -486,9 +486,10 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_element_type_and_shape(
-        referenced_type: _VectorTypeElems,
-        shape: List[int | IntegerAttr[IndexType]]
-    ) -> VectorType[_VectorTypeElems]:
+        referenced_type: AttributeInvT,
+        shape: Sequence[int | IntegerAttr[IndexType]]
+    ) -> VectorType[AttributeInvT]:
+
         return VectorType([
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
@@ -498,24 +499,22 @@ class VectorType(Generic[_VectorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_params(
-        referenced_type: _VectorTypeElems,
+        referenced_type: AttributeInvT,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> VectorType[_VectorTypeElems]:
+    ) -> VectorType[AttributeInvT]:
         return VectorType([shape, referenced_type])
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
-_TensorTypeElems = TypeVar("_TensorTypeElems", bound=Attribute, covariant=True)
-
 
 @irdl_attr_definition
-class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
+class TensorType(Generic[AttributeCovT], ParametrizedAttribute, MLIRType):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_TensorTypeElems]
+    element_type: ParameterDef[AttributeCovT]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -525,9 +524,9 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_and_list(
-        referenced_type: _TensorTypeElems,
+        referenced_type: AttributeInvT,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None
-    ) -> TensorType[_TensorTypeElems]:
+    ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
         return TensorType([
@@ -539,31 +538,27 @@ class TensorType(Generic[_TensorTypeElems], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_params(
-        referenced_type: _VectorTypeElems,
+        referenced_type: AttributeInvT,
         shape: AnyArrayAttr = AnyArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)])
-    ) -> TensorType[_VectorTypeElems]:
+    ) -> TensorType[AttributeInvT]:
         return TensorType([shape, referenced_type])
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
-_UnrankedTensorTypeElems = TypeVar("_UnrankedTensorTypeElems",
-                                   bound=Attribute,
-                                   covariant=True)
-
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[_UnrankedTensorTypeElems],
-                         ParametrizedAttribute, MLIRType):
+class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute,
+                         MLIRType):
     name = "unranked_tensor"
 
-    element_type: ParameterDef[_UnrankedTensorTypeElems]
+    element_type: ParameterDef[AttributeCovT]
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedTensorTypeElems
-    ) -> UnrankedTensorType[_UnrankedTensorTypeElems]:
+            referenced_type: AttributeInvT
+    ) -> UnrankedTensorType[AttributeInvT]:
         return UnrankedTensorType([referenced_type])
 
 
@@ -587,11 +582,65 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
-_VectorOrTensorElem = TypeVar("_VectorOrTensorElem", bound=Attribute)
+VectorOrTensorOf: TypeAlias = (VectorType[AttributeInvT]
+                               | TensorType[AttributeInvT]
+                               | UnrankedTensorType[AttributeInvT])
 
-VectorOrTensorOf: TypeAlias = (VectorType[_VectorOrTensorElem]
-                               | TensorType[_VectorOrTensorElem]
-                               | UnrankedTensorType[_VectorOrTensorElem])
+
+@dataclass
+class VectorRankConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given rank.
+    """
+
+    expected_rank: int
+    """The expected vector rank."""
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.get_num_dims() != self.expected_rank:
+            raise VerifyException(
+                f"Expected vector rank to be {self.expected_rank}, got {attr.get_num_dims()}."
+            )
+
+
+@dataclass
+class VectorBaseTypeConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given base type.
+    """
+
+    expected_type: Attribute
+    """The expected vector base type."""
+
+    def verify(self, attr: Attribute) -> None:
+        if not isinstance(attr, VectorType):
+            raise VerifyException(f"{attr} should be of type VectorType.")
+        if attr.element_type != self.expected_type:  # type: ignore
+            raise VerifyException(
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
+            )
+
+
+@dataclass
+class VectorBaseTypeAndRankConstraint(AttrConstraint):
+    """
+    Constrain a vector to be of a given rank and base type.
+    """
+
+    expected_type: Attribute
+    """The expected vector base type."""
+
+    expected_rank: int
+    """The expected vector rank."""
+
+    def verify(self, attr: Attribute) -> None:
+        constraint = AllOf([
+            VectorBaseTypeConstraint(self.expected_type),
+            VectorRankConstraint(self.expected_rank)
+        ])
+        constraint.verify(attr)
 
 
 @irdl_attr_definition
@@ -627,48 +676,88 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_index(
-            type: VectorOrTensorOf[IndexType],
-            data: List[int | IntegerAttr[IndexType]]
+        type: VectorOrTensorOf[IndexType],
+        data: Sequence[int] | Sequence[IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
-        attr_list = [
-            IntegerAttr.from_index_int_value(d) if isinstance(d, int) else d
-            for d in data
-        ]
+        if len(data) and isinstance(data[0], int):
+            attr_list = [
+                IntegerAttr.from_index_int_value(d)
+                for d in cast(Sequence[int], data)
+            ]
+        else:
+            attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
+
         return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_int(
         type: VectorOrTensorOf[IntegerType],
-        data: List[int | IntegerAttr[IntegerType]]
+        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
-        attr_list = [
-            IntegerAttr.from_params(d, type.element_type) if isinstance(
-                d, int) else d for d in data
-        ]
+        if len(data) and isinstance(data[0], int):
+            attr_list = [
+                IntegerAttr[IntegerType](d, type.element_type)
+                for d in cast(Sequence[int], data)
+            ]
+        else:
+            attr_list = cast(Sequence[IntegerAttr[IntegerType]], data)
+
         return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_float(
-            type: VectorOrTensorOf[AnyFloat],
-            data: List[int | float | AnyFloatAttr]
+        type: VectorOrTensorOf[AnyFloat],
+        data: Sequence[int | float] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
-        data_attr = [
-            FloatAttr(float(d), type.element_type)
-            if not isinstance(d, FloatAttr) else d for d in data
-        ]
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(data_attr)])
+        if len(data) and isinstance(data[0], int | float):
+            attr_list = [
+                FloatAttr(float(d), type.element_type)
+                for d in cast(Sequence[int | float], data)
+            ]
+        else:
+            attr_list = cast(Sequence[AnyFloatAttr], data)
+
+        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: VectorOrTensorOf[Attribute], data: Sequence[int]
+        | Sequence[IntegerAttr[IndexType]] | Sequence[IntegerAttr[IntegerType]]
+    ) -> DenseIntOrFPElementsAttr:
+        ...
+
+    @overload
+    @staticmethod
+    def from_list(
+        type: VectorOrTensorOf[Attribute],
+        data: Sequence[int | float] | Sequence[AnyFloatAttr]
+    ) -> DenseIntOrFPElementsAttr:
+        ...
 
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute], data: List[int | AnyIntegerAttr]
-        | List[int | float | AnyFloatAttr]
+        type: VectorOrTensorOf[Attribute], data: Sequence[int | float]
+        | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            return DenseIntOrFPElementsAttr.create_dense_int(type, data)
+            new_type = cast(VectorOrTensorOf[IntegerType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
+                            data)
+            return DenseIntOrFPElementsAttr.create_dense_int(
+                new_type, new_data)
         elif isinstance(type.element_type, IndexType):
-            return DenseIntOrFPElementsAttr.create_dense_index(type, data)
+            new_type = cast(VectorOrTensorOf[IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
+                            data)
+            return DenseIntOrFPElementsAttr.create_dense_index(
+                new_type, new_data)
         elif isinstance(type.element_type, AnyFloat):
-            return DenseIntOrFPElementsAttr.create_dense_float(type, data)
+            new_type = cast(VectorOrTensorOf[AnyFloat], type)
+            new_data = cast(
+                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                new_type, new_data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
@@ -681,7 +770,10 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
-    def tensor_from_list(data: List[int] | List[float],
+    def tensor_from_list(data: List[int] | List[float]
+                         | List[IntegerAttr[IndexType]]
+                         | List[IntegerAttr[IntegerType]]
+                         | List[AnyFloatAttr],
                          typ: IntegerType | IndexType | AnyFloat,
                          shape: List[int] = []) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(
@@ -728,30 +820,54 @@ class DenseArrayBase(ParametrizedAttribute):
                                           "should only contain floats")
 
     @staticmethod
-    def create_dense_int_or_index(typ: IntegerType | IndexType,
-                                  data: List[int | IntAttr]) -> DenseArrayBase:
-        attr_list = [IntAttr(d) if isinstance(d, int) else d for d in data]
+    def create_dense_int_or_index(
+            typ: IntegerType | IndexType,
+            data: Sequence[int] | Sequence[IntAttr]) -> DenseArrayBase:
+        if len(data) and isinstance(data[0], int):
+            attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
+        else:
+            attr_list = cast(Sequence[IntAttr], data)
+
         return DenseArrayBase([typ, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_float(
             typ: Float16Type | Float32Type | Float64Type,
-            data: List[int | float | FloatData]) -> DenseArrayBase:
-        data_attr = [
-            FloatData(float(d)) if isinstance(d, float | int) else d
-            for d in data
-        ]
-        return DenseArrayBase([typ, ArrayAttr(data_attr)])
+            data: Sequence[int | float] | Sequence[FloatData]
+    ) -> DenseArrayBase:
+        if len(data) and isinstance(data[0], int | float):
+            attr_list = [
+                FloatData(float(d)) for d in cast(Sequence[int | float], data)
+            ]
+        else:
+            attr_list = cast(Sequence[FloatData], data)
+
+        return DenseArrayBase([typ, ArrayAttr(attr_list)])
+
+    @overload
+    @staticmethod
+    def from_list(type: IntegerType | IndexType, data: Sequence[int]
+                  | Sequence[IntAttr]) -> DenseArrayBase:
+        ...
+
+    @overload
+    @staticmethod
+    def from_list(
+            type: Attribute, data: Sequence[int | float]
+        | Sequence[FloatData]) -> DenseArrayBase:
+        ...
 
     @staticmethod
     def from_list(
-        type: Attribute, data: List[int | AnyIntegerAttr]
-        | List[int | float | AnyFloatAttr]
+        type: Attribute, data: Sequence[int] | Sequence[int | float]
+        | Sequence[IntAttr] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if isinstance(type, IndexType | IntegerType):
-            return DenseArrayBase.create_dense_int_or_index(type, data)
+            _data = cast(Sequence[int] | Sequence[IntAttr], data)
+            return DenseArrayBase.create_dense_int_or_index(type, _data)
         elif isinstance(type, AnyFloat):
-            return DenseArrayBase.create_dense_float(type, data)
+            _data = cast(Sequence[int | float] | Sequence[FloatData], data)
+            return DenseArrayBase.create_dense_float(type, _data)
         else:
             raise TypeError(f"Unsupported element type {type}")
 

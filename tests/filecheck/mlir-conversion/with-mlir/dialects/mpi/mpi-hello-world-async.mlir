@@ -11,11 +11,13 @@
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
     "scf.if"(%2) ({
       %dest = "arith.constant"() {"value" = 1 : i32} : () -> i32
-      "mpi.send"(%buff, %count, %dtype, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
+      %req = "mpi.isend"(%buff, %count, %dtype, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.request
+      "mpi.wait"(%req) : (!mpi.request) -> ()
       "scf.yield"() : () -> ()
     }, {
       %source = "arith.constant"() {"value" = 0 : i32} : () -> i32
-      %6 = "mpi.recv"(%buff, %count, %dtype, %source, %tag) {"tag" = 1 : i32} : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.status
+      %req = "mpi.irecv"(%buff, %count, %dtype, %source, %tag) {"tag" = 1 : i32} : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.request
+      %status = "mpi.wait"(%req) : (!mpi.request) -> !mpi.status
       "scf.yield"() : () -> ()
     }) : (i1) -> ()
     "mpi.finalize"() : () -> ()
@@ -27,13 +29,16 @@
 
 // CHECK: llvm.call @MPI_Init({{%\d+}}, {{%\d+}}) : (!llvm.ptr, !llvm.ptr) -> i32
 // CHECK: llvm.call @MPI_Comm_rank({{%\d+}}, {{%\d+}}) : (i32, !llvm.ptr<i32>) -> i32
-// CHECK: llvm.call @MPI_Send({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
-// CHECK: llvm.call @MPI_Recv({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32
+// CHECK: llvm.call @MPI_Isend({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr<i32>) -> i32
+// CHECK: llvm.call @MPI_Wait({{%\d+}}, {{%\d+}}) : (!llvm.ptr<i32>, !llvm.ptr) -> i32
+// CHECK: llvm.call @MPI_Irecv({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr<i32>) -> i32
+// CHECK: llvm.call @MPI_Wait({{%\d+}}, {{%\d+}}) : (!llvm.ptr<i32>, !llvm.ptr) -> i32
 
 // also check that external funcs were declared correctly:
 
 // CHECK: llvm.func @MPI_Init(!llvm.ptr, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
 // CHECK: llvm.func @MPI_Comm_rank(i32, !llvm.ptr<i32>) -> i32 attributes {sym_visibility = "private"}
-// CHECK: llvm.func @MPI_Send(!llvm.ptr, i32, i32, i32, i32, i32) -> i32 attributes {sym_visibility = "private"}
-// CHECK: llvm.func @MPI_Recv(!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
+// CHECK: llvm.func @MPI_Isend(!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr<i32>) -> i32 attributes {sym_visibility = "private"}
+// CHECK: llvm.func @MPI_Wait(!llvm.ptr<i32>, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
+// CHECK: llvm.func @MPI_Irecv(!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr<i32>) -> i32 attributes {sym_visibility = "private"}
 // CHECK: llvm.func @MPI_Finalize() -> i32 attributes {sym_visibility = "private"}

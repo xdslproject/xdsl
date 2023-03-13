@@ -37,11 +37,12 @@ jobs:
       run: |
         pip install --upgrade pip
 
-    - name: Install the package locally
+    - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         pip install -e .[extras]
+        pip install nbval
 
     - name: Install CI dependencies
       run: |
@@ -54,7 +55,6 @@ jobs:
         path: llvm-project/build
         key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
         restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        append-timestamp: false
 
     - name: Checkout MLIR
       if: steps.cache-binary.outputs.cache-hit != 'true'
@@ -103,6 +103,13 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         lit -v tests/filecheck/ -DCOVERAGE
+
+    - name: Test MLIR dependent examples/tutorials
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
     - name: Combine coverage data
       run: |

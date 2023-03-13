@@ -23,6 +23,10 @@ from xdsl.dialects.mpi import MPI
 from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
 
+from xdsl.dialects.experimental.stencil import Stencil
+
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR
+
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -45,7 +49,7 @@ class xDSLOptMain:
 
     available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]]
     """
-    A mapping from pass names to functions that apply the pass to a  ModuleOp.
+    A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
     available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
@@ -193,6 +197,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(Symref)
 
     def register_all_frontends(self):
@@ -220,6 +225,8 @@ class xDSLOptMain:
         Add other/additional passes by overloading this function.
         """
         self.available_passes['lower-mpi'] = lower_mpi
+        self.available_passes[
+            'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
         self.available_passes['desymrefy'] = desymrefy
 
     def register_all_targets(self):

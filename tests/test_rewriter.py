@@ -36,7 +36,8 @@ def test_operation_deletion():
 }"""
 
     expected = \
-"""builtin.module() {}"""
+"""builtin.module() {
+}"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
@@ -129,7 +130,8 @@ scf.if(%0 : !i1) {
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {
+  }
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -156,7 +158,8 @@ scf.if(%0 : !i1) {
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {
+  }
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -182,7 +185,8 @@ scf.if(%0 : !i1) {
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {
+  }
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
