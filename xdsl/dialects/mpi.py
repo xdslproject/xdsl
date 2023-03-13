@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition, AnyAttr,
+from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
