@@ -204,9 +204,13 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}, " + \
-               f"op_name={repr(self.op.name)}, " + \
-               f"result_index={repr(self.result_index)}, name={repr(self.name)})"
+        return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
+            self.__class__.__name__,
+            self.typ,
+            self.result_index,
+            self.op.name,
+            len(self.uses),
+        )
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -231,13 +235,12 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        if isinstance(self.block, Block):
-            block_repr = f"Block(num_arguments={len(self.block.args)}, " + \
-                         f"num_blocks={len(self.block.ops)} ops)"
-        else:
-            block_repr = repr(self.block)
-        return f"OpResult(typ={repr(self.typ)}, num_uses={repr(len(self.uses))}" + \
-               f", block={block_repr}, index={repr(self.index)}"
+        return "<{}[{}] index: {}, uses: {}>".format(
+            self.__class__.__name__,
+            self.typ,
+            self.index,
+            len(self.uses),
+        )
 
     def __eq__(self, other: object) -> bool:
         return self is other
