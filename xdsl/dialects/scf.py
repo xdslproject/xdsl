@@ -125,6 +125,8 @@ class ParallelOp(Operation):
     lowerBound: Annotated[VarOperand, IndexType]
     upperBound: Annotated[VarOperand, IndexType]
     step: Annotated[VarOperand, IndexType]
+    initVals: Annotated[VarOperand, AnyAttr()]
+    results: Annotated[VarOpResult, AnyAttr()]
 
     body: Region
 
@@ -135,7 +137,7 @@ class ParallelOp(Operation):
                              upperBounds: Sequence[SSAValue | Operation],
                              steps: Sequence[SSAValue | Operation],
                              body: Region):
-        return ParallelOp.build(operands=[lowerBounds, upperBounds, steps],
+        return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
                                 regions=[body])
 
     def verify_(self) -> None:
@@ -149,11 +151,15 @@ class ParallelOp(Operation):
         body_args = self.body.blocks[0].args if len(
             self.body.blocks) != 0 else ()
         if len(self.lowerBound) != len(body_args) or not all(
-            [a.typ is IndexType for a in body_args]):
+            [isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
-                f"Expected {len(self.lowerBound)} region arguments, got "
-                f"{[str(a) for a in body_args]}. scf.parallel's body must have an index "
+                f"Expected {len(self.lowerBound)} index typed region arguments, got "
+                f"{[str(a.typ) for a in body_args]}. scf.parallel's body must have an index "
                 "argument for each induction variable. ")
+        if len(self.initVals) != 0 or len(self.results) != 0:
+            raise VerifyException(
+                "scf.parallel loop-carried variables and reduction are not implemented yet."
+            )
 
 
 @irdl_op_definition
@@ -190,4 +196,4 @@ class While(Operation):
         return op
 
 
-Scf = Dialect([If, For, Yield, Condition, While], [])
+Scf = Dialect([If, For, Yield, Condition, ParallelOp, While], [])
