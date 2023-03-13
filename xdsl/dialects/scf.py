@@ -147,13 +147,13 @@ class ParallelOp(Operation):
                 "Expected the same number of lower bounds, upper "
                 "bounds, and steps for scf.parallel. Got "
                 f"{len(self.lowerBound)}, {len(self.upperBound)} and "
-                f"{len(self.lowerBound)}")
+                f"{len(self.step)}.")
         body_args = self.body.blocks[0].args if len(
             self.body.blocks) != 0 else ()
         if len(self.lowerBound) != len(body_args) or not all(
             [isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
-                f"Expected {len(self.lowerBound)} index typed region arguments, got "
+                f"Expected {len(self.lowerBound)} index-typed region arguments, got "
                 f"{[str(a.typ) for a in body_args]}. scf.parallel's body must have an index "
                 "argument for each induction variable. ")
         if len(self.initVals) != 0 or len(self.results) != 0:
