@@ -92,6 +92,29 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         return LLVMPointerType([type, NoneAttr()])
 
 
+
+
+@irdl_op_definition
+class GetElementPtrOp(Operation):
+    name = "llvm.getelementptr"
+    
+
+    ptr: Annotated[Operand, LLVMPointerType]
+
+
+    def get(cls,
+            ptr: Operation,
+            result_type: LLVMPointerType | None = None):
+
+        if result_type is None:
+            assert isinstance(ptr.type, LLVMPointerType)
+
+            
+
+
+        return cls.build(operands=[ptr])
+
+
 @irdl_op_definition
 class AllocaOp(Operation):
     name = "llvm.alloca"
@@ -214,6 +237,7 @@ LLVM = Dialect([
     LLVMInsertValue,
     LLVMMLIRUndef,
     AllocaOp,
+    GetElementPtrOp,
     IntToPtrOp,
     NullOp,
     LoadOp,
