@@ -61,10 +61,10 @@ def test_index_cast_op():
     assert cast.input.op == a
 
 
-def test_cast_fp_si_ops():
+def test_cast_fp_and_si_ops():
     a = Constant.from_int_and_width(0, 32)
     fp = SIToFPOp.get(a, f32)
-    si = SIToFPOp.get(fp, i32)
+    si = FPToSIOp.get(fp, i32)
 
     assert fp.input == a.result
     assert fp.result == si.input
