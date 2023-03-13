@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType)
+                                   AnyIntegerAttr, IndexType, DenseIntOrFPElementsAttr, UnitAttr)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
-from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
+from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, VarOperand,
                        irdl_attr_definition, irdl_op_definition)
 
 if TYPE_CHECKING:
@@ -97,13 +97,33 @@ class GetElementPtrOp(Operation):
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
+    ssa_indices: Annotated[VarOperand, IntegerType]
+
+    elem_type: OpAttr[Attribute]
+
+    inbounds: OpAttr[UnitAttr]
+
     result: OpResult
+
+    indices: OpAttr[DenseIntOrFPElementsAttr]
 
     @staticmethod
     def get(
         ptr: SSAValue | Operation,
-        result_type: Attribute | None = None,
-    ):  # result_type can be anything
+        indices: list[int] | None = None,
+        ssa_indices: list[SSAValue | Operation] | None = None,
+        result_type: Attribute | None = None, 
+        inbounds: bool = False,
+    ):  
+        # construct default mutable argument here:
+        if indices is None:
+            indices = []
+        # TODO: convert indices to DenseI32ArrayAttr
+        indices_attr = ArrayAttr([IntAttr(x) for x in indices])
+
+        # construct default mutable argument here:
+        if ssa_indices is None:
+            ssa_indices = []
 
         # convert a potential Operation into an SSAValue
         ptr = SSAValue.get(ptr)
@@ -118,10 +138,19 @@ class GetElementPtrOp(Operation):
                 raise ValueError("...")
             # use that as the result type
             result_type = ptr.typ.type
+        
+        attrs: dict[str, Attribute] = {
+            'rawConstantIndices': indices_attr,
+            'elem_type': result_type
+        }
+
+        if inbounds:
+            attrs['inbounds'] = UnitAttr()
 
         return GetElementPtrOp.build(
-            operands=[ptr],
+            operands=[ptr, ssa_indices],
             result_types=[result_type],
+            attributes=attrs
         )
 
 
