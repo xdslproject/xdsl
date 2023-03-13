@@ -135,9 +135,10 @@ class ParallelOp(Operation):
     @staticmethod
     def get(lowerBounds: Sequence[SSAValue | Operation],
             upperBounds: Sequence[SSAValue | Operation],
-            steps: Sequence[SSAValue | Operation], body: Region):
+            steps: Sequence[SSAValue | Operation],
+            body: Region | list[Block] | list[Operation]):
         return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
-                                regions=[body])
+                                regions=[Region.get(body)])
 
     def verify_(self) -> None:
         if len(self.lowerBound) != len(self.upperBound) or len(
