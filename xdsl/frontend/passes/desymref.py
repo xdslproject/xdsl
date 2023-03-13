@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, List, Set
+from typing import Callable
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -95,8 +96,7 @@ from xdsl.rewriter import Rewriter
 
 
 def has_symbol(op: Operation) -> bool:
-    return isinstance(op, symref.Declare) or isinstance(
-        op, symref.Fetch) or isinstance(op, symref.Update)
+    return isinstance(op, symref.Declare | symref.Fetch | symref.Update)
 
 
 def get_symbol(op: Operation) -> str:
@@ -106,29 +106,29 @@ def get_symbol(op: Operation) -> str:
     """
     if isinstance(op, symref.Declare):
         return op.sym_name.data
-    elif isinstance(op, symref.Fetch) or isinstance(op, symref.Update):
+    elif isinstance(op, symref.Fetch | symref.Update):
         return op.symbol.root_reference.data
     else:
         raise FrontendProgramException(
             f"Operation '{op.name}' does not have symbol attributes.")
 
 
-def get_symbols(block: Block) -> Set[str]:
+def get_symbols(block: Block) -> set[str]:
     """Returns a set of all symbols defined/used in a basic block."""
-    symbols: Set[str] = set()
+    symbols: set[str] = set()
     for op in block.ops:
         if has_symbol(op):
             symbols.add(get_symbol(op))
     return symbols
 
 
-def lower_positional_bound(ops: List[Operation],
+def lower_positional_bound(ops: list[Operation],
                            op: Operation) -> Operation | None:
     """
-    Returns an operation from `ops` which is a lower bound for `op`. If there is
-    no such operation, `None` is returned.
+    Returns an operation from `ops` which is the nearest before `op`. If there
+    is no such operation, `None` is returned.
     
-    Pre-condition: list `ops` is sorted for the provided numbering.
+    Pre-condition: list `ops` is sorted based on operation indices.
     """
     block = op.parent_block()
     assert block is not None
@@ -158,9 +158,6 @@ class Desymrefier:
     Rewrites the program by removing all reads/writes from/to symbols and symbol
     definitions.
     """
-
-    rewriter: Rewriter
-    """Rewriter to replace and erase operations."""
 
     def desymrefy(self, op: Operation):
         """
@@ -239,13 +236,10 @@ class Desymrefier:
 
     def prune_definitions(self, block: Block):
         """Removes all symbol definitions and their uses from the block."""
-        while True:
-            # Find all symbol definitions in this block. If no definitions
-            # found, terminate.
-            definitions = block.select_ops(
-                lambda op: isinstance(op, symref.Declare))
-            if len(definitions) == 0:
-                return
+
+        # Find all symbol definitions in this block. If no definitions
+        # found, terminate.
+        while len(definitions := [op for op in block.ops if isinstance(op, symref.Declare)]) > 0:
 
             # Otherwise, some definitions are still alive.
             for definition in definitions:
@@ -260,8 +254,8 @@ class Desymrefier:
                 # Symbol is never read, so remove its definition and any writes.
                 if len(reads) == 0:
                     for write in writes:
-                        self.rewriter.erase_op(write)
-                    self.rewriter.erase_op(definition)
+                        Rewriter.erase_op(write)
+                    Rewriter.erase_op(definition)
                     continue
 
                 # For symbols which are written once, the write dominates all
@@ -269,9 +263,9 @@ class Desymrefier:
                 if len(writes) == 1:
                     write = writes[0]
                     for read in reads:
-                        self.rewriter.replace_op(read, [], [write.operands[0]])
-                    self.rewriter.erase_op(write)
-                    self.rewriter.erase_op(definition)
+                        Rewriter.replace_op(read, [], [write.operands[0]])
+                    Rewriter.erase_op(write)
+                    Rewriter.erase_op(definition)
                     continue
 
                 # If there are multiple reads and writes, replace every
@@ -279,24 +273,24 @@ class Desymrefier:
                 for read in reads:
                     write = lower_positional_bound(writes, read)
                     if write is not None:
-                        self.rewriter.replace_op(read, [], [write.operands[0]])
+                        Rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
         is_unused_read: Callable[[Operation], bool] = lambda op: isinstance(
             op, symref.Fetch) and len(op.results[0].uses) == 0
         unused_reads = block.select_ops(is_unused_read)
         for read in unused_reads:
-            self.rewriter.erase_op(read)
+            Rewriter.erase_op(read)
 
     def prune_uses_without_definitions(self, block: Block):
         """Removes all possible symbol uses in a single block."""
-        prepared_symbols: Set[str] = set()
+        prepared_symbols: set[str] = set()
 
         while True:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: Set[str] = set(
+            symbol_worklist: set[str] = set(
                 filter(lambda symbol: symbol not in prepared_symbols,
                        get_symbols(block)))
             if len(symbol_worklist) == 0:
@@ -313,7 +307,7 @@ class Desymrefier:
                 # symbol.
                 if len(reads) == 0:
                     for write in writes[:-1]:
-                        self.rewriter.erase_op(write)
+                        Rewriter.erase_op(write)
                     prepared_symbols.add(symbol)
                     continue
 
@@ -321,20 +315,20 @@ class Desymrefier:
                 # symbol.
                 if len(writes) == 0:
                     for read in reads[1:]:
-                        self.rewriter.replace_op(read, [],
+                        Rewriter.replace_op(read, [],
                                                  [reads[0].results[0]])
                     prepared_symbols.add(symbol)
                     continue
 
-                # Sets of reads and writes are disjoint.
+                # sets of reads and writes are disjoint.
                 last_read_idx = block.get_operation_index(reads[-1])
                 first_write_idx = block.get_operation_index(writes[0])
                 if last_read_idx < first_write_idx:
                     for read in reads[1:]:
-                        self.rewriter.replace_op(read, [],
+                        Rewriter.replace_op(read, [],
                                                  [reads[0].results[0]])
                     for write in writes[:-1]:
-                        self.rewriter.erase_op(write)
+                        Rewriter.erase_op(write)
                     prepared_symbols.add(symbol)
                     continue
 
@@ -342,14 +336,8 @@ class Desymrefier:
                 for read in reads:
                     write = lower_positional_bound(writes, read)
                     if write is not None:
-                        self.rewriter.replace_op(read, [], [write.operands[0]])
+                        Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-@dataclass
-class DesymrefyPass:
-    """Pass which is called by the client to desymrefy xDSL code."""
-
-    @staticmethod
-    def run(op: Operation):
-        rewriter = Rewriter()
-        Desymrefier(rewriter).desymrefy(op)
+def desymrefy(_ctx: MLContext, op: ModuleOp):
+    Desymrefier().desymrefy(op)

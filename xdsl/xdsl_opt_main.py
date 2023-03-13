@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 from io import StringIO
+from xdsl.frontend.passes.desymref import desymrefy
+from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
@@ -191,6 +193,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(Symref)
 
     def register_all_frontends(self):
         """
@@ -217,6 +220,7 @@ class xDSLOptMain:
         Add other/additional passes by overloading this function.
         """
         self.available_passes['lower-mpi'] = lower_mpi
+        self.available_passes['desymrefy'] = desymrefy
 
     def register_all_targets(self):
         """
