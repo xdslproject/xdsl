@@ -1101,7 +1101,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                                successors, regions)
 
     new_attrs["build"] = classmethod(builder)
-    new_attrs["irdl_definition"] = classmethod(property(lambda cls: op_def))
+    new_attrs["irdl_definition"] = classmethod(lambda cls: op_def)
 
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
@@ -1265,18 +1265,17 @@ class ParamAttrDef:
 
         return ParamAttrDef(name, parameters)
 
+    def verify(self, attr: ParametrizedAttribute):
+        """Given an IRDL definition, verify that an attribute satisfies its invariants."""
 
-def irdl_attr_verify(attr: ParametrizedAttribute, attr_def: ParamAttrDef):
-    """Given an IRDL definition, verify that an attribute satisfies its invariants."""
+        if len(attr.parameters) != len(self.parameters):
+            raise VerifyException(
+                f"In {self.name} attribute verifier: "
+                f"{len(self.parameters)} parameters expected, got "
+                f"{len(attr.parameters)}")
 
-    if len(attr.parameters) != len(attr_def.parameters):
-        raise VerifyException(
-            f"In {attr_def.name} attribute verifier: "
-            f"{len(attr_def.parameters)} parameters expected, got "
-            f"{len(attr.parameters)}")
-
-    for param, (_, param_def) in zip(attr.parameters, attr_def.parameters):
-        param_def.verify(param)
+        for param, (_, param_def) in zip(attr.parameters, self.parameters):
+            param_def.verify(param)
 
 
 _PAttrT = TypeVar('_PAttrT', bound=ParametrizedAttribute)
@@ -1299,20 +1298,7 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         new_fields[param_name] = property(
             lambda self, idx=idx: self.parameters[idx])
 
-    new_fields["verify"] = lambda typ: irdl_attr_verify(typ, attr_def)
-
-    if "verify" in clsdict:
-        custom_verifier = clsdict["verify"]
-
-        def new_verifier(verifier, op):
-            verifier(op)
-            custom_verifier(op)
-
-        new_fields["verify"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_fields["verify"])
-
-    new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
+    new_fields["irdl_definition"] = classmethod(lambda cls: attr_def)
 
     return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,

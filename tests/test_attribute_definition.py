@@ -596,7 +596,7 @@ class ParamAttrDefAttr(ParametrizedAttribute):
 def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
 
-    assert ParamAttrDefAttr.irdl_definition == ParamAttrDef(
+    assert ParamAttrDefAttr.irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr", [("arg1", AnyAttr()),
                                      ("arg2", BaseAttr(BoolData))])
 
