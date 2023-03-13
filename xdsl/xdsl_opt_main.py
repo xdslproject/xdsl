@@ -21,6 +21,10 @@ from xdsl.dialects.mpi import MPI
 from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
 
+from xdsl.dialects.experimental.stencil import Stencil
+
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR
+
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -191,6 +195,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(Stencil)
 
     def register_all_frontends(self):
         """
@@ -217,6 +222,8 @@ class xDSLOptMain:
         Add other/additional passes by overloading this function.
         """
         self.available_passes['lower-mpi'] = lower_mpi
+        self.available_passes[
+            'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
 
     def register_all_targets(self):
         """

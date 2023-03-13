@@ -153,12 +153,11 @@ def test_lower_mpi_send():
 
 
 def test_lower_mpi_isend():
-    buff, dest = CreateTestValsOp.get(
-        mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
-        i32).results
+    ptr, count, dtype, dest, tag = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32).results
 
     ops, result = lower_mpi.LowerMpiISend(info).lower(
-        mpi.ISend.get(buff, dest, 1))
+        mpi.ISend.get(ptr, count, dtype, dest, tag))
     """
     Check for function with signature like:
     int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -219,16 +218,15 @@ def test_lower_mpi_recv_with_status():
 
 
 def test_lower_mpi_irecv():
-    buff, source = CreateTestValsOp.get(
-        mpi.MemRefType.from_element_type_and_shape(builtin.f64, [32, 32, 32]),
-        i32).results
+    ptr, count, dtype, source, tag = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32).results
     """
     int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
             int source, int tag, MPI_Comm comm, MPI_Request *request)
     """
 
     ops, result = lower_mpi.LowerMpiIRecv(info).lower(
-        mpi.IRecv.get(source, buff, tag=3))
+        mpi.IRecv.get(ptr, count, dtype, source, tag))
 
     assert len(result) == 1
 

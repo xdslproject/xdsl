@@ -489,6 +489,7 @@ class VectorType(Generic[AttributeInvT], ParametrizedAttribute, MLIRType):
         referenced_type: AttributeInvT,
         shape: List[int | IntegerAttr[IndexType]]
     ) -> VectorType[AttributeInvT]:
+
         return VectorType([
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(

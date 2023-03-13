@@ -10,7 +10,8 @@
             %tx : index, %ty : index, %tz : index,
             %num_bx : index, %num_by : index, %num_bz : index,
             %num_tx : index, %num_ty : index, %num_tz : index):
-            %sum = "gpu.all_reduce"(%tx) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+            %sum = "gpu.all_reduce"(%tx) ({
+            }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             "gpu.terminator"() : () -> ()
             %final = "arith.muli"(%sum, %one) : (index, index) -> index    
         }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 

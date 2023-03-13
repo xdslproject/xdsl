@@ -404,7 +404,8 @@ def test_operation_deletion():
 }"""
 
     expected = \
-"""builtin.module() {}"""
+"""builtin.module() {
+}"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -428,7 +429,8 @@ def test_operation_deletion_reversed():
 }"""
 
     expected = \
-"""builtin.module() {}"""
+"""builtin.module() {
+}"""
 
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
@@ -478,7 +480,8 @@ def test_delete_inner_op():
 }"""
 
     expected = \
-"""builtin.module() {}"""
+"""builtin.module() {
+}"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
@@ -529,7 +532,8 @@ scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
   ^0(%1 : !i64):
     %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
-  } {}
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -557,7 +561,9 @@ scf.if(%0 : !i1) {
     expected = \
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {} {}
+  scf.if(%0 : !i1) {
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -576,7 +582,9 @@ def test_block_argument_insertion():
     prog = \
     """builtin.module() {
 %0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {} {}
+scf.if(%0 : !i1) {
+} {
+}
 }"""
 
     expected = \
@@ -584,7 +592,8 @@ scf.if(%0 : !i1) {} {}
   %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
   ^0(%1 : !i32):
-  } {}
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -606,8 +615,10 @@ def test_inline_block_at_pos():
 scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {}
-} {}
+  } {
+  }
+} {
+}
 }"""
 
     expected = \
@@ -615,8 +626,11 @@ scf.if(%0 : !i1) {
   %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {} {}
-  } {}
+    scf.if(%0 : !i1) {
+    } {
+    }
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -648,7 +662,9 @@ scf.if(%0 : !i1) {
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {} {}
+  scf.if(%0 : !i1) {
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -671,7 +687,8 @@ scf.if(%0 : !i1) {
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
   } {}
-} {}
+} {
+}
 }"""
 
     expected = \
@@ -679,8 +696,11 @@ scf.if(%0 : !i1) {
   %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {} {}
-  } {}
+    scf.if(%0 : !i1) {
+    } {
+    }
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -706,14 +726,17 @@ def test_inline_block_at_before_when_op_is_matched_op():
 %0 : !i1 = arith.constant() ["value" = true]
 scf.if(%0 : !i1) {
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-} {}
+} {
+}
 }"""
 
     expected = \
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {} {}
+  scf.if(%0 : !i1) {
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -735,17 +758,22 @@ def test_inline_block_after():
   scf.if(%0 : !i1) {
     scf.if(%0 : !i1) {
       %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    } {}
-  } {}
+    } {
+    }
+  } {
+  }
 }"""
 
     expected = \
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
   scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {} {}
+    scf.if(%0 : !i1) {
+    } {
+    }
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {}
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern
@@ -777,10 +805,12 @@ def test_move_region_contents_to_new_regions():
     expected = \
 """builtin.module() {
   %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {}
+  scf.if(%0 : !i1) {
+  }
   scf.if(%0 : !i1) {
     %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {}
+  } {
+  }
 }"""
 
     @op_type_rewrite_pattern

@@ -3,7 +3,8 @@
 "builtin.module"()({
     "gpu.module"()({
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
-        %sum = "gpu.all_reduce"(%init) ({}) {"op" = #gpu<all_reduce_op add>} : (index) -> f32
+        %sum = "gpu.all_reduce"(%init) ({
+        }) {"op" = #gpu<all_reduce_op add>} : (index) -> f32
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
