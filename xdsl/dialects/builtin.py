@@ -487,7 +487,7 @@ class VectorType(Generic[AttributeInvT], ParametrizedAttribute, MLIRType):
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: List[int | IntegerAttr[IndexType]]
+        shape: Sequence[int | IntegerAttr[IndexType]]
     ) -> VectorType[AttributeInvT]:
 
         return VectorType([
