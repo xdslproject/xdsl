@@ -92,27 +92,37 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         return LLVMPointerType([type, NoneAttr()])
 
 
-
-
 @irdl_op_definition
 class GetElementPtrOp(Operation):
     name = "llvm.getelementptr"
-    
 
     ptr: Annotated[Operand, LLVMPointerType]
+    result: OpResult
 
+    @staticmethod
+    def get(
+        ptr: SSAValue | Operation,
+        result_type: Attribute | None = None,
+    ):  # result_type can be anything
 
-    def get(cls,
-            ptr: Operation,
-            result_type: LLVMPointerType | None = None):
+        # convert a potential Operation into an SSAValue
+        ptr = SSAValue.get(ptr)
 
+        # if no result type was give, infer from pointer type
         if result_type is None:
-            assert isinstance(ptr.type, LLVMPointerType)
+            # ptr is an SSAValue
+            # ptr.typ is the type of the SSAValue (so the LLVMPointerType)
+            assert isinstance(ptr.typ, LLVMPointerType)
+            # ptr.typ.type is the wrapped type of the pointer
+            if isinstance(ptr.typ.type, NoneAttr):
+                raise ValueError("...")
+            # use that as the result type
+            result_type = ptr.typ.type
 
-            
-
-
-        return cls.build(operands=[ptr])
+        return GetElementPtrOp.build(
+            operands=[ptr],
+            result_types=[result_type],
+        )
 
 
 @irdl_op_definition
