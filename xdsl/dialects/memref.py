@@ -346,6 +346,11 @@ class Cast(Operation):
     source: Annotated[Operand, MemRefType | UnrankedMemrefType]
     dest: Annotated[OpResult, MemRefType | UnrankedMemrefType]
 
+    @staticmethod
+    def get(source: SSAValue | Operation,
+            type: MemRefType[Attribute] | UnrankedMemrefType[Attribute]):
+        return Cast.build(operands=[source], result_types=[type])
+
 
 MemRef = Dialect([
     Load,

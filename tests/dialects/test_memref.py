@@ -251,7 +251,7 @@ def test_memref_cast():
 
     res_type = UnrankedMemrefType.from_type(i32)
 
-    cast = Cast.build(operands=[memref_ssa_value], result_types=[res_type])
+    cast = Cast.get(memref_ssa_value, res_type)
 
     assert cast.source is memref_ssa_value
     assert cast.dest.typ is res_type
