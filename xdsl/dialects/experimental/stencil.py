@@ -149,8 +149,8 @@ class CastOp(Operation):
     """
     name: str = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
+    lb: OpAttr[IndexAttr]
+    ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
 
