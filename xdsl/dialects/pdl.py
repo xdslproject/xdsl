@@ -243,11 +243,9 @@ class RewriteOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
-        if 'name' not in self.attributes:
-
-            self.attributes['name'] = None
-        elif not isinstance(self.attributes['name'], StringAttr):
-            raise Exception("expected 'name' attribute to be a StringAttr")
+        if 'name' in self.attributes:
+            if not isinstance(self.attributes['name'], StringAttr):
+                raise Exception("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
     def get(name: str, args: list[SSAValue], root: SSAValue | None,
