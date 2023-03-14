@@ -139,7 +139,7 @@ class GetElementPtrOp(Operation):
             if isinstance(ptr.typ.type, NoneAttr):
                 raise ValueError("...")
             # use that as the result type
-            result_type = ptr.typ.type
+            result_type = LLVMPointerType.typed(ptr.typ.type)
         
         attrs: dict[str, Attribute] = {
             'rawConstantIndices': indices_attr,
