@@ -1,15 +1,17 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
-from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
+from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase, i32,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                     i64,
                                    AnyIntegerAttr, IndexType, DenseIntOrFPElementsAttr, UnitAttr)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 
+
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, OptOpAttr, VarOperand,
                        irdl_attr_definition, irdl_op_definition)
+
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -93,6 +95,8 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
 
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
 
 @irdl_op_definition
 class GetElementPtrOp(Operation):
@@ -103,11 +107,11 @@ class GetElementPtrOp(Operation):
 
     elem_type: OpAttr[Attribute]
 
-    inbounds: OpAttr[UnitAttr]
+    rawConstantIndices: OpAttr[DenseArrayBase]
+
+    inbounds: OptOpAttr[UnitAttr]
 
     result: OpResult
-
-    indices: OpAttr[DenseIntOrFPElementsAttr]
 
     @staticmethod
     def get(
@@ -121,7 +125,10 @@ class GetElementPtrOp(Operation):
         if indices is None:
             indices = []
         # TODO: convert indices to DenseI32ArrayAttr
-        indices_attr = ArrayAttr([IntAttr(x) for x in indices])
+        
+        indices_attr = DenseArrayBase.create_dense_int_or_index(
+            i32, indices
+        )
 
         # construct default mutable argument here:
         if ssa_indices is None:
@@ -145,6 +152,12 @@ class GetElementPtrOp(Operation):
             'rawConstantIndices': indices_attr,
             'elem_type': result_type
         }
+
+        if ptr.typ.is_typed():
+            attrs.pop('elem_type')
+
+        if not isinstance(result_type, LLVMPointerType):
+            result_type = LLVMPointerType.typed(result_type)
 
         if inbounds:
             attrs['inbounds'] = UnitAttr()
@@ -236,6 +249,7 @@ class StoreOp(Operation):
 
     value: Operand
     ptr: Annotated[Operand, LLVMPointerType]
+
 
     alignment: OptOpAttr[IntegerAttr[IntegerType]]
     ordering: OptOpAttr[IntegerAttr[IntegerType]]
