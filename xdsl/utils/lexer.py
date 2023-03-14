@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from io import StringIO
+from enum import Enum, auto
 
 
 @dataclass(frozen=True)
@@ -44,10 +45,15 @@ class Input:
                 next_start = source.find('\n', next_start + 1)
             return source[start:next_start].split('\n'), start, line_no
 
-    def at(self, i: int):
+    def at(self, i: int) -> str:
         if i >= self.len:
             raise EOFError()
         return self.content[i]
+
+    def slice(self, start: int, end: int) -> str:
+        if end >= self.len:
+            raise EOFError()
+        return self.content[start:end]
 
 
 @dataclass(frozen=True)
@@ -122,3 +128,57 @@ class Span:
     def __repr__(self):
         return "{}[{}:{}](text='{}')".format(self.__class__.__name__,
                                              self.start, self.end, self.text)
+
+
+@dataclass
+class Token:
+
+    class Kind(Enum):
+        # Markers
+        EOF = auto()
+
+        # Identifiers
+        BARE_IDENT = auto()
+        '''bare-id ::= (letter|[_]) (letter|digit|[_$.])*'''
+        AT_IDENT = auto()  # @foo
+        '''at-ident ::= `@` (bare-id | string-literal)'''
+        HASH_IDENT = auto()  # #foo
+        '''hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        PERCENT_IDENT = auto()  # %foo
+        '''percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        CARET_IDENT = auto()  # ^foo
+        '''caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        EXCLAMATION_IDENT = auto()  # !foo
+        '''exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+
+        # Literals
+        FLOAT_LIT = auto()  # 1.0
+        INTEGER_LIT = auto()  # 1
+        STRING_LIT = auto()  # "foo"
+
+        # Punctuation
+        ARROW = auto()  # ->
+        AT = auto()  # @
+        COLON = auto()  # :
+        COMMA = auto()  # ,
+        ELLIPSIS = auto()  # ...
+        EQUAL = auto()  # =
+        GREATER = auto()  # >
+        L_BRACE = auto()  # {
+        L_PAREN = auto()  # (
+        L_SQUARE = auto()  # [
+        LESS = auto()  # <
+        MINUS = auto()  # -
+        PLUS = auto()  # +
+        QUESTION = auto()  # ?
+        R_BRACE = auto()  # }
+        R_PAREN = auto()  # )
+        R_SQUARE = auto()  # ]
+        STAR = auto()  # *
+        VERTICAL_BAR = auto()  # |
+        FILE_METADATA_BEGIN = auto()  # {-#
+        FILE_METADATA_END = auto()  # #-}
+
+    kind: Kind
+
+    span: Span
