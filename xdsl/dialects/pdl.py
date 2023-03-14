@@ -65,11 +65,10 @@ class ApplyNativeConstraintOp(Operation):
 
     @staticmethod
     def get(name: str, args: list[SSAValue]) -> ApplyNativeConstraintOp:
-
         return ApplyNativeConstraintOp.build(
-            result_types=[[]],
+            result_types=[],
             operands=[args],
-            attributes={"name": StringAttr.build(name)})
+            attributes={"name": StringAttr(name)})
 
 
 @irdl_op_definition
@@ -81,7 +80,7 @@ class ApplyNativeRewriteOp(Operation):
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
-    results: Annotated[VarOpResult, AnyPDLType]
+    res: Annotated[VarOpResult, AnyPDLType]
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
@@ -97,7 +96,7 @@ class ApplyNativeRewriteOp(Operation):
         return ApplyNativeRewriteOp.build(
             result_types=[result_types],
             operands=[args],
-            attributes={"name": StringAttr.build(name)})
+            attributes={"name": StringAttr(name)})
 
 
 @irdl_op_definition
@@ -257,20 +256,24 @@ class RewriteOp(Operation):
 
     @staticmethod
     def get(name: str, root: SSAValue | None, external_args: list[SSAValue],
-            body: Region | None, result_types: list[Attribute]) -> RewriteOp:
+            body: Region | None) -> RewriteOp:
 
         operands: list[SSAValue | list[SSAValue]] = []
         if root is not None:
-            operands.append(root)
+            operands.append([root])
+        else:
+            operands.append([])
         operands.append(external_args)
 
-        regions: list[Region] = []
+        regions: list[Region | list[Region]] = []
         if body is not None:
             regions.append(body)
+        else:
+            regions.append([])
 
-        return RewriteOp.build(result_types=[result_types],
+        return RewriteOp.build(result_types=[],
                                operands=operands,
-                               attributes={"name": StringAttr.build(name)},
+                               attributes={"name": StringAttr(name)},
                                regions=regions)
 
 
