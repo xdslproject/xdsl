@@ -328,6 +328,7 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name: str = "f32"
 
 
+@irdl_attr_definition
 class Float64Type(ParametrizedAttribute, MLIRType):
     name: str = "f64"
 
