@@ -44,8 +44,25 @@ class ApplyNativeConstraintOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop
     """
     name: str = "pdl.apply_native_constraint"
-    name_: OpAttr[StringAttr]
+    # https://github.com/xdslproject/xdsl/issues/98
+    # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
+
+    def verify_(self) -> None:
+        if 'name' not in self.attributes:
+            raise Exception(
+                "ApplyNativeConstraintOp requires a 'name' attribute")
+
+        if not isinstance(self.attributes['name'], StringAttr):
+            raise Exception("expected 'name' attribute to be a StringAttr")
+
+    @staticmethod
+    def get(name: str, args: list[SSAValue]) -> ApplyNativeConstraintOp:
+
+        return ApplyNativeConstraintOp.build(
+            result_types=[[]],
+            operands=[args],
+            attributes={"name": StringAttr.build(name)})
 
 
 @irdl_op_definition
@@ -54,9 +71,26 @@ class ApplyNativeRewriteOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop
     """
     name: str = "pdl.apply_native_rewrite"
-    name_: OpAttr[StringAttr]
+    # https://github.com/xdslproject/xdsl/issues/98
+    # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
     results: Annotated[VarOpResult, AnyPDLType]
+
+    def verify_(self) -> None:
+        if 'name' not in self.attributes:
+            raise Exception("ApplyNativeRewriteOp requires a 'name' attribute")
+
+        if not isinstance(self.attributes['name'], StringAttr):
+            raise Exception("expected 'name' attribute to be a StringAttr")
+
+    @staticmethod
+    def get(name: str, args: list[SSAValue],
+            result_types: list[Attribute]) -> ApplyNativeRewriteOp:
+
+        return ApplyNativeRewriteOp.build(
+            result_types=[result_types],
+            operands=[args],
+            attributes={"name": StringAttr.build(name)})
 
 
 @irdl_op_definition
@@ -201,11 +235,38 @@ class RewriteOp(Operation):
     name: str = "pdl.rewrite"
     root: Annotated[OptOperand, OperationType]
     # name of external rewriter function
-    name_: OptOpAttr[StringAttr]
+    # https://github.com/xdslproject/xdsl/issues/98
+    # name: OptOpAttr[StringAttr]
     externalArgs: Annotated[VarOperand, AnyPDLType]
     body: OptRegion
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    def verify_(self) -> None:
+        if 'name' not in self.attributes:
+
+            self.attributes['name'] = None
+        elif not isinstance(self.attributes['name'], StringAttr):
+            raise Exception("expected 'name' attribute to be a StringAttr")
+
+    @staticmethod
+    def get(name: str, args: list[SSAValue], root: SSAValue | None,
+            external_args: list[SSAValue], body: Region | None,
+            result_types: list[Attribute]) -> RewriteOp:
+
+        operands: list[SSAValue] = []
+        if root is not None:
+            operands.append(root)
+        operands += external_args
+
+        regions: list[Region] = []
+        if body is not None:
+            regions.append(body)
+
+        return RewriteOp.build(result_types=[result_types],
+                               operands=[operands],
+                               attributes={"name": StringAttr.build(name)},
+                               regions=regions)
 
 
 @irdl_op_definition
