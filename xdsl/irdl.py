@@ -1266,7 +1266,7 @@ class ParamAttrDef:
         return ParamAttrDef(name, parameters)
 
     def verify(self, attr: ParametrizedAttribute):
-        """Given an IRDL definition, verify that an attribute satisfies its invariants."""
+        """Verify that `attr` satisfies the invariants."""
 
         if len(attr.parameters) != len(self.parameters):
             raise VerifyException(
