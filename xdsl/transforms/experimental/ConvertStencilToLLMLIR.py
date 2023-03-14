@@ -26,6 +26,8 @@ def GetMemRefFromField(
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
                                   lb: IndexAttr,
                                   ub: IndexAttr) -> MemRefType[_TypeElement]:
+    # lb and ub defines the minimum and maximum coordinates of the resulting memref,
+    # so its shape is simply ub - lb, computed here.
     dims = [
         ub.value.data - lb.value.data
         for lb, ub in zip(lb.array.data, ub.array.data)
