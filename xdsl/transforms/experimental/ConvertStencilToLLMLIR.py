@@ -69,7 +69,7 @@ class LoadOpToMemref(RewritePattern):
         ]
         op.field.owner.attributes["stencil_offset"] = ArrayAttr.from_list(
             offsets)
-        rewriter.erase_matched_op()
+        rewriter.replace_matched_op([], [op.field.owner.dest])
 
 
 class StencilTypeConversionFuncOp(RewritePattern):
