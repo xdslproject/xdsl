@@ -123,6 +123,8 @@ class GEPOp(Operation):
             indices = []
         
 
+        i32 = IntegerType(32)
+
         indices_attr = DenseArrayBase.create_dense_int_or_index(
             i32, indices
         )
@@ -148,7 +150,7 @@ class GEPOp(Operation):
             'elem_type': result_type
         }
 
-        if ptr.typ.is_typed():
+        if isinstance(ptr.typ, LLVMPointerType):
             attrs.pop('elem_type')
 
         if not isinstance(result_type, LLVMPointerType):
