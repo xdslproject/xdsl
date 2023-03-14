@@ -1,8 +1,13 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import *
-from xdsl.ir import *
-from xdsl.irdl import *
-from xdsl.utils import *
+from typing import Annotated, Generic, TypeVar
+from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
+                                   StringAttr)
+from xdsl.ir import (Attribute, Dialect, MLIRType, OpResult, Operation,
+                     ParametrizedAttribute, Region, SSAValue)
+from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
+                       OptOperand, OptRegion, ParameterDef, VarOpResult,
+                       VarOperand, irdl_attr_definition, irdl_op_definition)
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
