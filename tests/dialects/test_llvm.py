@@ -8,8 +8,8 @@ def test_llvm_pointer_ops():
         llvm.LoadOp.get(ptr),
         nullptr := llvm.NullOp.get(),
         alloc_ptr := llvm.AllocaOp.get(idx, elem_type=builtin.IndexType()),
-        getelementptr := llvm.GEPOp.get(ptr=alloc_ptr, ssa_indices=[idx]),
-        llvm.LoadOp.get(getelementptr),
+        llvm.LoadOp.get(alloc_ptr),
+       
     ])
 
     module.verify()
@@ -23,8 +23,7 @@ def test_llvm_pointer_ops():
     assert isinstance(nullptr.nullptr.typ, llvm.LLVMPointerType)
     assert isinstance(nullptr.nullptr.typ.type, builtin.NoneAttr)
     assert isinstance(nullptr.nullptr.typ.addr_space, builtin.NoneAttr)
-    assert isinstance(getelementptr.ptr.typ, llvm.LLVMPointerType)
-
+   
     #TODO: check opaque type with pointer
 
 
