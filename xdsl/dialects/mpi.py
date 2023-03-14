@@ -11,8 +11,8 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OpAttr, OptOpResult,
-                       ParameterDef, AnyOf)
+                       irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
+                       AnyOf)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -335,10 +335,13 @@ class WaitAll(MPIBaseOp):
 
     requests: Annotated[Operand, VectorType([RequestType()])]
     count: Annotated[Operand, i32]
-    status: Annotated[OptOpResult, VectorType([StatusType()])]
+    statuses: Annotated[OptOpResult, VectorType([StatusType()])]
 
     @classmethod
-    def get(cls, requests: Operand, count: Operand, ignore_status: bool = True):
+    def get(cls,
+            requests: Operand,
+            count: Operand,
+            ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[VectorType([StatusType()])]]
         if ignore_status:
             result_types = [[]]
@@ -494,11 +497,14 @@ class AllocateTypeOp(MPIBaseOp):
     result: Annotated[OpResult, VectorType]
 
     @staticmethod
-    def get(bindc_name: StringAttr,
-            dtype: Attribute,
+    def get(bindc_name: StringAttr, dtype: Attribute,
             count: SSAValue | Operation) -> AllocateTypeOp:
         return AllocateTypeOp.build(result_types=[VectorType([dtype])],
-                                attributes={'bindc_name': bindc_name, 'dtype': dtype}, operands=[count])
+                                    attributes={
+                                        'bindc_name': bindc_name,
+                                        'dtype': dtype
+                                    },
+                                    operands=[count])
 
 
 @irdl_op_definition
@@ -515,10 +521,10 @@ class ArrayGetOp(MPIBaseOp):
     result: Annotated[OpResult, AnyOf([RequestType, StatusType, DataType])]
 
     @staticmethod
-    def get(vect: VectorType,
-            element: SSAValue | Operation) -> AllocateTypeOp:
+    def get(vect: VectorType, element: SSAValue | Operation) -> AllocateTypeOp:
         ssa_val = SSAValue.get(vect)
-        return ArrayGetOp.build(result_types=[ssa_val.typ.typ], operands=[vect, element])
+        return ArrayGetOp.build(result_types=[ssa_val.typ.typ],
+                                operands=[vect, element])
 
 
 MPI = Dialect([
