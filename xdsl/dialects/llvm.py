@@ -7,8 +7,8 @@ from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
-                       irdl_attr_definition, irdl_op_definition, 
-                       VarOperand, OptOpAttr)
+                       irdl_attr_definition, irdl_op_definition, VarOperand,
+                       OptOpAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -93,8 +93,6 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
         return LLVMPointerType([type, NoneAttr()])
 
 
-
-
 @irdl_op_definition
 class GEPOp(Operation):
     name = "llvm.getelementptr"
@@ -118,16 +116,13 @@ class GEPOp(Operation):
         result_type: Attribute | None = None,
         inbounds: bool = False,
     ):
-        
+
         if indices is None:
             indices = []
-        
 
         i32 = IntegerType(32)
 
-        indices_attr = DenseArrayBase.create_dense_int_or_index(
-            i32, indices
-        )
+        indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
         # construct default mutable argument here:
         if ssa_indices is None:
@@ -159,15 +154,9 @@ class GEPOp(Operation):
         if inbounds:
             attrs['inbounds'] = UnitAttr()
 
-        return GEPOp.build(
-            operands=[ptr, ssa_indices],
-            result_types=[result_type],
-            attributes=attrs
-        )
-
-
-
-
+        return GEPOp.build(operands=[ptr, ssa_indices],
+                           result_types=[result_type],
+                           attributes=attrs)
 
 
 @irdl_op_definition
