@@ -11,7 +11,8 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OpAttr, OptOpResult)
+                       irdl_attr_definition, OpAttr, OptOpResult,
+                       ParameterDef, AnyOf)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -46,6 +47,15 @@ class DataType(ParametrizedAttribute, MLIRType):
     name = 'mpi.datatype'
 
 
+@irdl_attr_definition
+class VectorType(ParametrizedAttribute, MLIRType):
+    """
+    This type holds multiple MPI types
+    """
+    name = 'mpi.vector'
+    typ: ParameterDef[RequestType | StatusType | DataType]
+
+
 class StatusTypeField(Enum):
     """
     This enum lists all fields in the MPI_Status struct
@@ -63,7 +73,7 @@ class MPIBaseOp(Operation, ABC):
 
 
 @irdl_op_definition
-class ISend(MPIBaseOp):
+class Isend(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
@@ -93,8 +103,7 @@ class ISend(MPIBaseOp):
     datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
-
-    request: Annotated[OpResult, RequestType]
+    request: Annotated[Operand, RequestType]
 
     @classmethod
     def get(
@@ -104,10 +113,11 @@ class ISend(MPIBaseOp):
         datatype: SSAValue | Operation,
         dest: SSAValue | Operation,
         tag: SSAValue | Operation,
+        request: SSAValue | Operation,
     ):
         return cls.build(
-            operands=[buffer, count, datatype, dest, tag],
-            result_types=[RequestType()],
+            operands=[buffer, count, datatype, dest, tag, request],
+            result_types=[],
         )
 
 
@@ -152,7 +162,7 @@ class Send(MPIBaseOp):
 
 
 @irdl_op_definition
-class IRecv(MPIBaseOp):
+class Irecv(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
@@ -183,8 +193,7 @@ class IRecv(MPIBaseOp):
     datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
-
-    request: Annotated[OpResult, RequestType]
+    request: Annotated[Operand, RequestType]
 
     @classmethod
     def get(
@@ -194,10 +203,11 @@ class IRecv(MPIBaseOp):
         datatype: SSAValue | Operation,
         source: SSAValue | Operation,
         tag: SSAValue | Operation,
+        request: SSAValue | Operation,
     ):
         return cls.build(
-            operands=[buffer, count, datatype, source, tag],
-            result_types=[RequestType()],
+            operands=[buffer, count, datatype, source, tag, request],
+            result_types=[],
         )
 
 
@@ -303,6 +313,37 @@ class Wait(MPIBaseOp):
             result_types = [[]]
 
         return cls.build(operands=[request], result_types=result_types)
+
+
+@irdl_op_definition
+class WaitAll(MPIBaseOp):
+    """
+    Class for wrapping the MPI_Waitall function (blocking wait for requests)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
+
+    ## The MPI_Test Function Docs:
+
+    int MPI_Waitall(int count, MPI_Request array_of_requests[],
+                MPI_Status *array_of_statuses)
+
+        - count: Number of handles
+        - array_of_requests: Request handles
+        - array_of_statuses: Status objects
+    """
+
+    name = "mpi.waitall"
+
+    requests: Annotated[Operand, VectorType([RequestType()])]
+    count: Annotated[Operand, i32]
+    status: Annotated[OptOpResult, VectorType([StatusType()])]
+
+    @classmethod
+    def get(cls, requests: Operand, count: Operand, ignore_status: bool = True):
+        result_types: list[list[Attribute]] = [[VectorType([StatusType()])]]
+        if ignore_status:
+            result_types = [[]]
+
+        return cls.build(operands=[requests, count], result_types=result_types)
 
 
 @irdl_op_definition
@@ -433,9 +474,56 @@ class GetDtypeOp(MPIBaseOp):
                                 attributes={'dtype': typ})
 
 
+@irdl_op_definition
+class AllocateTypeOp(MPIBaseOp):
+    """
+    This op is used to allocate a specific MPI dialect type with a set size, returning this
+    in an MPI vector of that type
+
+    This is useful as it means we can, in a self contained manner, store things like
+    requests, statuses etc. It accepts the base type that the array will contain, the
+    number of elements and an optional bindc_name which contains the name of the
+    variable that this is allocating
+    """
+    name = "mpi.allocate"
+
+    bindc_name: OpAttr[StringAttr]
+    dtype: OpAttr[Attribute]
+    count: Annotated[Operand, i32]
+
+    result: Annotated[OpResult, VectorType]
+
+    @staticmethod
+    def get(bindc_name: StringAttr,
+            dtype: Attribute,
+            count: SSAValue | Operation) -> AllocateTypeOp:
+        return AllocateTypeOp.build(result_types=[VectorType([dtype])],
+                                attributes={'bindc_name': bindc_name, 'dtype': dtype}, operands=[count])
+
+
+@irdl_op_definition
+class ArrayGetOp(MPIBaseOp):
+    """
+    This op will retrieve an element of an MPI vector, it accepts the vector as
+    an argument and the element index
+    """
+    name = "mpi.array_get"
+
+    vect: Annotated[Operand, VectorType]
+    element: Annotated[Operand, i32]
+
+    result: Annotated[OpResult, AnyOf([RequestType, StatusType, DataType])]
+
+    @staticmethod
+    def get(vect: VectorType,
+            element: SSAValue | Operation) -> AllocateTypeOp:
+        ssa_val = SSAValue.get(vect)
+        return ArrayGetOp.build(result_types=[ssa_val.typ.typ], operands=[vect, element])
+
+
 MPI = Dialect([
-    ISend,
-    IRecv,
+    Isend,
+    Irecv,
     Test,
     Recv,
     Send,
@@ -446,6 +534,8 @@ MPI = Dialect([
     CommRank,
     UnwrapMemrefOp,
     GetDtypeOp,
+    AllocateTypeOp,
+    ArrayGetOp,
 ], [
     RequestType,
     StatusType,
