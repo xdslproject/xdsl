@@ -16,16 +16,10 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 def GetMemRefFromField(
         inputFieldType: FieldType[_TypeElement]) -> MemRefType[_TypeElement]:
-    memref_shape_integer_attr_list: list[AnyIntegerAttr] = []
-    for i in inputFieldType.shape.data:
-        memref_shape_integer_attr_list.append(
-            IntegerAttr.from_params(i.value.data, i.typ))
+    dims = [i.value.data for i in inputFieldType.shape.data]
 
-    memref_shape_array_attr = ArrayAttr[AnyIntegerAttr](
-        memref_shape_integer_attr_list)
-
-    return MemRefType.from_params(inputFieldType.element_type,
-                                  memref_shape_array_attr)
+    return MemRefType.from_element_type_and_shape(inputFieldType.element_type,
+                                                  dims)
 
 
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
@@ -47,7 +41,9 @@ class CastOpToMemref(RewritePattern):
         if not isinstance(op.field.typ, FieldType):
             return
 
-        result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
+        field_typ: FieldType[Attribute] = op.field.typ
+
+        result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
                                                    op.lb, op.ub)
 
         rewriter.replace_matched_op(memref.Cast.get(op.field, result_typ))
@@ -56,18 +52,18 @@ class CastOpToMemref(RewritePattern):
 class StencilTypeConversionFuncOp(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if (isinstance(op, FuncOp)):
-            inputs: list[Attribute] = []
-            for arg in op.body.blocks[0].args:
-                if isinstance(arg.typ, FieldType):
-                    typ: FieldType[Attribute] = arg.typ
-                    memreftyp = GetMemRefFromField(typ)
-                    rewriter.modify_block_argument_type(arg, memreftyp)
-                    inputs.append(memreftyp)
+        if not isinstance(op, FuncOp):
+            return
+        inputs: list[Attribute] = []
+        for arg in op.body.blocks[0].args:
+            if isinstance(arg.typ, FieldType):
+                typ: FieldType[Attribute] = arg.typ
+                memreftyp = GetMemRefFromField(typ)
+                rewriter.modify_block_argument_type(arg, memreftyp)
+                inputs.append(memreftyp)
 
-            op.attributes["function_type"] = FunctionType(
-                [ArrayAttr(inputs),
-                 ArrayAttr(op.function_type.outputs.data)])
+        op.attributes["function_type"] = FunctionType.from_lists(
+            inputs, list(op.function_type.outputs.data))
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
