@@ -1,8 +1,9 @@
 from typing import TypeVar
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
-                                   RewritePattern, GreedyRewritePatternApplier)
-from xdsl.ir import MLContext, Operation
+                                   RewritePattern, GreedyRewritePatternApplier,
+                                   op_type_rewrite_pattern)
+from xdsl.ir import MLContext
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -35,9 +36,8 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
 
 class CastOpToMemref(RewritePattern):
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if not isinstance(op, CastOp):
-            return
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
         if not isinstance(op.field.typ, FieldType):
             return
 
@@ -51,9 +51,8 @@ class CastOpToMemref(RewritePattern):
 
 class StencilTypeConversionFuncOp(RewritePattern):
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if not isinstance(op, FuncOp):
-            return
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
         for arg in op.body.blocks[0].args:
             if isinstance(arg.typ, FieldType):
