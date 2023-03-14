@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Annotated, Generic, TypeVar
+
+from typing import Annotated, Generic, TypeVar, cast
+
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
 from xdsl.ir import (Attribute, Dialect, MLIRType, OpResult, Operation,
@@ -182,7 +184,8 @@ class RangeOp(Operation):
 
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
             if isinstance(arg.typ, RangeType):
-                return arg.typ.element_type  # type: ignore
+                arg_typ = cast(RangeType[AnyPDLType], arg.typ)
+                return arg_typ.element_type
             else:
                 return arg.typ
 
