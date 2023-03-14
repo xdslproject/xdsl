@@ -187,14 +187,14 @@ class StoreOp(Operation):
             volatile: bool = False,
             nontemporal: bool = False):
         attrs: dict[str, Attribute] = {
-            'ordering': IntegerAttr(ordering, i64)
+            'ordering': IntegerAttr(ordering, i64),
         }
 
         if alignment is not None:
             attrs['alignment'] = IntegerAttr[IntegerType](alignment, i64)
-        if volatile is not None:
+        if volatile:
             attrs['volatile_'] = UnitAttr()
-        if nontemporal is not None:
+        if nontemporal:
             attrs['nontemporal'] = UnitAttr()
 
         return cls.build(
