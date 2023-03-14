@@ -4,7 +4,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier)
 from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, AnyIntegerAttr, IndexType
+from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref
