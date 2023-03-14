@@ -508,12 +508,12 @@ class AllocateTypeOp(MPIBaseOp):
 
 
 @irdl_op_definition
-class ArrayGetOp(MPIBaseOp):
+class VectorGetOp(MPIBaseOp):
     """
     This op will retrieve an element of an MPI vector, it accepts the vector as
     an argument and the element index
     """
-    name = "mpi.array_get"
+    name = "mpi.vector_get"
 
     vect: Annotated[Operand, VectorType]
     element: Annotated[Operand, i32]
@@ -523,7 +523,7 @@ class ArrayGetOp(MPIBaseOp):
     @staticmethod
     def get(vect: VectorType, element: SSAValue | Operation) -> AllocateTypeOp:
         ssa_val = SSAValue.get(vect)
-        return ArrayGetOp.build(result_types=[ssa_val.typ.typ],
+        return VectorGetOp.build(result_types=[ssa_val.typ.typ],
                                 operands=[vect, element])
 
 
@@ -541,7 +541,7 @@ MPI = Dialect([
     UnwrapMemrefOp,
     GetDtypeOp,
     AllocateTypeOp,
-    ArrayGetOp,
+    VectorGetOp,
 ], [
     RequestType,
     StatusType,

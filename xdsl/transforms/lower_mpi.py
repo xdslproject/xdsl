@@ -512,15 +512,15 @@ class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
         ], [request.results[0]]
 
 
-class LowerMpiArrayGet(_MPIToLLVMRewriteBase):
+class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: mpi.ArrayGetOp, rewriter: PatternRewriter,
+    def match_and_rewrite(self, op: mpi.VectorGetOp, rewriter: PatternRewriter,
                           /):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
-            self, op: mpi.ArrayGetOp
+            self, op: mpi.VectorGetOp
     ) -> tuple[list[Operation], list[SSAValue | None]]:
         """
         This lowers the get array at index MPI operation in the dialect. Converts
@@ -649,7 +649,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiUnwrapMemrefOp(lib_info),
         LowerMpiGetDtype(lib_info),
         LowerMpiAllocateType(lib_info),
-        LowerMpiArrayGet(lib_info),
+        LowerMpiVectorGet(lib_info),
     ]),
                                    apply_recursively=True)
     walker1.rewrite_module(module)
