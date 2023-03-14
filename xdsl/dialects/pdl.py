@@ -256,21 +256,20 @@ class RewriteOp(Operation):
                 raise Exception("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: str, args: list[SSAValue], root: SSAValue | None,
-            external_args: list[SSAValue], body: Region | None,
-            result_types: list[Attribute]) -> RewriteOp:
+    def get(name: str, root: SSAValue | None, external_args: list[SSAValue],
+            body: Region | None, result_types: list[Attribute]) -> RewriteOp:
 
-        operands: list[SSAValue] = []
+        operands: list[SSAValue | list[SSAValue]] = []
         if root is not None:
             operands.append(root)
-        operands += external_args
+        operands.append(external_args)
 
         regions: list[Region] = []
         if body is not None:
             regions.append(body)
 
         return RewriteOp.build(result_types=[result_types],
-                               operands=[operands],
+                               operands=operands,
                                attributes={"name": StringAttr.build(name)},
                                regions=regions)
 
