@@ -1101,7 +1101,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                                successors, regions)
 
     new_attrs["build"] = classmethod(builder)
-    new_attrs["irdl_definition"] = classmethod(lambda cls: op_def)
+    new_attrs["irdl_definition"] = classmethod(property(lambda cls: op_def))
 
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
 
@@ -1298,7 +1298,7 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         new_fields[param_name] = property(
             lambda self, idx=idx: self.parameters[idx])
 
-    new_fields["irdl_definition"] = classmethod(lambda cls: attr_def)
+    new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
 
     return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,

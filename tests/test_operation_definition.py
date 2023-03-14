@@ -24,7 +24,7 @@ class OpDefTestOp(Operation):
 
 def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
-    assert OpDefTestOp.irdl_definition() == OpDef(
+    assert OpDefTestOp.irdl_definition == OpDef(
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
