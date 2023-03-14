@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType)
+                                   AnyIntegerAttr, IndexType, i64)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -139,6 +139,19 @@ class IntToPtrOp(Operation):
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
         return cls.build(operands=[input], result_types=[ptr_type])
+
+
+@irdl_op_definition
+class PtrToIntOp(Operation):
+    name = "llvm.ptrtoint"
+
+    arg: Annotated[Operand, LLVMPointerType]
+
+    output: Annotated[OpResult, IntegerType]
+
+    @classmethod
+    def get(cls, arg: SSAValue | Operation, int_type: Attribute = i64):
+        return cls.build(operands=[arg], result_types=[int_type])
 
 
 @irdl_op_definition
