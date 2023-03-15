@@ -75,27 +75,29 @@ class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+
         if (op.lb is None) or (op.ub is None):
-            print(f"ub:{op.ub}, lb:{op.ub}")
+            warn(
+                "stencil.apply should have lb and ub attributes before being lowered to "
+                "scf.parallel.")
             return
-        # # First replace all TempField arguments by memref.
+
+        # First replace all current arguments by their definition
+        # and erase them from the block. (We are changing the op
+        # to a loop, which has access to them either way)
         entry = op.region.blocks[0]
-        # for arg in entry.args:
-        #     if isinstance(arg.typ, TempType):
-        #         arg_typ: TempType[Attribute] = arg.typ
-        #         rewriter.modify_block_argument_type(
-        #             arg, GetMemRefFromField(arg_typ))
 
         for arg in entry.args:
             for use in arg.uses:
                 use.operation.replace_operand(use.index, op.args[use.index])
             entry.erase_arg(arg)
 
+        # Define index args for the parallel loop induction variables.
         entry.insert_arg(builtin.IndexType(), 0)
         entry.insert_arg(builtin.IndexType(), 0)
         entry.insert_arg(builtin.IndexType(), 0)
 
-        #Then lower to scf.parallel
+        #Then create the corresponding scf.parallel
         dims = IndexAttr.sizeFromBounds(op.lb, op.ub)
         zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
@@ -104,11 +106,14 @@ class ApplyOpToParallel(RewritePattern):
             for x in dims
         ]
 
+        # Move the body to the loop
         body = rewriter.move_region_contents_to_new_regions(op.region)
         p = scf.ParallelOp.get(lowerBounds=[zero, zero, zero],
                                upperBounds=upperBounds,
                                steps=[one, one, one],
                                body=body)
+
+        # Replace with the loop and necessary constants.
         rewriter.replace_matched_op([zero, one, *upperBounds, p])
 
 
