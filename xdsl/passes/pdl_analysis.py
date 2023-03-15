@@ -1,6 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import NamedTuple, Type
+import warnings
+from warnings import warn
 from xdsl.dialects import pdl
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -18,12 +20,13 @@ from xdsl.dialects.vector import Vector
 from xdsl.ir import MLContext, OpResult, Operation, SSAValue, TerminatorOp
 from xdsl.printer import Printer
 
-enable_prints = False
+
+class PDLDebugWarning(Warning):
+    ...
 
 
-def debug(msg: str):
-    if enable_prints:
-        print(msg)
+enable_prints = True
+warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
 @dataclass
@@ -90,18 +93,18 @@ def pdl_analysis_pass(ctx: MLContext, prog: ModuleOp):
 
 
 def analyze_pdl_pattern(op: pdl.PatternOp, ctx: MLContext):
-    debug(f"Found pattern:{op.name}")
+    warn(f"Found pattern:{op.name}", category=PDLDebugWarning)
     analysis_context = populate_analysis_context(op, ctx)
 
     if len(op.body.ops) != len(analysis_context.visited_ops):
         if enable_prints:
-            debug(
-                f"{abs(len(op.body.ops) - len(analysis_context.visited_ops))} Unreachable PDL ops in pattern!"
-            )
-            debug("Full pattern:")
+            warn(
+                f"{abs(len(op.body.ops) - len(analysis_context.visited_ops))} Unreachable PDL ops in pattern!",
+                category=PDLDebugWarning)
+            warn("Full pattern:", category=PDLDebugWarning)
             printer = Printer()
             printer.print_op(op)
-            debug("Unreachable ops:")
+            warn("Unreachable ops:", category=PDLDebugWarning)
             for pdl_op in op.body.ops:
                 if pdl_op not in analysis_context.visited_ops:
                     printer.print_op(pdl_op)
@@ -119,7 +122,8 @@ def terminator_analysis(analysis_context: PDLAnalysisContext):
 
     for terminator in analysis_context.terminator_matches:
         if terminator.erased and terminator.replaced_by is None:
-            debug(f"Terminator was erased: {terminator}!")
+            warn(f"Terminator was erased: {terminator}!",
+                 category=PDLDebugWarning)
             add_analysis_result_to_op(terminator.pdl_op, "terminator_erased")
         elif replacement := terminator.replaced_by:
             if isinstance(replacement, AnalyzedPDLOperation):
@@ -127,15 +131,15 @@ def terminator_analysis(analysis_context: PDLAnalysisContext):
                     add_analysis_result_to_op(
                         terminator.pdl_op,
                         "terminator_replaced_with_non_terminator")
-                    debug(
-                        f"Terminator might be replaced by non-terminator: {terminator}!"
-                    )
+                    warn(
+                        f"Terminator might be replaced by non-terminator: {terminator}!",
+                        category=PDLDebugWarning)
             else:
                 raise Exception(
                     "We currently can't handle pdl.Replace with a list of SSAValues as replacement!"
                 )
 
-    debug("Terminator Analysis finished.")
+    warn("Terminator Analysis finished.", category=PDLDebugWarning)
 
 
 def populate_analysis_context(op: pdl.PatternOp,
@@ -170,9 +174,9 @@ def get_op_named(name: str, context: MLContext) -> Type[Operation] | None:
 
 def is_terminator(op_type: Type[Operation]):
     if issubclass(op_type, TerminatorOp):
-        debug("Found terminator:")
+        warn("Found terminator:", category=PDLDebugWarning)
     else:
-        debug("Found non-terminator:")
+        warn("Found non-terminator:", category=PDLDebugWarning)
 
 
 def _trace_match_operation_op(pdl_operation_op: pdl.OperationOp,
@@ -206,7 +210,8 @@ def trace_matching_op(pdl_op: Operation, analysis_ctx: PDLAnalysisContext):
     Gather information about a pdl operation the matching part of a pdl.PatternOp.
     """
     if pdl_op in analysis_ctx.visited_ops:
-        debug(f"tracing lhs: op {pdl_op.name} Already visited!")
+        warn(f"tracing lhs: op {pdl_op.name} Already visited!",
+             category=PDLDebugWarning)
         return
     # TODO: we want to use a match statement here. Damn you YAPF!
     # trace differently depending on which PDL op we encounter here
@@ -222,29 +227,32 @@ def trace_matching_op(pdl_op: Operation, analysis_ctx: PDLAnalysisContext):
         used_op: pdl.OperationOp = used_op_result.op
         _trace_match_operation_op(used_op, analysis_ctx)
     elif isinstance(pdl_op, pdl.AttributeOp):
-        debug(f"lhs: Found attribute: {pdl_op.name}")
+        warn(f"lhs: Found attribute: {pdl_op.name}", category=PDLDebugWarning)
     elif isinstance(pdl_op, pdl.TypeOp):
-        debug(f"lhs: Found type: {pdl_op.name}")
+        warn(f"lhs: Found type: {pdl_op.name}", category=PDLDebugWarning)
     elif isinstance(pdl_op, pdl.OperandOp):
-        debug(f"lhs: Found operand: {pdl_op.name}")
+        warn(f"lhs: Found operand: {pdl_op.name}", category=PDLDebugWarning)
     else:
-        debug(f"lhs: unsupported PDL op: {pdl_op.name}")
+        warn(f"lhs: unsupported PDL op: {pdl_op.name}",
+             category=PDLDebugWarning)
 
     analysis_ctx.visited_ops.add(pdl_op)
 
 
 def analyze_rhs_op(rhs_op: Operation, analysis_ctx: PDLAnalysisContext):
     if rhs_op in analysis_ctx.visited_ops:
-        debug(f"tracing rhs: op {rhs_op.name} Already visited!")
+        warn(f"tracing rhs: op {rhs_op.name} Already visited!",
+             category=PDLDebugWarning)
         return
     if isinstance(rhs_op, pdl.OperationOp):
         trace_generate_new_op(rhs_op, analysis_ctx)
     elif isinstance(rhs_op, pdl.TypeOp):
-        debug(f"rhs: Found type: {rhs_op.name}")
+        warn(f"rhs: Found type: {rhs_op.name}", category=PDLDebugWarning)
     elif isinstance(rhs_op, pdl.AttributeOp):
-        debug(f"rhs: Found attribute: {rhs_op.name}")
+        warn(f"rhs: Found attribute: {rhs_op.name}", category=PDLDebugWarning)
     elif isinstance(rhs_op, pdl.ReplaceOp):
-        debug(f"rhs: Found replacement: {rhs_op.name}")
+        warn(f"rhs: Found replacement: {rhs_op.name}",
+             category=PDLDebugWarning)
         # For now only handle the case where the replacement is a single op
         if len(rhs_op.operands) != 2 or not all([
                 isinstance(operand.typ, pdl.OperationType)
@@ -266,7 +274,8 @@ def analyze_rhs_op(rhs_op: Operation, analysis_ctx: PDLAnalysisContext):
         elif rhs_op.replValues:
             analyzed_op.replaced_by = rhs_op.replValues
     else:
-        debug(f"rhs: unsupported PDL op: {rhs_op.name}")
+        warn(f"rhs: unsupported PDL op: {rhs_op.name}",
+             category=PDLDebugWarning)
     analysis_ctx.visited_ops.add(rhs_op)
 
 
