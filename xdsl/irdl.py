@@ -909,23 +909,6 @@ def irdl_build_arg_list(construct: VarIRConstruct,
                         error_prefix: str = "") -> tuple[list[Any], list[int]]:
     """Build a list of arguments (operands, results, regions)"""
 
-    def build_arg(arg_def: Any, arg: Any) -> Any:
-        """Build a single argument."""
-        if construct == VarIRConstruct.OPERAND:
-            assert isinstance(arg, SSAValue)
-            return arg
-        elif construct == VarIRConstruct.RESULT:
-            if not isinstance(arg, Attribute):
-                raise ValueError(error_prefix +
-                                 f"expected Attribute, but got {type(arg)}")
-            return arg
-        elif construct == VarIRConstruct.REGION:
-            assert isinstance(arg_def, RegionDef)
-            assert isinstance(arg, Region)
-            return arg
-        else:
-            assert False, "Unknown ArgType value"
-
     if len(args) != len(arg_defs):
         raise ValueError(
             f"Expected {len(arg_defs)} {get_construct_name(construct)}, "
@@ -951,10 +934,10 @@ def irdl_build_arg_list(construct: VarIRConstruct,
                     "expects a list of size at most 1, but "
                     f"got a list of size {len(arg)}")
 
-            res.extend([build_arg(arg_def, arg_arg) for arg_arg in arg])
+            res.extend(arg)
             arg_sizes.append(len(arg))
         else:
-            res.append(build_arg(arg_def, arg))
+            res.append(arg)
             arg_sizes.append(1)
     return res, arg_sizes
 
