@@ -257,9 +257,15 @@ class PDLAnalysis:
                 analyzed_op.replaced_by = analyzed_repl_op
             elif rhs_op.replValues:
                 analyzed_op.replaced_by = rhs_op.replValues
+        elif isinstance(rhs_op, pdl.EraseOp):
+            assert isinstance(rhs_op.op_value, OpResult)
+            assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
+            if (analyzed_op := self.get_analysis_for_pdl_op(
+                    rhs_op.op_value.op)) is None:
+                raise Exception("Unknown pdl.Operation to be erased!")
+            analyzed_op.erased = True
         else:
-            warn(f"rhs: unsupported PDL op: {rhs_op.name}",
-                 category=PDLDebugWarning)
+            raise Exception(f"Unsupported PDL op: {rhs_op.name}")
         self.visited_ops.add(rhs_op)
 
     def _trace_generate_new_op(
@@ -354,19 +360,32 @@ if __name__ == '__main__':
     # }) : () -> ()
     #     """
 
+    #     prog = """
+    #     "builtin.module"() ({
+    #   "pdl.pattern"() ({
+    #     %0 = "pdl.type"() {constantType = i32} : () -> !pdl.type
+    #     %1 = "pdl.type"() : () -> !pdl.type
+    #     %2 = "pdl.operation"(%0, %1) {attributeValueNames = [], operand_segment_sizes = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.type) -> !pdl.operation
+    #     "pdl.rewrite"(%2) ({
+    #       %3 = "pdl.type"() : () -> !pdl.type
+    #       %4 = "pdl.operation"(%0, %3) {attributeValueNames = [], opName = "func.return", operand_segment_sizes = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.type) -> !pdl.operation
+    #       "pdl.replace"(%2, %4) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+    #     }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    #   }) {benefit = 1 : i16, sym_name = "infer_type_from_operation_replace"} : () -> ()
+    # }) : () -> ()
+    #     """
+
     prog = """
     "builtin.module"() ({
-  "pdl.pattern"() ({
-    %0 = "pdl.type"() {constantType = i32} : () -> !pdl.type
-    %1 = "pdl.type"() : () -> !pdl.type
-    %2 = "pdl.operation"(%0, %1) {attributeValueNames = [], operand_segment_sizes = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.type) -> !pdl.operation
-    "pdl.rewrite"(%2) ({
-      %3 = "pdl.type"() : () -> !pdl.type
-      %4 = "pdl.operation"(%0, %3) {attributeValueNames = [], opName = "func.return", operand_segment_sizes = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.type) -> !pdl.operation
-      "pdl.replace"(%2, %4) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
-    }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
-  }) {benefit = 1 : i16, sym_name = "infer_type_from_operation_replace"} : () -> ()
-}) : () -> ()
+    "pdl.pattern"() ({
+        %0 = "pdl.operation"() {attributeValueNames = [], opName = "func.return", operand_segment_sizes = array<i32: 0, 0, 0>} : () -> !pdl.operation
+        // CHECK: "pdl.operation"()
+        // CHECK-SAME: "terminator_replaced_with_non_terminator"
+        "pdl.rewrite"(%0) ({
+          "pdl.erase"(%0) : (!pdl.operation, !pdl.operation) -> ()
+        }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    }) {benefit = 1 : i16, sym_name = "invalid_terminator_replacement"} : () -> ()
+    }) : () -> ()
     """
 
     parser = Parser(ctx=ctx, prog=prog, source=Source.MLIR)
