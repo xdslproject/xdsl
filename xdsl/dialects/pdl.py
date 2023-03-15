@@ -10,6 +10,7 @@ from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
                        OptOperand, OptRegion, ParameterDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition)
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -184,9 +185,8 @@ class RangeOp(Operation):
     def verify_(self) -> None:
 
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
-            if isinstance(arg.typ, RangeType):
-                arg_typ = cast(RangeType[AnyPDLType], arg.typ)
-                return arg_typ.element_type
+            if isa(arg.typ, RangeType[AnyPDLType]):
+                return arg.typ.element_type
             else:
                 return arg.typ
 
