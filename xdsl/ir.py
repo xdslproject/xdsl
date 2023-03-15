@@ -324,8 +324,13 @@ DataElement = TypeVar("DataElement", covariant=True)
 
 _D = TypeVar("_D", bound="Data[Any]")
 
+<<<<<<< HEAD
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
+=======
+AttributeTCov = TypeVar("AttributeTCov", bound=Attribute, covariant=True)
+AttributeT = TypeVar("AttributeT", bound=Attribute)
+>>>>>>> 447e40c (cleaning up type vars for Attirbute types)
 
 
 @dataclass(frozen=True)
