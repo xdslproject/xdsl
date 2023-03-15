@@ -57,11 +57,12 @@ class ApplyNativeConstraintOp(Operation):
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
-            raise Exception(
+            raise VerifyException(
                 "ApplyNativeConstraintOp requires a 'name' attribute")
 
         if not isinstance(self.attributes['name'], StringAttr):
-            raise Exception("expected 'name' attribute to be a StringAttr")
+            raise VerifyException(
+                "expected 'name' attribute to be a StringAttr")
 
     @staticmethod
     def get(name: str, args: list[SSAValue]) -> ApplyNativeConstraintOp:
@@ -84,10 +85,12 @@ class ApplyNativeRewriteOp(Operation):
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
-            raise Exception("ApplyNativeRewriteOp requires a 'name' attribute")
+            raise VerifyException(
+                "ApplyNativeRewriteOp requires a 'name' attribute")
 
         if not isinstance(self.attributes['name'], StringAttr):
-            raise Exception("expected 'name' attribute to be a StringAttr")
+            raise VerifyException(
+                "expected 'name' attribute to be a StringAttr")
 
     @staticmethod
     def get(name: str, args: list[SSAValue],
