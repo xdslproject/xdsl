@@ -971,6 +971,23 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 _RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
 
 
+def irdl_build_regions_arg(
+    regions: Sequence[_RegionArg | Sequence[_RegionArg]
+                      | None]
+) -> list[Region | list[Region]]:
+
+    def _build_regions_arg(regions: Sequence[_RegionArg]) -> list[Region]:
+        return [r if isinstance(r, Region) else Region.get(r) for r in regions]
+
+    return [
+        [] if r is None else
+        r if isinstance(r, Region) else [] if not len(r) else Region.
+        get(cast(Sequence[Operation]
+                 | Sequence[Block], r)) if isinstance(r[0], Operation | Block)
+        else _build_regions_arg(cast(Sequence[_RegionArg], r)) for r in regions
+    ]
+
+
 def irdl_op_builder(
     cls: type[_OpT], op_def: OpDef,
     operands: Sequence[SSAValue | Operation
@@ -998,17 +1015,7 @@ def irdl_op_builder(
         for op in operands
     ]
 
-    def _build_regions(regions: Sequence[_RegionArg]) -> list[Region]:
-        return [r if isinstance(r, Region) else Region.get(r) for r in regions]
-
-    my_regions = [
-        r if isinstance(r, Region) else [] if not len(r) else
-        Region.get(cast(Sequence[Operation]
-                        | Sequence[Block], r)) if
-        isinstance(r[0], Operation
-                   | Block) else _build_regions(cast(Sequence[_RegionArg], r))
-        for r in regions
-    ]
+    regions_arg = irdl_build_regions_arg(regions)
 
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
@@ -1019,7 +1026,7 @@ def irdl_op_builder(
         VarIRConstruct.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, my_regions,
+    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions_arg,
                                            op_def.regions, error_prefix)
 
     built_attributes = dict[str, Attribute]()
