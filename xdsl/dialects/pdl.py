@@ -120,7 +120,7 @@ class EraseOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop
     """
     name: str = "pdl.erase"
-    op_value: Annotated[Operand, OperationType]
+    opValue: Annotated[Operand, OperationType]
 
 
 @irdl_op_definition
@@ -184,7 +184,7 @@ class RangeOp(Operation):
 
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
             if isa(arg.typ, RangeType[AnyPDLType]):
-                return arg.typ.element_type
+                return arg.typ.elementType
             else:
                 return arg.typ
 
