@@ -4,7 +4,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import MLContext, Region
+from xdsl.ir import MLContext
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, i64
 from xdsl.dialects.func import FuncOp
