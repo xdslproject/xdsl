@@ -202,7 +202,6 @@ class xDSLOptMain:
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
 
-
     def register_all_frontends(self):
         """
         Register all frontends that can be used.
@@ -230,7 +229,7 @@ class xDSLOptMain:
         self.available_passes['lower-mpi'] = lower_mpi
         self.available_passes[
             'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
-        self.available_passes['desymrefy'] = desymrefy
+        self.available_passes['frontend-desymrefy'] = desymrefy
 
     def register_all_targets(self):
         """

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p desymrefy | filecheck %s
+// RUN: xdsl-opt %s -p frontend-desymrefy | filecheck %s
 
 // CHECK: builtin.module()
 builtin.module() {

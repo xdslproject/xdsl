@@ -99,18 +99,18 @@ def has_symbol(op: Operation) -> bool:
     return isinstance(op, symref.Declare | symref.Fetch | symref.Update)
 
 
-def get_symbol(op: Operation) -> str:
+def get_symbol(
+        op: symref.Declare | symref.Fetch | symref.Update) -> str | None:
     """
     Returns a symbol attribute for an operation. If operation has no symbol
-    attributes, raises an exception.
+    attributes, None is returned.
     """
     if isinstance(op, symref.Declare):
         return op.sym_name.data
     elif isinstance(op, symref.Fetch | symref.Update):
         return op.symbol.root_reference.data
     else:
-        raise FrontendProgramException(
-            f"Operation '{op.name}' does not have symbol attributes.")
+        return None
 
 
 def get_symbols(block: Block) -> set[str]:
@@ -118,7 +118,11 @@ def get_symbols(block: Block) -> set[str]:
     symbols: set[str] = set()
     for op in block.ops:
         if has_symbol(op):
-            symbols.add(get_symbol(op))
+            assert isinstance(op,
+                              symref.Declare | symref.Fetch | symref.Update)
+            symbol = get_symbol(op)
+            assert symbol is not None
+            symbols.add(symbol)
     return symbols
 
 
@@ -298,9 +302,9 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = set(
-                filter(lambda symbol: symbol not in prepared_symbols,
-                       get_symbols(block)))
+            symbol_worklist: set[str] = set(symbol
+                                            for symbol in get_symbols(block)
+                                            if symbol not in prepared_symbols)
             if len(symbol_worklist) == 0:
                 return
 

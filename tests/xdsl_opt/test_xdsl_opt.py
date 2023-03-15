@@ -15,7 +15,7 @@ def test_opt():
     assert list(opt.available_passes.keys()) == [
         'lower-mpi',
         'convert-stencil-to-ll-mlir',
-        'desymrefy',
+        'frontend-desymrefy',
     ]
 
 
