@@ -968,6 +968,20 @@ def irdl_build_arg_list(construct: VarIRConstruct,
     return res, arg_sizes
 
 
+_OperandArg: TypeAlias = SSAValue | Operation
+
+
+def irdl_build_operations_arg(
+    operands: Sequence[_OperandArg | Sequence[_OperandArg]
+                       | None]
+) -> list[SSAValue | list[SSAValue]]:
+
+    return [[] if op is None else
+            op if isinstance(op, SSAValue) else SSAValue.get(op) if isinstance(
+                op, Operation) else [SSAValue.get(_op) for _op in op]
+            for op in operands]
+
+
 _RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
 
 
@@ -1008,18 +1022,13 @@ def irdl_op_builder(
 
     error_prefix = f"Error in {op_def.name} builder: "
 
-    my_operands = [
-        []
-        if op is None else op if isinstance(op, SSAValue) else SSAValue.get(op)
-        if isinstance(op, Operation) else [SSAValue.get(_op) for _op in op]
-        for op in operands
-    ]
+    operands_arg = irdl_build_operations_arg(operands)
 
     regions_arg = irdl_build_regions_arg(regions)
 
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
-        VarIRConstruct.OPERAND, my_operands, op_def.operands, error_prefix)
+        VarIRConstruct.OPERAND, operands_arg, op_def.operands, error_prefix)
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
