@@ -8,10 +8,10 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    AnyFloat)
 from xdsl.dialects import builtin
 from xdsl.ir import Operation, Dialect, MLIRType
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
-                       AttrConstraint, Attribute, Region, VerifyException,
-                       Generic, AnyOf, Annotated, Operand, OpAttr, OpResult,
-                       VarOperand, VarOpResult, OptOpAttr,
+from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
+                       ParameterDef, AttrConstraint, Attribute, Region,
+                       VerifyException, Generic, AnyOf, Annotated, Operand,
+                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
                        AttrSizedOperandSegments)
 
 
@@ -149,8 +149,8 @@ class CastOp(Operation):
     """
     name: str = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
+    lb: OpAttr[IndexAttr]
+    ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
 
@@ -289,7 +289,7 @@ class ApplyOp(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, TempType]
+    args: Annotated[VarOperand, AnyAttr()]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     region: Region

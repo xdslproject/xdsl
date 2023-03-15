@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase, i32,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                     i64,
-                                   AnyIntegerAttr, IndexType, DenseIntOrFPElementsAttr, UnitAttr)
+                                   AnyIntegerAttr, IndexType, UnitAttr)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 
@@ -95,7 +95,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
 
-    def is_typed(self):
+    def is_typed(self) -> bool:
         return not isinstance(self.type, NoneAttr)
 
 @irdl_op_definition
@@ -153,6 +153,7 @@ class GetElementPtrOp(Operation):
             'elem_type': result_type
         }
 
+        assert isinstance(ptr.typ, LLVMPointerType)
         if ptr.typ.is_typed():
             attrs.pop('elem_type')
 
@@ -249,7 +250,6 @@ class StoreOp(Operation):
 
     value: Operand
     ptr: Annotated[Operand, LLVMPointerType]
-
 
     alignment: OptOpAttr[IntegerAttr[IntegerType]]
     ordering: OptOpAttr[IntegerAttr[IntegerType]]
