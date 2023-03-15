@@ -5,7 +5,6 @@
   "typeCheckingMode": "strict",
   "exclude": [
     "xdsl/irdl_mlir_printer.py",
-    "xdsl/irdl.py",
     "xdsl/ir.py"
   ]
 }
