@@ -958,13 +958,13 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 
 
 def irdl_op_builder(
-        cls: type[_OpT], op_def: OpDef,
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]
-                           | None],
-        res_types: Sequence[Any | list[Any] | None],
-        attributes: dict[str, Attribute], successors: Sequence[Block],
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+    cls: type[_OpT], op_def: OpDef,
+    operands: Sequence[SSAValue | Operation
+                       | Sequence[SSAValue | Operation]
+                       | None], res_types: Sequence[Any | list[Any] | None],
+    attributes: dict[str, Attribute], successors: Sequence[Block],
+    regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                      | Sequence[Region]]
 ) -> _OpT:
     """Builder for an irdl operation."""
 
