@@ -49,6 +49,11 @@ def test_punctuation(text: str, kind: Token.Kind):
     assert_single_token(text, kind)
 
 
+@pytest.mark.parametrize('text', ['.', '&'])
+def test_punctuation_fail(text: str):
+    assert_token_fail(text)
+
+
 @pytest.mark.parametrize(
     'text', ['""', '"@"', '"foo"', '"\\""', '"\\n"', '"\\\\"', '"\\t"'])
 def test_str_literal(text: str):
@@ -148,3 +153,14 @@ def test_float_literal(text: str):
 @pytest.mark.parametrize('text', ['0.', '1.', '3.9e', '4.5e+', '5.8e-'])
 def test_float_literal_fail(text: str):
     assert_token_fail(text)
+
+
+@pytest.mark.parametrize('text',
+                         ['0', ' 0', '   0', '\n0', '\t0', '// Comment\n0'])
+def test_whitespace_skip(text: str):
+    assert_single_token(text, Token.Kind.INTEGER_LIT, '0')
+
+
+@pytest.mark.parametrize('text', ['', '   ', '\n\n', '// Comment\n'])
+def test_eof(text: str):
+    assert_single_token(text, Token.Kind.EOF, '')

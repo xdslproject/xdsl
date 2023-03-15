@@ -412,10 +412,9 @@ class Lexer:
             kind = Token.Kind.EXCLAMATION_IDENT
         elif first_char == '^':
             kind = Token.Kind.CARET_IDENT
-        elif first_char == '%':
-            kind = Token.Kind.PERCENT_IDENT
         else:
-            assert False, "First prefixed identifier character must have been parsed correctly"
+            assert first_char == '%', "First prefixed identifier character must have been parsed correctly"
+            kind = Token.Kind.PERCENT_IDENT
 
         punctuation = ['$', '.', '_', '-']
 
