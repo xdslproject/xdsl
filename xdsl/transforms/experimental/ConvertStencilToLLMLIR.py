@@ -141,7 +141,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         StencilTypeConversionFuncOp(),
         CastOpToMemref(),
         LoadOpToMemref(),
-        ApplyOpToParallel()
+        ApplyOpToParallel(),
     ]),
                                   walk_regions_first=True)
     walker.rewrite_module(module)
