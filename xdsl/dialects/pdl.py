@@ -150,7 +150,6 @@ class OperationOp(Operation):
 
     operandValues: Annotated[VarOperand, ValueType | RangeType[ValueType]]
     # in PDL docs, this is just a handle to AttributeType, not a range.
-    # Why is it different to operandvalues
     attributeValues: Annotated[VarOperand,
                                AttributeType | RangeType[AttributeType]]
     typeValues: Annotated[VarOperand, TypeType | RangeType[TypeType]]
