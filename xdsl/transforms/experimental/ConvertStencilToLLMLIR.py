@@ -1,16 +1,17 @@
 from typing import TypeVar
+from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
 from xdsl.ir import MLContext
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, i64
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref
 
-from xdsl.dialects.experimental.stencil import CastOp, FieldType, IndexAttr
+from xdsl.dialects.experimental.stencil import CastOp, FieldType, IndexAttr, LoadOp
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -51,6 +52,28 @@ class CastOpToMemref(RewritePattern):
         rewriter.replace_matched_op(memref.Cast.get(op.field, result_typ))
 
 
+class LoadOpToMemref(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        if op.lb is None:
+            warn("stencil.load should have a lb attribute when lowered.")
+            return
+        if not isinstance(op.field.owner, memref.Cast):
+            warn(
+                "stencil.cast should be lowered to memref.cast before the stencil.load lowering."
+            )
+            return
+        offsets: list[Attribute] = [
+            IntegerAttr(-i.value.data, i64) for i in op.lb.array.data
+        ]
+
+        # TODO: handle with memref.subview or another, cleaner, approach.
+        op.field.owner.attributes["stencil_offset"] = ArrayAttr.from_list(
+            offsets)
+        rewriter.replace_matched_op([], [op.field.owner.dest])
+
+
 class StencilTypeConversionFuncOp(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -62,6 +85,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
                 memreftyp = GetMemRefFromField(typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)
                 inputs.append(memreftyp)
+            else:
+                inputs.append(arg.typ)
 
         op.attributes["function_type"] = FunctionType.from_lists(
             inputs, list(op.function_type.outputs.data))
@@ -70,8 +95,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
     walker = PatternRewriteWalker(GreedyRewritePatternApplier(
         [StencilTypeConversionFuncOp(),
-         CastOpToMemref()]),
-                                  walk_regions_first=True,
-                                  apply_recursively=False,
-                                  walk_reverse=True)
+         CastOpToMemref(),
+         LoadOpToMemref()]),
+                                  walk_regions_first=True)
     walker.rewrite_module(module)
