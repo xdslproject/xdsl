@@ -5,8 +5,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
 from inspect import isclass
-from typing import (Annotated, Any, Generic, Sequence, TypeAlias, TypeVar,
-                    Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Generic, Literal, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints,
+                    overload)
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
@@ -903,6 +904,31 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.OPERAND],
+                        args: Sequence[SSAValue | Sequence[SSAValue]],
+                        arg_defs: Sequence[tuple[str, OperandDef]],
+                        error_prefix: str) -> tuple[list[SSAValue], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(
+        construct: Literal[VarIRConstruct.RESULT],
+        args: Sequence[Attribute | Sequence[Attribute]],
+        arg_defs: Sequence[tuple[str, ResultDef]],
+        error_prefix: str) -> tuple[list[Attribute], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.REGION],
+                        args: Sequence[Region | Sequence[Region]],
+                        arg_defs: Sequence[tuple[str, RegionDef]],
+                        error_prefix: str) -> tuple[list[Region], list[int]]:
+    ...
+
+
 def irdl_build_arg_list(construct: VarIRConstruct,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
@@ -950,7 +976,7 @@ def irdl_op_builder(
     operands: Sequence[SSAValue | Operation
                        | Sequence[SSAValue | Operation]
                        | None],
-    res_types: Sequence[Attribute | Sequence[Attribute] | None],
+    res_types: Sequence[Attribute | Sequence[Attribute]],
     attributes: dict[str, Attribute], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
