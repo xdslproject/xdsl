@@ -22,6 +22,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
 from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
 
@@ -198,7 +199,9 @@ class xDSLOptMain:
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
         self.ctx.register_dialect(Stencil)
+        self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
+
 
     def register_all_frontends(self):
         """

@@ -257,7 +257,8 @@ def irdl_to_attr_constraint(
         generic_args = ()
 
         # Get the Generic parent class to get the TypeVar parameters
-        for parent in origin.__orig_bases__:  # type: ignore
+        bases = cast(Sequence[Any], origin.__orig_bases__)  # type: ignore
+        for parent in bases:
             if get_origin(parent) == Generic:
                 generic_args = get_args(parent)
                 break
@@ -552,7 +553,7 @@ class OpDef:
             # from the arguments.
             # If the field type is not an Annotated, then the arguments should
             # just be the field itself.
-            origin = get_origin(field_type)
+            origin: Any | None = get_origin(field_type)
             args: tuple[Any, ...]
             if origin is None:
                 args = (field_type, )
@@ -957,13 +958,13 @@ def irdl_build_arg_list(construct: VarIRConstruct,
 
 
 def irdl_op_builder(
-        cls: type[_OpT], op_def: OpDef,
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]
-                           | None],
-        res_types: Sequence[Any | list[Any] | None],
-        attributes: dict[str, Attribute], successors: Sequence[Block],
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+    cls: type[_OpT], op_def: OpDef,
+    operands: Sequence[SSAValue | Operation
+                       | Sequence[SSAValue | Operation]
+                       | None], res_types: Sequence[Any | list[Any] | None],
+    attributes: dict[str, Attribute], successors: Sequence[Block],
+    regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                      | Sequence[Region]]
 ) -> _OpT:
     """Builder for an irdl operation."""
 
@@ -1067,14 +1068,28 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     # Add region access fields
     irdl_op_arg_definition(new_attrs, VarIRConstruct.REGION, op_def)
 
+    def optional_attribute_field(attribute_name: str):
+
+        @property
+        def impl(self: _OpT):
+            return self.attributes.get(attribute_name, None)
+
+        return impl
+
+    def attribute_field(attribute_name: str):
+
+        @property
+        def impl(self: _OpT):
+            return self.attributes.get(attribute_name, None)
+
+        return impl
+
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
-            new_attrs[attribute_name] = property(
-                lambda self, name=attribute_name: self.attributes.get(
-                    name, None))
+            new_attrs[attribute_name] = optional_attribute_field(
+                attribute_name)
         else:
-            new_attrs[attribute_name] = property(
-                lambda self, name=attribute_name: self.attributes[name])
+            new_attrs[attribute_name] = attribute_field(attribute_name)
 
     def builder(
         cls: type[_OpT],
@@ -1101,9 +1116,18 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                                successors, regions)
 
     new_attrs["build"] = classmethod(builder)
-    new_attrs["irdl_definition"] = classmethod(property(lambda cls: op_def))
 
-    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})
+    @classmethod
+    @property
+    def irdl_definition(cls: type[_OpT]):
+        return op_def
+
+    new_attrs["irdl_definition"] = irdl_definition
+
+    return type(cls.__name__, cls.__mro__, {
+        **cls.__dict__,
+        **new_attrs
+    })  # type: ignore
 
 
 #  ____        _
@@ -1150,9 +1174,17 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
     """Decorator to transform an IRDL Data definition to a Python class."""
     new_attrs = dict[str, Any]()
 
+    def verify(expected_type: type[Any]):
+
+        def impl(self: T):
+            return irdl_data_verify(self, expected_type)
+
+        return impl
+
     # Verify method is added if not redefined by the user.
     if "verify" not in cls.__dict__:
-        for parent in cls.__orig_bases__:
+        bases = cast(Sequence[Any], cls.__orig_bases__)  # type: ignore
+        for parent in bases:
             if get_origin(parent) != Data:
                 continue
             if len(get_args(parent)) != 1:
@@ -1167,9 +1199,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
                 raise Exception(f'In {cls.__name__} definition: Cannot infer '
                                 f'"verify" method. Type parameter of Data has '
                                 f'type GenericAlias.')
-            new_attrs[
-                "verify"] = lambda self, expected_type=expected_type: irdl_data_verify(
-                    self, expected_type)
+            new_attrs["verify"] = verify(expected_type)
             break
         else:
             raise Exception(f'Missing method "verify" in {cls.__name__} data '
@@ -1179,7 +1209,7 @@ def irdl_data_definition(cls: type[T]) -> type[T]:
     return dataclass(frozen=True)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
         **new_attrs
-    }))
+    }))  # type: ignore
 
 
 #  ____                              _   _   _
@@ -1203,7 +1233,7 @@ def irdl_param_attr_get_param_type_hints(
         if field_name == "name" or field_name == "parameters":
             continue
 
-        origin = get_origin(field_type)
+        origin: Any | None = get_origin(field_type)
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
             raise PyRDLAttrDefinitionError(
@@ -1265,18 +1295,17 @@ class ParamAttrDef:
 
         return ParamAttrDef(name, parameters)
 
+    def verify(self, attr: ParametrizedAttribute):
+        """Verify that `attr` satisfies the invariants."""
 
-def irdl_attr_verify(attr: ParametrizedAttribute, attr_def: ParamAttrDef):
-    """Given an IRDL definition, verify that an attribute satisfies its invariants."""
+        if len(attr.parameters) != len(self.parameters):
+            raise VerifyException(
+                f"In {self.name} attribute verifier: "
+                f"{len(self.parameters)} parameters expected, got "
+                f"{len(attr.parameters)}")
 
-    if len(attr.parameters) != len(attr_def.parameters):
-        raise VerifyException(
-            f"In {attr_def.name} attribute verifier: "
-            f"{len(attr_def.parameters)} parameters expected, got "
-            f"{len(attr.parameters)}")
-
-    for param, (_, param_def) in zip(attr.parameters, attr_def.parameters):
-        param_def.verify(param)
+        for param, (_, param_def) in zip(attr.parameters, self.parameters):
+            param_def.verify(param)
 
 
 _PAttrT = TypeVar('_PAttrT', bound=ParametrizedAttribute)
@@ -1295,29 +1324,28 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     # New fields and methods added to the attribute
     new_fields = dict[str, Any]()
 
+    def param_name_field(idx: int):
+
+        @property
+        def field(self: _PAttrT):
+            return self.parameters[idx]
+
+        return field
+
     for idx, (param_name, _) in enumerate(attr_def.parameters):
-        new_fields[param_name] = property(
-            lambda self, idx=idx: self.parameters[idx])
+        new_fields[param_name] = param_name_field(idx)
 
-    new_fields["verify"] = lambda typ: irdl_attr_verify(typ, attr_def)
+    @classmethod
+    @property
+    def irdl_definition(cls: type[_PAttrT]):
+        return attr_def
 
-    if "verify" in clsdict:
-        custom_verifier = clsdict["verify"]
-
-        def new_verifier(verifier, op):
-            verifier(op)
-            custom_verifier(op)
-
-        new_fields["verify"] = (
-            lambda verifier: lambda op: new_verifier(verifier, op))(
-                new_fields["verify"])
-
-    new_fields["irdl_definition"] = classmethod(property(lambda cls: attr_def))
+    new_fields["irdl_definition"] = irdl_definition
 
     return dataclass(frozen=True, init=False)(type(cls.__name__, (cls, ), {
         **cls.__dict__,
         **new_fields
-    }))
+    }))  # type: ignore
 
 
 _AttrT = TypeVar('_AttrT', bound=Attribute)
@@ -1327,7 +1355,7 @@ def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return irdl_data_definition(cls)
+        return irdl_data_definition(cls)  # type: ignore
     raise Exception(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'")

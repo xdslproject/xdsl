@@ -11,7 +11,7 @@ from io import StringIO
 from typing import Any, IO
 
 if typing.TYPE_CHECKING:
-    from parser import Span, BacktrackingHistory
+    from xdsl.parser import Span, BacktrackingHistory
     from xdsl.ir import Attribute
 
 
