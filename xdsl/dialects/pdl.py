@@ -126,7 +126,7 @@ class OperandOp(Operation):
     """
     name: str = "pdl.operand"
     value_type: Annotated[OptOperand, TypeType]
-    output: Annotated[OpResult, ValueType]
+    value: Annotated[OpResult, ValueType]
 
 
 @irdl_op_definition
@@ -136,7 +136,7 @@ class OperandsOp(Operation):
     """
     name: str = "pdl.operands"
     value_type: Annotated[Operand, RangeType[TypeType]]
-    output: Annotated[OpResult, RangeType[ValueType]]
+    value: Annotated[OpResult, RangeType[ValueType]]
 
 
 @irdl_op_definition
