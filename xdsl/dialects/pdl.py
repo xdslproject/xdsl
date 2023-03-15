@@ -43,7 +43,7 @@ _RangeT = TypeVar("_RangeT",
 @irdl_attr_definition
 class RangeType(Generic[_RangeT], ParametrizedAttribute, MLIRType):
     name = "pdl.range"
-    element_type: ParameterDef[_RangeT]
+    elementType: ParameterDef[_RangeT]
 
 
 @irdl_op_definition
@@ -110,7 +110,7 @@ class AttributeOp(Operation):
     """
     name: str = "pdl.attribute"
     value: OptOpAttr[Attribute]
-    value_type: Annotated[OptOperand, TypeType]
+    valueType: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, AttributeType]
 
 
@@ -129,7 +129,7 @@ class OperandOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop
     """
     name: str = "pdl.operand"
-    value_type: Annotated[OptOperand, TypeType]
+    valueType: Annotated[OptOperand, TypeType]
     value: Annotated[OpResult, ValueType]
 
 
@@ -139,7 +139,7 @@ class OperandsOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop
     """
     name: str = "pdl.operands"
-    value_type: Annotated[Operand, RangeType[TypeType]]
+    valueType: Annotated[Operand, RangeType[TypeType]]
     value: Annotated[OpResult, RangeType[ValueType]]
 
 
@@ -285,7 +285,7 @@ class TypeOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
     """
     name: str = "pdl.type"
-    constant_type: Annotated[OptOperand, TypeType]
+    constantType: Annotated[OptOperand, TypeType]
     result: Annotated[OpResult, TypeType]
 
 
@@ -295,7 +295,7 @@ class TypesOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop
     """
     name: str = "pdl.types"
-    constant_types: Annotated[OptOperand, ArrayAttr[TypeType]]
+    constantTypes: Annotated[OptOperand, ArrayAttr[TypeType]]
     result: Annotated[OpResult, RangeType[TypeType]]
 
 
