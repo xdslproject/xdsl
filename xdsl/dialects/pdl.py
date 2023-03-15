@@ -153,7 +153,6 @@ class OperationOp(Operation):
     attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
 
     operandValues: Annotated[VarOperand, ValueType | RangeType[ValueType]]
-    # in PDL docs, this is just a handle to AttributeType, not a range.
     attributeValues: Annotated[VarOperand, AttributeType]
     typeValues: Annotated[VarOperand, TypeType | RangeType[TypeType]]
     op: Annotated[OpResult, OperationType]
