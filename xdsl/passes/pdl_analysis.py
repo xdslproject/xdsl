@@ -26,7 +26,7 @@ class PDLDebugWarning(Warning):
 
 
 enable_prints = True
-warnings.simplefilter("ignore")
+warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
 def debug(msg: str):
