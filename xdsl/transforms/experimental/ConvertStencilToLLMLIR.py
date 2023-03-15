@@ -88,7 +88,8 @@ class ApplyOpToParallel(RewritePattern):
         entry = op.region.blocks[0]
 
         for arg in entry.args:
-            for use in arg.uses:
+            arg_uses = set(arg.uses)
+            for use in arg_uses:
                 use.operation.replace_operand(use.index, op.args[use.index])
             entry.erase_arg(arg)
 
