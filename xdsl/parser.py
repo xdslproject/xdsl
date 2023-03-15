@@ -952,11 +952,10 @@ class BaseParser(ABC):
         raise ParseError(at_position, msg, self.tokenizer.history)
 
     def try_parse_characters(self, text: str) -> Span | None:
-        with self.tokenizer.backtracking("characters"):
-            return self.parse_characters(text, "Expected " + text)
+        return self.tokenizer.next_token_of_pattern(text)
 
     def parse_characters(self, text: str, msg: str) -> Span:
-        if (match := self.tokenizer.next_token_of_pattern(text)) is None:
+        if (match := self.try_parse_characters(text)) is None:
             self.raise_error(msg)
         return match
 
