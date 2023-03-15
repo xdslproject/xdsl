@@ -549,7 +549,8 @@ class Operation(IRNode):
         | None = None,
         attributes: dict[str, Attribute] | None = None,
         successors: Sequence[Block] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region]]
         | None = None
     ) -> OpT:
         """Create a new operation using builders."""

@@ -232,10 +232,11 @@ class GetGlobal(Operation):
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
-            raise Exception("GetGlobal requires a 'name' attribute")
+            raise VerifyException("GetGlobal requires a 'name' attribute")
 
         if not isinstance(self.attributes['name'], SymbolRefAttr):
-            raise Exception("expected 'name' attribute to be a SymbolRefAttr")
+            raise VerifyException(
+                "expected 'name' attribute to be a SymbolRefAttr")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
