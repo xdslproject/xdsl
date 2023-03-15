@@ -67,6 +67,8 @@ class LoadOpToMemref(RewritePattern):
         offsets: list[Attribute] = [
             IntegerAttr(-i.value.data, i64) for i in op.lb.array.data
         ]
+
+        # TODO: handle with memref.subview or another, cleaner, approach.
         op.field.owner.attributes["stencil_offset"] = ArrayAttr.from_list(
             offsets)
         rewriter.replace_matched_op([], [op.field.owner.dest])
