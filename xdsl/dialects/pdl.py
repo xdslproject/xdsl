@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, TypeVar, cast
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
