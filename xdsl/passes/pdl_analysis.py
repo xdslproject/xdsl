@@ -26,7 +26,11 @@ class PDLDebugWarning(Warning):
 
 
 enable_prints = True
-warnings.simplefilter("ignore", category=PDLDebugWarning)
+warnings.simplefilter("ignore")
+
+
+def debug(msg: str):
+    warn(msg)
 
 
 @dataclass
@@ -109,13 +113,13 @@ class PDLAnalysis:
         # Check whether all ops in the pattern are reachable
         if len(pattern_op.body.ops) != len(self.visited_ops):
             if enable_prints:
-                warn(
-                    f"{abs(len(pattern_op.body.ops) - len(self.visited_ops))} Unreachable PDL ops in pattern!",
-                    category=PDLDebugWarning)
-                warn("Full pattern:", category=PDLDebugWarning)
+                debug(
+                    f"{abs(len(pattern_op.body.ops) - len(self.visited_ops))} Unreachable PDL ops in pattern!"
+                )
+                debug("Full pattern:")
                 printer = Printer()
                 printer.print_op(pattern_op)
-                warn("Unreachable ops:", category=PDLDebugWarning)
+                debug("Unreachable ops:")
                 for pdl_op in pattern_op.body.ops:
                     if pdl_op not in self.visited_ops:
                         printer.print_op(pdl_op)
@@ -138,8 +142,7 @@ class PDLAnalysis:
 
         for terminator in self.terminator_matches:
             if terminator.erased and terminator.replaced_by is None:
-                warn(f"Terminator was erased: {terminator}!",
-                     category=PDLDebugWarning)
+                debug(f"Terminator was erased: {terminator}!")
                 self._add_analysis_result_to_op(terminator.pdl_op,
                                                 "terminator_erased")
             elif replacement := terminator.replaced_by:
@@ -148,15 +151,15 @@ class PDLAnalysis:
                         self._add_analysis_result_to_op(
                             terminator.pdl_op,
                             "terminator_replaced_with_non_terminator")
-                        warn(
-                            f"Terminator might be replaced by non-terminator: {terminator}!",
-                            category=PDLDebugWarning)
+                        debug(
+                            f"Terminator might be replaced by non-terminator: {terminator}!"
+                        )
                 else:
                     raise Exception(
                         "We currently can't handle pdl.Replace with a list of SSAValues as replacement!"
                     )
 
-        warn("Terminator Analysis finished.", category=PDLDebugWarning)
+        debug("Terminator Analysis finished.")
 
     def _trace_match_operation_op(self, pdl_operation_op: pdl.OperationOp):
         """
@@ -187,8 +190,7 @@ class PDLAnalysis:
         Gather information about a pdl operation the matching part of a pdl.PatternOp.
         """
         if pdl_op in self.visited_ops:
-            warn(f"tracing lhs: op {pdl_op.name} Already visited!",
-                 category=PDLDebugWarning)
+            debug(f"tracing lhs: op {pdl_op.name} Already visited!")
             return
         # TODO: we want to use a match statement here. Damn you YAPF!
         # trace differently depending on which PDL op we encounter here
@@ -204,16 +206,13 @@ class PDLAnalysis:
             used_op: pdl.OperationOp = used_op_result.op
             self._trace_match_operation_op(used_op)
         elif isinstance(pdl_op, pdl.AttributeOp):
-            warn(f"lhs: Found attribute: {pdl_op.name}",
-                 category=PDLDebugWarning)
+            debug(f"lhs: Found attribute: {pdl_op.name}")
         elif isinstance(pdl_op, pdl.TypeOp):
-            warn(f"lhs: Found type: {pdl_op.name}", category=PDLDebugWarning)
+            debug(f"lhs: Found type: {pdl_op.name}")
         elif isinstance(pdl_op, pdl.OperandOp):
-            warn(f"lhs: Found operand: {pdl_op.name}",
-                 category=PDLDebugWarning)
+            debug(f"lhs: Found operand: {pdl_op.name}")
         else:
-            warn(f"lhs: unsupported PDL op: {pdl_op.name}",
-                 category=PDLDebugWarning)
+            debug(f"lhs: unsupported PDL op: {pdl_op.name}")
 
         self.visited_ops.add(pdl_op)
 
@@ -224,19 +223,16 @@ class PDLAnalysis:
 
     def _analyze_rhs_op(self, rhs_op: Operation):
         if rhs_op in self.visited_ops:
-            warn(f"tracing rhs: op {rhs_op.name} Already visited!",
-                 category=PDLDebugWarning)
+            debug(f"tracing rhs: op {rhs_op.name} Already visited!")
             return
         if isinstance(rhs_op, pdl.OperationOp):
             self._trace_generate_new_op(rhs_op)
         elif isinstance(rhs_op, pdl.TypeOp):
-            warn(f"rhs: Found type: {rhs_op.name}", category=PDLDebugWarning)
+            debug(f"rhs: Found type: {rhs_op.name}")
         elif isinstance(rhs_op, pdl.AttributeOp):
-            warn(f"rhs: Found attribute: {rhs_op.name}",
-                 category=PDLDebugWarning)
+            debug(f"rhs: Found attribute: {rhs_op.name}")
         elif isinstance(rhs_op, pdl.ReplaceOp):
-            warn(f"rhs: Found replacement: {rhs_op.name}",
-                 category=PDLDebugWarning)
+            debug(f"rhs: Found replacement: {rhs_op.name}")
             # For now only handle the case where the replacement is a single op
             if len(rhs_op.operands) != 2 or not all([
                     isinstance(operand.typ, pdl.OperationType)
@@ -295,9 +291,9 @@ class PDLAnalysis:
 
     def _is_terminator(self, op_type: Type[Operation]):
         if issubclass(op_type, TerminatorOp):
-            warn("Found terminator:", category=PDLDebugWarning)
+            debug("Found terminator:")
         else:
-            warn("Found non-terminator:", category=PDLDebugWarning)
+            debug("Found non-terminator:")
 
     @staticmethod
     def _add_analysis_result_to_op(op: Operation, result: str):
@@ -319,7 +315,7 @@ class PDLAnalysis:
 def pdl_analysis_pass(ctx: MLContext, prog: ModuleOp):
     for op in prog.ops:
         if isinstance(op, pdl.PatternOp):
-            warn(f"Found pattern:{op.name}", category=PDLDebugWarning)
+            debug(f"Found pattern:{op.name}")
             analysis = PDLAnalysis(ctx, op)
             analysis.terminator_analysis()
 
