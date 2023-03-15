@@ -243,7 +243,9 @@ class RewriteOp(Operation):
     # name of external rewriter function
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OptOpAttr[StringAttr]
+    # parameters of external rewriter function
     externalArgs: Annotated[VarOperand, AnyPDLType]
+    # body of inline rewriter function
     body: OptRegion
 
     irdl_options = [AttrSizedOperandSegments()]
