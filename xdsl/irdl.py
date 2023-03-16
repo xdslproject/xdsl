@@ -972,34 +972,33 @@ _OperandArg: TypeAlias = SSAValue | Operation
 
 
 def irdl_build_operations_arg(
-    operands: Sequence[_OperandArg | Sequence[_OperandArg]
-                       | None]
-) -> list[SSAValue | list[SSAValue]]:
-
-    return [[] if op is None else
-            op if isinstance(op, SSAValue) else SSAValue.get(op) if isinstance(
-                op, Operation) else [SSAValue.get(_op) for _op in op]
-            for op in operands]
+    operand: _OperandArg | Sequence[_OperandArg] | None
+) -> SSAValue | list[SSAValue]:
+    if operand is None:
+        return []
+    elif isinstance(operand, SSAValue):
+        return operand
+    elif isinstance(operand, Operation):
+        return SSAValue.get(operand)
+    else:
+        return [SSAValue.get(op) for op in operand]
 
 
 _RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
 
 
-def irdl_build_regions_arg(
-    regions: Sequence[_RegionArg | Sequence[_RegionArg]
-                      | None]
-) -> list[Region | list[Region]]:
-
-    def _build_regions_arg(regions: Sequence[_RegionArg]) -> list[Region]:
-        return [r if isinstance(r, Region) else Region.get(r) for r in regions]
-
-    return [
-        [] if r is None else
-        r if isinstance(r, Region) else [] if not len(r) else Region.
-        get(cast(Sequence[Operation]
-                 | Sequence[Block], r)) if isinstance(r[0], Operation | Block)
-        else _build_regions_arg(cast(Sequence[_RegionArg], r)) for r in regions
-    ]
+def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
+                           | None) -> Region | list[Region]:
+    if r is None:
+        return []
+    elif isinstance(r, Region):
+        return r
+    elif not len(r):
+        return []
+    elif isinstance(r[0], Operation | Block):
+        return Region.get(cast(Sequence[Operation] | Sequence[Block], r))
+    else:
+        return [Region.get(_r) for _r in cast(Sequence[_RegionArg], r)]
 
 
 def irdl_op_builder(
@@ -1022,9 +1021,9 @@ def irdl_op_builder(
 
     error_prefix = f"Error in {op_def.name} builder: "
 
-    operands_arg = irdl_build_operations_arg(operands)
+    operands_arg = [irdl_build_operations_arg(operand) for operand in operands]
 
-    regions_arg = irdl_build_regions_arg(regions)
+    regions_arg = [irdl_build_regions_arg(region) for region in regions]
 
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
