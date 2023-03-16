@@ -35,8 +35,6 @@ def test_llvm_pointer_ops():
 
 
 def test_llvm_pointer_type():
-
-
     assert llvm.LLVMPointerType.typed(builtin.i64).is_typed()
     assert llvm.LLVMPointerType.typed(builtin.i64).type is builtin.i64
     assert isinstance(
