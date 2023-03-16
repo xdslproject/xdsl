@@ -5,7 +5,6 @@ requires = [
 ]
 
 [tool.pyright]
-include = ["xdsl", "docs", "tests"]
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
@@ -31,6 +30,10 @@ typeCheckingMode = "strict"
     "tests/xdsl_opt/test_xdsl_opt.py",
 ]
 "ignore" = [
+    "venv",
+    "versioneer.py",
+    "setup.py",
+    "update_xdsl_pyodide_build.py",
     "xdsl/irdl_mlir_printer.py",
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
