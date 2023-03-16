@@ -286,10 +286,10 @@ class PDLAnalysis:
             elif rhs_op.replValues:
                 analyzed_op.replaced_by = rhs_op.replValues
         elif isinstance(rhs_op, pdl.EraseOp):
-            assert isinstance(rhs_op.op_value, OpResult)
-            assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
+            assert isinstance(rhs_op.opValue, OpResult)
+            assert isinstance(rhs_op.opValue.op, pdl.OperationOp)
             if (analyzed_op := self.get_analysis_for_pdl_op(
-                    rhs_op.op_value.op)) is None:
+                    rhs_op.opValue.op)) is None:
                 raise Exception("Unknown pdl.Operation to be erased!")
             analyzed_op.erased_by = rhs_op
         else:
