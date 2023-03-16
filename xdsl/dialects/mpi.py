@@ -12,7 +12,7 @@ from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       AnyOf)
+                       AnyOf, OptOperand)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -177,23 +177,29 @@ class Allreduce(MPIBaseOp):
 
     name = "mpi.allreduce"
 
-    send_buffer: Annotated[Operand, Attribute]
     recv_buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
+    send_buffer: Annotated[OptOperand, Attribute]
     operationtype: OpAttr[OperationType]
 
     @classmethod
     def get(
         cls,
-        send_buffer: SSAValue | Operation,
+        send_buffer: SSAValue | Operation | None,
         recv_buffer: SSAValue | Operation,
         count: SSAValue | Operation,
         datatype: SSAValue | Operation,
         operationtype: OperationType,
     ):
+
+        if send_buffer is None:
+            operands_to_add = [recv_buffer, count, datatype, []]
+        else:
+            operands_to_add = [recv_buffer, count, datatype, [send_buffer]]
+
         return cls.build(
-            operands=[send_buffer, recv_buffer, count, datatype],
+            operands=operands_to_add,
             attributes={"operationtype": operationtype},
             result_types=[],
         )
@@ -209,7 +215,7 @@ class Bcast(MPIBaseOp):
 
     int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
               MPI_Comm comm)
-        
+
         buffer: starting address of buffer (choice)
         count: number of elements in send buffer (non-negative integer)
         datatype: data type of elements of send buffer (handle)

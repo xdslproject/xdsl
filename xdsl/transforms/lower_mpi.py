@@ -85,6 +85,9 @@ class MpiLibraryInfo:
     MPI_Status_field_MPI_TAG: int = 12  # offset of field MPI_TAG in struct MPI_Status
     MPI_Status_field_MPI_ERROR: int = 16  # offset of field MPI_ERROR in struct MPI_Status
 
+    # In place MPI All reduce
+    MPI_IN_PLACE: int = -1
+
 
 _RewriteT = TypeVar('_RewriteT', bound=mpi.MPIBaseOp)
 
@@ -422,12 +425,28 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
         Lowers the MPI Allreduce operation
         """
 
+        # Send buffer is optional (if not provided then call using MPI_IN_PLACE)
+        has_send_buffer = len(op.operands) == 4
+
+        comm_global = arith.Constant.from_int_and_width(
+            self.info.MPI_COMM_WORLD, i32)
+        mpi_op = self._emit_mpi_operation_load(op.operationtype)
+
+        operations = [comm_global, mpi_op]
+
+        if has_send_buffer:
+            send_buffer_op = op.send_buffer
+        else:
+            send_buffer_op = arith.Constant.from_int_and_width(
+                self.info.MPI_IN_PLACE, i64)
+
+            operations.append(send_buffer_op)
+            send_buffer = send_buffer_op.results[0]
+
         return [
-            comm_global :=
-            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
-            mpi_op := self._emit_mpi_operation_load(op.operationtype),
+            *operations,
             func.Call.get(self._mpi_name(op), [
-                op.send_buffer, op.recv_buffer, op.count, op.datatype, mpi_op,
+                send_buffer_op, op.recv_buffer, op.count, op.datatype, mpi_op,
                 comm_global
             ], []),
         ], []
