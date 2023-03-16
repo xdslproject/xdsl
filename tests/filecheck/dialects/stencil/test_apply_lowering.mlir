@@ -15,7 +15,7 @@
 // CHECK-NEXT: "builtin.module"() ({
 // CHECK-NEXT:     "func.func"() ({
 // CHECK-NEXT:     ^0(%0 : memref<?x?x?xf64>):
-// CHECK-NEXT:         %1 = "memref.cast"(%0) {"stencil_offset" = [4 : i64, 4 : i64, 4 : i64]} : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
+// CHECK-NEXT:         %1 = "memref.cast"(%0) {"stencil_offset" = #stencil.index<[4 : i64, 4 : i64, 4 : i64]>} : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:         %2 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:         %3 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:         %4 = "arith.constant"() {"value" = 72 : index} : () -> index
