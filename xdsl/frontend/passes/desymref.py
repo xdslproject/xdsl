@@ -99,8 +99,7 @@ def has_symbol(op: Operation) -> bool:
     return isinstance(op, symref.Declare | symref.Fetch | symref.Update)
 
 
-def get_symbol(
-        op: symref.Declare | symref.Fetch | symref.Update) -> str | None:
+def get_symbol(op: Operation) -> str | None:
     """
     Returns a symbol attribute for an operation. If operation has no symbol
     attributes, None is returned.
@@ -118,8 +117,6 @@ def get_symbols(block: Block) -> set[str]:
     symbols: set[str] = set()
     for op in block.ops:
         if has_symbol(op):
-            assert isinstance(op,
-                              symref.Declare | symref.Fetch | symref.Update)
             symbol = get_symbol(op)
             assert symbol is not None
             symbols.add(symbol)
@@ -227,14 +224,12 @@ class Desymrefier:
         # Ensure that each symbol is read/written at most once.
         symbols = get_symbols(block)
         for symbol in symbols:
-            num_reads = len([
-                op for op in block.ops
-                if isinstance(op, symref.Fetch) and get_symbol(op) == symbol
-            ])
-            num_writes = len([
-                op for op in block.ops
-                if isinstance(op, symref.Update) and get_symbol(op) == symbol
-            ])
+            num_reads = sum(
+                isinstance(op, symref.Fetch) for op in block.ops
+                if get_symbol(op) == symbol)
+            num_writes = sum(
+                isinstance(op, symref.Update) for op in block.ops
+                if get_symbol(op) == symbol)
             if num_reads > 1 or num_writes > 1:
                 raise FrontendProgramException(
                     f"Block {block} not ready for promotion: found {num_reads}"
