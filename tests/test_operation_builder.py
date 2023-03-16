@@ -383,6 +383,7 @@ def test_opt_sbregion_one_block():
     op2 = OptSBRegionOp.build(regions=[[]])
     op1.verify()
     op2.verify()
+    assert op1.region is not None
     assert len(op1.region.blocks) == 1
     assert op2.region is None
 
