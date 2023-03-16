@@ -5,8 +5,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
 from inspect import isclass
-from typing import (Annotated, Any, Generic, Sequence, TypeAlias, TypeVar,
-                    Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Generic, Literal, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints,
+                    overload)
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
@@ -903,26 +904,36 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.OPERAND],
+                        args: Sequence[SSAValue | Sequence[SSAValue]],
+                        arg_defs: Sequence[tuple[str, OperandDef]],
+                        error_prefix: str) -> tuple[list[SSAValue], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(
+        construct: Literal[VarIRConstruct.RESULT],
+        args: Sequence[Attribute | Sequence[Attribute]],
+        arg_defs: Sequence[tuple[str, ResultDef]],
+        error_prefix: str) -> tuple[list[Attribute], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.REGION],
+                        args: Sequence[Region | Sequence[Region]],
+                        arg_defs: Sequence[tuple[str, RegionDef]],
+                        error_prefix: str) -> tuple[list[Region], list[int]]:
+    ...
+
+
 def irdl_build_arg_list(construct: VarIRConstruct,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
                         error_prefix: str = "") -> tuple[list[Any], list[int]]:
     """Build a list of arguments (operands, results, regions)"""
-
-    def build_arg(arg_def: Any, arg: Any) -> Any:
-        """Build a single argument."""
-        if construct == VarIRConstruct.OPERAND:
-            return SSAValue.get(arg)
-        elif construct == VarIRConstruct.RESULT:
-            if not isinstance(arg, Attribute):
-                raise ValueError(error_prefix +
-                                 f"expected Attribute, but got {type(arg)}")
-            return arg
-        elif construct == VarIRConstruct.REGION:
-            assert isinstance(arg_def, RegionDef)
-            return Region.get(arg)
-        else:
-            assert False, "Unknown ArgType value"
 
     if len(args) != len(arg_defs):
         raise ValueError(
@@ -949,22 +960,57 @@ def irdl_build_arg_list(construct: VarIRConstruct,
                     "expects a list of size at most 1, but "
                     f"got a list of size {len(arg)}")
 
-            res.extend([build_arg(arg_def, arg_arg) for arg_arg in arg])
+            res.extend(arg)
             arg_sizes.append(len(arg))
         else:
-            res.append(build_arg(arg_def, arg))
+            res.append(arg)
             arg_sizes.append(1)
     return res, arg_sizes
+
+
+_OperandArg: TypeAlias = SSAValue | Operation
+
+
+def irdl_build_operations_arg(
+    operand: _OperandArg | Sequence[_OperandArg] | None
+) -> SSAValue | list[SSAValue]:
+    if operand is None:
+        return []
+    elif isinstance(operand, SSAValue):
+        return operand
+    elif isinstance(operand, Operation):
+        return SSAValue.get(operand)
+    else:
+        return [SSAValue.get(op) for op in operand]
+
+
+_RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
+
+
+def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
+                           | None) -> Region | list[Region]:
+    if r is None:
+        return []
+    elif isinstance(r, Region):
+        return r
+    elif not len(r):
+        return []
+    elif isinstance(r[0], Operation | Block):
+        return Region.get(cast(Sequence[Operation] | Sequence[Block], r))
+    else:
+        return [Region.get(_r) for _r in cast(Sequence[_RegionArg], r)]
 
 
 def irdl_op_builder(
     cls: type[_OpT], op_def: OpDef,
     operands: Sequence[SSAValue | Operation
                        | Sequence[SSAValue | Operation]
-                       | None], res_types: Sequence[Any | list[Any] | None],
+                       | None],
+    res_types: Sequence[Attribute | Sequence[Attribute]],
     attributes: dict[str, Attribute], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                      | Sequence[Region]]
+                      | Sequence[Region | Sequence[Operation]
+                                 | Sequence[Block]]]
 ) -> _OpT:
     """Builder for an irdl operation."""
 
@@ -975,16 +1021,20 @@ def irdl_op_builder(
 
     error_prefix = f"Error in {op_def.name} builder: "
 
+    operands_arg = [irdl_build_operations_arg(operand) for operand in operands]
+
+    regions_arg = [irdl_build_regions_arg(region) for region in regions]
+
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
-        VarIRConstruct.OPERAND, operands, op_def.operands, error_prefix)
+        VarIRConstruct.OPERAND, operands_arg, op_def.operands, error_prefix)
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
         VarIRConstruct.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions,
+    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions_arg,
                                            op_def.regions, error_prefix)
 
     built_attributes = dict[str, Attribute]()

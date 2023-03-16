@@ -550,7 +550,8 @@ class Operation(IRNode):
         attributes: dict[str, Attribute] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                          | Sequence[Region]]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
         | None = None
     ) -> OpT:
         """Create a new operation using builders."""
@@ -1036,7 +1037,7 @@ class Region(IRNode):
         return region
 
     @staticmethod
-    def get(arg: Region | list[Block] | list[Operation]) -> Region:
+    def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
         if isinstance(arg, list):
