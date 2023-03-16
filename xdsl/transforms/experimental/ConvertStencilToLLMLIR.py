@@ -21,7 +21,8 @@ def GetMemRefFromField(
 ) -> MemRefType[_TypeElement]:
     dims = [i.value.data for i in input_type.shape.data]
 
-    return MemRefType.from_element_type_and_shape(input_type.element_type, dims)
+    return MemRefType.from_element_type_and_shape(input_type.element_type,
+                                                  dims)
 
 
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
