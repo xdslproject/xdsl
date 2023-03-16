@@ -11,7 +11,7 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin
 
-from xdsl.dialects.experimental.stencil import ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, TempType
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, TempType
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -67,8 +67,8 @@ class LoadOpToMemref(RewritePattern):
         ]
 
         # TODO: handle with memref.subview or another, cleaner, approach.
-        op.field.owner.attributes["stencil_offset"] = ArrayAttr.from_list(
-            offsets)
+        op.field.owner.attributes["stencil_offset"] = IndexAttr(
+            [ArrayAttr.from_list(offsets)])
         rewriter.replace_matched_op([], [op.field.owner.dest])
 
 
@@ -119,6 +119,50 @@ class ApplyOpToParallel(RewritePattern):
         rewriter.replace_matched_op([zero, one, *upperBounds, p])
 
 
+class AccessOpToMemref(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
+        if not isinstance(op.temp.owner, memref.Cast):
+            warn(
+                "stencil.load should have been lowered before lowering related "
+                "stencil.access")
+            return
+
+        # Make pyright happy with the fact that this op has to be in
+        # a block.
+        assert (block := op.parent_block()) is not None
+
+        if not isinstance(op.temp.owner.attributes["stencil_offset"],
+                          IndexAttr):
+            warn(
+                f"Expected IndexAttr-typed stencil_offset, got {op.temp.owner.attributes['stencil_offset']}"
+            )
+            return
+
+        access_offset = op.offset.array.data
+        memref_offset = op.temp.owner.attributes["stencil_offset"].array.data
+
+        offsets = [
+            a.value.data + m.value.data
+            for a, m in zip(access_offset, memref_offset)
+        ]
+
+        off_const_ops = [
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in offsets
+        ]
+
+        off_sum_ops = [
+            arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
+        ]
+
+        load = memref.Load.get(op.temp, off_sum_ops)
+
+        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
+                                    [load.res])
+
+
 class StencilTypeConversionFuncOp(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -143,6 +187,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         CastOpToMemref(),
         LoadOpToMemref(),
         ApplyOpToParallel(),
+        AccessOpToMemref()
     ]),
                                   walk_regions_first=True)
     walker.rewrite_module(module)
