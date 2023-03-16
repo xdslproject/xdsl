@@ -17,11 +17,11 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 
 def GetMemRefFromField(
-    inputType: FieldType[_TypeElement] | TempType[_TypeElement]
+    input_type: FieldType[_TypeElement] | TempType[_TypeElement]
 ) -> MemRefType[_TypeElement]:
-    dims = [i.value.data for i in inputType.shape.data]
+    dims = [i.value.data for i in input_type.shape.data]
 
-    return MemRefType.from_element_type_and_shape(inputType.element_type, dims)
+    return MemRefType.from_element_type_and_shape(input_type.element_type, dims)
 
 
 def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
@@ -29,7 +29,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
                                   ub: IndexAttr) -> MemRefType[_TypeElement]:
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
-    dims = IndexAttr.sizeFromBounds(lb, ub)
+    dims = IndexAttr.size_from_bounds(lb, ub)
 
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
@@ -99,7 +99,7 @@ class ApplyOpToParallel(RewritePattern):
         entry.insert_arg(builtin.IndexType(), 0)
 
         #Then create the corresponding scf.parallel
-        dims = IndexAttr.sizeFromBounds(op.lb, op.ub)
+        dims = IndexAttr.size_from_bounds(op.lb, op.ub)
         zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
         upperBounds = [
