@@ -102,7 +102,7 @@ class Load(Operation):
 
     @staticmethod
     def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+            indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
         typ = ssa_value.typ
         assert isinstance(typ, MemRefType)
