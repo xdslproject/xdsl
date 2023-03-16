@@ -227,7 +227,7 @@ class xDSLOptMain:
         self.available_passes['lower-mpi'] = lower_mpi
         self.available_passes[
             'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
-        self.available_passes['pdl_analysis'] = pdl_analysis_pass
+        self.available_passes['pdl-analysis'] = pdl_analysis_pass
 
     def register_all_targets(self):
         """
