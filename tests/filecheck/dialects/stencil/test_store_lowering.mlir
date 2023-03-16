@@ -19,8 +19,8 @@
 // CHECK-NEXT: "builtin.module"() ({
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:   ^0(%0 : memref<?x?x?xf64>, %1 : memref<?x?x?xf64>):
-// CHECK-NEXT:     %2 = "memref.cast"(%0) {"stencil_offset" = #stencil.index<[4 : i64, 4 : i64, 4 : i64]>} : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
-// CHECK-NEXT:     %3 = "memref.cast"(%1) {"stencil_offset" = #stencil.index<[4 : i64, 4 : i64, 4 : i64]>} : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
+// CHECK-NEXT:     %2 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
+// CHECK-NEXT:     %3 = "memref.cast"(%1) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:     %4 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:     %5 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:     %6 = "arith.constant"() {"value" = 72 : index} : () -> index
@@ -42,6 +42,7 @@
 // CHECK-NEXT:       %23 = "arith.addi"(%10, %20) : (index, index) -> index
 // CHECK-NEXT:       %24 = "arith.addi"(%11, %21) : (index, index) -> index
 // CHECK-NEXT:       "memref.store"(%18, %3, %22, %23, %24) : (f64, memref<72x72x72xf64>, index, index, index) -> ()
+// CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>, memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()

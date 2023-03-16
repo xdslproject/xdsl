@@ -83,7 +83,8 @@ class StencilOffsetCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Cast, rewriter: PatternRewriter, /):
-        op.attributes.pop('stencil_offset')
+        if 'stencil_offset' in op.attributes:
+            op.attributes.pop('stencil_offset')
 
 
 class ReturnOpToMemref(RewritePattern):
