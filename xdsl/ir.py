@@ -113,40 +113,7 @@ class Use:
 
 
 @dataclass
-class IRNode(ABC):
-
-    parent: IRNode | None = field(init=False)
-
-    def is_ancestor(self, op: IRNode) -> bool:
-        "Returns true if the IRNode is an ancestor of another IRNode."
-        if op is self:
-            return True
-        if op.parent is None:
-            return False
-        return self.is_ancestor(op.parent)
-
-    def get_toplevel_object(self) -> IRNode:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
-            return self
-        return self.parent.get_toplevel_object()
-
-    def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
-        """Check if two IR nodes are structurally equivalent."""
-        ...
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
-
-@dataclass
-class SSAValue(IRNode, ABC):
+class SSAValue(ABC):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -441,6 +408,33 @@ class ParametrizedAttribute(Attribute):
     @property
     def irdl_definition(cls) -> ParamAttrDef:
         """Get the IRDL attribute definition."""
+        ...
+
+
+@dataclass
+class IRNode(ABC):
+
+    parent: IRNode | None
+
+    def is_ancestor(self, op: IRNode) -> bool:
+        "Returns true if the IRNode is an ancestor of another IRNode."
+        if op is self:
+            return True
+        if op.parent is None:
+            return False
+        return self.is_ancestor(op.parent)
+
+    def get_toplevel_object(self) -> IRNode:
+        """Get the operation, block, or region ancestor that has no parents."""
+        if self.parent is None:
+            return self
+        return self.parent.get_toplevel_object()
+
+    def is_structurally_equivalent(
+            self,
+            other: IRNode,
+            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        """Check if two IR nodes are structurally equivalent."""
         ...
 
 
