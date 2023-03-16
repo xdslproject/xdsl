@@ -79,6 +79,13 @@ class StoreOpCleanup(RewritePattern):
         pass
 
 
+class StencilOffsetCleanup(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Cast, rewriter: PatternRewriter, /):
+        op.attributes.pop('stencil_offset')
+
+
 class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -187,6 +194,7 @@ class ApplyOpToParallel(RewritePattern):
 
         # Move the body to the loop
         body = rewriter.move_region_contents_to_new_regions(op.region)
+        body.blocks[0].add_op(scf.Yield.get())
         p = scf.ParallelOp.get(lowerBounds=[zero, zero, zero],
                                upperBounds=upperBounds,
                                steps=[one, one, one],
@@ -208,7 +216,6 @@ class AccessOpToMemref(RewritePattern):
 
         cast = apply.args[arg.index - 3].owner
         if not isinstance(cast, memref.Cast):
-            print(cast)
             warn(
                 "stencil.load should have been lowered before lowering related "
                 "stencil.access")
@@ -282,9 +289,8 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                     walk_regions_first=True)
 
     lowering2 = PatternRewriteWalker(
-        GreedyRewritePatternApplier([
-            ApplyOpToParallel(),
-        ]))
+        GreedyRewritePatternApplier(
+            [ApplyOpToParallel(), StencilOffsetCleanup()]))
 
     cleanup = PatternRewriteWalker(
         GreedyRewritePatternApplier([StoreOpCleanup()]))
