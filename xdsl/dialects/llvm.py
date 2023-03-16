@@ -124,8 +124,7 @@ class GetElementPtrOp(Operation):
         # construct default mutable argument here:
         if indices is None:
             indices = []
-        # TODO: convert indices to DenseI32ArrayAttr
-        
+
         indices_attr = DenseArrayBase.create_dense_int_or_index(
             i32, indices
         )
