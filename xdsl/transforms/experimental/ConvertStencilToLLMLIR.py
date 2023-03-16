@@ -9,18 +9,19 @@ from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, i64
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects import memref
+from xdsl.dialects import memref, arith, scf, builtin
 
-from xdsl.dialects.experimental.stencil import CastOp, FieldType, IndexAttr, LoadOp
+from xdsl.dialects.experimental.stencil import ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, TempType
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 
 def GetMemRefFromField(
-        inputFieldType: FieldType[_TypeElement]) -> MemRefType[_TypeElement]:
-    dims = [i.value.data for i in inputFieldType.shape.data]
+    input_type: FieldType[_TypeElement] | TempType[_TypeElement]
+) -> MemRefType[_TypeElement]:
+    dims = [i.value.data for i in input_type.shape.data]
 
-    return MemRefType.from_element_type_and_shape(inputFieldType.element_type,
+    return MemRefType.from_element_type_and_shape(input_type.element_type,
                                                   dims)
 
 
@@ -29,10 +30,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
                                   ub: IndexAttr) -> MemRefType[_TypeElement]:
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
-    dims = [
-        ub.value.data - lb.value.data
-        for lb, ub in zip(lb.array.data, ub.array.data)
-    ]
+    dims = IndexAttr.size_from_bounds(lb, ub)
 
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
@@ -74,6 +72,53 @@ class LoadOpToMemref(RewritePattern):
         rewriter.replace_matched_op([], [op.field.owner.dest])
 
 
+class ApplyOpToParallel(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+
+        if (op.lb is None) or (op.ub is None):
+            warn(
+                "stencil.apply should have lb and ub attributes before being lowered to "
+                "scf.parallel.")
+            return
+
+        # First replace all current arguments by their definition
+        # and erase them from the block. (We are changing the op
+        # to a loop, which has access to them either way)
+        entry = op.region.blocks[0]
+
+        for arg in entry.args:
+            arg_uses = set(arg.uses)
+            for use in arg_uses:
+                use.operation.replace_operand(use.index, op.args[use.index])
+            entry.erase_arg(arg)
+
+        # Define index args for the parallel loop induction variables.
+        entry.insert_arg(builtin.IndexType(), 0)
+        entry.insert_arg(builtin.IndexType(), 0)
+        entry.insert_arg(builtin.IndexType(), 0)
+
+        #Then create the corresponding scf.parallel
+        dims = IndexAttr.size_from_bounds(op.lb, op.ub)
+        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
+        one = arith.Constant.from_int_and_width(1, builtin.IndexType())
+        upperBounds = [
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in dims
+        ]
+
+        # Move the body to the loop
+        body = rewriter.move_region_contents_to_new_regions(op.region)
+        p = scf.ParallelOp.get(lowerBounds=[zero, zero, zero],
+                               upperBounds=upperBounds,
+                               steps=[one, one, one],
+                               body=body)
+
+        # Replace with the loop and necessary constants.
+        rewriter.replace_matched_op([zero, one, *upperBounds, p])
+
+
 class StencilTypeConversionFuncOp(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -93,9 +138,11 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
-    walker = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilTypeConversionFuncOp(),
-         CastOpToMemref(),
-         LoadOpToMemref()]),
+    walker = PatternRewriteWalker(GreedyRewritePatternApplier([
+        StencilTypeConversionFuncOp(),
+        CastOpToMemref(),
+        LoadOpToMemref(),
+        ApplyOpToParallel(),
+    ]),
                                   walk_regions_first=True)
     walker.rewrite_module(module)

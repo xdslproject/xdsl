@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, TypeVar, Any, cast
+from typing import Annotated, Sequence, TypeVar, Any, cast
 
 from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    ArrayAttr, f32, f64, IntegerType, IntAttr,
@@ -130,6 +130,13 @@ class IndexAttr(ParametrizedAttribute):
             raise VerifyException(
                 f"Expected 3 indexes for stencil.index, got {len(self.array.data)}."
             )
+
+    @staticmethod
+    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
+        return [
+            ub.value.data - lb.value.data
+            for lb, ub in zip(lb.array.data, ub.array.data)
+        ]
 
 
 @dataclass(frozen=True)
