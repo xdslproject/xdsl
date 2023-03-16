@@ -52,6 +52,11 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return super().__setitem__(__index, __object)
 
+    def __delitem__(self, __index: SupportsIndex | slice) -> None:
+        if self._frozen:
+            raise Exception("frozen list can not be modified")
+        return super().__delitem__(__index)
+
     def __add__(self, __x: Iterable[_T]) -> IList[_T]:
         return IList(super().__add__(__x))  # type: ignore
 
