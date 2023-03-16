@@ -1,9 +1,0 @@
-{
-  "include": ["xdsl"],
-  "reportImportCycles": false,
-  "reportUnnecessaryIsInstance": false,
-  "typeCheckingMode": "strict",
-  "exclude": [
-    "xdsl/irdl_mlir_printer.py"
-  ]
-}
