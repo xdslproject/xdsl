@@ -113,6 +113,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.send': 'MPI_Send',
         "mpi.reduce": 'MPI_Reduce',
         "mpi.allreduce": 'MPI_Allreduce',
+        "mpi.bcast": 'MPI_Bcast',
     }
     """
     Translation table for mpi operation names to their MPI library function names
@@ -432,6 +433,27 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
         ], []
 
 
+class LowerMpiBcast(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Bcast, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: mpi.Bcast) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Bcast operation
+        """
+
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
+            func.Call.get(
+                self._mpi_name(op),
+                [op.buffer, op.count, op.datatype, op.root, comm_global], []),
+        ], []
+
+
 class LowerMpiIsend(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
@@ -734,6 +756,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiRecv(lib_info),
         LowerMpiReduce(lib_info),
         LowerMpiAllreduce(lib_info),
+        LowerMpiBcast(lib_info),
         LowerMpiUnwrapMemrefOp(lib_info),
         LowerMpiGetDtype(lib_info),
         LowerMpiAllocateType(lib_info),

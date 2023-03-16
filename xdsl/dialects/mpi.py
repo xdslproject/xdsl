@@ -157,7 +157,7 @@ class Allreduce(MPIBaseOp):
     This wraps the MPI_Allreduce function (blocking all reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
 
-    ## The MPI_Reduce Function Docs:
+    ## The MPI_Allreduce Function Docs:
 
     int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
                   MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
@@ -195,6 +195,50 @@ class Allreduce(MPIBaseOp):
         return cls.build(
             operands=[send_buffer, recv_buffer, count, datatype],
             attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+
+@irdl_op_definition
+class Bcast(MPIBaseOp):
+    """
+    This wraps the MPI_Bcast function (blocking broadcast)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
+
+    ## The MPI_Bcast Function Docs:
+
+    int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
+              MPI_Comm comm)
+        
+        buffer: starting address of buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        root: rank of broadcast root (integer)
+        comm: communicator (handle)
+
+    ## Our Abstraction:
+
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.bcast"
+
+    buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    root: Annotated[Operand, i32]
+
+    @classmethod
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        root: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, root],
             result_types=[],
         )
 
@@ -662,6 +706,7 @@ MPI = Dialect([
     Send,
     Reduce,
     Allreduce,
+    Bcast,
     Wait,
     GetStatusField,
     Init,
