@@ -152,6 +152,54 @@ class Reduce(MPIBaseOp):
 
 
 @irdl_op_definition
+class Allreduce(MPIBaseOp):
+    """
+    This wraps the MPI_Allreduce function (blocking all reduction)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
+
+    ## The MPI_Reduce Function Docs:
+
+    int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
+                  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+
+        sendbuf: address of send buffer (choice)
+        recvbuf: address of receive buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        op: reduce operation (handle)
+        comm: communicator (handle)
+
+    ## Our Abstraction:
+
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.allreduce"
+
+    send_buffer: Annotated[Operand, Attribute]
+    recv_buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    operationtype: OpAttr[OperationType]
+
+    @classmethod
+    def get(
+        cls,
+        send_buffer: SSAValue | Operation,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+    ):
+        return cls.build(
+            operands=[send_buffer, recv_buffer, count, datatype],
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+
+@irdl_op_definition
 class Isend(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
@@ -613,6 +661,7 @@ MPI = Dialect([
     Recv,
     Send,
     Reduce,
+    Allreduce,
     Wait,
     GetStatusField,
     Init,

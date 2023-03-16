@@ -112,6 +112,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.recv': 'MPI_Recv',
         'mpi.send': 'MPI_Send',
         "mpi.reduce": 'MPI_Reduce',
+        "mpi.allreduce": 'MPI_Allreduce',
     }
     """
     Translation table for mpi operation names to their MPI library function names
@@ -402,6 +403,31 @@ class LowerMpiReduce(_MPIToLLVMRewriteBase):
             func.Call.get(self._mpi_name(op), [
                 op.send_buffer, op.recv_buffer, op.count, op.datatype, mpi_op,
                 op.root, comm_global
+            ], []),
+        ], []
+
+
+class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Allreduce, rewriter: PatternRewriter,
+                          /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+            self, op: mpi.Allreduce
+    ) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Allreduce operation
+        """
+
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
+            mpi_op := self._emit_mpi_operation_load(op.operationtype),
+            func.Call.get(self._mpi_name(op), [
+                op.send_buffer, op.recv_buffer, op.count, op.datatype, mpi_op,
+                comm_global
             ], []),
         ], []
 
@@ -707,6 +733,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
         LowerMpiReduce(lib_info),
+        LowerMpiAllreduce(lib_info),
         LowerMpiUnwrapMemrefOp(lib_info),
         LowerMpiGetDtype(lib_info),
         LowerMpiAllocateType(lib_info),
