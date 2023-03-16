@@ -91,7 +91,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     @staticmethod
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
-    
+        
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
 
@@ -117,6 +117,7 @@ class GEPOp(Operation):
         ssa_indices: list[SSAValue | Operation] | None = None,
         result_type: Attribute | None = None,
         inbounds: bool = False,
+        ptr_type: Attribute | None = None
     ):
         # construct default mutable argument here:
         if indices is None:
@@ -135,7 +136,13 @@ class GEPOp(Operation):
 
         # convert a potential Operation into an SSAValue
         ptr = SSAValue.get(ptr)
+        
+        if ptr_type is None:
+            ptr_type = LLVMPointerType.opaque()
+        else:
+            ptr_type = LLVMPointerType.typed(ptr_type)
 
+        
         # if no result type was give, infer from pointer type
         if result_type is None:
             # ptr is an SSAValue
@@ -143,14 +150,14 @@ class GEPOp(Operation):
             assert isinstance(ptr.typ, LLVMPointerType)
             # ptr.typ.type is the wrapped type of the pointer
             # use that as the result type
-            result_type = ptr.typ.type
+            result_type = ptr_type
 
         attrs: dict[str, Attribute] = {
             'rawConstantIndices': indices_attr,
             'elem_type': result_type
         }
 
-        if ptr.typ.is_typed():
+        if ptr_type.is_typed():
             attrs.pop('elem_type')
 
         result_type = LLVMPointerType.typed(result_type)
