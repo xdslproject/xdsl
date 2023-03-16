@@ -91,9 +91,10 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     @staticmethod
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
-        
+
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
+
 
 @irdl_op_definition
 class GEPOp(Operation):
@@ -111,24 +112,20 @@ class GEPOp(Operation):
     result: OpResult
 
     @staticmethod
-    def get(
-        ptr: SSAValue | Operation,
-        indices: list[int] | None = None,
-        ssa_indices: list[SSAValue | Operation] | None = None,
-        result_type: Attribute | None = None,
-        inbounds: bool = False,
-        ptr_type: Attribute | None = None
-    ):
+    def get(ptr: SSAValue | Operation,
+            indices: list[int] | None = None,
+            ssa_indices: list[SSAValue | Operation] | None = None,
+            result_type: Attribute | None = None,
+            inbounds: bool = False,
+            ptr_type: Attribute | None = None):
         # construct default mutable argument here:
         if indices is None:
             indices = []
         # TODO: convert indices to DenseI32ArrayAttr
-        
+
         i32 = IntegerType(32)
 
-        indices_attr = DenseArrayBase.create_dense_int_or_index(
-            i32, indices
-        )
+        indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
         # construct default mutable argument here:
         if ssa_indices is None:
@@ -136,13 +133,12 @@ class GEPOp(Operation):
 
         # convert a potential Operation into an SSAValue
         ptr = SSAValue.get(ptr)
-        
+
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
 
-        
         # if no result type was give, infer from pointer type
         if result_type is None:
             # ptr is an SSAValue
@@ -160,17 +156,16 @@ class GEPOp(Operation):
         if ptr_type.is_typed():
             attrs.pop('elem_type')
 
-
         result_type = LLVMPointerType.typed(result_type)
 
         if inbounds:
             attrs['inbounds'] = UnitAttr()
 
-        return GEPOp.build(
-            operands=[ptr, ssa_indices],
-            result_types=[result_type],
-            attributes=attrs
-        )
+        return GEPOp.build(operands=[ptr, ssa_indices],
+                           result_types=[result_type],
+                           attributes=attrs)
+
+
 @irdl_op_definition
 class AllocaOp(Operation):
     name = "llvm.alloca"
