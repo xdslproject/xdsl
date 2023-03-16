@@ -102,7 +102,7 @@ class GEPOp(Operation):
     ptr: Annotated[Operand, LLVMPointerType]
     ssa_indices: Annotated[VarOperand, IntegerType]
 
-    elem_type: OpAttr[Attribute]
+    elem_type: OptOpAttr[Attribute]
 
     rawConstantIndices: OpAttr[DenseArrayBase]
 
@@ -159,6 +159,7 @@ class GEPOp(Operation):
 
         if ptr_type.is_typed():
             attrs.pop('elem_type')
+
 
         result_type = LLVMPointerType.typed(result_type)
 
