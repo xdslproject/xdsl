@@ -129,8 +129,9 @@ class AccessOpToMemref(RewritePattern):
                 "stencil.access")
             return
 
-        if (block := op.parent_block()) is None:
-            return
+        # Make pyright happy with the fact that this op has to be in
+        # a block.
+        assert (block := op.parent_block()) is not None
 
         if not isinstance(op.temp.owner.attributes["stencil_offset"],
                           IndexAttr):
