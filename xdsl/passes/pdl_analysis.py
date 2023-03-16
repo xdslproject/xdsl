@@ -35,10 +35,14 @@ def debug(msg: str):
 
 @dataclass
 class AnalyzedPDLOperation:
+    """
+    This class bundles a pdl.OperationOp with information from the
+    analysis of the pdl.PatternOp that contains it.
+    """
     pdl_op: pdl.OperationOp
     op_type: Type[Operation]
     matched: bool = True
-    erased: bool = False
+    erased_by: pdl.EraseOp | None = None
     replaced_by: list[SSAValue] | AnalyzedPDLOperation | None = None
 
     @property
@@ -76,7 +80,7 @@ class PDLAnalysis:
 
     @property
     def erased_ops(self):
-        return [op for op in self.analyzed_ops if op.erased]
+        return [op for op in self.analyzed_ops if op.erased_by]
 
     @property
     def terminator_matches(self):
@@ -129,19 +133,47 @@ class PDLAnalysis:
 
     def get_analysis_for_pdl_op(
             self, op: pdl.OperationOp) -> AnalyzedPDLOperation | None:
+        """
+        If `op` is already part of the analysis, return the corresponding
+        AnalyzedPDLOperation that contains the analysis information.
+        """
         for analyzed_op in self.analyzed_ops:
             if analyzed_op.pdl_op == op:
                 return analyzed_op
         return None
 
     def terminator_analysis(self: PDLAnalysis):
+        """
+        
+        """
         # We can have lost terminators when a terminator is erased
         # of replaced by a non-terminator
         # There is no way to generate ops after an existing terminator,
         # so analyzing erasures and replacements is sufficient.
 
         for terminator in self.terminator_matches:
-            if terminator.erased and terminator.replaced_by is None:
+            if terminator.erased_by and terminator.replaced_by is None:
+                # Handle special case where terminator is erased but it is
+                # the matched operation and before erasure a new terminator
+                # is created. (creating new terminator after the erasure
+                # segfaults in MLIR)
+                if terminator.pdl_op == self.root_op:
+                    # get the pdl.OperationOp before the erasure and check
+                    # whether it is a terminator
+                    assert self.rewrite_op.body
+                    erase_op_idx = self.rewrite_op.body.ops.index(
+                        terminator.erased_by)
+                    if erase_op_idx > 0 and isinstance(
+                            possible_new_terminator :=
+                        (self.rewrite_op.body.ops[erase_op_idx - 1]),
+                            pdl.OperationOp):
+                        if (
+                                possible_new_terminator_analysis :=
+                                self.get_analysis_for_pdl_op(
+                                    possible_new_terminator)
+                        ) and possible_new_terminator_analysis.is_terminator:
+                            continue
+
                 debug(f"Terminator was erased: {terminator}!")
                 self._add_analysis_result_to_op(terminator.pdl_op,
                                                 "terminator_erased")
@@ -259,7 +291,7 @@ class PDLAnalysis:
             if (analyzed_op := self.get_analysis_for_pdl_op(
                     rhs_op.op_value.op)) is None:
                 raise Exception("Unknown pdl.Operation to be erased!")
-            analyzed_op.erased = True
+            analyzed_op.erased_by = rhs_op
         else:
             raise Exception(f"Unsupported PDL op: {rhs_op.name}")
         self.visited_ops.add(rhs_op)
@@ -384,7 +416,25 @@ if __name__ == '__main__':
     }) : () -> ()
     """
 
-    parser = Parser(ctx=ctx, prog=prog, source=Source.MLIR)
+    erasing_and_adding_terminator = """
+    "builtin.module"() ({
+        "pdl.pattern"() ({
+      %0 = "pdl.type"() : () -> !pdl.type
+      %1 = "pdl.attribute"() : () -> !pdl.attribute
+      %2 = "pdl.operation"(%1, %0) {attributeValueNames = ["value"], opName = "custom.const", operand_segment_sizes = array<i32: 0, 1, 1>} : (!pdl.attribute, !pdl.type) -> !pdl.operation
+      %3 = "pdl.result"(%2) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
+      %4 = "pdl.operation"(%3) {attributeValueNames = [], operand_segment_sizes = array<i32: 1, 0, 0>} : (!pdl.value) -> !pdl.operation
+      "pdl.rewrite"(%4) ({
+        %5 = "pdl.operation"() {attributeValueNames = [], opName = "func.return", operand_segment_sizes = array<i32: 0, 0, 0>} : () -> !pdl.operation
+        "pdl.erase"(%4) : (!pdl.operation) -> ()
+      }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    }) {benefit = 3 : i16} : () -> ()
+    }) : () -> ()
+    """
+
+    parser = Parser(ctx=ctx,
+                    prog=erasing_and_adding_terminator,
+                    source=Source.MLIR)
     program = parser.parse_op()
     assert isinstance(program, ModuleOp)
     pdl_analysis_pass(ctx, program)
