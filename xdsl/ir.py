@@ -828,7 +828,9 @@ OperationInvT = TypeVar('OperationInvT', bound=Operation)
 
 @dataclass()
 class TerminatorOp(Operation):
-    pass
+
+    def __hash__(self) -> int:
+        return id(self)
 
 
 @dataclass()
