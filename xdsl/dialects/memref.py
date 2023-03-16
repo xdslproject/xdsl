@@ -133,7 +133,7 @@ class Store(Operation):
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+            indices: Sequence[Operation | SSAValue]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
