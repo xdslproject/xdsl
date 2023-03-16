@@ -257,12 +257,11 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     assert program.regions[0].is_structurally_equivalent(program) == False
     assert program.regions[0].blocks[0].is_structurally_equivalent(
         program) == False
-    if isinstance(program, ModuleOp):
-        assert program.ops[0].regions[0].blocks[0].ops[
-            0].is_structurally_equivalent(
-                program.ops[0].regions[0].blocks[0].ops[1]) == False
-        assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
-            program.ops[0].regions[0].blocks[1]) == False
+    assert program.ops[0].regions[0].blocks[0].ops[
+        0].is_structurally_equivalent(
+            program.ops[0].regions[0].blocks[0].ops[1]) == False
+    assert program.ops[0].regions[0].blocks[0].is_structurally_equivalent(
+        program.ops[0].regions[0].blocks[1]) == False
 
 
 def test_descriptions():
