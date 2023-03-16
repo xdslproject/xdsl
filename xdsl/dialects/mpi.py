@@ -20,6 +20,34 @@ AnyNumericType = AnyFloat | IntegerType
 
 
 @irdl_attr_definition
+class OperationType(ParametrizedAttribute, MLIRType):
+    """
+    This type represents the MPI_Op type.
+
+    They are used by the reduction MPI functions
+    """
+    name = 'mpi.operation'
+
+    op_str: ParameterDef[StringAttr]
+
+
+MPI_MAX = OperationType([StringAttr("MPI_MAX")])
+MPI_MIN = OperationType([StringAttr("MPI_MIN")])
+MPI_SUM = OperationType([StringAttr("MPI_SUM")])
+MPI_PROD = OperationType([StringAttr("MPI_PROD")])
+MPI_LAND = OperationType([StringAttr("MPI_LAND")])
+MPI_BAND = OperationType([StringAttr("MPI_BAND")])
+MPI_LOR = OperationType([StringAttr("MPI_LOR")])
+MPI_BOR = OperationType([StringAttr("MPI_BOR")])
+MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
+MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
+MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
+MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
+MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
+MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
+
+
+@irdl_attr_definition
 class RequestType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Request type.
@@ -70,6 +98,57 @@ class MPIBaseOp(Operation, ABC):
     Base class for MPI Operations
     """
     pass
+
+
+@irdl_op_definition
+class Reduce(MPIBaseOp):
+    """
+    This wraps the MPI_Reduce function (blocking reduction)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
+
+    ## The MPI_Reduce Function Docs:
+
+    int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
+               MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+
+        sendbuf: address of send buffer (choice)
+        recvbuf: address of receive buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        op: reduce operation (handle)
+        root: rank of root process (integer)
+        comm: communicator (handle)
+
+    ## Our Abstraction:
+
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.reduce"
+
+    send_buffer: Annotated[Operand, Attribute]
+    recv_buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    operationtype: OpAttr[OperationType]
+    root: Annotated[Operand, i32]
+
+    @classmethod
+    def get(
+        cls,
+        send_buffer: SSAValue | Operation,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+        root: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[send_buffer, recv_buffer, count, datatype, root],
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
 
 
 @irdl_op_definition
@@ -524,7 +603,7 @@ class VectorGetOp(MPIBaseOp):
     def get(vect: VectorType, element: SSAValue | Operation) -> AllocateTypeOp:
         ssa_val = SSAValue.get(vect)
         return VectorGetOp.build(result_types=[ssa_val.typ.typ],
-                                operands=[vect, element])
+                                 operands=[vect, element])
 
 
 MPI = Dialect([
@@ -533,6 +612,7 @@ MPI = Dialect([
     Test,
     Recv,
     Send,
+    Reduce,
     Wait,
     GetStatusField,
     Init,
@@ -543,6 +623,7 @@ MPI = Dialect([
     AllocateTypeOp,
     VectorGetOp,
 ], [
+    OperationType,
     RequestType,
     StatusType,
     DataType,

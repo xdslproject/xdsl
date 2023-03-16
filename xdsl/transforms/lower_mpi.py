@@ -110,7 +110,8 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.comm.rank': 'MPI_Comm_rank',
         'mpi.comm.size': 'MPI_Comm_size',
         'mpi.recv': 'MPI_Recv',
-        'mpi.send': 'MPI_Send'
+        'mpi.send': 'MPI_Send',
+        "mpi.reduce": 'MPI_Reduce',
     }
     """
     Translation table for mpi operation names to their MPI library function names
@@ -120,6 +121,24 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     """
     This object carries information about the targeted MPI libraray
     """
+
+    def __init__(self, lib_info):
+        self.info = lib_info
+        self.MPI_OP_TYPE_TO_LIB = {
+            "MPI_MAX": lib_info.MPI_MAX,
+            "MPI_MIN": lib_info.MPI_MIN,
+            "MPI_SUM": lib_info.MPI_SUM,
+            "MPI_PROD": lib_info.MPI_PROD,
+            "MPI_LAND": lib_info.MPI_LAND,
+            "MPI_BAND": lib_info.MPI_BAND,
+            "MPI_LOR": lib_info.MPI_LOR,
+            "MPI_BOR": lib_info.MPI_BOR,
+            "MPI_LXOR": lib_info.MPI_LXOR,
+            "MPI_MINLOC": lib_info.MPI_MINLOC,
+            "MPI_MAXLOC": lib_info.MPI_MAXLOC,
+            "MPI_REPLACE": lib_info.MPI_REPLACE,
+            "MPI_NO_OP": lib_info.MPI_NO_OP,
+        }
 
     # Helpers
 
@@ -187,6 +206,24 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
+
+    def _emit_mpi_operation_load(self, op_attr: Attribute) -> Operation:
+        """
+        This emits an instruction loading the correct magic MPI value for the
+        operation into an SSA Value.
+        """
+        return arith.Constant.from_int_and_width(
+            self._translate_to_mpi_op(op_attr), i32)
+
+    def _translate_to_mpi_op(self, op_attr: Attribute) -> Operation:
+        """
+        Translates an MPI dialect operation to the corresponding numeric value
+        required by the underlying MPI library
+        """
+        if op_attr.op_str.data in self.MPI_OP_TYPE_TO_LIB:
+            return self.MPI_OP_TYPE_TO_LIB[op_attr.op_str.data]
+        else:
+            raise RuntimeError("Unknown MPI operation type")
 
     def _emit_mpi_type_load(self, type_attr: Attribute) -> Operation:
         """
@@ -344,6 +381,29 @@ class LowerMpiWaitAll(_MPIToLLVMRewriteBase):
             func.Call.get(self._mpi_name(op), [op.count, op.requests, res],
                           [i32]),
         ], new_results
+
+
+class LowerMpiReduce(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Reduce, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: mpi.Reduce) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Reduce operation
+        """
+
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
+            mpi_op := self._emit_mpi_operation_load(op.operationtype),
+            func.Call.get(self._mpi_name(op), [
+                op.send_buffer, op.recv_buffer, op.count, op.datatype, mpi_op,
+                op.root, comm_global
+            ], []),
+        ], []
 
 
 class LowerMpiIsend(_MPIToLLVMRewriteBase):
@@ -646,6 +706,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiIrecv(lib_info),
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
+        LowerMpiReduce(lib_info),
         LowerMpiUnwrapMemrefOp(lib_info),
         LowerMpiGetDtype(lib_info),
         LowerMpiAllocateType(lib_info),
