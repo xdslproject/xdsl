@@ -91,6 +91,9 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
 
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
+
 
 @irdl_op_definition
 class AllocaOp(Operation):
