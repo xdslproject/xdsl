@@ -4,7 +4,6 @@
   "reportUnnecessaryIsInstance": false,
   "typeCheckingMode": "strict",
   "exclude": [
-    "xdsl/irdl_mlir_printer.py",
-    "xdsl/ir.py"
+    "xdsl/irdl_mlir_printer.py"
   ]
 }
