@@ -1018,7 +1018,7 @@ class BaseParser(ABC):
                 self.raise_error(
                     f"SSA value {ssa_val_name} is already defined", res)
             self.ssaValues[ssa_val_name] = op.results[idx]
-# Carry over `ssa_val_name` for non-numeric names:
+            # Carry over `ssa_val_name` for non-numeric names:
             if not ssa_val_name[1:].isnumeric():
                 self.ssaValues[ssa_val_name].name = ssa_val_name.lstrip('%')
 
