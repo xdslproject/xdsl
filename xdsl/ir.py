@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
+                    TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -436,10 +436,19 @@ class IRNode(ABC):
         return self.parent.get_toplevel_object()
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
+        ...
+
+    @abstractmethod
+    def __eq__(self, other: object) -> bool:
+        ...
+
+    @abstractmethod
+    def __hash__(self) -> int:
         ...
 
 
@@ -682,9 +691,10 @@ class Operation(IRNode):
         self.parent.detach_op(self)
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two operations are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known
@@ -964,9 +974,10 @@ class Block(IRNode):
             op.erase(safe_erase=safe_erase, drop_references=False)
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two blocks are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known
@@ -1200,9 +1211,10 @@ class Region(IRNode):
             block.parent = region
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two regions are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known
