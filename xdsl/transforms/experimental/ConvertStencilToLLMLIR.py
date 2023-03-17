@@ -97,8 +97,8 @@ class ReturnOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
 
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
+        parallel = op.parent_op()
+        assert isinstance(parallel, scf.ParallelOp)
 
         cast = self.return_target[op]
         assert isinstance(cast, memref.Cast)
@@ -106,7 +106,7 @@ class ReturnOpToMemref(RewritePattern):
         offsets = cast.attributes['stencil_origin']
         assert isinstance(offsets, IndexAttr)
 
-        block = apply.region.blocks[0]
+        block = parallel.body.blocks[0]
 
         off_const_ops = [
             arith.Constant.from_int_and_width(x.value.data,
@@ -136,19 +136,20 @@ class ApplyOpInsertInductionVariables(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
+        pass
 
 
 class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
 
         if (op.lb is None) or (op.ub is None):
             warn(
@@ -193,12 +194,8 @@ class AccessOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        arg = op.temp
-        assert isinstance(arg, BlockArgument)
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
 
-        cast = apply.args[arg.index - 3].owner
+        cast = op.temp.owner
         if not isinstance(cast, memref.Cast):
             warn(
                 "stencil.load should have been lowered before lowering related "
@@ -282,7 +279,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
     module.walk(map_returns)
 
     first_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
-        ApplyOpInsertInductionVariables(),
+        ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
         CastOpToMemref(return_target),
         LoadOpToMemref(),
@@ -293,8 +290,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                       apply_recursively=False)
 
     second_pass = PatternRewriteWalker(
-        GreedyRewritePatternApplier(
-            [ApplyOpToParallel(), StencilOffsetCleanup()]))
+        GreedyRewritePatternApplier([StencilOffsetCleanup()]))
 
     first_pass.rewrite_module(module)
     second_pass.rewrite_module(module)
