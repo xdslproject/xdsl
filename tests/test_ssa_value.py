@@ -37,13 +37,8 @@ def test_var_mixed_builder():
         _ = b.get(op)
 
 
-@pytest.mark.parametrize("name,result", [
-    ('a', 'a'),
-    ('test', 'test'),
-    ('test1', None),
-    ('1', None),
-])
-def test_ssa_value_name_hints(name, result):
+@pytest.mark.parametrize("name", ["a", "test", "1", "12", "-2", "test_123"])
+def test_ssa_value_name_hints(name):
     """
     The rewriter assumes, that ssa value name hints (their .name field) does not end in
     a numeric value. If it does, it will generate broken rewrites that potentially assign
@@ -54,4 +49,11 @@ def test_ssa_value_name_hints(name, result):
     val = BlockArgument(i32, Block(), 0)
 
     val.name = name
-    assert val.name == result
+    assert val.name == name
+
+
+@pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::'])
+def test_invalid_ssa_vals(name):
+    val = BlockArgument(i32, Block(), 0)
+    with pytest.raises(ValueError):
+        val.name = name
