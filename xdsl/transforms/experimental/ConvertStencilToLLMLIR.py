@@ -6,7 +6,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    op_type_rewrite_pattern)
 from xdsl.ir import BlockArgument, MLContext
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, i64
+from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin
@@ -47,28 +47,15 @@ class CastOpToMemref(RewritePattern):
         result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
                                                    op.lb, op.ub)
 
-        rewriter.replace_matched_op(memref.Cast.get(op.field, result_typ))
-
-
-class StoreOpPrepare(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-        if op.lb is None:
-            warn("stencil.store should have a lb attribute when lowered.")
-            return
-        if not isinstance(op.field.owner, memref.Cast):
-            warn(
-                "stencil.cast should be lowered to memref.cast before the stencil.store lowering."
-            )
-            return
-        offsets: list[Attribute] = [
-            IntegerAttr(-i.value.data, i64) for i in op.lb.array.data
-        ]
-
-        # TODO: handle with memref.subview or another, cleaner, approach.
-        op.field.owner.attributes["stencil_offset"] = IndexAttr(
-            [ArrayAttr.from_list(offsets)])
+        cast = memref.Cast.get(op.field, result_typ)
+        origin = IndexAttr([
+            ArrayAttr([
+                IntegerAttr.from_int_and_width(-i.value.data, 64)
+                for i in op.lb.array.data
+            ])
+        ])
+        cast.attributes['stencil_origin'] = origin
+        rewriter.replace_matched_op(cast)
 
 
 class StoreOpCleanup(RewritePattern):
@@ -83,8 +70,8 @@ class StencilOffsetCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Cast, rewriter: PatternRewriter, /):
-        if 'stencil_offset' in op.attributes:
-            op.attributes.pop('stencil_offset')
+        if 'stencil_origin' in op.attributes:
+            op.attributes.pop('stencil_origin')
 
 
 class ReturnOpToMemref(RewritePattern):
@@ -105,7 +92,7 @@ class ReturnOpToMemref(RewritePattern):
         cast = store.field.owner
         assert isinstance(cast, memref.Cast)
 
-        offsets = cast.attributes['stencil_offset']
+        offsets = cast.attributes['stencil_origin']
         assert isinstance(offsets, IndexAttr)
 
         block = apply.region.blocks[0]
@@ -137,13 +124,7 @@ class LoadOpToMemref(RewritePattern):
                 "stencil.cast should be lowered to memref.cast before the stencil.load lowering."
             )
             return
-        offsets: list[Attribute] = [
-            IntegerAttr(-i.value.data, i64) for i in op.lb.array.data
-        ]
 
-        # TODO: handle with memref.subview or another, cleaner, approach.
-        op.field.owner.attributes["stencil_offset"] = IndexAttr(
-            [ArrayAttr.from_list(offsets)])
         rewriter.replace_matched_op([], [op.field.owner.dest])
 
 
@@ -224,14 +205,14 @@ class AccessOpToMemref(RewritePattern):
         # a block.
         assert (block := op.parent_block()) is not None
 
-        if not isinstance(cast.attributes["stencil_offset"], IndexAttr):
+        if not isinstance(cast.attributes["stencil_origin"], IndexAttr):
             warn(
-                f"Expected IndexAttr-typed stencil_offset, got {cast.attributes['stencil_offset']}"
+                f"Expected IndexAttr-typed stencil_origin, got {cast.attributes['stencil_origin']}"
             )
             return
 
         access_offset = op.offset.array.data
-        memref_offset = cast.attributes["stencil_offset"].array.data
+        memref_offset = cast.attributes["stencil_origin"].array.data
 
         offsets = [
             a.value.data + m.value.data
@@ -277,7 +258,6 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         StencilTypeConversionFuncOp(),
         CastOpToMemref(),
         LoadOpToMemref(),
-        StoreOpPrepare(),
     ]),
                                        walk_regions_first=True,
                                        apply_recursively=False)
@@ -294,6 +274,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
 
     cleanup = PatternRewriteWalker(
         GreedyRewritePatternApplier([StoreOpCleanup()]))
+
     preparation.rewrite_module(module)
     lowering.rewrite_module(module)
     lowering2.rewrite_module(module)

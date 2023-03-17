@@ -79,12 +79,12 @@
 // CHECK-NEXT:       %cst = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:       %23 = arith.mulf %19, %cst : f64
 // CHECK-NEXT:       %24 = arith.addf %23, %22 : f64
-// CHECK-NEXT:       %c0_15 = arith.constant 0 : index
-// CHECK-NEXT:       %c0_16 = arith.constant 0 : index
-// CHECK-NEXT:       %c0_17 = arith.constant 0 : index
-// CHECK-NEXT:       %25 = arith.addi %arg2, %c0_15 : index
-// CHECK-NEXT:       %26 = arith.addi %arg3, %c0_16 : index
-// CHECK-NEXT:       %27 = arith.addi %arg4, %c0_17 : index
+// CHECK-NEXT:       %c4_15 = arith.constant 4 : index
+// CHECK-NEXT:       %c4_16 = arith.constant 4 : index
+// CHECK-NEXT:       %c4_17 = arith.constant 4 : index
+// CHECK-NEXT:       %25 = arith.addi %arg2, %c4_15 : index
+// CHECK-NEXT:       %26 = arith.addi %arg3, %c4_16 : index
+// CHECK-NEXT:       %27 = arith.addi %arg4, %c4_17 : index
 // CHECK-NEXT:       memref.store %24, %cast_0[%25, %26, %27] : memref<72x72x72xf64>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }

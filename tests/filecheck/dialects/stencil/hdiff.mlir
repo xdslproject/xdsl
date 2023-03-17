@@ -81,9 +81,9 @@
 // CHECK-NEXT:       %cst = "arith.constant"() {"value" = -4.0 : f64} : () -> f64
 // CHECK-NEXT:       %50 = "arith.mulf"(%46, %cst) : (f64, f64) -> f64
 // CHECK-NEXT:       %51 = "arith.addf"(%50, %49) : (f64, f64) -> f64
-// CHECK-NEXT:       %52 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %53 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %54 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %52 = "arith.constant"() {"value" = 4 : index} : () -> index
+// CHECK-NEXT:       %53 = "arith.constant"() {"value" = 4 : index} : () -> index
+// CHECK-NEXT:       %54 = "arith.constant"() {"value" = 4 : index} : () -> index
 // CHECK-NEXT:       %55 = "arith.addi"(%9, %52) : (index, index) -> index
 // CHECK-NEXT:       %56 = "arith.addi"(%10, %53) : (index, index) -> index
 // CHECK-NEXT:       %57 = "arith.addi"(%11, %54) : (index, index) -> index
