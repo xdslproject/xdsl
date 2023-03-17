@@ -116,9 +116,6 @@ class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        if op.lb is None:
-            warn("stencil.load should have a lb attribute when lowered.")
-            return
         if not isinstance(op.field.owner, memref.Cast):
             warn(
                 "stencil.cast should be lowered to memref.cast before the stencil.load lowering."
