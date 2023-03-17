@@ -126,9 +126,9 @@ class IndexAttr(ParametrizedAttribute):
     array: ParameterDef[ArrayAttr[AnyIntegerAttr]]
 
     def verify(self) -> None:
-        if len(self.array.data) != 3:
+        if len(self.array.data) < 1 or len(self.array.data) > 3:
             raise VerifyException(
-                f"Expected 3 indexes for stencil.index, got {len(self.array.data)}."
+                f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
             )
 
     @staticmethod

@@ -132,9 +132,10 @@ class ApplyOpToParallel(RewritePattern):
                 use.operation.replace_operand(use.index, op.args[use.index])
             entry.erase_arg(arg)
 
-        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
-        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
-        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+        dim = len(op.lb.array.data)
+
+        for _ in range(dim):
+            rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
         #Then create the corresponding scf.parallel
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
@@ -148,9 +149,9 @@ class ApplyOpToParallel(RewritePattern):
         # Move the body to the loop
         body = rewriter.move_region_contents_to_new_regions(op.region)
         body.blocks[0].add_op(scf.Yield.get())
-        p = scf.ParallelOp.get(lowerBounds=[zero, zero, zero],
+        p = scf.ParallelOp.get(lowerBounds=[zero] * dim,
                                upperBounds=upperBounds,
-                               steps=[one, one, one],
+                               steps=[one] * dim,
                                body=body)
 
         # Replace with the loop and necessary constants.
