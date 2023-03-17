@@ -151,15 +151,13 @@ class ApplyOpInsertInductionVariables(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if 'done' in op.attributes.keys():
-            return
+
         rewriter.insert_block_argument(op.region.blocks[0], 0,
                                        builtin.IndexType())
         rewriter.insert_block_argument(op.region.blocks[0], 0,
                                        builtin.IndexType())
         rewriter.insert_block_argument(op.region.blocks[0], 0,
                                        builtin.IndexType())
-        op.attributes['done'] = builtin.UnitAttr()
 
 
 class ApplyOpToParallel(RewritePattern):
@@ -281,7 +279,8 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         LoadOpToMemref(),
         StoreOpPrepare(),
     ]),
-                                       walk_regions_first=True)
+                                       walk_regions_first=True,
+                                       apply_recursively=False)
 
     lowering = PatternRewriteWalker(GreedyRewritePatternApplier([
         AccessOpToMemref(),
