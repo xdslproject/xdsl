@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import TypeVar
 from warnings import warn
 
@@ -35,14 +36,10 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
 
+@dataclass
 class CastOpToMemref(RewritePattern):
 
     return_target: dict[ReturnOp, CastOp | memref.Cast]
-
-    def __init__(self, return_target: dict[ReturnOp,
-                                           CastOp | memref.Cast]) -> None:
-        super().__init__()
-        self.return_target = return_target
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
@@ -70,14 +67,10 @@ class StoreOpCleanup(RewritePattern):
         pass
 
 
+@dataclass
 class ReturnOpToMemref(RewritePattern):
 
     return_target: dict[ReturnOp, CastOp | memref.Cast]
-
-    def __init__(self, return_target: dict[ReturnOp,
-                                           CastOp | memref.Cast]) -> None:
-        super().__init__()
-        self.return_target = return_target
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
