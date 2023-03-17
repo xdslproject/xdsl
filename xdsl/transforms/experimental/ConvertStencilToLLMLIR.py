@@ -4,7 +4,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext
+from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -39,10 +39,9 @@ class CastOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
-        if not isinstance(op.field.typ, FieldType):
-            return
 
-        field_typ: FieldType[Attribute] = op.field.typ
+        assert isinstance(op.field.typ, FieldType | MemRefType)
+        field_typ: FieldType[Attribute] | MemRefType[Attribute] = op.field.typ
 
         result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
                                                    op.lb, op.ub)
@@ -116,13 +115,9 @@ class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        if not isinstance(op.field.owner, memref.Cast):
-            warn(
-                "stencil.cast should be lowered to memref.cast before the stencil.load lowering."
-            )
-            return
+        assert isinstance(op.field.owner, Operation)
 
-        rewriter.replace_matched_op([], [op.field.owner.dest])
+        rewriter.replace_matched_op([], list(op.field.owner.results))
 
 
 class ApplyOpInsertInductionVariables(RewritePattern):
@@ -250,29 +245,21 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
-    preparation = PatternRewriteWalker(GreedyRewritePatternApplier([
+    first_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
         ApplyOpInsertInductionVariables(),
         StencilTypeConversionFuncOp(),
         CastOpToMemref(),
         LoadOpToMemref(),
-    ]),
-                                       walk_regions_first=True,
-                                       apply_recursively=False)
-
-    lowering = PatternRewriteWalker(GreedyRewritePatternApplier([
         AccessOpToMemref(),
         ReturnOpToMemref(),
     ]),
-                                    walk_regions_first=True)
+                                      apply_recursively=False)
 
-    lowering2 = PatternRewriteWalker(
+    second_pass = PatternRewriteWalker(
         GreedyRewritePatternApplier(
-            [ApplyOpToParallel(), StencilOffsetCleanup()]))
+            [ApplyOpToParallel(),
+             StencilOffsetCleanup(),
+             StoreOpCleanup()]))
 
-    cleanup = PatternRewriteWalker(
-        GreedyRewritePatternApplier([StoreOpCleanup()]))
-
-    preparation.rewrite_module(module)
-    lowering.rewrite_module(module)
-    lowering2.rewrite_module(module)
-    cleanup.rewrite_module(module)
+    first_pass.rewrite_module(module)
+    second_pass.rewrite_module(module)
