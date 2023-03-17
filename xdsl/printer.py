@@ -241,7 +241,7 @@ class Printer:
 
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self.print("%")
-        if arg.name and arg not in self._ssa_values:
+        if arg.name and arg.name not in self._ssa_values.values():
             name = arg.name
         else:
             name = self._get_new_valid_name_id()
