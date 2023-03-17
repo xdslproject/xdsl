@@ -163,9 +163,9 @@ class Printer:
     def _print_result_value(self, op: Operation, idx: int) -> None:
         val = op.results[idx]
         self.print("%")
-        # Reviewers: How should we handle this case? It should be impossible
-        assert val not in self._ssa_values, "sanity check, results should only ever appear before uses"
-        if val.name:
+        if val in self._ssa_values:
+            name = self._ssa_values[val]
+        elif val.name:
             curr_ind = self._ssa_names.get(val.name, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{val.name}{suffix}"
