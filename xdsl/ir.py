@@ -127,7 +127,7 @@ class SSAValue(ABC):
 
     _name: str | None = field(init=False, default=None)
 
-    _name_regex: ClassVar[re.Pattern] = re.compile(
+    _name_regex: ClassVar[re.Pattern[str]] = re.compile(
         r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
 
     @property
@@ -184,8 +184,8 @@ class SSAValue(ABC):
         """
         if safe_erase and len(self.uses) != 0:
             raise Exception(
-                "Attempting to delete SSA value that still has uses of operation:\n"
-                f"{self.op}")
+                "Attempting to delete SSA value that still has uses of result "
+                f"of operation:\n{self.owner}")
         self.replace_by(ErasedSSAValue(self.typ, self))
 
 
