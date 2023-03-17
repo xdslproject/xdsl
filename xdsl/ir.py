@@ -144,13 +144,13 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
+    def name(self, name: str | None):
         if name is None or self._name_regex.fullmatch(name):
             self._name = name
         else:
             raise ValueError(
                 "Invalid SSA Value name format!",
-                "Allowed values must match [0-9]+|([A-Za-z_$.-][\w$.-]*)",
+                r"Allowed values must match [0-9]+|([A-Za-z_$.-][\w$.-]*)",
             )
 
     @staticmethod
