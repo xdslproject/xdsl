@@ -438,9 +438,11 @@ class IRNode(ABC):
         """Check if two IR nodes are structurally equivalent."""
         ...
 
+    @abstractmethod
     def __eq__(self, other: object) -> bool:
         ...
 
+    @abstractmethod
     def __hash__(self) -> int:
         ...
 
