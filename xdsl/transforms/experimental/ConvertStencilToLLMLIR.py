@@ -6,7 +6,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    op_type_rewrite_pattern)
 from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin
@@ -54,13 +54,6 @@ class CastOpToMemref(RewritePattern):
                                                    op.lb, op.ub)
 
         cast = memref.Cast.get(op.field, result_typ)
-        origin = IndexAttr([
-            ArrayAttr([
-                IntegerAttr.from_int_and_width(-i.value.data, 64)
-                for i in op.lb.array.data
-            ])
-        ])
-        cast.attributes['stencil_origin'] = origin
 
         for k, v in self.return_target.items():
             if v == op:
@@ -75,14 +68,6 @@ class StoreOpCleanup(RewritePattern):
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
         rewriter.erase_matched_op()
         pass
-
-
-class StencilOffsetCleanup(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Cast, rewriter: PatternRewriter, /):
-        if 'stencil_origin' in op.attributes:
-            op.attributes.pop('stencil_origin')
 
 
 class ReturnOpToMemref(RewritePattern):
@@ -270,7 +255,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
 
     module.walk(map_returns)
 
-    first_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
         ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
         CastOpToMemref(return_target),
@@ -279,13 +264,6 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         ReturnOpToMemref(return_target),
         StoreOpCleanup()
     ]),
-                                      apply_recursively=False,
-                                      walk_reverse=True)
-
-    second_pass = PatternRewriteWalker(
-        GreedyRewritePatternApplier([
-            StencilOffsetCleanup(),
-        ]))
-
-    first_pass.rewrite_module(module)
-    second_pass.rewrite_module(module)
+                                        apply_recursively=False,
+                                        walk_reverse=True)
+    the_one_pass.rewrite_module(module)
