@@ -37,6 +37,13 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
 
 class CastOpToMemref(RewritePattern):
 
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
+
+    def __init__(self, return_target: dict[ReturnOp,
+                                           CastOp | memref.Cast]) -> None:
+        super().__init__()
+        self.return_target = return_target
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
@@ -54,6 +61,11 @@ class CastOpToMemref(RewritePattern):
             ])
         ])
         cast.attributes['stencil_origin'] = origin
+
+        for k, v in self.return_target.items():
+            if v == op:
+                self.return_target[k] = cast
+
         rewriter.replace_matched_op(cast)
 
 
@@ -75,20 +87,20 @@ class StencilOffsetCleanup(RewritePattern):
 
 class ReturnOpToMemref(RewritePattern):
 
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
+
+    def __init__(self, return_target: dict[ReturnOp,
+                                           CastOp | memref.Cast]) -> None:
+        super().__init__()
+        self.return_target = return_target
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
 
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
-        res = list(apply.res)[0]
-
-        if (len(res.uses) > 1) or (not isinstance(
-            (store := list(res.uses)[0].operation), StoreOp)):
-            warn("Only single store result atm")
-            return
-
-        cast = store.field.owner
+        cast = self.return_target[op]
         assert isinstance(cast, memref.Cast)
 
         offsets = cast.attributes['stencil_origin']
@@ -245,21 +257,44 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
+
+    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+
+    def map_returns(op: Operation) -> None:
+        if not isinstance(op, ReturnOp):
+            return
+
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+
+        res = list(apply.res)[0]
+
+        if (len(res.uses) > 1) or (not isinstance(
+            (store := list(res.uses)[0].operation), StoreOp)):
+            warn("Only single store result atm")
+            return
+
+        cast = store.field.owner
+        assert isinstance(cast, CastOp)
+
+        return_target[op] = cast
+
+    module.walk(map_returns)
+
     first_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
         ApplyOpInsertInductionVariables(),
         StencilTypeConversionFuncOp(),
-        CastOpToMemref(),
+        CastOpToMemref(return_target),
         LoadOpToMemref(),
         AccessOpToMemref(),
-        ReturnOpToMemref(),
+        ReturnOpToMemref(return_target),
+        StoreOpCleanup()
     ]),
                                       apply_recursively=False)
 
     second_pass = PatternRewriteWalker(
         GreedyRewritePatternApplier(
-            [ApplyOpToParallel(),
-             StencilOffsetCleanup(),
-             StoreOpCleanup()]))
+            [ApplyOpToParallel(), StencilOffsetCleanup()]))
 
     first_pass.rewrite_module(module)
     second_pass.rewrite_module(module)
