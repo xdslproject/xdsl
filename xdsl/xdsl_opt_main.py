@@ -240,7 +240,7 @@ class xDSLOptMain:
             print("\n", file=output)
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output, target=Printer.Target.MLIR)
+            printer = Printer(stream=output)
             printer.print_op(prog)
             print("\n", file=output)
 

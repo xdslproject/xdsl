@@ -8,8 +8,7 @@ from xdsl.utils.diagnostic import Diagnostic
 def assert_print_op(operation: Operation,
                     expected: str,
                     diagnostic: Diagnostic | None,
-                    print_generic_format: bool = False,
-                    target: Printer.Target | None = None):
+                    print_generic_format: bool = False):
     """
     Utility function that helps to check the printing of an operation compared to
     some string
@@ -42,13 +41,8 @@ def assert_print_op(operation: Operation,
 
     file = StringIO("")
     if diagnostic is None:
-        if target is None:
-            printer = Printer(stream=file,
-                              print_generic_format=print_generic_format)
-        else:
-            printer = Printer(stream=file,
-                              print_generic_format=print_generic_format,
-                              target=target)
+        printer = Printer(stream=file,
+                          print_generic_format=print_generic_format)
     else:
         printer = Printer(stream=file, diagnostic=diagnostic)
 
