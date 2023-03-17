@@ -4,7 +4,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -290,7 +290,9 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                       apply_recursively=False)
 
     second_pass = PatternRewriteWalker(
-        GreedyRewritePatternApplier([StencilOffsetCleanup()]))
+        GreedyRewritePatternApplier([
+            StencilOffsetCleanup(),
+        ]))
 
     first_pass.rewrite_module(module)
     second_pass.rewrite_module(module)
