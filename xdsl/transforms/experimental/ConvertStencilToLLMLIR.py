@@ -115,13 +115,6 @@ class ApplyOpToParallel(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
 
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
-        rewriter.insert_block_argument(op.region.blocks[0], 0,
-                                       builtin.IndexType())
-
         if (op.lb is None) or (op.ub is None):
             warn(
                 "stencil.apply should have lb and ub attributes before being lowered to "
@@ -133,11 +126,15 @@ class ApplyOpToParallel(RewritePattern):
         # to a loop, which has access to them either way)
         entry = op.region.blocks[0]
 
-        for arg in entry.args[3:]:
+        for arg in entry.args:
             arg_uses = set(arg.uses)
             for use in arg_uses:
                 use.operation.replace_operand(use.index, op.args[use.index])
             entry.erase_arg(arg)
+
+        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
         #Then create the corresponding scf.parallel
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
