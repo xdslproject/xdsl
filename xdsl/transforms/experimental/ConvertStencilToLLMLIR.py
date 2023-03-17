@@ -1,17 +1,18 @@
+from dataclasses import dataclass
 from typing import TypeVar
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import MLContext
+from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import ArrayAttr, FunctionType, IntegerAttr, ModuleOp, i64
+from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, TempType
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -35,47 +36,91 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
 
+@dataclass
 class CastOpToMemref(RewritePattern):
+
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
-        if not isinstance(op.field.typ, FieldType):
-            return
 
-        field_typ: FieldType[Attribute] = op.field.typ
+        assert isinstance(op.field.typ, FieldType | MemRefType)
+        field_typ: FieldType[Attribute] | MemRefType[Attribute] = op.field.typ
 
         result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
                                                    op.lb, op.ub)
 
-        rewriter.replace_matched_op(memref.Cast.get(op.field, result_typ))
+        cast = memref.Cast.get(op.field, result_typ)
+
+        for k, v in self.return_target.items():
+            if v == op:
+                self.return_target[k] = cast
+
+        rewriter.replace_matched_op(cast)
+
+
+class StoreOpCleanup(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
+        pass
+
+
+@dataclass
+class ReturnOpToMemref(RewritePattern):
+
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
+
+        parallel = op.parent_op()
+        assert isinstance(parallel, scf.ParallelOp)
+
+        cast = self.return_target[op]
+        assert isinstance(cast, CastOp)
+
+        offsets = cast.lb
+        assert isinstance(offsets, IndexAttr)
+
+        block = parallel.body.blocks[0]
+
+        off_const_ops = [
+            arith.Constant.from_int_and_width(-x.value.data,
+                                              builtin.IndexType())
+            for x in offsets.array.data
+        ]
+
+        off_sum_ops = [
+            arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
+        ]
+
+        load = memref.Store.get(op.arg, cast.result, off_sum_ops)
+
+        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
 
 
 class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        if op.lb is None:
-            warn("stencil.load should have a lb attribute when lowered.")
-            return
-        if not isinstance(op.field.owner, memref.Cast):
-            warn(
-                "stencil.cast should be lowered to memref.cast before the stencil.load lowering."
-            )
-            return
-        offsets: list[Attribute] = [
-            IntegerAttr(-i.value.data, i64) for i in op.lb.array.data
-        ]
+        assert isinstance(op.field.owner, Operation)
 
-        # TODO: handle with memref.subview or another, cleaner, approach.
-        op.field.owner.attributes["stencil_offset"] = IndexAttr(
-            [ArrayAttr.from_list(offsets)])
-        rewriter.replace_matched_op([], [op.field.owner.dest])
+        rewriter.replace_matched_op([], list(op.field.owner.results))
 
 
 class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
+        rewriter.insert_block_argument(op.region.blocks[0], 0,
+                                       builtin.IndexType())
 
         if (op.lb is None) or (op.ub is None):
             warn(
@@ -88,16 +133,11 @@ class ApplyOpToParallel(RewritePattern):
         # to a loop, which has access to them either way)
         entry = op.region.blocks[0]
 
-        for arg in entry.args:
+        for arg in entry.args[3:]:
             arg_uses = set(arg.uses)
             for use in arg_uses:
                 use.operation.replace_operand(use.index, op.args[use.index])
             entry.erase_arg(arg)
-
-        # Define index args for the parallel loop induction variables.
-        entry.insert_arg(builtin.IndexType(), 0)
-        entry.insert_arg(builtin.IndexType(), 0)
-        entry.insert_arg(builtin.IndexType(), 0)
 
         #Then create the corresponding scf.parallel
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
@@ -110,41 +150,36 @@ class ApplyOpToParallel(RewritePattern):
 
         # Move the body to the loop
         body = rewriter.move_region_contents_to_new_regions(op.region)
+        body.blocks[0].add_op(scf.Yield.get())
         p = scf.ParallelOp.get(lowerBounds=[zero, zero, zero],
                                upperBounds=upperBounds,
                                steps=[one, one, one],
                                body=body)
 
         # Replace with the loop and necessary constants.
-        rewriter.replace_matched_op([zero, one, *upperBounds, p])
+        rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
+        rewriter.erase_matched_op(False)
 
 
 class AccessOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        if not isinstance(op.temp.owner, memref.Cast):
-            warn(
-                "stencil.load should have been lowered before lowering related "
-                "stencil.access")
-            return
+
+        cast = op.temp.owner
+        assert isinstance(cast, LoadOp)
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        if not isinstance(op.temp.owner.attributes["stencil_offset"],
-                          IndexAttr):
-            warn(
-                f"Expected IndexAttr-typed stencil_offset, got {op.temp.owner.attributes['stencil_offset']}"
-            )
-            return
+        assert isinstance(cast.lb, IndexAttr)
 
         access_offset = op.offset.array.data
-        memref_offset = op.temp.owner.attributes["stencil_offset"].array.data
+        memref_offset = cast.lb.array.data
 
         offsets = [
-            a.value.data + m.value.data
+            a.value.data - m.value.data
             for a, m in zip(access_offset, memref_offset)
         ]
 
@@ -157,7 +192,7 @@ class AccessOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
         ]
 
-        load = memref.Load.get(op.temp, off_sum_ops)
+        load = memref.Load.get(cast.res, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
@@ -182,12 +217,39 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
-    walker = PatternRewriteWalker(GreedyRewritePatternApplier([
-        StencilTypeConversionFuncOp(),
-        CastOpToMemref(),
-        LoadOpToMemref(),
+
+    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+
+    def map_returns(op: Operation) -> None:
+        if not isinstance(op, ReturnOp):
+            return
+
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+
+        res = list(apply.res)[0]
+
+        if (len(res.uses) > 1) or (not isinstance(
+            (store := list(res.uses)[0].operation), StoreOp)):
+            warn("Only single store result atm")
+            return
+
+        cast = store.field.owner
+        assert isinstance(cast, CastOp)
+
+        return_target[op] = cast
+
+    module.walk(map_returns)
+
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
         ApplyOpToParallel(),
-        AccessOpToMemref()
+        StencilTypeConversionFuncOp(),
+        CastOpToMemref(return_target),
+        LoadOpToMemref(),
+        AccessOpToMemref(),
+        ReturnOpToMemref(return_target),
+        StoreOpCleanup()
     ]),
-                                  walk_regions_first=True)
-    walker.rewrite_module(module)
+                                        apply_recursively=False,
+                                        walk_reverse=True)
+    the_one_pass.rewrite_module(module)
