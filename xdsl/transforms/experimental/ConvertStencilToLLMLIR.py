@@ -101,15 +101,15 @@ class ReturnOpToMemref(RewritePattern):
         assert isinstance(parallel, scf.ParallelOp)
 
         cast = self.return_target[op]
-        assert isinstance(cast, memref.Cast)
+        assert isinstance(cast, CastOp)
 
-        offsets = cast.attributes['stencil_origin']
+        offsets = cast.lb
         assert isinstance(offsets, IndexAttr)
 
         block = parallel.body.blocks[0]
 
         off_const_ops = [
-            arith.Constant.from_int_and_width(x.value.data,
+            arith.Constant.from_int_and_width(-x.value.data,
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
@@ -118,7 +118,7 @@ class ReturnOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
         ]
 
-        load = memref.Store.get(op.arg, cast.dest, off_sum_ops)
+        load = memref.Store.get(op.arg, cast.result, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
 
@@ -196,27 +196,19 @@ class AccessOpToMemref(RewritePattern):
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
 
         cast = op.temp.owner
-        if not isinstance(cast, memref.Cast):
-            warn(
-                "stencil.load should have been lowered before lowering related "
-                "stencil.access")
-            return
+        assert isinstance(cast, LoadOp)
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        if not isinstance(cast.attributes["stencil_origin"], IndexAttr):
-            warn(
-                f"Expected IndexAttr-typed stencil_origin, got {cast.attributes['stencil_origin']}"
-            )
-            return
+        assert isinstance(cast.lb, IndexAttr)
 
         access_offset = op.offset.array.data
-        memref_offset = cast.attributes["stencil_origin"].array.data
+        memref_offset = cast.lb.array.data
 
         offsets = [
-            a.value.data + m.value.data
+            a.value.data - m.value.data
             for a, m in zip(access_offset, memref_offset)
         ]
 
@@ -229,7 +221,7 @@ class AccessOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
         ]
 
-        load = memref.Load.get(cast.dest, off_sum_ops)
+        load = memref.Load.get(cast.res, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
@@ -287,7 +279,8 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         ReturnOpToMemref(return_target),
         StoreOpCleanup()
     ]),
-                                      apply_recursively=False)
+                                      apply_recursively=False,
+                                      walk_reverse=True)
 
     second_pass = PatternRewriteWalker(
         GreedyRewritePatternApplier([

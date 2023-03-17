@@ -105,7 +105,6 @@ class Load(Operation):
             indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
         typ = ssa_value.typ
-        assert isinstance(typ, MemRefType)
         typ = cast(MemRefType[Attribute], typ)
         return Load.build(operands=[ref, indices],
                           result_types=[typ.element_type])
