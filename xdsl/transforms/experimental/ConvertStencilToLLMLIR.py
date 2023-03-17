@@ -117,13 +117,6 @@ class LoadOpToMemref(RewritePattern):
         rewriter.replace_matched_op([], list(op.field.owner.results))
 
 
-class ApplyOpInsertInductionVariables(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        pass
-
-
 class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
