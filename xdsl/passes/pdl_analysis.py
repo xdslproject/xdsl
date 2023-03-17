@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import NamedTuple, Type
+from typing import Type
 import warnings
 from warnings import warn
 from xdsl.dialects import pdl
@@ -33,6 +33,11 @@ def debug(msg: str):
     warn(msg)
 
 
+@dataclass()
+class UseInfo():
+    dominated_by: list[AnalyzedPDLOperation] = field(default_factory=list)
+
+
 @dataclass
 class AnalyzedPDLOperation:
     """
@@ -44,15 +49,11 @@ class AnalyzedPDLOperation:
     matched: bool = True
     erased_by: pdl.EraseOp | None = None
     replaced_by: list[SSAValue] | AnalyzedPDLOperation | None = None
+    use_info: UseInfo = UseInfo()
 
     @property
     def is_terminator(self):
         return issubclass(self.op_type, TerminatorOp)
-
-
-class OpReplacement(NamedTuple):
-    op: AnalyzedPDLOperation
-    replacement: list[SSAValue] | AnalyzedPDLOperation
 
 
 @dataclass(init=False)
@@ -142,7 +143,7 @@ class PDLAnalysis:
                 return analyzed_op
         return None
 
-    def terminator_analysis(self: PDLAnalysis):
+    def terminator_analysis(self):
         """
         
         """
@@ -193,12 +194,28 @@ class PDLAnalysis:
 
         debug("Terminator Analysis finished.")
 
-    def _trace_match_operation_op(self, pdl_operation_op: pdl.OperationOp):
+    def def_use_analysis(self):
+        """
+        
+        """
+
+        debug("Dominance Analysis not implemented!")
+        # analyze dominance of generated ops
+        # for op in self.generated_ops:
+        #     for operand in op.operands:
+        #         if operand.op in self.matched_ops:
+        #             self._add_analysis_result_to_op(op.pdl_op,
+        #                                             "dominance_broken")
+
+        # analyze dominance changes through erasures
+
+    def _trace_match_operation_op(
+            self, pdl_operation_op: pdl.OperationOp) -> AnalyzedPDLOperation:
         """
         Gather information about a pdl.OperationOp and its operands in 
         the matching part of a pdl.PatternOp.
         """
-        # get matched operation type
+        # get matched operation type6
         if (name := pdl_operation_op.opName) and self._get_op_named(name.data):
             op_type = self._get_op_named(name.data)
             assert op_type is not None
@@ -206,20 +223,26 @@ class PDLAnalysis:
             op_type = Operation
 
         # trace operands
+        analyzed_operands: list[AnalyzedPDLOperation] = []
         for operand in pdl_operation_op.operands:
             # operands of PDL ops are always OpResults
             if not isinstance(operand, OpResult):
                 raise Exception(
                     "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!"
                 )
-            self._trace_matching_op(operand.op)
+            if analyzed_operand := self._trace_matching_op(operand.op):
+                analyzed_operands.append(analyzed_operand)
 
         analyzed_pdl_op = AnalyzedPDLOperation(pdl_operation_op, op_type)
+        analyzed_pdl_op.use_info.dominated_by.extend(analyzed_operands)
         self.analyzed_ops.append(analyzed_pdl_op)
+        return analyzed_pdl_op
 
-    def _trace_matching_op(self, pdl_op: Operation):
+    def _trace_matching_op(self,
+                           pdl_op: Operation) -> AnalyzedPDLOperation | None:
         """
         Gather information about a pdl operation the matching part of a pdl.PatternOp.
+        Returns the analyzed operation if `pdl_op` stems from pdl.OperationOp or pdl.ResultOp.
         """
         if pdl_op in self.visited_ops:
             debug(f"tracing lhs: op {pdl_op.name} Already visited!")
@@ -227,7 +250,8 @@ class PDLAnalysis:
         # TODO: we want to use a match statement here. Damn you YAPF!
         # trace differently depending on which PDL op we encounter here
         if isinstance(pdl_op, pdl.OperationOp):
-            self._trace_match_operation_op(pdl_op)
+            self.visited_ops.add(pdl_op)
+            return self._trace_match_operation_op(pdl_op)
         elif isinstance(pdl_op, pdl.ResultOp):
             used_op_result: SSAValue = pdl_op.parent_
             if not isinstance(used_op_result, OpResult) or not isinstance(
@@ -236,7 +260,8 @@ class PDLAnalysis:
                     "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
                 )
             used_op: pdl.OperationOp = used_op_result.op
-            self._trace_match_operation_op(used_op)
+            self.visited_ops.add(pdl_op)
+            return self._trace_matching_op(used_op)
         elif isinstance(pdl_op, pdl.AttributeOp):
             debug(f"lhs: Found attribute: {pdl_op.name}")
         elif isinstance(pdl_op, pdl.TypeOp):
@@ -253,12 +278,24 @@ class PDLAnalysis:
             for rhs_op in pdl_rewrite_op.body.ops:
                 self._analyze_rhs_op(rhs_op)
 
-    def _analyze_rhs_op(self, rhs_op: Operation):
+    def _analyze_rhs_op(self,
+                        rhs_op: Operation) -> AnalyzedPDLOperation | None:
         if rhs_op in self.visited_ops:
             debug(f"tracing rhs: op {rhs_op.name} Already visited!")
             return
         if isinstance(rhs_op, pdl.OperationOp):
-            self._trace_generate_new_op(rhs_op)
+            self.visited_ops.add(rhs_op)
+            return self._trace_generate_new_op(rhs_op)
+        elif isinstance(rhs_op, pdl.ResultOp):
+            used_op_result: SSAValue = rhs_op.parent_
+            if not isinstance(used_op_result, OpResult) or not isinstance(
+                    used_op_result.op, pdl.OperationOp):
+                raise Exception(
+                    "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
+                )
+            used_op: pdl.OperationOp = used_op_result.op
+            self.visited_ops.add(rhs_op)
+            return self._analyze_rhs_op(used_op)
         elif isinstance(rhs_op, pdl.TypeOp):
             debug(f"rhs: Found type: {rhs_op.name}")
         elif isinstance(rhs_op, pdl.AttributeOp):
@@ -299,7 +336,7 @@ class PDLAnalysis:
     def _trace_generate_new_op(
         self,
         new_op_op: pdl.OperationOp,
-    ):
+    ) -> AnalyzedPDLOperation:
         # get matched operation type
         if (name := new_op_op.opName) and self._get_op_named(name.data):
             op_type = self._get_op_named(name.data)
@@ -307,16 +344,23 @@ class PDLAnalysis:
         else:
             op_type = Operation
 
-        self.analyzed_ops.append(
-            AnalyzedPDLOperation(new_op_op, op_type=op_type, matched=False))
+        self.analyzed_ops.append(analyzed_op := AnalyzedPDLOperation(
+            new_op_op, op_type=op_type, matched=False))
 
+        # analyze operands
+        analyzed_operands: list[AnalyzedPDLOperation] = []
         for operand in new_op_op.operands:
             # operands of PDL matching ops are always OpResults
             if not isinstance(operand, OpResult):
                 raise Exception(
                     "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!"
                 )
-            self._analyze_rhs_op(operand.op)
+            if (analyzed_operand := self._analyze_rhs_op(operand.op)):
+                analyzed_operands.append(analyzed_operand)
+
+        # TODO: do we want to just add this or better check this?
+        analyzed_op.use_info.dominated_by.extend(analyzed_operands)
+        return analyzed_op
 
     def _get_op_named(self, name: str) -> Type[Operation] | None:
         return self.context.get_optional_op(name)
@@ -416,6 +460,7 @@ if __name__ == '__main__':
     }) : () -> ()
     """
 
+    # TODO: here 5 is dominated by 4. Why did the system add this?
     erasing_and_adding_terminator = """
     "builtin.module"() ({
         "pdl.pattern"() ({
