@@ -332,7 +332,7 @@ class ReturnOp(Operation):
       stencil.return %0 : !stencil.result<f64>
     """
     name: str = "stencil.return"
-    args: Annotated[VarOperand, ResultType]
+    arg: Annotated[Operand, ResultType | AnyFloat]
 
 
 @irdl_op_definition

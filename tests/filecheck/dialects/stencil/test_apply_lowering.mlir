@@ -15,7 +15,7 @@
 // CHECK-NEXT: "builtin.module"() ({
 // CHECK-NEXT:     "func.func"() ({
 // CHECK-NEXT:     ^0(%0 : memref<?x?x?xf64>):
-// CHECK-NEXT:         %1 = "memref.cast"(%0) {"stencil_offset" = #stencil.index<[4 : i64, 4 : i64, 4 : i64]>} : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
+// CHECK-NEXT:         %1 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:         %2 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:         %3 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:         %4 = "arith.constant"() {"value" = 72 : index} : () -> index
@@ -23,6 +23,7 @@
 // CHECK-NEXT:         %6 = "arith.constant"() {"value" = 72 : index} : () -> index
 // CHECK-NEXT:         "scf.parallel"(%2, %2, %2, %4, %5, %6, %3, %3, %3) ({
 // CHECK-NEXT:         ^1(%7 : index, %8 : index, %9 : index):
+// CHECK-NEXT:             "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:         "func.return"() : () -> ()
 // CHECK-NEXT:     }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
