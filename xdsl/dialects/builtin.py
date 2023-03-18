@@ -45,8 +45,7 @@ class ArrayOfConstraint(AttrConstraint):
 class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
     name: str = "array"
 
-    def __init__(self: ArrayAttr[AttributeCovT],
-                 param: Iterable[AttributeCovT]) -> None:
+    def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
