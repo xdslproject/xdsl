@@ -814,7 +814,6 @@ class BaseParser(ABC):
                                   "Unexpected end of dimension parameters!")
 
     def parse_vector_attrs(self) -> AnyVectorType:
-        # Also break on 'x' characters as they are separators in dimension parameters
         shape = list[int](self.try_parse_numerical_dims())
         scaling_shape: list[int] | None = None
 
