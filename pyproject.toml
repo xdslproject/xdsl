@@ -5,7 +5,37 @@ requires = [
 ]
 
 [tool.pyright]
-include = ["xdsl"]
 reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
+"exclude" = [
+    "docs/Toy/toy/dialect.py",
+    "tests/test_frontend_op_resolver.py",
+    "tests/test_frontend_python_code_check.py",
+    "tests/test_ir.py",
+    "tests/test_operation_builder.py",
+    "tests/test_parser.py",
+    "tests/test_parser_error.py",
+    "tests/test_pattern_rewriter.py",
+    "tests/test_printer.py",
+    "tests/test_rewriter.py",
+    "tests/test_ssa_value.py",
+    "tests/dialects/test_affine.py",
+    "tests/dialects/test_arith.py",
+    "tests/dialects/test_func.py",
+    "tests/dialects/test_memref.py",
+    "tests/dialects/test_mpi.py",
+    "tests/dialects/test_mpi_lowering.py",
+    "tests/dialects/test_vector.py",
+    "tests/xdsl_opt/test_xdsl_opt.py",
+]
+"ignore" = [
+    "venv",
+    "versioneer.py",
+    "setup.py",
+    "update_xdsl_pyodide_build.py",
+    "xdsl/irdl_mlir_printer.py",
+    "tests/filecheck/frontend/dialects/builtin.py",
+    "tests/filecheck/frontend/dialects/invalid.py",
+    "tests/filecheck/frontend/programs/invalid.py",
+]
