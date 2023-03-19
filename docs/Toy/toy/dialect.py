@@ -4,7 +4,7 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias, Any, cast
+from typing import Annotated, TypeAlias, cast
 
 from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
                      OpResult)
@@ -77,8 +77,7 @@ class AddOp(Operation):
 
     @staticmethod
     def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
-        assert isa(lhs.typ, AnyTensorTypeF64)
-        if isinstance(lhs.typ, TensorType):
+        if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
@@ -294,14 +293,20 @@ class ReshapeOp(Operation):
 
     @staticmethod
     def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
-        assert isa(arg.typ, AnyTensorTypeF64)
+        if not isa(arg.typ, AnyTensorTypeF64):
+            raise ValueError(
+                f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
+            )
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        assert isa(arg.typ, AnyTensorTypeF64)
+        if not isa(arg.typ, AnyTensorTypeF64):
+            raise ValueError(
+                f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
+            )
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
@@ -320,15 +325,17 @@ class TransposeOp(Operation):
 
     @staticmethod
     def from_input(input: SSAValue):
-        input_type = input.typ
-        assert isinstance(input_type, TensorType | UnrankedTensorType)
-        output_type: TensorType[Any] | UnrankedTensorType[Any]
-        if isa(input_type, TensorTypeF64):
-            element_type = input_type.element_type
+        output_type: TensorTypeF64 | UnrankedTensorTypeF64
+        if isa(input.typ, TensorTypeF64):
+            element_type = input.typ.element_type
             output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(input_type.get_shape())))
+                element_type, list(reversed(input.typ.get_shape())))
         else:
-            output_type = input_type
+            if not isa(input.typ, UnrankedTensorTypeF64):
+                raise ValueError(
+                    f'Unexpected arg of type {input.typ} passed to TransposeOp, expected {TensorTypeF64 | UnrankedTensorTypeF64}'
+                )
+            output_type = input.typ
 
         return TransposeOp.create(operands=[input], result_types=[output_type])
 
