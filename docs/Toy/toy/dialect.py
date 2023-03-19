@@ -4,7 +4,7 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from typing import Annotated, List, TypeAlias, Union, Optional, Any, cast
+from typing import Annotated, TypeAlias, Any, cast
 
 from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
                      OpResult)
@@ -38,7 +38,7 @@ class ConstantOp(Operation):
     res: Annotated[OpResult, TensorTypeF64]
 
     @staticmethod
-    def from_list(data: List[float], shape: List[int]) -> ConstantOp:
+    def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
         return ConstantOp.from_value(value)
 
@@ -75,14 +75,14 @@ class AddOp(Operation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def from_summands(cls: type[AddOp], lhs: SSAValue, rhs: SSAValue) -> AddOp:
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
         assert isa(lhs.typ, AnyTensorTypeF64)
         if isinstance(lhs.typ, TensorType):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        return cls.create(result_types=[result_typ], operands=[lhs, rhs])
+        return AddOp.create(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -139,8 +139,8 @@ class FuncOp(Operation):
 
     @staticmethod
     def from_callable(name: str,
-                      input_types: List[Attribute],
-                      return_types: List[Attribute],
+                      input_types: list[Attribute],
+                      return_types: list[Attribute],
                       func: Block.BlockCallback,
                       /,
                       private: bool = False):
@@ -195,16 +195,15 @@ class GenericCallOp(Operation):
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def get(cls: type[GenericCallOp], callee: str | SymbolRefAttr,
-            operands: List[Union[SSAValue, OpResult]],
-            return_types: List[Attribute]) -> GenericCallOp:
+    @staticmethod
+    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
+            return_types: list[Attribute]) -> GenericCallOp:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return cls.create(operands=operands,
-                          result_types=return_types,
-                          attributes={"callee": callee})
+        return GenericCallOp.create(operands=operands,
+                                    result_types=return_types,
+                                    attributes={"callee": callee})
 
 
 @irdl_op_definition
@@ -218,13 +217,13 @@ class MulOp(Operation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def from_summands(cls: type[MulOp], lhs: SSAValue, rhs: SSAValue) -> MulOp:
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        return cls.create(result_types=[result_typ], operands=[lhs, rhs])
+        return MulOp.create(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -250,9 +249,9 @@ class PrintOp(Operation):
     name: str = 'toy.print'
     input: Annotated[Operand, AnyAttr()]
 
-    @classmethod
-    def from_input(cls: type[PrintOp], input: SSAValue) -> PrintOp:
-        return cls.create(operands=[input])
+    @staticmethod
+    def from_input(input: SSAValue) -> PrintOp:
+        return PrintOp.create(operands=[input])
 
 
 @irdl_op_definition
@@ -273,10 +272,9 @@ class ReturnOp(Operation):
     name: str = 'toy.return'
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
-    @classmethod
-    def from_input(cls: type[ReturnOp],
-                   input: Optional[SSAValue] = None) -> ReturnOp:
-        return cls.create(operands=[input] if input is not None else [])
+    @staticmethod
+    def from_input(input: SSAValue | None = None) -> ReturnOp:
+        return ReturnOp.create(operands=[input] if input is not None else [])
 
 
 @irdl_op_definition
@@ -294,19 +292,17 @@ class ReshapeOp(Operation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
 
-    @classmethod
-    def from_input(cls: type[ReshapeOp], arg: SSAValue,
-                   shape: List[int]) -> ReshapeOp:
+    @staticmethod
+    def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
         assert isa(arg.typ, AnyTensorTypeF64)
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
-        return cls.create(result_types=[t], operands=[arg])
+        return ReshapeOp.create(result_types=[t], operands=[arg])
 
-    @classmethod
-    def from_input_and_type(cls: type[ReshapeOp], arg: SSAValue,
-                            t: TensorTypeF64) -> ReshapeOp:
+    @staticmethod
+    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
         assert isa(arg.typ, AnyTensorTypeF64)
-        return cls.create(result_types=[t], operands=[arg])
+        return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
         result_type = self.res.typ
