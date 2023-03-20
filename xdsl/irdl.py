@@ -514,7 +514,7 @@ class OpDef:
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: list[OpTrait[Any]] = field(default_factory=list)
+    traits: list[OpTrait] = field(default_factory=list)
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
@@ -677,7 +677,7 @@ class OpDef:
                         f"pyrdl operation definition '{pyrdl_def.__name__}' "
                         f"has a 'traits' field of type {type(traits)}, but "
                         "it should be of type frozenset.")
-                traits = cast(frozenset[Any], traits)
+                traits = cast(frozenset[OpTrait], traits)
                 op_def.traits.extend(traits)
 
         return op_def
