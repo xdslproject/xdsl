@@ -123,7 +123,7 @@ class GEPOp(Operation):
             pointee_type: Attribute | None = None):
 
         if indices is None:
-            raise ValueError('...')
+            raise ValueError('llvm.getelementptr must have a pointer.')
 
         indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
@@ -135,12 +135,12 @@ class GEPOp(Operation):
         ptr = SSAValue.get(ptr)
 
         if not isinstance(result_type, LLVMPointerType):
-            raise ValueError('...')
+            raise ValueError('Result type must be a pointer.')
 
         if not ptr.typ.is_typed():  #type: ignore
             print('hello')
             if pointee_type == None:
-                raise ValueError('...')
+                raise ValueError('Opaque types must have a pointee type passed')
 
         attrs: dict[str, Attribute] = {
             'rawConstantIndices': indices_attr,
