@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import sys
+import warnings
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -145,8 +146,13 @@ class SSAValue(ABC):
 
     @name.setter
     def name(self, name: str | None):
-        # discard numeric-only names (such as %5)
-        if name is None or name.isnumeric():
+        if name is None:
+            self._name = None
+        # emit a warning if the string is a purely numeric value
+        elif name.isnumeric():
+            warnings.warn(
+                f'Setting an SSAValue.name to a numeric value (in this case "{name}") is ignored!'
+            )
             self._name = None
         # only allow names that match the _name_regex
         elif self._name_regex.fullmatch(name):

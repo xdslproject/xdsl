@@ -72,13 +72,21 @@ def test_invalid_ssa_vals(name):
         val.name = name
 
 
-@pytest.mark.parametrize("name", ['2', '500', '42', '69', None])
-def test_discarded_ssa_vals(name: str | None):
+def test_discarded_ssa_vals():
     """
     This test tests ssa value name hints that should be discarded.
     """
     val = BlockArgument(i32, Block(), 0)
 
-    val.name = name
+    val.name = "hello"
+
+    assert val.name == "hello"
+
+    val.name = None
+
+    assert val.name is None
+
+    with pytest.warns():
+        val.name = "4"
 
     assert val.name is None
