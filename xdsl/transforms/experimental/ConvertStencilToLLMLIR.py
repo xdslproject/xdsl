@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from typing import TypeVar
 from warnings import warn
 
-import functools
-
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
@@ -59,7 +57,7 @@ class CastOpToMemref(RewritePattern):
             if v == op:
                 self.return_target[k] = cast
 
-        if gpu:
+        if self.gpu:
             unranked = memref.Cast.get(
                 cast.dest,
                 memref.UnrankedMemrefType.from_type(field_typ.element_type))

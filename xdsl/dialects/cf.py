@@ -23,7 +23,7 @@ class Branch(Operation):
 class ConditionalBranch(Operation):
     name: str = "cf.cond_br"
 
-    then: Annotated[Operand, IntegerType(1)]
+    cond: Annotated[Operand, IntegerType(1)]
     then_arguments: Annotated[VarOperand, AnyAttr()]
     else_arguments: Annotated[VarOperand, AnyAttr()]
 
