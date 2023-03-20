@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, UnitAttr)
+                                   AnyIntegerAttr, IndexType, UnitAttr, i32)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -101,6 +101,7 @@ class GEPOp(Operation):
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
+
     ssa_indices: Annotated[VarOperand, IntegerType]
 
     elem_type: OptOpAttr[Attribute]
@@ -109,21 +110,18 @@ class GEPOp(Operation):
 
     inbounds: OptOpAttr[UnitAttr]
 
-    result: OpResult
+    result: Annotated[OpResult, LLVMPointerType]
 
     @staticmethod
     def get(ptr: SSAValue | Operation,
+            result_type: LLVMPointerType = LLVMPointerType.opaque(),
             indices: list[int] | None = None,
             ssa_indices: list[SSAValue | Operation] | None = None,
-            result_type: Attribute | None = None,
             inbounds: bool = False,
-            ptr_type: Attribute | None = None):
-        # construct default mutable argument here:
-        if indices is None:
-            indices = []
-        # TODO: convert indices to DenseI32ArrayAttr
+            pointee_type: Attribute | None = None):
 
-        i32 = IntegerType(32)
+        if indices is None:
+            raise ValueError('...')
 
         indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
@@ -134,29 +132,20 @@ class GEPOp(Operation):
         # convert a potential Operation into an SSAValue
         ptr = SSAValue.get(ptr)
 
-        if ptr_type is None:
-            ptr_type = LLVMPointerType.opaque()
-        else:
-            ptr_type = LLVMPointerType.typed(ptr_type)
+        if not isinstance(result_type, LLVMPointerType):
+            raise ValueError('...')
 
-        # if no result type was give, infer from pointer type
-        if result_type is None:
-            # ptr is an SSAValue
-            # ptr.typ is the type of the SSAValue (so the LLVMPointerType)
-            assert isinstance(ptr.typ, LLVMPointerType)
-            # ptr.typ.type is the wrapped type of the pointer
-            # use that as the result type
-            result_type = ptr_type
+        if not ptr.typ.is_typed():  #type: ignore
+            print('hello')
+            if pointee_type == None:
+                raise ValueError('...')
 
         attrs: dict[str, Attribute] = {
             'rawConstantIndices': indices_attr,
-            'elem_type': result_type
         }
 
-        if ptr_type.is_typed():
-            attrs.pop('elem_type')
-
-        result_type = LLVMPointerType.typed(result_type)
+        if not ptr.typ.is_typed():  #type: ignore
+            attrs['elem_type'] = result_type
 
         if inbounds:
             attrs['inbounds'] = UnitAttr()
