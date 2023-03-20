@@ -466,9 +466,13 @@ OperationContrT = TypeVar("OperationContrT",
                           contravariant=True)
 
 
-@dataclass
+@dataclass(frozen=True)
 class OpTrait(Generic[OperationContrT]):
     """A trait attached to an operation."""
+
+    def verify(self, op: OperationContrT) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
 
 
 @dataclass
@@ -501,7 +505,7 @@ class Operation(IRNode):
 
     traits: frozenset[OpTrait[Self]] = field(init=False)
     """
-    The traits attached to the operation.
+    Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
@@ -695,6 +699,21 @@ class Operation(IRNode):
         for idx, region in enumerate(self.regions):
             region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
         return op
+
+    @classmethod
+    def has_trait(cls, trait: OpTrait[Self]) -> bool:
+        """
+        Check if the operation implements a trait with the given parameters.
+        """
+        return trait in cls.traits
+
+    @classmethod
+    def get_traits_of_type(cls,
+                           trait: type[OpTrait[Self]]) -> list[OpTrait[Self]]:
+        """
+        Get all the traits of the given type satisfied by this operation.
+        """
+        return [t for t in cls.traits if isinstance(t, trait)]
 
     def erase(self,
               safe_erase: bool = True,

@@ -1,0 +1,90 @@
+from __future__ import annotations
+from dataclasses import dataclass
+
+import pytest
+
+from xdsl.ir import OpResult, OpTrait, Operation
+from xdsl.irdl import VarOpResult, VarOperand, irdl_op_definition
+from xdsl.utils.exceptions import VerifyException
+from xdsl.dialects.builtin import i32
+
+
+@dataclass(frozen=True)
+class NoResultsTrait(OpTrait[Operation]):
+
+    def verify(self, op: Operation):
+        if len(op.results) != 0:
+            raise VerifyException(
+                f"Op has {len(op.results)} results, should have none")
+
+
+@dataclass(frozen=True)
+class NoOperandsTrait(OpTrait[Operation]):
+
+    def verify(self, op: Operation):
+        if len(op.operands) != 0:
+            raise VerifyException(
+                f"Op has {len(op.operands)} operands, should have none")
+
+
+@dataclass(frozen=True)
+class NOperandsTrait(OpTrait[Operation]):
+    parameter: int
+
+    def verify(self, op: Operation):
+        if len(op.operands) != self.parameter:
+            raise VerifyException(
+                f"Op has {len(op.operands)} operands, should have {self.parameter}"
+            )
+
+
+@irdl_op_definition
+class MyOp(Operation):
+    name = "test.my_op"
+    traits = frozenset([NoResultsTrait(), NOperandsTrait(1)])
+
+    ops: VarOperand
+    res: VarOpResult
+
+
+def test_has_trait_object():
+    assert MyOp.has_trait(NoResultsTrait())
+    assert not MyOp.has_trait(NoOperandsTrait())
+    assert not MyOp.has_trait(NOperandsTrait(0))
+    assert MyOp.has_trait(NOperandsTrait(1))
+
+
+def test_get_trait():
+    assert MyOp.get_traits_of_type(NoResultsTrait) == [NoResultsTrait()]
+    assert MyOp.get_traits_of_type(NoOperandsTrait) == []
+    assert MyOp.get_traits_of_type(NOperandsTrait) == [NOperandsTrait(1)]
+
+
+def test_verifier():
+    operand = OpResult(i32, [], [])  # type: ignore
+    op = MyOp.create(operands=[operand], result_types=[i32])
+    with pytest.raises(VerifyException):
+        op.verify()
+
+    op = MyOp.create(operands=[], result_types=[])
+    with pytest.raises(VerifyException):
+        op.verify()
+
+    op = MyOp.create(operands=[operand], result_types=[])
+    op.verify()
+
+
+class NoOperandsOp(Operation):
+    traits = frozenset([NoOperandsTrait()])
+
+
+@irdl_op_definition
+class NoResultNorOperandOp(NoOperandsOp):
+    name = "test.no_result_nor_operand_op"
+
+    traits = frozenset([NoResultsTrait()])
+
+
+def test_trait_inheritance():
+    assert NoResultNorOperandOp.traits == frozenset(
+        [NoResultsTrait(), NoOperandsTrait()])

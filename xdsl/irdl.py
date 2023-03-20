@@ -10,7 +10,7 @@ from typing import (Annotated, Any, Generic, Literal, Sequence, TypeAlias,
                     overload)
 from types import UnionType, GenericAlias, FunctionType
 
-from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
+from xdsl.ir import (Attribute, Block, Data, OpResult, OpTrait, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (PyRDLAttrDefinitionError,
@@ -514,6 +514,7 @@ class OpDef:
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
+    traits: list[OpTrait[Any]] = field(default_factory=list)
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
@@ -546,7 +547,7 @@ class OpDef:
         for field_name, value in clsdict.items():
             if field_name in opdict:
                 continue
-            if field_name == "irdl_options":
+            if field_name in ["irdl_options", "traits"]:
                 continue
             if isinstance(
                     value,
@@ -667,6 +668,18 @@ class OpDef:
 
         op_def.options = clsdict.get("irdl_options", [])
 
+        # Take the union of all traits from the class hierarchy.
+        for parent_cls in pyrdl_def.mro()[::-1]:
+            if hasattr(parent_cls, "traits"):
+                traits = getattr(parent_cls, "traits")
+                if not isinstance(traits, frozenset):
+                    raise Exception(
+                        f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                        f"has a 'traits' field of type {type(traits)}, but "
+                        "it should be of type frozenset.")
+                traits = cast(frozenset[Any], traits)
+                op_def.traits.extend(traits)
+
         return op_def
 
     def verify(self, op: Operation):
@@ -681,12 +694,17 @@ class OpDef:
         # Verify regions.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
 
+        # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
             if attr_name not in op.attributes:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
                 raise VerifyException(f"attribute {attr_name} expected")
             attr_def.constr.verify(op.attributes[attr_name])
+
+        # Verify traits.
+        for trait in self.traits:
+            trait.verify(op)
 
 
 class VarIRConstruct(Enum):
@@ -1164,6 +1182,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                 attribute_name)
         else:
             new_attrs[attribute_name] = attribute_field(attribute_name)
+
+    new_attrs["traits"] = frozenset(op_def.traits)
 
     def builder(
         cls: type[_OpT],
