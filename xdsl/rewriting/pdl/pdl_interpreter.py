@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Collection
+from typing import Collection, Optional
 from warnings import warn
 import warnings
 from xdsl.dialects.arith import Arith
@@ -12,7 +12,7 @@ from xdsl.parser import Parser, Source
 from xdsl.printer import Printer
 from xdsl.rewriting.pdl.interpreter import InterpModifier, InterpResult, Interpreter, InterpreterException
 from xdsl.utils import *
-from xdsl.dialects.pdl import PDL, OperandOp, OperationOp, PatternOp, ResultOp, RewriteOp, TypeType, ValueType
+from xdsl.dialects.pdl import PDL, OperandOp, OperationOp, PatternOp, ReplaceOp, ResultOp, RewriteOp, TypeType, ValueType
 
 
 class InterpreterWarning(Warning):
@@ -82,6 +82,18 @@ class PDLInterpreter(Interpreter):
             op_type=OperandOp,
             interp_fun=self._interpret_pdl_operand_op_lhs,
             modifier=LHSInterpretation())
+        self.register_interpretable_op(
+            op_type=RewriteOp,
+            interp_fun=self._interpret_pdl_rewrite_op_rhs,
+            modifier=RHSInterpretation())
+        self.register_interpretable_op(
+            op_type=OperationOp,
+            interp_fun=self._interpret_pdl_operation_op_rhs,
+            modifier=RHSInterpretation())
+        self.register_interpretable_op(
+            op_type=ReplaceOp,
+            interp_fun=self._interpret_pdl_replace_op_rhs,
+            modifier=RHSInterpretation())
 
     @staticmethod
     def _interpret_module_op(
@@ -129,12 +141,12 @@ class PDLInterpreter(Interpreter):
             )
 
         # interpret matching
-        return interpreter.interpret_op(root_op,
-                                        *args,
-                                        modifier=LHSInterpretation())
+        if not (interp_result := interpreter.interpret_op(
+                root_op, *args, modifier=LHSInterpretation())).success:
+            return interp_result
 
         # interpret IR generation
-        # interpreter.interpret_op(rewrite_op, modifier=RHSInterpreation())
+        interpreter.interpret_op(rewrite_op, modifier=RHSInterpretation())
         # return InterpResult(True)
 
     @staticmethod
@@ -185,17 +197,18 @@ class PDLInterpreter(Interpreter):
 
         # record the match of this op in the matching environment so it can be referred to
         # in the rewriting part
-        interpreter.matching_env[operation_op.results[0]] = payload_op
+        interpreter.matching_env[operation_op.op] = payload_op
         debug(f"sucessfully matched {operation_op.opName}")
         return InterpResult(True)
 
     @staticmethod
-    def _interpret_pdl_operand_op_lhs(op: Operation, interpreter: Interpreter,
+    def _interpret_pdl_operand_op_lhs(op: Operation,
+                                      interpreter: PDLInterpreter,
                                       *args: Any) -> InterpResult:
         """
         Expects:
             args[0]: Operation - The Operation to expect an operand from.
-            args[1]: int - The index 
+            args[1]: int - The index
         """
         if not isinstance(operand_op := op, OperandOp):
             raise InterpreterException(
@@ -210,16 +223,20 @@ class PDLInterpreter(Interpreter):
         if len(payload_op.operands) < idx:
             return InterpResult(False,
                                 "Operation has wrong number of operands.")
+        # record match in environment
+        interpreter.matching_env[operand_op.value] = payload_op.operands[idx]
         return InterpResult(True)
 
     @staticmethod
-    def _interpret_pdl_result_op_lhs(op: Operation, interpreter: Interpreter,
+    def _interpret_pdl_result_op_lhs(op: Operation,
+                                     interpreter: PDLInterpreter,
                                      *args: Any) -> InterpResult:
         """
         Expects:
             args[0]: Operation - The Operation to get the result from.
             args[1]: int - The index 
         """
+
         if not isinstance(result_op := op, ResultOp):
             raise InterpreterException(
                 f"Got incorrect op: {op.name} in interpreter fun for ResultOp!"
@@ -245,9 +262,58 @@ class PDLInterpreter(Interpreter):
                 False, f"Result index of {result_index} out of bounds. \
                 Op: {payload_operand.op.name} only has {len(payload_operand.op.results)} results!"
             )
+        # record match in environment
+        interpreter.matching_env[
+            result_op.val] = payload_operand.op.results[result_index]
         return interpreter.interpret_op(result_op.parent_.op,
                                         payload_operand.op,
                                         modifier=LHSInterpretation())
+
+    @staticmethod
+    def _interpret_pdl_rewrite_op_rhs(op: Operation,
+                                      interpreter: PDLInterpreter,
+                                      *args: Any) -> InterpResult:
+        if not isinstance(rewrite_op := op, RewriteOp):
+            raise InterpreterException(
+                f"Got incorrect op: {op.name} in interpreter fun for RewriteOp!"
+            )
+
+        if rewrite_op.body is None:
+            raise InterpreterException(
+                f"For now we only support RewriteOps with a Region!")
+
+        for nested_op in rewrite_op.body.ops:
+            if not (interp_result := interpreter.interpret_op(
+                    nested_op, modifier=RHSInterpretation())).success:
+                return interp_result
+
+        return InterpResult(True)
+
+    @staticmethod
+    def _interpret_pdl_operation_op_rhs(op: Operation,
+                                        interpreter: PDLInterpreter,
+                                        *args: Any) -> InterpResult:
+        if not isinstance(operation_op := op, OperationOp):
+            raise InterpreterException(
+                f"Got incorrect op: {op.name} in interpreter fun for OperationOp!"
+            )
+
+        # TODO: generate new operation
+
+        return InterpResult(True)
+
+    @staticmethod
+    def _interpret_pdl_replace_op_rhs(op: Operation,
+                                      interpreter: PDLInterpreter,
+                                      *args: Any) -> InterpResult:
+        if not isinstance(replace_op := op, ReplaceOp):
+            raise InterpreterException(
+                f"Got incorrect op: {op.name} in interpreter fun for ReplaceOp!"
+            )
+
+        # TODO: handle replaceOp
+
+        return InterpResult(True)
 
 
 if __name__ == "__main__":
@@ -265,15 +331,18 @@ if __name__ == "__main__":
 
     rewrites = """"builtin.module"() ({
   "pdl.pattern"() ({
-    %0 = "pdl.operand"() : () -> !pdl.value
-    %1 = "pdl.type"() : () -> !pdl.type
-    %2 = "pdl.operation"(%0, %1) {"attributeValueNames" = [], "opName" = "arith.addi", "operand_segment_sizes" = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
-    %3 = "pdl.result"(%2) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
-    %4 = "pdl.operand"() : () -> !pdl.value
-    %5 = "pdl.operation"(%3, %4) {"attributeValueNames" = [], "opName" = "arith.addi", "operand_segment_sizes" = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-    "pdl.rewrite"(%5) ({
-    }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
-  }) {"benefit" = 1 : i16, "sym_name" = "operations"} : () -> ()
+      %0 = "pdl.operand"() : () -> !pdl.value
+      %1 = "pdl.operand"() : () -> !pdl.value
+      %2 = "pdl.type"() : () -> !pdl.type
+      %3 = "pdl.operation"(%0, %1, %2) {attributeValueNames = [], opName = "arith.addi", operand_segment_sizes = array<i32: 2, 0, 1>} : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+      %4 = "pdl.result"(%3) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
+      %5 = "pdl.operand"() : () -> !pdl.value
+      %6 = "pdl.operation"(%4, %5, %2) {attributeValueNames = [], opName = "arith.addi", operand_segment_sizes = array<i32: 2, 0, 1>} : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+      "pdl.rewrite"(%6) ({
+        %7 = "pdl.operation"(%5, %4, %2) {attributeValueNames = [], opName = "arith.addi", operand_segment_sizes = array<i32: 2, 0, 1>} : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+        "pdl.replace"(%6, %7) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+      }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    }) {benefit = 2 : i16} : () -> ()
 }) : () -> ()
 """
 
@@ -289,6 +358,9 @@ if __name__ == "__main__":
     ir_parser = Parser(ctx, IR)
     ir_module: Operation = ir_parser.parse_op()
 
+    printer = Printer(target=Printer.Target.MLIR)
+    printer.print_op(ir_module)
+
     pdl_parser = Parser(ctx, rewrites, source=Source.MLIR)
     pdl_module: Operation = pdl_parser.parse_op()
 
@@ -300,7 +372,7 @@ if __name__ == "__main__":
     # So for now we just try to apply our rewrite everywhere.
     for op in ir_module.ops:
         result = pdl_interpreter.interpret_op(pdl_module, op)
-        if not result.success:
+        if result and not result.success:
             debug(result.error_msg)
         else:
             break
