@@ -48,19 +48,29 @@ class MyOp(Operation):
 
 
 def test_has_trait_object():
+    """
+    Test the `has_trait` `Operation` method on a simple operation definition.
+    """
     assert MyOp.has_trait(NoResultsTrait())
     assert not MyOp.has_trait(NoOperandsTrait())
     assert not MyOp.has_trait(NOperandsTrait(0))
     assert MyOp.has_trait(NOperandsTrait(1))
 
 
-def test_get_trait():
+def test_get_traits_of_type():
+    """
+    Test the `get_traits_of_type` `Operation` method
+    on a simple operation definition.
+    """
     assert MyOp.get_traits_of_type(NoResultsTrait) == [NoResultsTrait()]
     assert MyOp.get_traits_of_type(NoOperandsTrait) == []
     assert MyOp.get_traits_of_type(NOperandsTrait) == [NOperandsTrait(1)]
 
 
 def test_verifier():
+    """
+    Check that the traits verifier are correctly called.
+    """
     operand = OpResult(i32, [], [])  # type: ignore
     op = MyOp.create(operands=[operand], result_types=[i32])
     with pytest.raises(VerifyException):
@@ -86,5 +96,18 @@ class NoResultNorOperandOp(NoOperandsOp):
 
 
 def test_trait_inheritance():
+    """
+    Check that traits are correctly inherited from parent classes.
+    """
     assert NoResultNorOperandOp.traits == frozenset(
         [NoResultsTrait(), NoOperandsTrait()])
+
+
+@irdl_op_definition
+class NoTraitsOp(Operation):
+    name = "test.no_traits_op"
+
+
+def test_traits_undefined():
+    """Check that traits are defaulted to the empty set."""
+    assert NoTraitsOp.traits == frozenset()
