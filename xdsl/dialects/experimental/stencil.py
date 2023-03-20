@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, TypeVar, Any, cast
+from typing import Annotated, Sequence, TypeVar, Any, cast
 
 from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    ArrayAttr, f32, f64, IntegerType, IntAttr,
                                    AnyFloat)
 from xdsl.dialects import builtin
 from xdsl.ir import Operation, Dialect, MLIRType
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
-                       AttrConstraint, Attribute, Region, VerifyException,
-                       Generic, AnyOf, Annotated, Operand, OpAttr, OpResult,
-                       VarOperand, VarOpResult, OptOpAttr,
+from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
+                       ParameterDef, AttrConstraint, Attribute, Region,
+                       VerifyException, Generic, AnyOf, Annotated, Operand,
+                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
                        AttrSizedOperandSegments)
 
 
@@ -126,10 +126,17 @@ class IndexAttr(ParametrizedAttribute):
     array: ParameterDef[ArrayAttr[AnyIntegerAttr]]
 
     def verify(self) -> None:
-        if len(self.array.data) != 3:
+        if len(self.array.data) < 1 or len(self.array.data) > 3:
             raise VerifyException(
-                f"Expected 3 indexes for stencil.index, got {len(self.array.data)}."
+                f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
             )
+
+    @staticmethod
+    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
+        return [
+            ub.value.data - lb.value.data
+            for lb, ub in zip(lb.array.data, ub.array.data)
+        ]
 
 
 @dataclass(frozen=True)
@@ -149,8 +156,8 @@ class CastOp(Operation):
     """
     name: str = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
+    lb: OpAttr[IndexAttr]
+    ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
 
@@ -289,7 +296,7 @@ class ApplyOp(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, TempType]
+    args: Annotated[VarOperand, AnyAttr()]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     region: Region
@@ -325,7 +332,7 @@ class ReturnOp(Operation):
       stencil.return %0 : !stencil.result<f64>
     """
     name: str = "stencil.return"
-    args: Annotated[VarOperand, ResultType]
+    arg: Annotated[Operand, ResultType | AnyFloat]
 
 
 @irdl_op_definition

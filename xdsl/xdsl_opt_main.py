@@ -20,6 +20,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
 from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
 
@@ -47,7 +48,7 @@ class xDSLOptMain:
 
     available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]]
     """
-    A mapping from pass names to functions that apply the pass to a  ModuleOp.
+    A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
     available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
@@ -196,6 +197,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
         self.ctx.register_dialect(Stencil)
+        self.ctx.register_dialect(PDL)
 
     def register_all_frontends(self):
         """

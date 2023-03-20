@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, UnitAttr, i32)
+                                   AnyIntegerAttr, IndexType, UnitAttr, i32, i64)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -230,6 +230,44 @@ class LoadOp(Operation):
 
 
 @irdl_op_definition
+class StoreOp(Operation):
+    name = "llvm.store"
+
+    value: Operand
+    ptr: Annotated[Operand, LLVMPointerType]
+
+    alignment: OptOpAttr[IntegerAttr[IntegerType]]
+    ordering: OptOpAttr[IntegerAttr[IntegerType]]
+    volatile_: OptOpAttr[UnitAttr]
+    nontemporal: OptOpAttr[UnitAttr]
+
+    @classmethod
+    def get(cls,
+            value: SSAValue | Operation,
+            ptr: SSAValue | Operation,
+            alignment: int | None = None,
+            ordering: int = 0,
+            volatile: bool = False,
+            nontemporal: bool = False):
+        attrs: dict[str, Attribute] = {
+            'ordering': IntegerAttr(ordering, i64),
+        }
+
+        if alignment is not None:
+            attrs['alignment'] = IntegerAttr[IntegerType](alignment, i64)
+        if volatile:
+            attrs['volatile_'] = UnitAttr()
+        if nontemporal:
+            attrs['nontemporal'] = UnitAttr()
+
+        return cls.build(
+            operands=[value, ptr],
+            attributes=attrs,
+            result_types=[],
+        )
+
+
+@irdl_op_definition
 class NullOp(Operation):
     name = "llvm.mlir.null"
 
@@ -281,4 +319,5 @@ LLVM = Dialect([
     IntToPtrOp,
     NullOp,
     LoadOp,
+    StoreOp,
 ], [LLVMStructType, LLVMPointerType])

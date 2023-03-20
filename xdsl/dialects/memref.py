@@ -102,10 +102,9 @@ class Load(Operation):
 
     @staticmethod
     def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+            indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
         typ = ssa_value.typ
-        assert isinstance(typ, MemRefType)
         typ = cast(MemRefType[Attribute], typ)
         return Load.build(operands=[ref, indices],
                           result_types=[typ.element_type])
@@ -133,7 +132,7 @@ class Store(Operation):
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+            indices: Sequence[Operation | SSAValue]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 
@@ -232,10 +231,11 @@ class GetGlobal(Operation):
 
     def verify_(self) -> None:
         if 'name' not in self.attributes:
-            raise Exception("GetGlobal requires a 'name' attribute")
+            raise VerifyException("GetGlobal requires a 'name' attribute")
 
         if not isinstance(self.attributes['name'], SymbolRefAttr):
-            raise Exception("expected 'name' attribute to be a SymbolRefAttr")
+            raise VerifyException(
+                "expected 'name' attribute to be a SymbolRefAttr")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
@@ -345,6 +345,11 @@ class Cast(Operation):
 
     source: Annotated[Operand, MemRefType | UnrankedMemrefType]
     dest: Annotated[OpResult, MemRefType | UnrankedMemrefType]
+
+    @staticmethod
+    def get(source: SSAValue | Operation,
+            type: MemRefType[Attribute] | UnrankedMemrefType[Attribute]):
+        return Cast.build(operands=[source], result_types=[type])
 
 
 MemRef = Dialect([
