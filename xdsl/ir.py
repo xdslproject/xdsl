@@ -468,7 +468,12 @@ OperationContrT = TypeVar("OperationContrT",
 
 @dataclass(frozen=True)
 class OpTrait(Generic[OperationContrT]):
-    """A trait attached to an operation."""
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, or to specify
+    additional semantic information.
+    Some traits may define parameters.
+    """
 
     def verify(self, op: OperationContrT) -> None:
         """Check that the operation satisfies the trait requirements."""
