@@ -128,7 +128,7 @@ class SSAValue(ABC):
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'([0-9]+|([A-Za-z_$.-][\w$.-]*))')
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -145,12 +145,16 @@ class SSAValue(ABC):
 
     @name.setter
     def name(self, name: str | None):
-        if name is None or self._name_regex.fullmatch(name):
+        # discard numeric-only names (such as %5)
+        if name is None or name.isnumeric():
+            self._name = None
+        # only allow names that match the _name_regex
+        elif self._name_regex.fullmatch(name):
             self._name = name
         else:
             raise ValueError(
                 "Invalid SSA Value name format!",
-                r"Allowed values must match [0-9]+|([A-Za-z_$.-][\w$.-]*)",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
             )
 
     @staticmethod
