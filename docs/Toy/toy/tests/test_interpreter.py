@@ -19,7 +19,7 @@ def test_interpreter():
     module_op = build_module()
     stream = StringIO()
     emulate_toy(module_op, file=stream)
-    assert '[[1.0, 9.0], [25.0, 4.0], [16.0, 36.0]]' in stream.getvalue()
+    assert '[[1.0, 9.0], [25.0, 4.0], [16.0, 36.0]]\n' == stream.getvalue()
 
 
 def build_module() -> ModuleOp:
