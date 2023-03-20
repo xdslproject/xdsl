@@ -159,22 +159,29 @@ class ApplyOpToLaunch(RewritePattern):
             for tpd in threads_per_dim
         ]
 
+        # These are the actual computation bounds, as int
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
+        # Just prepare a 'one' index constant
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
 
+        # These are the computation bounds as "arith.constant"s
         bounds_cst = [
             arith.Constant.from_int_and_width(dims[i], builtin.IndexType())
             for i in range(dim)
         ]
 
+        # We ceil-divide those bounds by the nunber of threads for this dimension
+        # To get the number of blocks
         blocks_divs = [
             arith.CeilDivUI.get(bound, tpd)
             for bound, tpd in zip(bounds_cst, cst_tpd)
         ]
 
+        # We build the actual gpu.launch
         launch = gpu.LaunchOp.get(body, blocks_divs + [one] * (3 - dim),
                                   cst_tpd)
 
+        # We create a basic block, to compute thread indexes in
         index_compute_block = Block.from_arg_types([builtin.IndexType()] * 12)
         block_mul = [
             arith.Muli.get(index_compute_block.args[i],
@@ -185,42 +192,48 @@ class ApplyOpToLaunch(RewritePattern):
             for i in range(dim)
         ]
 
+        # We cast thread indices to i64 for comparison
         thread_int = [
             arith.IndexCastOp.get(ta, builtin.IntegerType.from_width(64))
             for ta in thread_add
         ]
-
+        # Same for bounds
         bounds_int = [
             arith.IndexCastOp.get(bc, builtin.IntegerType.from_width(64))
             for bc in bounds_cst
         ]
 
+        # We check that the indices are inbound
         cmpis: list[arith.Cmpi | arith.AndI] = [
             arith.Cmpi.from_mnemonic(ti, bc, "ult")
             for ti, bc in zip(thread_int, bounds_int)
         ]
 
+        # We "arrith.andi" all those inbound checks
         if len(cmpis) >= 2:
             cmpis.append(arith.AndI.get(cmpis[0], cmpis[1]))
         for i in range(2, len(cmpis) - 1):
             cmpis.append(arith.AndI.get(cmpis[i], cmpis[-1]))
 
+        # Then we simply conditionally jump to the kernel's body if we are inbound.
         else_block = Block.from_ops([gpu.TerminatorOp.get()])
-
         body_branch = cf.ConditionalBranch.get(cmpis[-1], body.blocks[0],
                                                list(thread_add), else_block,
                                                [])
 
+        # We just put the right ops in the index computation blocks
         index_compute_block.add_ops([
             *block_mul, *thread_add, *thread_int, *bounds_int, *cmpis,
             body_branch
         ])
 
+        # We insert the index computation block as the entry block of the gpu.launch body
         body.insert_block(index_compute_block, 0)
         body.add_block(else_block)
+        # We add the right terminator to the gpu.launch kernel body
         launch.body.blocks[1].add_op(gpu.TerminatorOp.get())
 
-        # Replace with the loop and necessary constants.
+        # We replace the stencil.apply with the gpu.launch!
         rewriter.insert_op_before_matched_op(
             [*cst_tpd, *bounds_cst, *blocks_divs, one, launch])
         rewriter.erase_matched_op(safe_erase=False)
