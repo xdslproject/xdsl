@@ -6,21 +6,21 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Emulator, EmulationError, FunctionTable
+from xdsl.interpreter import Intepreter, IntepretationError, Functions
 
 from . import dialect as toy
 
 
-def run_toy_func(emulator: Emulator, name: str,
+def run_toy_func(intepreter: Intepreter, name: str,
                  args: tuple[Any, ...]) -> tuple[Any, ...]:
-    for op in emulator.module.regions[0].blocks[0].ops:
+    for op in intepreter.module.regions[0].blocks[0].ops:
         if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
-            return run_func(emulator, op, args)
+            return run_func(intepreter, op, args)
 
-    raise EmulationError(f'Could not find toy function with name: {name}')
+    raise IntepretationError(f'Could not find toy function with name: {name}')
 
 
-toy_ft = FunctionTable()
+toy_ft = Functions()
 
 
 @dataclass
@@ -47,28 +47,28 @@ class Tensor:
 
 
 @toy_ft.register(toy.PrintOp)
-def run_print(emulator: Emulator, op: toy.PrintOp,
+def run_print(interpreter: Intepreter, op: toy.PrintOp,
               args: tuple[Any, ...]) -> tuple[Any, ...]:
-    emulator.print(f'{args[0]}')
+    interpreter.print(f'{args[0]}')
     return ()
 
 
 @toy_ft.register(toy.FuncOp)
-def run_func(emulator: Emulator, op: toy.FuncOp,
+def run_func(interpreter: Intepreter, op: toy.FuncOp,
              args: tuple[Any, ...]) -> tuple[Any, ...]:
-    emulator.push_context(f'ctx_{op.sym_name.data}')
+    interpreter.push_scope(f'ctx_{op.sym_name.data}')
     block = op.body.blocks[0]
-    emulator.set_values(block.args, args)
+    interpreter.set_values(block.args, args)
     for body_op in block.ops:
-        emulator.run(body_op)
+        interpreter.run(body_op)
     assert isinstance(block.ops[-1], toy.ReturnOp)
-    results = emulator.get_values(tuple(block.ops[-1].operands))
-    emulator.pop_context()
+    results = interpreter.get_values(tuple(block.ops[-1].operands))
+    interpreter.pop_scope()
     return results
 
 
 @toy_ft.register(toy.ConstantOp)
-def run_const(emulator: Emulator, op: toy.ConstantOp,
+def run_const(interpreter: Intepreter, op: toy.ConstantOp,
               args: tuple[Any, ...]) -> tuple[Any, ...]:
     assert not len(args)
     data = op.get_data()
@@ -78,7 +78,7 @@ def run_const(emulator: Emulator, op: toy.ConstantOp,
 
 
 @toy_ft.register(toy.ReshapeOp)
-def run_reshape(emulator: Emulator, op: toy.ReshapeOp,
+def run_reshape(interpreter: Intepreter, op: toy.ReshapeOp,
                 args: tuple[Any, ...]) -> tuple[Any, ...]:
     arg, = args
     assert isinstance(arg, Tensor)
@@ -90,7 +90,7 @@ def run_reshape(emulator: Emulator, op: toy.ReshapeOp,
 
 
 @toy_ft.register(toy.AddOp)
-def run_add(emulator: Emulator, op: toy.AddOp,
+def run_add(interpreter: Intepreter, op: toy.AddOp,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
     lhs, rhs = args
     assert isinstance(lhs, Tensor)
@@ -101,7 +101,7 @@ def run_add(emulator: Emulator, op: toy.AddOp,
 
 
 @toy_ft.register(toy.MulOp)
-def run_mul(emulator: Emulator, op: toy.MulOp,
+def run_mul(interpreter: Intepreter, op: toy.MulOp,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
     lhs, rhs = args
     assert isinstance(lhs, Tensor)
@@ -112,20 +112,20 @@ def run_mul(emulator: Emulator, op: toy.MulOp,
 
 
 @toy_ft.register(toy.ReturnOp)
-def run_return(emulator: Emulator, op: toy.ReturnOp,
+def run_return(interpreter: Intepreter, op: toy.ReturnOp,
                args: tuple[Any, ...]) -> tuple[Any, ...]:
     assert len(args) < 2
     return ()
 
 
 @toy_ft.register(toy.GenericCallOp)
-def run_generic_call(emulator: Emulator, op: toy.GenericCallOp,
+def run_generic_call(interpreter: Intepreter, op: toy.GenericCallOp,
                      args: tuple[Any, ...]) -> tuple[Any, ...]:
-    return run_toy_func(emulator, op.callee.string_value(), args)
+    return run_toy_func(interpreter, op.callee.string_value(), args)
 
 
 @toy_ft.register(toy.TransposeOp)
-def run_transpose(emulator: Emulator, op: toy.TransposeOp,
+def run_transpose(interpreter: Intepreter, op: toy.TransposeOp,
                   args: tuple[Any, ...]) -> tuple[Any, ...]:
     arg, = args
     assert isinstance(arg, Tensor)
@@ -144,7 +144,7 @@ def run_transpose(emulator: Emulator, op: toy.TransposeOp,
     return result,
 
 
-def emulate_toy(module: ModuleOp, file: StringIO | None = None):
-    emulator = Emulator(module, file=file)
-    emulator.register_functions(toy_ft)
-    run_toy_func(emulator, 'main', ())
+def execute_toy_module(module: ModuleOp, file: StringIO | None = None):
+    interpreter = Intepreter(module, file=file)
+    interpreter.register_functions(toy_ft)
+    run_toy_func(interpreter, 'main', ())

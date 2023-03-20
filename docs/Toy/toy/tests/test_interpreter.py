@@ -3,7 +3,7 @@ from xdsl.ir import BlockArgument, Operation
 from xdsl.dialects.builtin import f64, ModuleOp
 
 from .. import dialect as td
-from ..interpreter import Tensor, emulate_toy
+from ..interpreter import Tensor, execute_toy_module
 
 
 def test_tensor_printing():
@@ -18,7 +18,7 @@ def test_tensor_printing():
 def test_interpreter():
     module_op = build_module()
     stream = StringIO()
-    emulate_toy(module_op, file=stream)
+    execute_toy_module(module_op, file=stream)
     assert '[[1.0, 9.0], [25.0, 4.0], [16.0, 36.0]]\n' == stream.getvalue()
 
 
