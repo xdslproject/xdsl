@@ -149,6 +149,10 @@ class ApplyOpToLaunch(RewritePattern):
         body = prepare_apply_body(op, rewriter)
         dim = len(op.lb.array.data)
 
+        # This is naive and probably not robust.
+        # Basically, on CUDA (modern hardware), blocks can host at most 1024 threads.
+        # This is saying "If I have one dimension, ask for 1024x1x1 threads",
+        # and 32x32x1=1024 for 2 dims, and 8x8x8=512 for 3 dims.
         threads_per_dim = [[1024, 32, 8][dim - 1]] * dim + [1] * (3 - dim)
         cst_tpd = [
             arith.Constant.from_int_and_width(tpd, builtin.IndexType())
