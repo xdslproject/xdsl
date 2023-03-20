@@ -111,3 +111,14 @@ class NoTraitsOp(Operation):
 def test_traits_undefined():
     """Check that traits are defaulted to the empty set."""
     assert NoTraitsOp.traits == frozenset()
+
+
+class WrongTraitsType(Operation):
+    name = "test.no_traits"
+
+    traits = 1  # type: ignore
+
+
+def test_traits_wrong_type():
+    with pytest.raises(Exception):
+        irdl_op_definition(WrongTraitsType)
