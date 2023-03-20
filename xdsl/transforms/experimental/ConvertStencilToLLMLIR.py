@@ -70,6 +70,14 @@ class StoreOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+
+        owner = op.temp.owner
+
+        assert isinstance(owner, ApplyOp | LoadOp)
+
+        owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
+        owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
+
         rewriter.erase_matched_op()
         pass
 
