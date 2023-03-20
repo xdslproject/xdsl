@@ -8,7 +8,6 @@ from io import StringIO
 from itertools import chain
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast, Iterator, ClassVar)
-from typing_extensions import Self
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -461,13 +460,8 @@ class IRNode(ABC):
         ...
 
 
-OperationContrT = TypeVar("OperationContrT",
-                          bound="Operation",
-                          contravariant=True)
-
-
 @dataclass(frozen=True)
-class OpTrait(Generic[OperationContrT]):
+class OpTrait():
     """
     A trait attached to an operation definition.
     Traits can be used to define operation invariants, or to specify
@@ -475,7 +469,7 @@ class OpTrait(Generic[OperationContrT]):
     Some traits may define parameters.
     """
 
-    def verify(self, op: OperationContrT) -> None:
+    def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
 
@@ -508,7 +502,7 @@ class Operation(IRNode):
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
-    traits: frozenset[OpTrait[Self]] = field(init=False)
+    traits: frozenset[OpTrait] = field(init=False)
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -706,15 +700,14 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: OpTrait[Self]) -> bool:
+    def has_trait(cls, trait: OpTrait) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
         """
         return trait in cls.traits
 
     @classmethod
-    def get_traits_of_type(cls,
-                           trait: type[OpTrait[Self]]) -> list[OpTrait[Self]]:
+    def get_traits_of_type(cls, trait: type[OpTrait]) -> list[OpTrait]:
         """
         Get all the traits of the given type satisfied by this operation.
         """

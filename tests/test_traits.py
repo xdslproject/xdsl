@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import i32
 
 
 @dataclass(frozen=True)
-class NoResultsTrait(OpTrait[Operation]):
+class NoResultsTrait(OpTrait):
 
     def verify(self, op: Operation):
         if len(op.results) != 0:
@@ -19,7 +19,7 @@ class NoResultsTrait(OpTrait[Operation]):
 
 
 @dataclass(frozen=True)
-class NoOperandsTrait(OpTrait[Operation]):
+class NoOperandsTrait(OpTrait):
 
     def verify(self, op: Operation):
         if len(op.operands) != 0:
@@ -28,7 +28,7 @@ class NoOperandsTrait(OpTrait[Operation]):
 
 
 @dataclass(frozen=True)
-class NOperandsTrait(OpTrait[Operation]):
+class NOperandsTrait(OpTrait):
     parameter: int
 
     def verify(self, op: Operation):
