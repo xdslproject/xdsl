@@ -9,7 +9,6 @@ reportImportCycles = false
 reportUnnecessaryIsInstance = false
 typeCheckingMode = "strict"
 "exclude" = [
-    "docs/Toy/toy/dialect.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
     "tests/test_ir.py",
