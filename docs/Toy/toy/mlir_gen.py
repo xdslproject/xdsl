@@ -7,24 +7,29 @@ from xdsl.ir import MLContext, SSAValue, Operation, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
 
 from toy.location import Location
-from toy.toy_ast import (LiteralExprAST, ModuleAST, NumberExprAST, PrototypeAST, VariableExprAST, VarDeclExprAST, ReturnExprAST, PrintExprAST, FunctionAST, ExprAST, CallExprAST, BinaryExprAST)
+from toy.toy_ast import (LiteralExprAST, ModuleAST, NumberExprAST,
+                         PrototypeAST, VariableExprAST, VarDeclExprAST,
+                         ReturnExprAST, PrintExprAST, FunctionAST, ExprAST,
+                         CallExprAST, BinaryExprAST)
 
+from .dialect import (TensorTypeF64, UnrankedTensorTypeF64, AddOp, MulOp,
+                      FuncOp, FunctionType, ReturnOp, ConstantOp,
+                      GenericCallOp, TransposeOp, ReshapeOp, PrintOp)
 
-
-from .dialect import (TensorTypeF64, UnrankedTensorTypeF64, AddOp, MulOp, FuncOp, FunctionType, ReturnOp, ConstantOp, GenericCallOp, TransposeOp, ReshapeOp, PrintOp)
 
 class MLIRGenError(Exception):
     pass
+
 
 @dataclass
 class OpBuilder:
     ctx: MLContext
 
+
 @dataclass
 class ScopedSymbolTable:
     'A mapping from variable names to SSAValues, append-only'
     table: dict[str, SSAValue] = field(default_factory=dict)
-
 
     def __contains__(self, __o: object) -> bool:
         return __o in self.table
@@ -34,7 +39,8 @@ class ScopedSymbolTable:
 
     def __setitem__(self, __key: str, __value: SSAValue) -> None:
         if __key in self:
-            raise AssertionError(f'Cannot add value for key {__key} in scope {self}')
+            raise AssertionError(
+                f'Cannot add value for key {__key} in scope {self}')
         self.table[__key] = __value
 
 
@@ -58,7 +64,6 @@ class MLIRGen:
 
     block: Block | None = None
     symbol_table: ScopedSymbolTable | None = None
-
     """
     The symbol table maps a variable name to a value in the current scope.
     Entering a function creates a new scope, and the function arguments are
@@ -72,7 +77,7 @@ class MLIRGen:
         """
         Public API: convert the AST for a Toy module (source file) to an MLIR
         Module operation."""
-        
+
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
         # self.module = ModuleOp.create(regions=[Region()])
@@ -100,7 +105,7 @@ class MLIRGen:
         # TODO: Need location support in xDSL
         # return mlir::FileLineColLoc::get(builder.getStringAttr(*loc.file), loc.line, loc.col);
         pass
-    
+
     def declare(self, var: str, value: SSAValue) -> bool:
         """
         Declare a variable in the current scope, return success if the variable
@@ -111,7 +116,8 @@ class MLIRGen:
         self.symbol_table[var] = value
         return True
 
-    def get_type(self, shape: list[int]) -> TensorTypeF64 | UnrankedTensorTypeF64:
+    def get_type(self,
+                 shape: list[int]) -> TensorTypeF64 | UnrankedTensorTypeF64:
         'Build a tensor type from a list of shape dimensions.'
         # If the shape is empty, then this type is unranked.
         if len(shape):
@@ -127,7 +133,8 @@ class MLIRGen:
 
         # This is a generic function, the return type will be inferred later.
         # Arguments type are uniformly unranked tensors.
-        func_type = FunctionType.from_lists([self.get_type([])] * len(proto_ast.args), [self.get_type([])])
+        func_type = FunctionType.from_lists(
+            [self.get_type([])] * len(proto_ast.args), [self.get_type([])])
         return FuncOp.from_region(proto_ast.name, func_type, Region())
 
     def mlir_gen_function(self, function_ast: FunctionAST) -> FuncOp:
@@ -135,16 +142,18 @@ class MLIRGen:
 
         # Create a scope in the symbol table to hold variable declarations.
         self.symbol_table = ScopedSymbolTable()
-        
+
         proto_args = function_ast.proto.args
-        
+
         # Create the MLIR block for the current function
-        self.block = Block.from_arg_types([UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))])
+        self.block = Block.from_arg_types([
+            UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
+        ])
 
         # Declare all the function arguments in the symbol table.
         for name, value in zip(proto_args, self.block.args):
             self.declare(name.name, value)
-        
+
         # Emit the body of the function.
         self.mlir_gen_expr_list(function_ast.body)
 
@@ -162,24 +171,26 @@ class MLIRGen:
         if return_op is None:
             return_op = ReturnOp.from_input()
             self.block.add_op(return_op)
-            
 
-        input_types = [self.get_type([]) for _ in range(len(function_ast.proto.args))]
+        input_types = [
+            self.get_type([]) for _ in range(len(function_ast.proto.args))
+        ]
 
         func_type = FunctionType.from_lists(input_types, return_types)
 
         # main should be public, all the others private
         private = function_ast.proto.name != 'main'
 
-        func = FuncOp.from_region(function_ast.proto.name, func_type, 
-                                  Region.from_block_list([self.block]), private=private)
+        func = FuncOp.from_region(function_ast.proto.name,
+                                  func_type,
+                                  Region.from_block_list([self.block]),
+                                  private=private)
 
         # clean up
         self.symbol_table = None
         self.block = None
 
         return func
-
 
     def mlir_gen_binary_expr(self, binop: BinaryExprAST) -> SSAValue:
         'Emit a binary operation'
@@ -200,17 +211,16 @@ class MLIRGen:
         rhs = self.mlir_gen_expr(binop.rhs)
 
         # location = self.loc(binop.loc)
-        
+
         # Derive the operation name from the binary operator. At the moment we only
         # support '+' and '*'.
-        match binop.op:
-            case '+':
-                op = AddOp.from_summands(lhs, rhs)
-            case '*':
-                op = MulOp.from_summands(lhs, rhs)
-            case _:
-                self.error(f'Unsupported binary operation `{binop.op}`')
-        
+        if binop.op == '+':
+            op = AddOp.from_summands(lhs, rhs)
+        elif binop.op == '*':
+            op = MulOp.from_summands(lhs, rhs)
+        else:
+            self.error(f'Unsupported binary operation `{binop.op}`')
+
         self.block.add_op(op)
 
         return op.res
@@ -289,10 +299,8 @@ class MLIRGen:
         elif isinstance(expr, NumberExprAST):
             return [expr.val]
         else:
-            self.error(
-                f'Unsupported expr ({expr}) of type ({type(expr)}), '
-                'expected literal or number expr')
-
+            self.error(f'Unsupported expr ({expr}) of type ({type(expr)}), '
+                       'expected literal or number expr')
 
     def mlir_gen_call_expr(self, call: CallExprAST) -> SSAValue:
         """
@@ -311,17 +319,17 @@ class MLIRGen:
         # straightforward emission.
         if callee == 'transpose':
             if len(operands) != 1:
-                self.error(
-                    "MLIR codegen encountered an error: toy.transpose "
-                    "does not accept multiple arguments")
+                self.error("MLIR codegen encountered an error: toy.transpose "
+                           "does not accept multiple arguments")
             op = TransposeOp.from_input(operands[0])
             self.block.add_op(op)
             return op.res
-        
+
         # Otherwise this is a call to a user-defined function. Calls to
         # user-defined functions are mapped to a custom call that takes the callee
         # name as an attribute.
-        op = GenericCallOp.get(callee, operands, [UnrankedTensorTypeF64.from_type(f64)])
+        op = GenericCallOp.get(callee, operands,
+                               [UnrankedTensorTypeF64.from_type(f64)])
         self.block.add_op(op)
         return op.res[0]
 
@@ -335,7 +343,6 @@ class MLIRGen:
         op = PrintOp.from_input(arg)
         self.block.add_op(op)
 
-
     def mlir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         'Emit a constant for a single number'
         #  mlir::Value mlirGen(NumberExprAST &num) {
@@ -347,21 +354,23 @@ class MLIRGen:
         self.block.add_op(constant_op)
         return constant_op.res
 
-
     def mlir_gen_expr(self, expr: ExprAST) -> SSAValue:
         'Dispatch codegen for the right expression subclass using RTTI.'
 
-        match expr:
-            case BinaryExprAST(): return self.mlir_gen_binary_expr(expr)
-            case VariableExprAST(): return self.mlir_gen_variable_expr(expr)
-            case LiteralExprAST(): return self.mlir_gen_literal_expr(expr)
-            case CallExprAST(): return self.mlir_gen_call_expr(expr)
-            case NumberExprAST(): return self.mlir_gen_number_expr(expr)
-            case _:
-                self.error(
-                    f"MLIR codegen encountered an unhandled expr kind '{expr.kind}'"
-                )
-
+        if isinstance(expr, BinaryExprAST):
+            return self.mlir_gen_binary_expr(expr)
+        if isinstance(expr, VariableExprAST):
+            return self.mlir_gen_variable_expr(expr)
+        if isinstance(expr, LiteralExprAST):
+            return self.mlir_gen_literal_expr(expr)
+        if isinstance(expr, CallExprAST):
+            return self.mlir_gen_call_expr(expr)
+        if isinstance(expr, NumberExprAST):
+            return self.mlir_gen_number_expr(expr)
+        else:
+            self.error(
+                f"MLIR codegen encountered an unhandled expr kind '{expr.kind}'"
+            )
 
     def mlir_gen_var_decl_expr(self, vardecl: VarDeclExprAST) -> SSAValue:
         """
@@ -395,12 +404,15 @@ class MLIRGen:
             # Specific handling for variable declarations, return statement, and
             # print. These can only appear in block list and not in nested
             # expressions.
-            match expr:
-                case VarDeclExprAST(): self.mlir_gen_var_decl_expr(expr)
-                case ReturnExprAST(): self.mlir_gen_return_expr(expr)
-                case PrintExprAST(): self.mlir_gen_print_expr(expr)
+            if isinstance(expr, VarDeclExprAST):
+                self.mlir_gen_var_decl_expr(expr)
+            elif isinstance(expr, ReturnExprAST):
+                self.mlir_gen_return_expr(expr)
+            elif isinstance(expr, PrintExprAST):
+                self.mlir_gen_print_expr(expr)
+            else:
                 # Generic expression dispatch codegen.
-                case _: self.mlir_gen_expr(expr)
+                self.mlir_gen_expr(expr)
 
     def error(self, message: str, cause: Exception | None = None):
         raise MLIRGenError(message) from cause
