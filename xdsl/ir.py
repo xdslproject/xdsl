@@ -8,6 +8,7 @@ from io import StringIO
 from itertools import chain
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
                     TypeVar, cast, Iterator, ClassVar)
+from typing_extensions import Self
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -460,6 +461,16 @@ class IRNode(ABC):
         ...
 
 
+OperationContrT = TypeVar("OperationContrT",
+                          bound="Operation",
+                          contravariant=True)
+
+
+@dataclass
+class OpTrait(Generic[OperationContrT]):
+    """A trait attached to an operation."""
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -487,6 +498,13 @@ class Operation(IRNode):
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
+    traits: frozenset[OpTrait[Self]] = field(init=False)
+    """
+    The traits attached to the operation.
+    This is a static field, and is made empty by default by PyRDL if not set
+    by the operation definition.
+    """
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
