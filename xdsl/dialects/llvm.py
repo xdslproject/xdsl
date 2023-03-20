@@ -117,7 +117,7 @@ class GEPOp(Operation):
     def get(ptr: SSAValue | Operation,
             result_type: Attribute
             | LLVMPointerType = LLVMPointerType.opaque(),
-            indices: list[int] | None = None,
+            indices: list[int] | None = None, #Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
             ssa_indices: list[SSAValue | Operation] | None = None,
             inbounds: bool = False,
             pointee_type: Attribute | None = None):
