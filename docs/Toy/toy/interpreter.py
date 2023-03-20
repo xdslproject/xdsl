@@ -30,7 +30,7 @@ class Tensor:
 
     def __format__(self, __format_spec: str) -> str:
         prod_shapes: list[int] = list(
-            accumulate(self.shape[::-1], operator.mul))
+            accumulate(reversed(self.shape), operator.mul))
         assert prod_shapes[-1] == len(self.data)
         result = '[' * len(self.shape)
 
