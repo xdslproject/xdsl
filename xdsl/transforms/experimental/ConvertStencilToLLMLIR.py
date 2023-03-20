@@ -219,7 +219,7 @@ class ApplyOpToLaunch(RewritePattern):
         # Replace with the loop and necessary constants.
         rewriter.insert_op_before_matched_op(
             [*cst_tpd, *bounds_cst, *blocks_divs, one, launch])
-        rewriter.erase_matched_op(False)
+        rewriter.erase_matched_op(safe_erase=False)
 
 
 class ApplyOpToParallel(RewritePattern):
