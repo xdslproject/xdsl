@@ -37,7 +37,8 @@ def test_var_mixed_builder():
         _ = b.get(op)
 
 
-@pytest.mark.parametrize("name", ["a", "test", "-2", "test_123", "kebab-case-name"])
+@pytest.mark.parametrize("name",
+                         ["a", "test", "-2", "test_123", "kebab-case-name"])
 def test_ssa_value_name_hints(name):
     r"""
     As per the MLIR language reference, legal SSA value names must conform to
