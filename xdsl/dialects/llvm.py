@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, UnitAttr, i32, i64)
+                                   AnyIntegerAttr, IndexType, UnitAttr, i32,
+                                   i64)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
@@ -114,7 +115,8 @@ class GEPOp(Operation):
 
     @staticmethod
     def get(ptr: SSAValue | Operation,
-            result_type: LLVMPointerType = LLVMPointerType.opaque(),
+            result_type: Attribute
+            | LLVMPointerType = LLVMPointerType.opaque(),
             indices: list[int] | None = None,
             ssa_indices: list[SSAValue | Operation] | None = None,
             inbounds: bool = False,

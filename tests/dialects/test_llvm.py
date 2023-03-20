@@ -61,7 +61,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that non-pointer result types fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(ptr, builtin.i32, [1])
+        llvm.GEPOp.get(ptr, builtin.i32, [1]) #type: ignore
 
 
 def test_llvm_getelementptr_op():
