@@ -6,7 +6,7 @@ from typing import Annotated, Sequence, TypeVar, Any, cast
 from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    IntegerAttr, ArrayAttr, f32, f64,
                                    IntegerType, IntAttr, AnyFloat)
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, memref
 from xdsl.ir import Operation, Dialect, MLIRType, SSAValue
 from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
                        ParameterDef, AttrConstraint, Attribute, Region, Block,
@@ -185,7 +185,14 @@ class ExternalLoadOp(Operation):
     """
     name: str = "stencil.external_load"
     field: Annotated[Operand, Attribute]
-    result: Annotated[OpResult, FieldType]
+    result: Annotated[OpResult, FieldType | memref.MemRefType]
+
+    @staticmethod
+    def get(arg: SSAValue | Operation, res_type: FieldType[Attribute] | memref.MemRefType[Attribute]):
+        return ExternalLoadOp.build(
+            operands=[arg],
+            result_types=[res_type]
+        )
 
 
 @irdl_op_definition
