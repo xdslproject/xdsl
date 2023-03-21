@@ -32,7 +32,7 @@ def test_llvm_pointer_ops():
 
     assert isinstance(nullptr.nullptr.typ, llvm.LLVMPointerType)
     assert isinstance(nullptr.nullptr.typ.type, builtin.NoneAttr)
-    assert isinstance(nullptr.nullptr.typ.addr_space, builtin.NoneAttr)    
+    assert isinstance(nullptr.nullptr.typ.addr_space, builtin.NoneAttr)
 
 
 def test_llvm_pointer_type():
