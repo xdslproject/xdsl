@@ -555,6 +555,7 @@ class BaseParser(ABC):
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
             self.ssaValues[name.text] = arg
+            # store ssa val name if valid
             if SSAValue.is_valid_name(name.text[1:]):
                 arg.name = name.text[1:]
             block_args.append(arg)
