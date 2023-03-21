@@ -9,10 +9,11 @@ from xdsl.utils.exceptions import IntepretationError
 
 
 @dataclass
-class Functions:
-    functions: dict[type[Operation],
-                    Callable[[Intepreter, Operation, tuple[Any, ...]],
-                             tuple[Any, ...]]] = field(default_factory=dict)
+class InterpreterFunctionTable:
+    _impl_by_op_type: dict[type[Operation],
+                           Callable[[Intepreter, Operation, tuple[Any, ...]],
+                                    tuple[Any,
+                                          ...]]] = field(default_factory=dict)
 
     def register_op(self,
                     op_type: type[OperationInvT],
@@ -24,15 +25,15 @@ class Functions:
         If the type already exists, will raise a ValueError. To override an existing
         implementation, pass `override=True`.
         """
-        if op_type in self.functions and not override:
+        if op_type in self._impl_by_op_type and not override:
             raise ValueError(
                 f"Registering func for Operation type {op_type}, already registered. "
                 "Pass `override=True` if you would like to override the existing definition."
             )
-        self.functions[op_type] = func  # type: ignore
+        self._impl_by_op_type[op_type] = func  # type: ignore
 
     def op_types(self) -> set[type[Operation]]:
-        return set(self.functions.keys())
+        return set(self._impl_by_op_type.keys())
 
     def register(self,
                  op_type: type[OperationInvT],
@@ -52,11 +53,13 @@ class Functions:
 
     def run(self, interpreter: Intepreter, op: Operation,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
-        return self.functions[type(op)](interpreter, op, args)
+        return self._impl_by_op_type[type(op)](interpreter, op, args)
 
-    def register_from(self, other: Functions, override: bool = False):
+    def register_from(self,
+                      other: InterpreterFunctionTable,
+                      override: bool = False):
         """Register each operation in other, one by one."""
-        for op_type, func in other.functions.items():
+        for op_type, func in other._impl_by_op_type.items():
             self.register_op(op_type, func, override=override)
 
 
@@ -112,7 +115,8 @@ class Intepreter:
     """
 
     module: ModuleOp
-    _function_table: Functions = field(default_factory=Functions)
+    _function_table: InterpreterFunctionTable = field(
+        default_factory=InterpreterFunctionTable)
     _env: IntepretationEnv = field(
         default_factory=lambda: IntepretationEnv(name='root'))
     file: IO[str] | None = field(default=None)
@@ -154,7 +158,7 @@ class Intepreter:
         self._env = self._env.parent
 
     def register_functions(self,
-                           funcs: Functions,
+                           funcs: InterpreterFunctionTable,
                            override: bool = False) -> None:
         """
         Register implementations for operations defined in given `Functions` object.
@@ -165,7 +169,7 @@ class Intepreter:
 
     def run(self, op: Operation):
         op_type = type(op)
-        if op_type not in self._function_table.functions:
+        if op_type not in self._function_table._impl_by_op_type:
             raise IntepretationError(
                 f'Could not find intepretation function for op {op.name}')
 

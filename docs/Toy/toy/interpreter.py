@@ -6,7 +6,7 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Intepreter, Functions
+from xdsl.interpreter import Intepreter, InterpreterFunctionTable
 from xdsl.utils.exceptions import IntepretationError
 
 from . import dialect as toy
@@ -21,7 +21,7 @@ def run_toy_func(intepreter: Intepreter, name: str,
     raise IntepretationError(f'Could not find toy function with name: {name}')
 
 
-toy_ft = Functions()
+toy_ft = InterpreterFunctionTable()
 
 
 @dataclass
