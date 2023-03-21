@@ -114,7 +114,7 @@ class Intepreter:
         for ssa_value, result_value in zip(ssa_values, result_values):
             self._env[ssa_value] = result_value
 
-    def push_scope(self, name: str = 'child') -> None:
+    def push_scope(self, name: str = 'unknown') -> None:
         self._env = IntepretationEnv(name, self._env)
 
     def pop_scope(self) -> None:
