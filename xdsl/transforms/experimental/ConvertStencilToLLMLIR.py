@@ -126,8 +126,8 @@ class LoadOpToMemref(RewritePattern):
 
         if IndexAttr.min(cast.lb, op.lb) != cast.lb:
             raise VerifyException(
-                f"Out of bound stencil! The stencil computation requires a field with lower bound at least {op.lb}, got {cast.lb}"
-            )
+                "The stencil computation requires a field with lower bound at least "
+                f"{op.lb}, got {cast.lb}")
 
         rewriter.replace_matched_op([], list(cast.results))
 
