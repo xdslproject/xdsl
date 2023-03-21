@@ -46,7 +46,7 @@ class InterpreterFunctionTable:
 
         return wrapper
 
-    def run(self, interpreter: Intepreter, op: Operation,
+    def run(self, interpreter: Interpreter, op: Operation,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
         return self._impl_by_op_type[type(op)](interpreter, op, args)
 
@@ -107,7 +107,7 @@ class IntepretationEnv:
 
 
 @dataclass
-class Intepreter:
+class Interpreter:
     """
     An extensible interpreter, initialised with a Module to intperpret. The implementation
     for each Operation subclass should be provided via a `InterpretationFunctionTable`
@@ -170,6 +170,11 @@ class Intepreter:
         self._function_table.register_from(funcs, override=override)
 
     def run(self, op: Operation):
+        """
+        Fetches the implemetation for the given op, passes it the Python values
+        associated with the SSA operands, and assigns the results to the operation's
+        results.
+        """
         op_type = type(op)
         if op_type not in self._function_table:
             raise IntepretationError(
@@ -178,6 +183,12 @@ class Intepreter:
         inputs = self.get_values(op.operands)
         results = self._function_table.run(self, op, inputs)
         self.set_values(tuple(op.results), results)
+
+    def run_module(self):
+        """
+        Starts execution of `self.module`
+        """
+        self.run(self.module)
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""
@@ -190,5 +201,5 @@ class Intepreter:
                 f'AssertionError: ({self._env})({message})')
 
 
-OpImpl: TypeAlias = Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
+OpImpl: TypeAlias = Callable[[Interpreter, OperationInvT, tuple[Any, ...]],
                              tuple[Any, ...]]

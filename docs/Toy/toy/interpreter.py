@@ -1,4 +1,3 @@
-from io import StringIO
 import operator
 from typing import Any
 from itertools import accumulate
@@ -6,13 +5,13 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Intepreter, InterpreterFunctionTable
+from xdsl.interpreter import Interpreter, InterpreterFunctionTable
 from xdsl.utils.exceptions import IntepretationError
 
 from . import dialect as toy
 
 
-def run_toy_func(intepreter: Intepreter, name: str,
+def run_toy_func(intepreter: Interpreter, name: str,
                  args: tuple[Any, ...]) -> tuple[Any, ...]:
     for op in intepreter.module.ops:
         if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
@@ -48,14 +47,14 @@ class Tensor:
 
 
 @toy_ft.register(toy.PrintOp)
-def run_print(interpreter: Intepreter, op: toy.PrintOp,
+def run_print(interpreter: Interpreter, op: toy.PrintOp,
               args: tuple[Any, ...]) -> tuple[Any, ...]:
     interpreter.print(f'{args[0]}')
     return ()
 
 
 @toy_ft.register(toy.FuncOp)
-def run_func(interpreter: Intepreter, op: toy.FuncOp,
+def run_func(interpreter: Interpreter, op: toy.FuncOp,
              args: tuple[Any, ...]) -> tuple[Any, ...]:
     interpreter.push_scope(f'ctx_{op.sym_name.data}')
     block = op.body.blocks[0]
@@ -69,7 +68,7 @@ def run_func(interpreter: Intepreter, op: toy.FuncOp,
 
 
 @toy_ft.register(toy.ConstantOp)
-def run_const(interpreter: Intepreter, op: toy.ConstantOp,
+def run_const(interpreter: Interpreter, op: toy.ConstantOp,
               args: tuple[Any, ...]) -> tuple[Any, ...]:
     assert not len(args)
     data = op.get_data()
@@ -79,7 +78,7 @@ def run_const(interpreter: Intepreter, op: toy.ConstantOp,
 
 
 @toy_ft.register(toy.ReshapeOp)
-def run_reshape(interpreter: Intepreter, op: toy.ReshapeOp,
+def run_reshape(interpreter: Interpreter, op: toy.ReshapeOp,
                 args: tuple[Any, ...]) -> tuple[Any, ...]:
     arg, = args
     assert isinstance(arg, Tensor)
@@ -91,7 +90,7 @@ def run_reshape(interpreter: Intepreter, op: toy.ReshapeOp,
 
 
 @toy_ft.register(toy.AddOp)
-def run_add(interpreter: Intepreter, op: toy.AddOp,
+def run_add(interpreter: Interpreter, op: toy.AddOp,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
     lhs, rhs = args
     assert isinstance(lhs, Tensor)
@@ -102,7 +101,7 @@ def run_add(interpreter: Intepreter, op: toy.AddOp,
 
 
 @toy_ft.register(toy.MulOp)
-def run_mul(interpreter: Intepreter, op: toy.MulOp,
+def run_mul(interpreter: Interpreter, op: toy.MulOp,
             args: tuple[Any, ...]) -> tuple[Any, ...]:
     lhs, rhs = args
     assert isinstance(lhs, Tensor)
@@ -113,20 +112,20 @@ def run_mul(interpreter: Intepreter, op: toy.MulOp,
 
 
 @toy_ft.register(toy.ReturnOp)
-def run_return(interpreter: Intepreter, op: toy.ReturnOp,
+def run_return(interpreter: Interpreter, op: toy.ReturnOp,
                args: tuple[Any, ...]) -> tuple[Any, ...]:
     assert len(args) < 2
     return ()
 
 
 @toy_ft.register(toy.GenericCallOp)
-def run_generic_call(interpreter: Intepreter, op: toy.GenericCallOp,
+def run_generic_call(interpreter: Interpreter, op: toy.GenericCallOp,
                      args: tuple[Any, ...]) -> tuple[Any, ...]:
     return run_toy_func(interpreter, op.callee.string_value(), args)
 
 
 @toy_ft.register(toy.TransposeOp)
-def run_transpose(interpreter: Intepreter, op: toy.TransposeOp,
+def run_transpose(interpreter: Interpreter, op: toy.TransposeOp,
                   args: tuple[Any, ...]) -> tuple[Any, ...]:
     arg, = args
     assert isinstance(arg, Tensor)
@@ -145,7 +144,7 @@ def run_transpose(interpreter: Intepreter, op: toy.TransposeOp,
     return result,
 
 
-def execute_toy_module(module: ModuleOp, file: StringIO | None = None):
-    interpreter = Intepreter(module, file=file)
-    interpreter.register_functions(toy_ft)
-    run_toy_func(interpreter, 'main', ())
+@toy_ft.register(ModuleOp)
+def run_module(interpreter: Interpreter, op: ModuleOp,
+               args: tuple[Any, ...]) -> tuple[Any, ...]:
+    return run_toy_func(interpreter, 'main', args)
