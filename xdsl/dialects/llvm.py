@@ -92,9 +92,9 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     @staticmethod
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
-
-    def is_typed(self):
-        return not isinstance(self.type, NoneAttr)
+    @staticmethod
+    def is_typed(typ):
+        return not isinstance(typ.type, NoneAttr)
 
 
 @irdl_op_definition
@@ -123,7 +123,7 @@ class GEPOp(Operation):
             pointee_type: Attribute | None = None):
 
         if indices is None:
-            raise ValueError('llvm.getelementptr must have a pointer.')
+            raise ValueError('llvm.getelementptr must have indices passed.')
 
         indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
@@ -137,8 +137,7 @@ class GEPOp(Operation):
         if not isinstance(result_type, LLVMPointerType):
             raise ValueError('Result type must be a pointer.')
 
-        if not ptr.typ.is_typed():  #type: ignore
-            print('hello')
+        if not LLVMPointerType.is_typed(ptr.typ):
             if pointee_type == None:
                 raise ValueError('Opaque types must have a pointee type passed')
 
@@ -146,7 +145,7 @@ class GEPOp(Operation):
             'rawConstantIndices': indices_attr,
         }
 
-        if not ptr.typ.is_typed():  #type: ignore
+        if not LLVMPointerType.is_typed(ptr.typ):  #type: ignore
             attrs['elem_type'] = result_type
 
         if inbounds:
