@@ -247,6 +247,7 @@ class Printer:
         self.print("%")
         if arg.name and arg.name not in self._ssa_values.values():
             name = arg.name
+            self._ssa_names[arg.name] = self._ssa_names.get(arg.name, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name
