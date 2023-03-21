@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import sys
+import warnings
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -128,7 +129,7 @@ class SSAValue(ABC):
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -144,9 +145,23 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
-        if self._name_regex.fullmatch(name):
+    def name(self, name: str | None):
+        if name is None:
+            self._name = None
+        # emit a warning if the string is a purely numeric value
+        elif name.isnumeric():
+            warnings.warn(
+                f'Setting an SSAValue.name to a numeric value (in this case "{name}") is ignored!'
+            )
+            self._name = None
+        # only allow names that match the _name_regex
+        elif self._name_regex.fullmatch(name):
             self._name = name
+        else:
+            raise ValueError(
+                "Invalid SSA Value name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -174,6 +189,7 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
+        value.name = self.name
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
