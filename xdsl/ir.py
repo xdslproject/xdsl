@@ -502,7 +502,7 @@ class Operation(IRNode):
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
-    traits: frozenset[OpTrait] = field(init=False)
+    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -707,11 +707,11 @@ class Operation(IRNode):
         return trait in cls.traits
 
     @classmethod
-    def get_traits_of_type(cls, trait: type[OpTrait]) -> list[OpTrait]:
+    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
         """
         Get all the traits of the given type satisfied by this operation.
         """
-        return [t for t in cls.traits if isinstance(t, trait)]
+        return [t for t in cls.traits if isinstance(t, trait_type)]
 
     def erase(self,
               safe_erase: bool = True,
