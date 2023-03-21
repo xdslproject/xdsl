@@ -140,4 +140,7 @@ class Intepreter:
         print(*args, **kwargs, file=self.file)
 
     def _assert(self, condition: bool, message: str | None = None):
-        assert condition, f'({self._env.stack_description()})({message})'
+        if not condition:
+            raise IntepretationError(
+                f'AssertionError: ({self._env.stack_description()})({message})'
+            )
