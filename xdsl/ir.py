@@ -163,7 +163,7 @@ class SSAValue(ABC):
             )
 
     @classmethod
-    def is_valid_name(cls, name: str):
+    def is_valid_name(cls, name: str | None):
         return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
