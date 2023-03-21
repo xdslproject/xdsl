@@ -138,25 +138,32 @@ class IndexAttr(ParametrizedAttribute):
             for lb, ub in zip(lb.array.data, ub.array.data)
         ]
 
+    def __add__(self, o: IndexAttr) -> IndexAttr:
+        integer_attrs: list[Attribute] = [
+            IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
+            for se, oe in zip(self.array.data, o.array.data)
+        ]
+        return IndexAttr([ArrayAttr(integer_attrs)])
+
     @staticmethod
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr([
-            IntegerAttr(min(ae.value.data, be.value.data),
-                        IntegerType.from_width(64))
+        integer_attrs: list[Attribute] = [
+            IntegerAttr(min(ae.value.data, be.value.data), IntegerType(64))
             for ae, be in zip(a.array.data, b.array.data)
-        ])
+        ]
+        return IndexAttr([ArrayAttr(integer_attrs)])
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr([
-            IntegerAttr(max(ae.value.data, be.value.data),
-                        IntegerType.from_width(64))
+        integer_attrs: list[Attribute] = [
+            IntegerAttr(max(ae.value.data, be.value.data), IntegerType(64))
             for ae, be in zip(a.array.data, b.array.data)
-        ])
+        ]
+        return IndexAttr([ArrayAttr(integer_attrs)])
 
 
 @dataclass(frozen=True)
