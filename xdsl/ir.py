@@ -163,6 +163,10 @@ class SSAValue(ABC):
                 r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
             )
 
+    @classmethod
+    def is_valid_name(cls, name: str):
+        return name is None or cls._name_regex.fullmatch(name)
+
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         "Get a new SSAValue from either a SSAValue, or an operation with a single result."

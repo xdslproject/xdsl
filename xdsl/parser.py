@@ -532,6 +532,8 @@ class BaseParser(ABC):
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
             self.ssaValues[name.text] = arg
+            if SSAValue.is_valid_name(name.text[1:]):
+                arg.name = name.text[1:]
             block_args.append(arg)
 
         block._args = tuple(block_args)  # type: ignore
@@ -990,8 +992,8 @@ class BaseParser(ABC):
                     f"SSA value {ssa_val_name} is already defined", res)
             self.ssaValues[ssa_val_name] = op.results[idx]
             # Carry over `ssa_val_name` for non-numeric names:
-            if not ssa_val_name[1:].isnumeric():
-                self.ssaValues[ssa_val_name].name = ssa_val_name.lstrip('%')
+            if SSAValue.is_valid_name(ssa_val_name[1:]):
+                self.ssaValues[ssa_val_name].name = ssa_val_name[1:]
 
         return op
 
