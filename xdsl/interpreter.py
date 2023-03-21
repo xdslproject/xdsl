@@ -11,13 +11,11 @@ from xdsl.utils.exceptions import IntepretationError
 @dataclass
 class InterpreterFunctionTable:
     _impl_by_op_type: dict[type[Operation],
-                           Callable[[Intepreter, Operation, tuple[Any, ...]],
-                                    tuple[Any,
-                                          ...]]] = field(default_factory=dict)
+                           OpImpl[Operation]] = field(default_factory=dict)
 
     def register_op(self,
                     op_type: type[OperationInvT],
-                    func: OpImpl,
+                    func: OpImpl[OperationInvT],
                     /,
                     override: bool = False):
         """
@@ -32,20 +30,25 @@ class InterpreterFunctionTable:
             )
         self._impl_by_op_type[op_type] = func  # type: ignore
 
+    def __contains__(self, op_type: type[Operation]) -> bool:
+        return op_type in self._impl_by_op_type
+
     def op_types(self) -> set[type[Operation]]:
         return set(self._impl_by_op_type.keys())
 
-    def register(self,
-                 op_type: type[OperationInvT],
-                 /,
-                 override: bool = False) -> Callable[[OpImpl], OpImpl]:
+    def register(
+        self,
+        op_type: type[OperationInvT],
+        /,
+        override: bool = False
+    ) -> Callable[[OpImpl[OperationInvT]], OpImpl[OperationInvT]]:
         """
         Registers a Python function to run for a given Operation type.
         If the type already exists, will raise a ValueError. To override an existing
         implementation, pass `override=True`.
         """
 
-        def wrapper(func: OpImpl):
+        def wrapper(func: OpImpl[OperationInvT]):
             self.register_op(op_type, func, override=override)
             return func
 
@@ -169,7 +172,7 @@ class Intepreter:
 
     def run(self, op: Operation):
         op_type = type(op)
-        if op_type not in self._function_table._impl_by_op_type:
+        if op_type not in self._function_table:
             raise IntepretationError(
                 f'Could not find intepretation function for op {op.name}')
 
