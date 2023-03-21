@@ -21,11 +21,11 @@ class Functions:
                            tuple[Any, ...]],
             /,
             override: bool = False):
-        '''
+        """
         Registers a Python function to run for a given Operation type.
         If the type already exists, will raise a ValueError. To override an existing
         implementation, pass `override=True`.
-        '''
+        """
         if op_type in self.functions and not override:
             raise ValueError(
                 f"Registering func for Operation type {op_type}, already registered. "
@@ -60,7 +60,7 @@ class Functions:
         return self.functions[type(op)](interpreter, op, args)
 
     def register_from(self, other: Functions, override: bool = False):
-        '''Register each operation in other, one by one.'''
+        """Register each operation in other, one by one."""
         for op_type, func in other.functions.items():
             self.register_op(op_type, func, override=override)
 
@@ -120,10 +120,18 @@ class Intepreter:
     file: IO[str] | None = field(default=None)
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
+        """
+        Get values from current environment.
+        """
         return tuple(self._env[value] for value in values)
 
     def set_values(self, ssa_values: Sequence[SSAValue],
                    result_values: Sequence[Any]):
+        """
+        Set values to current scope.
+        Raises InterpretationError if len(ssa_values) != len(result_values), or if
+        SSA value already has a Python value in the current scope.
+        """
         self._assert(
             len(ssa_values) == len(result_values),
             f'{[f"{ssa_value}" for ssa_value in ssa_values]}, {result_values}')
@@ -131,16 +139,31 @@ class Intepreter:
             self._env[ssa_value] = result_value
 
     def push_scope(self, name: str = 'unknown') -> None:
+        """
+        Create new scope in current environment, with optional custom `name`
+        """
         self._env = IntepretationEnv(name, self._env)
 
     def pop_scope(self) -> None:
+        """
+        Discard the current scope, and all the values registered in it. Sets parent scope
+        of current scope to new current scope.
+        Raises InterpretationError if current scope is root scope.
+        """
         if self._env.parent is None:
             raise IntepretationError('Attempting to pop root env')
 
         self._env = self._env.parent
 
-    def register_functions(self, funcs: Functions) -> None:
-        self._function_table.register_from(funcs)
+    def register_functions(self,
+                           funcs: Functions,
+                           override: bool = False) -> None:
+        """
+        Register implementations for operations defined in given `Functions` object.
+        Raise InterpretationError if an operation already has an implementation registered
+        , unless override is set to True.
+        """
+        self._function_table.register_from(funcs, override=override)
 
     def run(self, op: Operation):
         op_type = type(op)
@@ -153,9 +176,11 @@ class Intepreter:
         self.set_values(tuple(op.results), results)
 
     def print(self, *args: Any, **kwargs: Any):
+        """Print to current file."""
         print(*args, **kwargs, file=self.file)
 
     def _assert(self, condition: bool, message: str | None = None):
+        "Raise InterpretationError if condition is not satisfied."
         if not condition:
             raise IntepretationError(
                 f'AssertionError: ({self._env})({message})')
