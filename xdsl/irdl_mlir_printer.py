@@ -12,6 +12,9 @@ from xdsl.dialects.irdl import (
     DynTypeParamsConstraintAttr, TypeParamsConstraintAttr,
     NamedTypeConstraintAttr)
 
+# TODO: remove from "ignore" list in pyproject.toml
+# https://github.com/xdslproject/xdsl/issues/572
+
 
 @dataclass(frozen=True, eq=False)
 class IRDLPrinter:

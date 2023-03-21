@@ -98,6 +98,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def is_typed(self) -> bool:
         return not isinstance(self.type, NoneAttr)
 
+
 @irdl_op_definition
 class GetElementPtrOp(Operation):
     name = "llvm.getelementptr"

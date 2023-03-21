@@ -126,7 +126,7 @@ class ParallelOp(Operation):
     upperBound: Annotated[VarOperand, IndexType]
     step: Annotated[VarOperand, IndexType]
     initVals: Annotated[VarOperand, AnyAttr()]
-    results: Annotated[VarOpResult, AnyAttr()]
+    res: Annotated[VarOpResult, AnyAttr()]
 
     body: Region
 
@@ -140,7 +140,8 @@ class ParallelOp(Operation):
         body: Region | list[Block] | list[Operation],
     ):
         return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
-                                regions=[Region.get(body)])
+                                regions=[Region.get(body)],
+                                result_types=[[]])
 
     def verify_(self) -> None:
         if len(self.lowerBound) != len(self.upperBound) or len(
@@ -158,7 +159,7 @@ class ParallelOp(Operation):
                 f"Expected {len(self.lowerBound)} index-typed region arguments, got "
                 f"{[str(a.typ) for a in body_args]}. scf.parallel's body must have an index "
                 "argument for each induction variable. ")
-        if len(self.initVals) != 0 or len(self.results) != 0:
+        if len(self.initVals) != 0 or len(self.res) != 0:
             raise VerifyException(
                 "scf.parallel loop-carried variables and reduction are not implemented yet."
             )
