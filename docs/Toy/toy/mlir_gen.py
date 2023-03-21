@@ -22,11 +22,6 @@ class MLIRGenError(Exception):
 
 
 @dataclass
-class OpBuilder:
-    ctx: MLContext
-
-
-@dataclass
 class ScopedSymbolTable:
     'A mapping from variable names to SSAValues, append-only'
     table: dict[str, SSAValue] = field(default_factory=dict)
@@ -69,9 +64,6 @@ class MLIRGen:
     Entering a function creates a new scope, and the function arguments are
     added to the mapping. When the processing of a function is terminated, the
     scope is destroyed and the mappings created in this scope are dropped."""
-
-    def __init__(self, ctx: MLContext):
-        self.builder = OpBuilder(ctx)
 
     def mlir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """

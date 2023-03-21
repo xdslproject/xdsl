@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from xdsl.ir import MLContext, Operation, BlockArgument
+from xdsl.ir import Operation, BlockArgument
 from xdsl.dialects.builtin import f64, ModuleOp
 
 from ..parser import Parser
@@ -17,8 +17,7 @@ def test_convert_ast():
 
     module_ast = parser.parseModule()
 
-    ctx = MLContext()
-    mlir_gen = MLIRGen(ctx)
+    mlir_gen = MLIRGen()
 
     generated_module_op = mlir_gen.mlir_gen_module(module_ast)
 
