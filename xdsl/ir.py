@@ -196,7 +196,7 @@ class OpResult(SSAValue):
     op: Operation
     """The operation defining the variable."""
 
-    result_index: int
+    index: int
     """The index of the result in the defining operation."""
 
     @property
