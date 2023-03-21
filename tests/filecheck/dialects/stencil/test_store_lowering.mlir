@@ -5,13 +5,13 @@
     ^0(%0 : !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>, %6 : !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>):
         %1 = "stencil.cast"(%0) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[68 : i64, 68 : i64, 68 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>) -> !stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>
         %7 = "stencil.cast"(%6) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[68 : i64, 68 : i64, 68 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>) -> !stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>
-        %2 = "stencil.load"(%1) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[68 : i64, 68 : i64, 68 : i64]>} : (!stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>) -> !stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>
+        %2 = "stencil.load"(%1) : (!stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>) -> !stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>
         %8 = "stencil.apply"(%2) ({
         ^b0(%4: !stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>):
             %5 = "stencil.access"(%4) {"offset" = #stencil.index<[-1 : i64, 0 : i64, 1 : i64]>} : (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>) -> f64
             "stencil.return"(%5) : (f64) -> ()
-        }) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[68 : i64, 68 : i64, 68 : i64]>} : (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>) -> (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>)
-        "stencil.store"(%8, %7) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[68 : i64, 68 : i64, 68 : i64]>} : (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>, !stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>) -> ()
+        }) : (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>) -> (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>)
+        "stencil.store"(%8, %7) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[64 : i64, 64 : i64, 64 : i64]>} : (!stencil.temp<[72 : i64, 72 : i64, 72 : i64], f64>, !stencil.field<[72 : i64, 72 : i64, 72 : i64], f64>) -> ()
         "func.return"() : () -> ()
     }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>, !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -23,9 +23,9 @@
 // CHECK-NEXT:     %3 = "memref.cast"(%1) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:     %4 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:     %5 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %6 = "arith.constant"() {"value" = 72 : index} : () -> index
-// CHECK-NEXT:     %7 = "arith.constant"() {"value" = 72 : index} : () -> index
-// CHECK-NEXT:     %8 = "arith.constant"() {"value" = 72 : index} : () -> index
+// CHECK-NEXT:     %6 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %7 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %8 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     "scf.parallel"(%4, %4, %4, %6, %7, %8, %5, %5, %5) ({
 // CHECK-NEXT:     ^1(%9 : index, %10 : index, %11 : index):
 // CHECK-NEXT:       %12 = "arith.constant"() {"value" = 3 : index} : () -> index
@@ -47,4 +47,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>, memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-// CHECK-NEXT: 

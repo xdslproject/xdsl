@@ -138,12 +138,22 @@ class IndexAttr(ParametrizedAttribute):
             for lb, ub in zip(lb.array.data, ub.array.data)
         ]
 
+    def __neg__(self) -> IndexAttr:
+        integer_attrs: list[Attribute] = [
+            IntegerAttr(-e.value.data, IntegerType(64))
+            for e in self.array.data
+        ]
+        return IndexAttr([ArrayAttr(integer_attrs)])
+
     def __add__(self, o: IndexAttr) -> IndexAttr:
         integer_attrs: list[Attribute] = [
             IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
             for se, oe in zip(self.array.data, o.array.data)
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
+
+    def __sub__(self, o: IndexAttr) -> IndexAttr:
+        return self + -o
 
     @staticmethod
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
