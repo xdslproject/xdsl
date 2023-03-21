@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, Callable, Generator, Iterable, Sequence
+from typing import IO, Any, Callable, Generator, Iterable, Sequence, TypeAlias
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -14,13 +14,11 @@ class Functions:
                     Callable[[Intepreter, Operation, tuple[Any, ...]],
                              tuple[Any, ...]]] = field(default_factory=dict)
 
-    def register_op(
-            self,
-            op_type: type[OperationInvT],
-            func: Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
-                           tuple[Any, ...]],
-            /,
-            override: bool = False):
+    def register_op(self,
+                    op_type: type[OperationInvT],
+                    func: OpImpl,
+                    /,
+                    override: bool = False):
         """
         Registers a Python function to run for a given Operation type.
         If the type already exists, will raise a ValueError. To override an existing
@@ -36,20 +34,17 @@ class Functions:
     def op_types(self) -> set[type[Operation]]:
         return set(self.functions.keys())
 
-    def register(
-        self,
-        op_type: type[OperationInvT],
-        /,
-        override: bool = False
-    ) -> Callable[[
-            Callable[[Intepreter, OperationInvT, tuple[Any, ...]], tuple[Any,
-                                                                         ...]]
-    ], Callable[[Intepreter, OperationInvT, tuple[Any, ...]], tuple[Any,
-                                                                    ...]]]:
+    def register(self,
+                 op_type: type[OperationInvT],
+                 /,
+                 override: bool = False) -> Callable[[OpImpl], OpImpl]:
+        """
+        Registers a Python function to run for a given Operation type.
+        If the type already exists, will raise a ValueError. To override an existing
+        implementation, pass `override=True`.
+        """
 
-        def wrapper(
-            func: Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
-                           tuple[Any, ...]]):
+        def wrapper(func: OpImpl):
             self.register_op(op_type, func, override=override)
             return func
 
@@ -112,6 +107,9 @@ class IntepretationEnv:
 
 @dataclass
 class Intepreter:
+    """
+    
+    """
 
     module: ModuleOp
     _function_table: Functions = field(default_factory=Functions)
@@ -184,3 +182,7 @@ class Intepreter:
         if not condition:
             raise IntepretationError(
                 f'AssertionError: ({self._env})({message})')
+
+
+OpImpl: TypeAlias = Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
+                             tuple[Any, ...]]
