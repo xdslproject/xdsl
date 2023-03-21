@@ -13,7 +13,7 @@ from . import dialect as toy
 
 def run_toy_func(intepreter: Intepreter, name: str,
                  args: tuple[Any, ...]) -> tuple[Any, ...]:
-    for op in intepreter.module.regions[0].blocks[0].ops:
+    for op in intepreter.module.ops:
         if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
             return run_func(intepreter, op, args)
 
