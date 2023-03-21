@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, Callable, Generator
+from typing import IO, Any, Callable, Generator, Iterable, Sequence
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -119,11 +119,11 @@ class Intepreter:
         default_factory=lambda: IntepretationEnv(name='root'))
     file: IO[str] | None = field(default=None)
 
-    def get_values(self, values: tuple[SSAValue, ...]) -> tuple[Any, ...]:
+    def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         return tuple(self._env[value] for value in values)
 
-    def set_values(self, ssa_values: tuple[SSAValue, ...],
-                   result_values: tuple[Any, ...]):
+    def set_values(self, ssa_values: Sequence[SSAValue],
+                   result_values: Sequence[Any]):
         self._assert(
             len(ssa_values) == len(result_values),
             f'{[f"{ssa_value}" for ssa_value in ssa_values]}, {result_values}')
