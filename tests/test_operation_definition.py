@@ -1,11 +1,19 @@
 from __future__ import annotations
 import pytest
-from xdsl.dialects.builtin import IntAttr, StringAttr
+from xdsl.dialects.builtin import IntAttr, StringAttr, i32
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
-from xdsl.irdl import (Operand, irdl_op_definition, OperandDef, ResultDef,
-                       AttributeDef, AnyAttr, OpDef, RegionDef, OpAttr)
+from xdsl.irdl import (AttrSizedOperandSegments, AttrSizedRegionSegments,
+                       AttrSizedResultSegments, Operand, OptOpAttr,
+                       OptOpResult, OptOperand, OptRegion, VarOpResult,
+                       VarOperand, VarRegion, irdl_op_definition, OperandDef,
+                       ResultDef, AttributeDef, AnyAttr, OpDef, RegionDef,
+                       OpAttr)
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+
+################################################################################
+#                              IRDL definition                                 #
+################################################################################
 
 
 @irdl_op_definition
@@ -32,6 +40,11 @@ def test_get_definition():
         regions=[("region", RegionDef())])
 
 
+################################################################################
+#                            Invalid definitions                               #
+################################################################################
+
+
 class InvalidTypedFieldTestOp(Operation):
     name = "test.invalid_typed_field"
 
@@ -56,6 +69,11 @@ def test_invalid_field():
         irdl_op_definition(InvalidFieldTestOp)
 
 
+################################################################################
+#                                  Verifiers                                   #
+################################################################################
+
+
 @irdl_op_definition
 class AttrOp(Operation):
     name: str = "test.two_var_result_op"
@@ -67,3 +85,117 @@ def test_attr_verify():
     with pytest.raises(VerifyException) as e:
         op.verify()
     assert e.value.args[0] == "!int<1> should be of base attribute string"
+
+
+################################################################################
+#                                Accessors                                     #
+################################################################################
+
+
+@irdl_op_definition
+class RegionOp(Operation):
+    name = "test.region_op"
+
+    irdl_options = [AttrSizedRegionSegments()]
+
+    region: Region
+    opt_region: OptRegion
+    var_region: VarRegion
+
+
+def test_region_accessors():
+    """Test accessors for regions."""
+    region1 = Region()
+    region2 = Region()
+    region3 = Region()
+    region4 = Region()
+
+    op = RegionOp.build(regions=[region1, [region2], [region3, region4]])
+    assert op.region is op.regions[0]
+    assert op.opt_region is op.regions[1]
+    assert len(op.var_region) == 2
+    assert op.var_region[0] is op.regions[2]
+    assert op.var_region[1] is op.regions[3]
+
+    region1 = Region()
+
+    op = RegionOp.build(regions=[region1, [], []])
+    assert op.opt_region is None
+    assert len(op.var_region) == 0
+
+
+@irdl_op_definition
+class OperandOp(Operation):
+    name = "test.operand_op"
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    operand: Operand
+    opt_operand: OptOperand
+    var_operand: VarOperand
+
+
+def test_operand_accessors():
+    """Test accessors for operands."""
+    operand1 = OpResult(i32, None, None)  # type: ignore
+    operand2 = OpResult(i32, None, None)  # type: ignore
+    operand3 = OpResult(i32, None, None)  # type: ignore
+    operand4 = OpResult(i32, None, None)  # type: ignore
+
+    op = OperandOp.build(operands=[operand1, [operand2], [operand3, operand4]])
+    assert op.operand is op.operands[0]
+    assert op.opt_operand is op.operands[1]
+    assert len(op.var_operand) == 2
+    assert op.var_operand[0] is op.operands[2]
+    assert op.var_operand[1] is op.operands[3]
+
+    op = OperandOp.build(operands=[operand1, [], []])
+    assert op.opt_operand is None
+    assert len(op.var_operand) == 0
+
+
+@irdl_op_definition
+class OpResultOp(Operation):
+    name = "test.op_result_op"
+
+    irdl_options = [AttrSizedResultSegments()]
+
+    result: OpResult
+    opt_result: OptOpResult
+    var_result: VarOpResult
+
+
+def test_opresult_accessors():
+    """Test accessors for results."""
+    op = OpResultOp.build(result_types=[i32, [i32], [i32, i32]])
+    assert op.result is op.results[0]
+    assert op.opt_result is op.results[1]
+    assert len(op.var_result) == 2
+    assert op.var_result[0] is op.results[2]
+    assert op.var_result[1] is op.results[3]
+
+    op = OpResultOp.build(result_types=[i32, [], []])
+    assert op.opt_result is None
+    assert len(op.var_result) == 0
+
+
+@irdl_op_definition
+class AttributeOp(Operation):
+    name = "test.attribute_op"
+
+    attr: OpAttr[StringAttr]
+    opt_attr: OptOpAttr[StringAttr]
+
+
+def test_attribute_accessors():
+    """Test accessors for attributes."""
+
+    op = AttributeOp.create(attributes={
+        "attr": StringAttr("test"),
+        "opt_attr": StringAttr("opt_test")
+    })
+    assert op.attr is op.attributes["attr"]
+    assert op.opt_attr is op.attributes["opt_attr"]
+
+    op = AttributeOp.create(attributes={"attr": StringAttr("test")})
+    assert op.opt_attr is None

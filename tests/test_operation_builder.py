@@ -6,10 +6,11 @@ from xdsl.dialects.builtin import DenseArrayBase, Operation, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region
-from xdsl.irdl import (OptOpResult, OptOperand, OptRegion,
-                       OptSingleBlockRegion, Operand, SingleBlockRegion,
-                       VarOpResult, VarRegion, VarSingleBlockRegion,
-                       irdl_op_definition, AttrSizedResultSegments, VarOperand,
+from xdsl.irdl import (AttrSizedRegionSegments, OptOpResult, OptOperand,
+                       OptRegion, OptSingleBlockRegion, Operand,
+                       SingleBlockRegion, VarOpResult, VarRegion,
+                       VarSingleBlockRegion, irdl_op_definition,
+                       AttrSizedResultSegments, VarOperand,
                        AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
 
 #  ____                 _ _
@@ -418,6 +419,43 @@ def test_var_sbregion_one_block():
     assert len(op2.regs) == 2  # type: ignore
     assert len(op2.regs[0].blocks) == 0  # type: ignore
     assert len(op2.regs[1].blocks) == 2  # type: ignore
+
+
+@irdl_op_definition
+class TwoVarRegionOp(Operation):
+    name: str = "test.two_var_region_op"
+
+    res1: Annotated[VarRegion, StringAttr]
+    res2: Annotated[VarRegion, StringAttr]
+    irdl_options = [AttrSizedRegionSegments()]
+
+
+def test_two_var_region_builder():
+    region1 = Region()
+    region2 = Region()
+    region3 = Region()
+    region4 = Region()
+    op2 = TwoVarRegionOp.build(
+        regions=[[region1, region2], [region3, region4]])
+    op2.verify()
+    assert op2.regions == [region1, region2, region3, region4]
+    assert op2.attributes[
+        AttrSizedRegionSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [2, 2])
+
+
+def test_two_var_operand_builder2():
+    region1 = Region()
+    region2 = Region()
+    region3 = Region()
+    region4 = Region()
+    op2 = TwoVarRegionOp.build(
+        regions=[[region1], [region2, region3, region4]])
+    op2.verify()
+    assert op2.regions == [region1, region2, region3, region4]
+    assert op2.attributes[
+        AttrSizedRegionSegments.attribute_name] == DenseArrayBase.from_list(
+            i32, [1, 3])
 
 
 #  __  __ _
