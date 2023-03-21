@@ -199,3 +199,18 @@ def test_attribute_accessors():
 
     op = AttributeOp.create(attributes={"attr": StringAttr("test")})
     assert op.opt_attr is None
+
+
+def test_attribute_setters():
+    """Test setters for attributes."""
+
+    op = AttributeOp.create(attributes={"attr": StringAttr("test")})
+
+    op.attr = StringAttr("new_test")
+    assert op.attr.data == "new_test"
+
+    op.opt_attr = StringAttr("new_opt_test")
+    assert op.opt_attr.data == "new_opt_test"
+
+    op.opt_attr = None
+    assert op.opt_attr is None
