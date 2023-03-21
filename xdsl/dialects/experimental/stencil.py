@@ -173,6 +173,14 @@ class CastOp(Operation):
     ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
+    @staticmethod
+    def get(field: SSAValue | Operation, lb: IndexAttr, ub: IndexAttr, res_type: FieldType[_FieldTypeElement]) -> CastOp:
+        return CastOp.build(
+            operands=[field],
+            attributes={"lb": lb, "ub": ub},
+            result_types=[res_type]
+        )
+
 
 # Operations
 @irdl_op_definition
