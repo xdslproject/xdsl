@@ -13,17 +13,13 @@ class InterpreterFunctionTable:
     _impl_by_op_type: dict[type[Operation],
                            OpImpl[Operation]] = field(default_factory=dict)
 
-    def register_op(self,
-                    op_type: type[OperationInvT],
-                    func: OpImpl[OperationInvT],
-                    /,
-                    override: bool = False):
+    def register_op(self, op_type: type[OperationInvT],
+                    func: OpImpl[OperationInvT]):
         """
         Registers a Python function to run for a given Operation type.
-        If the type already exists, will raise a ValueError. To override an existing
-        implementation, pass `override=True`.
+        If the type already exists, will raise a ValueError.
         """
-        if op_type in self._impl_by_op_type and not override:
+        if op_type in self._impl_by_op_type:
             raise ValueError(
                 f"Registering func for Operation type {op_type}, already registered. "
                 "Pass `override=True` if you would like to override the existing definition."
@@ -33,9 +29,6 @@ class InterpreterFunctionTable:
     def __contains__(self, op_type: type[Operation]) -> bool:
         return op_type in self._impl_by_op_type
 
-    def op_types(self) -> set[type[Operation]]:
-        return set(self._impl_by_op_type.keys())
-
     def register(
         self,
         op_type: type[OperationInvT],
@@ -44,12 +37,11 @@ class InterpreterFunctionTable:
     ) -> Callable[[OpImpl[OperationInvT]], OpImpl[OperationInvT]]:
         """
         Registers a Python function to run for a given Operation type.
-        If the type already exists, will raise a ValueError. To override an existing
-        implementation, pass `override=True`.
+        If the type already exists, will raise a ValueError.
         """
 
         def wrapper(func: OpImpl[OperationInvT]):
-            self.register_op(op_type, func, override=override)
+            self.register_op(op_type, func)
             return func
 
         return wrapper
@@ -58,12 +50,15 @@ class InterpreterFunctionTable:
             args: tuple[Any, ...]) -> tuple[Any, ...]:
         return self._impl_by_op_type[type(op)](interpreter, op, args)
 
-    def register_from(self,
-                      other: InterpreterFunctionTable,
-                      override: bool = False):
+
+@dataclass
+class CompoundInterpretationFunctionTable(InterpreterFunctionTable):
+
+    def register_from(self, other: InterpreterFunctionTable, /,
+                      override: bool):
         """Register each operation in other, one by one."""
         for op_type, func in other._impl_by_op_type.items():
-            self.register_op(op_type, func, override=override)
+            self.register_op(op_type, func)
 
 
 @dataclass
@@ -118,8 +113,8 @@ class Intepreter:
     """
 
     module: ModuleOp
-    _function_table: InterpreterFunctionTable = field(
-        default_factory=InterpreterFunctionTable)
+    _function_table: CompoundInterpretationFunctionTable = field(
+        default_factory=CompoundInterpretationFunctionTable)
     _env: IntepretationEnv = field(
         default_factory=lambda: IntepretationEnv(name='root'))
     file: IO[str] | None = field(default=None)
@@ -162,6 +157,7 @@ class Intepreter:
 
     def register_functions(self,
                            funcs: InterpreterFunctionTable,
+                           /,
                            override: bool = False) -> None:
         """
         Register implementations for operations defined in given `Functions` object.
