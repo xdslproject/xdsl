@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field, dataclass
 from typing import Iterable
 
-from xdsl.ir import MLContext, SSAValue, Operation, Block, Region
+from xdsl.ir import SSAValue, Operation, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
 
 from toy.location import Location
