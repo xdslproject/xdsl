@@ -37,8 +37,13 @@ def test_var_mixed_builder():
         _ = b.get(op)
 
 
-@pytest.mark.parametrize("name",
-                         ["a", "test", "-2", "test_123", "kebab-case-name"])
+@pytest.mark.parametrize("name", [
+    "test",
+    "-2",
+    "test_123",
+    "kebab-case-name",
+    None,
+])
 def test_ssa_value_name_hints(name):
     r"""
     As per the MLIR language reference, legal SSA value names must conform to
@@ -50,8 +55,6 @@ def test_ssa_value_name_hints(name):
     We only accept non-numeric name hints, because the printer will
     generate its own numeric names.
 
-    The next three tests will test this behaviour.
-
     This test tests valid name hints:
     """
     val = BlockArgument(i32, Block(), 0)
@@ -60,7 +63,7 @@ def test_ssa_value_name_hints(name):
     assert val.name == name
 
 
-@pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::'])
+@pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::', '42'])
 def test_invalid_ssa_vals(name):
     """
     This test tests invalid name hints that raise an error, because
@@ -70,23 +73,3 @@ def test_invalid_ssa_vals(name):
     val = BlockArgument(i32, Block(), 0)
     with pytest.raises(ValueError):
         val.name = name
-
-
-def test_discarded_ssa_vals():
-    """
-    This test tests ssa value name hints that should be discarded.
-    """
-    val = BlockArgument(i32, Block(), 0)
-
-    val.name = "hello"
-
-    assert val.name == "hello"
-
-    val.name = None
-
-    assert val.name is None
-
-    with pytest.warns():
-        val.name = "4"
-
-    assert val.name is None

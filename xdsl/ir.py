@@ -150,10 +150,10 @@ class SSAValue(ABC):
             self._name = None
         # emit a warning if the string is a purely numeric value
         elif name.isnumeric():
-            warnings.warn(
-                f'Setting an SSAValue.name to a numeric value (in this case "{name}") is ignored!'
+            raise ValueError(
+                "Numeric SSA value names are not accepted! "
+                "Please use SSAValue.is_valid_name to check for validity before assigning!"
             )
-            self._name = None
         # only allow names that match the _name_regex
         elif self._name_regex.fullmatch(name):
             self._name = name
