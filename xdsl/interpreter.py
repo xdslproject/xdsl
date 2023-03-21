@@ -20,9 +20,22 @@ class Functions:
                              tuple[Any, ...]]] = field(default_factory=dict)
 
     def register_op(
-        self, op_type: type[_OperationInvT],
-        func: Callable[[Intepreter, _OperationInvT, tuple[Any, ...]],
-                       tuple[Any, ...]]):
+            self,
+            op_type: type[_OperationInvT],
+            func: Callable[[Intepreter, _OperationInvT, tuple[Any, ...]],
+                           tuple[Any, ...]],
+            /,
+            override: bool = False):
+        '''
+        Registers a Python function to run for a given Operation type.
+        If the type already exists, will raise a ValueError. To override an existing
+        implementation, pass `override=True`.
+        '''
+        if op_type in self.functions and not override:
+            raise ValueError(
+                f"Registering func for Operation type {op_type}, already registered. "
+                "Pass `override=True` if you would like to override the existing definition."
+            )
         self.functions[op_type] = func  # type: ignore
 
     def op_types(self) -> set[type[Operation]]:
