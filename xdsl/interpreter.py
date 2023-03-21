@@ -5,7 +5,7 @@ from typing import IO, Any, Callable, Generator, Iterable, Sequence, TypeAlias
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
-from xdsl.utils.exceptions import IntepretationError
+from xdsl.utils.exceptions import InterpretationError
 
 
 @dataclass
@@ -62,7 +62,7 @@ class CompoundInterpretationFunctionTable(InterpreterFunctionTable):
 
 
 @dataclass
-class IntepretationEnv:
+class InterpretationEnv:
     """
     Class holding the Python values associated with SSAValues during an interpretation
     context. An environment is a stack of scopes, values are assigned to the current
@@ -70,7 +70,7 @@ class IntepretationEnv:
     """
 
     name: str = field(default="unknown")
-    parent: IntepretationEnv | None = None
+    parent: InterpretationEnv | None = None
     env: dict[SSAValue, Any] = field(default_factory=dict)
 
     def __getitem__(self, key: SSAValue) -> Any:
@@ -82,19 +82,19 @@ class IntepretationEnv:
             return self.env[key]
         if self.parent is not None:
             return self.parent[key]
-        raise IntepretationError(f'Could not find value for {key} in {self}')
+        raise InterpretationError(f'Could not find value for {key} in {self}')
 
     def __setitem__(self, key: SSAValue, value: Any):
         """
         Assign key to current scope. Raises InterpretationError if key already assigned to.
         """
         if key in self.env:
-            raise IntepretationError(
+            raise InterpretationError(
                 f'Attempting to register SSAValue {value} for name {key}'
                 f', but value with that name already exists in {self}')
         self.env[key] = value
 
-    def stack(self) -> Generator[IntepretationEnv, None, None]:
+    def stack(self) -> Generator[InterpretationEnv, None, None]:
         """
         Iterates through scopes starting with the root scope.
         """
@@ -118,8 +118,8 @@ class Interpreter:
     module: ModuleOp
     _function_table: CompoundInterpretationFunctionTable = field(
         default_factory=CompoundInterpretationFunctionTable)
-    _env: IntepretationEnv = field(
-        default_factory=lambda: IntepretationEnv(name='root'))
+    _env: InterpretationEnv = field(
+        default_factory=lambda: InterpretationEnv(name='root'))
     file: IO[str] | None = field(default=None)
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
@@ -145,7 +145,7 @@ class Interpreter:
         """
         Create new scope in current environment, with optional custom `name`
         """
-        self._env = IntepretationEnv(name, self._env)
+        self._env = InterpretationEnv(name, self._env)
 
     def pop_scope(self) -> None:
         """
@@ -154,7 +154,7 @@ class Interpreter:
         Raises InterpretationError if current scope is root scope.
         """
         if self._env.parent is None:
-            raise IntepretationError('Attempting to pop root env')
+            raise InterpretationError('Attempting to pop root env')
 
         self._env = self._env.parent
 
@@ -177,8 +177,8 @@ class Interpreter:
         """
         op_type = type(op)
         if op_type not in self._function_table:
-            raise IntepretationError(
-                f'Could not find intepretation function for op {op.name}')
+            raise InterpretationError(
+                f'Could not find interpretation function for op {op.name}')
 
         inputs = self.get_values(op.operands)
         results = self._function_table.run(self, op, inputs)
@@ -197,7 +197,7 @@ class Interpreter:
     def _assert(self, condition: bool, message: str | None = None):
         "Raise InterpretationError if condition is not satisfied."
         if not condition:
-            raise IntepretationError(
+            raise InterpretationError(
                 f'AssertionError: ({self._env})({message})')
 
 

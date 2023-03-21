@@ -39,7 +39,7 @@ class InvalidIRException(Exception):
     pass
 
 
-class IntepretationError(Exception):
+class InterpretationError(Exception):
     pass
 
 

@@ -6,18 +6,18 @@ from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctionTable
-from xdsl.utils.exceptions import IntepretationError
+from xdsl.utils.exceptions import InterpretationError
 
 from . import dialect as toy
 
 
-def run_toy_func(intepreter: Interpreter, name: str,
+def run_toy_func(interpreter: Interpreter, name: str,
                  args: tuple[Any, ...]) -> tuple[Any, ...]:
-    for op in intepreter.module.ops:
+    for op in interpreter.module.ops:
         if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
-            return run_func(intepreter, op, args)
+            return run_func(interpreter, op, args)
 
-    raise IntepretationError(f'Could not find toy function with name: {name}')
+    raise InterpretationError(f'Could not find toy function with name: {name}')
 
 
 toy_ft = InterpreterFunctionTable()
