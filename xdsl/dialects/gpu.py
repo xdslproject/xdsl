@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Generic, Type, TypeVar
+from typing import Annotated, Generic, Sequence, Type, TypeVar
 
 from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)
@@ -293,10 +293,10 @@ class LaunchOp(Operation):
     @staticmethod
     def get(
         body: Region,
-        gridSize: list[SSAValue | Operation],
-        blockSize: list[SSAValue | Operation],
+        gridSize: Sequence[SSAValue | Operation],
+        blockSize: Sequence[SSAValue | Operation],
         async_launch: bool = False,
-        asyncDependencies: list[SSAValue | Operation] | None = None,
+        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None
     ) -> LaunchOp:
         if len(gridSize) != 3:
