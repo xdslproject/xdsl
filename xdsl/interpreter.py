@@ -42,7 +42,10 @@ class Functions:
         return set(self.functions.keys())
 
     def register(
-        self, op_type: type[_OperationInvT]
+        self,
+        op_type: type[_OperationInvT],
+        /,
+        override: bool = False
     ) -> Callable[[
             Callable[[Intepreter, _OperationInvT, tuple[Any, ...]], tuple[Any,
                                                                           ...]]
@@ -52,7 +55,7 @@ class Functions:
         def wrapper(
             func: Callable[[Intepreter, _OperationInvT, tuple[Any, ...]],
                            tuple[Any, ...]]):
-            self.register_op(op_type, func)
+            self.register_op(op_type, func, override=override)
             return func
 
         return wrapper
@@ -61,9 +64,10 @@ class Functions:
             args: tuple[Any, ...]) -> tuple[Any, ...]:
         return self.functions[type(op)](interpreter, op, args)
 
-    def register_from(self, other: Functions):
-        '''If there are duplicate definitions, the `other` will override `self`'''
-        self.functions.update(other.functions)
+    def register_from(self, other: Functions, override: bool = False):
+        '''Register each operation in other, one by one.'''
+        for op_type, func in other.functions.items():
+            self.register_op(op_type, func, override=override)
 
 
 @dataclass
