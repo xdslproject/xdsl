@@ -39,6 +39,10 @@ class InvalidIRException(Exception):
     pass
 
 
+class IntepretationError(Exception):
+    pass
+
+
 @dataclass
 class BuilderNotFoundException(Exception):
     """

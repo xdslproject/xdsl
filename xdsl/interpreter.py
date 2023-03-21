@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Any, Callable, Generator, TypeVar
+from typing import Any, Callable, Generator
+
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import SSAValue, Operation
-
-_OperationInvT = TypeVar('_OperationInvT', bound=Operation)
-
-
-class IntepretationError(Exception):
-    pass
+from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.utils.exceptions import IntepretationError
 
 
 @dataclass
@@ -21,8 +17,8 @@ class Functions:
 
     def register_op(
             self,
-            op_type: type[_OperationInvT],
-            func: Callable[[Intepreter, _OperationInvT, tuple[Any, ...]],
+            op_type: type[OperationInvT],
+            func: Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
                            tuple[Any, ...]],
             /,
             override: bool = False):
@@ -43,17 +39,17 @@ class Functions:
 
     def register(
         self,
-        op_type: type[_OperationInvT],
+        op_type: type[OperationInvT],
         /,
         override: bool = False
     ) -> Callable[[
-            Callable[[Intepreter, _OperationInvT, tuple[Any, ...]], tuple[Any,
-                                                                          ...]]
-    ], Callable[[Intepreter, _OperationInvT, tuple[Any, ...]], tuple[Any,
-                                                                     ...]]]:
+            Callable[[Intepreter, OperationInvT, tuple[Any, ...]], tuple[Any,
+                                                                         ...]]
+    ], Callable[[Intepreter, OperationInvT, tuple[Any, ...]], tuple[Any,
+                                                                    ...]]]:
 
         def wrapper(
-            func: Callable[[Intepreter, _OperationInvT, tuple[Any, ...]],
+            func: Callable[[Intepreter, OperationInvT, tuple[Any, ...]],
                            tuple[Any, ...]]):
             self.register_op(op_type, func, override=override)
             return func

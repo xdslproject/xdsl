@@ -6,7 +6,8 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Intepreter, IntepretationError, Functions
+from xdsl.interpreter import Intepreter, Functions
+from xdsl.utils.exceptions import IntepretationError
 
 from . import dialect as toy
 
