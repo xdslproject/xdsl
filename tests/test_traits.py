@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 from dataclasses import dataclass
 
 import pytest
@@ -84,7 +85,7 @@ def test_verifier():
     op.verify()
 
 
-class NoOperandsOp(Operation):
+class NoOperandsOp(Operation, ABC):
     traits = frozenset([NoOperandsTrait()])
 
 
