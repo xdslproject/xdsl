@@ -67,30 +67,46 @@ class Functions:
 
 @dataclass
 class IntepretationEnv:
+    """
+    Class holding the Python values associated with SSAValues during an interpretation
+    context. An environment is a stack of scopes, values are assigned to the current
+    scope, but can be fetched from a parent scope.
+    """
+
     name: str = field(default="unknown")
     parent: IntepretationEnv | None = None
     env: dict[SSAValue, Any] = field(default_factory=dict)
 
     def __getitem__(self, key: SSAValue) -> Any:
+        """
+        Fetch key from environment. Attempts to first fetch from current scope, then
+        from parent scopes. Raises Interpretation error if not found.
+        """
         if key in self.env:
             return self.env[key]
         if self.parent is not None:
             return self.parent[key]
-        raise IntepretationError(f'Could not find value for {key}')
+        raise IntepretationError(f'Could not find value for {key} in {self}')
 
     def __setitem__(self, key: SSAValue, value: Any):
+        """
+        Assign key to current scope. Raises InterpretationError if key already assigned to.
+        """
         if key in self.env:
             raise IntepretationError(
                 f'Attempting to register SSAValue {value} for name {key}'
-                ', but value with that name already exists')
+                f', but value with that name already exists in {self}')
         self.env[key] = value
 
     def stack(self) -> Generator[IntepretationEnv, None, None]:
+        """
+        Iterates through scopes starting with the root scope.
+        """
         if self.parent is not None:
             yield from self.parent.stack()
         yield self
 
-    def stack_description(self) -> str:
+    def __format__(self, __format_spec: str) -> str:
         return '/'.join(c.name for c in self.stack())
 
 
@@ -142,5 +158,4 @@ class Intepreter:
     def _assert(self, condition: bool, message: str | None = None):
         if not condition:
             raise IntepretationError(
-                f'AssertionError: ({self._env.stack_description()})({message})'
-            )
+                f'AssertionError: ({self._env})({message})')
