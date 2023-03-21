@@ -115,10 +115,12 @@ class GEPOp(Operation):
     result: Annotated[OpResult, LLVMPointerType]
 
     @staticmethod
-    def get(ptr: SSAValue | Operation,
+    def get(
+            ptr: SSAValue | Operation,
             result_type: Attribute
-            | LLVMPointerType = LLVMPointerType.opaque(),
-            indices: list[int] | None = None, #Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
+        | LLVMPointerType = LLVMPointerType.opaque(),
+            indices: list[int] |
+        None = None,  #Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
             ssa_indices: list[SSAValue | Operation] | None = None,
             inbounds: bool = False,
             pointee_type: Attribute | None = None):
@@ -133,19 +135,25 @@ class GEPOp(Operation):
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
-        ptr = SSAValue.get(ptr)
+        ptr_val = SSAValue.get(ptr)
+        ptr_type = ptr_val.typ
 
         if not isinstance(result_type, LLVMPointerType):
             raise ValueError('Result type must be a pointer.')
-        if not ptr.is_typed():
+
+        if not isinstance(ptr_type, LLVMPointerType):
+            raise ValueError('Input must be a pointer')
+
+        if not ptr_type.is_typed():
             if pointee_type == None:
-                raise ValueError('Opaque types must have a pointee type passed')
+                raise ValueError(
+                    'Opaque types must have a pointee type passed')
 
         attrs: dict[str, Attribute] = {
             'rawConstantIndices': indices_attr,
         }
 
-        if not ptr.typ.is_typed():
+        if not ptr_type.is_typed():
             attrs['elem_type'] = result_type
 
         if inbounds:
