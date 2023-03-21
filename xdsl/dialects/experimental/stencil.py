@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    IntegerType, IntAttr, AnyFloat)
 from xdsl.dialects import builtin, memref
 from xdsl.ir import Operation, Dialect, MLIRType, SSAValue
-from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
                        ParameterDef, AttrConstraint, Attribute, Region, Block,
                        VerifyException, Generic, AnyOf, Annotated, Operand,
                        OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
@@ -142,7 +142,10 @@ class IndexAttr(ParametrizedAttribute):
 
     @staticmethod
     def get(*indices: int | IntegerAttr[IntegerType]):
-        return IndexAttr([ArrayAttr([(IntegerAttr[IntegerType](idx, 64) if isinstance(idx, int) else idx) for idx in indices])])
+        return IndexAttr([
+            ArrayAttr([(IntegerAttr[IntegerType](idx, 64) if isinstance(
+                idx, int) else idx) for idx in indices])
+        ])
 
     @staticmethod
     def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
@@ -188,11 +191,9 @@ class ExternalLoadOp(Operation):
     result: Annotated[OpResult, FieldType | memref.MemRefType]
 
     @staticmethod
-    def get(arg: SSAValue | Operation, res_type: FieldType[Attribute] | memref.MemRefType[Attribute]):
-        return ExternalLoadOp.build(
-            operands=[arg],
-            result_types=[res_type]
-        )
+    def get(arg: SSAValue | Operation,
+            res_type: FieldType[Attribute] | memref.MemRefType[Attribute]):
+        return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
 
 
 @irdl_op_definition
@@ -298,8 +299,11 @@ class LoadOp(Operation):
 
         return LoadOp.build(
             operands=[field],
-            result_types=[TempType[Attribute].from_shape([-1] * len(field_t.shape.data), field_t.element_type)]
-        )
+            result_types=[
+                TempType[Attribute].from_shape([-1] * len(field_t.shape.data),
+                                               field_t.element_type)
+            ])
+
 
 @irdl_op_definition
 class BufferOp(Operation):
@@ -332,9 +336,7 @@ class StoreOp(Operation):
 
     @staticmethod
     def get(temp: SSAValue | Operation, field: SSAValue | Operation):
-        return StoreOp.build(
-            operands=[temp, field]
-        )
+        return StoreOp.build(operands=[temp, field])
 
 
 @irdl_op_definition
@@ -357,7 +359,9 @@ class ApplyOp(Operation):
     res: Annotated[VarOpResult, TempType]
 
     @staticmethod
-    def get(args: Sequence[SSAValue] | Sequence[Operation], body: Block, result_count: int = 1):
+    def get(args: Sequence[SSAValue] | Sequence[Operation],
+            body: Block,
+            result_count: int = 1):
         assert len(args) > 0
         field_t = SSAValue.get(args[0]).typ
         assert isinstance(field_t, TempType)
@@ -365,14 +369,13 @@ class ApplyOp(Operation):
 
         result_rank = len(field_t.shape.data)
 
-        return ApplyOp.build(
-            operands=[list(args)],
-            regions=[Region.from_block_list([body])],
-            result_types=[
-                [TempType.from_shape([-1] * result_rank, field_t.element_type) for _ in range(result_count)]
-            ]
-
-        )
+        return ApplyOp.build(operands=[list(args)],
+                             regions=[Region.from_block_list([body])],
+                             result_types=[[
+                                 TempType.from_shape([-1] * result_rank,
+                                                     field_t.element_type)
+                                 for _ in range(result_count)
+                             ]])
 
 
 @irdl_op_definition
