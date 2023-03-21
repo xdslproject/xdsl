@@ -5,7 +5,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import Block, MLContext, Operation
+from xdsl.ir import Block, BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -153,6 +153,22 @@ class ApplyOpToLaunch(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
 
         assert (op.lb is not None) and (op.ub is not None)
+
+        def access_shape_infer(access: Operation) -> None:
+            assert (op.lb is not None) and (op.ub is not None)
+            if not isinstance(access, AccessOp):
+                return
+            assert isinstance(access.temp, BlockArgument)
+            temp_owner = op.args[access.temp.index].owner
+
+            assert isinstance(temp_owner, LoadOp | ApplyOp)
+
+            temp_owner.attributes['lb'] = IndexAttr.min(
+                op.lb + access.offset, temp_owner.lb)
+            temp_owner.attributes['ub'] = IndexAttr.max(
+                op.ub + access.offset, temp_owner.ub)
+
+        op.walk(access_shape_infer)
 
         body = prepare_apply_body(op, rewriter)
         dim = len(op.lb.array.data)
