@@ -8,8 +8,8 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
                                    IntegerType, IntAttr, AnyFloat)
 from xdsl.dialects import builtin, memref
 from xdsl.ir import Operation, Dialect, MLIRType, SSAValue
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
-                       ParameterDef, AttrConstraint, Attribute, Region, Block,
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
+                       AttrConstraint, Attribute, Region, Block,
                        VerifyException, Generic, AnyOf, Annotated, Operand,
                        OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
                        AttrSizedOperandSegments)
