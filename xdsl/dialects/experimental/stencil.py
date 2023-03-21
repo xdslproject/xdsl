@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from typing import Annotated, Sequence, TypeVar, Any, cast
 
 from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
-                                   ArrayAttr, f32, f64, IntegerType, IntAttr,
-                                   AnyFloat)
+                                   IntegerAttr, ArrayAttr, f32, f64,
+                                   IntegerType, IntAttr, AnyFloat)
 from xdsl.dialects import builtin
-from xdsl.ir import Operation, Dialect, MLIRType
+from xdsl.ir import Operation, Dialect, MLIRType, SSAValue
 from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
                        ParameterDef, AttrConstraint, Attribute, Region,
                        VerifyException, Generic, AnyOf, Annotated, Operand,
@@ -61,22 +61,23 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     element_type: ParameterDef[_FieldTypeElement]
 
     @staticmethod
-    def from_shape(
-        shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]
-    ) -> TempType[_FieldTypeElement]:
+    def from_shape(shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+                   | Sequence[int],
+                   typ: _FieldTypeElement) -> TempType[_FieldTypeElement]:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
-            return TempType.new([shape])
+            return TempType.new([shape, typ])
 
         # cast to list
-        shape = cast(list[IntAttr] | list[int], shape)
+        shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isinstance(shape[0], IntAttr):
+        if isinstance(shape[0], IntegerAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr(shape)])  # type: ignore
+            return TempType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return TempType(
+            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
@@ -218,6 +219,24 @@ class AccessOp(Operation):
     offset: OpAttr[IndexAttr]
     res: Annotated[OpResult, Attribute]
 
+    @staticmethod
+    def get(temp: SSAValue | Operation, offset: Sequence[int]):
+        temp_type = SSAValue.get(temp).typ
+        assert isinstance(temp_type, TempType)
+        temp_type = cast(TempType[Attribute], temp_type)
+
+        return AccessOp.build(
+            operands=[temp],
+            attributes={
+                'offset':
+                IndexAttr([
+                    ArrayAttr(IntegerAttr[IntegerType](value, 64)
+                              for value in offset),
+                ]),
+            },
+            result_types=[temp_type.element_type],
+        )
+
 
 @irdl_op_definition
 class DynAccessOp(Operation):
@@ -333,6 +352,10 @@ class ReturnOp(Operation):
     """
     name: str = "stencil.return"
     arg: Annotated[Operand, ResultType | AnyFloat]
+
+    @staticmethod
+    def get(*res: SSAValue | Operation):
+        return ReturnOp.build(operands=[*res])
 
 
 @irdl_op_definition
