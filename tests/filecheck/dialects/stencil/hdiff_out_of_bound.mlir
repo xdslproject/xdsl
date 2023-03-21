@@ -27,5 +27,5 @@
 }) : () -> ()
 
 
-// CHECK-NEXT: Out of bound stencil! The stencil computation requires a field with lower bound at least !stencil.index<[-1 : !i64, -1 : !i64, 0 : !i64]>, got !stencil.index<[0 : !i64, 0 : !i64, 0 : !i64]>
+// CHECK-NEXT: The stencil computation requires a field with lower bound at least !stencil.index<[-1 : !i64, -1 : !i64, 0 : !i64]>, got !stencil.index<[0 : !i64, 0 : !i64, 0 : !i64]>
 
