@@ -514,7 +514,7 @@ class OpDef:
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: list[OpTrait] = field(default_factory=list)
+    traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
@@ -667,18 +667,14 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
-
-        # Take the union of all traits from the class hierarchy.
-        for parent_cls in pyrdl_def.mro()[::-1]:
-            if hasattr(parent_cls, "traits"):
-                traits = getattr(parent_cls, "traits")
-                if not isinstance(traits, frozenset):
-                    raise Exception(
-                        f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                        f"has a 'traits' field of type {type(traits)}, but "
-                        "it should be of type frozenset.")
-                traits = cast(frozenset[OpTrait], traits)
-                op_def.traits.extend(traits)
+        traits = clsdict.get("traits", frozenset())
+        if not isinstance(traits, frozenset):
+            raise Exception(
+                f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                f"has a 'traits' field of type {type(traits)}, but "
+                "it should be of type frozenset.")
+        traits = cast(frozenset[OpTrait], traits)
+        op_def.traits = traits
 
         return op_def
 
@@ -1183,7 +1179,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         else:
             new_attrs[attribute_name] = attribute_field(attribute_name)
 
-    new_attrs["traits"] = frozenset(op_def.traits)
+    new_attrs["traits"] = op_def.traits
 
     def builder(
         cls: type[_OpT],

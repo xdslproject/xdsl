@@ -92,7 +92,7 @@ class NoOperandsOp(Operation):
 class NoResultNorOperandOp(NoOperandsOp):
     name = "test.no_result_nor_operand_op"
 
-    traits = frozenset([NoResultsTrait()])
+    traits = NoOperandsOp.traits.union([NoResultsTrait()])
 
 
 def test_trait_inheritance():
