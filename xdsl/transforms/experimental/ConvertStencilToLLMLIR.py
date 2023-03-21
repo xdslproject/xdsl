@@ -15,6 +15,8 @@ from xdsl.dialects import memref, arith, scf, builtin, cf, gpu
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType
 from xdsl.utils.exceptions import VerifyException
 
+from xdsl.rewriter import Rewriter
+
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 
@@ -427,3 +429,36 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
+
+
+class AccessOpInline(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
+        assert isinstance(op.temp, BlockArgument)
+        assert isinstance((apply := op.parent_op()), ApplyOp)
+
+        temp = apply.operands[op.temp.index]
+        producer = temp.owner
+
+        # This pattern is about inline a produce apply in a consumer apply
+        if not isinstance(producer, ApplyOp):
+            return
+
+        # It assumes the consumer is the only consumer.
+        if len(temp.uses) > 1:
+            return
+
+        Rewriter.inline_block_before(producer.region.blocks[0], op)
+
+        # rewriter.replace_matched_op(ops, list(ops[0].operands))
+
+
+def FuseStencil(ctx: MLContext, module: ModuleOp):
+
+    the_one_pass = PatternRewriteWalker(
+        GreedyRewritePatternApplier([AccessOpInline()]))
+
+    the_one_pass.rewrite_module(module)
+
+    pass

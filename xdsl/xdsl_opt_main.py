@@ -24,10 +24,12 @@ from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
 
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU, FuseStencil
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
+
+from xdsl.rewriter import Rewriter
 
 from typing import IO, Dict, Callable, List, Sequence
 
@@ -227,6 +229,7 @@ class xDSLOptMain:
         self.available_passes[
             'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
+        self.available_passes['stencil-fusion'] = FuseStencil
 
     def register_all_targets(self):
         """

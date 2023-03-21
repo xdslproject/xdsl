@@ -8,11 +8,11 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, IntegerAttr,
                                    IntegerType, IntAttr, AnyFloat)
 from xdsl.dialects import builtin
 from xdsl.ir import Operation, Dialect, MLIRType
-from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
-                       ParameterDef, AttrConstraint, Attribute, Region,
-                       VerifyException, Generic, AnyOf, Annotated, Operand,
-                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
-                       AttrSizedOperandSegments)
+from xdsl.irdl import (AnyAttr, SingleBlockRegion, irdl_attr_definition,
+                       irdl_op_definition, ParameterDef, AttrConstraint,
+                       Attribute, Region, VerifyException, Generic, AnyOf,
+                       Annotated, Operand, OpAttr, OpResult, VarOperand,
+                       VarOpResult, OptOpAttr, AttrSizedOperandSegments)
 
 
 @dataclass
@@ -336,7 +336,7 @@ class ApplyOp(Operation):
     args: Annotated[VarOperand, AnyAttr()]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
-    region: Region
+    region: SingleBlockRegion
     res: Annotated[VarOpResult, TempType]
 
 
