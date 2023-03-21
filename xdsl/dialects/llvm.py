@@ -92,9 +92,10 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     @staticmethod
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
-    @staticmethod
-    def is_typed(typ):
-        return not isinstance(typ.type, NoneAttr)
+    
+
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
 
 
 @irdl_op_definition
@@ -136,8 +137,7 @@ class GEPOp(Operation):
 
         if not isinstance(result_type, LLVMPointerType):
             raise ValueError('Result type must be a pointer.')
-
-        if not LLVMPointerType.is_typed(ptr.typ):
+        if not ptr.is_typed():
             if pointee_type == None:
                 raise ValueError('Opaque types must have a pointee type passed')
 
@@ -145,7 +145,7 @@ class GEPOp(Operation):
             'rawConstantIndices': indices_attr,
         }
 
-        if not LLVMPointerType.is_typed(ptr.typ):  #type: ignore
+        if not ptr.typ.is_typed():
             attrs['elem_type'] = result_type
 
         if inbounds:
