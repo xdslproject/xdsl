@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, ParametrizedAttribute,
 from xdsl.dialects import builtin
 from xdsl.ir import Operation, Dialect, MLIRType, SSAValue
 from xdsl.irdl import (AnyAttr, irdl_attr_definition, irdl_op_definition,
-                       ParameterDef, AttrConstraint, Attribute, Region,
+                       ParameterDef, AttrConstraint, Attribute, Region, Block,
                        VerifyException, Generic, AnyOf, Annotated, Operand,
                        OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
                        AttrSizedOperandSegments)
@@ -42,15 +42,23 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     element_type: ParameterDef[_FieldTypeElement]
 
     @staticmethod
-    def from_shape(
-            shape: list[int] | list[IntAttr]) -> FieldType[_FieldTypeElement]:
-        # TODO: why do we need all these casts here, can we tell pyright "trust me"
-        if all(isinstance(elm, IntAttr) for elm in shape):
-            shape = cast(list[IntAttr], shape)
-            return FieldType([ArrayAttr(shape)])
+    def from_shape(shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+                   | Sequence[int],
+                   typ: _FieldTypeElement) -> FieldType[_FieldTypeElement]:
+        assert len(shape) > 0
 
+        if isinstance(shape, ArrayAttr):
+            return FieldType.new([shape, typ])
+
+        # cast to list
+        shape = cast(list[AnyIntegerAttr] | list[int], shape)
+
+        if isinstance(shape[0], IntegerAttr):
+            # the if above is a sufficient type guard, but pyright does not understand :/
+            return FieldType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return FieldType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return FieldType(
+            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
 
 
 @irdl_attr_definition
@@ -131,6 +139,10 @@ class IndexAttr(ParametrizedAttribute):
             raise VerifyException(
                 f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
             )
+
+    @staticmethod
+    def get(*indices: int | IntegerAttr[IntegerType]):
+        return IndexAttr([ArrayAttr([(IntegerAttr[IntegerType](idx, 64) if isinstance(idx, int) else idx) for idx in indices])])
 
     @staticmethod
     def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
@@ -271,6 +283,16 @@ class LoadOp(Operation):
     ub: OptOpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
+    @staticmethod
+    def get(field: SSAValue | Operation):
+        field_t = SSAValue.get(field).typ
+        assert isinstance(field_t, FieldType)
+        field_t = cast(FieldType[Attribute], field_t)
+
+        return LoadOp.build(
+            operands=[field],
+            result_types=[TempType[Attribute].from_shape([-1] * len(field_t.shape.data), field_t.element_type)]
+        )
 
 @irdl_op_definition
 class BufferOp(Operation):
@@ -301,6 +323,12 @@ class StoreOp(Operation):
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
 
+    @staticmethod
+    def get(temp: SSAValue | Operation, field: SSAValue | Operation):
+        return StoreOp.build(
+            operands=[temp, field]
+        )
+
 
 @irdl_op_definition
 class ApplyOp(Operation):
@@ -315,11 +343,29 @@ class ApplyOp(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, AnyAttr()]
+    args: Annotated[VarOperand, TempType]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     region: Region
     res: Annotated[VarOpResult, TempType]
+
+    @staticmethod
+    def get(args: Sequence[SSAValue] | Sequence[Operation], body: Block, result_count: int = 1):
+        assert len(args) > 0
+        field_t = SSAValue.get(args[0]).typ
+        assert isinstance(field_t, TempType)
+        field_t = cast(FieldType[Attribute], field_t)
+
+        result_rank = len(field_t.shape.data)
+
+        return ApplyOp.build(
+            operands=[list(args)],
+            regions=[Region.from_block_list([body])],
+            result_types=[
+                [TempType.from_shape([-1] * result_rank, field_t.element_type) for _ in range(result_count)]
+            ]
+
+        )
 
 
 @irdl_op_definition
