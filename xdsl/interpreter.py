@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from io import StringIO
-from typing import Any, Callable, Generator
+from typing import IO, Any, Callable, Generator
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -102,7 +101,7 @@ class Intepreter:
     _function_table: Functions = field(default_factory=Functions)
     _env: IntepretationEnv = field(
         default_factory=lambda: IntepretationEnv(name='root'))
-    file: StringIO | None = field(default=None)
+    file: IO[str] | None = field(default=None)
 
     def get_values(self, values: tuple[SSAValue, ...]) -> tuple[Any, ...]:
         return tuple(self._env[value] for value in values)
