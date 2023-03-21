@@ -72,7 +72,7 @@ class IntepretationEnv:
     parent: IntepretationEnv | None = None
     env: dict[SSAValue, Any] = field(default_factory=dict)
 
-    def __getitem__(self, key: SSAValue) -> SSAValue:
+    def __getitem__(self, key: SSAValue) -> Any:
         if key in self.env:
             return self.env[key]
         if self.parent is not None:
