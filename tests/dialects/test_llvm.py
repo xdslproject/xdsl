@@ -40,6 +40,7 @@ def test_llvm_pointer_type():
     assert llvm.LLVMPointerType.typed(builtin.i64).type is builtin.i64
     assert isinstance(
         llvm.LLVMPointerType.typed(builtin.i64).addr_space, builtin.NoneAttr)
+        
     assert not llvm.LLVMPointerType.opaque().is_typed()
     assert isinstance(llvm.LLVMPointerType.opaque().type, builtin.NoneAttr)
     assert isinstance(llvm.LLVMPointerType.opaque().addr_space,
