@@ -17,7 +17,7 @@ from .dialect import (TensorTypeF64, UnrankedTensorTypeF64, AddOp, MulOp,
                       GenericCallOp, TransposeOp, ReshapeOp, PrintOp)
 
 
-class MLIRGenError(Exception):
+class IRGenError(Exception):
     pass
 
 
@@ -39,7 +39,7 @@ class ScopedSymbolTable:
         self.table[__key] = __value
 
 
-class MLIRGen:
+class IRGen:
     """
     Implementation of a simple MLIR emission from the Toy AST.
 
@@ -65,7 +65,7 @@ class MLIRGen:
     added to the mapping. When the processing of a function is terminated, the
     scope is destroyed and the mappings created in this scope are dropped."""
 
-    def mlir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
+    def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """
         Public API: convert the AST for a Toy module (source file) to an MLIR
         Module operation."""
@@ -77,7 +77,7 @@ class MLIRGen:
         functions: list[Operation] = []
 
         for f in module_ast.funcs:
-            functions.append(self.mlir_gen_function(f))
+            functions.append(self.ir_gen_function(f))
 
         module = ModuleOp.from_region_or_ops(functions)
 
@@ -117,9 +117,9 @@ class MLIRGen:
         else:
             return UnrankedTensorTypeF64.from_type(f64)
 
-    def mlir_gen_proto(self, proto_ast: PrototypeAST) -> FuncOp:
+    def ir_gen_proto(self, proto_ast: PrototypeAST) -> FuncOp:
         """
-        Create the prototype for an MLIR function with as many arguments as the
+        Create the prototype for a function with as many arguments as the
         provided Toy AST prototype."""
         # location = self.loc(proto_ast.loc)
 
@@ -129,7 +129,7 @@ class MLIRGen:
             [self.get_type([])] * len(proto_ast.args), [self.get_type([])])
         return FuncOp.from_region(proto_ast.name, func_type, Region())
 
-    def mlir_gen_function(self, function_ast: FunctionAST) -> FuncOp:
+    def ir_gen_function(self, function_ast: FunctionAST) -> FuncOp:
         'Emit a new function and add it to the MLIR module.'
 
         # Create a scope in the symbol table to hold variable declarations.
@@ -137,7 +137,7 @@ class MLIRGen:
 
         proto_args = function_ast.proto.args
 
-        # Create the MLIR block for the current function
+        # Create the block for the current function
         self.block = Block.from_arg_types([
             UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
         ])
@@ -147,7 +147,7 @@ class MLIRGen:
             self.declare(name.name, value)
 
         # Emit the body of the function.
-        self.mlir_gen_expr_list(function_ast.body)
+        self.ir_gen_expr_list(function_ast.body)
 
         return_types = []
 
@@ -184,7 +184,7 @@ class MLIRGen:
 
         return func
 
-    def mlir_gen_binary_expr(self, binop: BinaryExprAST) -> SSAValue:
+    def ir_gen_binary_expr(self, binop: BinaryExprAST) -> SSAValue:
         'Emit a binary operation'
         assert self.block is not None
 
@@ -199,8 +199,8 @@ class MLIRGen:
         #    and the result value is returned. If an error occurs we get a nullptr
         #    and propagate.
 
-        lhs = self.mlir_gen_expr(binop.lhs)
-        rhs = self.mlir_gen_expr(binop.rhs)
+        lhs = self.ir_gen_expr(binop.lhs)
+        rhs = self.ir_gen_expr(binop.rhs)
 
         # location = self.loc(binop.loc)
 
@@ -217,7 +217,7 @@ class MLIRGen:
 
         return op.res
 
-    def mlir_gen_variable_expr(self, expr: VariableExprAST) -> SSAValue:
+    def ir_gen_variable_expr(self, expr: VariableExprAST) -> SSAValue:
         """
         This is a reference to a variable in an expression. The variable is
         expected to have been declared and so should have a value in the symbol
@@ -229,7 +229,7 @@ class MLIRGen:
         except Exception as e:
             self.error(f'error: unknown variable `{expr.name}`', e)
 
-    def mlir_gen_return_expr(self, ret: ReturnExprAST):
+    def ir_gen_return_expr(self, ret: ReturnExprAST):
         'Emit a return operation. This will return failure if any generation fails.'
         assert self.block is not None
 
@@ -237,14 +237,14 @@ class MLIRGen:
 
         # 'return' takes an optional expression, handle that case here.
         if ret.expr is not None:
-            expr = self.mlir_gen_expr(ret.expr)
+            expr = self.ir_gen_expr(ret.expr)
         else:
             expr = None
 
         return_op = ReturnOp.from_input(expr)
         self.block.add_op(return_op)
 
-    def mlir_gen_literal_expr(self, lit: LiteralExprAST) -> SSAValue:
+    def ir_gen_literal_expr(self, lit: LiteralExprAST) -> SSAValue:
         """
         Emit a literal/constant array. It will be emitted as a flattened array of
         data in an Attribute attached to a `toy.constant` operation.
@@ -294,7 +294,7 @@ class MLIRGen:
             self.error(f'Unsupported expr ({expr}) of type ({type(expr)}), '
                        'expected literal or number expr')
 
-    def mlir_gen_call_expr(self, call: CallExprAST) -> SSAValue:
+    def ir_gen_call_expr(self, call: CallExprAST) -> SSAValue:
         """
         Emit a call expression. It emits specific operations for the `transpose`
         builtin. Other identifiers are assumed to be user-defined functions.
@@ -305,7 +305,7 @@ class MLIRGen:
 
         #    auto location = loc(call.loc());
         # Codegen the operands first.
-        operands = [self.mlir_gen_expr(expr) for expr in call.args]
+        operands = [self.ir_gen_expr(expr) for expr in call.args]
 
         # Builtin calls have their custom operation, meaning this is a
         # straightforward emission.
@@ -325,17 +325,17 @@ class MLIRGen:
         self.block.add_op(op)
         return op.res[0]
 
-    def mlir_gen_print_expr(self, call: PrintExprAST):
+    def ir_gen_print_expr(self, call: PrintExprAST):
         """
         Emit a print expression. It emits specific operations for two builtins:
         transpose(x) and print(x).
         """
         assert self.block is not None
-        arg = self.mlir_gen_expr(call.arg)
+        arg = self.ir_gen_expr(call.arg)
         op = PrintOp.from_input(arg)
         self.block.add_op(op)
 
-    def mlir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
+    def ir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         'Emit a constant for a single number'
         #  mlir::Value mlirGen(NumberExprAST &num) {
         #    return builder.create<ConstantOp>(loc(num.loc()), num.getValue());
@@ -346,25 +346,25 @@ class MLIRGen:
         self.block.add_op(constant_op)
         return constant_op.res
 
-    def mlir_gen_expr(self, expr: ExprAST) -> SSAValue:
+    def ir_gen_expr(self, expr: ExprAST) -> SSAValue:
         'Dispatch codegen for the right expression subclass using RTTI.'
 
         if isinstance(expr, BinaryExprAST):
-            return self.mlir_gen_binary_expr(expr)
+            return self.ir_gen_binary_expr(expr)
         if isinstance(expr, VariableExprAST):
-            return self.mlir_gen_variable_expr(expr)
+            return self.ir_gen_variable_expr(expr)
         if isinstance(expr, LiteralExprAST):
-            return self.mlir_gen_literal_expr(expr)
+            return self.ir_gen_literal_expr(expr)
         if isinstance(expr, CallExprAST):
-            return self.mlir_gen_call_expr(expr)
+            return self.ir_gen_call_expr(expr)
         if isinstance(expr, NumberExprAST):
-            return self.mlir_gen_number_expr(expr)
+            return self.ir_gen_number_expr(expr)
         else:
             self.error(
                 f"MLIR codegen encountered an unhandled expr kind '{expr.kind}'"
             )
 
-    def mlir_gen_var_decl_expr(self, vardecl: VarDeclExprAST) -> SSAValue:
+    def ir_gen_var_decl_expr(self, vardecl: VarDeclExprAST) -> SSAValue:
         """
         Handle a variable declaration, we'll codegen the expression that forms the
         initializer and record the value in the symbol table before returning it.
@@ -373,7 +373,7 @@ class MLIRGen:
         """
         assert self.block is not None
 
-        value = self.mlir_gen_expr(vardecl.expr)
+        value = self.ir_gen_expr(vardecl.expr)
 
         # We have the initializer value, but in case the variable was declared
         # with specific shape, we emit a "reshape" operation. It will get
@@ -388,7 +388,7 @@ class MLIRGen:
 
         return value
 
-    def mlir_gen_expr_list(self, exprs: Iterable[ExprAST]) -> None:
+    def ir_gen_expr_list(self, exprs: Iterable[ExprAST]) -> None:
         'Codegen a list of expressions, raise error if one of them hit an error.'
         assert self.symbol_table is not None
 
@@ -397,14 +397,14 @@ class MLIRGen:
             # print. These can only appear in block list and not in nested
             # expressions.
             if isinstance(expr, VarDeclExprAST):
-                self.mlir_gen_var_decl_expr(expr)
+                self.ir_gen_var_decl_expr(expr)
             elif isinstance(expr, ReturnExprAST):
-                self.mlir_gen_return_expr(expr)
+                self.ir_gen_return_expr(expr)
             elif isinstance(expr, PrintExprAST):
-                self.mlir_gen_print_expr(expr)
+                self.ir_gen_print_expr(expr)
             else:
                 # Generic expression dispatch codegen.
-                self.mlir_gen_expr(expr)
+                self.ir_gen_expr(expr)
 
     def error(self, message: str, cause: Exception | None = None):
-        raise MLIRGenError(message) from cause
+        raise IRGenError(message) from cause

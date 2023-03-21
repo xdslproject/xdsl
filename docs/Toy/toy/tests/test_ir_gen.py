@@ -4,7 +4,7 @@ from xdsl.ir import Operation, BlockArgument
 from xdsl.dialects.builtin import f64, ModuleOp
 
 from ..parser import Parser
-from ..mlir_gen import MLIRGen
+from ..ir_gen import IRGen
 
 from toy import dialect as td
 
@@ -17,9 +17,9 @@ def test_convert_ast():
 
     module_ast = parser.parseModule()
 
-    mlir_gen = MLIRGen()
+    ir_gen = IRGen()
 
-    generated_module_op = mlir_gen.mlir_gen_module(module_ast)
+    generated_module_op = ir_gen.ir_gen_module(module_ast)
 
     unrankedf64TensorType = td.UnrankedTensorType.from_type(f64)
 
