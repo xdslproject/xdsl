@@ -109,7 +109,10 @@ class IntepretationEnv:
 @dataclass
 class Intepreter:
     """
-    
+    An extensible interpreter, initialised with a Module to intperpret. The implementation
+    for each Operation subclass should be provided via a `InterpretationFunctionTable`
+    instance. Interpretations can be overridden, and the override must be specified
+    explicitly, by passing `override=True` to the `register_functions` method.
     """
 
     module: ModuleOp
