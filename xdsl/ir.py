@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 import sys
-import warnings
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
