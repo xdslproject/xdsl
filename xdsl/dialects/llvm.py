@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
 
+min32 = -2147483648
+
 
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, MLIRType):
@@ -118,7 +120,7 @@ class GEPOp(Operation):
             ptr: SSAValue | Operation,
             result_type: LLVMPointerType = LLVMPointerType.opaque(),
             indices: list[int] |
-        None = None,  #Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
+        None = None,  # Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
             ssa_indices: list[SSAValue | Operation] | None = None,
             inbounds: bool = False,
             pointee_type: Attribute | None = None):

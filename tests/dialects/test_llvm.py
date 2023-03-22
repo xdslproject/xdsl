@@ -1,5 +1,6 @@
-from xdsl.dialects import llvm, builtin, arith
 import pytest
+
+from xdsl.dialects import llvm, builtin, arith
 
 
 def test_llvm_pointer_ops():
@@ -92,7 +93,7 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, -2147483648], [size])
+    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, llvm.min32], [size])
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1
