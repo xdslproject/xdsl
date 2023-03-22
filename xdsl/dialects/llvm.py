@@ -105,9 +105,8 @@ class AllocaOp(Operation):
 
     res: OpResult
 
-    @classmethod
-    def get(cls,
-            size: SSAValue | Operation,
+    @staticmethod
+    def get(size: SSAValue | Operation,
             elem_type: Attribute,
             alignment: int = 32,
             as_untyped_ptr: bool = False):
@@ -120,9 +119,9 @@ class AllocaOp(Operation):
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return cls.build(operands=[size],
-                         attributes=attrs,
-                         result_types=[ptr_type])
+        return AllocaOp.build(operands=[size],
+                              attributes=attrs,
+                              result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -133,15 +132,26 @@ class IntToPtrOp(Operation):
 
     output: Annotated[OpResult, LLVMPointerType]
 
-    @classmethod
-    def get(cls,
-            input: SSAValue | Operation,
-            ptr_type: Attribute | None = None):
+    @staticmethod
+    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return cls.build(operands=[input], result_types=[ptr_type])
+        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+
+
+@irdl_op_definition
+class PtrToIntOp(Operation):
+    name = "llvm.ptrtoint"
+
+    input: Annotated[Operand, LLVMPointerType]
+
+    output: Annotated[OpResult, IntegerType]
+
+    @staticmethod
+    def get(arg: SSAValue | Operation, int_type: Attribute = i64):
+        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
 
 
 @irdl_op_definition
@@ -152,10 +162,8 @@ class LoadOp(Operation):
 
     dereferenced_value: OpResult
 
-    @classmethod
-    def get(cls,
-            ptr: SSAValue | Operation,
-            result_type: Attribute | None = None):
+    @staticmethod
+    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
             assert isinstance(ptr.typ, LLVMPointerType)
@@ -166,7 +174,7 @@ class LoadOp(Operation):
                 )
             result_type = ptr.typ.type
 
-        return cls.build(operands=[ptr], result_types=[result_type])
+        return LoadOp.build(operands=[ptr], result_types=[result_type])
 
 
 @irdl_op_definition
@@ -181,9 +189,8 @@ class StoreOp(Operation):
     volatile_: OptOpAttr[UnitAttr]
     nontemporal: OptOpAttr[UnitAttr]
 
-    @classmethod
-    def get(cls,
-            value: SSAValue | Operation,
+    @staticmethod
+    def get(value: SSAValue | Operation,
             ptr: SSAValue | Operation,
             alignment: int | None = None,
             ordering: int = 0,
@@ -200,7 +207,7 @@ class StoreOp(Operation):
         if nontemporal:
             attrs['nontemporal'] = UnitAttr()
 
-        return cls.build(
+        return StoreOp.build(
             operands=[value, ptr],
             attributes=attrs,
             result_types=[],
