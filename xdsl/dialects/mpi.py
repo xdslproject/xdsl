@@ -31,20 +31,24 @@ class OperationType(ParametrizedAttribute, MLIRType):
     op_str: ParameterDef[StringAttr]
 
 
-MPI_MAX = OperationType([StringAttr("MPI_MAX")])
-MPI_MIN = OperationType([StringAttr("MPI_MIN")])
-MPI_SUM = OperationType([StringAttr("MPI_SUM")])
-MPI_PROD = OperationType([StringAttr("MPI_PROD")])
-MPI_LAND = OperationType([StringAttr("MPI_LAND")])
-MPI_BAND = OperationType([StringAttr("MPI_BAND")])
-MPI_LOR = OperationType([StringAttr("MPI_LOR")])
-MPI_BOR = OperationType([StringAttr("MPI_BOR")])
-MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
-MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
-MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
-MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
-MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
-MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
+class MpiOp:
+    """
+    A collection of MPI_Op types used for
+    """
+    MPI_MAX = OperationType([StringAttr("MPI_MAX")])
+    MPI_MIN = OperationType([StringAttr("MPI_MIN")])
+    MPI_SUM = OperationType([StringAttr("MPI_SUM")])
+    MPI_PROD = OperationType([StringAttr("MPI_PROD")])
+    MPI_LAND = OperationType([StringAttr("MPI_LAND")])
+    MPI_BAND = OperationType([StringAttr("MPI_BAND")])
+    MPI_LOR = OperationType([StringAttr("MPI_LOR")])
+    MPI_BOR = OperationType([StringAttr("MPI_BOR")])
+    MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
+    MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
+    MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
+    MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
+    MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
+    MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
 
 
 @irdl_attr_definition
