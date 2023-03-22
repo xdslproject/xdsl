@@ -1,10 +1,11 @@
-from xdsl.dialects import mpi, func, llvm, builtin
+from xdsl.dialects import mpi, func, llvm
 from xdsl.ir import Operation, Attribute, OpResult
 from xdsl.irdl import irdl_op_definition, VarOpResult
 from xdsl.transforms import lower_mpi
 from xdsl.dialects.builtin import i32
 
 info = lower_mpi.MpiLibraryInfo()
+
 
 
 def extract_func_call(ops: list[Operation],
@@ -153,11 +154,11 @@ def test_lower_mpi_send():
 
 
 def test_lower_mpi_isend():
-    ptr, count, dtype, dest, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32).results
+    ptr, count, dtype, dest, tag, req = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()).results
 
-    ops, result = lower_mpi.LowerMpiISend(info).lower(
-        mpi.ISend.get(ptr, count, dtype, dest, tag))
+    ops, result = lower_mpi.LowerMpiIsend(info).lower(
+        mpi.Isend.get(ptr, count, dtype, dest, tag, req))
     """
     Check for function with signature like:
     int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -218,15 +219,15 @@ def test_lower_mpi_recv_with_status():
 
 
 def test_lower_mpi_irecv():
-    ptr, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32).results
+    ptr, count, dtype, source, tag, req = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()).results
     """
     int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
             int source, int tag, MPI_Comm comm, MPI_Request *request)
     """
 
-    ops, result = lower_mpi.LowerMpiIRecv(info).lower(
-        mpi.IRecv.get(ptr, count, dtype, source, tag))
+    ops, result = lower_mpi.LowerMpiIrecv(info).lower(
+        mpi.Irecv.get(ptr, count, dtype, source, tag, req))
 
     assert len(result) == 1
 
