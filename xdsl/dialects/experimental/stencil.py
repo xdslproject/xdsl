@@ -46,11 +46,9 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     element_type: ParameterDef[_FieldTypeElement]
 
     @staticmethod
-    def from_shape(
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
-        | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> FieldType[_FieldTypeElement]:
+    def from_shape(shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+                   | Sequence[int],
+                   typ: _FieldTypeElement) -> FieldType[_FieldTypeElement]:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
@@ -59,9 +57,9 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
         # cast to list
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isinstance(shape[0], IntegerAttr):
+        if isa(shape[0], list[AnyIntegerAttr]):
             # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr(shape), typ])  # type: ignore
+            return FieldType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
         return FieldType(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
@@ -75,11 +73,9 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
     element_type: ParameterDef[_FieldTypeElement]
 
     @staticmethod
-    def from_shape(
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
-        | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> TempType[_FieldTypeElement]:
+    def from_shape(shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+                   | Sequence[int],
+                   typ: _FieldTypeElement) -> TempType[_FieldTypeElement]:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
