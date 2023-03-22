@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, i64)
+                                   AnyIntegerAttr, IndexType, UnitAttr, i64)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
-from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
+from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, OptOpAttr,
                        irdl_attr_definition, irdl_op_definition)
 
 if TYPE_CHECKING:
@@ -91,6 +91,9 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
 
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
+
 
 @irdl_op_definition
 class AllocaOp(Operation):
@@ -102,9 +105,8 @@ class AllocaOp(Operation):
 
     res: OpResult
 
-    @classmethod
-    def get(cls,
-            size: SSAValue | Operation,
+    @staticmethod
+    def get(size: SSAValue | Operation,
             elem_type: Attribute,
             alignment: int = 32,
             as_untyped_ptr: bool = False):
@@ -117,9 +119,9 @@ class AllocaOp(Operation):
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return cls.build(operands=[size],
-                         attributes=attrs,
-                         result_types=[ptr_type])
+        return AllocaOp.build(operands=[size],
+                              attributes=attrs,
+                              result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -130,15 +132,26 @@ class IntToPtrOp(Operation):
 
     output: Annotated[OpResult, LLVMPointerType]
 
-    @classmethod
-    def get(cls,
-            input: SSAValue | Operation,
-            ptr_type: Attribute | None = None):
+    @staticmethod
+    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return cls.build(operands=[input], result_types=[ptr_type])
+        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+
+
+@irdl_op_definition
+class PtrToIntOp(Operation):
+    name = "llvm.ptrtoint"
+
+    input: Annotated[Operand, LLVMPointerType]
+
+    output: Annotated[OpResult, IntegerType]
+
+    @staticmethod
+    def get(arg: SSAValue | Operation, int_type: Attribute = i64):
+        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
 
 
 @irdl_op_definition
@@ -162,10 +175,8 @@ class LoadOp(Operation):
 
     dereferenced_value: OpResult
 
-    @classmethod
-    def get(cls,
-            ptr: SSAValue | Operation,
-            result_type: Attribute | None = None):
+    @staticmethod
+    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
             assert isinstance(ptr.typ, LLVMPointerType)
@@ -176,7 +187,44 @@ class LoadOp(Operation):
                 )
             result_type = ptr.typ.type
 
-        return cls.build(operands=[ptr], result_types=[result_type])
+        return LoadOp.build(operands=[ptr], result_types=[result_type])
+
+
+@irdl_op_definition
+class StoreOp(Operation):
+    name = "llvm.store"
+
+    value: Operand
+    ptr: Annotated[Operand, LLVMPointerType]
+
+    alignment: OptOpAttr[IntegerAttr[IntegerType]]
+    ordering: OptOpAttr[IntegerAttr[IntegerType]]
+    volatile_: OptOpAttr[UnitAttr]
+    nontemporal: OptOpAttr[UnitAttr]
+
+    @staticmethod
+    def get(value: SSAValue | Operation,
+            ptr: SSAValue | Operation,
+            alignment: int | None = None,
+            ordering: int = 0,
+            volatile: bool = False,
+            nontemporal: bool = False):
+        attrs: dict[str, Attribute] = {
+            'ordering': IntegerAttr(ordering, i64),
+        }
+
+        if alignment is not None:
+            attrs['alignment'] = IntegerAttr[IntegerType](alignment, i64)
+        if volatile:
+            attrs['volatile_'] = UnitAttr()
+        if nontemporal:
+            attrs['nontemporal'] = UnitAttr()
+
+        return StoreOp.build(
+            operands=[value, ptr],
+            attributes=attrs,
+            result_types=[],
+        )
 
 
 @irdl_op_definition
@@ -230,4 +278,5 @@ LLVM = Dialect([
     IntToPtrOp,
     NullOp,
     LoadOp,
+    StoreOp,
 ], [LLVMStructType, LLVMPointerType])

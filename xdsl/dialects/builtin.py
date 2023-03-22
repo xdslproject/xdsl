@@ -45,8 +45,7 @@ class ArrayOfConstraint(AttrConstraint):
 class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
     name: str = "array"
 
-    def __init__(self: ArrayAttr[AttributeCovT],
-                 param: Iterable[AttributeCovT]) -> None:
+    def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
@@ -327,6 +326,7 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name: str = "f32"
 
 
+@irdl_attr_definition
 class Float64Type(ParametrizedAttribute, MLIRType):
     name: str = "f64"
 
@@ -880,8 +880,8 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> FunctionType:
+    def from_lists(inputs: Sequence[Attribute],
+                   outputs: Sequence[Attribute]) -> FunctionType:
         return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
 
     @staticmethod

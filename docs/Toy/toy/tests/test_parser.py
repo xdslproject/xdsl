@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from ..parser import Parser
+import pytest
+
+from ..parser import Parser, ParseError
 from ..toy_ast import ModuleAST, FunctionAST, PrototypeAST, VariableExprAST, ReturnExprAST, BinaryExprAST, CallExprAST, VarDeclExprAST, VarType, LiteralExprAST, NumberExprAST
 from ..location import Location
 
@@ -84,3 +86,10 @@ def test_parse_ast():
     ))
 
     assert parsed_module_ast == module_ast
+
+
+def test_parse_error():
+    program = "def("
+    parser = Parser(Path(), program)
+    with pytest.raises(ParseError):
+        parser.parseIdentifierExpr()
