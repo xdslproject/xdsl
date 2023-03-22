@@ -8,6 +8,7 @@
   %4 = "llvm.alloca"(%0) {"alignment" = 32 : i64, "elem_type" = i64} : (i64) -> !llvm.ptr
   %5 = "llvm.load"(%4) : (!llvm.ptr) -> i64
   %6 = "llvm.alloca"(%0) {"alignment" = 32 : i64} : (i64) -> !llvm.ptr<i64>
+  %7 = "llvm.getelementptr"(%6, %0){result_type = i32} : (!llvm.ptr<i32>, i32) -> !llvm.ptr<i32>
   "llvm.store"(%5, %6) {"alignment" = 32 : i64, "nontemporal", "ordering" = 0 : i64, "volatile_"} : (i64, !llvm.ptr<i64>) -> ()
 }) : () -> ()
 

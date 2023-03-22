@@ -1,7 +1,5 @@
 from xdsl.dialects import llvm, builtin, arith
-from xdsl import ir
 import pytest
-import numpy
 
 def test_llvm_pointer_ops():
     module = builtin.ModuleOp.from_region_or_ops([
@@ -49,7 +47,7 @@ def test_llvm_pointer_type():
     
     
 def test_llvm_getelementptr_op_invalid_construction():
-    size = ir.OpResult(builtin.i32, [], [])
+    size = arith.Constant.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp.get(size, builtin.i32)
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
@@ -67,11 +65,10 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 
 def test_llvm_getelementptr_op():
-    size = ir.OpResult(builtin.i32, [], [])
+    size = arith.Constant.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp.get(size, builtin.i32)
     ptr_typ = ptr.res.typ
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
-    min_32 = numpy.iinfo(numpy.int32).min
 
 
     # check that construction with static-only offsets and inbounds attr works:
@@ -94,7 +91,7 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, min_32], [size])
+    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, -2147483648], [size])
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1
