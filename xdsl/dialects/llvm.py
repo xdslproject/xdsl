@@ -92,7 +92,6 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     @staticmethod
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
-    
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
