@@ -880,8 +880,8 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> FunctionType:
+    def from_lists(inputs: Sequence[Attribute],
+                   outputs: Sequence[Attribute]) -> FunctionType:
         return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
 
     @staticmethod
