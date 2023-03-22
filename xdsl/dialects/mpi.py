@@ -748,4 +748,5 @@ MPI = Dialect([
     RequestType,
     StatusType,
     DataType,
+    VectorType,
 ])

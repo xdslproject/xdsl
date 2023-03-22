@@ -640,7 +640,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         """
 
         assert isa(op.result.typ, mpi.VectorWrappable)
-        assert isa(op.vect.typ, mpi.VectorType[mpi.VectorWrappable])
+        assert isa(op.vect.typ, llvm.LLVMPointerType)
         datatype_size = self._get_mpi_dtype_size(op.result.typ)
 
         return [
@@ -650,7 +650,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             arith.IndexCastOp.get(idx_cast1,
                                   i64), mul := arith.Muli.get(lit1, idx_cast2),
             add := arith.Addi.get(mul, ptr_int), out_ptr :=
-            llvm.IntToPtrOp.get(add, op.vect.typ.wrapped_type)
+            llvm.IntToPtrOp.get(add, op.vect.typ.type)
         ], [out_ptr.results[0]]
 
 
