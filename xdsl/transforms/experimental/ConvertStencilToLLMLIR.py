@@ -123,12 +123,22 @@ class ReturnOpToMemref(RewritePattern):
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
 
 
+def verify_load_bounds(cast: CastOp, load: LoadOp):
+
+    if IndexAttr.min(cast.lb, load.lb) != cast.lb:
+        raise VerifyException(
+            "The stencil computation requires a field with lower bound at least "
+            f"{load.lb}, got {cast.lb}")
+
+
 class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
+
+        verify_load_bounds(cast, op)
 
         rewriter.replace_matched_op([], list(cast.results))
 
@@ -140,10 +150,7 @@ class LoadOpShapeInference(RewritePattern):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
 
-        if IndexAttr.min(cast.lb, op.lb) != cast.lb:
-            raise VerifyException(
-                "The stencil computation requires a field with lower bound at least "
-                f"{op.lb}, got {cast.lb}")
+        verify_load_bounds(cast, op)
 
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
@@ -434,13 +441,21 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
     ])
 
 
+def StencilShapeInference(ctx: MLContext, module: ModuleOp):
+
+    inference_pass = PatternRewriteWalker(ShapeInference,
+                                          apply_recursively=False,
+                                          walk_reverse=True)
+
+    inference_pass.rewrite_module(module)
+
+
 def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
 
     return_targets = return_target_analysis(module)
 
     the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [ShapeInference,
-         StencilConversion(return_targets, gpu=True)]),
+        [StencilConversion(return_targets, gpu=True)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
@@ -451,8 +466,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
     return_targets = return_target_analysis(module)
 
     the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [ShapeInference,
-         StencilConversion(return_targets, gpu=False)]),
+        [StencilConversion(return_targets, gpu=False)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
