@@ -503,9 +503,8 @@ class Operation(IRNode):
         self._operands = new
 
     def __post_init__(self):
-        if self.parent is not None:
-            raise ValueError("Can't instantiate Operation with parent argument. "
-                             "Use the static methods of the class instead.")
+        assert (self.name != "")
+        assert (isinstance(self.name, str))
 
     @staticmethod
     def with_result_types(
