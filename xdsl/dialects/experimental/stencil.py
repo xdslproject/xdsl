@@ -339,9 +339,10 @@ class StoreOp(Operation):
     ub: OptOpAttr[IndexAttr]
 
     @staticmethod
-    def get(temp: SSAValue | Operation, field: SSAValue | Operation):
+    def get(temp: SSAValue | Operation, field: SSAValue | Operation, lb: IndexAttr, ub: IndexAttr):
         return StoreOp.build(
-            operands=[temp, field]
+            operands=[temp, field],
+            attributes={'lb': lb, 'ub': ub}
         )
 
 
