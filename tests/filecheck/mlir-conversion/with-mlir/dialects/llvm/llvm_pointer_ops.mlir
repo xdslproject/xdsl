@@ -9,7 +9,7 @@
   %5 = "llvm.load"(%4) : (!llvm.ptr) -> i64
   %6 = "llvm.alloca"(%0) {"alignment" = 32 : i64} : (i64) -> !llvm.ptr<i64>
   %7 = "llvm.getelementptr"(%6, %0) {"rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr<i64>, i64) -> !llvm.ptr<i32>
-  %8 = "llvm.getelementptr"(%4, %0) {"elem_type" = i32, "rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr, i64) -> !llvm.ptr<i32>
+  %8 = "llvm.getelementptr"(%4, %0) {"elem_type" = i32, "rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr, i64) -> !llvm.ptr
   "llvm.store"(%5, %6) {"alignment" = 32 : i64, "nontemporal", "ordering" = 0 : i64, "volatile_"} : (i64, !llvm.ptr<i64>) -> ()
 }) : () -> ()
 
@@ -21,7 +21,7 @@
 // CHECK-NEXT:   %4 = "llvm.alloca"(%0) {"alignment" = 32 : i64, "elem_type" = i64} : (i64) -> !llvm.ptr
 // CHECK-NEXT:   %5 = "llvm.load"(%4) : (!llvm.ptr) -> i64
 // CHECK-NEXT:   %6 = "llvm.alloca"(%0) {"alignment" = 32 : i64} : (i64) -> !llvm.ptr<i64>
-// CHECK-NEXT:   %7 = "llvm.getelementptr"(%6, %0) {"rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr<i64>, i64) -> !llvm.ptr<i32>
+// CHECK-NEXT:   %7 = "llvm.getelementptr"(%6, %0) {"rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr<i64>, i64) -> !llvm.ptr
 //CHECK-NEXT:    %8 = "llvm.getelementptr"(%4, %0) {"elem_type" = i32, "rawConstantIndices" = array<i32: -2147483648>} : (!llvm.ptr, i64) -> !llvm.ptr<i32>
 // CHECK-NEXT:   "llvm.store"(%5, %6) {"alignment" = 32 : i64, "nontemporal", "ordering" = 0 : i64, "volatile_"} : (i64, !llvm.ptr<i64>) -> ()
 // CHECK-NEXT: }) : () -> ()
