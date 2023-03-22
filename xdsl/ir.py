@@ -145,16 +145,8 @@ class SSAValue(ABC):
 
     @name.setter
     def name(self, name: str | None):
-        if name is None:
-            self._name = None
-        # emit a warning if the string is a purely numeric value
-        elif name.isnumeric():
-            raise ValueError(
-                "Numeric SSA value names are not accepted! "
-                "Please use SSAValue.is_valid_name to check for validity before assigning!"
-            )
-        # only allow names that match the _name_regex
-        elif self._name_regex.fullmatch(name):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
         else:
             raise ValueError(
