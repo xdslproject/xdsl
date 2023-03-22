@@ -5,7 +5,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import Block, MLContext, Operation
+from xdsl.ir import Block, BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -13,6 +13,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, cf, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType
+from xdsl.utils.exceptions import VerifyException
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -70,6 +71,14 @@ class StoreOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+
+        owner = op.temp.owner
+
+        assert isinstance(owner, ApplyOp | LoadOp)
+
+        owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
+        owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
+
         rewriter.erase_matched_op()
         pass
 
@@ -112,12 +121,35 @@ class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        assert isinstance(op.field.owner, Operation)
+        cast = op.field.owner
+        assert isinstance(cast, CastOp)
 
-        rewriter.replace_matched_op([], list(op.field.owner.results))
+        if IndexAttr.min(cast.lb, op.lb) != cast.lb:
+            raise VerifyException(
+                "The stencil computation requires a field with lower bound at least "
+                f"{op.lb}, got {cast.lb}")
+
+        rewriter.replace_matched_op([], list(cast.results))
 
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
+
+    def access_shape_infer_walk(access: Operation) -> None:
+        assert (op.lb is not None) and (op.ub is not None)
+        if not isinstance(access, AccessOp):
+            return
+        assert isinstance(access.temp, BlockArgument)
+        temp_owner = op.args[access.temp.index].owner
+
+        assert isinstance(temp_owner, LoadOp | ApplyOp)
+
+        temp_owner.attributes['lb'] = IndexAttr.min(op.lb + access.offset,
+                                                    temp_owner.lb)
+        temp_owner.attributes['ub'] = IndexAttr.max(op.ub + access.offset,
+                                                    temp_owner.ub)
+
+    op.walk(access_shape_infer_walk)
+
     assert (op.lb is not None) and (op.ub is not None)
 
     # First replace all current arguments by their definition
@@ -275,33 +307,27 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
 
-        cast = op.temp.owner
-        assert isinstance(cast, LoadOp)
+        load = op.temp.owner
+        assert isinstance(load, LoadOp)
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        assert isinstance(cast.lb, IndexAttr)
-
-        access_offset = op.offset.array.data
-        memref_offset = cast.lb.array.data
-
-        offsets = [
-            a.value.data - m.value.data
-            for a, m in zip(access_offset, memref_offset)
-        ]
-
+        assert isinstance(load.lb, IndexAttr)
+        assert isinstance(load.field.owner, CastOp)
+        memref_offset = (op.offset - load.field.owner.lb).array.data
         off_const_ops = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType())
-            for x in offsets
+            arith.Constant.from_int_and_width(x.value.data,
+                                              builtin.IndexType())
+            for x in memref_offset
         ]
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
         ]
 
-        load = memref.Load.get(cast.res, off_sum_ops)
+        load = memref.Load.get(load.res, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
