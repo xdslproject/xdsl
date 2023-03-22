@@ -93,7 +93,7 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, llvm.min32], [size])
+    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, llvm.GEP_USE_SSA_VAL], [size])
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1

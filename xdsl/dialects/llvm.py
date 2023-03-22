@@ -15,7 +15,13 @@ if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
 
-min32 = -2147483648
+GEP_USE_SSA_VAL = -2147483648
+"""
+
+This is used in the getelementptr index list to signify that an ssa value 
+should be used for this index.
+
+"""
 
 
 @irdl_attr_definition
