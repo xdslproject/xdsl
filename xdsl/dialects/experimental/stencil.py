@@ -18,6 +18,7 @@ from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrSizedOperandSegments, Block)
 from xdsl.utils.hints import isa
 
+
 @dataclass
 class IntOrUnknown(AttrConstraint):
     length: int = 0
@@ -46,20 +47,24 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_shape(
-            shape: list[int] | list[IntAttr]) -> FieldType[_FieldTypeElement]:
-        # TODO: why do we need all these casts here, can we tell pyright "trust me"
-        if all(isinstance(elm, IntAttr) for elm in shape):
-            shape = cast(list[IntAttr], shape)
-            return FieldType([ArrayAttr(shape)])
+        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+        | Sequence[int],
+        typ: _FieldTypeElement,
+    ) -> FieldType[_FieldTypeElement]:
+        assert len(shape) > 0
+
+        if isinstance(shape, ArrayAttr):
+            return FieldType.new([shape, typ])
 
         # cast to list
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isa(shape[0], list[AnyIntegerAttr]):
+        if isinstance(shape[0], IntegerAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
-            return FieldType([ArrayAttr(shape), typ])  # type: ignore
+            return TempType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return FieldType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return FieldType(
+            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
 
 
 @irdl_attr_definition
@@ -71,21 +76,24 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_shape(
-        shape: ArrayAttr[IntAttr] | list[IntAttr] | list[int]
+        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr]
+        | Sequence[int],
+        typ: _FieldTypeElement,
     ) -> TempType[_FieldTypeElement]:
         assert len(shape) > 0
 
         if isinstance(shape, ArrayAttr):
-            return TempType.new([shape])
+            return TempType.new([shape, typ])
 
         # cast to list
-        shape = cast(list[IntAttr] | list[int], shape)
+        shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isinstance(shape[0], IntAttr):
+        if isinstance(shape[0], IntegerAttr):
             # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr(shape)])  # type: ignore
+            return TempType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType([ArrayAttr([IntAttr.from_int(d) for d in shape])])
+        return TempType(
+            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
 
     def __repr__(self):
         repr: str = "stencil.Temp<["
