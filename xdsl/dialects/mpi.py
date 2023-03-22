@@ -13,7 +13,7 @@ from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       OptOperand)
+                       OptOperand, OptOpAttr)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -682,20 +682,23 @@ class AllocateTypeOp(MPIBaseOp):
     """
     name = "mpi.allocate"
 
-    bindc_name: OpAttr[StringAttr]
+    bindc_name: OptOpAttr[StringAttr]
     dtype: OpAttr[VectorWrappable]
     count: Annotated[Operand, i32]
 
     result: Annotated[OpResult, VectorType]
 
     @staticmethod
-    def get(bindc_name: StringAttr, dtype: type[VectorWrappable],
-            count: SSAValue | Operation) -> AllocateTypeOp:
+    def get(
+        dtype: type[VectorWrappable],
+        count: SSAValue | Operation,
+        bindc_name: StringAttr | None = None,
+    ) -> AllocateTypeOp:
+        attrs: dict[str, Attribute] = {'dtype': dtype()}
+        if bindc_name is not None:
+            attrs['bindc_name'] = bindc_name
         return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
-                                    attributes={
-                                        'bindc_name': bindc_name,
-                                        'dtype': dtype()
-                                    },
+                                    attributes=attrs,
                                     operands=[count])
 
 
@@ -716,7 +719,7 @@ class VectorGetOp(MPIBaseOp):
     def get(vect: SSAValue | Operation,
             element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
-        assert isa(ssa_val.typ, VectorType[_VectorT])
+        assert isa(ssa_val.typ, VectorType[VectorWrappable])
 
         return VectorGetOp.build(result_types=[ssa_val.typ.wrapped_type],
                                  operands=[vect, element])

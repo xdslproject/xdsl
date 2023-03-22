@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import i32
 info = lower_mpi.MpiLibraryInfo()
 
 
-
 def extract_func_call(ops: list[Operation],
                       name: str = 'MPI_') -> func.Call | None:
     for op in ops:
@@ -155,7 +154,8 @@ def test_lower_mpi_send():
 
 def test_lower_mpi_isend():
     ptr, count, dtype, dest, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32,
+        mpi.RequestType()).results
 
     ops, result = lower_mpi.LowerMpiIsend(info).lower(
         mpi.Isend.get(ptr, count, dtype, dest, tag, req))
@@ -166,13 +166,13 @@ def test_lower_mpi_isend():
     """
 
     # send has no return
-    assert len(result) == 1
+    assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
         'MPI_Isend',
         (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         llvm.LLVMPointerType),
+         mpi.RequestType),
     )
 
 
@@ -220,7 +220,8 @@ def test_lower_mpi_recv_with_status():
 
 def test_lower_mpi_irecv():
     ptr, count, dtype, source, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32,
+        mpi.RequestType()).results
     """
     int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
             int source, int tag, MPI_Comm comm, MPI_Request *request)
@@ -229,13 +230,14 @@ def test_lower_mpi_irecv():
     ops, result = lower_mpi.LowerMpiIrecv(info).lower(
         mpi.Irecv.get(ptr, count, dtype, source, tag, req))
 
-    assert len(result) == 1
+    # recv has no results
+    assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
         'MPI_Irecv',
         (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         llvm.LLVMPointerType),
+         mpi.RequestType),
     )
 
 
