@@ -173,11 +173,10 @@ class SqrtOp(Operation):
                             result_types=[operand.typ])
 
 
-
 Math = Dialect([
     FPowIOp,
-IPowIOp,
-PowFOp,
-RsqrtOp,
-SqrtOp,
+    IPowIOp,
+    PowFOp,
+    RsqrtOp,
+    SqrtOp,
 ])

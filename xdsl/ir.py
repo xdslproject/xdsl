@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 import sys
-import warnings
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -146,16 +145,8 @@ class SSAValue(ABC):
 
     @name.setter
     def name(self, name: str | None):
-        if name is None:
-            self._name = None
-        # emit a warning if the string is a purely numeric value
-        elif name.isnumeric():
-            warnings.warn(
-                f'Setting an SSAValue.name to a numeric value (in this case "{name}") is ignored!'
-            )
-            self._name = None
-        # only allow names that match the _name_regex
-        elif self._name_regex.fullmatch(name):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
         else:
             raise ValueError(
@@ -164,7 +155,7 @@ class SSAValue(ABC):
             )
 
     @classmethod
-    def is_valid_name(cls, name: str):
+    def is_valid_name(cls, name: str | None):
         return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
@@ -193,10 +184,9 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
-
+        # carry over name if possible
         if value.name is None:
             value.name = self.name
-
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
