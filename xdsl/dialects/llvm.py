@@ -155,19 +155,6 @@ class PtrToIntOp(Operation):
 
 
 @irdl_op_definition
-class PtrToIntOp(Operation):
-    name = "llvm.ptrtoint"
-
-    arg: Annotated[Operand, LLVMPointerType]
-
-    output: Annotated[OpResult, IntegerType]
-
-    @classmethod
-    def get(cls, arg: SSAValue | Operation, int_type: Attribute = i64):
-        return cls.build(operands=[arg], result_types=[int_type])
-
-
-@irdl_op_definition
 class LoadOp(Operation):
     name = "llvm.load"
 
