@@ -123,16 +123,16 @@ def test_call():
 
     expected = \
         """
-builtin.module() {
-  func.func() ["sym_name" = "func0", "function_type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
-  ^0(%0 : !i32, %1 : !i32):
-    %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-    func.return(%2 : !i32)
-  }
-  %3 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %4 : !i32 = arith.constant() ["value" = 2 : !i32]
-  %5 : !i32 = func.call(%3 : !i32, %4 : !i32) ["callee" = @func0]
-}
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%0 : i32, %1 : i32):
+    %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+    "func.return"(%2) : (i32) -> ()
+  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %4 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %5 = "func.call"(%3, %4) {"callee" = @func0} : (i32, i32) -> i32
+}) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
     assert len(func0.operands) == 0
@@ -171,15 +171,15 @@ def test_call_II():
 
     expected = \
         """
-builtin.module() {
-  func.func() ["sym_name" = "func1", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
-  ^0(%0 : !i32):
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    func.return(%1 : !i32)
-  }
-  %2 : !i32 = arith.constant() ["value" = 1 : !i32]
-  %3 : !i32 = func.call(%2 : !i32) ["callee" = @func1]
-}
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%0 : i32):
+    %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+    "func.return"(%1) : (i32) -> ()
+  }) {"sym_name" = "func1", "function_type" = (i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  %2 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %3 = "func.call"(%2) {"callee" = @func1} : (i32) -> i32
+}) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1
     assert len(func0.operands) == 0

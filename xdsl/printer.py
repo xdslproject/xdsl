@@ -577,7 +577,6 @@ class Printer:
             self.print(f'"{op.op_name.data}"')
         else:
             self.print(f'"{op.name}"')
-            self.print(op.name)
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
             for message in self.diagnostic.op_messages[op]:
@@ -590,4 +589,4 @@ class Printer:
             op.attributes["op_name__"] = op_name
         else:
             self.print_op_with_default_format(op)
-            op.print(self)
+            # op.print(self)
