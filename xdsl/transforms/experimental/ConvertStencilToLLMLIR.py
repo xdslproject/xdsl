@@ -351,7 +351,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data))
 
 
-class ExternalLoadTypeUmbiegen(RewritePattern):
+class TrivialExternalLoadOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
@@ -398,7 +398,7 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
         AccessOpToMemref(),
         ReturnOpToMemref(return_target),
         StoreOpCleanup(),
-        ExternalLoadTypeUmbiegen()
+        TrivialExternalLoadOpCleanup()
     ]),
                                         apply_recursively=False,
                                         walk_reverse=True)
@@ -438,7 +438,7 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         AccessOpToMemref(),
         ReturnOpToMemref(return_target),
         StoreOpCleanup(),
-        ExternalLoadTypeUmbiegen()
+        TrivialExternalLoadOpCleanup()
     ]),
                                         apply_recursively=False,
                                         walk_reverse=True)
