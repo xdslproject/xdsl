@@ -19,10 +19,10 @@ def test_llvm_pointer_ops():
     module.verify()
 
     assert len(alloc_ptr.res.uses) == 1
-    assert ptr.input is idx.result
-    assert isinstance(ptr.output.typ, llvm.LLVMPointerType)
-    assert ptr.output.typ.type == builtin.i32
-    assert isinstance(ptr.output.typ.addr_space, builtin.NoneAttr)
+    assert ptr.size is idx.result
+    assert isinstance(ptr.res.typ, llvm.LLVMPointerType)
+    assert ptr.res.typ.type == builtin.i32
+    assert isinstance(ptr.res.typ.addr_space, builtin.NoneAttr)
 
     assert 'volatile_' in store.attributes
     assert 'nontemporal' in store.attributes
