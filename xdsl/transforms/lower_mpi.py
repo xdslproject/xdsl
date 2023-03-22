@@ -2,6 +2,7 @@ from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
 
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
@@ -127,31 +128,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     This object carries information about the targeted MPI libraray
     """
 
-    def __init__(self, lib_info):
-        self.info = lib_info
-        self.MPI_OP_TYPE_TO_LIB = {
-            "MPI_MAX": lib_info.MPI_MAX,
-            "MPI_MIN": lib_info.MPI_MIN,
-            "MPI_SUM": lib_info.MPI_SUM,
-            "MPI_PROD": lib_info.MPI_PROD,
-            "MPI_LAND": lib_info.MPI_LAND,
-            "MPI_BAND": lib_info.MPI_BAND,
-            "MPI_LOR": lib_info.MPI_LOR,
-            "MPI_BOR": lib_info.MPI_BOR,
-            "MPI_LXOR": lib_info.MPI_LXOR,
-            "MPI_MINLOC": lib_info.MPI_MINLOC,
-            "MPI_MAXLOC": lib_info.MPI_MAXLOC,
-            "MPI_REPLACE": lib_info.MPI_REPLACE,
-            "MPI_NO_OP": lib_info.MPI_NO_OP,
-        }
-
     # Helpers
 
     def _get_mpi_dtype_size(self, mpi_dialect_dtype: mpi.RequestType
                             | mpi.StatusType | mpi.DataType):
         """
-          This function retrieves the data size of a provided MPI type object
-          """
+        This function retrieves the data size of a provided MPI type object
+        """
         if isinstance(mpi_dialect_dtype, mpi.RequestType):
             return self.info.MPI_Request_size
         elif isinstance(mpi_dialect_dtype, mpi.StatusType):
@@ -186,7 +169,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                                                   builtin.i64),
                 res := llvm.AllocaOp.get(lit1,
                                          builtin.IntegerType(
-                                             8 * self.info.MPI_Status_size),
+                                             self.info.MPI_Status_size),
                                          as_untyped_ptr=True),
             ], [res.res], res
 
@@ -212,7 +195,8 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
 
-    def _emit_mpi_operation_load(self, op_attr: Attribute) -> Operation:
+    def _emit_mpi_operation_load(self,
+                                 op_attr: mpi.OperationType) -> Operation:
         """
         This emits an instruction loading the correct magic MPI value for the
         operation into an SSA Value.
@@ -220,13 +204,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         return arith.Constant.from_int_and_width(
             self._translate_to_mpi_op(op_attr), i32)
 
-    def _translate_to_mpi_op(self, op_attr: Attribute) -> Operation:
+    def _translate_to_mpi_op(self, op_attr: mpi.OperationType) -> int:
         """
         Translates an MPI dialect operation to the corresponding numeric value
         required by the underlying MPI library
         """
-        if op_attr.op_str.data in self.MPI_OP_TYPE_TO_LIB:
-            return self.MPI_OP_TYPE_TO_LIB[op_attr.op_str.data]
+        if hasattr(self.info, op_attr.op_str.data):
+            return getattr(self.info, op_attr.op_str.data)  # type: ignore
         else:
             raise RuntimeError("Unknown MPI operation type")
 
@@ -426,7 +410,7 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
         """
 
         # Send buffer is optional (if not provided then call using MPI_IN_PLACE)
-        has_send_buffer = len(op.operands) == 4
+        has_send_buffer = op.send_buffer is not None
 
         comm_global = arith.Constant.from_int_and_width(
             self.info.MPI_COMM_WORLD, i32)
@@ -434,14 +418,14 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
 
         operations = [comm_global, mpi_op]
 
+        send_buffer_op: SSAValue | Operation
         if has_send_buffer:
+            assert op.send_buffer is not None
             send_buffer_op = op.send_buffer
         else:
             send_buffer_op = arith.Constant.from_int_and_width(
                 self.info.MPI_IN_PLACE, i64)
-
             operations.append(send_buffer_op)
-            send_buffer = send_buffer_op.results[0]
 
         return [
             *operations,
@@ -633,9 +617,8 @@ class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
         """
         datatype_size = self._get_mpi_dtype_size(op.dtype)
         return [
-            request
-            := llvm.AllocaOp.get(op.count,
-                                 builtin.IntegerType(8 * datatype_size)),
+            request := llvm.AllocaOp.get(op.count,
+                                         builtin.IntegerType(datatype_size)),
         ], [request.results[0]]
 
 
@@ -655,6 +638,8 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         location before going back to a pointer and setting this as the result
         """
 
+        assert isa(op.result.typ, mpi.VectorWrappable)
+        assert isa(op.vect.typ, mpi.VectorType[mpi.VectorWrappable])
         datatype_size = self._get_mpi_dtype_size(op.result.typ)
 
         return [
@@ -664,7 +649,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             arith.IndexCastOp.get(idx_cast1,
                                   i64), mul := arith.Muli.get(lit1, idx_cast2),
             add := arith.Addi.get(mul, ptr_int), out_ptr :=
-            llvm.IntToPtrOp.get(add, op.vect.typ.type)
+            llvm.IntToPtrOp.get(add, op.vect.typ.wrapped_type)
         ], [out_ptr.results[0]]
 
 

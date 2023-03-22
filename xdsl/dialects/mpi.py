@@ -13,7 +13,7 @@ from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       AnyOf, OptOperand)
+                       OptOperand)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -80,8 +80,8 @@ class DataType(ParametrizedAttribute, MLIRType):
     name = 'mpi.datatype'
 
 
-_VectorWrappable = RequestType | StatusType | DataType
-_VectorT = TypeVar('_VectorT', bound=_VectorWrappable)
+VectorWrappable = RequestType | StatusType | DataType
+_VectorT = TypeVar('_VectorT', bound=VectorWrappable)
 
 
 @irdl_attr_definition
@@ -90,7 +90,7 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, MLIRType):
     This type holds multiple MPI types
     """
     name = 'mpi.vector'
-    typ: ParameterDef[_VectorT]
+    wrapped_type: ParameterDef[_VectorT]
 
     @staticmethod
     def of(typ: type[_VectorT]) -> VectorType[_VectorT]:
@@ -683,13 +683,13 @@ class AllocateTypeOp(MPIBaseOp):
     name = "mpi.allocate"
 
     bindc_name: OpAttr[StringAttr]
-    dtype: OpAttr[Attribute]
+    dtype: OpAttr[VectorWrappable]
     count: Annotated[Operand, i32]
 
     result: Annotated[OpResult, VectorType]
 
     @staticmethod
-    def get(bindc_name: StringAttr, dtype: type[_VectorWrappable],
+    def get(bindc_name: StringAttr, dtype: type[VectorWrappable],
             count: SSAValue | Operation) -> AllocateTypeOp:
         return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
                                     attributes={
@@ -710,7 +710,7 @@ class VectorGetOp(MPIBaseOp):
     vect: Annotated[Operand, VectorType]
     element: Annotated[Operand, i32]
 
-    result: Annotated[OpResult, AnyOf([RequestType, StatusType, DataType])]
+    result: Annotated[OpResult, VectorWrappable]
 
     @staticmethod
     def get(vect: SSAValue | Operation,
@@ -718,7 +718,7 @@ class VectorGetOp(MPIBaseOp):
         ssa_val = SSAValue.get(vect)
         assert isa(ssa_val.typ, VectorType[_VectorT])
 
-        return VectorGetOp.build(result_types=[ssa_val.typ.typ],
+        return VectorGetOp.build(result_types=[ssa_val.typ.wrapped_type],
                                  operands=[vect, element])
 
 
