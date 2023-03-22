@@ -1,6 +1,7 @@
 from xdsl.dialects import llvm, builtin, arith
 import pytest
 
+
 def test_llvm_pointer_ops():
     module = builtin.ModuleOp.from_region_or_ops([
         idx := arith.Constant.from_int_and_width(0, 64),
@@ -44,8 +45,8 @@ def test_llvm_pointer_type():
     assert isinstance(llvm.LLVMPointerType.opaque().type, builtin.NoneAttr)
     assert isinstance(llvm.LLVMPointerType.opaque().addr_space,
                       builtin.NoneAttr)
-    
-    
+
+
 def test_llvm_getelementptr_op_invalid_construction():
     size = arith.Constant.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp.get(size, builtin.i32)
@@ -53,7 +54,8 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that passing an opaque pointer to GEP without a pointee type fails
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(opaque_ptr, llvm.LLVMPointerType.typed(builtin.i32), [1])
+        llvm.GEPOp.get(opaque_ptr, llvm.LLVMPointerType.typed(builtin.i32),
+                       [1])
 
     # check that non-pointer arguments fail
     with pytest.raises(ValueError):
@@ -61,7 +63,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that non-pointer result types fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(ptr, builtin.i32, [1]) #type: ignore
+        llvm.GEPOp.get(ptr, builtin.i32, [1])  #type: ignore
 
 
 def test_llvm_getelementptr_op():
@@ -70,9 +72,8 @@ def test_llvm_getelementptr_op():
     ptr_typ = ptr.res.typ
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
-
     # check that construction with static-only offsets and inbounds attr works:
-    gep1 = llvm.GEPOp.get(ptr,ptr_typ, [1], inbounds=True)
+    gep1 = llvm.GEPOp.get(ptr, ptr_typ, [1], inbounds=True)
 
     assert 'inbounds' in gep1.attributes
     assert gep1.result.typ == ptr_typ
@@ -95,4 +96,3 @@ def test_llvm_getelementptr_op():
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1
-
