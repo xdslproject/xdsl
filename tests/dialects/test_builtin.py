@@ -90,8 +90,7 @@ def test_vector_rank_constraint_attr_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
-    assert e.value.args[
-        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_constraint_verify():
@@ -107,7 +106,7 @@ def test_vector_base_type_constraint_type_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(vector_type)
-    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_constraint_attr_mismatch():
@@ -116,8 +115,7 @@ def test_vector_base_type_constraint_attr_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
-    assert e.value.args[
-        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_and_rank_constraint_verify():
@@ -133,7 +131,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(vector_type)
-    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_and_rank_constraint_rank_mismatch():
@@ -150,8 +148,8 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
     error_msg = """The following constraints were not satisfied:
-!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType.
-!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."""
+memref<1x2xi32> should be of type VectorType.
+memref<1x2xi32> should be of type VectorType."""
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
