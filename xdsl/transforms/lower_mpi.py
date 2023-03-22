@@ -169,7 +169,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                                                   builtin.i64),
                 res := llvm.AllocaOp.get(lit1,
                                          builtin.IntegerType(
-                                             self.info.MPI_Status_size),
+                                             8 * self.info.MPI_Status_size),
                                          as_untyped_ptr=True),
             ], [res.res], res
 
@@ -617,8 +617,9 @@ class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
         """
         datatype_size = self._get_mpi_dtype_size(op.dtype)
         return [
-            request := llvm.AllocaOp.get(op.count,
-                                         builtin.IntegerType(datatype_size)),
+            request
+            := llvm.AllocaOp.get(op.count,
+                                 builtin.IntegerType(8 * datatype_size)),
         ], [request.results[0]]
 
 
