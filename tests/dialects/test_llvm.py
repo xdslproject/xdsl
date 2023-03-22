@@ -69,7 +69,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 def test_llvm_getelementptr_op():
     size = arith.Constant.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp.get(size, builtin.i32)
-    ptr_typ = ptr.res.typ
+    ptr_typ = llvm.LLVMPointerType.typed(ptr.res.typ)
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
