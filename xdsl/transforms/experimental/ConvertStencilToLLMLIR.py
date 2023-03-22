@@ -441,6 +441,7 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
     ])
 
 
+# TODO: We probably want to factor that in another file
 def StencilShapeInference(ctx: MLContext, module: ModuleOp):
 
     inference_pass = PatternRewriteWalker(ShapeInference,
