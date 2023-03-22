@@ -148,7 +148,7 @@ class IntToPtrOp(Operation):
 class PtrToIntOp(Operation):
     name = "llvm.ptrtoint"
 
-    arg: Annotated[Operand, LLVMPointerType]
+    input: Annotated[Operand, LLVMPointerType]
 
     output: Annotated[OpResult, IntegerType]
 
