@@ -23,6 +23,7 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
+from xdsl.dialects.experimental.math import Math
 
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU
 
@@ -191,6 +192,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Scf)
         self.ctx.register_dialect(Cf)
         self.ctx.register_dialect(CMath)
+        self.ctx.register_dialect(Math)
         self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
