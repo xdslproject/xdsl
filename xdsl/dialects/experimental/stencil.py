@@ -11,11 +11,12 @@ from xdsl.dialects.builtin import (AnyIntegerAttr, IntegerAttr,
 from xdsl.ir import Operation, Dialect, MLIRType
 from xdsl.ir import SSAValue
 
-from xdsl.irdl import (irdl_attr_definition, irdl_op_definition,
-                       ParameterDef, AttrConstraint, Attribute, Region,
-                       VerifyException, Generic, AnyOf, Annotated, Operand,
-                       OpAttr, OpResult, VarOperand, VarOpResult, OptOpAttr,
+from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
+                       AttrConstraint, Attribute, Region, VerifyException,
+                       Generic, AnyOf, Annotated, Operand, OpAttr, OpResult,
+                       VarOperand, VarOpResult, OptOpAttr,
                        AttrSizedOperandSegments, Block)
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -56,7 +57,7 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
         # cast to list
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isinstance(shape[0], IntegerAttr):
+        if isa(shape[0], list[AnyIntegerAttr]):
             # the if above is a sufficient type guard, but pyright does not understand :/
             return FieldType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
