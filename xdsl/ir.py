@@ -128,7 +128,7 @@ class SSAValue(ABC):
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -144,9 +144,19 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
-        if self._name_regex.fullmatch(name):
+    def name(self, name: str | None):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
+        else:
+            raise ValueError(
+                "Invalid SSA Value name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -174,6 +184,9 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
+        # carry over name if possible
+        if value.name is None:
+            value.name = self.name
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:

@@ -121,3 +121,16 @@ def test_parse_multi_region_xdsl():
     op = parser.parse_op()
 
     assert len(op.regions) == 2
+
+
+def test_parse_block_name():
+    block_str = """
+    ^bb0(%name: !i32, %100: !i32):
+    """
+
+    ctx = MLContext()
+    parser = XDSLParser(ctx, block_str)
+    block = parser.parse_block()
+
+    assert block.args[0].name == 'name'
+    assert block.args[1].name is None
