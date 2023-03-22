@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Any
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
@@ -12,7 +12,7 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, cf, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
 from xdsl.utils.exceptions import VerifyException
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -351,6 +351,20 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data))
 
 
+class TrivialExternalLoadOpCleanup(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
+                          /):
+        assert isinstance(op.result.typ, FieldType)
+        typ: FieldType[Any] = op.result.typ
+        op.result.typ = GetMemRefFromField(typ)
+
+        if op.field.typ == op.result.typ:
+            rewriter.replace_matched_op([], [op.field])
+        pass
+
+
 def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
 
     return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
@@ -383,7 +397,8 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
         LoadOpToMemref(),
         AccessOpToMemref(),
         ReturnOpToMemref(return_target),
-        StoreOpCleanup()
+        StoreOpCleanup(),
+        TrivialExternalLoadOpCleanup()
     ]),
                                         apply_recursively=False,
                                         walk_reverse=True)
@@ -422,7 +437,8 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
         LoadOpToMemref(),
         AccessOpToMemref(),
         ReturnOpToMemref(return_target),
-        StoreOpCleanup()
+        StoreOpCleanup(),
+        TrivialExternalLoadOpCleanup()
     ]),
                                         apply_recursively=False,
                                         walk_reverse=True)
