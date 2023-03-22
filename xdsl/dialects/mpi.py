@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import cast
+from typing import cast, TypeVar, Generic, Sequence
 
+from xdsl.utils.hints import isa
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
                                    AnyFloat, i32)
@@ -79,13 +80,21 @@ class DataType(ParametrizedAttribute, MLIRType):
     name = 'mpi.datatype'
 
 
+_VectorWrappable = RequestType | StatusType | DataType
+_VectorT = TypeVar('_VectorT', bound=_VectorWrappable)
+
+
 @irdl_attr_definition
-class VectorType(ParametrizedAttribute, MLIRType):
+class VectorType(Generic[_VectorT], ParametrizedAttribute, MLIRType):
     """
     This type holds multiple MPI types
     """
     name = 'mpi.vector'
-    typ: ParameterDef[RequestType | StatusType | DataType]
+    typ: ParameterDef[_VectorT]
+
+    @staticmethod
+    def of(typ: type[_VectorT]) -> VectorType[_VectorT]:
+        return VectorType([typ([])])
 
 
 class StatusTypeField(Enum):
@@ -197,6 +206,8 @@ class Allreduce(MPIBaseOp):
         operationtype: OperationType,
     ):
 
+        operands_to_add: Sequence[SSAValue | Operation
+                                  | Sequence[SSAValue | Operation]] = []
         if send_buffer is None:
             operands_to_add = [recv_buffer, count, datatype, []]
         else:
@@ -514,16 +525,16 @@ class WaitAll(MPIBaseOp):
 
     name = "mpi.waitall"
 
-    requests: Annotated[Operand, VectorType([RequestType()])]
+    requests: Annotated[Operand, VectorType[RequestType]]
     count: Annotated[Operand, i32]
-    statuses: Annotated[OptOpResult, VectorType([StatusType()])]
+    statuses: Annotated[OptOpResult, VectorType[StatusType]]
 
     @classmethod
     def get(cls,
             requests: Operand,
             count: Operand,
             ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType([StatusType()])]]
+        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
         if ignore_status:
             result_types = [[]]
 
@@ -678,12 +689,12 @@ class AllocateTypeOp(MPIBaseOp):
     result: Annotated[OpResult, VectorType]
 
     @staticmethod
-    def get(bindc_name: StringAttr, dtype: Attribute,
+    def get(bindc_name: StringAttr, dtype: type[_VectorWrappable],
             count: SSAValue | Operation) -> AllocateTypeOp:
-        return AllocateTypeOp.build(result_types=[VectorType([dtype])],
+        return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
                                     attributes={
                                         'bindc_name': bindc_name,
-                                        'dtype': dtype
+                                        'dtype': dtype()
                                     },
                                     operands=[count])
 
@@ -702,8 +713,11 @@ class VectorGetOp(MPIBaseOp):
     result: Annotated[OpResult, AnyOf([RequestType, StatusType, DataType])]
 
     @staticmethod
-    def get(vect: VectorType, element: SSAValue | Operation) -> AllocateTypeOp:
+    def get(vect: SSAValue | Operation,
+            element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
+        assert isa(ssa_val.typ, VectorType[_VectorT])
+
         return VectorGetOp.build(result_types=[ssa_val.typ.typ],
                                  operands=[vect, element])
 
