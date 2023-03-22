@@ -469,7 +469,7 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
         maskedstore.verify()
     assert exc_info.value.args[0] == (
         "MemRef element type should match the stored vector type. "
-        "Obtained types were !i32 and !i64.")
+        "Obtained types were i32 and i64.")
 
 
 def test_vector_masked_store_verify_indexing_exception():
