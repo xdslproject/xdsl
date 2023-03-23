@@ -1137,19 +1137,26 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     def optional_attribute_field(attribute_name: str):
 
-        @property
-        def impl(self: _OpT):
+        def field_getter(self: _OpT):
             return self.attributes.get(attribute_name, None)
 
-        return impl
+        def field_setter(self: _OpT, value: Attribute | None):
+            if value is None:
+                self.attributes.pop(attribute_name, None)
+            else:
+                self.attributes[attribute_name] = value
+
+        return property(field_getter, field_setter)
 
     def attribute_field(attribute_name: str):
 
-        @property
-        def impl(self: _OpT):
-            return self.attributes.get(attribute_name, None)
+        def field_getter(self: _OpT):
+            return self.attributes[attribute_name]
 
-        return impl
+        def field_setter(self: _OpT, value: Attribute):
+            self.attributes[attribute_name] = value
+
+        return property(field_getter, field_setter)
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
