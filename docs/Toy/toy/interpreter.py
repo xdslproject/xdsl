@@ -59,7 +59,7 @@ class ToyFunctionTable(InterpreterFunctionTable):
                  args: tuple[Any, ...]) -> tuple[Any, ...]:
         interpreter.push_scope(f'ctx_{op.sym_name.data}')
         block = op.body.blocks[0]
-        interpreter.set_values(block.args, args)
+        interpreter.set_values(zip(block.args, args))
         for body_op in block.ops:
             interpreter.run(body_op)
         assert isinstance(block.ops[-1], toy.ReturnOp)

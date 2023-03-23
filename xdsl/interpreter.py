@@ -157,17 +157,13 @@ class Interpreter:
         """
         return tuple(self._env[value] for value in values)
 
-    def set_values(self, ssa_values: Sequence[SSAValue],
-                   result_values: Sequence[Any]):
+    def set_values(self, pairs: Iterable[tuple[SSAValue, Any]]):
         """
         Set values to current scope.
         Raises InterpretationError if len(ssa_values) != len(result_values), or if
         SSA value already has a Python value in the current scope.
         """
-        self._assert(
-            len(ssa_values) == len(result_values),
-            f'{[f"{ssa_value}" for ssa_value in ssa_values]}, {result_values}')
-        for ssa_value, result_value in zip(ssa_values, result_values):
+        for ssa_value, result_value in pairs:
             self._env[ssa_value] = result_value
 
     def push_scope(self, name: str = 'unknown') -> None:
@@ -206,7 +202,9 @@ class Interpreter:
         """
         inputs = self.get_values(op.operands)
         results = self._function_table.run(self, op, inputs)
-        self.set_values(tuple(op.results), results)
+        self._assert(
+            len(op.results) == len(results), 'Incorrect number of results')
+        self.set_values(zip(op.results, results))
 
     def run_module(self):
         """
