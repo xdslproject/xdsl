@@ -125,10 +125,12 @@ class ReturnOpToMemref(RewritePattern):
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
 
-    if IndexAttr.min(cast.lb, load.lb) != cast.lb:
+    if [i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data
+        ] != [i.value.data for i in cast.lb.array.data]:
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
-            f"{load.lb}, got {cast.lb}")
+            f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
+        )
 
 
 class LoadOpToMemref(RewritePattern):
