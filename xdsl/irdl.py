@@ -331,7 +331,10 @@ class IRDLOption(ABC):
 
 @dataclass
 class AttrSizedOperandSegments(IRDLOption):
-    """Expect an attribute on the op that contains the sizes of the variadic operands."""
+    """
+    Expect an attribute on the op that contains
+    the sizes of the variadic operands.
+    """
 
     attribute_name = "operand_segment_sizes"
     """Name of the attribute containing the variadic operand sizes."""
@@ -339,10 +342,24 @@ class AttrSizedOperandSegments(IRDLOption):
 
 @dataclass
 class AttrSizedResultSegments(IRDLOption):
-    """Expect an attribute on the op that contains the sizes of the variadic results."""
+    """
+    Expect an attribute on the operation that contains
+    the sizes of the variadic results.
+    """
 
     attribute_name = "result_segment_sizes"
     """Name of the attribute containing the variadic result sizes."""
+
+
+@dataclass
+class AttrSizedRegionSegments(IRDLOption):
+    """
+    Expect an attribute on the op that contains
+    the sizes of the variadic regions.
+    """
+
+    attribute_name = "region_segment_sizes"
+    """Name of the attribute containing the variadic region sizes."""
 
 
 @dataclass
@@ -726,14 +743,14 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct
-) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
+) -> AttrSizedOperandSegments | AttrSizedResultSegments | AttrSizedRegionSegments:
     """Get the AttrSized option for this type."""
     if construct == VarIRConstruct.OPERAND:
         return AttrSizedOperandSegments()
     if construct == VarIRConstruct.RESULT:
         return AttrSizedResultSegments()
     if construct == VarIRConstruct.REGION:
-        return None
+        return AttrSizedRegionSegments()
     assert False, "Unknown VarIRConstruct value"
 
 
@@ -805,7 +822,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
                      if isinstance(arg_def, VariadicDef)]
 
     # If the size is in the attributes, fetch it
-    if (attribute_option is not None) and (attribute_option in op_def.options):
+    if attribute_option in op_def.options:
         return get_variadic_sizes_from_attr(op, defs, construct,
                                             attribute_option.attribute_name)
 
@@ -1034,8 +1051,10 @@ def irdl_op_builder(
         VarIRConstruct.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions_arg,
-                                           op_def.regions, error_prefix)
+    built_regions, region_sizes = irdl_build_arg_list(VarIRConstruct.REGION,
+                                                      regions_arg,
+                                                      op_def.regions,
+                                                      error_prefix)
 
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
@@ -1047,14 +1066,16 @@ def irdl_op_builder(
 
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in op_def.options:
-        sizes = operand_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseArrayBase.from_list(i32, sizes)
+            DenseArrayBase.from_list(i32, operand_sizes)
 
     if AttrSizedResultSegments() in op_def.options:
-        sizes = result_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseArrayBase.from_list(i32, sizes)
+            DenseArrayBase.from_list(i32, result_sizes)
+
+    if AttrSizedRegionSegments() in op_def.options:
+        built_attributes[AttrSizedRegionSegments.attribute_name] =\
+            DenseArrayBase.from_list(i32, region_sizes)
 
     return cls.create(operands=built_operands,
                       result_types=built_res_types,
@@ -1082,12 +1103,8 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
-    if previous_variadics > 1 and (arg_size_option is None
-                                   or arg_size_option not in op_def.options):
-        if arg_size_option is None:
-            arg_size_option_name = 'unknown'
-        else:
-            arg_size_option_name = arg_size_option.__name__  # type: ignore
+    if previous_variadics > 1 and (arg_size_option not in op_def.options):
+        arg_size_option_name = type(arg_size_option).__name__  # type: ignore
         raise Exception(
             "Operation defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
