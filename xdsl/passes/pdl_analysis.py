@@ -295,6 +295,8 @@ class PDLAnalysis:
                         debug(f"Out of scope operand: {operand}")
 
                     if operand in root_analysis.op_results:
+                        # We could also do this by removing the root op from scope
+                        # but this way we can provide a better error message
                         self._add_analysis_result_to_op(
                             rhs_op, "root_op_used_in_rhs")
                         debug(f"Root op result used in rhs by: {rhs_op}")
