@@ -72,15 +72,21 @@ class StoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
 
+        rewriter.erase_matched_op()
+        pass
+
+
+class StoreOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+
         owner = op.temp.owner
 
         assert isinstance(owner, ApplyOp | LoadOp)
 
         owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
         owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
-
-        rewriter.erase_matched_op()
-        pass
 
 
 @dataclass
@@ -117,6 +123,14 @@ class ReturnOpToMemref(RewritePattern):
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
 
 
+def verify_load_bounds(cast: CastOp, load: LoadOp):
+
+    if IndexAttr.min(cast.lb, load.lb) != cast.lb:
+        raise VerifyException(
+            "The stencil computation requires a field with lower bound at least "
+            f"{load.lb}, got {cast.lb}")
+
+
 class LoadOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -124,31 +138,22 @@ class LoadOpToMemref(RewritePattern):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
 
-        if IndexAttr.min(cast.lb, op.lb) != cast.lb:
-            raise VerifyException(
-                "The stencil computation requires a field with lower bound at least "
-                f"{op.lb}, got {cast.lb}")
+        verify_load_bounds(cast, op)
 
         rewriter.replace_matched_op([], list(cast.results))
 
 
+class LoadOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        cast = op.field.owner
+        assert isinstance(cast, CastOp)
+
+        verify_load_bounds(cast, op)
+
+
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
-
-    def access_shape_infer_walk(access: Operation) -> None:
-        assert (op.lb is not None) and (op.ub is not None)
-        if not isinstance(access, AccessOp):
-            return
-        assert isinstance(access.temp, BlockArgument)
-        temp_owner = op.args[access.temp.index].owner
-
-        assert isinstance(temp_owner, LoadOp | ApplyOp)
-
-        temp_owner.attributes['lb'] = IndexAttr.min(op.lb + access.offset,
-                                                    temp_owner.lb)
-        temp_owner.attributes['ub'] = IndexAttr.max(op.ub + access.offset,
-                                                    temp_owner.ub)
-
-    op.walk(access_shape_infer_walk)
 
     assert (op.lb is not None) and (op.ub is not None)
 
@@ -169,6 +174,28 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
         rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
     return rewriter.move_region_contents_to_new_regions(op.region)
+
+
+class ApplyOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+
+        def access_shape_infer_walk(access: Operation) -> None:
+            assert (op.lb is not None) and (op.ub is not None)
+            if not isinstance(access, AccessOp):
+                return
+            assert isinstance(access.temp, BlockArgument)
+            temp_owner = op.args[access.temp.index].owner
+
+            assert isinstance(temp_owner, LoadOp | ApplyOp)
+
+            temp_owner.attributes['lb'] = IndexAttr.min(
+                op.lb + access.offset, temp_owner.lb)
+            temp_owner.attributes['ub'] = IndexAttr.max(
+                op.ub + access.offset, temp_owner.ub)
+
+        op.walk(access_shape_infer_walk)
 
 
 class ApplyOpToLaunch(RewritePattern):
@@ -365,9 +392,9 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
         pass
 
 
-def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
+def return_target_analysis(module: ModuleOp):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+    return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
 
     def map_returns(op: Operation) -> None:
         if not isinstance(op, ReturnOp):
@@ -386,20 +413,50 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
         cast = store.field.owner
         assert isinstance(cast, CastOp)
 
-        return_target[op] = cast
+        return_targets[op] = cast
 
     module.walk(map_returns)
 
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
-        ApplyOpToLaunch(),
+    return return_targets
+
+
+ShapeInference = GreedyRewritePatternApplier([
+    ApplyOpShapeInference(),
+    LoadOpShapeInference(),
+    StoreOpShapeInference(),
+])
+
+
+def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
+                      gpu: bool):
+    return GreedyRewritePatternApplier([
+        ApplyOpToLaunch() if gpu else ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
-        CastOpToMemref(return_target, gpu=True),
+        CastOpToMemref(return_targets, gpu),
         LoadOpToMemref(),
         AccessOpToMemref(),
-        ReturnOpToMemref(return_target),
+        ReturnOpToMemref(return_targets),
         StoreOpCleanup(),
         TrivialExternalLoadOpCleanup()
-    ]),
+    ])
+
+
+# TODO: We probably want to factor that in another file
+def StencilShapeInference(ctx: MLContext, module: ModuleOp):
+
+    inference_pass = PatternRewriteWalker(ShapeInference,
+                                          apply_recursively=False,
+                                          walk_reverse=True)
+
+    inference_pass.rewrite_module(module)
+
+
+def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
+
+    return_targets = return_target_analysis(module)
+
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+        [StencilConversion(return_targets, gpu=True)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
@@ -407,39 +464,10 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+    return_targets = return_target_analysis(module)
 
-    def map_returns(op: Operation) -> None:
-        if not isinstance(op, ReturnOp):
-            return
-
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
-
-        res = list(apply.res)[0]
-
-        if (len(res.uses) > 1) or (not isinstance(
-            (store := list(res.uses)[0].operation), StoreOp)):
-            warn("Only single store result atm")
-            return
-
-        cast = store.field.owner
-        assert isinstance(cast, CastOp)
-
-        return_target[op] = cast
-
-    module.walk(map_returns)
-
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
-        ApplyOpToParallel(),
-        StencilTypeConversionFuncOp(),
-        CastOpToMemref(return_target),
-        LoadOpToMemref(),
-        AccessOpToMemref(),
-        ReturnOpToMemref(return_target),
-        StoreOpCleanup(),
-        TrivialExternalLoadOpCleanup()
-    ]),
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+        [StencilConversion(return_targets, gpu=False)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
