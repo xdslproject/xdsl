@@ -136,7 +136,7 @@ class IndexAttr(ParametrizedAttribute):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
-    array: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    array: ParameterDef[ArrayAttr[IntegerAttr[IntegerType]]]
 
     def verify(self) -> None:
         if len(self.array.data) < 1 or len(self.array.data) > 3:
