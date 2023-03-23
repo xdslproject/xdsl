@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import f64, ModuleOp
 from xdsl.interpreter import Interpreter
 
 from .. import dialect as td
-from ..interpreter import Tensor, toy_ft
+from ..interpreter import Tensor, ToyFunctionTable
 
 
 def test_tensor_printing():
@@ -21,7 +21,7 @@ def test_interpreter():
     module_op = build_module()
     stream = StringIO()
     interpreter = Interpreter(module_op, file=stream)
-    interpreter.register_functions(toy_ft)
+    interpreter.register_functions(ToyFunctionTable())
     interpreter.run_module()
     assert '[[1.0, 9.0], [25.0, 4.0], [16.0, 36.0]]\n' == stream.getvalue()
 

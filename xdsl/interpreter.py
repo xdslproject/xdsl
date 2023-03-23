@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, Callable, Generator, Iterable, Sequence, TypeAlias
+from typing import (IO, Any, Callable, Generator, Iterable, Sequence,
+                    TypeAlias, TypeVar, ParamSpec)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -10,55 +11,83 @@ from xdsl.utils.exceptions import InterpretationError
 
 @dataclass
 class InterpreterFunctionTable:
-    _impl_by_op_type: dict[type[Operation],
-                           OpImpl[Operation]] = field(default_factory=dict)
 
-    def register_op(self, op_type: type[OperationInvT],
-                    func: OpImpl[OperationInvT]):
-        """
-        Registers a Python function to run for a given Operation type.
-        If the type already exists, will raise a ValueError.
-        """
-        if op_type in self._impl_by_op_type:
-            raise ValueError(
-                f"Registering func for Operation type {op_type}, already registered. "
-                "Pass `override=True` if you would like to override the existing definition."
-            )
-        self._impl_by_op_type[op_type] = func  # type: ignore
+    @classmethod
+    def impls(
+        cls
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctionTable,
+                                                Operation]]]:
+        ...
 
-    def __contains__(self, op_type: type[Operation]) -> bool:
-        return op_type in self._impl_by_op_type
 
-    def register(
-        self,
-        op_type: type[OperationInvT],
-        /,
-        override: bool = False
-    ) -> Callable[[OpImpl[OperationInvT]], OpImpl[OperationInvT]]:
-        """
-        Registers a Python function to run for a given Operation type.
-        If the type already exists, will raise a ValueError.
-        """
+_FT = TypeVar('_FT', bound=InterpreterFunctionTable)
 
-        def wrapper(func: OpImpl[OperationInvT]):
-            self.register_op(op_type, func)
-            return func
+_IMPL_OP_TYPE = '__impl_op_type'
+_IMPL_DICT = '__impl_dict'
 
-        return wrapper
+P = ParamSpec('P')
 
-    def run(self, interpreter: Interpreter, op: Operation,
-            args: tuple[Any, ...]) -> tuple[Any, ...]:
-        return self._impl_by_op_type[type(op)](interpreter, op, args)
+
+def impl(
+    op_type: type[OperationInvT]
+) -> Callable[[OpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
+
+    def annot(func: OpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
+        setattr(func, _IMPL_OP_TYPE, op_type)
+        return func
+
+    return annot
+
+
+def function_table(ft: type[_FT]) -> type[_FT]:
+    impl_dict: _ImplDict = {}
+    for cls in ft.mro():
+        # Iterate from subclass through superclasses
+        # Assign definitions, unless they've been redefined in a subclass
+        for val in cls.__dict__.values():
+            if _IMPL_OP_TYPE in val.__dir__():
+                # This is an annotated function
+                op_type = getattr(val, _IMPL_OP_TYPE)
+                if op_type not in impl_dict:
+                    # subclass overrides superclass definition
+                    impl_dict[op_type] = val  # type: ignore
+    setattr(ft, _IMPL_DICT, impl_dict)
+
+    @classmethod
+    def impls(
+        cls: type[_FT]
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctionTable,
+                                                Operation]]]:
+        return impl_dict.items()
+
+    setattr(ft, 'impls', impls)
+    return ft
 
 
 @dataclass
 class CompoundInterpretationFunctionTable(InterpreterFunctionTable):
 
-    def register_from(self, other: InterpreterFunctionTable, /,
-                      override: bool):
-        """Register each operation in other, one by one."""
-        for op_type, func in other._impl_by_op_type.items():
-            self.register_op(op_type, func)
+    _impl_dict: dict[type[Operation],
+                     tuple[InterpreterFunctionTable,
+                           OpImpl[InterpreterFunctionTable,
+                                  Operation]]] = field(default_factory=dict)
+
+    def register_from(self, ft: InterpreterFunctionTable, /, override: bool):
+        for op_type, impl in ft.impls():
+            if op_type in self._impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for op of type "
+                    f"{op_type}, but type already registered")
+
+            self._impl_dict[op_type] = (ft, impl)
+
+    def run(self, interpreter: Interpreter, op: Operation,
+            args: tuple[Any, ...]) -> tuple[Any, ...]:
+        if type(op) not in self._impl_dict:
+            raise InterpretationError(
+                f'Could not find interpretation function for op {op.name}')
+        ft, impl = self._impl_dict[type(op)]
+        return impl(ft, interpreter, op, args)
 
 
 @dataclass
@@ -175,11 +204,6 @@ class Interpreter:
         associated with the SSA operands, and assigns the results to the operation's
         results.
         """
-        op_type = type(op)
-        if op_type not in self._function_table:
-            raise InterpretationError(
-                f'Could not find interpretation function for op {op.name}')
-
         inputs = self.get_values(op.operands)
         results = self._function_table.run(self, op, inputs)
         self.set_values(tuple(op.results), results)
@@ -201,5 +225,8 @@ class Interpreter:
                 f'AssertionError: ({self._env})({message})')
 
 
-OpImpl: TypeAlias = Callable[[Interpreter, OperationInvT, tuple[Any, ...]],
-                             tuple[Any, ...]]
+OpImpl: TypeAlias = Callable[
+    [_FT, Interpreter, OperationInvT, tuple[Any, ...]], tuple[Any, ...]]
+
+_ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctionTable,
+                                                    Operation]]
