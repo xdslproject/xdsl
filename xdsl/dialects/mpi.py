@@ -123,9 +123,8 @@ class Reduce(MPIBaseOp):
     operationtype: OpAttr[OperationType]
     root: Annotated[Operand, i32]
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         send_buffer: SSAValue | Operation,
         recv_buffer: SSAValue | Operation,
         count: SSAValue | Operation,
@@ -133,7 +132,7 @@ class Reduce(MPIBaseOp):
         operationtype: OperationType,
         root: SSAValue | Operation,
     ):
-        return cls.build(
+        return Reduce.build(
             operands=[send_buffer, recv_buffer, count, datatype, root],
             attributes={"operationtype": operationtype},
             result_types=[],
@@ -167,9 +166,8 @@ class Allreduce(MPIBaseOp):
     send_buffer: Annotated[OptOperand, Attribute]
     operationtype: OpAttr[OperationType]
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         send_buffer: SSAValue | Operation | None,
         recv_buffer: SSAValue | Operation,
         count: SSAValue | Operation,
@@ -184,7 +182,7 @@ class Allreduce(MPIBaseOp):
         else:
             operands_to_add = [recv_buffer, count, datatype, [send_buffer]]
 
-        return cls.build(
+        return Allreduce.build(
             operands=operands_to_add,
             attributes={"operationtype": operationtype},
             result_types=[],
@@ -264,16 +262,15 @@ class ISend(MPIBaseOp):
 
     request: Annotated[OpResult, RequestType]
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         buffer: SSAValue | Operation,
         count: SSAValue | Operation,
         datatype: SSAValue | Operation,
         dest: SSAValue | Operation,
         tag: SSAValue | Operation,
     ):
-        return cls.build(
+        return ISend.build(
             operands=[buffer, count, datatype, dest, tag],
             result_types=[RequestType()],
         )
@@ -311,12 +308,12 @@ class Send(MPIBaseOp):
     dest: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
 
-    @classmethod
-    def get(cls, buffer: SSAValue | Operation, count: SSAValue | Operation,
+    @staticmethod
+    def get(buffer: SSAValue | Operation, count: SSAValue | Operation,
             datatype: SSAValue | Operation, dest: SSAValue | Operation,
             tag: SSAValue | Operation) -> Send:
-        return cls.build(operands=[buffer, count, datatype, dest, tag],
-                         result_types=[])
+        return Send.build(operands=[buffer, count, datatype, dest, tag],
+                          result_types=[])
 
 
 @irdl_op_definition
@@ -354,16 +351,15 @@ class IRecv(MPIBaseOp):
 
     request: Annotated[OpResult, RequestType]
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         buffer: SSAValue | Operation,
         count: SSAValue | Operation,
         datatype: SSAValue | Operation,
         source: SSAValue | Operation,
         tag: SSAValue | Operation,
     ):
-        return cls.build(
+        return IRecv.build(
             operands=[buffer, count, datatype, source, tag],
             result_types=[RequestType()],
         )
@@ -404,15 +400,14 @@ class Recv(MPIBaseOp):
 
     status: Annotated[OptOpResult, StatusType]
 
-    @classmethod
-    def get(cls,
-            buffer: SSAValue | Operation,
+    @staticmethod
+    def get(buffer: SSAValue | Operation,
             count: SSAValue | Operation,
             datatype: SSAValue | Operation,
             source: SSAValue | Operation,
             tag: SSAValue | Operation,
             ignore_status: bool = True):
-        return cls.build(
+        return Recv.build(
             operands=[buffer, count, datatype, source, tag],
             result_types=[[]] if ignore_status else [[StatusType()]])
 
@@ -439,10 +434,10 @@ class Test(MPIBaseOp):
     flag: Annotated[OpResult, t_bool]
     status: Annotated[OpResult, StatusType]
 
-    @classmethod
-    def get(cls, request: Operand):
-        return cls.build(operands=[request],
-                         result_types=[t_bool, StatusType()])
+    @staticmethod
+    def get(request: Operand):
+        return Test.build(operands=[request],
+                          result_types=[t_bool, StatusType()])
 
 
 @irdl_op_definition
@@ -464,13 +459,13 @@ class Wait(MPIBaseOp):
     request: Annotated[Operand, RequestType]
     status: Annotated[OptOpResult, StatusType]
 
-    @classmethod
-    def get(cls, request: Operand, ignore_status: bool = True):
+    @staticmethod
+    def get(request: Operand, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[StatusType()]]
         if ignore_status:
             result_types = [[]]
 
-        return cls.build(operands=[request], result_types=result_types)
+        return Wait.build(operands=[request], result_types=result_types)
 
 
 @irdl_op_definition
@@ -493,11 +488,12 @@ class GetStatusField(MPIBaseOp):
 
     result: Annotated[OpResult, i32]
 
-    @classmethod
-    def get(cls, status_obj: Operand, field: StatusTypeField):
-        return cls.build(operands=[status_obj],
-                         attributes={'field': StringAttr(field.value)},
-                         result_types=[i32])
+    @staticmethod
+    def get(status_obj: Operand, field: StatusTypeField):
+        return GetStatusField.build(
+            operands=[status_obj],
+            attributes={'field': StringAttr(field.value)},
+            result_types=[i32])
 
 
 @irdl_op_definition
@@ -511,9 +507,9 @@ class CommRank(MPIBaseOp):
 
     rank: Annotated[OpResult, i32]
 
-    @classmethod
-    def get(cls):
-        return cls.build(result_types=[i32])
+    @staticmethod
+    def get():
+        return CommRank.build(result_types=[i32])
 
 
 @irdl_op_definition
@@ -527,9 +523,9 @@ class CommSize(MPIBaseOp):
 
     size: Annotated[OpResult, i32]
 
-    @classmethod
-    def get(cls):
-        return cls.build(result_types=[i32])
+    @staticmethod
+    def get():
+        return CommSize.build(result_types=[i32])
 
 
 @irdl_op_definition
