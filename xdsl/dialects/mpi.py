@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import cast
+from typing import cast, Sequence
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
@@ -11,11 +11,43 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OpAttr, OptOpResult)
+                       irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
+                       OptOperand)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
 AnyNumericType = AnyFloat | IntegerType
+
+
+@irdl_attr_definition
+class OperationType(ParametrizedAttribute, MLIRType):
+    """
+    This type represents the MPI_Op type.
+    They are used by the reduction MPI functions
+    """
+    name = 'mpi.operation'
+
+    op_str: ParameterDef[StringAttr]
+
+
+class MpiOp:
+    """
+    A collection of MPI_Op types used for
+    """
+    MPI_MAX = OperationType([StringAttr("MPI_MAX")])
+    MPI_MIN = OperationType([StringAttr("MPI_MIN")])
+    MPI_SUM = OperationType([StringAttr("MPI_SUM")])
+    MPI_PROD = OperationType([StringAttr("MPI_PROD")])
+    MPI_LAND = OperationType([StringAttr("MPI_LAND")])
+    MPI_BAND = OperationType([StringAttr("MPI_BAND")])
+    MPI_LOR = OperationType([StringAttr("MPI_LOR")])
+    MPI_BOR = OperationType([StringAttr("MPI_BOR")])
+    MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
+    MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
+    MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
+    MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
+    MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
+    MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
 
 
 @irdl_attr_definition
@@ -60,6 +92,142 @@ class MPIBaseOp(Operation, ABC):
     Base class for MPI Operations
     """
     pass
+
+
+@irdl_op_definition
+class Reduce(MPIBaseOp):
+    """
+    This wraps the MPI_Reduce function (blocking reduction)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
+    ## The MPI_Reduce Function Docs:
+    int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
+               MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+        sendbuf: address of send buffer (choice)
+        recvbuf: address of receive buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        op: reduce operation (handle)
+        root: rank of root process (integer)
+        comm: communicator (handle)
+    ## Our Abstraction:
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.reduce"
+
+    send_buffer: Annotated[Operand, Attribute]
+    recv_buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    operationtype: OpAttr[OperationType]
+    root: Annotated[Operand, i32]
+
+    @classmethod
+    def get(
+        cls,
+        send_buffer: SSAValue | Operation,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+        root: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[send_buffer, recv_buffer, count, datatype, root],
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+
+@irdl_op_definition
+class Allreduce(MPIBaseOp):
+    """
+    This wraps the MPI_Allreduce function (blocking all reduction)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
+    ## The MPI_Allreduce Function Docs:
+    int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
+                  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+        sendbuf: address of send buffer (choice)
+        recvbuf: address of receive buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        op: reduce operation (handle)
+        comm: communicator (handle)
+    ## Our Abstraction:
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.allreduce"
+
+    recv_buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    send_buffer: Annotated[OptOperand, Attribute]
+    operationtype: OpAttr[OperationType]
+
+    @classmethod
+    def get(
+        cls,
+        send_buffer: SSAValue | Operation | None,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+    ):
+
+        operands_to_add: Sequence[SSAValue | Operation
+                                  | Sequence[SSAValue | Operation]] = []
+        if send_buffer is None:
+            operands_to_add = [recv_buffer, count, datatype, []]
+        else:
+            operands_to_add = [recv_buffer, count, datatype, [send_buffer]]
+
+        return cls.build(
+            operands=operands_to_add,
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+
+@irdl_op_definition
+class Bcast(MPIBaseOp):
+    """
+    This wraps the MPI_Bcast function (blocking broadcast)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
+    ## The MPI_Bcast Function Docs:
+    int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
+              MPI_Comm comm)
+        buffer: starting address of buffer (choice)
+        count: number of elements in send buffer (non-negative integer)
+        datatype: data type of elements of send buffer (handle)
+        root: rank of broadcast root (integer)
+        comm: communicator (handle)
+    ## Our Abstraction:
+        - We omit the possibility of using multiple communicators, defaulting
+          to MPI_COMM_WORLD
+    """
+
+    name = "mpi.bcast"
+
+    buffer: Annotated[Operand, Attribute]
+    count: Annotated[Operand, i32]
+    datatype: Annotated[Operand, DataType]
+    root: Annotated[Operand, i32]
+
+    @classmethod
+    def get(
+        cls,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        root: SSAValue | Operation,
+    ):
+        return cls.build(
+            operands=[buffer, count, datatype, root],
+            result_types=[],
+        )
 
 
 @irdl_op_definition
@@ -439,6 +607,9 @@ MPI = Dialect([
     Test,
     Recv,
     Send,
+    Reduce,
+    Allreduce,
+    Bcast,
     Wait,
     GetStatusField,
     Init,
@@ -447,6 +618,7 @@ MPI = Dialect([
     UnwrapMemrefOp,
     GetDtypeOp,
 ], [
+    OperationType,
     RequestType,
     StatusType,
     DataType,
