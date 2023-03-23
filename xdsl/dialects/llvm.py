@@ -110,15 +110,10 @@ class GEPOp(Operation):
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
-
     ssa_indices: Annotated[VarOperand, IntegerType]
-
     elem_type: OptOpAttr[Attribute]
-
     rawConstantIndices: OpAttr[DenseArrayBase]
-
     inbounds: OptOpAttr[UnitAttr]
-
     result: Annotated[OpResult, LLVMPointerType]
 
     @staticmethod
