@@ -280,7 +280,7 @@ func.func() ["function_type" = !fun<[!f32], [!f64]>, "sym_name" = "extfop"] {
 
 func.func() ["function_type" = !fun<[!f64], [!f32]>, "sym_name" = "truncfop"] {
 ^12(%36 : !f64):
-  %38 : !f32 = arith.extfop(%36 : !f64)
+  %38 : !f32 = arith.truncfop(%36 : !f64)
   func.return(%38 : !f32)
 }
 
