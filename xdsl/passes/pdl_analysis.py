@@ -164,6 +164,8 @@ class PDLAnalysis:
         # Gather information about the matching part pattern
         self._trace_matching_op(self.root_op)
         self.visited_ops.add(self.rewrite_op)
+
+        # TODO: handle pdl.ResultOp at the end of the LHS
         # Check whether all ops in the pattern are reachable
         if len(pattern_op.body.ops) != len(self.visited_ops):
             if enable_prints:
@@ -181,8 +183,7 @@ class PDLAnalysis:
         # Gather information about the rhs of the pattern
         self._analyze_pdl_rewrite_op(self.rewrite_op)
 
-    def get_analysis_for_pdl_op(
-            self, op: pdl.OperationOp) -> AnalyzedPDLOperation | None:
+    def get_analysis(self, op: pdl.OperationOp) -> AnalyzedPDLOperation | None:
         """
         If `op` is already part of the analysis, return the corresponding
         AnalyzedPDLOperation that contains the analysis information.
@@ -219,8 +220,7 @@ class PDLAnalysis:
                             pdl.OperationOp):
                         if (
                                 possible_new_terminator_analysis :=
-                                self.get_analysis_for_pdl_op(
-                                    possible_new_terminator)
+                                self.get_analysis(possible_new_terminator)
                         ) and possible_new_terminator_analysis.is_terminator:
                             continue
 
@@ -285,26 +285,64 @@ class PDLAnalysis:
                 current_scope.remove_val(erased_op)
             if isinstance(rhs_op, pdl.OperationOp):
                 # check whether operands are in scope
+                if not (root_analysis := self.get_analysis(self.root_op)):
+                    raise Exception(
+                        "Root op not analyzed, inconsistent analysis state!")
                 for operand in rhs_op.operandValues:
                     if not current_scope.is_in_scope(operand):
                         self._add_analysis_result_to_op(
                             rhs_op, "out_of_scope_operand")
                         debug(f"Out of scope operand: {operand}")
+
+                    if operand in root_analysis.op_results:
+                        self._add_analysis_result_to_op(
+                            rhs_op, "root_op_used_in_rhs")
+                        debug(f"Root op result used in rhs by: {rhs_op}")
+
                 # add the op to the scope
-                analyzed_rhs_op = self.get_analysis_for_pdl_op(rhs_op)
+                analyzed_rhs_op = self.get_analysis(rhs_op)
                 assert analyzed_rhs_op
                 current_scope.add_vals_defined_by(analyzed_rhs_op)
-            # if isinstance(rhs_op, pdl.ResultOp):
+                current_scope.add_val_and_owner(rhs_op.op, analyzed_rhs_op)
+            if isinstance(rhs_op, pdl.ResultOp):
+                if not current_scope.is_in_scope(rhs_op.parent_):
+                    self._add_analysis_result_to_op(rhs_op, "val_out_of_scope")
+                    debug(f"Out of scope val in pdl.ResultOp: {rhs_op}")
 
-            # if isinstance(rhs_op, pdl.ReplaceOp):
-            #     # check whether operands are in scope
-            #     for operand in rhs_op.opValue.operandValues:
-            #         if not current_scope.is_in_scope(operand):
-            #             self._add_analysis_result_to_op(
-            #                 rhs_op, "out_of_scope_operand")
-            #             debug(f"Out of scope operand: {operand}")
-            #     # add the op to the scope
-            #     current_scope.add_vals_defined_by(rhs_op.opValue)
+                if not isinstance(rhs_op.parent_, OpResult) or not isinstance(
+                        rhs_op.parent_.op, pdl.OperationOp):
+                    raise Exception(
+                        "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
+                    )
+
+                if (op_analysis := self.get_analysis(rhs_op.parent_.op)):
+                    op_analysis.op_results.append(rhs_op.val)
+                    current_scope.add_val_and_owner(rhs_op.val, op_analysis)
+
+            if isinstance((replace_op := rhs_op), pdl.ReplaceOp):
+                for val in replace_op.operands:
+                    if not current_scope.is_in_scope(val):
+                        self._add_analysis_result_to_op(
+                            replace_op, "out_of_scope_replacement")
+                        debug(f"Out of scope replacement: {val}")
+                        return
+                # TODO: Check for replacement with itself, this is not allowed
+                if replaced_op := replace_op.replOperation:
+                    if replaced_op == replace_op.opValue:
+                        self._add_analysis_result_to_op(
+                            replace_op, "replacement_with_itself")
+                        debug(f"Replacement with itself: {replace_op}")
+                        return
+                elif repl_vals := replace_op.replValues:
+                    if not isinstance(replace_op.opValue, OpResult):
+                        raise Exception(
+                            "pdl.ReplaceOp must have the result of pdl.OperationOp as operand!"
+                        )
+                    if replace_op.opValue.op.results == repl_vals:
+                        self._add_analysis_result_to_op(
+                            replace_op, "replacement_with_itself")
+                        debug(f"Replacement with itself: {replace_op}")
+                        return
 
     def _trace_match_operation_op(
             self, pdl_operation_op: pdl.OperationOp) -> AnalyzedPDLOperation:
@@ -367,7 +405,7 @@ class PDLAnalysis:
             self.visited_ops.add(pdl_op)
             analyzed_used_op = self._trace_matching_op(used_op)
             assert analyzed_used_op
-            analyzed_used_op.op_results.append(pdl_op.val)  # TODO: needed?
+            analyzed_used_op.op_results.append(pdl_op.val)
             self.matching_scope.add_val_and_owner(pdl_op.val, analyzed_used_op)
             return analyzed_used_op
         elif isinstance(pdl_op, pdl.AttributeOp):
@@ -420,13 +458,12 @@ class PDLAnalysis:
                 raise Exception("Replacement must be a single op for now!")
             assert isinstance(rhs_op.opValue, OpResult)
             assert isinstance(rhs_op.opValue.op, pdl.OperationOp)
-            if (analyzed_op := self.get_analysis_for_pdl_op(
-                    rhs_op.opValue.op)) is None:
+            if (analyzed_op := self.get_analysis(rhs_op.opValue.op)) is None:
                 raise Exception("Unknown pdl.Operation to be replaced!")
             if rhs_op.replOperation:
                 assert isinstance(rhs_op.replOperation, OpResult)
                 assert isinstance(rhs_op.replOperation.op, pdl.OperationOp)
-                if (analyzed_repl_op := self.get_analysis_for_pdl_op(
+                if (analyzed_repl_op := self.get_analysis(
                         rhs_op.replOperation.op)) is None:
                     raise Exception("Unknown pdl.Operation to be replaced!")
                 analyzed_op.replaced_by = analyzed_repl_op
@@ -435,8 +472,7 @@ class PDLAnalysis:
         elif isinstance(rhs_op, pdl.EraseOp):
             assert isinstance(rhs_op.opValue, OpResult)
             assert isinstance(rhs_op.opValue.op, pdl.OperationOp)
-            if (analyzed_op := self.get_analysis_for_pdl_op(
-                    rhs_op.opValue.op)) is None:
+            if (analyzed_op := self.get_analysis(rhs_op.opValue.op)) is None:
                 raise Exception("Unknown pdl.Operation to be erased!")
             analyzed_op.erased_by = rhs_op
         else:
@@ -599,7 +635,6 @@ if __name__ == '__main__':
       %5 = "pdl.operation"(%3, %4, %0) {attributeValueNames = [], opName = "arith.addi", operand_segment_sizes = array<i32: 2, 0, 1>} : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
       "pdl.rewrite"(%5) ({
         "pdl.erase"(%2) : (!pdl.operation) -> ()
-        "pdl.erase"(%2) : (!pdl.operation) -> ()
       }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
     }) {benefit = 1 : i16, sym_name = "required"} : () -> ()
   }) {sym_name = "patterns"} : () -> ()"""
@@ -615,7 +650,50 @@ if __name__ == '__main__':
     }) {benefit = 2 : i16, sym_name = "required"} : () -> ()
     }) {sym_name = "patterns"} : () -> ()"""
 
-    parser = Parser(ctx=ctx, prog=double_erasure, source=Source.MLIR)
+    replace_out_of_scope = """
+    "builtin.module"() ({
+    "pdl.pattern"() ({
+      %0 = "pdl.type"() : () -> !pdl.type
+      %1 = "pdl.operand"() : () -> !pdl.value
+      %2 = "pdl.attribute"() : () -> !pdl.attribute
+      %3 = "pdl.operation"(%2, %0) {attributeValueNames = ["value"], opName = "custom.const", operand_segment_sizes = array<i32: 0, 1, 1>} : (!pdl.attribute, !pdl.type) -> !pdl.operation
+      %4 = "pdl.result"(%3) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
+      %5 = "pdl.operation"(%1, %4, %0) {attributeValueNames = [], opName = "custom.add", operand_segment_sizes = array<i32: 2, 0, 1>} : (!pdl.value, !pdl.value, !pdl.type) -> !pdl.operation
+      "pdl.rewrite"(%5) ({
+        "pdl.erase"(%5) : (!pdl.operation) -> ()
+        "pdl.replace"(%5, %3) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+      }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+    }) {benefit = 1 : i16, sym_name = "required"} : () -> ()
+  }) {sym_name = "patterns"} : () -> ()"""
+
+    generate_before_root_op = """
+    "builtin.module"() ({
+        "pdl.pattern"() ({
+        %0 = "pdl.type"() : () -> !pdl.type
+        %1 = "pdl.operand"() : () -> !pdl.value
+        %2 = "pdl.operation"(%1, %0) {attributeValueNames = [], opName = "custom.op", operand_segment_sizes = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
+        "pdl.rewrite"(%2) ({
+            %3 = "pdl.result"(%2) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
+            %4 = "pdl.operation"(%3, %0) {attributeValueNames = [], opName = "custom.op2", operand_segment_sizes = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
+            "pdl.replace"(%2, %4) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+        }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+        }) {benefit = 1 : i16, sym_name = "required"} : () -> ()
+    }) {sym_name = "patterns"} : () -> ()"""
+
+    self_replacement = """
+    "builtin.module"() ({
+        "pdl.pattern"() ({
+        %0 = "pdl.type"() : () -> !pdl.type
+        %1 = "pdl.operand"() : () -> !pdl.value
+        %2 = "pdl.operation"(%1, %0) {attributeValueNames = [], opName = "custom.op", operand_segment_sizes = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
+        "pdl.rewrite"(%2) ({
+            "pdl.replace"(%2, %2) {operand_segment_sizes = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+        }) {operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
+        }) {benefit = 1 : i16, sym_name = "required"} : () -> ()
+    }) {sym_name = "patterns"} : () -> ()
+    """
+
+    parser = Parser(ctx=ctx, prog=self_replacement, source=Source.MLIR)
     program = parser.parse_op()
     assert isinstance(program, ModuleOp)
     pdl_analysis_pass(ctx, program)
