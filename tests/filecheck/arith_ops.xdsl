@@ -271,20 +271,20 @@ func.func() ["function_type" = !fun<[!i32, !i32], [!i32]>, "sym_name" = "shrsi"]
 
 func.func() ["function_type" = !fun<[!f32], [!f64]>, "sym_name" = "extfop"] {
 ^12(%36 : !f32):
-  %38 : !f64 = arith.extfop(%36 : !f32)
+  %38 : !f64 = arith.extf(%36 : !f32)
   func.return(%38 : !f64)
 }
 
-// CHECK:   %{{.*}} !f64 = arith.extfop(%{{.*}} : !f32)
+// CHECK:   %{{.*}} !f64 = arith.extf(%{{.*}} : !f32)
 
 
 func.func() ["function_type" = !fun<[!f64], [!f32]>, "sym_name" = "truncfop"] {
 ^12(%36 : !f64):
-  %38 : !f32 = arith.truncfop(%36 : !f64)
+  %38 : !f32 = arith.truncf(%36 : !f64)
   func.return(%38 : !f32)
 }
 
-// CHECK:   %{{.*}} !f32 = arith.truncfop(%{{.*}} : !f64)
+// CHECK:   %{{.*}} !f32 = arith.truncf(%{{.*}} : !f64)
 
 
 // fastmath single flag set
