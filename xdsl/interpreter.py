@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import (IO, Any, Callable, Generator, Iterable, Sequence,
-                    TypeAlias, TypeVar, ParamSpec)
+from typing import (IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar,
+                    ParamSpec)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
