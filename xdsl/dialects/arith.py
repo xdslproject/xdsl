@@ -779,7 +779,7 @@ Arith = Dialect([
         FPToSIOp,
         SIToFPOp,
         ExtFOp,
-        TruncFOp
+        TruncFOp,
 ], [
         FastMathFlagsAttr,
 ])
