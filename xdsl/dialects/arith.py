@@ -643,7 +643,7 @@ class SIToFPOp(Operation):
 
 @irdl_op_definition
 class ExtFOp(Operation):
-    name = "arith.extfop"
+    name = "arith.extf"
 
     input: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -658,7 +658,7 @@ class ExtFOp(Operation):
 
 @irdl_op_definition
 class TruncFOp(Operation):
-    name = "arith.truncfop"
+    name = "arith.truncf"
 
     input: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
