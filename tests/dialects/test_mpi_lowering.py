@@ -238,6 +238,90 @@ def test_lower_mpi_irecv():
     )
 
 
+def test_lower_mpi_reduce():
+    ptr, count, dtype, root = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32).results
+    """
+    int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
+               MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+    """
+
+    ops, result = lower_mpi.LowerMpiReduce(info).lower(
+        mpi.Reduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root))
+
+    # reduce has no results
+    assert len(result) == 0
+
+    check_emitted_function_signature(
+        ops,
+        'MPI_Reduce',
+        (
+            llvm.LLVMPointerType,
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            None,
+            type(i32),
+            None,
+        ),
+    )
+
+
+def test_lower_mpi_all_reduce():
+    ptr, count, dtype = CreateTestValsOp.get(llvm.LLVMPointerType.opaque(),
+                                             i32, mpi.DataType()).results
+    """
+    int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
+                  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+    """
+
+    ops, result = lower_mpi.LowerMpiAllreduce(info).lower(
+        mpi.Allreduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM))
+
+    # allreduce has no results
+    assert len(result) == 0
+
+    check_emitted_function_signature(
+        ops,
+        'MPI_Allreduce',
+        (
+            llvm.LLVMPointerType,
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            None,
+            None,
+        ),
+    )
+
+
+def test_lower_mpi_bcast():
+    ptr, count, dtype, root = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32).results
+    """
+    int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
+              MPI_Comm comm)
+    """
+
+    ops, result = lower_mpi.LowerMpiBcast(info).lower(
+        mpi.Bcast.get(ptr, count, dtype, root))
+
+    # bcast has no results
+    assert len(result) == 0
+
+    check_emitted_function_signature(
+        ops,
+        'MPI_Bcast',
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            None,
+        ),
+    )
+
+
 def test_mpi_type_conversion():
     """
     Test that each builtin datatype is correctly mapped to an MPI datatype

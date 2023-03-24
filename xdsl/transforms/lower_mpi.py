@@ -2,7 +2,7 @@ from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import Signedness, IntegerType, i32
+from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
 
@@ -85,6 +85,9 @@ class MpiLibraryInfo:
     MPI_Status_field_MPI_TAG: int = 12  # offset of field MPI_TAG in struct MPI_Status
     MPI_Status_field_MPI_ERROR: int = 16  # offset of field MPI_ERROR in struct MPI_Status
 
+    # In place MPI All reduce
+    MPI_IN_PLACE: int = -1
+
 
 _RewriteT = TypeVar('_RewriteT', bound=mpi.MPIBaseOp)
 
@@ -109,7 +112,10 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         'mpi.comm.rank': 'MPI_Comm_rank',
         'mpi.comm.size': 'MPI_Comm_size',
         'mpi.recv': 'MPI_Recv',
-        'mpi.send': 'MPI_Send'
+        'mpi.send': 'MPI_Send',
+        "mpi.reduce": 'MPI_Reduce',
+        "mpi.allreduce": 'MPI_Allreduce',
+        "mpi.bcast": 'MPI_Bcast',
     }
     """
     Translation table for mpi operation names to their MPI library function names
@@ -121,6 +127,21 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
     """
 
     # Helpers
+    def _get_mpi_dtype_size(self, mpi_dialect_dtype: mpi.RequestType
+                            | mpi.StatusType | mpi.DataType):
+        """
+        This function retrieves the data size of a provided MPI type object
+        """
+        if isinstance(mpi_dialect_dtype, mpi.RequestType):
+            return self.info.MPI_Request_size
+        elif isinstance(mpi_dialect_dtype, mpi.StatusType):
+            return self.info.MPI_Status_size
+        elif isinstance(mpi_dialect_dtype, mpi.DataType):
+            return self.info.MPI_Datatype_size
+        else:
+            raise ValueError(
+                "MPI internal type size lookup: Unsupported type: {}".format(
+                    mpi_dialect_dtype))
 
     def _emit_mpi_status_obj(
         self, mpi_status_none: bool
@@ -168,6 +189,25 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
+
+    def _emit_mpi_operation_load(self,
+                                 op_attr: mpi.OperationType) -> Operation:
+        """
+        This emits an instruction loading the correct magic MPI value for the
+        operation into an SSA Value.
+        """
+        return arith.Constant.from_int_and_width(
+            self._translate_to_mpi_op(op_attr), i32)
+
+    def _translate_to_mpi_op(self, op_attr: mpi.OperationType) -> int:
+        """
+        Translates an MPI dialect operation to the corresponding numeric value
+        required by the underlying MPI library
+        """
+        if hasattr(self.info, op_attr.op_str.data):
+            return getattr(self.info, op_attr.op_str.data)  # type: ignore
+        else:
+            raise RuntimeError("Unknown MPI operation type")
 
     def _emit_mpi_type_load(self, type_attr: Attribute) -> Operation:
         """
@@ -304,6 +344,91 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
             *ops,
             func.Call.get(self._mpi_name(op), [op.request, res], [i32]),
         ], new_results
+
+
+class LowerMpiReduce(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Reduce, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: mpi.Reduce) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Reduce operation
+        """
+
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
+            mpi_op := self._emit_mpi_operation_load(op.operationtype),
+            func.Call.get(self._mpi_name(op), [
+                op.send_buffer, op.recv_buffer, op.count, op.datatype, mpi_op,
+                op.root, comm_global
+            ], []),
+        ], []
+
+
+class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Allreduce, rewriter: PatternRewriter,
+                          /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+            self, op: mpi.Allreduce
+    ) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Allreduce operation
+        """
+
+        # Send buffer is optional (if not provided then call using MPI_IN_PLACE)
+        has_send_buffer = op.send_buffer is not None
+
+        comm_global = arith.Constant.from_int_and_width(
+            self.info.MPI_COMM_WORLD, i32)
+        mpi_op = self._emit_mpi_operation_load(op.operationtype)
+
+        operations = [comm_global, mpi_op]
+
+        send_buffer_op: SSAValue | Operation
+        if has_send_buffer:
+            assert op.send_buffer is not None
+            send_buffer_op = op.send_buffer
+        else:
+            send_buffer_op = arith.Constant.from_int_and_width(
+                self.info.MPI_IN_PLACE, i64)
+            operations.append(send_buffer_op)
+
+        return [
+            *operations,
+            func.Call.get(self._mpi_name(op), [
+                send_buffer_op, op.recv_buffer, op.count, op.datatype, mpi_op,
+                comm_global
+            ], []),
+        ], []
+
+
+class LowerMpiBcast(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.Bcast, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self,
+              op: mpi.Bcast) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        Lowers the MPI Bcast operation
+        """
+
+        return [
+            comm_global :=
+            arith.Constant.from_int_and_width(self.info.MPI_COMM_WORLD, i32),
+            func.Call.get(
+                self._mpi_name(op),
+                [op.buffer, op.count, op.datatype, op.root, comm_global], []),
+        ], []
 
 
 class LowerMpiISend(_MPIToLLVMRewriteBase):
@@ -561,6 +686,9 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiIRecv(lib_info),
         LowerMpiSend(lib_info),
         LowerMpiRecv(lib_info),
+        LowerMpiReduce(lib_info),
+        LowerMpiAllreduce(lib_info),
+        LowerMpiBcast(lib_info),
         LowerMpiUnwrapMemrefOp(lib_info),
         LowerMpiGetDtype(lib_info),
     ]),
