@@ -398,12 +398,11 @@ class TypeOp(Operation):
     result: Annotated[OpResult, TypeType]
 
     @staticmethod
-    def get(constantType: TypeType | None = None) -> OperandOp:
+    def get(constantType: TypeType | None = None) -> TypeOp:
         attributes: dict[str, Attribute] = {}
         if constantType is not None:
             attributes['constantType'] = constantType
-        return OperandOp.build(attributes=attributes,
-                               result_types=[TypeType()])
+        return TypeOp.build(attributes=attributes, result_types=[TypeType()])
 
 
 @irdl_op_definition
