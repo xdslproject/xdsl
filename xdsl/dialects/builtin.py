@@ -238,7 +238,7 @@ class SignednessAttr(Data[Signedness]):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute):
+class IntegerType(ParametrizedAttribute, MLIRType):
     name: str = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
