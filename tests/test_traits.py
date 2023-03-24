@@ -20,6 +20,7 @@ class LargerResultTrait(OpTrait):
         raise NotImplementedError()
 
 
+@dataclass(frozen=True)
 class LargerOperandTrait(OpTrait):
     """Check that the only operand has a larger bitwidth than the result."""
 
