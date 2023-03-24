@@ -5,12 +5,12 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import Block, BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects import memref, arith, scf, builtin, cf, gpu
+from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
 from xdsl.utils.exceptions import VerifyException
