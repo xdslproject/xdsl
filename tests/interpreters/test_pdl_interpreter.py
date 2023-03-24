@@ -18,6 +18,10 @@ class SwapInputs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
+        if not isinstance(op.lhs, OpResult):
+            return
+        if not isinstance(op.lhs.op, arith.Addi):
+            return
         new_op = arith.Addi.get(op.rhs, op.lhs)
         rewriter.replace_op(op, [new_op])
 
