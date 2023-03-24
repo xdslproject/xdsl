@@ -1,18 +1,18 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Any
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import Block, BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects import memref, arith, scf, builtin, cf, gpu
+from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
 from xdsl.utils.exceptions import VerifyException
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -33,6 +33,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
     dims = IndexAttr.size_from_bounds(lb, ub)
+    dims.reverse()
 
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
@@ -72,15 +73,21 @@ class StoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
 
+        rewriter.erase_matched_op()
+        pass
+
+
+class StoreOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+
         owner = op.temp.owner
 
         assert isinstance(owner, ApplyOp | LoadOp)
 
         owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
         owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
-
-        rewriter.erase_matched_op()
-        pass
 
 
 @dataclass
@@ -107,14 +114,28 @@ class ReturnOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
+        off_const_ops.reverse()
+
+        args = list(block.args)
+        args.reverse()
 
         off_sum_ops = [
-            arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
+            arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
         ]
 
         load = memref.Store.get(op.arg, cast.result, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
+
+
+def verify_load_bounds(cast: CastOp, load: LoadOp):
+
+    if [i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data
+        ] != [i.value.data for i in cast.lb.array.data]:
+        raise VerifyException(
+            "The stencil computation requires a field with lower bound at least "
+            f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
+        )
 
 
 class LoadOpToMemref(RewritePattern):
@@ -124,31 +145,22 @@ class LoadOpToMemref(RewritePattern):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
 
-        if IndexAttr.min(cast.lb, op.lb) != cast.lb:
-            raise VerifyException(
-                "The stencil computation requires a field with lower bound at least "
-                f"{op.lb}, got {cast.lb}")
+        verify_load_bounds(cast, op)
 
         rewriter.replace_matched_op([], list(cast.results))
 
 
+class LoadOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        cast = op.field.owner
+        assert isinstance(cast, CastOp)
+
+        verify_load_bounds(cast, op)
+
+
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
-
-    def access_shape_infer_walk(access: Operation) -> None:
-        assert (op.lb is not None) and (op.ub is not None)
-        if not isinstance(access, AccessOp):
-            return
-        assert isinstance(access.temp, BlockArgument)
-        temp_owner = op.args[access.temp.index].owner
-
-        assert isinstance(temp_owner, LoadOp | ApplyOp)
-
-        temp_owner.attributes['lb'] = IndexAttr.min(op.lb + access.offset,
-                                                    temp_owner.lb)
-        temp_owner.attributes['ub'] = IndexAttr.max(op.ub + access.offset,
-                                                    temp_owner.ub)
-
-    op.walk(access_shape_infer_walk)
 
     assert (op.lb is not None) and (op.ub is not None)
 
@@ -171,104 +183,26 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     return rewriter.move_region_contents_to_new_regions(op.region)
 
 
-class ApplyOpToLaunch(RewritePattern):
+class ApplyOpShapeInference(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
 
-        assert (op.lb is not None) and (op.ub is not None)
+        def access_shape_infer_walk(access: Operation) -> None:
+            assert (op.lb is not None) and (op.ub is not None)
+            if not isinstance(access, AccessOp):
+                return
+            assert isinstance(access.temp, BlockArgument)
+            temp_owner = op.args[access.temp.index].owner
 
-        body = prepare_apply_body(op, rewriter)
-        dim = len(op.lb.array.data)
+            assert isinstance(temp_owner, LoadOp | ApplyOp)
 
-        # This is naive and probably not robust.
-        # Basically, on CUDA (modern hardware), blocks can host at most 1024 threads.
-        # This is saying "If I have one dimension, ask for 1024x1x1 threads",
-        # and 32x32x1=1024 for 2 dims, and 8x8x8=512 for 3 dims.
-        threads_per_dim = [[1024, 32, 8][dim - 1]] * dim + [1] * (3 - dim)
-        cst_tpd = [
-            arith.Constant.from_int_and_width(tpd, builtin.IndexType())
-            for tpd in threads_per_dim
-        ]
+            temp_owner.attributes['lb'] = IndexAttr.min(
+                op.lb + access.offset, temp_owner.lb)
+            temp_owner.attributes['ub'] = IndexAttr.max(
+                op.ub + access.offset, temp_owner.ub)
 
-        # These are the actual computation bounds, as int
-        dims = IndexAttr.size_from_bounds(op.lb, op.ub)
-        # Just prepare a 'one' index constant
-        one = arith.Constant.from_int_and_width(1, builtin.IndexType())
-
-        # These are the computation bounds as "arith.constant"s
-        bounds_cst = [
-            arith.Constant.from_int_and_width(dims[i], builtin.IndexType())
-            for i in range(dim)
-        ]
-
-        # We ceil-divide those bounds by the nunber of threads for this dimension
-        # To get the number of blocks
-        blocks_divs = [
-            arith.CeilDivUI.get(bound, tpd)
-            for bound, tpd in zip(bounds_cst, cst_tpd)
-        ]
-
-        # We build the actual gpu.launch
-        launch = gpu.LaunchOp.get(body, blocks_divs + [one] * (3 - dim),
-                                  cst_tpd)
-
-        # We create a basic block, to compute thread indexes in
-        index_compute_block = Block.from_arg_types([builtin.IndexType()] * 12)
-        block_mul = [
-            arith.Muli.get(index_compute_block.args[i],
-                           index_compute_block.args[9 + i]) for i in range(dim)
-        ]
-        thread_add = [
-            arith.Addi.get(index_compute_block.args[3 + i], block_mul[i])
-            for i in range(dim)
-        ]
-
-        # We cast thread indices to i64 for comparison
-        thread_int = [
-            arith.IndexCastOp.get(ta, builtin.IntegerType.from_width(64))
-            for ta in thread_add
-        ]
-        # Same for bounds
-        bounds_int = [
-            arith.IndexCastOp.get(bc, builtin.IntegerType.from_width(64))
-            for bc in bounds_cst
-        ]
-
-        # We check that the indices are inbound
-        cmpis: list[arith.Cmpi | arith.AndI] = [
-            arith.Cmpi.from_mnemonic(ti, bc, "ult")
-            for ti, bc in zip(thread_int, bounds_int)
-        ]
-
-        # We "arrith.andi" all those inbound checks
-        if len(cmpis) >= 2:
-            cmpis.append(arith.AndI.get(cmpis[0], cmpis[1]))
-        for i in range(2, len(cmpis) - 1):
-            cmpis.append(arith.AndI.get(cmpis[i], cmpis[-1]))
-
-        # Then we simply conditionally jump to the kernel's body if we are inbound.
-        else_block = Block.from_ops([gpu.TerminatorOp.get()])
-        body_branch = cf.ConditionalBranch.get(cmpis[-1], body.blocks[0],
-                                               list(thread_add), else_block,
-                                               [])
-
-        # We just put the right ops in the index computation blocks
-        index_compute_block.add_ops([
-            *block_mul, *thread_add, *thread_int, *bounds_int, *cmpis,
-            body_branch
-        ])
-
-        # We insert the index computation block as the entry block of the gpu.launch body
-        body.insert_block(index_compute_block, 0)
-        body.add_block(else_block)
-        # We add the right terminator to the gpu.launch kernel body
-        launch.body.blocks[1].add_op(gpu.TerminatorOp.get())
-
-        # We replace the stencil.apply with the gpu.launch!
-        rewriter.insert_op_before_matched_op(
-            [*cst_tpd, *bounds_cst, *blocks_divs, one, launch])
-        rewriter.erase_matched_op(safe_erase=False)
+        op.walk(access_shape_infer_walk)
 
 
 class ApplyOpToParallel(RewritePattern):
@@ -322,9 +256,13 @@ class AccessOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in memref_offset
         ]
+        off_const_ops.reverse()
+
+        args = list(block.args)
+        args.reverse()
 
         off_sum_ops = [
-            arith.Addi.get(i, x) for i, x in zip(block.args, off_const_ops)
+            arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
         ]
 
         load = memref.Load.get(load.res, off_sum_ops)
@@ -351,9 +289,23 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data))
 
 
-def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
+class TrivialExternalLoadOpCleanup(RewritePattern):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
+                          /):
+        assert isinstance(op.result.typ, FieldType)
+        typ: FieldType[Any] = op.result.typ
+        op.result.typ = GetMemRefFromField(typ)
+
+        if op.field.typ == op.result.typ:
+            rewriter.replace_matched_op([], [op.field])
+        pass
+
+
+def return_target_analysis(module: ModuleOp):
+
+    return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
 
     def map_returns(op: Operation) -> None:
         if not isinstance(op, ReturnOp):
@@ -372,19 +324,50 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
         cast = store.field.owner
         assert isinstance(cast, CastOp)
 
-        return_target[op] = cast
+        return_targets[op] = cast
 
     module.walk(map_returns)
 
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
-        ApplyOpToLaunch(),
+    return return_targets
+
+
+ShapeInference = GreedyRewritePatternApplier([
+    ApplyOpShapeInference(),
+    LoadOpShapeInference(),
+    StoreOpShapeInference(),
+])
+
+
+def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
+                      gpu: bool):
+    return GreedyRewritePatternApplier([
+        ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
-        CastOpToMemref(return_target, gpu=True),
+        CastOpToMemref(return_targets, gpu),
         LoadOpToMemref(),
         AccessOpToMemref(),
-        ReturnOpToMemref(return_target),
-        StoreOpCleanup()
-    ]),
+        ReturnOpToMemref(return_targets),
+        StoreOpCleanup(),
+        TrivialExternalLoadOpCleanup()
+    ])
+
+
+# TODO: We probably want to factor that in another file
+def StencilShapeInference(ctx: MLContext, module: ModuleOp):
+
+    inference_pass = PatternRewriteWalker(ShapeInference,
+                                          apply_recursively=False,
+                                          walk_reverse=True)
+
+    inference_pass.rewrite_module(module)
+
+
+def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
+
+    return_targets = return_target_analysis(module)
+
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+        [StencilConversion(return_targets, gpu=True)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
@@ -392,38 +375,10 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
 
 def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast] = {}
+    return_targets = return_target_analysis(module)
 
-    def map_returns(op: Operation) -> None:
-        if not isinstance(op, ReturnOp):
-            return
-
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
-
-        res = list(apply.res)[0]
-
-        if (len(res.uses) > 1) or (not isinstance(
-            (store := list(res.uses)[0].operation), StoreOp)):
-            warn("Only single store result atm")
-            return
-
-        cast = store.field.owner
-        assert isinstance(cast, CastOp)
-
-        return_target[op] = cast
-
-    module.walk(map_returns)
-
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier([
-        ApplyOpToParallel(),
-        StencilTypeConversionFuncOp(),
-        CastOpToMemref(return_target),
-        LoadOpToMemref(),
-        AccessOpToMemref(),
-        ReturnOpToMemref(return_target),
-        StoreOpCleanup()
-    ]),
+    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+        [StencilConversion(return_targets, gpu=False)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)

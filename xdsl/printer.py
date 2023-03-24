@@ -34,6 +34,9 @@ class Printer:
 
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
+    """
+    maps SSA Values to their "allocated" names
+    """
     _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
     _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
     _next_valid_name_id: int = field(default=0, init=False)
@@ -160,11 +163,12 @@ class Printer:
     def _print_result_value(self, op: Operation, idx: int) -> None:
         val = op.results[idx]
         self.print("%")
-        if val in self._ssa_values.keys():
+        if val in self._ssa_values:
             name = self._ssa_values[val]
         elif val.name:
             curr_ind = self._ssa_names.get(val.name, 0)
-            name = val.name + (str(curr_ind) if curr_ind != 0 else "")
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{val.name}{suffix}"
             self._ssa_values[val] = name
             self._ssa_names[val.name] = curr_ind + 1
         else:
@@ -243,6 +247,7 @@ class Printer:
         self.print("%")
         if arg.name and arg.name not in self._ssa_values.values():
             name = arg.name
+            self._ssa_names[arg.name] = self._ssa_names.get(arg.name, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p convert-stencil-to-ll-mlir --verify-diagnostic | filecheck %s
+// RUN: xdsl-opt %s -t mlir -p stencil-shape-inference --verify-diagnostic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

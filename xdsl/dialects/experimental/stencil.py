@@ -136,7 +136,7 @@ class IndexAttr(ParametrizedAttribute):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
-    array: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    array: ParameterDef[ArrayAttr[IntegerAttr[IntegerType]]]
 
     def verify(self) -> None:
         if len(self.array.data) < 1 or len(self.array.data) > 3:
@@ -152,7 +152,7 @@ class IndexAttr(ParametrizedAttribute):
         ])
 
     @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
+    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
         return [
             ub.value.data - lb.value.data
             for lb, ub in zip(lb.array.data, ub.array.data)
@@ -218,6 +218,18 @@ class CastOp(Operation):
     lb: OpAttr[IndexAttr]
     ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
+
+    @staticmethod
+    def get(field: SSAValue | Operation, lb: IndexAttr, ub: IndexAttr,
+            res_type: FieldType[_FieldTypeElement]) -> CastOp:
+        return CastOp.build(
+            operands=[field],
+            attributes={
+                "lb": lb,
+                "ub": ub
+            },
+            result_types=[res_type],
+        )
 
 
 # Operations

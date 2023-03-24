@@ -128,7 +128,7 @@ class SSAValue(ABC):
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -144,9 +144,19 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
-        if self._name_regex.fullmatch(name):
+    def name(self, name: str | None):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
+        else:
+            raise ValueError(
+                "Invalid SSA Value name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -174,6 +184,9 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
+        # carry over name if possible
+        if value.name is None:
+            value.name = self.name
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -447,6 +460,20 @@ class IRNode(ABC):
         ...
 
 
+@dataclass(frozen=True)
+class OpTrait():
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, or to specify
+    additional semantic information.
+    Some traits may define parameters.
+    """
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -474,6 +501,13 @@ class Operation(IRNode):
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
+    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
+    """
+    Traits attached to an operation definition.
+    This is a static field, and is made empty by default by PyRDL if not set
+    by the operation definition.
+    """
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -664,6 +698,20 @@ class Operation(IRNode):
         for idx, region in enumerate(self.regions):
             region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
         return op
+
+    @classmethod
+    def has_trait(cls, trait: OpTrait) -> bool:
+        """
+        Check if the operation implements a trait with the given parameters.
+        """
+        return trait in cls.traits
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+        """
+        Get all the traits of the given type satisfied by this operation.
+        """
+        return [t for t in cls.traits if isinstance(t, trait_type)]
 
     def erase(self,
               safe_erase: bool = True,
