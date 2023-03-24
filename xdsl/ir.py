@@ -465,6 +465,20 @@ class IRNode(ABC):
         ...
 
 
+@dataclass(frozen=True)
+class OpTrait():
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, or to specify
+    additional semantic information.
+    Some traits may define parameters.
+    """
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -492,6 +506,13 @@ class Operation(IRNode):
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
+    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
+    """
+    Traits attached to an operation definition.
+    This is a static field, and is made empty by default by PyRDL if not set
+    by the operation definition.
+    """
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -682,6 +703,20 @@ class Operation(IRNode):
         for idx, region in enumerate(self.regions):
             region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
         return op
+
+    @classmethod
+    def has_trait(cls, trait: OpTrait) -> bool:
+        """
+        Check if the operation implements a trait with the given parameters.
+        """
+        return trait in cls.traits
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+        """
+        Get all the traits of the given type satisfied by this operation.
+        """
+        return [t for t in cls.traits if isinstance(t, trait_type)]
 
     def erase(self,
               safe_erase: bool = True,
