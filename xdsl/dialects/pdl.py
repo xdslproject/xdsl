@@ -394,16 +394,15 @@ class TypeOp(Operation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
     """
     name: str = "pdl.type"
-    constantType: Annotated[OptOperand, TypeType]
+    constantType: OptOpAttr[Attribute]
     result: Annotated[OpResult, TypeType]
 
     @staticmethod
-    def get(constantType: SSAValue | None = None) -> OperandOp:
-        if constantType is None:
-            constant_type = []
-        else:
-            constant_type = [constantType]
-        return OperandOp.build(operands=[constant_type],
+    def get(constantType: TypeType | None = None) -> OperandOp:
+        attributes: dict[str, Attribute] = {}
+        if constantType is not None:
+            attributes['constantType'] = constantType
+        return OperandOp.build(attributes=attributes,
                                result_types=[TypeType()])
 
 
