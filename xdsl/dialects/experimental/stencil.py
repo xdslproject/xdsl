@@ -152,7 +152,7 @@ class IndexAttr(ParametrizedAttribute):
         ])
 
     @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> Sequence[int]:
+    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
         return [
             ub.value.data - lb.value.data
             for lb, ub in zip(lb.array.data, ub.array.data)
