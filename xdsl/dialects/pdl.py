@@ -4,7 +4,7 @@ from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
-from xdsl.ir import (Attribute, Dialect, MLIRType, OpResult, Operation,
+from xdsl.ir import (Attribute, Block, Dialect, MLIRType, OpResult, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
                        OptOperand, OptRegion, ParameterDef, VarOpResult,
@@ -122,6 +122,10 @@ class EraseOp(Operation):
     name: str = "pdl.erase"
     opValue: Annotated[Operand, OperationType]
 
+    @staticmethod
+    def get(opValue: SSAValue) -> EraseOp:
+        return EraseOp.build(operands=[opValue], result_types=[])
+
 
 @irdl_op_definition
 class OperandOp(Operation):
@@ -131,6 +135,15 @@ class OperandOp(Operation):
     name: str = "pdl.operand"
     valueType: Annotated[OptOperand, TypeType]
     value: Annotated[OpResult, ValueType]
+
+    @staticmethod
+    def get(valueType: SSAValue | None = None) -> OperandOp:
+        if valueType is None:
+            value_type = []
+        else:
+            value_type = [valueType]
+        return OperandOp.build(operands=[value_type],
+                               result_types=[ValueType()])
 
 
 @irdl_op_definition
@@ -159,6 +172,32 @@ class OperationOp(Operation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
+    @staticmethod
+    def get(opName: StringAttr | None,
+            attributeValueNames: ArrayAttr[StringAttr] | None = None,
+            operandValues: list[SSAValue] | None = None,
+            attributeValues: list[SSAValue] | None = None,
+            typeValues: list[SSAValue] | None = None):
+        if attributeValueNames is None:
+            attributeValueNames = ArrayAttr([])
+        if operandValues is None:
+            operandValues = []
+        if attributeValues is None:
+            attributeValues = []
+        if typeValues is None:
+            typeValues = []
+
+        attributes: dict[str, Attribute] = {
+            'attributeValueNames': attributeValueNames
+        }
+        if opName is not None:
+            attributes['opName'] = opName
+
+        return OperationOp.build(
+            operands=[operandValues, attributeValues, typeValues],
+            result_types=[OperationType()],
+            attributes=attributes)
+
 
 @irdl_op_definition
 class PatternOp(Operation):
@@ -167,8 +206,26 @@ class PatternOp(Operation):
     """
     name: str = "pdl.pattern"
     benefit: OpAttr[IntegerAttr[IntegerType]]
-    sym_name: OpAttr[StringAttr]
+    sym_name: OptOpAttr[StringAttr]
     body: Region
+
+    @staticmethod
+    def get(benefit: IntegerAttr[IntegerType], sym_name: StringAttr | None,
+            body: Region) -> PatternOp:
+        attributes: dict[str, Attribute] = {'benefit': benefit}
+        if sym_name is not None:
+            attributes['sym_name'] = sym_name
+        return PatternOp.build(attributes=attributes,
+                               regions=[body],
+                               result_types=[])
+
+    @staticmethod
+    def from_callable(benefit: IntegerAttr[IntegerType],
+                      sym_name: StringAttr | None,
+                      callable: Block.BlockCallback) -> PatternOp:
+        block = Block.from_callable([], callable)
+        region = Region.from_block_list([block])
+        return PatternOp.get(benefit, sym_name, region)
 
 
 @irdl_op_definition
@@ -203,6 +260,15 @@ class RangeOp(Operation):
 class ReplaceOp(Operation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
+
+    pdl.replace` operations are used within `pdl.rewrite` regions to specify
+    that an input operation should be marked as replaced. The semantics of this
+    operation correspond with the `replaceOp` method on a `PatternRewriter`. The
+    set of replacement values can be either:
+    * a single `Operation` (`replOperation` should be populated)
+      - The operation will be replaced with the results of this operation.
+    * a set of `Value`s (`replValues` should be populated)
+      - The operation will be replaced with these values.
     """
     name: str = "pdl.replace"
     opValue: Annotated[Operand, OperationType]
@@ -210,6 +276,31 @@ class ReplaceOp(Operation):
     replValues: Annotated[VarOperand, ValueType | ArrayAttr[ValueType]]
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(opValue: SSAValue,
+            replOperation: SSAValue | None = None,
+            replValues: list[SSAValue] | None = None) -> ReplaceOp:
+        operands: list[SSAValue | list[SSAValue]] = [opValue]
+        if replOperation is None:
+            operands.append([])
+        else:
+            operands.append([replOperation])
+        if replValues is None:
+            replValues = []
+        operands.append(replValues)
+        return ReplaceOp.build(operands=operands)
+
+    def verify_(self) -> None:
+        if self.replOperation is None:
+            if not len(self.replValues):
+                raise VerifyException("Exactly one of `replOperation` or "
+                                      "`replValues` must be set in `ReplaceOp`"
+                                      ", both are empty")
+        elif len(self.replValues):
+            raise VerifyException(
+                "Exactly one of `replOperation` or `replValues` must be set in "
+                "`ReplaceOp`, both are set")
 
 
 @irdl_op_definition
@@ -221,6 +312,12 @@ class ResultOp(Operation):
     index: OpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
     val: Annotated[OpResult, ValueType]
+
+    @staticmethod
+    def get(index: IntegerAttr[IntegerType], parent: SSAValue) -> ResultOp:
+        return ResultOp.build(operands=[parent],
+                              attributes={'index': index},
+                              result_types=[ValueType()])
 
 
 @irdl_op_definition
@@ -257,8 +354,8 @@ class RewriteOp(Operation):
                 raise Exception("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: str, root: SSAValue | None, external_args: list[SSAValue],
-            body: Region | None) -> RewriteOp:
+    def get(name: StringAttr | None, root: SSAValue | None,
+            external_args: list[SSAValue], body: Region | None) -> RewriteOp:
 
         operands: list[SSAValue | list[SSAValue]] = []
         if root is not None:
@@ -269,14 +366,26 @@ class RewriteOp(Operation):
 
         regions: list[Region | list[Region]] = []
         if body is not None:
-            regions.append(body)
+            regions.append([body])
         else:
             regions.append([])
 
+        attributes: dict[str, Attribute] = {}
+        if name is not None:
+            attributes['name'] = name
+
         return RewriteOp.build(result_types=[],
                                operands=operands,
-                               attributes={"name": StringAttr(name)},
+                               attributes=attributes,
                                regions=regions)
+
+    @staticmethod
+    def from_callable(name: StringAttr | None, root: SSAValue | None,
+                      external_args: list[SSAValue],
+                      body: Block.BlockCallback) -> RewriteOp:
+        block = Block.from_callable([], body)
+        region = Region.from_block_list([block])
+        return RewriteOp.get(name, root, external_args, region)
 
 
 @irdl_op_definition
@@ -287,6 +396,15 @@ class TypeOp(Operation):
     name: str = "pdl.type"
     constantType: Annotated[OptOperand, TypeType]
     result: Annotated[OpResult, TypeType]
+
+    @staticmethod
+    def get(constantType: SSAValue | None = None) -> OperandOp:
+        if constantType is None:
+            constant_type = []
+        else:
+            constant_type = [constantType]
+        return OperandOp.build(operands=[constant_type],
+                               result_types=[TypeType()])
 
 
 @irdl_op_definition
