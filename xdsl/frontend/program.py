@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.code_generation import CodeGeneration
 from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.passes.desymref import Desymrefier
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.printer import Printer
 
@@ -60,11 +61,8 @@ Cannot compile program without the code context. Try to use:
 
     def desymref(self) -> None:
         """Desymrefy the generated xDSL."""
-
-        # TODO: Land desymref in the next patch.
-        raise FrontendProgramException(
-            "Running desymref pass is not supported.")
-
+        assert self.xdsl_program is not None
+        Desymrefier().desymrefy(self.xdsl_program)
         self.xdsl_program.verify()
 
     def _check_can_print(self):

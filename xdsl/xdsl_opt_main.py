@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 from io import StringIO
+from xdsl.frontend.passes.desymref import Desymrefy
+from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
@@ -200,6 +202,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(GPU)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
+        self.ctx.register_dialect(Symref)
 
     def register_all_frontends(self):
         """
@@ -231,6 +234,7 @@ class xDSLOptMain:
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
+        self.available_passes['frontend-desymrefy'] = Desymrefy
 
     def register_all_targets(self):
         """
