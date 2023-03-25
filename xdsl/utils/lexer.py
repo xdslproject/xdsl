@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from io import StringIO
 from enum import Enum, auto
@@ -16,10 +18,10 @@ class Input:
     """
     content: str = field(repr=False)
     name: str
+    len: int = field(init=False, repr=False)
 
-    @property
-    def len(self):
-        return len(self.content)
+    def __post_init__(self):
+        object.__setattr__(self, 'len', len(self.content))
 
     def __len__(self):
         return self.len
@@ -228,32 +230,34 @@ class Lexer:
         """
         self.pos = min(self.pos + size, len(self.input))
 
-    def _consume_while(self, predicate: Callable[[str], bool]) -> None:
+    def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
-        Advance the lexer position as long as the current character satisfies the
-        given predicate.
-        Returns the number of characters consumed.
+        Advance the lexer position to the end of the next match of the given
+        regular expression.
         """
-        while ((current := self._peek_chars()) is not None
-               and predicate(current)):
-            self._consume_chars()
+        match = regex.match(self.input.content, self.pos)
+        if match is None:
+            return None
+        self.pos = match.end()
+        return match
+
+    _end_of_line_regex = re.compile(r"//[^\n]*(\n)?")
+    _whitespace_regex = re.compile(r"\s+", re.ASCII)
 
     def _consume_whitespace(self) -> None:
         """
         Consume whitespace and comments.
         """
-        while (current := self._peek_chars()) is not None:
+        while self._is_in_bounds():
             # Whitespace
-            if current.isspace():
-                self._consume_chars()
+            match = self._consume_regex(self._whitespace_regex)
+            if match is not None:
                 continue
 
             # Comments
-            if current == '/':
-                if self._peek_chars(2) == '//':
-                    self._consume_chars(2)
-                    self._consume_while(lambda c: c != '\n')
-                    continue
+            match = self._consume_regex(self._end_of_line_regex)
+            if match is not None:
+                continue
 
             return
 
@@ -350,6 +354,8 @@ class Lexer:
             'Unexpected character: {}'.format(current_char),
         )
 
+    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
+
     def _lex_bare_identifier(self, start_pos: int) -> Token:
         """
         Lex a bare identifier with the following grammar:
@@ -357,7 +363,7 @@ class Lexer:
 
         The first character is expected to have already been parsed.
         """
-        self._consume_while(lambda c: c.isalnum() or c in ['_', '$', '.'])
+        self._consume_regex(self.bare_identifier_suffix_regex)
 
         return self._form_token(Token.Kind.BARE_IDENT, start_pos)
 
@@ -388,6 +394,9 @@ class Lexer:
             Span(start_pos, self.pos, self.input),
             "@ identifier expected to start with letter, '_', or '\"'.")
 
+    # suffix-id = (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+    _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
+
     def _lex_prefixed_ident(self, start_pos: int) -> Token:
         """
         Parsed the following prefixed identifiers:
@@ -416,24 +425,10 @@ class Lexer:
             assert first_char == '%', "First prefixed identifier character must have been parsed correctly"
             kind = Token.Kind.PERCENT_IDENT
 
-        punctuation = ['$', '.', '_', '-']
-
-        current_char = self._get_chars()
-        if current_char is None:
-            raise ParseError(
-                Span(start_pos, start_pos + 1, self.input),
-                "'first_char' is expected to follow with an identifier.")
-
-        if current_char.isdigit():
-            # digit+ case
-            self._consume_while(lambda c: c.isdigit())
-        elif current_char.isalpha() or current_char in punctuation:
-            # (letter|[$._-]) (letter|[$._-]|digit)* case
-            self._consume_while(lambda c: c.isalnum() or c in punctuation)
-        else:
-            raise ParseError(
-                Span(start_pos, start_pos + 1, self.input),
-                "Character expected to follow with an identifier.")
+        match = self._consume_regex(self._suffix_id)
+        if match is None:
+            raise ParseError(Span(start_pos, self.pos, self.input),
+                             "Expected suffix identifier after {first_char}")
 
         return self._form_token(kind, start_pos)
 
@@ -467,6 +462,10 @@ class Lexer:
         raise ParseError(Span(start_pos, self.pos, self.input),
                          "End of file reached before closing string literal.")
 
+    _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
+    _digits_star_regex = re.compile(r"[0-9]*")
+    _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
+
     def _lex_number(self, start_pos: int) -> Token:
         """
         Lex a number literal, which is either a decimal or an hexadecimal.
@@ -481,39 +480,14 @@ class Lexer:
                 and self._is_in_bounds(2)
                 and cast(str, self.input.at(self.pos + 1)) in hexdigits):
             self._consume_chars(2)
-            self._consume_while(lambda c: c in hexdigits)
+            self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(Token.Kind.INTEGER_LIT, start_pos)
 
         # Decimal case
-        self._consume_while(lambda c: c.isdigit())
+        self._consume_regex(self._digits_star_regex)
 
-        # Fractional part
-        if self._peek_chars() != '.':
-            return self._form_token(Token.Kind.INTEGER_LIT, start_pos)
-        self._consume_chars()
-
-        if not self._is_in_bounds():
-            raise ParseError(Span(start_pos, self.pos, self.input),
-                             "Decimal '.' expected to follow with a digit.")
-
-        self._consume_while(lambda c: c.isdigit())
-
-        # Exponent part
-        if self._peek_chars() in ['e', 'E']:
-            self._consume_chars()
-            if not self._is_in_bounds():
-                raise ParseError(
-                    Span(start_pos, self.pos, self.input),
-                    "Exponent expected to follow with a digit or a sign.")
-
-            # Parse optionally a sign
-            if self._peek_chars() in ['+', '-']:
-                self._consume_chars()
-                if not self._is_in_bounds():
-                    raise ParseError(
-                        Span(start_pos, self.pos, self.input),
-                        "Sign expected to be followed with a digit.")
-
-            self._consume_while(lambda c: c.isdigit())
-
-        return self._form_token(Token.Kind.FLOAT_LIT, start_pos)
+        # Check if we are lexing a floating point
+        match = self._consume_regex(self._fractional_suffix_regex)
+        if match is not None:
+            return self._form_token(Token.Kind.FLOAT_LIT, start_pos)
+        return self._form_token(Token.Kind.INTEGER_LIT, start_pos)

@@ -144,15 +144,17 @@ def test_integer_literal_split(text: str, expected: str):
     assert_single_token(text, Token.Kind.INTEGER_LIT, expected)
 
 
-@pytest.mark.parametrize(
-    'text', ['0.2', '38.1243', '92.54e43', '92.5E43', '43.3e-54', '32.E+25'])
+@pytest.mark.parametrize('text', [
+    '0.', '1.', '0.2', '38.1243', '92.54e43', '92.5E43', '43.3e-54', '32.E+25'
+])
 def test_float_literal(text: str):
     assert_single_token(text, Token.Kind.FLOAT_LIT)
 
 
-@pytest.mark.parametrize('text', ['0.', '1.', '3.9e', '4.5e+', '5.8e-'])
-def test_float_literal_fail(text: str):
-    assert_token_fail(text)
+@pytest.mark.parametrize('text,expected', [('3.9e', '3.9'), ('4.5e+', '4.5'),
+                                           ('5.8e-', '5.8')])
+def test_float_literal_split(text: str, expected: str):
+    assert_single_token(text, Token.Kind.FLOAT_LIT, expected)
 
 
 @pytest.mark.parametrize('text',
