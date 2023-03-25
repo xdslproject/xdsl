@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import contextlib
 import functools
 import itertools
@@ -15,7 +14,7 @@ from io import StringIO
 from typing import Any, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Span
+from xdsl.utils.lexer import Input, Span, StringLiteral
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
@@ -85,30 +84,6 @@ class BacktrackingHistory:
 
     def __hash__(self):
         return id(self)
-
-
-@dataclass(frozen=True, repr=False)
-class StringLiteral(Span):
-
-    def __post_init__(self):
-        if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
-            raise ParseError(self, "Invalid string literal!")
-
-    @classmethod
-    def from_span(cls, span: Span | None) -> StringLiteral | None:
-        """
-        Convert a normal span into a StringLiteral, to facilitate parsing.
-
-        If argument is None, returns None.
-        """
-        if span is None:
-            return None
-        return cls(span.start, span.end, span.input)
-
-    @property
-    def string_contents(self):
-        # TODO: is this a hack-job?
-        return ast.literal_eval(self.text)
 
 
 save_t = int

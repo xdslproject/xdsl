@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import ast
 
 from dataclasses import dataclass, field
 from io import StringIO
@@ -136,6 +137,30 @@ class Span:
     def __repr__(self):
         return "{}[{}:{}](text='{}')".format(self.__class__.__name__,
                                              self.start, self.end, self.text)
+
+
+@dataclass(frozen=True, repr=False)
+class StringLiteral(Span):
+
+    def __post_init__(self):
+        if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
+            raise ParseError(self, "Invalid string literal!")
+
+    @classmethod
+    def from_span(cls, span: Span | None) -> StringLiteral | None:
+        """
+        Convert a normal span into a StringLiteral, to facilitate parsing.
+
+        If argument is None, returns None.
+        """
+        if span is None:
+            return None
+        return cls(span.start, span.end, span.input)
+
+    @property
+    def string_contents(self):
+        # TODO: is this a hack-job?
+        return ast.literal_eval(self.text)
 
 
 @dataclass
@@ -455,8 +480,9 @@ class Lexer:
             if current_char == '\\':
                 escaped_char = self._get_chars()
                 if escaped_char not in ['"', '\\', 'n', 't']:
-                    raise ParseError(Span(self.pos - 1, self.pos, self.input),
-                                     "Unknown escape in string literal.")
+                    raise ParseError(
+                        StringLiteral(self.pos - 1, self.pos, self.input),
+                        "Unknown escape in string literal.")
 
         raise ParseError(Span(start_pos, self.pos, self.input),
                          "End of file reached before closing string literal.")
