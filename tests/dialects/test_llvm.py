@@ -87,7 +87,9 @@ def test_llvm_getelementptr_op():
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
-    gep1 = llvm.GEPOp.get(ptr, [1], result_type=ptr_typ, inbounds=True)
+    gep1 = llvm.GEPOp.from_mixed_indices(ptr, [1],
+                                         result_type=ptr_typ,
+                                         inbounds=True)
 
     assert 'inbounds' in gep1.attributes
     assert gep1.result.typ == ptr_typ
@@ -97,9 +99,9 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check that construction with opaque pointer works:
-    gep2 = llvm.GEPOp.get(opaque_ptr, [1],
-                          result_type=ptr_typ,
-                          pointee_type=builtin.i32)
+    gep2 = llvm.GEPOp.from_mixed_indices(opaque_ptr, [1],
+                                         result_type=ptr_typ,
+                                         pointee_type=builtin.i32)
 
     assert 'elem_type' in gep2.attributes
     assert 'inbounds' not in gep2.attributes
@@ -108,7 +110,7 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.get(ptr, [1, llvm.GEP_USE_SSA_VAL], [size], ptr_typ)
+    gep3 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], ptr_typ)
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1

@@ -249,7 +249,7 @@ class GEPOp(Operation):
     @staticmethod
     def from_mixed_indices(
             ptr: SSAValue | Operation,
-            indices: list[int | SSAValue | Operation],
+            indices: Sequence[int | SSAValue | Operation],
             result_type: LLVMPointerType = LLVMPointerType.opaque(),
             inbounds: bool = False,
             pointee_type: Attribute | None = None):
