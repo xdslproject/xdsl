@@ -348,5 +348,5 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-def desymrefy(ctx: MLContext, op: ModuleOp):
+def Desymrefy(ctx: MLContext, op: ModuleOp):
     Desymrefier().desymrefy(op)

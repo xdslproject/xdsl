@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 from io import StringIO
-from xdsl.frontend.passes.desymref import desymrefy
+from xdsl.frontend.passes.desymref import Desymrefy
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -234,7 +234,7 @@ class xDSLOptMain:
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
-        self.available_passes['frontend-desymrefy'] = desymrefy
+        self.available_passes['frontend-desymrefy'] = Desymrefy
 
     def register_all_targets(self):
         """

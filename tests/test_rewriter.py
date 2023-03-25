@@ -253,10 +253,11 @@ def test_insert_block_before():
   %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
-    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+    def insert_empty_block_before(module: ModuleOp,
+                                  rewriter: Rewriter) -> None:
         rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
 
-    rewrite_and_compare(prog, expected, transformation)
+    rewrite_and_compare(prog, expected, insert_empty_block_before)
 
 
 def test_insert_block_after():
@@ -273,10 +274,10 @@ def test_insert_block_after():
 ^1:
 }"""
 
-    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+    def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
         rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
 
-    rewrite_and_compare(prog, expected, transformation)
+    rewrite_and_compare(prog, expected, insert_empty_block_after)
 
 
 def test_insert_op_before():
