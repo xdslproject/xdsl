@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 from io import StringIO
 from enum import Enum, auto
-from typing import Callable, cast
+from typing import cast
 from string import hexdigits
 
 from xdsl.utils.exceptions import ParseError
