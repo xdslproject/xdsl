@@ -147,17 +147,17 @@ class Token:
 
         # Identifiers
         BARE_IDENT = auto()
-        '''bare-id ::= (letter|[_]) (letter|digit|[_$.])*'''
+        """bare-id ::= (letter|[_]) (letter|digit|[_$.])*"""
         AT_IDENT = auto()  # @foo
-        '''at-ident ::= `@` (bare-id | string-literal)'''
+        """at-ident ::= `@` (bare-id | string-literal)"""
         HASH_IDENT = auto()  # #foo
-        '''hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        """hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
         PERCENT_IDENT = auto()  # %foo
-        '''percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
         CARET_IDENT = auto()  # ^foo
-        '''caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
         EXCLAMATION_IDENT = auto()  # !foo
-        '''exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        """exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
 
         # Literals
         FLOAT_LIT = auto()  # 1.0
@@ -394,7 +394,6 @@ class Lexer:
             Span(start_pos, self.pos, self.input),
             "@ identifier expected to start with letter, '_', or '\"'.")
 
-    # suffix-id = (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
     _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
     def _lex_prefixed_ident(self, start_pos: int) -> Token:
@@ -408,7 +407,7 @@ class Lexer:
         ```
         with 
         ```
-        suffix-id = (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)'''
+        suffix-id = (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
         ```
 
         The first character is expected to have already been parsed.
