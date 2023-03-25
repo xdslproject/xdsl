@@ -1,4 +1,5 @@
-// RUN: mlir-opt %s --lower-affine --arith-expand --convert-scf-to-cf --expand-strided-metadata --convert-vector-to-llvm --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts | mlir-cpu-runner -O3 -e main -entry-point-result=void -shared-libs=path-to-libmlir_c_runner_utils.so
+// For CPU lowering, use the following command:
+// mlir-opt %s --lower-affine --arith-expand --convert-scf-to-cf --expand-strided-metadata --convert-vector-to-llvm --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts | mlir-cpu-runner -O3 -e main -entry-point-result=void -shared-libs=path-to-libmlir_c_runner_utils.so
 
 // Affine maps used by oec's implementation.
 #map0 = affine_map<(d0, d1, d2) -> (d0 * 5184 + d1 * 72 + d2 + 20955)>
