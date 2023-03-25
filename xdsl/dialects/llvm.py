@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Sequence
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
@@ -199,8 +199,8 @@ class GEPOp(Operation):
 
     @staticmethod
     def get(ptr: SSAValue | Operation,
-            indices: list[int],
-            ssa_indices: list[SSAValue | Operation] | None = None,
+            indices: Sequence[int],
+            ssa_indices: Sequence[SSAValue | Operation] | None = None,
             result_type: LLVMPointerType = LLVMPointerType.opaque(),
             inbounds: bool = False,
             pointee_type: Attribute | None = None):
@@ -262,14 +262,14 @@ class GEPOp(Operation):
 
         Other than that, this behaves exactly the same as `.get`
         """
-        ssa_indices = []
-        const_indices = []
+        ssa_indices: list[SSAValue] = []
+        const_indices: list[int] = []
         for idx in indices:
             if isinstance(idx, int):
                 const_indices.append(idx)
             else:
                 const_indices.append(GEP_USE_SSA_VAL)
-                ssa_indices.append(idx)
+                ssa_indices.append(SSAValue.get(idx))
         return GEPOp.get(ptr,
                          const_indices,
                          ssa_indices,
