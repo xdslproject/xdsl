@@ -3,7 +3,7 @@
 # This script updates the meta.yaml file used by Pyodide to bundle and use xDSL
 # Takes the .yaml file and the xDSL directory as arguments
 
-import yaml
+import yaml  # type: ignore
 import sys
 import os
 import hashlib

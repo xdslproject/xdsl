@@ -5,11 +5,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
 from inspect import isclass
-from typing import (Annotated, Any, Generic, Sequence, TypeAlias, TypeVar,
-                    Union, cast, get_args, get_origin, get_type_hints)
+from typing import (Annotated, Any, Generic, Literal, Sequence, TypeAlias,
+                    TypeVar, Union, cast, get_args, get_origin, get_type_hints,
+                    overload)
 from types import UnionType, GenericAlias, FunctionType
 
-from xdsl.ir import (Attribute, Block, Data, OpResult, Operation,
+from xdsl.ir import (Attribute, Block, Data, OpResult, OpTrait, Operation,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (PyRDLAttrDefinitionError,
@@ -330,7 +331,10 @@ class IRDLOption(ABC):
 
 @dataclass
 class AttrSizedOperandSegments(IRDLOption):
-    """Expect an attribute on the op that contains the sizes of the variadic operands."""
+    """
+    Expect an attribute on the op that contains
+    the sizes of the variadic operands.
+    """
 
     attribute_name = "operand_segment_sizes"
     """Name of the attribute containing the variadic operand sizes."""
@@ -338,10 +342,24 @@ class AttrSizedOperandSegments(IRDLOption):
 
 @dataclass
 class AttrSizedResultSegments(IRDLOption):
-    """Expect an attribute on the op that contains the sizes of the variadic results."""
+    """
+    Expect an attribute on the operation that contains
+    the sizes of the variadic results.
+    """
 
     attribute_name = "result_segment_sizes"
     """Name of the attribute containing the variadic result sizes."""
+
+
+@dataclass
+class AttrSizedRegionSegments(IRDLOption):
+    """
+    Expect an attribute on the op that contains
+    the sizes of the variadic regions.
+    """
+
+    attribute_name = "region_segment_sizes"
+    """Name of the attribute containing the variadic region sizes."""
 
 
 @dataclass
@@ -496,6 +514,7 @@ class OpDef:
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
+    traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
@@ -528,7 +547,7 @@ class OpDef:
         for field_name, value in clsdict.items():
             if field_name in opdict:
                 continue
-            if field_name == "irdl_options":
+            if field_name in ["irdl_options", "traits"]:
                 continue
             if isinstance(
                     value,
@@ -648,6 +667,14 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
+        traits = clsdict.get("traits", frozenset())
+        if not isinstance(traits, frozenset):
+            raise Exception(
+                f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                f"has a 'traits' field of type {type(traits)}, but "
+                "it should be of type frozenset.")
+        traits = cast(frozenset[OpTrait], traits)
+        op_def.traits = traits
 
         return op_def
 
@@ -663,12 +690,17 @@ class OpDef:
         # Verify regions.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
 
+        # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
             if attr_name not in op.attributes:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
                 raise VerifyException(f"attribute {attr_name} expected")
             attr_def.constr.verify(op.attributes[attr_name])
+
+        # Verify traits.
+        for trait in self.traits:
+            trait.verify(op)
 
 
 class VarIRConstruct(Enum):
@@ -725,14 +757,14 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct
-) -> AttrSizedOperandSegments | AttrSizedResultSegments | None:
+) -> AttrSizedOperandSegments | AttrSizedResultSegments | AttrSizedRegionSegments:
     """Get the AttrSized option for this type."""
     if construct == VarIRConstruct.OPERAND:
         return AttrSizedOperandSegments()
     if construct == VarIRConstruct.RESULT:
         return AttrSizedResultSegments()
     if construct == VarIRConstruct.REGION:
-        return None
+        return AttrSizedRegionSegments()
     assert False, "Unknown VarIRConstruct value"
 
 
@@ -804,7 +836,7 @@ def get_variadic_sizes(op: Operation, op_def: OpDef,
                      if isinstance(arg_def, VariadicDef)]
 
     # If the size is in the attributes, fetch it
-    if (attribute_option is not None) and (attribute_option in op_def.options):
+    if attribute_option in op_def.options:
         return get_variadic_sizes_from_attr(op, defs, construct,
                                             attribute_option.attribute_name)
 
@@ -903,26 +935,36 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             arg_idx += 1
 
 
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.OPERAND],
+                        args: Sequence[SSAValue | Sequence[SSAValue]],
+                        arg_defs: Sequence[tuple[str, OperandDef]],
+                        error_prefix: str) -> tuple[list[SSAValue], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(
+        construct: Literal[VarIRConstruct.RESULT],
+        args: Sequence[Attribute | Sequence[Attribute]],
+        arg_defs: Sequence[tuple[str, ResultDef]],
+        error_prefix: str) -> tuple[list[Attribute], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(construct: Literal[VarIRConstruct.REGION],
+                        args: Sequence[Region | Sequence[Region]],
+                        arg_defs: Sequence[tuple[str, RegionDef]],
+                        error_prefix: str) -> tuple[list[Region], list[int]]:
+    ...
+
+
 def irdl_build_arg_list(construct: VarIRConstruct,
                         args: Sequence[Any],
                         arg_defs: Sequence[tuple[str, Any]],
                         error_prefix: str = "") -> tuple[list[Any], list[int]]:
     """Build a list of arguments (operands, results, regions)"""
-
-    def build_arg(arg_def: Any, arg: Any) -> Any:
-        """Build a single argument."""
-        if construct == VarIRConstruct.OPERAND:
-            return SSAValue.get(arg)
-        elif construct == VarIRConstruct.RESULT:
-            if not isinstance(arg, Attribute):
-                raise ValueError(error_prefix +
-                                 f"expected Attribute, but got {type(arg)}")
-            return arg
-        elif construct == VarIRConstruct.REGION:
-            assert isinstance(arg_def, RegionDef)
-            return Region.get(arg)
-        else:
-            assert False, "Unknown ArgType value"
 
     if len(args) != len(arg_defs):
         raise ValueError(
@@ -949,22 +991,57 @@ def irdl_build_arg_list(construct: VarIRConstruct,
                     "expects a list of size at most 1, but "
                     f"got a list of size {len(arg)}")
 
-            res.extend([build_arg(arg_def, arg_arg) for arg_arg in arg])
+            res.extend(arg)
             arg_sizes.append(len(arg))
         else:
-            res.append(build_arg(arg_def, arg))
+            res.append(arg)
             arg_sizes.append(1)
     return res, arg_sizes
+
+
+_OperandArg: TypeAlias = SSAValue | Operation
+
+
+def irdl_build_operations_arg(
+    operand: _OperandArg | Sequence[_OperandArg] | None
+) -> SSAValue | list[SSAValue]:
+    if operand is None:
+        return []
+    elif isinstance(operand, SSAValue):
+        return operand
+    elif isinstance(operand, Operation):
+        return SSAValue.get(operand)
+    else:
+        return [SSAValue.get(op) for op in operand]
+
+
+_RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
+
+
+def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
+                           | None) -> Region | list[Region]:
+    if r is None:
+        return []
+    elif isinstance(r, Region):
+        return r
+    elif not len(r):
+        return []
+    elif isinstance(r[0], Operation | Block):
+        return Region.get(cast(Sequence[Operation] | Sequence[Block], r))
+    else:
+        return [Region.get(_r) for _r in cast(Sequence[_RegionArg], r)]
 
 
 def irdl_op_builder(
     cls: type[_OpT], op_def: OpDef,
     operands: Sequence[SSAValue | Operation
                        | Sequence[SSAValue | Operation]
-                       | None], res_types: Sequence[Any | list[Any] | None],
+                       | None],
+    res_types: Sequence[Attribute | Sequence[Attribute]],
     attributes: dict[str, Attribute], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                      | Sequence[Region]]
+                      | Sequence[Region | Sequence[Operation]
+                                 | Sequence[Block]]]
 ) -> _OpT:
     """Builder for an irdl operation."""
 
@@ -975,17 +1052,23 @@ def irdl_op_builder(
 
     error_prefix = f"Error in {op_def.name} builder: "
 
+    operands_arg = [irdl_build_operations_arg(operand) for operand in operands]
+
+    regions_arg = [irdl_build_regions_arg(region) for region in regions]
+
     # Build the operands
     built_operands, operand_sizes = irdl_build_arg_list(
-        VarIRConstruct.OPERAND, operands, op_def.operands, error_prefix)
+        VarIRConstruct.OPERAND, operands_arg, op_def.operands, error_prefix)
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
         VarIRConstruct.RESULT, res_types, op_def.results, error_prefix)
 
     # Build the regions
-    built_regions, _ = irdl_build_arg_list(VarIRConstruct.REGION, regions,
-                                           op_def.regions, error_prefix)
+    built_regions, region_sizes = irdl_build_arg_list(VarIRConstruct.REGION,
+                                                      regions_arg,
+                                                      op_def.regions,
+                                                      error_prefix)
 
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
@@ -997,14 +1080,16 @@ def irdl_op_builder(
 
     # Take care of variadic operand and result segment sizes.
     if AttrSizedOperandSegments() in op_def.options:
-        sizes = operand_sizes
         built_attributes[AttrSizedOperandSegments.attribute_name] =\
-            DenseArrayBase.from_list(i32, sizes)
+            DenseArrayBase.from_list(i32, operand_sizes)
 
     if AttrSizedResultSegments() in op_def.options:
-        sizes = result_sizes
         built_attributes[AttrSizedResultSegments.attribute_name] =\
-            DenseArrayBase.from_list(i32, sizes)
+            DenseArrayBase.from_list(i32, result_sizes)
+
+    if AttrSizedRegionSegments() in op_def.options:
+        built_attributes[AttrSizedRegionSegments.attribute_name] =\
+            DenseArrayBase.from_list(i32, region_sizes)
 
     return cls.create(operands=built_operands,
                       result_types=built_res_types,
@@ -1032,12 +1117,8 @@ def irdl_op_arg_definition(new_attrs: dict[str, Any],
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
-    if previous_variadics > 1 and (arg_size_option is None
-                                   or arg_size_option not in op_def.options):
-        if arg_size_option is None:
-            arg_size_option_name = 'unknown'
-        else:
-            arg_size_option_name = arg_size_option.__name__  # type: ignore
+    if previous_variadics > 1 and (arg_size_option not in op_def.options):
+        arg_size_option_name = type(arg_size_option).__name__  # type: ignore
         raise Exception(
             "Operation defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
@@ -1070,19 +1151,26 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     def optional_attribute_field(attribute_name: str):
 
-        @property
-        def impl(self: _OpT):
+        def field_getter(self: _OpT):
             return self.attributes.get(attribute_name, None)
 
-        return impl
+        def field_setter(self: _OpT, value: Attribute | None):
+            if value is None:
+                self.attributes.pop(attribute_name, None)
+            else:
+                self.attributes[attribute_name] = value
+
+        return property(field_getter, field_setter)
 
     def attribute_field(attribute_name: str):
 
-        @property
-        def impl(self: _OpT):
-            return self.attributes.get(attribute_name, None)
+        def field_getter(self: _OpT):
+            return self.attributes[attribute_name]
 
-        return impl
+        def field_setter(self: _OpT, value: Attribute):
+            self.attributes[attribute_name] = value
+
+        return property(field_getter, field_setter)
 
     for attribute_name, attr_def in op_def.attributes.items():
         if isinstance(attr_def, OptAttributeDef):
@@ -1090,6 +1178,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                 attribute_name)
         else:
             new_attrs[attribute_name] = attribute_field(attribute_name)
+
+    new_attrs["traits"] = op_def.traits
 
     def builder(
         cls: type[_OpT],

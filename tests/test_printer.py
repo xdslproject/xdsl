@@ -5,11 +5,11 @@ from io import StringIO
 from typing import List, Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
-from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute
+from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
-                       irdl_op_definition, Operation, Operand, OptAttributeDef)
+                       irdl_op_definition, Operation, Operand)
 from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
@@ -336,6 +336,17 @@ builtin.module() {
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
+
+
+def test_print_custom_block_arg_name():
+    block = Block.from_arg_types([i32, i32])
+    block.args[0].name = "test"
+    block.args[1].name = "test"
+
+    io = StringIO()
+    p = Printer(target=Printer.Target.MLIR, stream=io)
+    p.print_block(block)
+    assert io.getvalue() == """\n^0(%test : i32, %0 : i32):"""
 
 
 #   ____          _                  _____                          _

@@ -102,10 +102,9 @@ class Load(Operation):
 
     @staticmethod
     def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+            indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
         typ = ssa_value.typ
-        assert isinstance(typ, MemRefType)
         typ = cast(MemRefType[Attribute], typ)
         return Load.build(operands=[ref, indices],
                           result_types=[typ.element_type])
@@ -133,7 +132,7 @@ class Store(Operation):
 
     @staticmethod
     def get(value: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+            indices: Sequence[Operation | SSAValue]) -> Store:
         return Store.build(operands=[value, ref, indices])
 
 

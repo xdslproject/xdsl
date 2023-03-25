@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Optional, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
+                    TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -127,8 +127,8 @@ class SSAValue(ABC):
 
     _name: str | None = field(init=False, default=None)
 
-    _name_regex: ClassVar[re.Pattern] = re.compile(
-        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+    _name_regex: ClassVar[re.Pattern[str]] = re.compile(
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -144,9 +144,19 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
-        if self._name_regex.fullmatch(name):
+    def name(self, name: str | None):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
+        else:
+            raise ValueError(
+                "Invalid SSA Value name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -174,6 +184,9 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
+        # carry over name if possible
+        if value.name is None:
+            value.name = self.name
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -184,8 +197,8 @@ class SSAValue(ABC):
         """
         if safe_erase and len(self.uses) != 0:
             raise Exception(
-                "Attempting to delete SSA value that still has uses of operation:\n"
-                f"{self.op}")
+                "Attempting to delete SSA value that still has uses of result "
+                f"of operation:\n{self.owner}")
         self.replace_by(ErasedSSAValue(self.typ, self))
 
 
@@ -431,11 +444,34 @@ class IRNode(ABC):
         return self.parent.get_toplevel_object()
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
         ...
+
+    @abstractmethod
+    def __eq__(self, other: object) -> bool:
+        ...
+
+    @abstractmethod
+    def __hash__(self) -> int:
+        ...
+
+
+@dataclass(frozen=True)
+class OpTrait():
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, or to specify
+    additional semantic information.
+    Some traits may define parameters.
+    """
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
 
 
 @dataclass
@@ -465,6 +501,13 @@ class Operation(IRNode):
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
+    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
+    """
+    Traits attached to an operation definition.
+    This is a static field, and is made empty by default by PyRDL if not set
+    by the operation definition.
+    """
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -545,7 +588,8 @@ class Operation(IRNode):
         attributes: dict[str, Attribute] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                          | Sequence[Region]]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
         | None = None
     ) -> OpT:
         """Create a new operation using builders."""
@@ -655,6 +699,20 @@ class Operation(IRNode):
             region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
         return op
 
+    @classmethod
+    def has_trait(cls, trait: OpTrait) -> bool:
+        """
+        Check if the operation implements a trait with the given parameters.
+        """
+        return trait in cls.traits
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+        """
+        Get all the traits of the given type satisfied by this operation.
+        """
+        return [t for t in cls.traits if isinstance(t, trait_type)]
+
     def erase(self,
               safe_erase: bool = True,
               drop_references: bool = True) -> None:
@@ -676,9 +734,10 @@ class Operation(IRNode):
         self.parent.detach_op(self)
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two operations are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known
@@ -958,9 +1017,10 @@ class Block(IRNode):
             op.erase(safe_erase=safe_erase, drop_references=False)
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two blocks are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known
@@ -1031,7 +1091,7 @@ class Region(IRNode):
         return region
 
     @staticmethod
-    def get(arg: Region | list[Block] | list[Operation]) -> Region:
+    def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
         if isinstance(arg, list):
@@ -1194,9 +1254,10 @@ class Region(IRNode):
             block.parent = region
 
     def is_structurally_equivalent(
-            self,
-            other: IRNode,
-            context: Optional[dict[IRNode, IRNode]] = None) -> bool:
+        self,
+        other: IRNode,
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+    ) -> bool:
         """
         Check if two regions are structurally equivalent.
         The context is a mapping of IR nodes to IR nodes that are already known

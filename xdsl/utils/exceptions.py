@@ -35,6 +35,10 @@ class PyRDLAttrDefinitionError(Exception):
     pass
 
 
+class InvalidIRException(Exception):
+    pass
+
+
 @dataclass
 class BuilderNotFoundException(Exception):
     """

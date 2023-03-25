@@ -3,15 +3,25 @@ from typing import TYPE_CHECKING, Annotated
 
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, UnitAttr, i64)
+                                   AnyIntegerAttr, IndexType, UnitAttr, i32,
+                                   i64)
 from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
-from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, OptOpAttr,
-                       irdl_attr_definition, irdl_op_definition)
+from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
+                       irdl_attr_definition, irdl_op_definition, VarOperand,
+                       OptOpAttr)
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
+
+GEP_USE_SSA_VAL = -2147483648
+"""
+
+This is used in the getelementptr index list to signify that an ssa value 
+should be used for this index.
+
+"""
 
 
 @irdl_attr_definition
@@ -91,6 +101,69 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def typed(type: Attribute):
         return LLVMPointerType([type, NoneAttr()])
 
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
+
+
+@irdl_op_definition
+class GEPOp(Operation):
+    name = "llvm.getelementptr"
+
+    ptr: Annotated[Operand, LLVMPointerType]
+    ssa_indices: Annotated[VarOperand, IntegerType]
+    elem_type: OptOpAttr[Attribute]
+    rawConstantIndices: OpAttr[DenseArrayBase]
+    inbounds: OptOpAttr[UnitAttr]
+    result: Annotated[OpResult, LLVMPointerType]
+
+    @staticmethod
+    def get(
+            ptr: SSAValue | Operation,
+            result_type: LLVMPointerType = LLVMPointerType.opaque(),
+            indices: list[int] |
+        None = None,  # Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
+            ssa_indices: list[SSAValue | Operation] | None = None,
+            inbounds: bool = False,
+            pointee_type: Attribute | None = None):
+
+        if indices is None:
+            raise ValueError('llvm.getelementptr must have indices passed.')
+
+        indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
+
+        # construct default mutable argument here:
+        if ssa_indices is None:
+            ssa_indices = []
+
+        # convert a potential Operation into an SSAValue
+        ptr_val = SSAValue.get(ptr)
+        ptr_type = ptr_val.typ
+
+        if not isinstance(result_type, LLVMPointerType):
+            raise ValueError('Result type must be a pointer.')
+
+        if not isinstance(ptr_type, LLVMPointerType):
+            raise ValueError('Input must be a pointer')
+
+        if not ptr_type.is_typed():
+            if pointee_type == None:
+                raise ValueError(
+                    'Opaque types must have a pointee type passed')
+
+        attrs: dict[str, Attribute] = {
+            'rawConstantIndices': indices_attr,
+        }
+
+        if not ptr_type.is_typed():
+            attrs['elem_type'] = result_type
+
+        if inbounds:
+            attrs['inbounds'] = UnitAttr()
+
+        return GEPOp.build(operands=[ptr, ssa_indices],
+                           result_types=[result_type],
+                           attributes=attrs)
+
 
 @irdl_op_definition
 class AllocaOp(Operation):
@@ -102,9 +175,8 @@ class AllocaOp(Operation):
 
     res: OpResult
 
-    @classmethod
-    def get(cls,
-            size: SSAValue | Operation,
+    @staticmethod
+    def get(size: SSAValue | Operation,
             elem_type: Attribute,
             alignment: int = 32,
             as_untyped_ptr: bool = False):
@@ -117,9 +189,9 @@ class AllocaOp(Operation):
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return cls.build(operands=[size],
-                         attributes=attrs,
-                         result_types=[ptr_type])
+        return AllocaOp.build(operands=[size],
+                              attributes=attrs,
+                              result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -130,15 +202,26 @@ class IntToPtrOp(Operation):
 
     output: Annotated[OpResult, LLVMPointerType]
 
-    @classmethod
-    def get(cls,
-            input: SSAValue | Operation,
-            ptr_type: Attribute | None = None):
+    @staticmethod
+    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return cls.build(operands=[input], result_types=[ptr_type])
+        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+
+
+@irdl_op_definition
+class PtrToIntOp(Operation):
+    name = "llvm.ptrtoint"
+
+    input: Annotated[Operand, LLVMPointerType]
+
+    output: Annotated[OpResult, IntegerType]
+
+    @staticmethod
+    def get(arg: SSAValue | Operation, int_type: Attribute = i64):
+        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
 
 
 @irdl_op_definition
@@ -149,10 +232,8 @@ class LoadOp(Operation):
 
     dereferenced_value: OpResult
 
-    @classmethod
-    def get(cls,
-            ptr: SSAValue | Operation,
-            result_type: Attribute | None = None):
+    @staticmethod
+    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
             assert isinstance(ptr.typ, LLVMPointerType)
@@ -163,7 +244,7 @@ class LoadOp(Operation):
                 )
             result_type = ptr.typ.type
 
-        return cls.build(operands=[ptr], result_types=[result_type])
+        return LoadOp.build(operands=[ptr], result_types=[result_type])
 
 
 @irdl_op_definition
@@ -178,9 +259,8 @@ class StoreOp(Operation):
     volatile_: OptOpAttr[UnitAttr]
     nontemporal: OptOpAttr[UnitAttr]
 
-    @classmethod
-    def get(cls,
-            value: SSAValue | Operation,
+    @staticmethod
+    def get(value: SSAValue | Operation,
             ptr: SSAValue | Operation,
             alignment: int | None = None,
             ordering: int = 0,
@@ -197,7 +277,7 @@ class StoreOp(Operation):
         if nontemporal:
             attrs['nontemporal'] = UnitAttr()
 
-        return cls.build(
+        return StoreOp.build(
             operands=[value, ptr],
             attributes=attrs,
             result_types=[],
@@ -252,6 +332,7 @@ LLVM = Dialect([
     LLVMInsertValue,
     LLVMMLIRUndef,
     AllocaOp,
+    GEPOp,
     IntToPtrOp,
     NullOp,
     LoadOp,

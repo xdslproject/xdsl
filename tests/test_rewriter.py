@@ -353,8 +353,8 @@ def test_preserve_naming_multiple_ops():
     expected = \
 """builtin.module() {
   %i : !i32 = arith.constant() ["value" = 1 : !i32]
-  %i1 : !i32 = arith.addi(%i : !i32, %i : !i32)
-  %0 : !i32 = arith.addi(%i1 : !i32, %i1 : !i32)
+  %i_1 : !i32 = arith.addi(%i : !i32, %i : !i32)
+  %0 : !i32 = arith.addi(%i_1 : !i32, %i_1 : !i32)
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:

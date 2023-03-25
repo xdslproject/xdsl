@@ -31,7 +31,7 @@ def test_condbranch():
     block1 = Block.from_arg_types([i32])
 
     branch0 = ConditionalBranch.get(c, block0, [d], block1, [e])
-    assert branch0.then is c.results[0]
+    assert branch0.cond is c.results[0]
     assert branch0.then_arguments[0] is d.results[0]
     assert branch0.else_arguments[0] is e.results[0]
     assert branch0.successors[0] is block0
