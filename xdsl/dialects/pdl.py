@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Generic, Sequence, TypeVar
 
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
@@ -66,7 +66,7 @@ class ApplyNativeConstraintOp(Operation):
                 "expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: str, args: list[SSAValue]) -> ApplyNativeConstraintOp:
+    def get(name: str, args: Sequence[SSAValue]) -> ApplyNativeConstraintOp:
         return ApplyNativeConstraintOp.build(
             result_types=[],
             operands=[args],
@@ -94,8 +94,8 @@ class ApplyNativeRewriteOp(Operation):
                 "expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: str, args: list[SSAValue],
-            result_types: list[Attribute]) -> ApplyNativeRewriteOp:
+    def get(name: str, args: Sequence[SSAValue],
+            result_types: Sequence[Attribute]) -> ApplyNativeRewriteOp:
 
         return ApplyNativeRewriteOp.build(
             result_types=[result_types],
@@ -175,9 +175,9 @@ class OperationOp(Operation):
     @staticmethod
     def get(opName: StringAttr | None,
             attributeValueNames: ArrayAttr[StringAttr] | None = None,
-            operandValues: list[SSAValue] | None = None,
-            attributeValues: list[SSAValue] | None = None,
-            typeValues: list[SSAValue] | None = None):
+            operandValues: Sequence[SSAValue] | None = None,
+            attributeValues: Sequence[SSAValue] | None = None,
+            typeValues: Sequence[SSAValue] | None = None):
         if attributeValueNames is None:
             attributeValueNames = ArrayAttr([])
         if operandValues is None:
@@ -280,8 +280,8 @@ class ReplaceOp(Operation):
     @staticmethod
     def get(opValue: SSAValue,
             replOperation: SSAValue | None = None,
-            replValues: list[SSAValue] | None = None) -> ReplaceOp:
-        operands: list[SSAValue | list[SSAValue]] = [opValue]
+            replValues: Sequence[SSAValue] | None = None) -> ReplaceOp:
+        operands: list[SSAValue | Sequence[SSAValue]] = [opValue]
         if replOperation is None:
             operands.append([])
         else:
@@ -355,9 +355,10 @@ class RewriteOp(Operation):
 
     @staticmethod
     def get(name: StringAttr | None, root: SSAValue | None,
-            external_args: list[SSAValue], body: Region | None) -> RewriteOp:
+            external_args: Sequence[SSAValue],
+            body: Region | None) -> RewriteOp:
 
-        operands: list[SSAValue | list[SSAValue]] = []
+        operands: list[SSAValue | Sequence[SSAValue]] = []
         if root is not None:
             operands.append([root])
         else:
@@ -381,7 +382,7 @@ class RewriteOp(Operation):
 
     @staticmethod
     def from_callable(name: StringAttr | None, root: SSAValue | None,
-                      external_args: list[SSAValue],
+                      external_args: Sequence[SSAValue],
                       body: Block.BlockCallback) -> RewriteOp:
         block = Block.from_callable([], body)
         region = Region.from_block_list([block])
