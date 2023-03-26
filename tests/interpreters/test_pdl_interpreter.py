@@ -9,8 +9,8 @@ from xdsl.pattern_rewriter import (PatternRewriter, RewritePattern,
                                    op_type_rewrite_pattern,
                                    PatternRewriteWalker,
                                    AnonymousRewritePattern)
-from xdsl.interpreter import (Interpreter, InterpreterFunctionTable,
-                              function_table, impl)
+from xdsl.interpreter import (Interpreter, InterpreterFunctions,
+                              register_impls, impl)
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -179,9 +179,9 @@ class PDLMatcher:
         return True
 
 
-@function_table
+@register_impls
 @dataclass
-class PDLFunctionTable(InterpreterFunctionTable):
+class PDLFunctions(InterpreterFunctions):
     ctx: MLContext
     module: ModuleOp
     _rewriter: PatternRewriter | None = field(default=None)
@@ -326,8 +326,8 @@ def test_rewrite_pdl():
     ctx = MLContext()
     ctx.register_dialect(arith.Arith)
 
-    pdl_ft = PDLFunctionTable(ctx, input_module)
-    interpreter.register_functions(pdl_ft)
+    pdl_ft = PDLFunctions(ctx, input_module)
+    interpreter.register_implementations(pdl_ft)
 
     interpreter.run_module()
 
