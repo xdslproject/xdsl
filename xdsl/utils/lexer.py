@@ -266,27 +266,13 @@ class Lexer:
         self.pos = match.end()
         return match
 
-    _end_of_line_regex = re.compile(r"//[^\n]*(\n)?")
-    _whitespace_regex = re.compile(r"\s+", re.ASCII)
+    _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
 
     def _consume_whitespace(self) -> None:
         """
         Consume whitespace and comments.
         """
-        # We do not call _is_in_bounds here because we are in the
-        # lexer hot path.
-        while self.pos < self.input.len:
-            # Whitespace
-            match = self._consume_regex(self._whitespace_regex)
-            if match is not None:
-                continue
-
-            # Comments
-            match = self._consume_regex(self._end_of_line_regex)
-            if match is not None:
-                continue
-
-            return
+        self._consume_regex(self._whitespace_regex)
 
     def _form_token(self, kind: Token.Kind, start_pos: int) -> Token:
         """
