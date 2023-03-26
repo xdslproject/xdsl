@@ -231,7 +231,7 @@ class Lexer:
         """
         Check if the current position is within the bounds of the input.
         """
-        return self.pos + size - 1 < len(self.input.content)
+        return self.pos + size - 1 < self.input.len
 
     def _get_chars(self, size: int = 1) -> str | None:
         """
