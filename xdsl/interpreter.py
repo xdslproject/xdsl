@@ -104,7 +104,9 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
 @dataclass
 class _InterpreterFunctionImpls:
     """
-    Used to combine multiple function implementations.
+    Used to combine multiple function implementations. The operation
+    implementations need to be passed the instance of the Functions class,
+    so we keep a `(Functions, OpImpl)` tuple for every Operation type.
     """
 
     _impl_dict: dict[type[Operation],
