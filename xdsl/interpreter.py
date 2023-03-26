@@ -11,6 +11,41 @@ from xdsl.utils.exceptions import InterpretationError
 
 @dataclass
 class InterpreterFunctions:
+    """
+    A class to hold the Python implementations for Operations. Users should
+    subclass this class, and define the function to run during interpretation.
+    For example:
+
+    ``` python
+    @register_impls
+    class ArithFunctions(InterpreterFunctions):
+
+        @impl(arith.Addi)
+        def run_addi(self, interpreter: Interpreter, op: arith.Addi, 
+                     args: tuple[Any, ...]) -> tuple[Any, ...]:
+            lhs, rhs = args
+            return lhs + rhs, 
+    ```
+
+    The interpreter will take care of fetching the Python values associated with
+    the operand SSAValues, and setting the return values to the appropriate
+    OpResults.
+
+    To override the definition of an operation implementation, subclass the
+    class to override, and redefine the function, annotating it with @impl
+
+    ``` python
+    @register_impls
+    class DebugArithFunctions(ArithFunctions):
+
+        @impl(arith.Addi)
+        def run_addi(self, interpreter: Interpreter, op: arith.Addi, 
+                     args: tuple[Any, ...]) -> tuple[Any, ...]:
+            lhs, rhs = args
+            print(lhs, rhs, lhs + rhs)
+            return lhs + rhs, 
+    ```
+    """
 
     @classmethod
     def impls(
@@ -31,6 +66,7 @@ P = ParamSpec('P')
 def impl(
     op_type: type[OperationInvT]
 ) -> Callable[[OpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
+    "See `InterpreterFunctions`"
 
     def annot(func: OpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
         setattr(func, _IMPL_OP_TYPE, op_type)
@@ -40,6 +76,7 @@ def impl(
 
 
 def register_impls(ft: type[_FT]) -> type[_FT]:
+    "See `InterpreterFunctions`"
     impl_dict: _ImplDict = {}
     for cls in ft.mro():
         # Iterate from subclass through superclasses
