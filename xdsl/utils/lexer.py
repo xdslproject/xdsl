@@ -456,6 +456,8 @@ class Lexer:
 
         return self._form_token(kind, start_pos)
 
+    unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
+
     def _lex_string_literal(self, start_pos: int) -> Token:
         """
         Lex a string literal.
@@ -463,6 +465,7 @@ class Lexer:
         """
 
         while self._is_in_bounds():
+            self._consume_regex(self.unescaped_characters_regex)
             current_char = self._get_chars()
 
             # end of string literal
