@@ -7,7 +7,7 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Interpreter, InterpreterFunctionTable, function_table, impl
+from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
 from xdsl.utils.exceptions import InterpretationError
 
 from . import dialect as toy
@@ -36,8 +36,8 @@ class Tensor:
         return result
 
 
-@function_table
-class ToyFunctionTable(InterpreterFunctionTable):
+@register_impls
+class ToyFunctions(InterpreterFunctions):
 
     def run_toy_func(self, interpreter: Interpreter, name: str,
                      args: tuple[Any, ...]) -> tuple[Any, ...]:

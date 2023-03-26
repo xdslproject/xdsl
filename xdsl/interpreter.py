@@ -10,17 +10,17 @@ from xdsl.utils.exceptions import InterpretationError
 
 
 @dataclass
-class InterpreterFunctionTable:
+class InterpreterFunctions:
 
     @classmethod
     def impls(
         cls
-    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctionTable,
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions,
                                                 Operation]]]:
         ...
 
 
-_FT = TypeVar('_FT', bound=InterpreterFunctionTable)
+_FT = TypeVar('_FT', bound=InterpreterFunctions)
 
 _IMPL_OP_TYPE = '__impl_op_type'
 _IMPL_DICT = '__impl_dict'
@@ -39,7 +39,7 @@ def impl(
     return annot
 
 
-def function_table(ft: type[_FT]) -> type[_FT]:
+def register_impls(ft: type[_FT]) -> type[_FT]:
     impl_dict: _ImplDict = {}
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -56,7 +56,7 @@ def function_table(ft: type[_FT]) -> type[_FT]:
     @classmethod
     def impls(
         cls: type[_FT]
-    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctionTable,
+    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions,
                                                 Operation]]]:
         return impl_dict.items()
 
@@ -65,14 +65,17 @@ def function_table(ft: type[_FT]) -> type[_FT]:
 
 
 @dataclass
-class CompoundInterpretationFunctionTable(InterpreterFunctionTable):
+class _InterpreterFunctionImpls:
+    """
+    Used to combine multiple function implementations.
+    """
 
     _impl_dict: dict[type[Operation],
-                     tuple[InterpreterFunctionTable,
-                           OpImpl[InterpreterFunctionTable,
+                     tuple[InterpreterFunctions,
+                           OpImpl[InterpreterFunctions,
                                   Operation]]] = field(default_factory=dict)
 
-    def register_from(self, ft: InterpreterFunctionTable, /, override: bool):
+    def register_from(self, ft: InterpreterFunctions, /, override: bool):
         for op_type, impl in ft.impls():
             if op_type in self._impl_dict and not override:
                 raise ValueError(
@@ -91,7 +94,7 @@ class CompoundInterpretationFunctionTable(InterpreterFunctionTable):
 
 
 @dataclass
-class InterpretationEnv:
+class InterpreterContext:
     """
     Class holding the Python values associated with SSAValues during an interpretation
     context. An environment is a stack of scopes, values are assigned to the current
@@ -99,7 +102,7 @@ class InterpretationEnv:
     """
 
     name: str = field(default="unknown")
-    parent: InterpretationEnv | None = None
+    parent: InterpreterContext | None = None
     env: dict[SSAValue, Any] = field(default_factory=dict)
 
     def __getitem__(self, key: SSAValue) -> Any:
@@ -123,7 +126,7 @@ class InterpretationEnv:
                 f', but value with that name already exists in {self}')
         self.env[key] = value
 
-    def stack(self) -> Generator[InterpretationEnv, None, None]:
+    def stack(self) -> Generator[InterpreterContext, None, None]:
         """
         Iterates through scopes starting with the root scope.
         """
@@ -145,17 +148,17 @@ class Interpreter:
     """
 
     module: ModuleOp
-    _function_table: CompoundInterpretationFunctionTable = field(
-        default_factory=CompoundInterpretationFunctionTable)
-    _env: InterpretationEnv = field(
-        default_factory=lambda: InterpretationEnv(name='root'))
+    _impls: _InterpreterFunctionImpls = field(
+        default_factory=_InterpreterFunctionImpls)
+    _ctx: InterpreterContext = field(
+        default_factory=lambda: InterpreterContext(name='root'))
     file: IO[str] | None = field(default=None)
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         """
         Get values from current environment.
         """
-        return tuple(self._env[value] for value in values)
+        return tuple(self._ctx[value] for value in values)
 
     def set_values(self, pairs: Iterable[tuple[SSAValue, Any]]):
         """
@@ -164,13 +167,13 @@ class Interpreter:
         SSA value already has a Python value in the current scope.
         """
         for ssa_value, result_value in pairs:
-            self._env[ssa_value] = result_value
+            self._ctx[ssa_value] = result_value
 
     def push_scope(self, name: str = 'unknown') -> None:
         """
         Create new scope in current environment, with optional custom `name`
         """
-        self._env = InterpretationEnv(name, self._env)
+        self._ctx = InterpreterContext(name, self._ctx)
 
     def pop_scope(self) -> None:
         """
@@ -178,30 +181,31 @@ class Interpreter:
         of current scope to new current scope.
         Raises InterpretationError if current scope is root scope.
         """
-        if self._env.parent is None:
+        if self._ctx.parent is None:
             raise InterpretationError('Attempting to pop root env')
 
-        self._env = self._env.parent
+        self._ctx = self._ctx.parent
 
-    def register_functions(self,
-                           funcs: InterpreterFunctionTable,
-                           /,
-                           override: bool = False) -> None:
+    def register_implementations(self,
+                                 impls: InterpreterFunctions,
+                                 /,
+                                 override: bool = False) -> None:
         """
-        Register implementations for operations defined in given `Functions` object.
-        Raise InterpretationError if an operation already has an implementation registered
-        , unless override is set to True.
+        Register implementations for operations defined in given 
+        `OperationImplementations` object. Raise InterpretationError if an 
+        operation already has an implementation registered, unless override is 
+        set to True.
         """
-        self._function_table.register_from(funcs, override=override)
+        self._impls.register_from(impls, override=override)
 
     def run(self, op: Operation):
         """
         Fetches the implemetation for the given op, passes it the Python values
-        associated with the SSA operands, and assigns the results to the operation's
-        results.
+        associated with the SSA operands, and assigns the results to the 
+        operation's results.
         """
         inputs = self.get_values(op.operands)
-        results = self._function_table.run(self, op, inputs)
+        results = self._impls.run(self, op, inputs)
         self._assert(
             len(op.results) == len(results), 'Incorrect number of results')
         self.set_values(zip(op.results, results))
@@ -220,11 +224,11 @@ class Interpreter:
         "Raise InterpretationError if condition is not satisfied."
         if not condition:
             raise InterpretationError(
-                f'AssertionError: ({self._env})({message})')
+                f'AssertionError: ({self._ctx})({message})')
 
 
 OpImpl: TypeAlias = Callable[
     [_FT, Interpreter, OperationInvT, tuple[Any, ...]], tuple[Any, ...]]
 
-_ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctionTable,
+_ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions,
                                                     Operation]]
