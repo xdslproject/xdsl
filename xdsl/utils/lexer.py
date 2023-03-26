@@ -239,7 +239,7 @@ class Lexer:
         Return None if the position is out of bounds.
         """
         res = self.input.slice(self.pos, self.pos + size)
-        self._consume_chars(size)
+        self.pos += size
         return res
 
     def _peek_chars(self, size: int = 1) -> str | None:
@@ -253,7 +253,7 @@ class Lexer:
         """
         Advance the lexer position in the input by the given amount.
         """
-        self.pos = min(self.pos + size, len(self.input))
+        self.pos += size
 
     def _consume_regex(self, regex: re.Pattern[str]) -> re.Match[str] | None:
         """
@@ -273,7 +273,9 @@ class Lexer:
         """
         Consume whitespace and comments.
         """
-        while self._is_in_bounds():
+        # We do not call _is_in_bounds here because we are in the
+        # lexer hot path.
+        while self.pos < self.input.len:
             # Whitespace
             match = self._consume_regex(self._whitespace_regex)
             if match is not None:
