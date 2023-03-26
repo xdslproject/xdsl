@@ -32,9 +32,6 @@ def run_on_files(file_names: Iterable[str]):
             input = Input(contents, file_name)
             file_time = timeit.timeit(lambda: lex_file(input),
                                       number=args.num_iterations)
-            #file_time = time_func(
-            #    (lambda: lex_file(Input(contents, file_name))),
-            #    args.num_iterations)
             total_time += file_time / args.num_iterations
             print("Time taken: " + str(file_time))
         except Exception as e:
