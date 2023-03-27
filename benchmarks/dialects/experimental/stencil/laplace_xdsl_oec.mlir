@@ -1,7 +1,13 @@
 // For CPU lowering, use the following command:
 // mlir-opt %s --lower-affine --arith-expand --convert-scf-to-cf --expand-strided-metadata --convert-vector-to-llvm --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts | mlir-cpu-runner -O3 -e main -entry-point-result=void -shared-libs=path-to-libmlir_c_runner_utils.so
 
-// Affine maps used by oec's implementation.
+// Following Affine maps are used for accessing the hyper-rectangular region created by memref 
+// subviews in oec implementation.
+// Consider memref dimensions as [m_dim1, m_dim2, m_dim3] and subview offsets, subview dimensions 
+// as [s_offset1, s_offset2, s_offset3], [s_dim1, s_dim2, s_dim3] respectibely.
+// Then corresponding affine map annotation to access (i, j, k) element in subview will be:
+// i x m_dim2 x m_dim3 + j x m_dim3 + k + s_offset1 x m_dim2 x m_dim3 + 
+// s_offset2 x m_dim3 + s_offset3.
 #map0 = affine_map<(d0, d1, d2) -> (d0 * 5184 + d1 * 72 + d2 + 20955)>
 #map1 = affine_map<(d0, d1, d2) -> (d0 * 5184 + d1 * 72 + d2 + 21028)>
 
