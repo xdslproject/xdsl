@@ -286,6 +286,8 @@ def run_with_mlir(region: Region, ctx: MLContext, mlir_executable_path: str,
     module = ModuleOp.from_region_or_ops([patterns_module, ir_module])
     printer.print_op(module)
 
+    print(mlir_input.getvalue())
+
     res = subprocess.run([
         mlir_executable_path, "--mlir-print-op-generic",
         "-allow-unregistered-dialect", "--test-pdl-bytecode-pass"
@@ -297,7 +299,6 @@ def run_with_mlir(region: Region, ctx: MLContext, mlir_executable_path: str,
     if res.returncode != 0:
         print(res.stderr)
         raise Exception("MLIR failed")
-    print(mlir_input)
     print(res.stdout)
     global counter
     print(counter)
