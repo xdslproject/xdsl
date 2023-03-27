@@ -502,7 +502,7 @@ class Wait(MPIBaseOp):
 
 
 @irdl_op_definition
-class WaitAll(MPIBaseOp):
+class Waitall(MPIBaseOp):
     """
     Class for wrapping the MPI_Waitall function (blocking wait for requests)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html

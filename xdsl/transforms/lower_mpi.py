@@ -353,12 +353,12 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
 class LowerMpiWaitAll(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: mpi.WaitAll, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: mpi.Waitall, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
             self,
-            op: mpi.WaitAll) -> tuple[list[Operation], list[SSAValue | None]]:
+            op: mpi.Waitall) -> tuple[list[Operation], list[SSAValue | None]]:
         """
         Relatively straight forward lowering of mpi.waitall operation.
         """
