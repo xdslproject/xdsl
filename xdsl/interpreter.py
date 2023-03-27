@@ -12,7 +12,7 @@ from xdsl.utils.exceptions import InterpretationError
 @dataclass
 class InterpreterFunctions:
     """
-    A class to hold the Python implementations for Operations. Users should
+    Hold the Python implementations for Operations. Users should
     subclass this class, and define the function to run during interpretation.
     For example:
 
@@ -32,7 +32,7 @@ class InterpreterFunctions:
     OpResults.
 
     To override the definition of an operation implementation, subclass the
-    class to override, and redefine the function, annotating it with @impl
+    class to override, and redefine the functions, annotating them with `@impl`.
 
     ``` python
     @register_impls
@@ -66,7 +66,14 @@ P = ParamSpec('P')
 def impl(
     op_type: type[OperationInvT]
 ) -> Callable[[OpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
-    "See `InterpreterFunctions`"
+    """
+    Marks the Python implementation of an xDSL `Operation` instance, to be used
+    by an `Interpreter`. The Interpreter will fetch the Python values associated
+    with the operands from the current environment, and pass them as the `args`
+    parameter. The returned values are assigned to the `results` values.
+    
+    See `InterpreterFunctions`
+    """
 
     def annot(func: OpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
         setattr(func, _IMPL_OP_TYPE, op_type)
@@ -76,7 +83,13 @@ def impl(
 
 
 def register_impls(ft: type[_FT]) -> type[_FT]:
-    "See `InterpreterFunctions`"
+    """
+    Enumerates the methods on a given class, and registers them in a way that
+    an `Interpreter` instance can find them for dynamic dispatch during
+    interpretation.
+    
+    See `InterpreterFunctions`
+    """
     impl_dict: _ImplDict = {}
     for cls in ft.mro():
         # Iterate from subclass through superclasses
