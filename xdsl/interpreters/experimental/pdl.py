@@ -4,12 +4,13 @@ from typing import Any
 from xdsl.ir import (Attribute, MLContext, MLIRType, OpResult, Operation,
                      SSAValue)
 from xdsl.dialects import pdl
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    AnonymousRewritePattern)
 from xdsl.interpreter import (Interpreter, InterpreterFunctions,
                               register_impls, impl)
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -26,8 +27,8 @@ class PDLMatcher:
             assert isinstance(pdl_op.valueType, OpResult)
             assert isinstance(pdl_op.valueType.op, pdl.TypeOp)
 
-            if not self.type(pdl_op.valueType, pdl_op.valueType.op,
-                             xdsl_val.typ):
+            if not self.match_type(pdl_op.valueType, pdl_op.valueType.op,
+                                   xdsl_val.typ):
                 return False
 
         self.assignment[ssa_val] = xdsl_val
@@ -63,8 +64,8 @@ class PDLMatcher:
 
         return True
 
-    def type(self, ssa_val: SSAValue, pdl_op: pdl.TypeOp,
-             xdsl_attr: Attribute):
+    def match_type(self, ssa_val: SSAValue, pdl_op: pdl.TypeOp,
+                   xdsl_attr: Attribute):
         if ssa_val in self.assignment:
             return self.assignment[ssa_val] == xdsl_attr
 
@@ -75,7 +76,7 @@ class PDLMatcher:
     def match_attribute(self, ssa_val: SSAValue, pdl_op: pdl.AttributeOp,
                         attr_name: str, xdsl_attr: Attribute):
         if ssa_val in self.assignment:
-            return True
+            return self.assignment[ssa_val] == xdsl_attr
 
         if pdl_op.value is not None:
             if pdl_op.value != xdsl_attr:
@@ -85,12 +86,13 @@ class PDLMatcher:
             assert isinstance(pdl_op.valueType, OpResult)
             assert isinstance(pdl_op.valueType.op, pdl.TypeOp)
 
-            # TODO: what to do? what does type mean?
-            assert False
-            # if not PDLFunctionTable.match_pdl_type_op(
-            #         interpreter, pdl_op.valueType, pdl_op.valueType.op,
-            #         xdsl_attr.typ, assignment):
-            #     return False
+            assert isa(
+                xdsl_attr,
+                IntegerAttr[IntegerType]), 'Only handle integer types for now'
+
+            if not self.match_type(pdl_op.valueType, pdl_op.valueType.op,
+                                   xdsl_attr.typ):
+                return False
 
         self.assignment[ssa_val] = xdsl_attr
 
@@ -146,7 +148,7 @@ class PDLMatcher:
         for pdl_result, xdsl_result in zip(pdl_results, xdsl_results):
             assert isinstance(pdl_result, OpResult)
             assert isinstance(pdl_result.op, pdl.TypeOp)
-            if not self.type(pdl_result, pdl_result.op, xdsl_result.typ):
+            if not self.match_type(pdl_result, pdl_result.op, xdsl_result.typ):
                 return False
 
         self.assignment[ssa_val] = xdsl_op
@@ -271,13 +273,16 @@ class PDLFunctions(InterpreterFunctions):
                     args: tuple[Any, ...]) -> tuple[Any, ...]:
         rewriter = self.rewriter
 
-        assert len(args) == 2, "Only handle replace a by b"
-        assert isinstance(args[0], Operation)
-        assert isinstance(args[1], Operation)
+        old, = interpreter.get_values((op.opValue, ))
 
-        old, new = args
-
-        rewriter.replace_op(old, new)
+        if op.replOperation is not None:
+            new_op, = interpreter.get_values((op.replOperation, ))
+            rewriter.replace_op(old, new_op)
+        elif len(op.replValues):
+            new_vals = interpreter.get_values(op.replValues)
+            rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
+        else:
+            assert False, 'Unexpected ReplaceOp'
 
         return ()
 
