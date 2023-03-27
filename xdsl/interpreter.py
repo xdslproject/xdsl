@@ -13,7 +13,7 @@ from xdsl.utils.exceptions import InterpretationError
 class InterpreterFunctions:
     """
     Hold the Python implementations for Operations. Users should
-    subclass this class, and define the function to run during interpretation.
+    subclass this class, and define the functions to run during interpretation.
     For example:
 
     ``` python
@@ -227,7 +227,7 @@ class Interpreter:
 
     def push_scope(self, name: str = 'unknown') -> None:
         """
-        Create new scope in current environment, with optional custom `name`
+        Create new scope in current environment, with optional custom `name`.
         """
         self._ctx = InterpreterContext(name, self._ctx)
 
@@ -248,7 +248,7 @@ class Interpreter:
                                  override: bool = False) -> None:
         """
         Register implementations for operations defined in given 
-        `OperationImplementations` object. Raise InterpretationError if an 
+        `InterpreterFunctions` object. Raise InterpretationError if an 
         operation already has an implementation registered, unless override is 
         set to True.
         """
@@ -267,9 +267,7 @@ class Interpreter:
         self.set_values(zip(op.results, results))
 
     def run_module(self):
-        """
-        Starts execution of `self.module`
-        """
+        """Starts execution of `self.module`"""
         self.run(self.module)
 
     def print(self, *args: Any, **kwargs: Any):
@@ -277,7 +275,7 @@ class Interpreter:
         print(*args, **kwargs, file=self.file)
 
     def _assert(self, condition: bool, message: str | None = None):
-        "Raise InterpretationError if condition is not satisfied."
+        """Raise InterpretationError if condition is not satisfied."""
         if not condition:
             raise InterpretationError(
                 f'AssertionError: ({self._ctx})({message})')
