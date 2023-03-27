@@ -27,12 +27,13 @@ class InterpreterFunctions:
             return lhs + rhs, 
     ```
 
-    The interpreter will take care of fetching the Python values associated with
-    the operand SSAValues, and setting the return values to the appropriate
-    OpResults.
+    The interpreter will take care of fetching the Python values associated 
+    with the operand SSAValues, and setting the return values to the 
+    appropriate OpResults.
 
     To override the definition of an operation implementation, subclass the
-    class to override, and redefine the functions, annotating them with `@impl`.
+    class to override, and redefine the functions, annotating them with 
+    `@impl`.
 
     ``` python
     @register_impls
@@ -68,9 +69,10 @@ def impl(
 ) -> Callable[[OpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
     """
     Marks the Python implementation of an xDSL `Operation` instance, to be used
-    by an `Interpreter`. The Interpreter will fetch the Python values associated
-    with the operands from the current environment, and pass them as the `args`
-    parameter. The returned values are assigned to the `results` values.
+    by an `Interpreter`. The Interpreter will fetch the Python values 
+    associated with the operands from the current environment, and pass them as
+    the `args` parameter. The returned values are assigned to the `results` 
+    values.
     
     See `InterpreterFunctions`
     """
@@ -84,9 +86,9 @@ def impl(
 
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
-    Enumerates the methods on a given class, and registers them in a way that
-    an `Interpreter` instance can find them for dynamic dispatch during
-    interpretation.
+    Enumerates the methods on a given class, and registers the ones marked with
+    `@impl` in a way that an `Interpreter` instance can find them for dynamic 
+    dispatch during interpretation.
     
     See `InterpreterFunctions`
     """
@@ -148,9 +150,9 @@ class _InterpreterFunctionImpls:
 @dataclass
 class InterpreterContext:
     """
-    Class holding the Python values associated with SSAValues during an interpretation
-    context. An environment is a stack of scopes, values are assigned to the current
-    scope, but can be fetched from a parent scope.
+    Class holding the Python values associated with SSAValues during an
+    interpretation context. An environment is a stack of scopes, values are
+    assigned to the current scope, but can be fetched from a parent scope.
     """
 
     name: str = field(default="unknown")
@@ -159,8 +161,8 @@ class InterpreterContext:
 
     def __getitem__(self, key: SSAValue) -> Any:
         """
-        Fetch key from environment. Attempts to first fetch from current scope, then
-        from parent scopes. Raises Interpretation error if not found.
+        Fetch key from environment. Attempts to first fetch from current scope,
+        then from parent scopes. Raises Interpretation error if not found.
         """
         if key in self.env:
             return self.env[key]
@@ -170,7 +172,8 @@ class InterpreterContext:
 
     def __setitem__(self, key: SSAValue, value: Any):
         """
-        Assign key to current scope. Raises InterpretationError if key already assigned to.
+        Assign key to current scope. Raises InterpretationError if key already
+        assigned to.
         """
         if key in self.env:
             raise InterpretationError(
@@ -193,10 +196,11 @@ class InterpreterContext:
 @dataclass
 class Interpreter:
     """
-    An extensible interpreter, initialised with a Module to intperpret. The implementation
-    for each Operation subclass should be provided via a `InterpretationFunctionTable`
-    instance. Interpretations can be overridden, and the override must be specified
-    explicitly, by passing `override=True` to the `register_functions` method.
+    An extensible interpreter, initialised with a Module to intperpret. The 
+    implementation for each Operation subclass should be provided via a 
+    `InterpretationFunctions` instance. Interpretations can be overridden, and 
+    the override must be specified explicitly, by passing `override=True` to
+    the `register_functions` method.
     """
 
     module: ModuleOp
@@ -215,8 +219,8 @@ class Interpreter:
     def set_values(self, pairs: Iterable[tuple[SSAValue, Any]]):
         """
         Set values to current scope.
-        Raises InterpretationError if len(ssa_values) != len(result_values), or if
-        SSA value already has a Python value in the current scope.
+        Raises InterpretationError if len(ssa_values) != len(result_values), or
+        if SSA value already has a Python value in the current scope.
         """
         for ssa_value, result_value in pairs:
             self._ctx[ssa_value] = result_value
@@ -229,8 +233,8 @@ class Interpreter:
 
     def pop_scope(self) -> None:
         """
-        Discard the current scope, and all the values registered in it. Sets parent scope
-        of current scope to new current scope.
+        Discard the current scope, and all the values registered in it. Sets 
+        parent scope of current scope to new current scope.
         Raises InterpretationError if current scope is root scope.
         """
         if self._ctx.parent is None:
