@@ -113,6 +113,22 @@ class AttributeOp(Operation):
     valueType: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, AttributeType]
 
+    @staticmethod
+    def get(value: Attribute | None = None,
+            valueType: SSAValue | None = None) -> AttributeOp:
+        attributes: dict[str, Attribute] = {}
+        if value is not None:
+            attributes['value'] = value
+
+        if valueType is None:
+            value_type = []
+        else:
+            value_type = [valueType]
+
+        return AttributeOp.build(operands=[value_type],
+                                 attributes=attributes,
+                                 result_types=[AttributeType()])
+
 
 @irdl_op_definition
 class EraseOp(Operation):
