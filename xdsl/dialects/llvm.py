@@ -108,18 +108,33 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 @irdl_op_definition
 class GEPOp(Operation):
     """
-    The getelementptr is rather difficult to understand. There's a lot of
-    good literature online on how this works exactly. Here's my attempt
-    at explaining how it works and doesn't work using a few examples:
+    The llvm.getelementptr is documented online in various places:
 
-    But first, you need to always keep in mind that:
+    LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
+    A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
+    MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
+
+    Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
+    Their semantics are the same, but the structure used by MLIR is not well
+    documented (yet) and their syntax is a bit different.
+
+    We will mainly discuss MLIRs GEP operation here, with the syntax being
+
+    %res = llvm.getelementptr %ptr  [1, 2, %val]
+                              ^^^^   ^^^^^^^^^^
+                              input   indices
+
+    The central point to understanding GEP is that:
     > GEP never dereferences, it only does math on the given pointer
 
-    It *always* returns a pointer to the element you "selected"!
+    It *always* returns a pointer to the element "selected" that is some
+    number of bytes offset from the input pointer:
+
+    `result = ptr + x` for some x parametrized by the arguments
 
     ## Examples:
 
-    Given an ptr:
+    Given the following pointer:
 
     %ptr : llvm.ptr<llvm.struct<(i32, i32, llvm.array<2xi32>)>>
 
@@ -150,9 +165,13 @@ class GEPOp(Operation):
     [0,0,1]  -> Invalid! The first element of the first struct has no "sub-elements"!
 
 
-    Remember that GEP NEVER DEREFERENCES! So given a pointer like this:
+    Here is an example of invalid GEP operation parameters:
+
+    Given a different pointer to the example above:
 
     %ptr : llvm.ptr<llvm.struct<(llvm.ptr<i32>, i32)>>
+
+    Note the two pointers, one to the struct, one in the struct.
 
     We can do math on the first pointer:
 
@@ -166,25 +185,32 @@ class GEPOp(Operation):
                 llvm.ptr<llvm.ptr<i32>>
 
     [0,0,3]  -> Invalid! In order to find the fourth element in the pointer
-                we would need to dereference it! GEP can't do that!
+                it would need to be dereferenced! GEP can't do that!
 
-    In "C" you'd need to do the following:
+    Expressed in "C", this would equate to:
 
     # address of first struct
     (ptr + 0)
+
     # address of first field of first struct
     &((ptr + 0)->elm0)
+               ^^^^^^
+               Even though it looks like it, we are not actually
+               dereferencing ptr here.
+
     # address of fourth element:
     &(((ptr + 0)->elm0 + 3))
                 ^^^^^^^^^^
-    Which translates to roughly this code:
-    %elm0_addr   = llvm.gep %ptr[0,0]  : (!llvm.ptr<...>) -> !llvm.ptr<!llvm.ptr<i32>>
-    %elm0        = llvm.load %elm0_adr : (!llvm.ptr<llvm.ptr<i32>>) -> !llvm.ptr<i32>
-    %elm0_3_addr = llvm.gep %elm0[3]   : !llvm.ptr<i32> -> !llvm.ptr<i32>
+                This actually dereferences (ptr + 0) to access elm0!
 
-    As you see, you can only get the %elm0_3_addr by dereferencing the %elem_0_addr once!
+    Which translates to roughly this MLIR code:
 
-    I hope this clears things up!
+    %elm0_addr   = llvm.gep %ptr[0,0]   : (!llvm.ptr<...>) -> !llvm.ptr<!llvm.ptr<i32>>
+    %elm0        = llvm.load %elm0_addr : (!llvm.ptr<llvm.ptr<i32>>) -> !llvm.ptr<i32>
+    %elm0_3_addr = llvm.gep %elm0[3]    : !llvm.ptr<i32> -> !llvm.ptr<i32>
+
+    Here the necessary dereferencing is very visible, as %elm0_3_addr is only
+    accessible through an `llvm.load` on %elm0_addr.
     """
     name = "llvm.getelementptr"
 
