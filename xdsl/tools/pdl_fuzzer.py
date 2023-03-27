@@ -1,16 +1,21 @@
+#!/usr/bin/env python3
+
 from __future__ import annotations
+
+import subprocess
+import argparse
 
 from itertools import chain, combinations
 from dataclasses import dataclass, field
 from random import randrange
-from typing import Iterable, TypeAlias, cast
+from typing import Generator, Iterable, cast
+from io import StringIO
 
 from xdsl.ir import Attribute, Block, MLContext, OpResult, Operation, Region, SSAValue
 from xdsl.xdsl_opt_main import xDSLOptMain
-from xdsl.dialects.builtin import ModuleOp, UnregisteredOp, i32
-from xdsl.dialects.pdl import OperandOp, OperationOp, PatternOp, TypeOp
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, StringAttr, UnregisteredOp, i32
+from xdsl.dialects.pdl import AttributeOp, OperandOp, OperationOp, PatternOp, ResultOp, TypeOp
 from xdsl.printer import Printer
-from xdsl.dialects.func import FuncOp
 
 
 @dataclass
@@ -104,6 +109,7 @@ class PDLSynthContext():
     Context used for generating an Operation DAG being matched by a pattern.
     """
     types: dict[SSAValue, Attribute] = field(default_factory=dict)
+    attributes: dict[SSAValue, Attribute] = field(default_factory=dict)
     values: dict[SSAValue, SSAValue] = field(default_factory=dict)
     ops: dict[SSAValue, Operation] = field(default_factory=dict)
 
@@ -156,11 +162,33 @@ def pdl_to_operations(pattern: PatternOp,
             pdl_context.values[op.value] = arg
             continue
 
+        if isinstance(op, AttributeOp):
+            attribute_type: Attribute
+            if op.value is not None:
+                attribute_type = op.value
+            else:
+                attribute_type = IntegerAttr[IntegerType](5, i32)
+            pdl_context.attributes[op.output] = attribute_type
+            continue
+
+        if isinstance(op, ResultOp):
+            assert isinstance(op.parent_.owner, Operation)
+            pdl_context.values[op.val] = pdl_context.ops[op.parent_].results[
+                op.index.value.data]
+            continue
+
         if isinstance(op, OperationOp):
-            if len(op.attributeValueNames.data) != 0 or len(
-                    op.attributeValues) != 0:
-                raise Exception("Can't handle operation attributes")
-            operands = [pdl_context.values[operand] for operand in op.operands]
+            if len(op.attributeValueNames.data) != len(op.attributeValues):
+                raise Exception(
+                    "Number of attribute names does not match number of values"
+                )
+            attributes = {}
+            for name, value in zip(op.attributeValueNames.data,
+                                   op.attributeValues):
+                attributes[name.data] = pdl_context.attributes[value]
+            operands = [
+                pdl_context.values[operand] for operand in op.operandValues
+            ]
             result_types = [
                 pdl_context.types[types] for types in op.typeValues
             ]
@@ -171,6 +199,7 @@ def pdl_to_operations(pattern: PatternOp,
                 if op_def is None:
                     op_def = UnregisteredOp.with_name(op.opName.data, ctx)
             new_op = op_def.create(operands=operands,
+                                   attributes=attributes,
                                    result_types=result_types)
             pdl_context.ops[op.op] = new_op
             synth_ops.append(new_op)
@@ -183,11 +212,16 @@ def pdl_to_operations(pattern: PatternOp,
 
 def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure,
                          ctx: MLContext):
+    assert len(region.blocks) == 1
     blocks: list[Block] = []
     for _ in range(dag.size):
         block = Block()
         region.add_block(block)
         blocks.append(block)
+
+    region.blocks[0].add_op(
+        UnregisteredOp.with_name("test.entry",
+                                 ctx).create(successors=[blocks[0]]))
 
     for i, adjency_set in enumerate(dag.get_adjency_list()):
         block = blocks[i]
@@ -196,24 +230,25 @@ def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure,
         block.add_op(branch_op.create(successors=successors))
 
 
-def put_operations_in_region(dag: SingleEntryDAGStructure, region: Region,
-                             ops: list[Operation]) -> None:
+def put_operations_in_region(
+        dag: SingleEntryDAGStructure, region: Region,
+        ops: list[Operation]) -> Generator[Region, None, None]:
     block_to_idx: dict[Block, int] = {}
     for i, block in enumerate(region.blocks[1:]):
         block_to_idx[block] = i
     dominance_list = dag.get_dominance_list()
 
-    def rec(i: int, ops: list[Operation]) -> None:
+    def rec(i: int, ops: list[Operation]) -> Generator[Region, None, None]:
         # Finished placing all operations.
         if len(ops) == 0:
-            Printer().print_region(region)
+            yield region
             return
         # No more blocks to place operations in.
         if i == dag.size:
             return
 
         # Try to place operations in next blocks
-        res = rec(i + 1, ops)
+        yield from rec(i + 1, ops)
 
         # Check if we can place the first operation in this block
         operands_index = set(
@@ -223,31 +258,74 @@ def put_operations_in_region(dag: SingleEntryDAGStructure, region: Region,
             # Place the operation, and recurse
             block = region.blocks[i + 1]
             block.insert_op(ops[0], len(block.ops) - 1)
-            rec(i + 1, ops[1:])
+            yield from rec(i + 1, ops[1:])
             ops[0].detach()
 
-        return res
-
-    return rec(0, ops)
+    yield from rec(0, ops)
 
 
-def fuzz_pdl(module: ModuleOp, ctx: MLContext):
+counter = 0
+
+
+def run_with_mlir(region: Region, ctx: MLContext, mlir_executable_path: str,
+                  pattern: PatternOp):
+    mlir_input = StringIO()
+    printer = Printer(stream=mlir_input, target=Printer.Target.MLIR)
+    new_region = Region()
+    region.clone_into(new_region)
+    test_op = UnregisteredOp.with_name("test",
+                                       ctx).create(regions=[new_region])
+
+    patterns_module = ModuleOp.create(
+        attributes={"sym_name": StringAttr("patterns")},
+        regions=[Region.from_block_list([Block()])])
+    patterns_module.regions[0].blocks[0].add_op(pattern.clone())
+    ir_module = ModuleOp.create(attributes={"sym_name": StringAttr("ir")},
+                                regions=[Region.from_block_list([Block()])])
+    ir_module.regions[0].blocks[0].add_op(test_op)
+    module = ModuleOp.from_region_or_ops([patterns_module, ir_module])
+    printer.print_op(module)
+
+    res = subprocess.run([
+        mlir_executable_path, "--mlir-print-op-generic",
+        "-allow-unregistered-dialect", "--test-pdl-bytecode-pass"
+    ],
+                         input=mlir_input.getvalue(),
+                         text=True,
+                         capture_output=True)
+
+    if res.returncode != 0:
+        print(res.stderr)
+        raise Exception("MLIR failed")
+    print(mlir_input)
+    print(res.stdout)
+    global counter
+    print(counter)
+    counter += 1
+
+
+def fuzz_pdl(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
     if not isinstance(module.ops[0], PatternOp):
         raise Exception("Expected a single toplevel pattern op")
     region, ops = pdl_to_operations(module.ops[0], ctx)
     all_dags = generate_all_dags(5)
     dag = all_dags[randrange(0, len(all_dags))]
     create_dag_in_region(region, dag, ctx)
-    put_operations_in_region(dag, region, ops)
-    Printer().print_region(region)
+    for populated_region in put_operations_in_region(dag, region, ops):
+        run_with_mlir(populated_region, ctx, mlir_executable_path,
+                      module.ops[0])
 
 
 class PDLFuzzMain(xDSLOptMain):
 
+    def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
+        super().register_all_arguments(arg_parser)
+        arg_parser.add_argument("--mlir-executable", type=str, required=True)
+
     def run(self):
         module = self.parse_input()
-        for _ in range(0, 100):
-            fuzz_pdl(module, self.ctx)
+        for _ in range(0, 1000):
+            fuzz_pdl(module, self.ctx, self.args.mlir_executable)
 
 
 if __name__ == "__main__":
