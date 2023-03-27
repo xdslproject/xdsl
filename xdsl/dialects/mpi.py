@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import cast, Sequence
+from typing import cast, TypeVar, Generic, Sequence
 
+from xdsl.utils.hints import isa
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
                                    AnyFloat, i32)
@@ -12,7 +13,7 @@ from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, MLIRType)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       OptOperand)
+                       OptOperand, OptOpAttr)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -23,6 +24,7 @@ AnyNumericType = AnyFloat | IntegerType
 class OperationType(ParametrizedAttribute, MLIRType):
     """
     This type represents the MPI_Op type.
+
     They are used by the reduction MPI functions
     """
     name = 'mpi.operation'
@@ -78,6 +80,23 @@ class DataType(ParametrizedAttribute, MLIRType):
     name = 'mpi.datatype'
 
 
+VectorWrappable = RequestType | StatusType | DataType
+_VectorT = TypeVar('_VectorT', bound=VectorWrappable)
+
+
+@irdl_attr_definition
+class VectorType(Generic[_VectorT], ParametrizedAttribute, MLIRType):
+    """
+    This type holds multiple MPI types
+    """
+    name = 'mpi.vector'
+    wrapped_type: ParameterDef[_VectorT]
+
+    @staticmethod
+    def of(typ: type[_VectorT]) -> VectorType[_VectorT]:
+        return VectorType([typ([])])
+
+
 class StatusTypeField(Enum):
     """
     This enum lists all fields in the MPI_Status struct
@@ -99,9 +118,12 @@ class Reduce(MPIBaseOp):
     """
     This wraps the MPI_Reduce function (blocking reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Reduce.html
+
     ## The MPI_Reduce Function Docs:
+
     int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
                MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
+
         sendbuf: address of send buffer (choice)
         recvbuf: address of receive buffer (choice)
         count: number of elements in send buffer (non-negative integer)
@@ -109,7 +131,9 @@ class Reduce(MPIBaseOp):
         op: reduce operation (handle)
         root: rank of root process (integer)
         comm: communicator (handle)
+
     ## Our Abstraction:
+
         - We omit the possibility of using multiple communicators, defaulting
           to MPI_COMM_WORLD
     """
@@ -144,16 +168,21 @@ class Allreduce(MPIBaseOp):
     """
     This wraps the MPI_Allreduce function (blocking all reduction)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Allreduce.html
+
     ## The MPI_Allreduce Function Docs:
+
     int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
                   MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+
         sendbuf: address of send buffer (choice)
         recvbuf: address of receive buffer (choice)
         count: number of elements in send buffer (non-negative integer)
         datatype: data type of elements of send buffer (handle)
         op: reduce operation (handle)
         comm: communicator (handle)
+
     ## Our Abstraction:
+
         - We omit the possibility of using multiple communicators, defaulting
           to MPI_COMM_WORLD
     """
@@ -194,15 +223,20 @@ class Bcast(MPIBaseOp):
     """
     This wraps the MPI_Bcast function (blocking broadcast)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Bcast.html
+
     ## The MPI_Bcast Function Docs:
+
     int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
               MPI_Comm comm)
+
         buffer: starting address of buffer (choice)
         count: number of elements in send buffer (non-negative integer)
         datatype: data type of elements of send buffer (handle)
         root: rank of broadcast root (integer)
         comm: communicator (handle)
+
     ## Our Abstraction:
+
         - We omit the possibility of using multiple communicators, defaulting
           to MPI_COMM_WORLD
     """
@@ -214,22 +248,21 @@ class Bcast(MPIBaseOp):
     datatype: Annotated[Operand, DataType]
     root: Annotated[Operand, i32]
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         buffer: SSAValue | Operation,
         count: SSAValue | Operation,
         datatype: SSAValue | Operation,
         root: SSAValue | Operation,
     ):
-        return cls.build(
+        return Bcast.build(
             operands=[buffer, count, datatype, root],
             result_types=[],
         )
 
 
 @irdl_op_definition
-class ISend(MPIBaseOp):
+class Isend(MPIBaseOp):
     """
     This wraps the MPI_Isend function (nonblocking send)
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Isend.html
@@ -259,8 +292,7 @@ class ISend(MPIBaseOp):
     datatype: Annotated[Operand, DataType]
     dest: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
-
-    request: Annotated[OpResult, RequestType]
+    request: Annotated[Operand, RequestType]
 
     @staticmethod
     def get(
@@ -269,10 +301,11 @@ class ISend(MPIBaseOp):
         datatype: SSAValue | Operation,
         dest: SSAValue | Operation,
         tag: SSAValue | Operation,
+        request: SSAValue | Operation,
     ):
-        return ISend.build(
-            operands=[buffer, count, datatype, dest, tag],
-            result_types=[RequestType()],
+        return Isend.build(
+            operands=[buffer, count, datatype, dest, tag, request],
+            result_types=[],
         )
 
 
@@ -317,7 +350,7 @@ class Send(MPIBaseOp):
 
 
 @irdl_op_definition
-class IRecv(MPIBaseOp):
+class Irecv(MPIBaseOp):
     """
     This wraps the MPI_Irecv function (nonblocking receive).
     https://www.mpich.org/static/docs/v4.1/www3/MPI_Irecv.html
@@ -348,8 +381,7 @@ class IRecv(MPIBaseOp):
     datatype: Annotated[Operand, DataType]
     source: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
-
-    request: Annotated[OpResult, RequestType]
+    request: Annotated[Operand, RequestType]
 
     @staticmethod
     def get(
@@ -358,10 +390,11 @@ class IRecv(MPIBaseOp):
         datatype: SSAValue | Operation,
         source: SSAValue | Operation,
         tag: SSAValue | Operation,
+        request: SSAValue | Operation,
     ):
-        return IRecv.build(
-            operands=[buffer, count, datatype, source, tag],
-            result_types=[RequestType()],
+        return Irecv.build(
+            operands=[buffer, count, datatype, source, tag, request],
+            result_types=[],
         )
 
 
@@ -466,6 +499,38 @@ class Wait(MPIBaseOp):
             result_types = [[]]
 
         return Wait.build(operands=[request], result_types=result_types)
+
+
+@irdl_op_definition
+class Waitall(MPIBaseOp):
+    """
+    Class for wrapping the MPI_Waitall function (blocking wait for requests)
+    https://www.mpich.org/static/docs/v4.1/www3/MPI_Waitall.html
+
+    ## The MPI_Test Function Docs:
+
+    int MPI_Waitall(int count, MPI_Request array_of_requests[],
+                MPI_Status *array_of_statuses)
+
+        - count: Number of handles
+        - array_of_requests: Request handles
+        - array_of_statuses: Status objects
+    """
+
+    name = "mpi.waitall"
+
+    requests: Annotated[Operand, VectorType[RequestType]]
+    count: Annotated[Operand, i32]
+    statuses: Annotated[OptOpResult, VectorType[StatusType]]
+
+    @staticmethod
+    def get(requests: Operand, count: Operand, ignore_status: bool = True):
+        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
+        if ignore_status:
+            result_types = [[]]
+
+        return Waitall.build(operands=[requests, count],
+                             result_types=result_types)
 
 
 @irdl_op_definition
@@ -597,9 +662,65 @@ class GetDtypeOp(MPIBaseOp):
                                 attributes={'dtype': typ})
 
 
+@irdl_op_definition
+class AllocateTypeOp(MPIBaseOp):
+    """
+    This op is used to allocate a specific MPI dialect type with a set size, returning this
+    in an MPI vector of that type
+
+    This is useful as it means we can, in a self contained manner, store things like
+    requests, statuses etc. It accepts the base type that the array will contain, the
+    number of elements and an optional bindc_name which contains the name of the
+    variable that this is allocating
+    """
+    name = "mpi.allocate"
+
+    bindc_name: OptOpAttr[StringAttr]
+    dtype: OpAttr[VectorWrappable]
+    count: Annotated[Operand, i32]
+
+    result: Annotated[OpResult, VectorType]
+
+    @staticmethod
+    def get(
+        dtype: type[VectorWrappable],
+        count: SSAValue | Operation,
+        bindc_name: StringAttr | None = None,
+    ) -> AllocateTypeOp:
+        attrs: dict[str, Attribute] = {'dtype': dtype()}
+        if bindc_name is not None:
+            attrs['bindc_name'] = bindc_name
+        return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
+                                    attributes=attrs,
+                                    operands=[count])
+
+
+@irdl_op_definition
+class VectorGetOp(MPIBaseOp):
+    """
+    This op will retrieve an element of an MPI vector, it accepts the vector as
+    an argument and the element index
+    """
+    name = "mpi.vector_get"
+
+    vect: Annotated[Operand, VectorType]
+    element: Annotated[Operand, i32]
+
+    result: Annotated[OpResult, VectorWrappable]
+
+    @staticmethod
+    def get(vect: SSAValue | Operation,
+            element: SSAValue | Operation) -> VectorGetOp:
+        ssa_val = SSAValue.get(vect)
+        assert isa(ssa_val.typ, VectorType[VectorWrappable])
+
+        return VectorGetOp.build(result_types=[ssa_val.typ.wrapped_type],
+                                 operands=[vect, element])
+
+
 MPI = Dialect([
-    ISend,
-    IRecv,
+    Isend,
+    Irecv,
     Test,
     Recv,
     Send,
@@ -613,9 +734,12 @@ MPI = Dialect([
     CommRank,
     UnwrapMemrefOp,
     GetDtypeOp,
+    AllocateTypeOp,
+    VectorGetOp,
 ], [
     OperationType,
     RequestType,
     StatusType,
     DataType,
+    VectorType,
 ])
