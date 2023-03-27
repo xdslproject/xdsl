@@ -1222,9 +1222,13 @@ class Region(IRNode):
         if block_mapper is None:
             block_mapper = {}
 
+        new_blocks: list[Block] = []
         for block in self.blocks:
             new_block = Block()
+            new_blocks.append(new_block)
             block_mapper[block] = new_block
+
+        for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
