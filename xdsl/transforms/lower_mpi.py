@@ -350,7 +350,7 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
         ], new_results
 
 
-class LowerMpiWaitAll(_MPIToLLVMRewriteBase):
+class LowerMpiWaitall(_MPIToLLVMRewriteBase):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.Waitall, rewriter: PatternRewriter, /):
@@ -751,7 +751,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiInit(lib_info),
         LowerMpiFinalize(lib_info),
         LowerMpiWait(lib_info),
-        LowerMpiWaitAll(lib_info),
+        LowerMpiWaitall(lib_info),
         LowerMpiCommRank(lib_info),
         LowerMpiCommSize(lib_info),
         LowerMpiIsend(lib_info),

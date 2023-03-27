@@ -529,7 +529,7 @@ class Waitall(MPIBaseOp):
         if ignore_status:
             result_types = [[]]
 
-        return WaitAll.build(operands=[requests, count],
+        return Waitall.build(operands=[requests, count],
                              result_types=result_types)
 
 
