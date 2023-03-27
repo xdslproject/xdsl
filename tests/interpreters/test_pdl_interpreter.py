@@ -90,8 +90,7 @@ class PDLMatcher:
     def type(self, ssa_val: SSAValue, pdl_op: pdl.TypeOp,
              xdsl_attr: Attribute):
         if ssa_val in self.assignment:
-            # TODO: check type is the same?
-            return True
+            return self.assignment[ssa_val] == xdsl_attr
 
         self.assignment[ssa_val] = xdsl_attr
 
