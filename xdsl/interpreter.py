@@ -12,7 +12,7 @@ from xdsl.utils.exceptions import InterpretationError
 @dataclass
 class InterpreterFunctions:
     """
-    Hold the Python implementations for Operations. Users should
+    Holds the Python implementations for Operations. Users should
     subclass this class, and define the functions to run during interpretation.
     For example:
 
@@ -196,7 +196,7 @@ class InterpreterContext:
 @dataclass
 class Interpreter:
     """
-    An extensible interpreter, initialised with a Module to intperpret. The 
+    An extensible interpreter, initialised with a Module to interpret. The 
     implementation for each Operation subclass should be provided via a 
     `InterpretationFunctions` instance. Interpretations can be overridden, and 
     the override must be specified explicitly, by passing `override=True` to
