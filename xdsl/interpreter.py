@@ -49,11 +49,16 @@ class InterpreterFunctions:
     """
 
     @classmethod
-    def impls(
+    def _impls(
         cls
     ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions,
                                                 Operation]]]:
-        ...
+        try:
+            impl_dict = getattr(cls, _IMPL_DICT)
+            return impl_dict
+        except AttributeError as e:
+            raise ValueError(
+                f'Use `@register_impls` on class {cls.__name__}') from e
 
 
 _FT = TypeVar('_FT', bound=InterpreterFunctions)
@@ -105,14 +110,6 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                     impl_dict[op_type] = val  # type: ignore
     setattr(ft, _IMPL_DICT, impl_dict)
 
-    @classmethod
-    def impls(
-        cls: type[_FT]
-    ) -> Iterable[tuple[type[Operation], OpImpl[InterpreterFunctions,
-                                                Operation]]]:
-        return impl_dict.items()
-
-    setattr(ft, 'impls', impls)
     return ft
 
 
@@ -130,7 +127,8 @@ class _InterpreterFunctionImpls:
                                   Operation]]] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
-        for op_type, impl in ft.impls():
+        impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
+        for op_type, impl in impls:
             if op_type in self._impl_dict and not override:
                 raise ValueError(
                     "Attempting to register implementation for op of type "
