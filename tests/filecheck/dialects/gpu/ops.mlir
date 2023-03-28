@@ -33,6 +33,8 @@
             %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>}: () -> memref<10x10xf64>
             %gdmemref = "gpu.alloc"(%griddimx, %griddimy,%griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>}: () -> memref<?x?x?xf64>
 
+            "gpu.dealloc"(%gdmemref) {"operand_segment_sizes" = array<i32: 0, 1>} : (memref<?x?x?xf64>) -> ()
+
             %laneid = "gpu.lane_id"() : () -> index
             %numsubgroups = "gpu.num_subgroups"() : () -> index
 
@@ -100,6 +102,8 @@
 
 // CHECK-NEXT:             %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<10x10xf64>
 // CHECK-NEXT:             %gdmemref = "gpu.alloc"(%griddimx, %griddimy, %griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<?x?x?xf64>
+
+// CHECK-NEXT:            "gpu.dealloc"(%gdmemref) {"operand_segment_sizes" = array<i32: 0, 1>} : (memref<?x?x?xf64>) -> ()
 
 // CHECK-NEXT:             %{{.*}} = "gpu.lane_id"() : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.num_subgroups"() : () -> index
