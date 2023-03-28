@@ -120,19 +120,19 @@ def test_dealloc():
     # For pyright
     assert alloc.asyncToken is not None
 
-    dealloc = DeallocOp.get(buffer=alloc.memref,
+    dealloc = DeallocOp.get(buffer=alloc.result,
                             async_dependencies=[alloc.asyncToken],
                             is_async=True)
 
     assert dealloc.asyncToken is not None
     assert isinstance(dealloc.asyncToken.typ, AsyncTokenType)
-    assert dealloc.buffer is alloc.memref
+    assert dealloc.buffer is alloc.result
     assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
 
-    sync_dealloc = DeallocOp.get(buffer=alloc.memref)
+    sync_dealloc = DeallocOp.get(buffer=alloc.result)
 
     assert sync_dealloc.asyncToken is None
-    assert sync_dealloc.buffer is alloc.memref
+    assert sync_dealloc.buffer is alloc.result
     assert len(sync_dealloc.asyncDependencies) == 0
 
 
