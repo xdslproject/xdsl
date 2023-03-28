@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Sequence, Type, TypeVar
+from xdsl.dialects import builtin
 
 from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)
@@ -109,6 +110,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 DimensionAttr = _GPUAttr[_DimensionAttr]
 AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
 
+_Element = TypeVar("_Element", bound=Attribute, covariant=True)
+
 
 @irdl_op_definition
 class AllocOp(Operation):
@@ -132,6 +135,29 @@ class AllocOp(Operation):
             raise VerifyException(
                 f"Expected {ndyn_typ} dynamic sizes, got {ndyn}. All "
                 "dynamic sizes need to be set in the alloc operation.")
+
+    @staticmethod
+    def get(return_type: memref.MemRefType[_Element],
+            dynamic_sizes: Sequence[SSAValue | Operation]
+            | None = None,
+            host_shared: bool = False,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> AllocOp:
+        token_return = [AsyncTokenType()] if is_async else []
+        dynamic_sizes_vals: list[SSAValue] = [] if dynamic_sizes is None else [
+            SSAValue.get(e) for e in dynamic_sizes
+        ]
+        async_dependencies_vals: list[
+            SSAValue] = [] if async_dependencies is None else [
+                SSAValue.get(e) for e in async_dependencies
+            ]
+        attributes: dict[str, Attribute] = {
+            "hostShared": UnitAttr()
+        } if host_shared else {}
+        return AllocOp.build(
+            operands=[async_dependencies_vals, dynamic_sizes_vals, []],
+            result_types=[return_type, token_return],
+            attributes=attributes)
 
 
 @irdl_op_definition

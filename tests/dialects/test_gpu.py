@@ -1,16 +1,52 @@
 from xdsl.dialects import builtin, arith, memref
 from xdsl.dialects.gpu import (
-    AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp,
-    BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp, LaunchOp,
-    ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp,
-    SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp)
-from xdsl.ir import Block, Operation, Region, SSAValue
+    AllocOp, AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp,
+    BlockDimOp, BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp,
+    LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp,
+    SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp,
+    YieldOp)
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
 
 def test_dimension():
     dim = DimensionAttr.from_dimension("x")
 
     assert dim.data == "x"
+
+
+def test_alloc():
+    typ = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [10, 10, 10])
+    alloc = AllocOp.get(typ, is_async=True)
+
+    assert isinstance(alloc, AllocOp)
+    assert alloc.memref.typ is typ
+    assert len(alloc.asyncDependencies) == 0
+    assert len(alloc.dynamicSizes) == 0
+    assert alloc.asyncToken is not None
+    assert isinstance(alloc.asyncToken.typ, AsyncTokenType)
+    assert alloc.hostShared is None
+
+    dyntyp = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [-1, -1, -1])
+    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    dynamic_sizes = [ten, ten, ten]
+    token = alloc.asyncToken
+
+    full_alloc = AllocOp.get(return_type=dyntyp,
+                             dynamic_sizes=dynamic_sizes,
+                             host_shared=True,
+                             async_dependencies=[token])
+
+    assert isinstance(full_alloc, AllocOp)
+    assert full_alloc.memref.typ is dyntyp
+    assert len(full_alloc.asyncDependencies) == 1
+    assert full_alloc.asyncDependencies[0] is token
+    assert len(full_alloc.dynamicSizes) == 3
+    assert full_alloc.dynamicSizes == tuple(d.result for d in dynamic_sizes)
+    assert full_alloc.asyncToken is None
+    assert "hostShared" in full_alloc.attributes.keys()
+    assert isinstance(full_alloc.hostShared, builtin.UnitAttr)
 
 
 def test_all_reduce_operation():
