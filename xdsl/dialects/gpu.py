@@ -111,6 +111,30 @@ AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
 
 
 @irdl_op_definition
+class AllocOp(Operation):
+    name = "gpu.alloc"
+    hostShared: OptOpAttr[UnitAttr]
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    dynamicSizes: Annotated[VarOperand, IndexType]
+    symbolOperands: Annotated[VarOperand, IndexType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    memref: Annotated[OpResult, memref.MemRefType[Attribute]]
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    def verify_(self) -> None:
+        ndyn = len(self.dynamicSizes)
+        assert isinstance(self.memref.typ, memref.MemRefType)
+        typ: memref.MemRefType[Attribute] = self.memref.typ
+        ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
+        if ndyn != ndyn_typ:
+            raise VerifyException(
+                f"Expected {ndyn_typ} dynamic sizes, got {ndyn}. All "
+                "dynamic sizes need to be set in the alloc operation.")
+
+
+@irdl_op_definition
 class AllReduceOp(Operation):
     name = "gpu.all_reduce"
     op: OptOpAttr[AllReduceOperationAttr]
@@ -442,6 +466,7 @@ class YieldOp(Operation):
 # Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
 # atrributes.
 GPU = Dialect([
+    AllocOp,
     AllReduceOp,
     BarrierOp,
     BlockDimOp,

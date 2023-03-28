@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s | mlir-opt --mlir-print-op-generic | xdsl-opt -f mlir -t mlir | filecheck %s
+// RUN: xdsl-opt -t mlir %s | filecheck %s
 
 "builtin.module"() ({
     "gpu.module"() ({
@@ -29,6 +29,9 @@
             %griddimx = "gpu.grid_dim"() {"dimension" = #gpu<dim x>} : () -> index
             %griddimy = "gpu.grid_dim"() {"dimension" = #gpu<dim y>} : () -> index
             %griddimz = "gpu.grid_dim"() {"dimension" = #gpu<dim z>} : () -> index
+
+            %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>}: () -> memref<10x10xf64>
+            %gdmemref = "gpu.alloc"(%griddimx, %griddimy,%griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>}: () -> memref<?x?x?xf64>
 
             %laneid = "gpu.lane_id"() : () -> index
             %numsubgroups = "gpu.num_subgroups"() : () -> index
@@ -95,6 +98,10 @@
 // CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() {"dimension" = #gpu<dim y>} : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.grid_dim"() {"dimension" = #gpu<dim z>} : () -> index
 
+// CHECK-NEXT:             %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<10x10xf64>
+// CHECK-NEXT:             %gdmemref = "gpu.alloc"(%griddimx, %griddimy, %griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<?x?x?xf64>
+
+
 // CHECK-NEXT:             %{{.*}} = "gpu.lane_id"() : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.num_subgroups"() : () -> index
 
@@ -119,7 +126,7 @@
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
-// CHECK-NEXT:             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
+// CHECK-NEXT:                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index    
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
