@@ -12,6 +12,14 @@ _P = ParamSpec('_P')
 
 @dataclass
 class Builder:
+    """
+    A helper class to construct IRs, by keeping track of where to insert an operation.
+    Currently can only append an operation to a given block, in the future will mirror the
+    API of `OpBuilder` in MLIR.
+
+    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
+    """
+
     block: Block
 
     def add_op(self, op: Operation):
@@ -83,6 +91,24 @@ class Builder:
         | Callable[[Builder], None]
     ) -> Callable[[_CallableRegionFuncType],
                   tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
+        """
+        Annotation used to construct a (Region, FunctionType) tuple from a function.
+        The annotation can be used in two ways:
+
+        For regions that have inputs or outputs:
+        ```
+        @Builder.callable_region((input_types, output_types))
+        def func(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
+            ...
+        ```
+
+        For regions that don't have inputs or outputs:
+        ``` python
+        @Builder.callable_region
+        def func(builder: Builder) -> None:
+            ...
+        ```
+        """
         if isinstance(input, tuple):
             return Builder._callable_region_args(input)
         else:
