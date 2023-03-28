@@ -52,8 +52,6 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    registered_unregistered_ops: dict[str, type[Operation]] = field(
-        default_factory=dict)
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -76,15 +74,33 @@ class MLContext:
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_optional_op(self, name: str) -> type[Operation] | None:
-        """Get an operation class from its name if it exists."""
-        if name not in self._registeredOps:
-            return None
+    def get_optional_op(
+            self,
+            name: str,
+            allow_unregistered: bool = False) -> type[Operation] | None:
+        """
+        Get an operation class from its name if it exists.
+        If the operation is not registered, return None unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if name in self._registeredOps:
+            return self._registeredOps[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredOp
+            op_type = UnregisteredOp.with_name(name)
+            self._registeredOps[name] = op_type
+            return op_type
         return self._registeredOps[name]
 
-    def get_op(self, name: str) -> type[Operation]:
-        """Get an operation class from its name."""
-        if op_type := self.get_optional_op(name):
+    def get_op(self,
+               name: str,
+               allow_unregistered: bool = False) -> type[Operation]:
+        """
+        Get an operation class from its name.
+        If the operation is not registered, raise a exception unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if op_type := self.get_optional_op(name, allow_unregistered):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
