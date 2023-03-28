@@ -15,7 +15,7 @@ class Builder:
     block: Block
 
     def add_op(self, op: Operation):
-        self.block.ops.append(op)
+        self.block.add_op(op)
 
     def create(self, func: Callable[_P, OperationInvT], *args: _P.args,
                **kwargs: _P.kwargs) -> OperationInvT:
