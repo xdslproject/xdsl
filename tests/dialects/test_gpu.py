@@ -117,8 +117,7 @@ def test_dealloc():
         builtin.Float32Type(), [10, 10, 10])
     alloc = AllocOp.get(typ, is_async=True)
 
-    # For pyright
-    assert alloc.asyncToken is not None
+assert alloc.asyncToken is not None  # For pyright
 
     dealloc = DeallocOp.get(buffer=alloc.result,
                             async_dependencies=[alloc.asyncToken],
