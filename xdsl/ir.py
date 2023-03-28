@@ -812,6 +812,9 @@ class Operation(IRNode):
         return None
 
 
+OperationInvT = TypeVar('OperationInvT', bound=Operation)
+
+
 @dataclass()
 class Block(IRNode):
     """A sequence of operations"""
