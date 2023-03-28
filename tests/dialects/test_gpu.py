@@ -129,10 +129,11 @@ def test_dealloc():
     assert dealloc.buffer is alloc.result
     assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
 
-    sync_dealloc = DeallocOp.get(buffer=alloc.result)
+    alloc2 = AllocOp.get(typ, is_async=True)
+    sync_dealloc = DeallocOp.get(buffer=alloc2.result)
 
     assert sync_dealloc.asyncToken is None
-    assert sync_dealloc.buffer is alloc.result
+    assert sync_dealloc.buffer is alloc2.result
     assert len(sync_dealloc.asyncDependencies) == 0
 
 
