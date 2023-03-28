@@ -143,13 +143,12 @@ class AllocOp(Operation):
             async_dependencies: Sequence[SSAValue | Operation] | None = None,
             is_async: bool = False) -> AllocOp:
         token_return = [AsyncTokenType()] if is_async else []
-        dynamic_sizes_vals: list[SSAValue] = [] if dynamic_sizes is None else [
+        dynamic_sizes_vals: list[SSAValue] = [
             SSAValue.get(e) for e in dynamic_sizes
-        ]
-        async_dependencies_vals: list[
-            SSAValue] = [] if async_dependencies is None else [
-                SSAValue.get(e) for e in async_dependencies
-            ]
+        ] if dynamic_sizes else []
+        async_dependencies_vals: list[SSAValue] = [
+            SSAValue.get(e) for e in async_dependencies
+        ] if async_dependencies else []
         attributes: dict[str, Attribute] = {
             "hostShared": UnitAttr()
         } if host_shared else {}
