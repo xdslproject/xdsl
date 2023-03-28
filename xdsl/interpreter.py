@@ -260,7 +260,7 @@ class Interpreter:
         """
         inputs = self.get_values(op.operands)
         results = self._impls.run(self, op, inputs)
-        self._assert(
+        self.interpreter_assert(
             len(op.results) == len(results), 'Incorrect number of results')
         self.set_values(zip(op.results, results))
 
@@ -272,7 +272,7 @@ class Interpreter:
         """Print to current file."""
         print(*args, **kwargs, file=self.file)
 
-    def _assert(self, condition: bool, message: str | None = None):
+    def interpreter_assert(self, condition: bool, message: str | None = None):
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
             raise InterpretationError(
