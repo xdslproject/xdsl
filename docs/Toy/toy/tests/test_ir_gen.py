@@ -28,12 +28,13 @@ def test_convert_ast():
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
         @Builder.callable_region(
-            [unrankedf64TensorType, unrankedf64TensorType],
-            [unrankedf64TensorType])
-        def multiply_transpose(builder: Builder, arg0: BlockArgument,
-                               arg1: BlockArgument) -> None:
-            a_t = builder.create(toy.TransposeOp.from_input, arg0).res
-            b_t = builder.create(toy.TransposeOp.from_input, arg1).res
+            ([unrankedf64TensorType,
+              unrankedf64TensorType], [unrankedf64TensorType]))
+        def multiply_transpose(builder: Builder, args: tuple[BlockArgument,
+                                                             ...]) -> None:
+            a, b = args
+            a_t = builder.create(toy.TransposeOp.from_input, a).res
+            b_t = builder.create(toy.TransposeOp.from_input, b).res
             prod = builder.create(toy.MulOp.from_summands, a_t, b_t).res
             builder.create(toy.ReturnOp.from_input, prod)
 
@@ -42,7 +43,7 @@ def test_convert_ast():
             return builder.create(toy.GenericCallOp.get, "multiply_transpose",
                                   [a, b], [unrankedf64TensorType]).res[0]
 
-        @Builder.callable_region([], [])
+        @Builder.callable_region
         def main(builder: Builder) -> None:
             a = builder.create(toy.ConstantOp.from_list, [1, 2, 3, 4, 5, 6],
                                [2, 3]).res

@@ -1,25 +1,21 @@
 from __future__ import annotations
 
-from typing import ParamSpec, Callable, TypeVar, Concatenate
+from typing import ParamSpec, Callable, TypeAlias, overload
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block
+from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
 from xdsl.dialects.builtin import FunctionType
 
 _P = ParamSpec('_P')
-_T = TypeVar('_T')
 
 
 @dataclass
 class Builder:
-    _ops: list[Operation] = field(default_factory=list)
-
-    def _get_ops(self) -> list[Operation]:
-        return self._ops
+    block: Block
 
     def add_op(self, op: Operation):
-        self._ops.append(op)
+        self.block.ops.append(op)
 
     def create(self, func: Callable[_P, OperationInvT], *args: _P.args,
                **kwargs: _P.kwargs) -> OperationInvT:
@@ -30,33 +26,68 @@ class Builder:
     @staticmethod
     def region(func: Callable[[Builder], None]) -> Region:
 
-        builder = Builder()
+        block = Block()
+        builder = Builder(block)
 
         func(builder)
 
-        ops = builder._get_ops()
-        return Region.from_operation_list(ops)
+        return Region.from_block_list([block])
 
     @staticmethod
-    def callable_region(
-        input_types: list[Attribute], return_types: list[Attribute]
-    ) -> Callable[[Callable[Concatenate[Builder, _P], None]], tuple[
-            Region, FunctionType]]:
+    def _callable_region_args(
+        types: tuple[list[Attribute], list[Attribute]]
+    ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
+
+        input_types, return_types = types
 
         def wrapper(
-            func: Callable[Concatenate[Builder, _P], None]
-        ) -> tuple[Region, FunctionType]:
+                func: _CallableRegionFuncType) -> tuple[Region, FunctionType]:
 
-            def impl(*args: _P.args, **kwargs: _P.kwargs) -> list[Operation]:
-                builder = Builder()
+            block = Block.from_arg_types(input_types)
+            builder = Builder(block)
 
-                func(builder, *args, **kwargs)
+            func(builder, block.args)
 
-                return builder._get_ops()
-
-            region = Region.from_block_list(
-                [Block.from_callable(input_types, impl)])
+            region = Region.from_block_list([block])
             ftype = FunctionType.from_lists(input_types, return_types)
             return region, ftype
 
         return wrapper
+
+    @staticmethod
+    def _callable_region_no_args(
+            func: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
+
+        @Builder._callable_region_args(([], []))
+        def res(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
+            func(builder)
+
+        return res
+
+    @overload
+    @staticmethod
+    def callable_region(
+        input: tuple[list[Attribute], list[Attribute]]
+    ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
+        ...
+
+    @overload
+    @staticmethod
+    def callable_region(
+            input: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
+        ...
+
+    @staticmethod
+    def callable_region(
+        input: tuple[list[Attribute], list[Attribute]]
+        | Callable[[Builder], None]
+    ) -> Callable[[_CallableRegionFuncType],
+                  tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
+        if isinstance(input, tuple):
+            return Builder._callable_region_args(input)
+        else:
+            return Builder._callable_region_no_args(input)
+
+
+_CallableRegionFuncType: TypeAlias = Callable[
+    [Builder, tuple[BlockArgument, ...]], None]
