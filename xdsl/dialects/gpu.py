@@ -122,13 +122,13 @@ class AllocOp(Operation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    memref: Annotated[OpResult, memref.MemRefType[Attribute]]
+    result: Annotated[OpResult, memref.MemRefType[Attribute]]
     asyncToken: Annotated[OptOpResult, AsyncTokenType]
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(self.memref.typ, memref.MemRefType)
-        typ: memref.MemRefType[Attribute] = self.memref.typ
+        assert isinstance(self.result.typ, memref.MemRefType)
+        typ: memref.MemRefType[Attribute] = self.result.typ
         ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
         if ndyn != ndyn_typ:
             raise VerifyException(

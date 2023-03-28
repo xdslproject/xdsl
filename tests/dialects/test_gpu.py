@@ -20,7 +20,7 @@ def test_alloc():
     alloc = AllocOp.get(typ, is_async=True)
 
     assert isinstance(alloc, AllocOp)
-    assert alloc.memref.typ is typ
+    assert alloc.result.typ is typ
     assert len(alloc.asyncDependencies) == 0
     assert len(alloc.dynamicSizes) == 0
     assert alloc.asyncToken is not None
@@ -39,7 +39,7 @@ def test_alloc():
                              async_dependencies=[token])
 
     assert isinstance(full_alloc, AllocOp)
-    assert full_alloc.memref.typ is dyntyp
+    assert full_alloc.result.typ is dyntyp
     assert len(full_alloc.asyncDependencies) == 1
     assert full_alloc.asyncDependencies[0] is token
     assert len(full_alloc.dynamicSizes) == 3
