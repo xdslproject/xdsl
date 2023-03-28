@@ -1,6 +1,7 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
+from xdsl.pipeline import OperationPass
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
@@ -742,7 +743,11 @@ class MpiAddExternalFuncDefs(RewritePattern):
                                       len(module.body.blocks[0].ops))
 
 
-def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
+@dataclass
+class LowerMPIPass(OperationPass):
+
+    name = 'lower-mpi'
+
     # TODO: how to get the lib info in here?
     lib_info = MpiLibraryInfo()
 
@@ -767,8 +772,10 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiVectorGet(lib_info),
     ]),
                                    apply_recursively=True)
-    walker1.rewrite_module(module)
 
     # add func.func to declare external functions
     walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
-    walker2.rewrite_module(module)
+
+    def apply(self, ctx: MLContext, op: Operation) -> None:
+        self.walker1.rewrite_operation(op)
+        self.walker2.rewrite_operation(op)

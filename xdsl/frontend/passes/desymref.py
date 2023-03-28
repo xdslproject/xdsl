@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
+from xdsl.pipeline import OperationPass
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -348,5 +349,9 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-def Desymrefy(ctx: MLContext, op: ModuleOp):
-    Desymrefier().desymrefy(op)
+class DesymrefyPass(OperationPass):
+
+    name = 'frontend-desymrefy'
+
+    def apply(self, ctx: MLContext, op: Operation):
+        Desymrefier().desymrefy(op)
