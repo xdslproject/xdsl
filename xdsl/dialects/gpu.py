@@ -252,6 +252,26 @@ class BlockIdOp(Operation):
 
 
 @irdl_op_definition
+class DeallocOp(Operation):
+    name = "gpu.dealloc"
+
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    buffer: Annotated[Operand, memref.MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    @staticmethod
+    def get(buffer: SSAValue | Operation,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> DeallocOp:
+        return DeallocOp.build(
+            operands=[async_dependencies or [], buffer],
+            result_types=[[AsyncTokenType()] if is_async else []])
+
+
+@irdl_op_definition
 class ModuleOp(Operation):
     name = "gpu.module"
 
@@ -495,6 +515,7 @@ GPU = Dialect([
     BarrierOp,
     BlockDimOp,
     BlockIdOp,
+    DeallocOp,
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
