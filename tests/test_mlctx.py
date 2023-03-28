@@ -47,11 +47,12 @@ def test_get_op_unregistered():
     ctx.register_op(DummyOp)
 
     assert ctx.get_optional_op("dummy", allow_unregistered=True) == DummyOp
-    assert isinstance(ctx.get_optional_op("dummy2", allow_unregistered=True),
-                      UnregisteredOp)
+    op = ctx.get_optional_op("dummy2", allow_unregistered=True)
+    assert op is not None
+    assert issubclass(op, UnregisteredOp)
 
     assert ctx.get_op("dummy", allow_unregistered=True) == DummyOp
-    assert isinstance(ctx.get_op("dummy2", allow_unregistered=True),
+    assert issubclass(ctx.get_op("dummy2", allow_unregistered=True),
                       UnregisteredOp)
 
 
