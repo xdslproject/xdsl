@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Sequence, Type, TypeVar
-from xdsl.dialects import builtin
 
 from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)

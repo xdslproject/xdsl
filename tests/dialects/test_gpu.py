@@ -5,7 +5,7 @@ from xdsl.dialects.gpu import (
     LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp,
     SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp,
     YieldOp)
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 def test_dimension():
