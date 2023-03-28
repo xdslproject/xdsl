@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import field, dataclass
 from typing import Iterable
 
-from xdsl.ir import SSAValue, Operation, Block, Region
+from xdsl.ir import SSAValue, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
+from xdsl.builder import Builder
 
 from toy.location import Location
 from toy.toy_ast import (LiteralExprAST, ModuleAST, NumberExprAST,
@@ -39,6 +40,7 @@ class ScopedSymbolTable:
         self.table[__key] = __value
 
 
+@dataclass(init=False)
 class IRGen:
     """
     Implementation of a simple MLIR emission from the Toy AST.
@@ -48,16 +50,15 @@ class IRGen:
     analysis and transformation based on these high level semantics.
     """
 
-    # module: ModuleOp | None = None
-    # 'A "module" matches a Toy source file: containing a list of functions.'
+    module: ModuleOp
+    """A "module" matches a Toy source file: containing a list of functions."""
 
-    # builder: OpBuilder
-    # """
-    # The builder is a helper class to create IR inside a function. The builder
-    # is stateful, in particular it keeps an "insertion point": this is where
-    # the next operations will be introduced."""
+    builder: Builder
+    """
+    The builder is a helper class to create IR inside a function. The builder
+    is stateful, in particular it keeps an "insertion point": this is where
+    the next operations will be introduced."""
 
-    block: Block | None = None
     symbol_table: ScopedSymbolTable | None = None
     """
     The symbol table maps a variable name to a value in the current scope.
@@ -65,32 +66,30 @@ class IRGen:
     added to the mapping. When the processing of a function is terminated, the
     scope is destroyed and the mappings created in this scope are dropped."""
 
+    def __init__(self):
+        # We create an empty MLIR module and codegen functions one at a time and
+        # add them to the module.
+        self.module = ModuleOp.from_region_or_ops([])
+        self.builder = Builder(self.module.body.blocks[0])
+
     def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """
         Public API: convert the AST for a Toy module (source file) to an MLIR
         Module operation."""
 
-        # We create an empty MLIR module and codegen functions one at a time and
-        # add them to the module.
-        # self.module = ModuleOp.create(regions=[Region()])
-
-        functions: list[Operation] = []
-
         for f in module_ast.funcs:
-            functions.append(self.ir_gen_function(f))
-
-        module = ModuleOp.from_region_or_ops(functions)
+            self.ir_gen_function(f)
 
         # Verify the module after we have finished constructing it, this will check
         # the structural properties of the IR and invoke any specific verifiers we
         # have on the Toy operations.
         try:
-            module.verify()
+            self.module.verify()
         except Exception:
             print('module verification error')
             raise
 
-        return module
+        return self.module
 
     def loc(self, loc: Location):
         'Helper conversion for a Toy AST location to an MLIR location.'
@@ -127,10 +126,14 @@ class IRGen:
         # Arguments type are uniformly unranked tensors.
         func_type = FunctionType.from_lists(
             [self.get_type([])] * len(proto_ast.args), [self.get_type([])])
-        return FuncOp.from_region(proto_ast.name, func_type, Region())
+        return self.builder.create(FuncOp.from_region, proto_ast.name,
+                                   func_type, Region())
 
     def ir_gen_function(self, function_ast: FunctionAST) -> FuncOp:
         'Emit a new function and add it to the MLIR module.'
+
+        # keep builder for later
+        parent_builder = self.builder
 
         # Create a scope in the symbol table to hold variable declarations.
         self.symbol_table = ScopedSymbolTable()
@@ -138,12 +141,13 @@ class IRGen:
         proto_args = function_ast.proto.args
 
         # Create the block for the current function
-        self.block = Block.from_arg_types([
+        block = Block.from_arg_types([
             UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
         ])
+        self.builder = Builder(block)
 
         # Declare all the function arguments in the symbol table.
-        for name, value in zip(proto_args, self.block.args):
+        for name, value in zip(proto_args, block.args):
             self.declare(name.name, value)
 
         # Emit the body of the function.
@@ -153,16 +157,15 @@ class IRGen:
 
         # Implicitly return void if no return statement was emitted.
         return_op = None
-        if len(self.block.ops):
-            last_op = self.block.ops[-1]
+        if len(block.ops):
+            last_op = block.ops[-1]
             if isinstance(last_op, ReturnOp):
                 return_op = last_op
                 if return_op.input is not None:
                     return_arg = return_op.input
                     return_types = [return_arg.typ]
         if return_op is None:
-            return_op = ReturnOp.from_input()
-            self.block.add_op(return_op)
+            self.builder.create(ReturnOp.from_input)
 
         input_types = [
             self.get_type([]) for _ in range(len(function_ast.proto.args))
@@ -173,20 +176,20 @@ class IRGen:
         # main should be public, all the others private
         private = function_ast.proto.name != 'main'
 
-        func = FuncOp.from_region(function_ast.proto.name,
-                                  func_type,
-                                  Region.from_block_list([self.block]),
-                                  private=private)
-
         # clean up
         self.symbol_table = None
-        self.block = None
+        self.builder = parent_builder
+
+        func = self.builder.create(FuncOp.from_region,
+                                   function_ast.proto.name,
+                                   func_type,
+                                   Region.from_block_list([block]),
+                                   private=private)
 
         return func
 
     def ir_gen_binary_expr(self, binop: BinaryExprAST) -> SSAValue:
         'Emit a binary operation'
-        assert self.block is not None
 
         # First emit the operations for each side of the operation before emitting
         # the operation itself. For example if the expression is `a + foo(a)`
@@ -207,13 +210,11 @@ class IRGen:
         # Derive the operation name from the binary operator. At the moment we only
         # support '+' and '*'.
         if binop.op == '+':
-            op = AddOp.from_summands(lhs, rhs)
+            op = self.builder.create(AddOp.from_summands, lhs, rhs)
         elif binop.op == '*':
-            op = MulOp.from_summands(lhs, rhs)
+            op = self.builder.create(MulOp.from_summands, lhs, rhs)
         else:
             self.error(f'Unsupported binary operation `{binop.op}`')
-
-        self.block.add_op(op)
 
         return op.res
 
@@ -231,7 +232,6 @@ class IRGen:
 
     def ir_gen_return_expr(self, ret: ReturnExprAST):
         'Emit a return operation. This will return failure if any generation fails.'
-        assert self.block is not None
 
         # location = self.loc(binop.loc)
 
@@ -241,8 +241,7 @@ class IRGen:
         else:
             expr = None
 
-        return_op = ReturnOp.from_input(expr)
-        self.block.add_op(return_op)
+        self.builder.create(ReturnOp.from_input, expr)
 
     def ir_gen_literal_expr(self, lit: LiteralExprAST) -> SSAValue:
         """
@@ -262,7 +261,6 @@ class IRGen:
             [[1.000000e+00, 2.000000e+00, 3.000000e+00],
             [4.000000e+00, 5.000000e+00, 6.000000e+00]]>} : () -> tensor<2x3xf64>
         """
-        assert self.block is not None
 
         # The attribute is a vector with a integer value per element
         # (number) in the array, see `collectData()` below for more details.
@@ -270,8 +268,7 @@ class IRGen:
 
         # Build the MLIR op `toy.constant`. This invokes the `ConstantOp::build`
         # method.
-        op = ConstantOp.from_list(data, lit.dims)
-        self.block.add_op(op)
+        op = self.builder.create(ConstantOp.from_list, data, lit.dims)
         return op.res
 
     def collect_data(self, expr: ExprAST) -> list[float]:
@@ -299,7 +296,6 @@ class IRGen:
         Emit a call expression. It emits specific operations for the `transpose`
         builtin. Other identifiers are assumed to be user-defined functions.
         """
-        assert self.block is not None
         assert self.symbol_table is not None
         callee = call.callee
 
@@ -313,16 +309,15 @@ class IRGen:
             if len(operands) != 1:
                 self.error("MLIR codegen encountered an error: toy.transpose "
                            "does not accept multiple arguments")
-            op = TransposeOp.from_input(operands[0])
-            self.block.add_op(op)
+            op = self.builder.create(TransposeOp.from_input, operands[0])
             return op.res
 
         # Otherwise this is a call to a user-defined function. Calls to
         # user-defined functions are mapped to a custom call that takes the callee
         # name as an attribute.
-        op = GenericCallOp.get(callee, operands,
-                               [UnrankedTensorTypeF64.from_type(f64)])
-        self.block.add_op(op)
+        op = self.builder.create(GenericCallOp.get, callee, operands,
+                                 [UnrankedTensorTypeF64.from_type(f64)])
+
         return op.res[0]
 
     def ir_gen_print_expr(self, call: PrintExprAST):
@@ -330,20 +325,13 @@ class IRGen:
         Emit a print expression. It emits specific operations for two builtins:
         transpose(x) and print(x).
         """
-        assert self.block is not None
         arg = self.ir_gen_expr(call.arg)
-        op = PrintOp.from_input(arg)
-        self.block.add_op(op)
+        self.builder.create(PrintOp.from_input, arg)
 
     def ir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         'Emit a constant for a single number'
-        #  mlir::Value mlirGen(NumberExprAST &num) {
-        #    return builder.create<ConstantOp>(loc(num.loc()), num.getValue());
-        #  }
-        assert self.block is not None
 
-        constant_op = ConstantOp.from_list([num.val], [])
-        self.block.add_op(constant_op)
+        constant_op = self.builder.create(ConstantOp.from_list, [num.val], [])
         return constant_op.res
 
     def ir_gen_expr(self, expr: ExprAST) -> SSAValue:
@@ -371,7 +359,6 @@ class IRGen:
         Future expressions will be able to reference this variable through symbol
         table lookup.
         """
-        assert self.block is not None
 
         value = self.ir_gen_expr(vardecl.expr)
 
@@ -379,8 +366,9 @@ class IRGen:
         # with specific shape, we emit a "reshape" operation. It will get
         # optimized out later as needed.
         if len(vardecl.varType.shape):
-            reshape_op = ReshapeOp.from_input(value, vardecl.varType.shape)
-            self.block.add_op(reshape_op)
+            reshape_op = self.builder.create(ReshapeOp.from_input, value,
+                                             vardecl.varType.shape)
+
             value = reshape_op.res
 
         # Register the value in the symbol table.
