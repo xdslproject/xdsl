@@ -90,7 +90,7 @@ class MLContext:
             op_type = UnregisteredOp.with_name(name)
             self._registeredOps[name] = op_type
             return op_type
-        return self._registeredOps[name]
+        return None
 
     def get_op(self,
                name: str,
