@@ -275,6 +275,37 @@ class DeallocOp(Operation):
 
 
 @irdl_op_definition
+class MemcpyOp(Operation):
+    name = "gpu.memcpy"
+
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    src: Annotated[Operand, memref.MemRefType]
+    dst: Annotated[Operand, memref.MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    @staticmethod
+    def get(source: SSAValue | Operation,
+            destination: SSAValue | Operation,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> MemcpyOp:
+        return MemcpyOp.build(
+            operands=[
+                async_dependencies if async_dependencies is not None else [],
+                source, destination
+            ],
+            result_types=[[AsyncTokenType()] if is_async else []])
+
+    def verify_(self) -> None:
+        if self.src.typ != self.dst.typ:
+            raise VerifyException(
+                f"Expected {self.src.typ}, got {self.dst.typ}, . gpu.memcpy source and "
+                "destination types must match.")
+
+
+@irdl_op_definition
 class ModuleOp(Operation):
     name = "gpu.module"
 
@@ -524,6 +555,7 @@ GPU = Dialect([
     HostRegisterOp,
     LaneIdOp,
     LaunchOp,
+    MemcpyOp,
     ModuleOp,
     ModuleEndOp,
     NumSubgroupsOp,
