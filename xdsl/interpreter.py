@@ -55,7 +55,7 @@ class InterpreterFunctions:
                                                 Operation]]]:
         try:
             impl_dict = getattr(cls, _IMPL_DICT)
-            return impl_dict
+            return impl_dict.items()
         except AttributeError as e:
             raise ValueError(
                 f'Use `@register_impls` on class {cls.__name__}') from e
