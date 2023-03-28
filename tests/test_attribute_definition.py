@@ -18,6 +18,33 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
 ################################################################################
+# non-IRDL attributes
+################################################################################
+
+
+class NonIRDLAttr(ParametrizedAttribute):
+    """An attribute that is not defined using the IRDL syntax."""
+    name: str = "non_irdl_attr"
+
+    def _verify(self):
+        if len(self.parameters) > 2:
+            raise VerifyException("NonIRDLAttr requires at most 2 parameters")
+
+
+def test_non_irdl_attr_definition():
+    """Test that a non-IRDL attribute definition has no IRDL definition."""
+    assert NonIRDLAttr.irdl_definition is None
+
+
+def test_non_irdl_attr_verifier():
+    """Test that a non-IRDL attribute verifier works as expected."""
+
+    NonIRDLAttr([BoolData(True), BoolData(True)])
+    with pytest.raises(VerifyException):
+        NonIRDLAttr([BoolData(True), BoolData(True), BoolData(True)])
+
+
+################################################################################
 # Data attributes
 ################################################################################
 
