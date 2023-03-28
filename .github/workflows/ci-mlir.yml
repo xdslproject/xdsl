@@ -90,7 +90,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt
+        cmake --build . --target mlir-opt mlir-translate llc
 
     - name: Test with pytest and generate code coverage
       run: |
@@ -103,6 +103,14 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         lit -v tests/filecheck/ -DCOVERAGE
+
+    - name: Run benchmarks
+      run: |
+        cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+        chmod u+x ./benchmarks/dialects/experimental/stencil/run-laplace-benchmark.sh
+        ./benchmarks/dialects/experimental/stencil/run-laplace-benchmark.sh
 
     - name: Test MLIR dependent examples/tutorials
       run: |
