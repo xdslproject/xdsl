@@ -267,7 +267,10 @@ class DeallocOp(Operation):
             async_dependencies: Sequence[SSAValue | Operation] | None = None,
             is_async: bool = False) -> DeallocOp:
         return DeallocOp.build(
-            operands=[async_dependencies or [], buffer],
+            operands=[
+                async_dependencies if async_dependencies is not None else [],
+                buffer
+            ],
             result_types=[[AsyncTokenType()] if is_async else []])
 
 
