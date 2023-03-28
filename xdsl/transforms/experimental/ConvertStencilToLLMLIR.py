@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    op_type_rewrite_pattern)
 from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, ModuleOp
+from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
