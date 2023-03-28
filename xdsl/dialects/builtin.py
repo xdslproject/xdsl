@@ -5,9 +5,9 @@ from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
-from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue,
-                     AttributeCovT, AttributeInvT)
+from xdsl.ir import (Block, Data, MLIRType, ParametrizedAttribute, Operation,
+                     Region, Attribute, Dialect, SSAValue, AttributeCovT,
+                     AttributeInvT)
 
 from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
