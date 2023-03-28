@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 GEP_USE_SSA_VAL = -2147483648
 """
 
-This is used in the getelementptr index list to signify that an ssa value 
+This is used in the getelementptr index list to signify that an ssa value
 should be used for this index.
 
 """
@@ -103,6 +103,24 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
+
+@irdl_attr_definition
+class LLVMArrayType(ParametrizedAttribute, MLIRType):
+    name = "llvm.array"
+
+    type: ParameterDef[Attribute]
+    size: ParameterDef[IntAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_attribute(self.size)
+        printer.print_string(" x ")
+        printer.print_attribute(self.type)
+        printer.print_string(">")
+
+    @staticmethod
+    def from_type_and_size(type: Attribute, size: IntAttr):
+      return LLVMArrayType([type, size])
 
 
 @irdl_op_definition
