@@ -113,7 +113,7 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
-        printer.print_attribute(self.size)
+        printer.print_string(str(self.size.data))
         printer.print_string(" x ")
         printer.print_attribute(self.type)
         printer.print_string(">")
