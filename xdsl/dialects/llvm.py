@@ -138,7 +138,9 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
         return [size, type]
 
     @staticmethod
-    def from_size_and_type(size: IntAttr, type: Attribute):
+    def from_size_and_type(size: int | IntAttr, type: Attribute):
+        if isinstance(size, int):
+            size = IntAttr(size)
         return LLVMArrayType([size, type])
 
 
