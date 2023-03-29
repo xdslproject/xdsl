@@ -4,7 +4,7 @@ from typing import Callable, TypeAlias, overload
 
 from dataclasses import dataclass
 
-from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
+from xdsl.ir import OperationInvT, Attribute, Region, Block, BlockArgument
 from xdsl.dialects.builtin import FunctionType
 
 
