@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 This script benchmarks the xDSL lexer by parsing all files in the
 given root directory.

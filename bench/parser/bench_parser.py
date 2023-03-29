@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 This script benchmarks the xDSL parser by parsing all files in the
 given root directory.
@@ -22,7 +21,7 @@ from xdsl.parser import MLIRParser
 
 def parse_file(file: str, ctx: MLContext):
     """
-    Lex the given file
+    Parse the given file.
     """
     parser = MLIRParser(ctx, file, allow_unregistered_ops=True)
     parser.parse_op()
@@ -66,7 +65,8 @@ def run_on_files(file_names: Iterable[str], mlir_path: str, ctx: MLContext):
             ],
                                  input=sub_contents,
                                  text=True,
-                                 capture_output=True)
+                                 capture_output=True,
+                                 timeout=60)
             if res.returncode != 0:
                 continue
             n_total_files += 1
@@ -106,6 +106,12 @@ if __name__ == "__main__":
     arg_parser.add_argument("--profile",
                             action="store_true",
                             help="Enable profiling metrics.")
+    arg_parser.add_argument(
+        "--timeout",
+        type=int,
+        required=False,
+        default=60,
+        help="Timeout for processing each sub-program with MLIR. (in seconds)")
 
     args = arg_parser.parse_args()
 
