@@ -25,6 +25,14 @@ class PatternRewriter:
     has_erased_matched_operation: bool = field(default=False, init=False)
     """Was the matched operation erased."""
 
+    added_operations_before: list[Operation] = field(default_factory=list,
+                                                     init=False)
+    """The operations added directly before the matched operation."""
+
+    added_operations_after: list[Operation] = field(default_factory=list,
+                                                    init=False)
+    """The operations added directly after the matched operation."""
+
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
@@ -60,6 +68,7 @@ class PatternRewriter:
             return
         op_idx = block.get_operation_index(self.current_operation)
         block.insert_op(op, op_idx)
+        self.added_operations_before += op
 
     def insert_op_after_matched_op(self, op: (Operation | list[Operation])):
         """Insert operations after the matched operation."""
@@ -73,6 +82,7 @@ class PatternRewriter:
             return
         op_idx = block.get_operation_index(self.current_operation)
         block.insert_op(op, op_idx + 1)
+        self.added_operations_after += op
 
     def insert_op_at_pos(self, op: Operation | list[Operation], block: Block,
                          pos: int):
@@ -161,6 +171,7 @@ class PatternRewriter:
                             new_ops,
                             new_results,
                             safe_erase=safe_erase)
+        self.added_operations_before += new_ops
 
     def replace_op(self,
                    op: Operation,
@@ -250,6 +261,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )
+        self.added_operations_before += block.ops
         Rewriter.inline_block_before(block, self.current_operation)
 
     def inline_block_before(self, block: Block, op: Operation):
@@ -459,13 +471,11 @@ class PatternRewriteWalker:
         """Rewrite an entire module operation."""
         self._rewrite_op(op)
 
-    def _rewrite_op(self, op: Operation) -> Operation | None:
+    def _rewrite_op(self, op: Operation) -> int:
         """
         Rewrite an operation, along with its regions.
-        Returns next operation to rewrite.
+        Returns by how much operations the walker should move.
         """
-        prev_op = op._prev_op
-        next_op = op._next_op
         # First, we rewrite the regions if needed
         if self.walk_regions_first:
             self._rewrite_op_regions(op)
@@ -477,36 +487,44 @@ class PatternRewriteWalker:
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                return op._prev_op if self.walk_reverse else op._next_op
+                return (len(rewriter.added_operations_before) +
+                        len(rewriter.added_operations_after) -
+                        int(rewriter.has_erased_matched_operation)
+                        if self.walk_reverse else 0)
             # Else, we rewrite only their regions if they are supposed to be
             # rewritten after
             else:
                 if not self.walk_regions_first:
-                    new_op = op._prev_op
-                    while new_op is not prev_op and new_op is not None:
+                    for new_op in rewriter.added_operations_before:
                         self._rewrite_op_regions(new_op)
                     if not rewriter.has_erased_matched_operation:
                         self._rewrite_op_regions(op)
-                    new_op = op._next_op
-                    while new_op is not next_op and new_op is not None:
+                    for new_op in rewriter.added_operations_after:
                         self._rewrite_op_regions(new_op)
-                return prev_op if self.walk_reverse else next_op
+                return -1 if self.walk_reverse else len(
+                    rewriter.added_operations_before) + len(
+                        rewriter.added_operations_after) + int(
+                            not rewriter.has_erased_matched_operation)
 
         # Otherwise, we only rewrite the regions of the operation if needed
         if not self.walk_regions_first:
             self._rewrite_op_regions(op)
-        return prev_op if self.walk_reverse else next_op
+        return -1 if self.walk_reverse else 1
 
     def _rewrite_op_regions(self, op: Operation):
         """
         Rewrite the regions of an operation, and update the operation with the
         new regions.
         """
-
-        for region in op.regions:
-            blocks = reversed(
-                region.blocks) if self.walk_reverse else region.blocks
-            for block in blocks:
-                iter_op = block.last_op if self.walk_reverse else block.first_op
-                while iter_op is not None:
-                    iter_op = self._rewrite_op(iter_op)
+        if not self.walk_reverse:
+            for region in op.regions:
+                for block in region.blocks:
+                    idx = 0
+                    while idx < block.len_ops():
+                        idx += self._rewrite_op(block.op_at_index(idx))
+        else:
+            for region in op.regions:
+                for block in reversed(region.blocks):
+                    idx = block.len_ops() - 1
+                    while idx >= 0:
+                        idx += self._rewrite_op(block.op_at_index(idx))
