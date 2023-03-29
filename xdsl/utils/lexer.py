@@ -212,7 +212,6 @@ class Token:
         FILE_METADATA_END = auto()  # #-}
 
     kind: Kind
-
     span: Span
 
     @property
