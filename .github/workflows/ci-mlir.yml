@@ -57,7 +57,7 @@ jobs:
         restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
 
     - name: Checkout MLIR
-      if: steps.cache-binary.outputs.cache-hit != 'false'
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: llvm/llvm-project.git
@@ -65,15 +65,15 @@ jobs:
         ref: ${{ env.MLIR-Version }}
 
     - name: Clang Setup
-      if: steps.cache-binary.outputs.cache-hit != 'false'
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       uses: egor-tensin/setup-clang@v1
 
     - name: Ninja Setup
-      if: steps.cache-binary.outputs.cache-hit != 'false'
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       uses: lukka/get-cmake@9e431acfe656e5db66cd4930386328fce59cfaba
 
     - name: MLIR Build Setup
-      if: steps.cache-binary.outputs.cache-hit != 'false'
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         mkdir llvm-project/build
         cd llvm-project/build
@@ -90,7 +90,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'false'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-translate llc
+        cmake --build . --target mlir-opt mlir-translate llc check-mlir
 
     - name: Test with pytest and generate code coverage
       run: |
@@ -109,7 +109,6 @@ jobs:
         cd xdsl
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-        chmod u+x ./benchmarks/dialects/experimental/stencil/run-laplace-benchmark.sh
         ./benchmarks/dialects/experimental/stencil/run-laplace-benchmark.sh
 
     - name: Test MLIR dependent examples/tutorials
