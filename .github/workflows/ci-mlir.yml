@@ -87,7 +87,7 @@ jobs:
           -DLLVM_ENABLE_ASSERTIONS=ON
 
     - name: MLIR Build
-      if: steps.cache-binary.outputs.cache-hit != 'false'
+      if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
         cmake --build . --target mlir-opt mlir-translate llc check-mlir
