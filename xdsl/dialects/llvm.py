@@ -127,7 +127,7 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
         size = IntAttr(parser.parse_int_literal())
         if not parser.tokenizer.starts_with('x'):
             parser.parse_characters('>', "End of llvm.array type expected!")
-            return [None, size]
+            return [NoneAttr(), size]
         parser.parse_characters(
             'x', "llvm.array size and type must be separated by `x`")
         type = parser.try_parse_type()
