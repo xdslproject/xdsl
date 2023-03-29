@@ -109,8 +109,8 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 class LLVMArrayType(ParametrizedAttribute, MLIRType):
     name = "llvm.array"
 
-    type: ParameterDef[Attribute]
     size: ParameterDef[IntAttr]
+    type: ParameterDef[Attribute]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -127,7 +127,7 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
         size = IntAttr(parser.parse_int_literal())
         if not parser.tokenizer.starts_with('x'):
             parser.parse_characters('>', "End of llvm.array type expected!")
-            return [NoneAttr(), size]
+            return [size, NoneAttr()]
         parser.parse_characters(
             'x', "llvm.array size and type must be separated by `x`")
         type = parser.try_parse_type()
@@ -135,11 +135,11 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
             parser.raise_error(
                 "Expected second parameter of llvm.array to be a type!")
         parser.parse_characters('>', "End of llvm.array parameters expected!")
-        return [type, size]
+        return [size, type]
 
     @staticmethod
-    def from_type_and_size(type: Attribute, size: IntAttr):
-        return LLVMArrayType([type, size])
+    def from_size_and_type(size: IntAttr, type: Attribute):
+        return LLVMArrayType([size, type])
 
 
 @irdl_op_definition
