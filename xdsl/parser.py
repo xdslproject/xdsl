@@ -22,7 +22,7 @@ from xdsl.dialects.builtin import (
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     VectorType, SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -981,13 +981,11 @@ class BaseParser(ABC):
         else:
             op_name = span.text
 
-        op_type = self.ctx.get_optional_op(op_name)
+        op_type = self.ctx.get_optional_op(
+            op_name, allow_unregistered=self.allow_unregistered_ops)
 
         if op_type is not None:
             return op_type
-
-        if self.allow_unregistered_ops:
-            return UnregisteredOp.with_name(op_name, self.ctx)
 
         self.raise_error(f'Unknown operation {op_name}!', span)
 

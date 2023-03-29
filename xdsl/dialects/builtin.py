@@ -5,9 +5,9 @@ from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
-from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue,
-                     AttributeCovT, AttributeInvT)
+from xdsl.ir import (Block, Data, MLIRType, ParametrizedAttribute, Operation,
+                     Region, Attribute, Dialect, SSAValue, AttributeCovT,
+                     AttributeInvT)
 
 from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
@@ -924,9 +924,7 @@ class UnregisteredOp(Operation):
         return self.op_name__  # type: ignore
 
     @classmethod
-    def with_name(cls, name: str, ctx: MLContext) -> type[Operation]:
-        if name in ctx.registered_unregistered_ops:
-            return ctx.registered_unregistered_ops[name]  # type: ignore
+    def with_name(cls, name: str) -> type[Operation]:
 
         class UnregisteredOpWithName(UnregisteredOp):
 
@@ -942,7 +940,6 @@ class UnregisteredOp(Operation):
                 op.attributes['op_name__'] = StringAttr(name)
                 return op
 
-        ctx.registered_unregistered_ops[name] = UnregisteredOpWithName
         return UnregisteredOpWithName
 
 
