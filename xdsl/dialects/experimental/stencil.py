@@ -421,6 +421,8 @@ class ApplyOp(Operation):
     @staticmethod
     def get(args: Sequence[SSAValue] | Sequence[Operation],
             body: Block,
+            lb: IndexAttr | None = None,
+            ub: IndexAttr | None = None,
             result_count: int = 1):
         assert len(args) > 0
         field_t = SSAValue.get(args[0]).typ
@@ -429,7 +431,14 @@ class ApplyOp(Operation):
 
         result_rank = len(field_t.shape.data)
 
+        attributes={}
+        if lb is not None:
+          attributes["lb"]=lb
+        if ub is not None:
+          attributes["ub"]=ub
+
         return ApplyOp.build(operands=[list(args)],
+                             attributes=attributes,
                              regions=[Region.from_block_list([body])],
                              result_types=[[
                                  TempType.from_shape([-1] * result_rank,
