@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import ParamSpec, Callable, TypeAlias, overload
+from typing import Callable, TypeAlias, overload
 
 from dataclasses import dataclass
 
 from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
 from xdsl.dialects.builtin import FunctionType
-
-_P = ParamSpec('_P')
 
 
 @dataclass
@@ -22,13 +20,8 @@ class OpBuilder:
 
     block: Block
 
-    def insert(self, op: Operation):
+    def insert(self, op: OperationInvT) -> OperationInvT:
         self.block.add_op(op)
-
-    def create(self, func: Callable[_P, OperationInvT], *args: _P.args,
-               **kwargs: _P.kwargs) -> OperationInvT:
-        op = func(*args, **kwargs)
-        self.insert(op)
         return op
 
     @staticmethod
