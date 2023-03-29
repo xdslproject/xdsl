@@ -22,13 +22,13 @@ class OpBuilder:
 
     block: Block
 
-    def add_op(self, op: Operation):
+    def insert(self, op: Operation):
         self.block.add_op(op)
 
     def create(self, func: Callable[_P, OperationInvT], *args: _P.args,
                **kwargs: _P.kwargs) -> OperationInvT:
         op = func(*args, **kwargs)
-        self.add_op(op)
+        self.insert(op)
         return op
 
     @staticmethod
