@@ -119,6 +119,24 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
         printer.print_string(">")
 
     @staticmethod
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        if not parser.tokenizer.starts_with('<'):
+            return [NoneAttr(), NoneAttr()]
+        parser.parse_characters('<', "llvm.array parameters expected")
+        size = IntAttr(parser.parse_int_literal())
+        if not parser.tokenizer.starts_with('x'):
+          parser.parse_characters('>',
+                                    "End of llvm.array type expected!")
+          return [None, size]
+        parser.parse_characters('x', "llvm.array size and type must be separated by `x`")
+        type = parser.try_parse_type()
+        if type is None:
+            parser.raise_error(
+                "Expected second parameter of llvm.array to be a type!")
+        parser.parse_characters('>', "End of llvm.array parameters expected!")
+        return [type, size]
+
+    @staticmethod
     def from_type_and_size(type: Attribute, size: IntAttr):
       return LLVMArrayType([type, size])
 
@@ -355,4 +373,4 @@ LLVM = Dialect([
     NullOp,
     LoadOp,
     StoreOp,
-], [LLVMStructType, LLVMPointerType])
+], [LLVMStructType, LLVMPointerType, LLVMArrayType])
