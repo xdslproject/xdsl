@@ -104,6 +104,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
 
+
 @irdl_attr_definition
 class LLVMArrayType(ParametrizedAttribute, MLIRType):
     name = "llvm.array"
@@ -125,10 +126,10 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
         parser.parse_characters('<', "llvm.array parameters expected")
         size = IntAttr(parser.parse_int_literal())
         if not parser.tokenizer.starts_with('x'):
-          parser.parse_characters('>',
-                                    "End of llvm.array type expected!")
-          return [None, size]
-        parser.parse_characters('x', "llvm.array size and type must be separated by `x`")
+            parser.parse_characters('>', "End of llvm.array type expected!")
+            return [None, size]
+        parser.parse_characters(
+            'x', "llvm.array size and type must be separated by `x`")
         type = parser.try_parse_type()
         if type is None:
             parser.raise_error(
@@ -138,7 +139,7 @@ class LLVMArrayType(ParametrizedAttribute, MLIRType):
 
     @staticmethod
     def from_type_and_size(type: Attribute, size: IntAttr):
-      return LLVMArrayType([type, size])
+        return LLVMArrayType([type, size])
 
 
 @irdl_op_definition
