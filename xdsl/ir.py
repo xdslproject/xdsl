@@ -548,6 +548,9 @@ class Operation(IRNode):
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
+    _next_op: Operation | None = field(default=None, repr=False)
+    _prev_op: Operation | None = field(default=None, repr=False)
+
     traits: ClassVar[frozenset[OpTrait]] = field(init=False)
     """
     Traits attached to an operation definition.
@@ -865,8 +868,8 @@ class Block(IRNode):
     _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    ops: list[Operation]
-    """Ordered operations contained in the block."""
+    _first: Operation | None = field(repr=False)
+    _last: Operation | None = field(repr=False)
 
     parent: Region | None
     """Parent region containing the block."""
@@ -882,7 +885,8 @@ class Block(IRNode):
         self._args = tuple(
             BlockArgument(typ, self, index)
             for index, typ in enumerate(arg_types))
-        self.ops = []
+        self._first = None
+        self._last = None
         self.parent = parent
 
         self.add_ops(ops)
@@ -897,7 +901,7 @@ class Block(IRNode):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
+        return f"Block(_args={repr(self._args)}, num_ops={self.len_ops()})"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
@@ -976,21 +980,123 @@ class Block(IRNode):
             )
         operation.parent = self
 
+    def iter_ops(self):
+        curr = self._first
+        while curr is not None:
+            yield curr
+            curr = curr._next_op  # pyright: ignore[reportPrivateUsage]
+
+    @property
+    def first_op(self) -> Operation | None:
+        return self._first
+
+    @property
+    def last_op(self) -> Operation | None:
+        return self._last
+
+    @property
+    def is_empty(self) -> bool:
+        return self._first is None
+
+    def len_ops(self) -> int:
+        result = 0
+        for _ in self.iter_ops():
+            result += 1
+        return result
+
+    def op_at_index(self, index: int) -> Operation:
+        it = iter(self.iter_ops())
+        for _ in range(index):
+            next(it)
+        return next(it)
+
+    def insert_op_after(self,
+                        curr_op: Operation,
+                        prev_op: Operation,
+                        name: str | None = None) -> None:
+        if prev_op.parent is not self:
+            raise ValueError(
+                "Can't insert operation after operation not in current block")
+
+        if name:
+            for res in curr_op.results:
+                res.name = name
+
+        self._attach_op(curr_op)
+
+        next_op = prev_op._next_op  # pyright: ignore[reportPrivateUsage]
+        if next_op is None:
+            # prev_op is previous _last
+            self._last = curr_op
+        else:
+            next_op._prev_op = curr_op  # pyright: ignore[reportPrivateUsage]
+
+        prev_op._next_op = curr_op  # pyright: ignore[reportPrivateUsage]
+        curr_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+        curr_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+
+    def insert_op_before(self,
+                         curr_op: Operation,
+                         next_op: Operation,
+                         name: str | None = None) -> None:
+        if next_op.parent is not self:
+            raise ValueError(
+                "Can't insert operation before operation not in current block")
+
+        if name:
+            for res in curr_op.results:
+                res.name = name
+
+        self._attach_op(curr_op)
+
+        prev_op = next_op._prev_op  # pyright: ignore[reportPrivateUsage]
+        if prev_op is None:
+            # curr_op is previous _first
+            self._first = curr_op
+        else:
+            prev_op._next_op = curr_op  # pyright: ignore[reportPrivateUsage]
+
+        curr_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+        curr_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+        next_op._prev_op = curr_op  # pyright: ignore[reportPrivateUsage]
+
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
         The operation should not be attached to another block already.
         """
         self._attach_op(operation)
-        self.ops.append(operation)
+        if self._last is None:
+            self._first = operation
+            self._last = operation
+        else:
+            self._last._next_op = operation  # pyright: ignore[reportPrivateUsage]
+            operation._prev_op = self._last  # pyright: ignore[reportPrivateUsage]
+            self._last = operation
 
     def add_ops(self, ops: Iterable[Operation]) -> None:
         """
         Add operations at the end of the block.
         The operations should not be attached to another block.
         """
+        # if self._last is None:
+        #     self._first = operation
+        #     self._last = operation
+        # else:
+        #     self._last._next_op = operation  # pyright: ignore[reportPrivateUsage]
+        #     operation._prev_op = self._last  # pyright: ignore[reportPrivateUsage]
+        #     self._last = operation
+
         for op in ops:
             self.add_op(op)
+
+    def insert_ops_after(self,
+                         ops: list[Operation],
+                         prev_op: Operation,
+                         name: str | None = None) -> None:
+        for op in ops:
+            self.insert_op_after(op, prev_op, name)
+            prev_op = op
 
     def insert_op(self,
                   ops: Operation | list[Operation],
@@ -1000,25 +1106,40 @@ class Block(IRNode):
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
         """
-        if index < 0 or index > len(self.ops):
-            raise ValueError(
-                f"Can't insert operation in index {index} in a block with "
-                f"{len(self.ops)} operations.")
+
+        # if index < 0 or index > len(self.ops):
+        #     raise ValueError(
+        #         f"Can't insert operation in index {index} in a block with "
+        #         f"{len(self.ops)} operations.")
         if not isinstance(ops, list):
             ops = [ops]
-        if name:
-            for curr_op in ops:
-                for res in curr_op.results:
-                    res.name = name
-        for op in ops:
-            self._attach_op(op)
-        self.ops = self.ops[:index] + ops + self.ops[index:]
+
+        first_op = self.first_op
+
+        if first_op is None:
+            if index:
+                raise ValueError(
+                    f"Can't insert operation in index {index} in a block with "
+                    f"no operations.")
+
+            self.add_ops(ops)
+            return
+
+        if index == 0:
+            # set new head, then add after
+            prev_op = ops[0]
+            ops = ops[1:]
+            self.insert_op_before(prev_op, first_op, name)
+        else:
+            prev_op = self.op_at_index(index - 1)
+
+        self.insert_ops_after(ops, prev_op, name)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
             raise Exception("Operation is not a children of the block.")
-        for idx, block_op in enumerate(self.ops):
+        for idx, block_op in enumerate(self.iter_ops()):
             if block_op is op:
                 return idx
         assert False, "Unexpected xdsl error"
@@ -1028,15 +1149,22 @@ class Block(IRNode):
         Detach an operation from the block.
         Returns the detached operation.
         """
-        if isinstance(op, Operation):
-            op_idx = self.get_operation_index(op)
-        else:
-            op_idx = op
-            op = self.ops[op_idx]
+        if isinstance(op, int):
+            op = self.op_at_index(op)
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
-        self.ops = self.ops[:op_idx] + self.ops[op_idx + 1:]
+        if op._prev_op is not None:  # pyright: ignore[reportPrivateUsage]
+            op._prev_op._next_op = op._next_op  # pyright: ignore[reportPrivateUsage]
+        else:
+            # first op
+            self._first = op._next_op  # pyright: ignore[reportPrivateUsage]
+        if op._next_op is not None:  # pyright: ignore[reportPrivateUsage]
+            op._next_op._prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
+        else:
+            # last op
+            self._last = op._prev_op  # pyright: ignore[reportPrivateUsage]
+
         return op
 
     def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
@@ -1049,11 +1177,11 @@ class Block(IRNode):
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the block."""
-        for op in self.ops:
+        for op in self.iter_ops():
             op.walk(fun)
 
     def verify(self) -> None:
-        for operation in self.ops:
+        for operation in self.iter_ops():
             if operation.parent != self:
                 raise Exception(
                     "Parent pointer of operation does not refer to containing region"
@@ -1066,7 +1194,7 @@ class Block(IRNode):
         This function is called prior to deleting a block.
         """
         self.parent = None
-        for op in self.ops:
+        for op in self.iter_ops():
             op.drop_all_references()
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -1078,7 +1206,7 @@ class Block(IRNode):
         assert self.parent is None, "Blocks with parents should first be detached " + \
                                     "before erasure."
         self.drop_all_references()
-        for op in self.ops:
+        for op in self.iter_ops():
             op.erase(safe_erase=safe_erase, drop_references=False)
 
     def is_structurally_equivalent(
@@ -1097,7 +1225,7 @@ class Block(IRNode):
         if not isinstance(other, Block):
             return False
         if len(self.args) != len(other.args) or \
-           len(self.ops) != len(other.ops):
+           self.len_ops() != other.len_ops():
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
@@ -1107,7 +1235,7 @@ class Block(IRNode):
         context[self] = other
         if not all(
                 op.is_structurally_equivalent(other_op, context)
-                for op, other_op in zip(self.ops, other.ops)):
+                for op, other_op in zip(self.iter_ops(), other.iter_ops())):
             return False
 
         return True
@@ -1189,7 +1317,7 @@ class Region(IRNode):
             raise ValueError(
                 "'ops' property of Region class is only available "
                 "for single-block regions.")
-        return self.blocks[0].ops
+        return list(self.blocks[0].iter_ops())
 
     @property
     def op(self) -> Operation:
@@ -1197,10 +1325,14 @@ class Region(IRNode):
         Get the operation of a single-operation single-block region.
         Returns an exception if the region is not single-operation single-block.
         """
-        if len(self.blocks) != 1 or len(self.blocks[0].ops) != 1:
-            raise ValueError("'op' property of Region class is only available "
-                             "for single-operation single-block regions.")
-        return self.blocks[0].ops[0]
+        if len(self.blocks) == 1:
+            first_op = self.blocks[0].first_op
+            last_op = self.blocks[0].last_op
+            if first_op is last_op and first_op is not None:
+                return first_op
+
+        raise ValueError("'op' property of Region class is only available "
+                         "for single-operation single-block regions.")
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
@@ -1285,7 +1417,7 @@ class Region(IRNode):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
-            for op in block.ops:
+            for op in block.iter_ops():
                 new_block.add_op(op.clone(value_mapper, block_mapper))
             dest.insert_block(new_block, insert_index)
             insert_index += 1

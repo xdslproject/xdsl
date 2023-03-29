@@ -71,14 +71,14 @@ class Rewriter:
         """
         if block.is_ancestor(target_block):
             raise Exception("Cannot inline a block in a child block.")
-        for op in block.ops:
+        for op in block.iter_ops():
             for operand in op.operands:
                 if isinstance(operand,
                               BlockArgument) and operand.block is block:
                     raise Exception(
                         "Cannot inline block which has operations using "
                         "the block arguments.")
-        ops = block.ops.copy()
+        ops = list(block.iter_ops())
         for op in ops:
             op.detach()
         target_block.insert_op(ops, pos)

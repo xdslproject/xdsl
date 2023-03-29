@@ -62,14 +62,17 @@ def test_func_II():
     # Use this region to create a func0
     func1 = FuncOp.from_region("func1", [], [], region0)
 
-    assert len(func1.regions[0].blocks[0].ops) == 3
-    assert len(func1.regions[0].blocks[1].ops) == 3
-    assert type(func1.regions[0].blocks[0].ops[0]) is Constant
-    assert type(func1.regions[0].blocks[0].ops[1]) is Constant
-    assert type(func1.regions[0].blocks[0].ops[2]) is Addi
-    assert type(func1.regions[0].blocks[1].ops[0]) is Constant
-    assert type(func1.regions[0].blocks[1].ops[1]) is Constant
-    assert type(func1.regions[0].blocks[1].ops[2]) is Addi
+    ops0 = list(func1.regions[0].blocks[0].iter_ops())
+    ops1 = list(func1.regions[0].blocks[1].iter_ops())
+
+    assert len(ops0) == 3
+    assert len(ops1) == 3
+    assert type(ops0[0]) is Constant
+    assert type(ops0[1]) is Constant
+    assert type(ops0[2]) is Addi
+    assert type(ops1[0]) is Constant
+    assert type(ops1[1]) is Constant
+    assert type(ops1[2]) is Addi
 
 
 def test_wrong_blockarg_types():

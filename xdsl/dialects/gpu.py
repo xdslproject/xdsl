@@ -197,7 +197,7 @@ class AllReduceOp(Operation):
                 f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
             )
 
-        non_empty_body = any([len(b.ops) > 0 for b in self.body.blocks])
+        non_empty_body = any([b.len_ops() for b in self.body.blocks])
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
@@ -414,8 +414,8 @@ class LaunchOp(Operation):
             regions=[body])
 
     def verify_(self) -> None:
-        if len(self.body.blocks) == 0 or all(
-            [len(b.ops) == 0 for b in self.body.blocks]):
+        if len(self.body.blocks) == 0 or all(b.len_ops() == 0
+                                             for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
         body_args = self.body.blocks[0].args
         args_type = [a.typ for a in body_args]
@@ -488,7 +488,7 @@ class TerminatorOp(Operation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.terminator must terminate its parent block")
         if op is not None and not isinstance(op, LaunchOp):
@@ -521,7 +521,7 @@ class YieldOp(Operation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.yield must terminate its parent block")
         if op is not None:

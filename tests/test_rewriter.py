@@ -296,7 +296,7 @@ def test_insert_op_before():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant = Constant.from_int_and_width(34, i64)
-        rewriter.insert_op_before(module.regions[0].blocks[0].ops[0], constant)
+        rewriter.insert_op_before(module.ops[0], constant)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -316,7 +316,7 @@ def test_insert_op_after():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant = Constant.from_int_and_width(34, i64)
-        rewriter.insert_op_after(module.regions[0].blocks[0].ops[0], constant)
+        rewriter.insert_op_after(module.ops[0], constant)
 
     rewrite_and_compare(prog, expected, transformation)
 

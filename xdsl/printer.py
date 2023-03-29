@@ -239,7 +239,7 @@ class Printer:
             self.print(":")
 
         self._indent += 1
-        for op in block.ops:
+        for op in block.iter_ops():
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
