@@ -19,13 +19,23 @@ class OpBuilder:
     """
 
     block: Block
+    """
+    Operations will be inserted in this block.
+    """
 
     def insert(self, op: OperationInvT) -> OperationInvT:
+        """
+        Inserts `op` in `self.block` at the current insertion point.
+        """
+
         self.block.add_op(op)
         return op
 
     @staticmethod
     def region(func: Callable[[OpBuilder], None]) -> Region:
+        """
+        Generates a region given a function.
+        """
 
         block = Block()
         builder = OpBuilder(block)
@@ -38,6 +48,11 @@ class OpBuilder:
     def _callable_region_args(
         types: tuple[list[Attribute], list[Attribute]]
     ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
+        """
+        Constructs a tuple of (Region, FunctionType) for a region that takes some
+        arguments, and may return some results. The types of the arguments and results
+        are passed in the `types` parameter.
+        """
 
         input_types, return_types = types
 
@@ -58,6 +73,10 @@ class OpBuilder:
     @staticmethod
     def _callable_region_no_args(
             func: Callable[[OpBuilder], None]) -> tuple[Region, FunctionType]:
+        """
+        Constructs a tuple of (Region, FunctionType) for a region that takes no arguments
+        and returns no results.
+        """
 
         @OpBuilder._callable_region_args(([], []))
         def res(builder: OpBuilder, args: tuple[BlockArgument, ...]) -> None:
@@ -70,20 +89,6 @@ class OpBuilder:
     def callable_region(
         input: tuple[list[Attribute], list[Attribute]]
     ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
-        ...
-
-    @overload
-    @staticmethod
-    def callable_region(
-            input: Callable[[OpBuilder], None]) -> tuple[Region, FunctionType]:
-        ...
-
-    @staticmethod
-    def callable_region(
-        input: tuple[list[Attribute], list[Attribute]]
-        | Callable[[OpBuilder], None]
-    ) -> Callable[[_CallableRegionFuncType],
-                  tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
         """
         Annotation used to construct a (Region, FunctionType) tuple from a function.
         The annotation can be used in two ways:
@@ -102,6 +107,20 @@ class OpBuilder:
             ...
         ```
         """
+        ...
+
+    @overload
+    @staticmethod
+    def callable_region(
+            input: Callable[[OpBuilder], None]) -> tuple[Region, FunctionType]:
+        ...
+
+    @staticmethod
+    def callable_region(
+        input: tuple[list[Attribute], list[Attribute]]
+        | Callable[[OpBuilder], None]
+    ) -> Callable[[_CallableRegionFuncType],
+                  tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
         if isinstance(input, tuple):
             return OpBuilder._callable_region_args(input)
         else:
