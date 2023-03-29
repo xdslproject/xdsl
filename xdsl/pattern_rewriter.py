@@ -4,7 +4,7 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, TypeVar, Union, get_args, get_origin
+from typing import Callable, TypeVar, Union, get_args, get_origin, Generator
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
@@ -313,6 +313,18 @@ class PatternRewriter:
             )
         return Rewriter.move_region_contents_to_new_regions(region)
 
+    def iter_affected_ops(self) -> Generator[Operation, None, None]:
+        yield from self.added_operations_before
+        if not self.has_erased_matched_operation:
+            yield self.current_operation
+        yield from self.added_operations_after
+
+    def iter_affected_ops_reversed(self) -> Generator[Operation, None, None]:
+        yield from reversed(self.added_operations_after)
+        if not self.has_erased_matched_operation:
+            yield self.current_operation
+        yield from reversed(self.added_operations_before)
+
 
 class RewritePattern(ABC):
     """
@@ -471,7 +483,7 @@ class PatternRewriteWalker:
         """Rewrite an entire module operation."""
         self._rewrite_op(op)
 
-    def _rewrite_op(self, op: Operation) -> int:
+    def _rewrite_op(self, op: Operation) -> Operation | None:
         """
         Rewrite an operation, along with its regions.
         Returns by how much operations the walker should move.
@@ -480,6 +492,9 @@ class PatternRewriteWalker:
         if self.walk_regions_first:
             self._rewrite_op_regions(op)
 
+        prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
+        next_op = op._next_op  # pyright: ignore[reportPrivateUsage]
+
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
         self.pattern.match_and_rewrite(op, rewriter)
@@ -487,10 +502,19 @@ class PatternRewriteWalker:
         if rewriter.has_done_action:
             # If we produce new operations, we rewrite them recursively if requested
             if self.apply_recursively:
-                return (len(rewriter.added_operations_before) +
-                        len(rewriter.added_operations_after) -
-                        int(rewriter.has_erased_matched_operation)
-                        if self.walk_reverse else 0)
+                if self.walk_reverse:
+                    for op in rewriter.iter_affected_ops_reversed():
+                        # return last affected op
+                        return op
+                    else:
+                        return prev_op
+                else:
+                    for op in rewriter.iter_affected_ops():
+                        # return first affected op
+                        return op
+                    else:
+                        return next_op
+
             # Else, we rewrite only their regions if they are supposed to be
             # rewritten after
             else:
@@ -501,30 +525,22 @@ class PatternRewriteWalker:
                         self._rewrite_op_regions(op)
                     for new_op in rewriter.added_operations_after:
                         self._rewrite_op_regions(new_op)
-                return -1 if self.walk_reverse else len(
-                    rewriter.added_operations_before) + len(
-                        rewriter.added_operations_after) + int(
-                            not rewriter.has_erased_matched_operation)
+                return prev_op if self.walk_reverse else next_op
 
         # Otherwise, we only rewrite the regions of the operation if needed
         if not self.walk_regions_first:
             self._rewrite_op_regions(op)
-        return -1 if self.walk_reverse else 1
+        return prev_op if self.walk_reverse else next_op
 
     def _rewrite_op_regions(self, op: Operation):
         """
         Rewrite the regions of an operation, and update the operation with the
         new regions.
         """
-        if not self.walk_reverse:
-            for region in op.regions:
-                for block in region.blocks:
-                    idx = 0
-                    while idx < block.len_ops():
-                        idx += self._rewrite_op(block.op_at_index(idx))
-        else:
-            for region in op.regions:
-                for block in reversed(region.blocks):
-                    idx = block.len_ops() - 1
-                    while idx >= 0:
-                        idx += self._rewrite_op(block.op_at_index(idx))
+        for region in op.regions:
+            blocks = reversed(
+                region.blocks) if self.walk_reverse else region.blocks
+            for block in blocks:
+                iter_op = block.last_op if self.walk_reverse else block.first_op
+                while iter_op is not None:
+                    iter_op = self._rewrite_op(iter_op)
