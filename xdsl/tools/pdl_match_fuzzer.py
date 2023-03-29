@@ -305,7 +305,8 @@ def run_with_mlir(region: Region, ctx: MLContext, mlir_executable_path: str,
     counter += 1
 
 
-def fuzz_pdl(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
+def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext,
+                     mlir_executable_path: str):
     if not isinstance(module.ops[0], PatternOp):
         raise Exception("Expected a single toplevel pattern op")
     region, ops = pdl_to_operations(module.ops[0], ctx)
@@ -317,7 +318,7 @@ def fuzz_pdl(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
                       module.ops[0])
 
 
-class PDLFuzzMain(xDSLOptMain):
+class PDLMatchFuzzMain(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
@@ -326,8 +327,8 @@ class PDLFuzzMain(xDSLOptMain):
     def run(self):
         module = self.parse_input()
         for _ in range(0, 1000):
-            fuzz_pdl(module, self.ctx, self.args.mlir_executable)
+            fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)
 
 
 if __name__ == "__main__":
-    PDLFuzzMain().run()
+    PDLMatchFuzzMain().run()
