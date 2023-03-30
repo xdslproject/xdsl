@@ -15,12 +15,12 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class PDLMatcher:
-    xdsl_val_by_pdl_val: dict[SSAValue, Operation | Attribute
-                              | SSAValue] = field(default_factory=dict)
+    matching_context: dict[SSAValue, Operation | Attribute
+                           | SSAValue] = field(default_factory=dict)
 
     def match_operand(self, ssa_val: SSAValue, pdl_op: pdl.OperandOp,
                       xdsl_val: SSAValue):
-        if ssa_val in self.xdsl_val_by_pdl_val:
+        if ssa_val in self.matching_context:
             return True
 
         if pdl_op.valueType is not None:
@@ -31,13 +31,13 @@ class PDLMatcher:
                                    xdsl_val.typ):
                 return False
 
-        self.xdsl_val_by_pdl_val[ssa_val] = xdsl_val
+        self.matching_context[ssa_val] = xdsl_val
 
         return True
 
     def match_result(self, ssa_val: SSAValue, pdl_op: pdl.ResultOp,
                      xdsl_operand: SSAValue):
-        if ssa_val in self.xdsl_val_by_pdl_val:
+        if ssa_val in self.matching_context:
             return True
 
         root_pdl_op_value = pdl_op.parent_
@@ -60,23 +60,23 @@ class PDLMatcher:
         if len(original_op.results) <= index:
             return False
 
-        self.xdsl_val_by_pdl_val[ssa_val] = xdsl_op.results[index]
+        self.matching_context[ssa_val] = xdsl_op.results[index]
 
         return True
 
     def match_type(self, ssa_val: SSAValue, pdl_op: pdl.TypeOp,
                    xdsl_attr: Attribute):
-        if ssa_val in self.xdsl_val_by_pdl_val:
-            return self.xdsl_val_by_pdl_val[ssa_val] == xdsl_attr
+        if ssa_val in self.matching_context:
+            return self.matching_context[ssa_val] == xdsl_attr
 
-        self.xdsl_val_by_pdl_val[ssa_val] = xdsl_attr
+        self.matching_context[ssa_val] = xdsl_attr
 
         return True
 
     def match_attribute(self, ssa_val: SSAValue, pdl_op: pdl.AttributeOp,
                         attr_name: str, xdsl_attr: Attribute):
-        if ssa_val in self.xdsl_val_by_pdl_val:
-            return self.xdsl_val_by_pdl_val[ssa_val] == xdsl_attr
+        if ssa_val in self.matching_context:
+            return self.matching_context[ssa_val] == xdsl_attr
 
         if pdl_op.value is not None:
             if pdl_op.value != xdsl_attr:
@@ -94,13 +94,13 @@ class PDLMatcher:
                                    xdsl_attr.typ):
                 return False
 
-        self.xdsl_val_by_pdl_val[ssa_val] = xdsl_attr
+        self.matching_context[ssa_val] = xdsl_attr
 
         return True
 
     def match_operation(self, ssa_val: SSAValue, pdl_op: pdl.OperationOp,
                         xdsl_op: Operation) -> bool:
-        if ssa_val in self.xdsl_val_by_pdl_val:
+        if ssa_val in self.matching_context:
             return True
 
         if pdl_op.opName is not None:
@@ -151,7 +151,7 @@ class PDLMatcher:
             if not self.match_type(pdl_result, pdl_result.op, xdsl_result.typ):
                 return False
 
-        self.xdsl_val_by_pdl_val[ssa_val] = xdsl_op
+        self.matching_context[ssa_val] = xdsl_op
 
         return True
 
@@ -214,7 +214,7 @@ class PDLFunctions(InterpreterFunctions):
                 return
 
             interpreter.push_scope('rewrite')
-            interpreter.set_values(matcher.xdsl_val_by_pdl_val.items())
+            interpreter.set_values(matcher.matching_context.items())
             self.rewriter = rewriter
 
             for rewrite_impl_op in pdl_rewrite_op.body.ops:
