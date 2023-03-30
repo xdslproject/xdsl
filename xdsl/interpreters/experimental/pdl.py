@@ -180,7 +180,7 @@ class PDLFunctions(InterpreterFunctions):
             raise InterpretationError('No ops in pattern')
 
         if not isinstance(ops[-1], pdl.RewriteOp):
-            raise InterpretationError('Expected last ')
+            raise InterpretationError('Expected pdl.pattern to be terminated by pdl.rewrite')
 
         for r_op in ops[:-1]:
             # in forward pass, the Python value is the SSA value itself
