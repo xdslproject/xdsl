@@ -13,8 +13,8 @@ class OpBuilder:
     """
     A helper class to construct IRs, by keeping track of where to insert an
     operation. Currently the insertion point is always at the end of the block.
-    In the future will mirror the API of `OpBuilder` in MLIR, inserting at
-    arbitrary locations.
+    In the future will closely follow the API of `OpBuilder` in MLIR, inserting 
+    at arbitrary locations.
 
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
     """
