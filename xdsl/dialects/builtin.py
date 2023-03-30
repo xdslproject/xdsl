@@ -925,12 +925,6 @@ class UnrealizedConversionCastOp(Operation):
             result_types=[result_type],
         )
 
-    def verify_(self):
-        if len(self.inputs) != len(self.outputs):
-            raise VerifyException(
-                f"input and output lengths must be the same but "
-                f"are {len(self.inputs)} and {len(self.outputs)}")
-
 
 @irdl_op_definition
 class UnregisteredOp(Operation):
