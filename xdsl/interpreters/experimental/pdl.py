@@ -47,7 +47,7 @@ class PDLMatcher:
     def match_result(self, ssa_val: SSAValue, pdl_op: pdl.ResultOp,
                      xdsl_operand: SSAValue):
         if ssa_val in self.matching_context:
-            return True
+            return self.matching_context[ssa_val] == xdsl_operand
 
         root_pdl_op_value = pdl_op.parent_
         assert isinstance(root_pdl_op_value, OpResult)
@@ -110,7 +110,7 @@ class PDLMatcher:
     def match_operation(self, ssa_val: SSAValue, pdl_op: pdl.OperationOp,
                         xdsl_op: Operation) -> bool:
         if ssa_val in self.matching_context:
-            return True
+            return self.matching_context[ssa_val] == xdsl_op
 
         if pdl_op.opName is not None:
             if xdsl_op.name != pdl_op.opName.data:
