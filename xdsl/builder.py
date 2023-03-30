@@ -47,7 +47,7 @@ class Builder:
         input_types: list[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
-        Constructs a single-block region, containing the implementation of a
+        Decorator for constructing a single-block region, containing the implementation of a
         function with some input arguments.
         """
 
