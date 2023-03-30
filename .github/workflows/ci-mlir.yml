@@ -90,7 +90,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'false'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-translate check-clang
+        cmake --build . --target mlir-opt mlir-translate clang
 
     - name: Test with pytest and generate code coverage
       run: |
