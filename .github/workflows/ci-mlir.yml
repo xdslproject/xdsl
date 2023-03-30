@@ -78,7 +78,7 @@ jobs:
         mkdir llvm-project/build
         cd llvm-project/build
         cmake -G Ninja ../llvm \
-          -DLLVM_ENABLE_PROJECTS=mlir;clang \
+          -DLLVM_ENABLE_PROJECTS="mlir;clang" \
           -DLLVM_TARGETS_TO_BUILD="X86" \
           -DLLVM_ENABLE_LLD=ON \
           -DCMAKE_C_COMPILER=clang \
