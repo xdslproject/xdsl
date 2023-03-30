@@ -150,14 +150,6 @@ class FuncOp(Operation):
             Region.from_block_list([Block.from_callable(input_types, func)]),
             private=private)
 
-    @staticmethod
-    def from_callable_region(name: str,
-                             callable_region: tuple[Region, FunctionType],
-                             /,
-                             private: bool = False):
-        region, ftype = callable_region
-        return FuncOp.from_region(name, ftype, region, private=private)
-
     def verify_(self):
         # Check that the returned value matches the type of the function
         if len(self.body.blocks) != 1:
