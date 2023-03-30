@@ -12,7 +12,7 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
 from xdsl.utils.exceptions import VerifyException
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -102,6 +102,7 @@ class ReturnOpToMemref(RewritePattern):
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
         cast = self.return_target[op]
+
         assert isinstance(cast, CastOp)
 
         offsets = cast.lb
@@ -303,6 +304,14 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
         pass
 
 
+class TrivialExternalStoreOpCleanup(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter,
+                          /):
+        rewriter.erase_matched_op()
+
+
 def return_target_analysis(module: ModuleOp):
 
     return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
@@ -322,6 +331,7 @@ def return_target_analysis(module: ModuleOp):
             return
 
         cast = store.field.owner
+
         assert isinstance(cast, CastOp)
 
         return_targets[op] = cast
@@ -348,7 +358,8 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
         AccessOpToMemref(),
         ReturnOpToMemref(return_targets),
         StoreOpCleanup(),
-        TrivialExternalLoadOpCleanup()
+        TrivialExternalLoadOpCleanup(),
+        TrivialExternalStoreOpCleanup()
     ])
 
 
