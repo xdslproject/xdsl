@@ -110,3 +110,11 @@ def test_llvm_getelementptr_op():
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1
+
+
+def test_array_type():
+    array_type = llvm.LLVMArrayType.from_size_and_type(10, builtin.i32)
+
+    assert isinstance(array_type.size, builtin.IntAttr)
+    assert array_type.size.data == 10
+    assert array_type.type == builtin.i32
