@@ -6,7 +6,7 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
                                  Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
                                  SIToFPOp, ExtFOp, TruncFOp)
-from xdsl.dialects.builtin import i32, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.dialects.builtin import i32, f32, f64, IndexType, IntegerType, Float32Type, FloatAttr
 
 
 class Test_integer_arith_construction:
@@ -50,6 +50,43 @@ class Test_float_arith_construction:
         op = func.get(self.a, self.b)
         assert op.operands[0].op is self.a
         assert op.operands[1].op is self.b
+
+
+def test_float_arith_construction_int_width():
+    a = Constant.from_float_and_width(1.1, 32)
+    b = Constant.from_float_and_width(1.1, 64)
+
+    assert a.result.typ == f32
+    assert a.value.type == f32
+    assert b.result.typ == f64
+    assert b.value.type == f64
+
+
+def test_float_arith_construction_int_width_illegal():
+    try:
+        a = Constant.from_float_and_width(1.1, 48)
+        # This should raise ValueError as 48 is an illegal float width
+        assert False
+    except ValueError:
+        pass
+
+
+def test_float_arith_construction_int_width_missmatch():
+    try:
+        a = Constant.from_float_and_width(FloatAttr(1.4, 64), 32)
+        # This should raise TypeError as the type width in FloatAttr is
+        # mismatched against the integer width provided
+        assert False
+    except TypeError:
+        pass
+
+    try:
+        a = Constant.from_float_and_width(FloatAttr(1.4, 64), i32)
+        # This should raise TypeError as the type width in FloatAttr is
+        # mismatched against the float type provided
+        assert False
+    except TypeError:
+        pass
 
 
 def test_index_cast_op():

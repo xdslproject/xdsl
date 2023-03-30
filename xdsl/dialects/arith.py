@@ -40,12 +40,23 @@ class Constant(Operation):
             result_types=[typ],
             attributes={"value": IntegerAttr.from_params(val, typ)})
 
-    # To add tests for this constructor
     @staticmethod
     def from_float_and_width(val: float | FloatAttr[_FloatTypeT],
-                             typ: _FloatTypeT) -> Constant:
+                             typ: int | _FloatTypeT) -> Constant:
         if isinstance(val, float):
             val = FloatAttr(val, typ)
+            if isinstance(typ, int):
+                typ = val.type
+        else:
+            # Check provided width matches that of the FloatAttr passed
+            if isinstance(typ, int):
+                # We create a dummy FloatAttr for the type, this
+                # provides error checking on the width
+                typ=FloatAttr(0.0, typ).type
+            if val.type != typ:
+                raise TypeError(f"Provided float is of type {val.type}"
+                                f" but provided width type is {typ}")
+
         return Constant.create(
             result_types=[typ],
             attributes={"value": val})
