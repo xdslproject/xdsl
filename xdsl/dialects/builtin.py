@@ -13,8 +13,7 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr, Operand,
-                       OpResult)
+                       Generic, GenericData, AttrConstraint, AnyAttr)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
