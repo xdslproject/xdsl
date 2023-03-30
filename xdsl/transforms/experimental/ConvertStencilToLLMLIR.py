@@ -309,7 +309,7 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter,
                           /):
-            rewriter.replace_matched_op([], [])
+            rewriter.erase_matched_op()
 
 
 def return_target_analysis(module: ModuleOp):
