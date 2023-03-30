@@ -914,13 +914,21 @@ class OpaqueAttr(ParametrizedAttribute):
 class UnrealizedConversionCastOp(Operation):
     name: str = "builtin.unrealized_conversion_cast"
 
-    input: VarOperand
-    output: VarOpResult
+    inputs: VarOperand
+    outputs: VarOpResult
 
     @staticmethod
-    def get(input: SSAValue | Operation, result_type: Attribute):
-        return UnrealizedConversionCastOp.build(operands=[[input]],
+    def get(inputs: Sequence[SSAValue | Operation
+                             | Sequence[SSAValue | Operation]],
+            result_type: Sequence[Attribute]):
+        return UnrealizedConversionCastOp.build(operands=[[inputs]],
                                                 result_types=[[result_type]])
+
+    def verify_(self):
+        if len(self.inputs) != len(self.outputs):
+            raise VerifyException(
+                f"input and output lengths must be the same but "
+                f"are {len(self.inputs)} and {len(self.outputs)}")
 
 
 @irdl_op_definition
