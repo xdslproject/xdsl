@@ -48,7 +48,7 @@ def test_convert_ast():
 
         main_type = FunctionType.from_lists([], [])
 
-        @Builder.callable_region
+        @Builder.region
         def main(builder: Builder) -> None:
             a = builder.insert(
                 toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3])).res
