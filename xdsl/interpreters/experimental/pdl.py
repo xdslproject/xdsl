@@ -15,8 +15,17 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class PDLMatcher:
+    """
+    Tracks the xDSL values corresponding to PDL SSA values during
+    interpretation. A new instance is created per operation being checked
+    against.
+    """
     matching_context: dict[SSAValue, Operation | Attribute
                            | SSAValue] = field(default_factory=dict)
+    """
+    For each SSAValue that is an OpResult of an operation in the PDL dialect,
+    the corresponding xDSL object.
+    """
 
     def match_operand(self, ssa_val: SSAValue, pdl_op: pdl.OperandOp,
                       xdsl_val: SSAValue):
@@ -159,6 +168,15 @@ class PDLMatcher:
 @register_impls
 @dataclass
 class PDLFunctions(InterpreterFunctions):
+    """
+    Applies the PDL pattern to all ops in the input `ModuleOp`. The rewriter
+    jumps straight to the last operation in the pattern, which is expected to
+    be a rewrite op. It creates an `AnonymousRewriter`, which runs on all
+    operations in the ModuleOp. For each operation, it determines whether the
+    operation fits the specified pattern and, if so, assigns the xDSL values
+    to the corresponding PDL SSA values, and runs the rewrite operations one by
+    one. The implementations in this class are for the RHS of the rewrite.
+    """
     ctx: MLContext
     module: ModuleOp
     _rewriter: PatternRewriter | None = field(default=None)
