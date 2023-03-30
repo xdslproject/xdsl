@@ -13,8 +13,8 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr,
-                       Annotated, Operand, OpResult)
+                       Generic, GenericData, AttrConstraint, AnyAttr, Operand,
+                       OpResult)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -915,13 +915,13 @@ class OpaqueAttr(ParametrizedAttribute):
 class UnrealizedConversionCastOp(Operation):
     name: str = "builtin.unrealized_conversion_cast"
 
-    input: Annotated[Operand, AnyAttr()]
-    output: Annotated[OpResult, AnyAttr()]
+    input: VarOperand
+    output: VarOpResult
 
     @staticmethod
     def get(input: SSAValue | Operation, result_type: Attribute):
-        return UnrealizedConversionCastOp.build(operands=[input],
-                                                result_types=[result_type])
+        return UnrealizedConversionCastOp.build(operands=[[input]],
+                                                result_types=[[result_type]])
 
 
 @irdl_op_definition
