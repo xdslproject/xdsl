@@ -11,9 +11,10 @@ from xdsl.dialects.builtin import FunctionType
 @dataclass
 class OpBuilder:
     """
-    A helper class to construct IRs, by keeping track of where to insert an operation.
-    Currently can only append an operation to a given block, in the future will mirror the
-    API of `OpBuilder` in MLIR.
+    A helper class to construct IRs, by keeping track of where to insert an
+    operation. Currently the insertion point is always at the end of the block.
+    In the future will mirror the API of `OpBuilder` in MLIR, inserting at
+    arbitrary locations.
 
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
     """
@@ -25,7 +26,7 @@ class OpBuilder:
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
-        Inserts `op` in `self.block` at the current insertion point.
+        Inserts `op` in `self.block` at the end of the block.
         """
 
         self.block.add_op(op)
@@ -34,7 +35,7 @@ class OpBuilder:
     @staticmethod
     def region(func: Callable[[OpBuilder], None]) -> Region:
         """
-        Generates a region given a function.
+        Generates a single-block region.
         """
 
         block = Block()
@@ -49,9 +50,9 @@ class OpBuilder:
         types: tuple[list[Attribute], list[Attribute]]
     ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
         """
-        Constructs a tuple of (Region, FunctionType) for a region that takes some
-        arguments, and may return some results. The types of the arguments and results
-        are passed in the `types` parameter.
+        Constructs a tuple of (Region, FunctionType). The Region is a 
+        single-block region, containing the implementation of a function.
+        `types` specifies the input and result types of the function.
         """
 
         input_types, return_types = types
