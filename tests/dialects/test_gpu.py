@@ -2,9 +2,9 @@ from xdsl.dialects import builtin, arith, memref
 from xdsl.dialects.gpu import (
     AllocOp, AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp,
     BlockDimOp, BlockIdOp, DeallocOp, GlobalIdOp, GridDimOp, HostRegisterOp,
-    LaneIdOp, LaunchOp, ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp,
-    SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp,
-    YieldOp)
+    LaneIdOp, LaunchOp, MemcpyOp, ModuleEndOp, ModuleOp, DimensionAttr,
+    NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp,
+    TerminatorOp, ThreadIdOp, YieldOp)
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -231,6 +231,35 @@ def test_launch():
     assert nd_launch.asyncToken.typ == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
     assert nd_launch.dynamicSharedMemorySize is ten.result
+
+
+def test_memcpy():
+
+    typ = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [10, 10, 10])
+    host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
+    alloc = AllocOp.get(typ, is_async=True)
+
+    assert alloc.asyncToken is not None  #for Pyright
+
+    memcpy = MemcpyOp.get(host_alloc, alloc.result, [alloc.asyncToken])
+
+    assert isinstance(memcpy, MemcpyOp)
+    assert memcpy.src is host_alloc.memref
+    assert memcpy.dst is alloc.result
+    assert memcpy.asyncDependencies == tuple([alloc.asyncToken])
+    assert memcpy.asyncToken is None
+
+    memcpy2 = MemcpyOp.get(alloc.result,
+                           host_alloc.memref, [alloc.asyncToken],
+                           is_async=True)
+
+    assert isinstance(memcpy2, MemcpyOp)
+    assert memcpy2.src is alloc.result
+    assert memcpy2.dst is host_alloc.memref
+    assert memcpy2.asyncDependencies == tuple([alloc.asyncToken])
+    assert memcpy2.asyncToken is not None
+    assert isinstance(memcpy2.asyncToken.typ, AsyncTokenType)
 
 
 def test_num_subgroups():
