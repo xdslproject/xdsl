@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from xdsl.ir import Operation, BlockArgument
-from xdsl.dialects.builtin import f64, ModuleOp
+from xdsl.ir import OpResult, BlockArgument, SSAValue
+from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
+from xdsl.builder import Builder
 
 from ..parser import Parser
 from ..ir_gen import IRGen
 
-from toy import dialect as td
+from toy import dialect as toy
 
 
 def test_convert_ast():
@@ -21,43 +22,51 @@ def test_convert_ast():
 
     generated_module_op = ir_gen.ir_gen_module(module_ast)
 
-    unrankedf64TensorType = td.UnrankedTensorType.from_type(f64)
+    @ModuleOp.from_region_or_ops
+    @Builder.region
+    def module_op(builder: Builder):
+        unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
-    def func_body(*args: BlockArgument) -> list[Operation]:
-        arg0, arg1 = args
-        f0 = td.TransposeOp.from_input(arg0)
-        f1 = td.TransposeOp.from_input(arg1)
-        f2 = td.MulOp.from_summands(f0.results[0], f1.results[0])
-        f3 = td.ReturnOp.from_input(f2.results[0])
-        return [f0, f1, f2, f3]
+        multiply_transpose_type = FunctionType.from_lists(
+            [unrankedf64TensorType, unrankedf64TensorType],
+            [unrankedf64TensorType])
 
-    def main_body(*args: BlockArgument) -> list[Operation]:
-        m0 = td.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3])
-        [a] = m0.results
-        m1 = td.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6])
-        m2 = td.ReshapeOp.from_input(m1.results[0], [2, 3])
-        [b] = m2.results
-        m3 = td.GenericCallOp.get('multiply_transpose', [a, b],
-                                  [unrankedf64TensorType])
-        [c] = m3.results
-        m4 = td.GenericCallOp.get('multiply_transpose', [b, a],
-                                  [unrankedf64TensorType])
-        m5 = td.GenericCallOp.get('multiply_transpose', [b, c],
-                                  [unrankedf64TensorType])
-        m6 = td.TransposeOp.from_input(a)
-        [a_transposed] = m6.results
-        m7 = td.GenericCallOp.get('multiply_transpose', [a_transposed, c],
-                                  [unrankedf64TensorType])
-        m8 = td.ReturnOp.from_input()
-        return [m0, m1, m2, m3, m4, m5, m6, m7, m8]
+        @Builder.region(multiply_transpose_type.inputs)
+        def multiply_transpose(builder: Builder, args: tuple[BlockArgument,
+                                                             ...]) -> None:
+            a, b = args
+            a_t = builder.insert(toy.TransposeOp.from_input(a)).res
+            b_t = builder.insert(toy.TransposeOp.from_input(b)).res
+            prod = builder.insert(toy.MulOp.from_summands(a_t, b_t)).res
+            builder.insert(toy.ReturnOp.from_input(prod))
 
-    multiply_transpose = td.FuncOp.from_callable(
-        'multiply_transpose', [unrankedf64TensorType, unrankedf64TensorType],
-        [unrankedf64TensorType],
-        func_body,
-        private=True)
-    main = td.FuncOp.from_callable('main', [], [], main_body, private=False)
+        def call_multiply_transpose(builder: Builder, a: SSAValue,
+                                    b: SSAValue) -> OpResult:
+            return builder.insert(
+                toy.GenericCallOp.get("multiply_transpose", [a, b],
+                                      [unrankedf64TensorType])).res[0]
 
-    module_op = ModuleOp.from_region_or_ops([multiply_transpose, main])
+        main_type = FunctionType.from_lists([], [])
+
+        @Builder.region
+        def main(builder: Builder) -> None:
+            a = builder.insert(
+                toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3])).res
+            b_0 = builder.insert(
+                toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6])).res
+            b = builder.insert(toy.ReshapeOp.from_input(b_0, [2, 3])).res
+            c = call_multiply_transpose(builder, a, b)
+            call_multiply_transpose(builder, b, a)
+            call_multiply_transpose(builder, b, c)
+            a_t = builder.insert(toy.TransposeOp.from_input(a)).res
+            call_multiply_transpose(builder, a_t, c)
+            builder.insert(toy.ReturnOp.from_input())
+
+        builder.insert(
+            toy.FuncOp.from_region("multiply_transpose",
+                                   multiply_transpose_type,
+                                   multiply_transpose,
+                                   private=True))
+        builder.insert(toy.FuncOp.from_region("main", main_type, main))
 
     assert module_op.is_structurally_equivalent(generated_module_op)
