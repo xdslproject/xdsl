@@ -9,4 +9,4 @@
 
 }) : () -> ()
 
-// CHECK: Expected !memref<[10 : !index, 10 : !index], !i32>, got !memref<[-1 : !index, -1 : !index], !i32>, . gpu.memcpy source and destination types must match.
+// CHECK: Expected !memref<[10 : !index, 10 : !index], !i32>, got !memref<[-1 : !index, -1 : !index], !i32>. gpu.memcpy source and destination types must match.

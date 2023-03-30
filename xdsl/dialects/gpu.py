@@ -301,7 +301,7 @@ class MemcpyOp(Operation):
     def verify_(self) -> None:
         if self.src.typ != self.dst.typ:
             raise VerifyException(
-                f"Expected {self.src.typ}, got {self.dst.typ}, . gpu.memcpy source and "
+                f"Expected {self.src.typ}, got {self.dst.typ}. gpu.memcpy source and "
                 "destination types must match.")
 
 
