@@ -54,7 +54,7 @@ def test_build_callable_region():
     one = IntAttr(1)
     two = IntAttr(2)
 
-    @Builder.callable_region([i32])
+    @Builder.region([i32])
     def region(b: Builder, args: tuple[BlockArgument, ...]):
         assert len(args) == 1
 

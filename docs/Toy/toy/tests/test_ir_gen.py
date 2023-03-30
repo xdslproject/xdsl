@@ -31,7 +31,7 @@ def test_convert_ast():
             [unrankedf64TensorType, unrankedf64TensorType],
             [unrankedf64TensorType])
 
-        @Builder.callable_region(multiply_transpose_type.inputs)
+        @Builder.region(multiply_transpose_type.inputs)
         def multiply_transpose(builder: Builder, args: tuple[BlockArgument,
                                                              ...]) -> None:
             a, b = args
