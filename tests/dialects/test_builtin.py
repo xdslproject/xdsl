@@ -6,7 +6,8 @@ from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
                                    VectorBaseTypeConstraint,
                                    VectorRankConstraint,
                                    VectorBaseTypeAndRankConstraint)
-from xdsl.dialects.builtin import i32, i64, VectorType
+from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
+from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
 from xdsl.utils.exceptions import VerifyException
 
@@ -156,3 +157,17 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
     assert e.value.args[0] == error_msg
+
+
+def test_unrealized_conversion_cast():
+    i64_constant = Constant.from_int_and_width(1, 64)
+    f32_constant = Constant.from_float_and_width(10.1, f32)
+
+    conv_op1 = UnrealizedConversionCastOp.get(i64_constant.results[0], f32)
+    conv_op2 = UnrealizedConversionCastOp.get(f32_constant.results[0], i32)
+
+    assert (conv_op1.input.typ == i64)
+    assert (conv_op1.output.typ == f32)
+
+    assert (conv_op2.input.typ == f32)
+    assert (conv_op2.output.typ == i32)
