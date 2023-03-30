@@ -611,6 +611,66 @@ class IndexCastOp(Operation):
         )
 
 
+@irdl_op_definition
+class FPToSIOp(Operation):
+    name = "arith.fptosi"
+
+    input: Annotated[Operand, AnyFloat]
+    result: Annotated[OpResult, IntegerType]
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: IntegerType):
+        return FPToSIOp.build(
+            operands=[op],
+            result_types=[target_typ]
+        )
+
+
+@irdl_op_definition
+class SIToFPOp(Operation):
+    name = "arith.sitofp"
+
+    input: Annotated[Operand, IntegerType]
+    result: Annotated[OpResult, AnyFloat]
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: AnyFloat):
+        return SIToFPOp.build(
+            operands=[op],
+            result_types=[target_typ]
+        )
+
+
+@irdl_op_definition
+class ExtFOp(Operation):
+    name = "arith.extf"
+
+    input: Annotated[Operand, AnyFloat]
+    result: Annotated[OpResult, AnyFloat]
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: AnyFloat):
+        return ExtFOp.build(
+            operands=[op],
+            result_types=[target_typ]
+        )
+
+
+@irdl_op_definition
+class TruncFOp(Operation):
+    name = "arith.truncf"
+
+    input: Annotated[Operand, AnyFloat]
+    result: Annotated[OpResult, AnyFloat]
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: AnyFloat):
+        return ExtFOp.build(
+            operands=[op],
+            result_types=[target_typ]
+        )
+
+
 class FastMathFlag(Enum):
     REASSOC = "reassoc"
     NO_NANS = "nnan"
@@ -716,6 +776,10 @@ Arith = Dialect([
 
         # Casts
         IndexCastOp,
+        FPToSIOp,
+        SIToFPOp,
+        ExtFOp,
+        TruncFOp,
 ], [
         FastMathFlagsAttr,
 ])

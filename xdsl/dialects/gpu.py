@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Generic, Type, TypeVar
+from typing import Annotated, Generic, Sequence, Type, TypeVar
 
 from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)
@@ -109,6 +109,54 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 DimensionAttr = _GPUAttr[_DimensionAttr]
 AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
 
+_Element = TypeVar("_Element", bound=Attribute, covariant=True)
+
+
+@irdl_op_definition
+class AllocOp(Operation):
+    name = "gpu.alloc"
+    hostShared: OptOpAttr[UnitAttr]
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    dynamicSizes: Annotated[VarOperand, IndexType]
+    symbolOperands: Annotated[VarOperand, IndexType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    result: Annotated[OpResult, memref.MemRefType[Attribute]]
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    def verify_(self) -> None:
+        ndyn = len(self.dynamicSizes)
+        assert isinstance(self.result.typ, memref.MemRefType)
+        typ: memref.MemRefType[Attribute] = self.result.typ
+        ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
+        if ndyn != ndyn_typ:
+            raise VerifyException(
+                f"Expected {ndyn_typ} dynamic sizes, got {ndyn}. All "
+                "dynamic sizes need to be set in the alloc operation.")
+
+    @staticmethod
+    def get(return_type: memref.MemRefType[_Element],
+            dynamic_sizes: Sequence[SSAValue | Operation]
+            | None = None,
+            host_shared: bool = False,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> AllocOp:
+        token_return = [AsyncTokenType()] if is_async else []
+        dynamic_sizes_vals: list[SSAValue] = [
+            SSAValue.get(e) for e in dynamic_sizes
+        ] if dynamic_sizes else []
+        async_dependencies_vals: list[SSAValue] = [
+            SSAValue.get(e) for e in async_dependencies
+        ] if async_dependencies else []
+        attributes: dict[str, Attribute] = {
+            "hostShared": UnitAttr()
+        } if host_shared else {}
+        return AllocOp.build(
+            operands=[async_dependencies_vals, dynamic_sizes_vals, []],
+            result_types=[return_type, token_return],
+            attributes=attributes)
+
 
 @irdl_op_definition
 class AllReduceOp(Operation):
@@ -204,6 +252,60 @@ class BlockIdOp(Operation):
 
 
 @irdl_op_definition
+class DeallocOp(Operation):
+    name = "gpu.dealloc"
+
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    buffer: Annotated[Operand, memref.MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    @staticmethod
+    def get(buffer: SSAValue | Operation,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> DeallocOp:
+        return DeallocOp.build(
+            operands=[
+                async_dependencies if async_dependencies is not None else [],
+                buffer
+            ],
+            result_types=[[AsyncTokenType()] if is_async else []])
+
+
+@irdl_op_definition
+class MemcpyOp(Operation):
+    name = "gpu.memcpy"
+
+    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
+    src: Annotated[Operand, memref.MemRefType]
+    dst: Annotated[Operand, memref.MemRefType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    asyncToken: Annotated[OptOpResult, AsyncTokenType]
+
+    @staticmethod
+    def get(source: SSAValue | Operation,
+            destination: SSAValue | Operation,
+            async_dependencies: Sequence[SSAValue | Operation] | None = None,
+            is_async: bool = False) -> MemcpyOp:
+        return MemcpyOp.build(
+            operands=[
+                async_dependencies if async_dependencies is not None else [],
+                source, destination
+            ],
+            result_types=[[AsyncTokenType()] if is_async else []])
+
+    def verify_(self) -> None:
+        if self.src.typ != self.dst.typ:
+            raise VerifyException(
+                f"Expected {self.src.typ}, got {self.dst.typ}. gpu.memcpy source and "
+                "destination types must match.")
+
+
+@irdl_op_definition
 class ModuleOp(Operation):
     name = "gpu.module"
 
@@ -293,10 +395,10 @@ class LaunchOp(Operation):
     @staticmethod
     def get(
         body: Region,
-        gridSize: list[SSAValue | Operation],
-        blockSize: list[SSAValue | Operation],
+        gridSize: Sequence[SSAValue | Operation],
+        blockSize: Sequence[SSAValue | Operation],
         async_launch: bool = False,
-        asyncDependencies: list[SSAValue | Operation] | None = None,
+        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None
     ) -> LaunchOp:
         if len(gridSize) != 3:
@@ -442,15 +544,18 @@ class YieldOp(Operation):
 # Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
 # atrributes.
 GPU = Dialect([
+    AllocOp,
     AllReduceOp,
     BarrierOp,
     BlockDimOp,
     BlockIdOp,
+    DeallocOp,
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
     LaneIdOp,
     LaunchOp,
+    MemcpyOp,
     ModuleOp,
     ModuleEndOp,
     NumSubgroupsOp,

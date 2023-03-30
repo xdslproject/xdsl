@@ -447,5 +447,5 @@ class Parser:
         Location is retrieved from the lexer to enrich the error message.
         """
         token = self.getToken()
-        line = self.program.splitlines()[token.line]
+        line = self.program.splitlines()[token.line - 1]
         raise ParseError(self.getToken(), expected, context, line)

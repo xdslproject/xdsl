@@ -5,9 +5,9 @@ from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
-from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue,
-                     AttributeCovT, AttributeInvT)
+from xdsl.ir import (Block, Data, MLIRType, ParametrizedAttribute, Operation,
+                     Region, Attribute, Dialect, SSAValue, AttributeCovT,
+                     AttributeInvT)
 
 from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
@@ -45,8 +45,7 @@ class ArrayOfConstraint(AttrConstraint):
 class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
     name: str = "array"
 
-    def __init__(self: ArrayAttr[AttributeCovT],
-                 param: Iterable[AttributeCovT]) -> None:
+    def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
@@ -239,7 +238,7 @@ class SignednessAttr(Data[Signedness]):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute):
+class IntegerType(ParametrizedAttribute, MLIRType):
     name: str = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -327,6 +326,7 @@ class Float32Type(ParametrizedAttribute, MLIRType):
     name: str = "f32"
 
 
+@irdl_attr_definition
 class Float64Type(ParametrizedAttribute, MLIRType):
     name: str = "f64"
 
@@ -880,8 +880,8 @@ class FunctionType(ParametrizedAttribute, MLIRType):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> FunctionType:
+    def from_lists(inputs: Sequence[Attribute],
+                   outputs: Sequence[Attribute]) -> FunctionType:
         return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
 
     @staticmethod
@@ -924,9 +924,7 @@ class UnregisteredOp(Operation):
         return self.op_name__  # type: ignore
 
     @classmethod
-    def with_name(cls, name: str, ctx: MLContext) -> type[Operation]:
-        if name in ctx.registered_unregistered_ops:
-            return ctx.registered_unregistered_ops[name]  # type: ignore
+    def with_name(cls, name: str) -> type[Operation]:
 
         class UnregisteredOpWithName(UnregisteredOp):
 
@@ -942,7 +940,6 @@ class UnregisteredOp(Operation):
                 op.attributes['op_name__'] = StringAttr(name)
                 return op
 
-        ctx.registered_unregistered_ops[name] = UnregisteredOpWithName
         return UnregisteredOpWithName
 
 

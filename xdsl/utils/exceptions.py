@@ -11,7 +11,7 @@ from io import StringIO
 from typing import Any, IO
 
 if typing.TYPE_CHECKING:
-    from parser import Span, BacktrackingHistory
+    from xdsl.parser import Span, BacktrackingHistory
     from xdsl.ir import Attribute
 
 
@@ -32,6 +32,17 @@ class PyRDLOpDefinitionError(Exception):
 
 
 class PyRDLAttrDefinitionError(Exception):
+    pass
+
+
+class InvalidIRException(Exception):
+    pass
+
+
+class InterpretationError(Exception):
+    """
+    An error that can be raised during interpretation, or Interpreter setup.
+    """
     pass
 
 

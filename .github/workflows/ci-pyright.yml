@@ -34,6 +34,7 @@ jobs:
       - name: Pyright
         uses: jordemort/action-pyright@v1.8.0
         with:
+          version: 1.1.299
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review # Change reporter.
           lib: true

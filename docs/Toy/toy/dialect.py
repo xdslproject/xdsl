@@ -4,18 +4,18 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from typing import Annotated, List, TypeAlias, Union, Optional, Any, cast
+from typing import Annotated, TypeAlias, cast
 
-from xdsl.ir import Dialect, SSAValue
-from xdsl.dialects.builtin import (Float64Type, FunctionType, Attribute,
-                                   SymbolRefAttr, TensorType,
-                                   UnrankedTensorType, f64,
-                                   DenseIntOrFPElementsAttr, AnyTensorType,
-                                   StringAttr)
+from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
+                     OpResult)
+from xdsl.dialects.builtin import (Float64Type, FunctionType, SymbolRefAttr,
+                                   TensorType, UnrankedTensorType, f64,
+                                   DenseIntOrFPElementsAttr, StringAttr)
 from xdsl.irdl import (OpAttr, Operand, OptOpAttr, OptOperand, VarOpResult,
-                       VarOperand, irdl_op_definition, AnyAttr, Block, Region,
-                       Operation, OpResult)
+                       VarOperand, irdl_op_definition, AnyAttr)
+
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -38,9 +38,12 @@ class ConstantOp(Operation):
     res: Annotated[OpResult, TensorTypeF64]
 
     @staticmethod
-    def from_list(data: List[float], shape: List[int]):
+    def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
+        return ConstantOp.from_value(value)
 
+    @staticmethod
+    def from_value(value: DenseIntOrFPElementsAttr) -> ConstantOp:
         return ConstantOp.create(result_types=[value.type],
                                  attributes={"value": value})
 
@@ -50,6 +53,16 @@ class ConstantOp(Operation):
                 "Expected value and result types to be equal: "
                 f"{self.res.typ}, {self.value.type}")
 
+    def get_type(self) -> TensorTypeF64:
+        # Constant cannot be unranked
+        return cast(TensorTypeF64, self.value.type)
+
+    def get_shape(self) -> list[int]:
+        return self.get_type().get_shape()
+
+    def get_data(self) -> list[float]:
+        return [float(el.value.data) for el in self.value.data.data]
+
 
 @irdl_op_definition
 class AddOp(Operation):
@@ -58,22 +71,23 @@ class AddOp(Operation):
     The shapes of the tensor operands are expected to match.
     """
     name: str = 'toy.add'
-    arguments: Annotated[VarOperand, AnyTensorTypeF64]
+    lhs: Annotated[Operand, AnyTensorTypeF64]
+    rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def from_summands(cls: type[AddOp], lhs: SSAValue, rhs: SSAValue) -> AddOp:
-        assert isinstance(lhs.typ, TensorType | UnrankedTensorType)
-        element_type = cast(Float64Type,
-                            cast(TensorType[Any], lhs.typ).element_type)
-        return cls.create(result_types=[element_type], operands=[lhs, rhs])
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
+        if isa(lhs.typ, TensorTypeF64):
+            result_typ = lhs.typ
+        else:
+            result_typ = rhs.typ
+        return AddOp.create(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
-        if not len(self.arguments):
-            raise VerifyException("Expected AddOp args to not be empty")
+        args = [self.lhs, self.rhs]
 
         shape = None
-        for arg in self.arguments:
+        for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
             if isinstance(arg.typ, TensorType):
                 if shape is None:
@@ -108,32 +122,33 @@ class FuncOp(Operation):
     sym_visibility: OptOpAttr[StringAttr]
 
     @staticmethod
-    def from_region(name: str, ftype: FunctionType, region: Region):
-        return FuncOp.create(attributes={
+    def from_region(name: str,
+                    ftype: FunctionType,
+                    region: Region,
+                    /,
+                    private: bool = False):
+        attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": ftype,
-            "sym_visibility": StringAttr("private"),
-        },
-                             regions=[region])
+        }
+        if private:
+            attributes["sym_visibility"] = StringAttr("private")
+
+        return FuncOp.create(attributes=attributes, regions=[region])
 
     @staticmethod
     def from_callable(name: str,
-                      input_types: List[Attribute],
-                      return_types: List[Attribute],
+                      input_types: list[Attribute],
+                      return_types: list[Attribute],
                       func: Block.BlockCallback,
+                      /,
                       private: bool = False):
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes = {
-            "sym_name": name,
-            "function_type": type_attr,
-        }
-        if private:
-            attributes["sym_visibility"] = "private"
-        return FuncOp.build(attributes=attributes,
-                            regions=[
-                                Region.from_block_list(
-                                    [Block.from_callable(input_types, func)])
-                            ])
+        ftype = FunctionType.from_lists(input_types, return_types)
+        return FuncOp.from_region(
+            name,
+            ftype,
+            Region.from_block_list([Block.from_callable(input_types, func)]),
+            private=private)
 
     def verify_(self):
         # Check that the returned value matches the type of the function
@@ -179,16 +194,15 @@ class GenericCallOp(Operation):
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def get(cls: type[GenericCallOp], callee: Union[str, SymbolRefAttr],
-            operands: List[Union[SSAValue, OpResult]],
-            return_types: List[Attribute]) -> GenericCallOp:
+    @staticmethod
+    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
+            return_types: list[Attribute]) -> GenericCallOp:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return cls.create(operands=operands,
-                          result_types=return_types,
-                          attributes={"callee": callee})
+        return GenericCallOp.create(operands=operands,
+                                    result_types=return_types,
+                                    attributes={"callee": callee})
 
 
 @irdl_op_definition
@@ -198,19 +212,23 @@ class MulOp(Operation):
     tensors. The shapes of the tensor operands are expected to match.
     """
     name: str = 'toy.mul'
-    arguments: Annotated[VarOperand, AnyTensorTypeF64]
+    lhs: Annotated[Operand, AnyTensorTypeF64]
+    rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @classmethod
-    def from_summands(cls: type[MulOp], lhs: SSAValue, rhs: SSAValue) -> MulOp:
-        return cls.create(result_types=[lhs.typ], operands=[lhs, rhs])
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
+        if isa(lhs.typ, TensorTypeF64):
+            result_typ = lhs.typ
+        else:
+            result_typ = rhs.typ
+        return MulOp.create(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
-        if not len(self.arguments):
-            raise VerifyException("Expected MulOp args to not be empty")
+        args = [self.lhs, self.rhs]
 
         shape = None
-        for arg in self.arguments:
+        for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
             if isinstance(arg.typ, TensorType):
                 if shape is None:
@@ -228,11 +246,11 @@ class PrintOp(Operation):
     no results.
     """
     name: str = 'toy.print'
-    arguments: Annotated[VarOperand, AnyAttr()]
+    input: Annotated[Operand, AnyAttr()]
 
-    @classmethod
-    def from_input(cls: type[PrintOp], input: SSAValue) -> PrintOp:
-        return cls.create(operands=[input])
+    @staticmethod
+    def from_input(input: SSAValue) -> PrintOp:
+        return PrintOp.create(operands=[input])
 
 
 @irdl_op_definition
@@ -253,10 +271,9 @@ class ReturnOp(Operation):
     name: str = 'toy.return'
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
-    @classmethod
-    def from_input(cls: type[ReturnOp],
-                   input: Optional[SSAValue] = None) -> ReturnOp:
-        return cls.create(operands=[input] if input is not None else [])
+    @staticmethod
+    def from_input(input: SSAValue | None = None) -> ReturnOp:
+        return ReturnOp.create(operands=[input] if input is not None else [])
 
 
 @irdl_op_definition
@@ -270,23 +287,31 @@ class ReshapeOp(Operation):
     ```
     """
     name: str = 'toy.reshape'
-    arguments: Annotated[VarOperand, AnyTensorTypeF64]
+    arg: Annotated[Operand, AnyTensorTypeF64]
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
 
-    @classmethod
-    def from_input(cls: type[ReshapeOp], input: SSAValue,
-                   shape: List[int]) -> ReshapeOp:
-        assert isinstance(input.typ, TensorType | UnrankedTensorType)
-        element_type = cast(Float64Type,
-                            cast(TensorType[Any], input.typ).element_type)
-        t = AnyTensorType.from_type_and_list(element_type, shape)
-        return cls.create(result_types=[t], operands=[input])
+    @staticmethod
+    def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
+        if not isa(arg.typ, AnyTensorTypeF64):
+            raise ValueError(
+                f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
+            )
+        element_type = arg.typ.element_type
+        t = TensorTypeF64.from_type_and_list(element_type, shape)
+        return ReshapeOp.create(result_types=[t], operands=[arg])
+
+    @staticmethod
+    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
+        if not isa(arg.typ, AnyTensorTypeF64):
+            raise ValueError(
+                f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
+            )
+        return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
         result_type = self.res.typ
-        assert isinstance(result_type, TensorType)
-        result_type = cast(TensorTypeF64, result_type)
+        assert isa(result_type, TensorTypeF64)
         if not len(result_type.shape.data):
             raise VerifyException(
                 'Reshape operation result shape should be defined')
@@ -300,23 +325,29 @@ class TransposeOp(Operation):
 
     @staticmethod
     def from_input(input: SSAValue):
-        input_type = input.typ
-        assert isinstance(input_type, TensorType | UnrankedTensorType)
-        output_type: TensorType[Any] | UnrankedTensorType[Any]
-        if isinstance(input_type, TensorType):
-            element_type = cast(Float64Type,
-                                cast(TensorType[Any], input_type).element_type)
+        output_type: TensorTypeF64 | UnrankedTensorTypeF64
+        if isa(input.typ, TensorTypeF64):
+            element_type = input.typ.element_type
             output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(input_type.shape.data)))
-        elif isinstance(input_type, UnrankedTensorType):
-            output_type = input_type
+                element_type, list(reversed(input.typ.get_shape())))
         else:
-            assert False, f'{input_type}: {type(input_type)}'
+            if not isa(input.typ, UnrankedTensorTypeF64):
+                raise ValueError(
+                    f'Unexpected arg of type {input.typ} passed to TransposeOp, expected {TensorTypeF64 | UnrankedTensorTypeF64}'
+                )
+            output_type = input.typ
 
         return TransposeOp.create(operands=[input], result_types=[output_type])
 
 
 Toy = Dialect([
-    ConstantOp, AddOp, FuncOp, GenericCallOp, PrintOp, MulOp, ReturnOp,
-    ReshapeOp, TransposeOp
+    ConstantOp,
+    AddOp,
+    FuncOp,
+    GenericCallOp,
+    PrintOp,
+    MulOp,
+    ReturnOp,
+    ReshapeOp,
+    TransposeOp,
 ], [])

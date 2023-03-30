@@ -1,0 +1,168 @@
+// RUN: xdsl-opt %s -p frontend-desymrefy | filecheck %s
+
+// CHECK: builtin.module()
+builtin.module() {
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 5 : !i32]
+  // CHECK-NEXT: }
+  builtin.module() {
+    %0 : !i32 = arith.constant() ["value" = 5 : !i32]
+  }
+
+  // CHECK: builtin.module() {
+  // CHECK-NEXT: }
+  builtin.module() {
+    symref.declare() ["sym_name" = "a"]
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 11 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 23 : !i32]
+  // CHECK-NEXT: }
+  builtin.module() {
+    symref.declare() ["sym_name" = "a"]
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    %1 : !i32 = arith.constant() ["value" = 11 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    %2 : !i32 = arith.constant() ["value" = 23 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 7 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.muli(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT: }
+  builtin.module() {
+    symref.declare() ["sym_name" = "a"]
+    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    %1 : !i32 = symref.fetch() ["symbol" = @a]
+    %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
+    %3 : !i32 = arith.constant() ["value" = 7 : !i32]
+    %4 : !i32 = arith.muli(%1 : !i32, %3 : !i32)
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 11 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 22 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT: }
+  builtin.module() {
+    symref.declare() ["sym_name" = "a"]
+    %0 : !i32 = arith.constant() ["value" = 11 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    symref.declare() ["sym_name" = "b"]
+    %1 : !i32 = arith.constant() ["value" = 22 : !i32]
+    symref.update(%1 : !i32) ["symbol" = @b]
+    %2 : !i32 = symref.fetch() ["symbol" = @b]
+    %3 : !i32 = symref.fetch() ["symbol" = @a]
+    %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 0 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 1 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 2 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.muli(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT: }
+  builtin.module() {
+    symref.declare() ["sym_name" = "a"]
+    %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    symref.declare() ["sym_name" = "b"]
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    symref.update(%1 : !i32) ["symbol" = @b]
+    symref.declare() ["sym_name" = "c"]
+    %2 : !i32 = arith.constant() ["value" = 2 : !i32]
+    symref.update(%2 : !i32) ["symbol" = @c]
+    %3 : !i32 = symref.fetch() ["symbol" = @b]
+    %4 : !i32 = symref.fetch() ["symbol" = @c]
+    %5 : !i32 = arith.addi(%3 : !i32, %4 : !i32)
+    symref.update(%5 : !i32) ["symbol" = @a]
+    %6 : !i32 = symref.fetch() ["symbol" = @a]
+    %7 : !i32 = symref.fetch() ["symbol" = @b]
+    %8 : !i32 = symref.fetch() ["symbol" = @c]
+    %9 : !i32 = arith.muli(%6 : !i32, %7 : !i32)
+    symref.update(%9 : !i32) ["symbol" = @b]
+    %10 : !i32 = arith.addi(%9 : !i32, %8 : !i32)
+    symref.update(%10 : !i32) ["symbol" = @c]
+  }
+
+  // CHECK: builtin.module() {
+  // CHECK-NEXT: }
+  builtin.module() {
+    %0 : !i32 = symref.fetch() ["symbol" = @a]
+    %1 : !i32 = symref.fetch() ["symbol" = @b]
+    %2 : !i32 = symref.fetch() ["symbol" = @b]
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 0 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 1 : !i32]
+  // CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @a]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 2 : !i32]
+  // CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @c]
+  // CHECK-NEXT: }
+  builtin.module() {
+    %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    symref.update(%1 : !i32) ["symbol" = @a]
+    %2 : !i32 = arith.constant() ["value" = 2 : !i32]
+    symref.update(%2 : !i32) ["symbol" = @c]
+    symref.update(%2 : !i32) ["symbol" = @c]
+    symref.update(%2 : !i32) ["symbol" = @c]
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = symref.fetch() ["symbol" = @b]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.muli(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 5 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT: }
+  builtin.module() {
+    %0 : !i32 = symref.fetch() ["symbol" = @b]
+    %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
+    %2 : !i32 = symref.fetch() ["symbol" = @b]
+    %3 : !i32 = arith.constant() ["value" = 5 : !i32]
+    %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
+  }
+
+  //      CHECK: builtin.module() {
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 1 : !i32]
+  // CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @b]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.constant() ["value" = 2 : !i32]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.muli(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @a]
+  // CHECK-NEXT:   %{{.*}} : !i32 = arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
+  // CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @c]
+  // CHECK-NEXT: }
+  builtin.module() {
+    %0 : !i32 = symref.fetch() ["symbol" = @d]
+    symref.update(%0 : !i32) ["symbol" = @a]
+    %1 : !i32 = arith.constant() ["value" = 1 : !i32]
+    symref.update(%1 : !i32) ["symbol" = @b]
+    %2 : !i32 = arith.constant() ["value" = 2 : !i32]
+    symref.update(%2 : !i32) ["symbol" = @c]
+    %3 : !i32 = symref.fetch() ["symbol" = @b]
+    %4 : !i32 = symref.fetch() ["symbol" = @c]
+    %5 : !i32 = arith.addi(%3 : !i32, %4 : !i32)
+    symref.update(%5 : !i32) ["symbol" = @a]
+    %6 : !i32 = symref.fetch() ["symbol" = @a]
+    %7 : !i32 = symref.fetch() ["symbol" = @b]
+    %8 : !i32 = arith.muli(%6 : !i32, %7 : !i32)
+    symref.update(%8 : !i32) ["symbol" = @a]
+    %9 : !i32 = symref.fetch() ["symbol" = @b]
+    %10 : !i32 = symref.fetch() ["symbol" = @c]
+    %11 : !i32 = arith.addi(%9 : !i32, %10 : !i32)
+    symref.update(%11 : !i32) ["symbol" = @c]
+  }
+}

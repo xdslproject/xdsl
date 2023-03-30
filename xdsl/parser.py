@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import contextlib
 import functools
 import itertools
@@ -12,10 +11,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Any, TypeVar, Iterable, IO, cast
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Span
+from xdsl.utils.lexer import Input, Span, StringLiteral
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
@@ -23,7 +22,7 @@ from xdsl.dialects.builtin import (
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     VectorType, SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
-    UnregisteredOp, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -87,31 +86,7 @@ class BacktrackingHistory:
         return id(self)
 
 
-@dataclass(frozen=True, repr=False)
-class StringLiteral(Span):
-
-    def __post_init__(self):
-        if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
-            raise ParseError(self, "Invalid string literal!")
-
-    @classmethod
-    def from_span(cls, span: Span | None) -> StringLiteral | None:
-        """
-        Convert a normal span into a StringLiteral, to facilitate parsing.
-
-        If argument is None, returns None.
-        """
-        if span is None:
-            return None
-        return cls(span.start, span.end, span.input)
-
-    @property
-    def string_contents(self):
-        # TODO: is this a hack-job?
-        return ast.literal_eval(self.text)
-
-
-save_t = tuple[int, tuple[str, ...]]
+save_t = int
 
 
 @dataclass
@@ -149,9 +124,9 @@ class Tokenizer:
     The position in the input. Points to the first unconsumed character.
     """
 
-    break_on: tuple[str, ...] = ('.', '%', ' ', '(', ')', '[', ']', '{', '}',
-                                 '<', '>', ':', '=', '@', '?', '|', '->', '-',
-                                 '//', '\n', '\t', '#', '"', "'", ',', '!')
+    _break_on: tuple[str, ...] = ('.', '%', ' ', '(', ')', '[', ']', '{', '}',
+                                  '<', '>', ':', '=', '@', '?', '|', '->', '-',
+                                  '//', '\n', '\t', '#', '"', "'", ',', '!')
     """
     characters the tokenizer should break on
     """
@@ -169,7 +144,7 @@ class Tokenizer:
         """
         Create a checkpoint in the parsing process, useful for backtracking
         """
-        return self.pos, self.break_on
+        return self.pos
 
     def resume_from(self, save: save_t):
         """
@@ -177,7 +152,7 @@ class Tokenizer:
 
         Restores the state of the tokenizer to the exact previous position
         """
-        self.pos, self.break_on = save
+        self.pos = save
 
     @contextlib.contextmanager
     def backtracking(self, region_name: str | None = None):
@@ -341,14 +316,14 @@ class Tokenizer:
         """
         i = self.next_pos() if start is None else start
         # Search for literal breaks
-        for part in self.break_on:
+        for part in self._break_on:
             if self.input.content.startswith(part, i):
                 return i + len(part)
         # Otherwise return the start of the next break
         return min(
             filter(
                 lambda x: x >= 0,
-                (self.input.content.find(part, i) for part in self.break_on),
+                (self.input.content.find(part, i) for part in self._break_on),
             ))
 
     def next_pos(self, i: int | None = None) -> int:
@@ -359,8 +334,10 @@ class Tokenizer:
         """
         i = self.pos if i is None else i
         # Skip whitespaces
-        while self.input.at(i).isspace():
+        while (c := self.input.at(i)) is not None and c.isspace():
             i += 1
+        if c is None:
+            raise EOFError()
 
         # Skip comments as well
         if self.input.content.startswith("//", i):
@@ -378,29 +355,6 @@ class Tokenizer:
             return False
         except EOFError:
             return True
-
-    @contextlib.contextmanager
-    def configured(self, break_on: tuple[str, ...]):
-        """
-        This is a helper class to allow expressing a temporary change in config,
-        allowing you to write:
-
-        # Parsing double-quoted string now
-        string_content = ""
-        with tokenizer.configured(break_on=('"', '\\'),):
-            # Use tokenizer
-
-        # Now old config is restored automatically
-
-        """
-        save = self.save()
-
-        self.break_on = break_on
-
-        try:
-            yield self
-        finally:
-            self.break_on = save[1]
 
     def starts_with(self, text: str | re.Pattern[str]) -> bool:
         try:
@@ -555,6 +509,9 @@ class BaseParser(ABC):
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
             self.ssaValues[name.text] = arg
+            # store ssa val name if valid
+            if SSAValue.is_valid_name(name.text[1:]):
+                arg.name = name.text[1:]
             block_args.append(arg)
 
         block._args = tuple(block_args)  # type: ignore
@@ -837,44 +794,38 @@ class BaseParser(ABC):
                                   "Unexpected end of dimension parameters!")
 
     def parse_vector_attrs(self) -> AnyVectorType:
-        # Also break on 'x' characters as they are separators in dimension parameters
-        with self.tokenizer.configured(break_on=self.tokenizer.break_on +
-                                       ("x", )):
-            shape = list[int](self.try_parse_numerical_dims())
-            scaling_shape: list[int] | None = None
+        shape = list[int](self.try_parse_numerical_dims())
+        scaling_shape: list[int] | None = None
 
-            if self.tokenizer.next_token_of_pattern("[") is not None:
-                # We now need to parse the scalable dimensions
-                scaling_shape = list(self.try_parse_numerical_dims())
-                self.parse_characters(
-                    "]", "Expected end of scalable vector dimensions here!")
-                self.parse_characters(
-                    "x", "Expected end of scalable vector dimensions here!")
+        if self.tokenizer.next_token_of_pattern("[") is not None:
+            # We now need to parse the scalable dimensions
+            scaling_shape = list(self.try_parse_numerical_dims())
+            self.parse_characters(
+                "]", "Expected end of scalable vector dimensions here!")
+            self.parse_characters(
+                "x", "Expected end of scalable vector dimensions here!")
 
-            if scaling_shape is not None:
-                # TODO: handle scaling vectors!
-                self.raise_error("Warning: scaling vectors not supported!")
-                pass
+        if scaling_shape is not None:
+            # TODO: handle scaling vectors!
+            self.raise_error("Warning: scaling vectors not supported!")
+            pass
 
-            type = self.try_parse_type()
-            if type is None:
-                self.raise_error(
-                    "Expected a type at the end of the vector parameters!")
+        type = self.try_parse_type()
+        if type is None:
+            self.raise_error(
+                "Expected a type at the end of the vector parameters!")
 
-            return VectorType.from_element_type_and_shape(type, shape)
+        return VectorType.from_element_type_and_shape(type, shape)
 
     def _parse_tensor_or_memref_dims(self) -> list[int] | None:
-        with self.tokenizer.configured(break_on=self.tokenizer.break_on +
-                                       ('x', )):
-            # Check for unranked-ness
-            if self.tokenizer.next_token_of_pattern('*') is not None:
-                # Consume `x`
-                self.parse_characters(
-                    'x',
-                    'Unranked tensors must follow format (`<*x` type `>`)')
-            else:
-                # Parse rank:
-                return list(self.try_parse_numerical_dims(lower_bound=0))
+        # Check for unranked-ness
+        if self.tokenizer.next_token_of_pattern('*') is not None:
+            # Consume `x`
+            self.parse_characters(
+                'x', 'Unranked tensors must follow format (`<*x` type `>`)')
+        else:
+            # Parse rank:
+            return list(self.try_parse_numerical_dims(lower_bound=0))
 
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape = self._parse_tensor_or_memref_dims()
@@ -940,7 +891,9 @@ class BaseParser(ABC):
             self.raise_error(error_message)
         return res
 
-    def raise_error(self, msg: str, at_position: Span | None = None):
+    def raise_error(self,
+                    msg: str,
+                    at_position: Span | None = None) -> NoReturn:
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
@@ -952,11 +905,10 @@ class BaseParser(ABC):
         raise ParseError(at_position, msg, self.tokenizer.history)
 
     def try_parse_characters(self, text: str) -> Span | None:
-        with self.tokenizer.backtracking("characters"):
-            return self.parse_characters(text, "Expected " + text)
+        return self.tokenizer.next_token_of_pattern(text)
 
     def parse_characters(self, text: str, msg: str) -> Span:
-        if (match := self.tokenizer.next_token_of_pattern(text)) is None:
+        if (match := self.try_parse_characters(text)) is None:
             self.raise_error(msg)
         return match
 
@@ -1019,7 +971,9 @@ class BaseParser(ABC):
                 self.raise_error(
                     f"SSA value {ssa_val_name} is already defined", res)
             self.ssaValues[ssa_val_name] = op.results[idx]
-            self.ssaValues[ssa_val_name].name = ssa_val_name.lstrip('%')
+            # Carry over `ssa_val_name` for non-numeric names:
+            if SSAValue.is_valid_name(ssa_val_name[1:]):
+                self.ssaValues[ssa_val_name].name = ssa_val_name[1:]
 
         return op
 
@@ -1029,13 +983,11 @@ class BaseParser(ABC):
         else:
             op_name = span.text
 
-        op_type = self.ctx.get_optional_op(op_name)
+        op_type = self.ctx.get_optional_op(
+            op_name, allow_unregistered=self.allow_unregistered_ops)
 
         if op_type is not None:
             return op_type
-
-        if self.allow_unregistered_ops:
-            return UnregisteredOp.with_name(op_name, self.ctx)
 
         self.raise_error(f'Unknown operation {op_name}!', span)
 
