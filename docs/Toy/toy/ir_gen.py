@@ -5,7 +5,7 @@ from typing import Iterable
 
 from xdsl.ir import SSAValue, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
-from xdsl.builder import OpBuilder
+from xdsl.builder import Builder
 
 from toy.location import Location
 from toy.toy_ast import (LiteralExprAST, ModuleAST, NumberExprAST,
@@ -53,7 +53,7 @@ class IRGen:
     module: ModuleOp
     """A "module" matches a Toy source file: containing a list of functions."""
 
-    builder: OpBuilder
+    builder: Builder
     """
     The builder is a helper class to create IR inside a function. The builder
     is stateful, in particular it keeps an "insertion point": this is where
@@ -70,7 +70,7 @@ class IRGen:
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
         self.module = ModuleOp.from_region_or_ops([])
-        self.builder = OpBuilder(self.module.body.blocks[0])
+        self.builder = Builder(self.module.body.blocks[0])
 
     def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """
@@ -144,7 +144,7 @@ class IRGen:
         block = Block.from_arg_types([
             UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
         ])
-        self.builder = OpBuilder(block)
+        self.builder = Builder(block)
 
         # Declare all the function arguments in the symbol table.
         for name, value in zip(proto_args, block.args):

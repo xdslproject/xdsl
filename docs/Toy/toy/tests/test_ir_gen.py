@@ -2,7 +2,7 @@ from pathlib import Path
 
 from xdsl.ir import OpResult, BlockArgument, SSAValue
 from xdsl.dialects.builtin import f64, ModuleOp
-from xdsl.builder import OpBuilder
+from xdsl.builder import Builder
 
 from ..parser import Parser
 from ..ir_gen import IRGen
@@ -23,29 +23,29 @@ def test_convert_ast():
     generated_module_op = ir_gen.ir_gen_module(module_ast)
 
     @ModuleOp.from_region_or_ops
-    @OpBuilder.region
-    def module_op(builder: OpBuilder):
+    @Builder.region
+    def module_op(builder: Builder):
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
-        @OpBuilder.callable_region(
+        @Builder.callable_region(
             ([unrankedf64TensorType,
               unrankedf64TensorType], [unrankedf64TensorType]))
-        def multiply_transpose(builder: OpBuilder, args: tuple[BlockArgument,
-                                                               ...]) -> None:
+        def multiply_transpose(builder: Builder, args: tuple[BlockArgument,
+                                                             ...]) -> None:
             a, b = args
             a_t = builder.insert(toy.TransposeOp.from_input(a)).res
             b_t = builder.insert(toy.TransposeOp.from_input(b)).res
             prod = builder.insert(toy.MulOp.from_summands(a_t, b_t)).res
             builder.insert(toy.ReturnOp.from_input(prod))
 
-        def call_multiply_transpose(builder: OpBuilder, a: SSAValue,
+        def call_multiply_transpose(builder: Builder, a: SSAValue,
                                     b: SSAValue) -> OpResult:
             return builder.insert(
                 toy.GenericCallOp.get("multiply_transpose", [a, b],
                                       [unrankedf64TensorType])).res[0]
 
-        @OpBuilder.callable_region
-        def main(builder: OpBuilder) -> None:
+        @Builder.callable_region
+        def main(builder: Builder) -> None:
             a = builder.insert(
                 toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3])).res
             b_0 = builder.insert(

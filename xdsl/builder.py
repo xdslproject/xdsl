@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import FunctionType
 
 
 @dataclass
-class OpBuilder:
+class Builder:
     """
     A helper class to construct IRs, by keeping track of where to insert an
     operation. Currently the insertion point is always at the end of the block.
@@ -33,13 +33,13 @@ class OpBuilder:
         return op
 
     @staticmethod
-    def region(func: Callable[[OpBuilder], None]) -> Region:
+    def region(func: Callable[[Builder], None]) -> Region:
         """
         Generates a single-block region.
         """
 
         block = Block()
-        builder = OpBuilder(block)
+        builder = Builder(block)
 
         func(builder)
 
@@ -61,7 +61,7 @@ class OpBuilder:
                 func: _CallableRegionFuncType) -> tuple[Region, FunctionType]:
 
             block = Block.from_arg_types(input_types)
-            builder = OpBuilder(block)
+            builder = Builder(block)
 
             func(builder, block.args)
 
@@ -73,14 +73,14 @@ class OpBuilder:
 
     @staticmethod
     def _callable_region_no_args(
-            func: Callable[[OpBuilder], None]) -> tuple[Region, FunctionType]:
+            func: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
         """
         Constructs a tuple of (Region, FunctionType) for a region that takes no arguments
         and returns no results.
         """
 
-        @OpBuilder._callable_region_args(([], []))
-        def res(builder: OpBuilder, args: tuple[BlockArgument, ...]) -> None:
+        @Builder._callable_region_args(([], []))
+        def res(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
             func(builder)
 
         return res
@@ -96,15 +96,15 @@ class OpBuilder:
 
         For regions that have inputs or outputs:
         ```
-        @OpBuilder.callable_region((input_types, output_types))
-        def func(builder: OpBuilder, args: tuple[BlockArgument, ...]) -> None:
+        @Builder.callable_region((input_types, output_types))
+        def func(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
             ...
         ```
 
         For regions that don't have inputs or outputs:
         ``` python
-        @OpBuilder.callable_region
-        def func(builder: OpBuilder) -> None:
+        @Builder.callable_region
+        def func(builder: Builder) -> None:
             ...
         ```
         """
@@ -113,20 +113,20 @@ class OpBuilder:
     @overload
     @staticmethod
     def callable_region(
-            input: Callable[[OpBuilder], None]) -> tuple[Region, FunctionType]:
+            input: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
         ...
 
     @staticmethod
     def callable_region(
         input: tuple[list[Attribute], list[Attribute]]
-        | Callable[[OpBuilder], None]
+        | Callable[[Builder], None]
     ) -> Callable[[_CallableRegionFuncType],
                   tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
         if isinstance(input, tuple):
-            return OpBuilder._callable_region_args(input)
+            return Builder._callable_region_args(input)
         else:
-            return OpBuilder._callable_region_no_args(input)
+            return Builder._callable_region_no_args(input)
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
-    [OpBuilder, tuple[BlockArgument, ...]], None]
+    [Builder, tuple[BlockArgument, ...]], None]

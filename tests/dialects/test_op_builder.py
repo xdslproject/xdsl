@@ -1,4 +1,4 @@
-from xdsl.builder import OpBuilder
+from xdsl.builder import Builder
 from xdsl.ir import BlockArgument, Block
 from xdsl.dialects.builtin import IntAttr, i32, IntegerAttr
 from xdsl.dialects.arith import Constant
@@ -6,7 +6,7 @@ from xdsl.dialects.arith import Constant
 
 def test_builder():
     block = Block()
-    b = OpBuilder(block)
+    b = Builder(block)
 
     x = Constant.from_int_and_width(1, 1)
     y = Constant.from_int_and_width(2, 1)
@@ -26,8 +26,8 @@ def test_build_region():
     one = IntAttr(1)
     two = IntAttr(2)
 
-    @OpBuilder.region
-    def region(b: OpBuilder):
+    @Builder.region
+    def region(b: Builder):
         x = Constant.from_int_and_width(one, i32)
         y = Constant.from_int_and_width(two, i32)
 
@@ -54,8 +54,8 @@ def test_build_callable_region():
     one = IntAttr(1)
     two = IntAttr(2)
 
-    @OpBuilder.callable_region(([i32], [i32]))
-    def callable_region(b: OpBuilder, args: tuple[BlockArgument, ...]):
+    @Builder.callable_region(([i32], [i32]))
+    def callable_region(b: Builder, args: tuple[BlockArgument, ...]):
         assert len(args) == 1
 
         x = Constant.from_int_and_width(one, i32)
