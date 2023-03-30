@@ -13,7 +13,7 @@ mlir-opt --arith-expand --convert-scf-to-cf --convert-memref-to-llvm --convert-f
 mlir-opt --lower-affine --arith-expand --convert-scf-to-cf --convert-vector-to-llvm --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts ./benchmarks/dialects/experimental/stencil/laplace_xdsl_oec.mlir | mlir-translate --mlir-to-llvmir > laplace_xdsl_oec.ll
 
 # Use above obtained LLVM IR files and libmlir_c_runner_utils to get the resultant executable (using default clang in the system).
-clang-15 -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
+clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
 
 # Run resultant executable to generate benchmark.
 ./laplace_benchmark
