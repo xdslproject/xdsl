@@ -1,6 +1,6 @@
 from xdsl.builder import OpBuilder
 from xdsl.ir import BlockArgument, Block
-from xdsl.dialects.builtin import IntAttr, ModuleOp, i32, IntegerAttr
+from xdsl.dialects.builtin import IntAttr, i32, IntegerAttr
 from xdsl.dialects.arith import Constant
 
 
