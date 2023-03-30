@@ -431,11 +431,11 @@ class ApplyOp(Operation):
 
         result_rank = len(field_t.shape.data)
 
-        attributes={}
+        attributes = {}
         if lb is not None:
-          attributes["lb"]=lb
+            attributes["lb"] = lb
         if ub is not None:
-          attributes["ub"]=ub
+            attributes["ub"] = ub
 
         return ApplyOp.build(operands=[list(args)],
                              attributes=attributes,
