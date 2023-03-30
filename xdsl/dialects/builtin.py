@@ -918,11 +918,12 @@ class UnrealizedConversionCastOp(Operation):
     outputs: VarOpResult
 
     @staticmethod
-    def get(inputs: Sequence[SSAValue | Operation
-                             | Sequence[SSAValue | Operation]],
+    def get(inputs: Sequence[SSAValue | Operation],
             result_type: Sequence[Attribute]):
-        return UnrealizedConversionCastOp.build(operands=[[inputs]],
-                                                result_types=[[result_type]])
+        return UnrealizedConversionCastOp.build(
+            operands=[inputs],
+            result_types=[result_type],
+        )
 
     def verify_(self):
         if len(self.inputs) != len(self.outputs):

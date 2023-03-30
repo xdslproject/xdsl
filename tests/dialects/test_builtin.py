@@ -163,8 +163,8 @@ def test_unrealized_conversion_cast():
     i64_constant = Constant.from_int_and_width(1, 64)
     f32_constant = Constant.from_float_and_width(10.1, f32)
 
-    conv_op1 = UnrealizedConversionCastOp.get(i64_constant.results[0], f32)
-    conv_op2 = UnrealizedConversionCastOp.get(f32_constant.results[0], i32)
+    conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
+    conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
 
     assert (conv_op1.inputs[0].typ == i64)
     assert (conv_op1.outputs[0].typ == f32)
