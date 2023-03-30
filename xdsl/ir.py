@@ -860,7 +860,7 @@ class Block(IRNode):
         return self._args
 
     @staticmethod
-    def from_arg_types(arg_types: list[Attribute]) -> Block:
+    def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
             BlockArgument(typ, b, index)
