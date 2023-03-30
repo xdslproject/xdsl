@@ -56,10 +56,12 @@ class Builder:
         """
 
         if isinstance(input_types, ArrayAttr):
-            input_types = list(input_types.data)
+            input_type_seq = input_types.data
+        else:
+            input_type_seq = input_types
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_types)
+            block = Block.from_arg_types(input_type_seq)
             builder = Builder(block)
 
             func(builder, block.args)
