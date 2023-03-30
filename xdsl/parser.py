@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
-from typing import Any, TypeVar, Iterable, IO, cast
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Span, StringLiteral
@@ -891,7 +891,9 @@ class BaseParser(ABC):
             self.raise_error(error_message)
         return res
 
-    def raise_error(self, msg: str, at_position: Span | None = None):
+    def raise_error(self,
+                    msg: str,
+                    at_position: Span | None = None) -> NoReturn:
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
