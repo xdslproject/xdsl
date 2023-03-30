@@ -4,8 +4,8 @@ from typing import Annotated, Generic, Sequence, TypeVar
 
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
-from xdsl.ir import (Attribute, Block, Dialect, MLIRType, OpResult, Operation,
-                     ParametrizedAttribute, Region, SSAValue)
+from xdsl.ir import (Attribute, Block, Dialect, TypeAttribute, OpResult,
+                     Operation, ParametrizedAttribute, Region, SSAValue)
 from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
                        OptOperand, OptRegion, ParameterDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition)
@@ -14,22 +14,22 @@ from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
-class AttributeType(ParametrizedAttribute, MLIRType):
+class AttributeType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.attribute"
 
 
 @irdl_attr_definition
-class OperationType(ParametrizedAttribute, MLIRType):
+class OperationType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.operation"
 
 
 @irdl_attr_definition
-class TypeType(ParametrizedAttribute, MLIRType):
+class TypeType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.type"
 
 
 @irdl_attr_definition
-class ValueType(ParametrizedAttribute, MLIRType):
+class ValueType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.value"
 
 
@@ -41,7 +41,7 @@ _RangeT = TypeVar("_RangeT",
 
 
 @irdl_attr_definition
-class RangeType(Generic[_RangeT], ParametrizedAttribute, MLIRType):
+class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
     elementType: ParameterDef[_RangeT]
 

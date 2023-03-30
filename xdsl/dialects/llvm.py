@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                    AnyIntegerAttr, IndexType, UnitAttr, i32,
                                    i64)
-from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
+from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
                        irdl_attr_definition, irdl_op_definition, VarOperand,
@@ -25,7 +25,7 @@ should be used for this index.
 
 
 @irdl_attr_definition
-class LLVMStructType(ParametrizedAttribute, MLIRType):
+class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
@@ -57,7 +57,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class LLVMPointerType(ParametrizedAttribute, MLIRType):
+class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
@@ -106,7 +106,7 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class LLVMArrayType(ParametrizedAttribute, MLIRType):
+class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
     size: ParameterDef[IntAttr]

@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    DenseArrayBase, IndexType, ArrayAttr,
                                    IntegerType, SymbolRefAttr, StringAttr,
                                    UnitAttr)
-from xdsl.ir import (MLIRType, Operation, SSAValue, ParametrizedAttribute,
+from xdsl.ir import (TypeAttribute, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        Generic, Attribute, AnyAttr, Operand, VarOperand,
@@ -19,7 +19,8 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
-class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, MLIRType):
+class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute,
+                 TypeAttribute):
     name = "memref"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -61,7 +62,7 @@ _UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit",
 
 @irdl_attr_definition
 class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
-                         ParametrizedAttribute, MLIRType):
+                         ParametrizedAttribute, TypeAttribute):
     name = "unranked_memref"
 
     element_type: ParameterDef[_UnrankedMemrefTypeElems]

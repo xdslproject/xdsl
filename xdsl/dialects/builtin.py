@@ -5,9 +5,9 @@ from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
-from xdsl.ir import (Block, Data, MLIRType, ParametrizedAttribute, Operation,
-                     Region, Attribute, Dialect, SSAValue, AttributeCovT,
-                     AttributeInvT)
+from xdsl.ir import (Block, Data, TypeAttribute, ParametrizedAttribute,
+                     Operation, Region, Attribute, Dialect, SSAValue,
+                     AttributeCovT, AttributeInvT)
 
 from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
@@ -238,7 +238,7 @@ class SignednessAttr(Data[Signedness]):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, MLIRType):
+class IntegerType(ParametrizedAttribute, TypeAttribute):
     name: str = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -317,17 +317,17 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, MLIRType):
+class Float16Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f16"
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, MLIRType):
+class Float32Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f32"
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, MLIRType):
+class Float64Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f64"
 
 
@@ -472,7 +472,7 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeInvT], ParametrizedAttribute, MLIRType):
+class VectorType(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -510,7 +510,7 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 
 @irdl_attr_definition
-class TensorType(Generic[AttributeCovT], ParametrizedAttribute, MLIRType):
+class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -550,7 +550,7 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 
 @irdl_attr_definition
 class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute,
-                         MLIRType):
+                         TypeAttribute):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
@@ -873,7 +873,7 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class FunctionType(ParametrizedAttribute, MLIRType):
+class FunctionType(ParametrizedAttribute, TypeAttribute):
     name = "fun"
 
     inputs: ParameterDef[ArrayAttr[Attribute]]

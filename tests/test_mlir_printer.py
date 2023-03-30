@@ -1,7 +1,7 @@
 import re
 from io import StringIO
 from typing import Annotated
-from xdsl.ir import (Attribute, Data, MLContext, MLIRType, Operation,
+from xdsl.ir import (Attribute, Data, MLContext, TypeAttribute, Operation,
                      ParametrizedAttribute, Region)
 from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
                        irdl_attr_definition, irdl_op_definition)
@@ -38,7 +38,7 @@ class DataAttr(Data[int]):
 
 
 @irdl_attr_definition
-class DataType(Data[int], MLIRType):
+class DataType(Data[int], TypeAttribute):
     """Attribute only used for testing."""
     name = "data_type"
 
@@ -62,7 +62,7 @@ class ParamAttrWithParam(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class ParamType(ParametrizedAttribute, MLIRType):
+class ParamType(ParametrizedAttribute, TypeAttribute):
     name = "param_type"
 
 
