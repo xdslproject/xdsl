@@ -54,8 +54,8 @@ def test_build_callable_region():
     one = IntAttr(1)
     two = IntAttr(2)
 
-    @Builder.callable_region(([i32], [i32]))
-    def callable_region(b: Builder, args: tuple[BlockArgument, ...]):
+    @Builder.callable_region([i32])
+    def region(b: Builder, args: tuple[BlockArgument, ...]):
         assert len(args) == 1
 
         x = Constant.from_int_and_width(one, i32)
@@ -63,11 +63,6 @@ def test_build_callable_region():
 
         b.insert(x)
         b.insert(y)
-
-    region, ftype = callable_region
-
-    assert ftype.inputs.data == (i32, )
-    assert ftype.outputs.data == (i32, )
 
     assert len(region.blocks) == 1
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from xdsl.ir import OpResult, BlockArgument, SSAValue
-from xdsl.dialects.builtin import f64, ModuleOp
+from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder
 
 from ..parser import Parser
@@ -27,9 +27,11 @@ def test_convert_ast():
     def module_op(builder: Builder):
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
-        @Builder.callable_region(
-            ([unrankedf64TensorType,
-              unrankedf64TensorType], [unrankedf64TensorType]))
+        multiply_transpose_type = FunctionType.from_lists(
+            [unrankedf64TensorType, unrankedf64TensorType],
+            [unrankedf64TensorType])
+
+        @Builder.callable_region(multiply_transpose_type.inputs)
         def multiply_transpose(builder: Builder, args: tuple[BlockArgument,
                                                              ...]) -> None:
             a, b = args
@@ -43,6 +45,8 @@ def test_convert_ast():
             return builder.insert(
                 toy.GenericCallOp.get("multiply_transpose", [a, b],
                                       [unrankedf64TensorType])).res[0]
+
+        main_type = FunctionType.from_lists([], [])
 
         @Builder.callable_region
         def main(builder: Builder) -> None:
@@ -59,9 +63,10 @@ def test_convert_ast():
             builder.insert(toy.ReturnOp.from_input())
 
         builder.insert(
-            toy.FuncOp.from_callable_region("multiply_transpose",
-                                            multiply_transpose,
-                                            private=True))
-        builder.insert(toy.FuncOp.from_callable_region("main", main))
+            toy.FuncOp.from_region("multiply_transpose",
+                                   multiply_transpose_type,
+                                   multiply_transpose,
+                                   private=True))
+        builder.insert(toy.FuncOp.from_region("main", main_type, main))
 
     assert module_op.is_structurally_equivalent(generated_module_op)

@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Callable, TypeAlias, overload
 
 from dataclasses import dataclass
+from xdsl.dialects.builtin import ArrayAttr
 
 from xdsl.ir import OperationInvT, Attribute, Region, Block, BlockArgument
-from xdsl.dialects.builtin import FunctionType
 
 
 @dataclass
@@ -47,39 +47,36 @@ class Builder:
 
     @staticmethod
     def _callable_region_args(
-        types: tuple[list[Attribute], list[Attribute]]
-    ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
+        input_types: list[Attribute] | ArrayAttr[Attribute]
+    ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Constructs a tuple of (Region, FunctionType). The Region is a 
         single-block region, containing the implementation of a function.
         `types` specifies the input and result types of the function.
         """
 
-        input_types, return_types = types
+        if isinstance(input_types, ArrayAttr):
+            input_types = list(input_types.data)
 
-        def wrapper(
-                func: _CallableRegionFuncType) -> tuple[Region, FunctionType]:
-
+        def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block.from_arg_types(input_types)
             builder = Builder(block)
 
             func(builder, block.args)
 
             region = Region.from_block_list([block])
-            ftype = FunctionType.from_lists(input_types, return_types)
-            return region, ftype
+            return region
 
         return wrapper
 
     @staticmethod
-    def _callable_region_no_args(
-            func: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
+    def _callable_region_no_args(func: Callable[[Builder], None]) -> Region:
         """
         Constructs a tuple of (Region, FunctionType) for a region that takes no arguments
         and returns no results.
         """
 
-        @Builder._callable_region_args(([], []))
+        @Builder._callable_region_args([])
         def res(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
             func(builder)
 
@@ -88,15 +85,15 @@ class Builder:
     @overload
     @staticmethod
     def callable_region(
-        input: tuple[list[Attribute], list[Attribute]]
-    ) -> Callable[[_CallableRegionFuncType], tuple[Region, FunctionType]]:
+        input: list[Attribute] | ArrayAttr[Attribute]
+    ) -> Callable[[_CallableRegionFuncType], Region]:
         """
-        Annotation used to construct a (Region, FunctionType) tuple from a function.
+        Annotation used to construct a Region tuple from a function.
         The annotation can be used in two ways:
 
         For regions that have inputs or outputs:
         ```
-        @Builder.callable_region((input_types, output_types))
+        @Builder.callable_region(input_types)
         def func(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
             ...
         ```
@@ -112,20 +109,18 @@ class Builder:
 
     @overload
     @staticmethod
-    def callable_region(
-            input: Callable[[Builder], None]) -> tuple[Region, FunctionType]:
+    def callable_region(input: Callable[[Builder], None]) -> Region:
         ...
 
     @staticmethod
     def callable_region(
-        input: tuple[list[Attribute], list[Attribute]]
+        input: list[Attribute] | ArrayAttr[Attribute]
         | Callable[[Builder], None]
-    ) -> Callable[[_CallableRegionFuncType],
-                  tuple[Region, FunctionType]] | tuple[Region, FunctionType]:
-        if isinstance(input, tuple):
-            return Builder._callable_region_args(input)
-        else:
+    ) -> Callable[[_CallableRegionFuncType], Region] | Region:
+        if isinstance(input, Callable):
             return Builder._callable_region_no_args(input)
+        else:
+            return Builder._callable_region_args(input)
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
