@@ -986,7 +986,11 @@ f32 = Float32Type()
 f64 = Float64Type()
 
 Builtin = Dialect(
-    [ModuleOp, UnregisteredOp, UnrealizedConversionCastOp],
+    [
+        ModuleOp,
+        UnregisteredOp,
+        UnrealizedConversionCastOp,
+    ],
     [
         StringAttr,
         SymbolRefAttr,
