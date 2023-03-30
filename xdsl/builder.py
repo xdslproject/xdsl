@@ -37,12 +37,9 @@ class Builder:
         """
         Generates a single-block region.
         """
-
         block = Block()
         builder = Builder(block)
-
         func(builder)
-
         return Region.from_block_list([block])
 
     @staticmethod
@@ -50,9 +47,8 @@ class Builder:
         input_types: list[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
-        Constructs a tuple of (Region, FunctionType). The Region is a 
-        single-block region, containing the implementation of a function.
-        `types` specifies the input and result types of the function.
+        Constructs a single-block region, containing the implementation of a
+        function with some input arguments.
         """
 
         if isinstance(input_types, ArrayAttr):
@@ -82,14 +78,14 @@ class Builder:
 
         For regions that have inputs or outputs:
         ```
-        @Builder.callable_region(input_types)
+        @Builder.region(input_types)
         def func(builder: Builder, args: tuple[BlockArgument, ...]) -> None:
             ...
         ```
 
         For regions that don't have inputs or outputs:
         ``` python
-        @Builder.callable_region
+        @Builder.region
         def func(builder: Builder) -> None:
             ...
         ```
