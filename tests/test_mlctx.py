@@ -1,7 +1,7 @@
 import pytest
-from xdsl.dialects.builtin import UnregisteredOp
+from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 
-from xdsl.ir import MLContext, ParametrizedAttribute
+from xdsl.ir import MLContext, MLIRType, ParametrizedAttribute
 from xdsl.irdl import irdl_op_definition, irdl_attr_definition, Operation
 
 
@@ -41,7 +41,7 @@ def test_get_op():
 def test_get_op_unregistered():
     """
     Test `get_op` and `get_optional_op`
-    methods with the `unregistered_ops` flag.
+    methods with the `allow_unregistered` flag.
     """
     ctx = MLContext()
     ctx.register_op(DummyOp)
@@ -67,3 +67,33 @@ def test_get_attr():
 
     assert ctx.get_optional_attr("dummy_attr") == DummyAttr
     assert ctx.get_optional_attr("dummy_attr2") == None
+
+
+@pytest.mark.parametrize("is_type", [True, False])
+def test_get_attr_unregistered(is_type: bool):
+    """
+    Test `get_attr` and `get_optional_attr`
+    methods with the `allow_unregistered` flag.
+    """
+    ctx = MLContext()
+    ctx.register_attr(DummyAttr)
+
+    assert ctx.get_optional_attr(
+        "dummy_attr",
+        allow_unregistered=True,
+        create_unregistered_as_type=is_type) == DummyAttr
+    attr = ctx.get_optional_attr("dummy_attr2", allow_unregistered=True)
+    assert attr is not None
+    assert issubclass(attr, UnregisteredAttr)
+    if is_type:
+        assert issubclass(attr, MLIRType)
+
+    assert ctx.get_attr("dummy_attr",
+                        allow_unregistered=True,
+                        create_unregistered_as_type=is_type) == DummyAttr
+    assert issubclass(
+        ctx.get_attr("dummy_attr2",
+                     allow_unregistered=True,
+                     create_unregistered_as_type=is_type), UnregisteredAttr)
+    if is_type:
+        assert issubclass(attr, MLIRType)
