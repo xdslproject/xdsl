@@ -967,7 +967,7 @@ class UnregisteredOp(Operation, ABC):
                 op.attributes['op_name__'] = StringAttr(name)
                 return op
 
-        return UnregisteredOpWithName
+        return irdl_op_definition(UnregisteredOpWithName)
 
 
 @irdl_attr_definition
