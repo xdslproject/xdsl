@@ -165,7 +165,9 @@ class LoadOpShapeInference(RewritePattern):
         res_typ: TempType[Attribute] = op.res.typ
 
         op.res.typ = TempType.from_shape(
-            IndexAttr.size_from_bounds(op.lb, op.ub), res_typ.element_type)
+            IndexAttr.size_from_bounds(op.lb, op.ub),
+            res_typ.element_type,
+        )
 
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
