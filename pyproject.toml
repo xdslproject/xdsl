@@ -13,7 +13,6 @@ typeCheckingMode = "strict"
     "tests/test_parser.py",
     "tests/test_parser_error.py",
     "tests/test_pattern_rewriter.py",
-    "tests/test_printer.py",
     "tests/dialects/test_affine.py",
     "tests/dialects/test_arith.py",
     "tests/dialects/test_func.py",
