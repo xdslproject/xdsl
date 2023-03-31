@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --allow-unregistered-ops | xdsl-opt --allow-unregistered-ops  | filecheck %s
+// RUN: xdsl-opt %s --allow-unregistered-dialects | xdsl-opt --allow-unregistered-dialects  | filecheck %s
 
 builtin.module() {
 // CHECK: builtin.module() {
