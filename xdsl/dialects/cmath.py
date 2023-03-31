@@ -49,7 +49,7 @@ class Mul(Operation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.lhs != self.rhs.typ and self.rhs.typ != self.result.typ:
+        if self.lhs.typ != self.rhs.typ and self.rhs.typ != self.result.typ:
             raise VerifyException(
                 "expect all input and output types to be equal")
 
