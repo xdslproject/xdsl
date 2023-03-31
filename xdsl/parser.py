@@ -852,13 +852,16 @@ class BaseParser(ABC):
 
     def _parse_dialect_type_or_attribute_inner(
             self, kind: Literal['attribute'] | Literal['type']) -> Attribute:
+        is_type = kind == 'type'
         type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
 
         if type_name is None:
             self.raise_error("Expected dialect {} name here!".format(kind))
 
-        type_def = self.ctx.get_optional_attr(type_name.text,
-                                              self.allow_unregistered_dialect)
+        type_def = self.ctx.get_optional_attr(
+            type_name.text,
+            self.allow_unregistered_dialect,
+            create_unregistered_as_type=is_type)
         if type_def is None:
             self.raise_error(
                 "'{}' is not a known attribute!".format(type_name.text),
@@ -868,7 +871,7 @@ class BaseParser(ABC):
         if issubclass(type_def, UnregisteredAttr):
             body = self._parse_unregistered_attr_body()
             self._synchronize_lexer_and_tokenizer()
-            return type_def(type_name.text, kind == 'type', body)
+            return type_def(type_name.text, is_type, body)
         if issubclass(type_def, ParametrizedAttribute):
             param_list = type_def.parse_parameters(self)
             return type_def.new(param_list)
