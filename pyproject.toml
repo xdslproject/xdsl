@@ -10,7 +10,6 @@ typeCheckingMode = "strict"
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
     "tests/test_ir.py",
-    "tests/test_operation_builder.py",
     "tests/test_parser.py",
     "tests/test_parser_error.py",
     "tests/test_pattern_rewriter.py",

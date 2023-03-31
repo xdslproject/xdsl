@@ -444,7 +444,7 @@ def test_two_var_region_builder():
             i32, [2, 2])
 
 
-def test_two_var_operand_builder2():
+def test_two_var_operand_builder3():
     region1 = Region()
     region2 = Region()
     region3 = Region()
