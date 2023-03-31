@@ -450,7 +450,7 @@ class BaseParser(ABC):
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_dialect: bool = False):
+                 allow_unregistered_ops: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
@@ -458,7 +458,7 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_dialect = allow_unregistered_dialect
+        self.allow_unregistered_ops = allow_unregistered_ops
 
     def _synchronize_lexer_and_tokenizer(self):
         """
