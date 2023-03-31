@@ -40,6 +40,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx.register_dialect(Builtin)
 
     attr = XDSLParser(ctx, text).parse_attribute()
+    assert isinstance(attr, DictionaryAttr)
 
     assert attr.data == data
 
