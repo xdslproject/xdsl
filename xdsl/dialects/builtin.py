@@ -911,6 +911,22 @@ class OpaqueAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
+class UnrealizedConversionCastOp(Operation):
+    name: str = "builtin.unrealized_conversion_cast"
+
+    inputs: VarOperand
+    outputs: VarOpResult
+
+    @staticmethod
+    def get(inputs: Sequence[SSAValue | Operation],
+            result_type: Sequence[Attribute]):
+        return UnrealizedConversionCastOp.build(
+            operands=[inputs],
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
 class UnregisteredOp(Operation):
     name: str = "builtin.unregistered"
 
@@ -973,7 +989,11 @@ f32 = Float32Type()
 f64 = Float64Type()
 
 Builtin = Dialect(
-    [ModuleOp, UnregisteredOp],
+    [
+        ModuleOp,
+        UnregisteredOp,
+        UnrealizedConversionCastOp,
+    ],
     [
         StringAttr,
         SymbolRefAttr,
