@@ -160,6 +160,13 @@ class LoadOpShapeInference(RewritePattern):
 
         verify_load_bounds(cast, op)
 
+        assert op.lb and op.ub
+        assert isinstance(op.res.typ, TempType)
+        res_typ: TempType[Attribute] = op.res.typ
+
+        op.res.typ = TempType.from_shape(
+            IndexAttr.size_from_bounds(op.lb, op.ub), res_typ.element_type)
+
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 
@@ -204,6 +211,15 @@ class ApplyOpShapeInference(RewritePattern):
                 op.ub + access.offset, temp_owner.ub)
 
         op.walk(access_shape_infer_walk)
+
+        assert op.lb and op.ub
+
+        for result in op.results:
+            assert isinstance(result.typ, TempType)
+            result_typ: TempType[Attribute] = result.typ
+            result.typ = TempType.from_shape(
+                IndexAttr.size_from_bounds(op.lb, op.ub),
+                result_typ.element_type)
 
 
 class ApplyOpToParallel(RewritePattern):
