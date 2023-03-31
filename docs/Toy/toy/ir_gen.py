@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import field, dataclass
-from typing import Iterable
+from typing import Iterable, NoReturn
 
 from xdsl.ir import SSAValue, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
@@ -395,5 +395,5 @@ class IRGen:
                 # Generic expression dispatch codegen.
                 self.ir_gen_expr(expr)
 
-    def error(self, message: str, cause: Exception | None = None):
+    def error(self, message: str, cause: Exception | None = None) -> NoReturn:
         raise IRGenError(message) from cause
