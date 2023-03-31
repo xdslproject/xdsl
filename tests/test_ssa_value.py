@@ -5,20 +5,22 @@ from typing import Annotated
 from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
 
-from xdsl.ir import Block, Operation, OpResult, BlockArgument
+from xdsl.ir import Block, Operation, OpResult, BlockArgument, SSAValue
 from xdsl.irdl import irdl_op_definition
 
 
 def test_ssa():
-    a = OpResult(i32, [], [])
     c = Constant.from_int_and_width(1, i32)
-
     with pytest.raises(TypeError):
-        _ = a.get([c])
+        # test that we raise a TypeError if we give an incorrect type
+        # hence ignore
+        _ = SSAValue.get([c])  # type: ignore
 
     b0 = Block.from_ops([c])
     with pytest.raises(TypeError):
-        _ = a.get(b0)
+        # test that we raise a TypeError if we give an incorrect type
+        # hence ignore
+        _ = SSAValue.get(b0)  # type: ignore
 
 
 @irdl_op_definition
@@ -31,10 +33,9 @@ class TwoResultOp(Operation):
 
 def test_var_mixed_builder():
     op = TwoResultOp.build(result_types=[StringAttr("0"), StringAttr("2")])
-    b = OpResult(i32, [], [])
 
     with pytest.raises(ValueError):
-        _ = b.get(op)
+        _ = SSAValue.get(op)
 
 
 @pytest.mark.parametrize("name", [
@@ -44,7 +45,7 @@ def test_var_mixed_builder():
     "kebab-case-name",
     None,
 ])
-def test_ssa_value_name_hints(name):
+def test_ssa_value_name_hints(name: str | None):
     r"""
     As per the MLIR language reference, legal SSA value names must conform to
         ([0-9]+|([A-Za-z_$.-][\w$.-]*))
@@ -64,7 +65,7 @@ def test_ssa_value_name_hints(name):
 
 
 @pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::', '42'])
-def test_invalid_ssa_vals(name):
+def test_invalid_ssa_vals(name: str):
     """
     This test tests invalid name hints that raise an error, because
     they don't conform to the rules of how SSA value names should be

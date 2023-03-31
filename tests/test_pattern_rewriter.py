@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (PatternRewriteWalker,
 from xdsl.parser import Parser
 
 from conftest import assert_print_op
+from xdsl.utils.hints import isa
 
 
 def rewrite_and_compare(prog: str, expected_prog: str,
@@ -156,6 +157,8 @@ def test_recursive_rewriter():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        if not isa(op.value, IntegerAttr):
+            return
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -195,6 +198,8 @@ def test_recursive_rewriter_reversed():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        if not isa(op.value, IntegerAttr):
+            return
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -815,9 +820,11 @@ def test_move_region_contents_to_new_regions():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+        old_if = op.ops[1]
+        assert isinstance(old_if, If)
         new_region = rewriter.move_region_contents_to_new_regions(
-            op.ops[1].regions[0])
-        new_if = If.get(op.ops[1].cond, [], new_region,
+            old_if.regions[0])
+        new_if = If.get(old_if.cond, [], new_region,
                         Region.from_operation_list([]))
         rewriter.insert_op_after(new_if, op.ops[1])
 

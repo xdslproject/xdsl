@@ -1,7 +1,7 @@
 from typing import cast
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
 from xdsl.dialects.arith import Addi, Subi, Constant
 from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If
