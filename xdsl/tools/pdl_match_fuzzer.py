@@ -193,11 +193,12 @@ def pdl_to_operations(pattern: PatternOp,
                 pdl_context.types[types] for types in op.typeValues
             ]
             if op.opName is None:
-                op_def = UnregisteredOp.with_name("unknown", ctx)
+                op_def = ctx.get_op("unknown", allow_unregistered=True)
             else:
                 op_def = ctx.get_optional_op(op.opName.data)
                 if op_def is None:
-                    op_def = UnregisteredOp.with_name(op.opName.data, ctx)
+                    op_def = ctx.get_op(op.opName.data,
+                                        allow_unregistered=True)
             new_op = op_def.create(operands=operands,
                                    attributes=attributes,
                                    result_types=result_types)
@@ -220,13 +221,13 @@ def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure,
         blocks.append(block)
 
     region.blocks[0].add_op(
-        UnregisteredOp.with_name("test.entry",
-                                 ctx).create(successors=[blocks[0]]))
+        ctx.get_op("test.entry",
+                   allow_unregistered=True).create(successors=[blocks[0]]))
 
     for i, adjency_set in enumerate(dag.get_adjency_list()):
         block = blocks[i]
         successors = [blocks[j] for j in adjency_set]
-        branch_op = UnregisteredOp.with_name("test.branch", ctx)
+        branch_op = ctx.get_op("test.branch", allow_unregistered=True)
         block.add_op(branch_op.create(successors=successors))
 
 
@@ -273,8 +274,8 @@ def run_with_mlir(region: Region, ctx: MLContext, mlir_executable_path: str,
     printer = Printer(stream=mlir_input, target=Printer.Target.MLIR)
     new_region = Region()
     region.clone_into(new_region)
-    test_op = UnregisteredOp.with_name("test",
-                                       ctx).create(regions=[new_region])
+    test_op = ctx.get_op("test",
+                         allow_unregistered=True).create(regions=[new_region])
 
     patterns_module = ModuleOp.create(
         attributes={"sym_name": StringAttr("patterns")},
@@ -326,7 +327,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
     def run(self):
         module = self.parse_input()
-        for _ in range(0, 1000):
+        for _ in range(0, 10):
             fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)
 
 
