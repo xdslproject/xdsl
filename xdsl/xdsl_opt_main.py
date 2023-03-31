@@ -236,7 +236,7 @@ class xDSLOptMain:
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
         self.available_passes['frontend-desymrefy'] = Desymrefy
-        self.available_passes['pdl_analysis'] = pdl_analysis_pass
+        self.available_passes['pdl-analysis'] = pdl_analysis_pass
 
     def register_all_targets(self):
         """
