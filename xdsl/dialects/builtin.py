@@ -1075,6 +1075,12 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     @classmethod
     def with_name_and_type(cls, name: str,
                            is_type: bool) -> type[UnregisteredAttr]:
+        """
+        Return a new unregistered attribute type given a name and a 
+        boolean indicating if the attribute can be a type.
+        This function should not be called directly. Use methods from
+        `MLContext` to get an `UnregisteredAttr` type.
+        """
 
         class UnregisteredAttrWithName(UnregisteredAttr):
 
