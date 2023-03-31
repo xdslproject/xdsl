@@ -572,7 +572,7 @@ class OpDef:
             # from the arguments.
             # If the field type is not an Annotated, then the arguments should
             # just be the field itself.
-            origin: Any | None = get_origin(field_type)
+            origin: Any | None = cast(Any | None, get_origin(field_type))
             args: tuple[Any, ...]
             if origin is None:
                 args = (field_type, )
@@ -1323,7 +1323,7 @@ def irdl_param_attr_get_param_type_hints(
         if field_name == "name" or field_name == "parameters":
             continue
 
-        origin: Any | None = get_origin(field_type)
+        origin: Any | None = cast(Any | None, get_origin(field_type))
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
             raise PyRDLAttrDefinitionError(
