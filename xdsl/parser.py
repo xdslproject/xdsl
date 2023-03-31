@@ -14,7 +14,7 @@ from io import StringIO
 from typing import Any, NoReturn, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Span, StringLiteral
+from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
@@ -431,6 +431,12 @@ class BaseParser(ABC):
     parsing of region completes)
     """
 
+    lexer: Lexer
+    tokenizer: Tokenizer
+
+    _current_token: Token
+    """Token at the current location"""
+
     T_ = TypeVar("T_")
     """
     Type var used for handling function that return single or multiple Spans.
@@ -443,13 +449,33 @@ class BaseParser(ABC):
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_ops: bool = False):
+                 allow_unregistered_dialect: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
+        self.lexer = Lexer(Input(input, name))
+        self._current_token = self.lexer.lex()
         self.ctx = ctx
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_ops = allow_unregistered_ops
+        self.allow_unregistered_dialect = allow_unregistered_dialect
+
+    def _synchronize_lexer_and_tokenizer(self):
+        """
+        Advance the lexer and the tokenizer to the same position,
+        which is the maximum of the two.
+        This is used to allow using both the tokenizer and the lexer,
+        to deprecate slowly the tokenizer.
+        """
+        lexer_pos = self.lexer.pos
+        tokenizer_pos = self.tokenizer.save()
+        pos = max(lexer_pos, tokenizer_pos)
+        self.lexer.pos = pos
+        self.tokenizer.pos = pos
+        self._current_token = self.lexer.lex()
+
+    def _consume_token(self) -> None:
+        """Advance the lexer"""
+        self._current_token = self.lexer.lex()
 
     def parse_module(self) -> ModuleOp:
         op = self.try_parse_operation()
