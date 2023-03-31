@@ -1,5 +1,8 @@
 #! /bin/bash
 
+# Variable to signify if the script is called from CI.
+CI_RUN=${1:0}
+
 # Get LLVM IR for Open Earth Compiler's laplace implementation.
 mlir-opt --lower-affine --arith-expand --convert-scf-to-cf --expand-strided-metadata --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts ./benchmarks/dialects/experimental/stencil/laplace_oec.mlir | mlir-translate --mlir-to-llvmir > laplace_oec.ll
 
@@ -13,7 +16,14 @@ mlir-opt --arith-expand --convert-scf-to-cf --convert-memref-to-llvm --convert-f
 mlir-opt --lower-affine --arith-expand --convert-scf-to-cf --convert-vector-to-llvm --convert-memref-to-llvm --convert-func-to-llvm --reconcile-unrealized-casts ./benchmarks/dialects/experimental/stencil/laplace_xdsl_oec.mlir | mlir-translate --mlir-to-llvmir > laplace_xdsl_oec.ll
 
 # Use above obtained LLVM IR files and libmlir_c_runner_utils to get the resultant executable (using default clang in the system).
-clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
+if [[ $CI_RUN == 1 ]];
+then
+    # Use the built clang version in CI container for supporting opaque pointers.
+    ${GITHUB_WORKSPACE}/llvm-project/build/bin/clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
+else
+    # Client's defualt clang version should be high enough to support opaque pointers.
+    clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
+fi
 
 # Run resultant executable to generate benchmark.
 ./laplace_benchmark
