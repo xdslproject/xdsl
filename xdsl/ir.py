@@ -554,6 +554,8 @@ class Operation(IRNode):
     by the operation definition.
     """
 
+    _op_init_callback: ClassVar[Callable[[Operation], None]] = lambda _op: None
+
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
             return p.parent
@@ -584,6 +586,7 @@ class Operation(IRNode):
     def __post_init__(self):
         assert (self.name != "")
         assert (isinstance(self.name, str))
+        type(self)._op_init_callback(self)
 
     @staticmethod
     def with_result_types(
