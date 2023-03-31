@@ -25,6 +25,8 @@ def check_error(prog: str, line: int, column: int, message: str):
 
     assert e.value.span
 
+    assert e.value.history is not None
+
     for err in e.value.history.iterate():
         if message in err.error.msg:
             assert err.error.span.get_line_col() == (line, column)
