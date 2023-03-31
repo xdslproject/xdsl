@@ -1,6 +1,7 @@
 from io import StringIO
+from xdsl.builder import Builder
 
-from xdsl.ir import BlockArgument, MLContext, OpResult, Operation
+from xdsl.ir import MLContext, OpResult
 from xdsl.dialects import arith, func, pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
 from xdsl.pattern_rewriter import (PatternRewriter, RewritePattern,
@@ -53,28 +54,42 @@ def test_rewrite_swap_inputs_pdl():
 
 def swap_arguments_input():
 
-    b0 = arith.Constant.from_int_and_width(4, 32)
-    b1 = arith.Constant.from_int_and_width(2, 32)
-    b2 = arith.Constant.from_int_and_width(1, 32)
-    b3 = arith.Addi.get(b2.result, b1.result)
-    b4 = arith.Addi.get(b3.result, b0.result)
-    b5 = func.Return.get(b4.result)
+    @ModuleOp.from_region_or_ops
+    @Builder.region
+    def ir_module(b: Builder):
 
-    ir_module = ModuleOp.from_region_or_ops([b0, b1, b2, b3, b4, b5])
+        @Builder.region
+        def impl(b: Builder):
+
+            x = b.insert(arith.Constant.from_int_and_width(4, 32))
+            y = b.insert(arith.Constant.from_int_and_width(2, 32))
+            z = b.insert(arith.Constant.from_int_and_width(1, 32))
+            x_y = b.insert(arith.Addi.get(x.result, y.result))
+            x_y_z = b.insert(arith.Addi.get(x_y.result, z.result))
+            b.insert(func.Return.get(x_y_z.result))
+
+        b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
     return ir_module
 
 
 def swap_arguments_output():
 
-    b0 = arith.Constant.from_int_and_width(4, 32)
-    b1 = arith.Constant.from_int_and_width(2, 32)
-    b2 = arith.Constant.from_int_and_width(1, 32)
-    b3 = arith.Addi.get(b2.result, b1.result)
-    b4 = arith.Addi.get(b0.result, b3.result)
-    b5 = func.Return.get(b4.result)
+    @ModuleOp.from_region_or_ops
+    @Builder.region
+    def ir_module(b: Builder):
 
-    ir_module = ModuleOp.from_region_or_ops([b0, b1, b2, b3, b4, b5])
+        @Builder.region
+        def impl(b: Builder):
+
+            x = b.insert(arith.Constant.from_int_and_width(4, 32))
+            y = b.insert(arith.Constant.from_int_and_width(2, 32))
+            z = b.insert(arith.Constant.from_int_and_width(1, 32))
+            x_y = b.insert(arith.Addi.get(x.result, y.result))
+            z_x_y = b.insert(arith.Addi.get(z.result, x_y.result))
+            b.insert(func.Return.get(z_x_y.result))
+
+        b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
     return ir_module
 
@@ -82,36 +97,38 @@ def swap_arguments_output():
 def swap_arguments_pdl():
     # The rewrite below matches the second addition as root op
 
-    def pattern(*args: BlockArgument) -> list[Operation]:
-        p0 = pdl.OperandOp.get()
-        p1 = pdl.OperandOp.get()
-        p2 = pdl.TypeOp.get()
-        p3 = pdl.OperationOp.get(StringAttr("arith.addi"),
-                                 operandValues=[p0.results[0], p1.results[0]],
-                                 typeValues=[p2.results[0]])
-        p4 = pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32),
-                              parent=p3.results[0])
-        p5 = pdl.OperandOp.get()
-        p6 = pdl.OperationOp.get(opName=StringAttr("arith.addi"),
-                                 operandValues=[p4.results[0], p5.results[0]],
-                                 typeValues=[p2.results[0]])
+    @Builder.region
+    def pattern_region(b: Builder):
+        x = b.insert(pdl.OperandOp.get()).value
+        y = b.insert(pdl.OperandOp.get()).value
+        typ = b.insert(pdl.TypeOp.get()).result
 
-        def rewrite(*args: BlockArgument) -> list[Operation]:
-            p7 = pdl.OperationOp.get(
-                opName=StringAttr("arith.addi"),
-                operandValues=[p5.results[0], p4.results[0]],
-                typeValues=[p2.results[0]])
-            o0 = pdl.ReplaceOp.get(p6.results[0], p7.results[0])
-            return [p7, o0]
+        x_y_op = b.insert(
+            pdl.OperationOp.get(StringAttr("arith.addi"),
+                                operandValues=[x, y],
+                                typeValues=[typ])).op
+        x_y = pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32),
+                               parent=x_y_op).val
+        z = b.insert(pdl.OperandOp.get()).value
+        x_y_z_op = b.insert(
+            pdl.OperationOp.get(opName=StringAttr("arith.addi"),
+                                operandValues=[x_y, z],
+                                typeValues=[typ])).op
 
-        o1 = pdl.RewriteOp.from_callable(None, p6.results[0], [], rewrite)
+        @Builder.region
+        def rewrite_region(b: Builder):
+            z_x_y_op = b.insert(
+                pdl.OperationOp.get(StringAttr("arith.addi"),
+                                    operandValues=[z, x_y],
+                                    typeValues=[typ])).op
+            b.insert(pdl.ReplaceOp.get(x_y_z_op, z_x_y_op))
 
-        return [p0, p1, p2, p3, p4, p5, p6, o1]
+        b.insert(pdl.RewriteOp.get(None, x_y_z_op, [], rewrite_region))
 
-    o2 = pdl.PatternOp.from_callable(IntegerAttr.from_int_and_width(2, 16),
-                                     None, pattern)
+    pattern = pdl.PatternOp.get(IntegerAttr.from_int_and_width(2, 16), None,
+                                pattern_region)
 
-    pdl_module = ModuleOp.from_region_or_ops([o2])
+    pdl_module = ModuleOp.from_region_or_ops([pattern])
 
     return pdl_module
 
@@ -165,23 +182,35 @@ def test_rewrite_add_zero_pdl():
 
 def add_zero_input():
 
-    b0 = arith.Constant.from_int_and_width(4, 32)
-    b1 = arith.Constant.from_int_and_width(0, 32)
-    b2 = arith.Addi.get(b0.result, b1.result)
-    b3 = func.Return.get(b2.result)
+    @ModuleOp.from_region_or_ops
+    @Builder.region
+    def ir_module(b: Builder):
 
-    ir_module = ModuleOp.from_region_or_ops([b0, b1, b2, b3])
+        @Builder.region
+        def impl(b: Builder):
+            x = b.insert(arith.Constant.from_int_and_width(4, 32))
+            y = b.insert(arith.Constant.from_int_and_width(0, 32))
+            z = b.insert(arith.Addi.get(x, y))
+            b.insert(func.Return.get(z))
+
+        b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
     return ir_module
 
 
 def add_zero_output():
 
-    b0 = arith.Constant.from_int_and_width(4, 32)
-    b1 = arith.Constant.from_int_and_width(0, 32)
-    b2 = func.Return.get(b0.result)
+    @ModuleOp.from_region_or_ops
+    @Builder.region
+    def ir_module(b: Builder):
 
-    ir_module = ModuleOp.from_region_or_ops([b0, b1, b2])
+        @Builder.region
+        def impl(b: Builder):
+            x = b.insert(arith.Constant.from_int_and_width(4, 32))
+            _y = b.insert(arith.Constant.from_int_and_width(0, 32))
+            b.insert(func.Return.get(x))
+
+        b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
     return ir_module
 
@@ -189,40 +218,43 @@ def add_zero_output():
 def add_zero_pdl():
     # The rewrite below matches the second addition as root op
 
-    def pattern(*args: BlockArgument) -> list[Operation]:
+    @Builder.region
+    def pattern_region(b: Builder):
         # Type i32
-        p0 = pdl.TypeOp.get()
+        pdl_i32 = b.insert(pdl.TypeOp.get()).result
 
         # LHS: i32
-        p1 = pdl.OperandOp.get()
+        lhs = b.insert(pdl.OperandOp.get()).results[0]
 
         # Constant 0: i32
-        p2 = pdl.AttributeOp.get(value=IntegerAttr.from_int_and_width(0, 32),
-                                 valueType=p0.result)
-        p3 = pdl.OperationOp.get(opName=StringAttr("arith.constant"),
-                                 attributeValueNames=ArrayAttr(
-                                     [StringAttr("value")]),
-                                 attributeValues=[p2.results[0]],
-                                 typeValues=[p0.results[0]])
-        p4 = pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32),
-                              parent=p3.results[0])
+        zero = b.insert(
+            pdl.AttributeOp.get(value=IntegerAttr.from_int_and_width(0, 32),
+                                valueType=pdl_i32)).results[0]
+        rhs_op = b.insert(
+            pdl.OperationOp.get(opName=StringAttr("arith.constant"),
+                                attributeValueNames=ArrayAttr(
+                                    [StringAttr("value")]),
+                                attributeValues=[zero],
+                                typeValues=[pdl_i32])).op
+        rhs = b.insert(
+            pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32),
+                             parent=rhs_op)).val
 
         # LHS + 0
-        p5 = pdl.OperationOp.get(StringAttr("arith.addi"),
-                                 operandValues=[p1.results[0], p4.results[0]],
-                                 typeValues=[p0.results[0]])
+        sum = b.insert(
+            pdl.OperationOp.get(StringAttr("arith.addi"),
+                                operandValues=[lhs, rhs],
+                                typeValues=[pdl_i32])).op
 
-        def rewrite(*args: BlockArgument) -> list[Operation]:
-            o0 = pdl.ReplaceOp.get(p5.results[0], replValues=[p1.results[0]])
-            return [o0]
+        @Builder.region
+        def rewrite_region(b: Builder):
+            b.insert(pdl.ReplaceOp.get(sum, replValues=[lhs]))
 
-        o1 = pdl.RewriteOp.from_callable(None, p5.results[0], [], rewrite)
+        b.insert(pdl.RewriteOp.get(None, sum, [], rewrite_region))
 
-        return [p0, p1, p2, p3, p4, p5, o1]
+    pattern = pdl.PatternOp.get(IntegerAttr.from_int_and_width(2, 16), None,
+                                pattern_region)
 
-    o2 = pdl.PatternOp.from_callable(IntegerAttr.from_int_and_width(2, 16),
-                                     None, pattern)
-
-    pdl_module = ModuleOp.from_region_or_ops([o2])
+    pdl_module = ModuleOp.from_region_or_ops([pattern])
 
     return pdl_module
