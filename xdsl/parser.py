@@ -443,13 +443,13 @@ class BaseParser(ABC):
     Basically the output type of all try_parse functions is `T_ | None`
     """
 
-    allow_unregistered_dialects: bool
+    allow_unregistered_dialect: bool
 
     def __init__(self,
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_dialects: bool = False):
+                 allow_unregistered_dialect: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
@@ -457,7 +457,7 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_dialects = allow_unregistered_dialects
+        self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def _synchronize_lexer_and_tokenizer(self):
         """
@@ -858,7 +858,7 @@ class BaseParser(ABC):
             self.raise_error("Expected dialect {} name here!".format(kind))
 
         type_def = self.ctx.get_optional_attr(type_name.text,
-                                              self.allow_unregistered_dialects)
+                                              self.allow_unregistered_dialect)
         if type_def is None:
             self.raise_error(
                 "'{}' is not a known attribute!".format(type_name.text),
@@ -1180,7 +1180,7 @@ class BaseParser(ABC):
             op_name = span.text
 
         op_type = self.ctx.get_optional_op(
-            op_name, allow_unregistered=self.allow_unregistered_dialects)
+            op_name, allow_unregistered=self.allow_unregistered_dialect)
 
         if op_type is not None:
             return op_type
@@ -2022,12 +2022,12 @@ def Parser(ctx: MLContext,
            prog: str,
            source: Source = Source.XDSL,
            filename: str = '<unknown>',
-           allow_unregistered_dialects: bool = False) -> BaseParser:
+           allow_unregistered_dialect: bool = False) -> BaseParser:
     selected_parser = {
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser
     }[source]
-    return selected_parser(ctx, prog, filename, allow_unregistered_dialects)
+    return selected_parser(ctx, prog, filename, allow_unregistered_dialect)
 
 
 setattr(Parser, 'Source', Source)
