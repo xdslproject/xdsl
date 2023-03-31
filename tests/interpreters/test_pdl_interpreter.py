@@ -61,12 +61,12 @@ def swap_arguments_input():
         @Builder.region
         def impl(b: Builder):
 
-            x = b.insert(arith.Constant.from_int_and_width(4, 32))
-            y = b.insert(arith.Constant.from_int_and_width(2, 32))
-            z = b.insert(arith.Constant.from_int_and_width(1, 32))
-            x_y = b.insert(arith.Addi.get(x.result, y.result))
-            x_y_z = b.insert(arith.Addi.get(x_y.result, z.result))
-            b.insert(func.Return.get(x_y_z.result))
+            x = b.insert(arith.Constant.from_int_and_width(4, 32)).result
+            y = b.insert(arith.Constant.from_int_and_width(2, 32)).result
+            z = b.insert(arith.Constant.from_int_and_width(1, 32)).result
+            x_y = b.insert(arith.Addi.get(x, y)).result
+            x_y_z = b.insert(arith.Addi.get(x_y, z)).result
+            b.insert(func.Return.get(x_y_z))
 
         b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
@@ -82,12 +82,12 @@ def swap_arguments_output():
         @Builder.region
         def impl(b: Builder):
 
-            x = b.insert(arith.Constant.from_int_and_width(4, 32))
-            y = b.insert(arith.Constant.from_int_and_width(2, 32))
-            z = b.insert(arith.Constant.from_int_and_width(1, 32))
-            x_y = b.insert(arith.Addi.get(x.result, y.result))
-            z_x_y = b.insert(arith.Addi.get(z.result, x_y.result))
-            b.insert(func.Return.get(z_x_y.result))
+            x = b.insert(arith.Constant.from_int_and_width(4, 32)).result
+            y = b.insert(arith.Constant.from_int_and_width(2, 32)).result
+            z = b.insert(arith.Constant.from_int_and_width(1, 32)).result
+            x_y = b.insert(arith.Addi.get(x, y)).result
+            z_x_y = b.insert(arith.Addi.get(z, x_y)).result
+            b.insert(func.Return.get(z_x_y))
 
         b.insert(func.FuncOp.from_region('impl', [], [], impl))
 
