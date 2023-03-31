@@ -1,11 +1,21 @@
 from __future__ import annotations
+from types import TracebackType
 
 from typing import Callable, ClassVar, TypeAlias, overload
+import threading
+import contextlib
 
 from dataclasses import dataclass
 from xdsl.dialects.builtin import ArrayAttr
 
 from xdsl.ir import OperationInvT, Attribute, Region, Block, BlockArgument
+
+
+class _ImplicitBuilders(threading.local):
+    bb: list[Builder]
+
+    def __init__(self):
+        self.bb = []
 
 
 @dataclass
@@ -24,12 +34,20 @@ class Builder:
     Operations will be inserted in this block.
     """
 
-    _implicit_builders: ClassVar[list[Builder]] = []
+    _local: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts `op` in `self.block` at the end of the block.
         """
+
+        implicit_builder = Builder.get_implicit_builder()
+
+        if implicit_builder is not None and implicit_builder is not self:
+
+            raise ValueError(
+                'Cannot insert operation explicitly when an implicit '
+                'builder exists.')
 
         self.block.add_op(op)
         return op
@@ -116,9 +134,10 @@ class Builder:
         """
         block = Block()
         builder = Builder(block)
-        Builder.push_implicit_builder(builder)
-        func()
-        Builder.pop_implicit_builder(builder)
+
+        with Builder._push_implicit_builder(builder):
+            func()
+
         return Region.from_block_list([block])
 
     @staticmethod
@@ -138,9 +157,10 @@ class Builder:
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
             block = Block.from_arg_types(input_type_seq)
             builder = Builder(block)
-            Builder.push_implicit_builder(builder)
-            func(block.args)
-            Builder.pop_implicit_builder(builder)
+
+            with Builder._push_implicit_builder(builder):
+                func(block.args)
+
             region = Region.from_block_list([block])
             return region
 
@@ -187,18 +207,30 @@ class Builder:
             return Builder._implicit_region_args(input)
 
     @classmethod
+    def _push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
+        return _ImplicitBuilder(cls._local.bb, builder)
+
+    @classmethod
     def get_implicit_builder(cls) -> Builder | None:
-        if len(cls._implicit_builders):
-            return cls._implicit_builders[-1]
+        bb = cls._local.bb
+        if len(bb):
+            return bb[-1]
 
-    @classmethod
-    def push_implicit_builder(cls, builder: Builder):
-        cls._implicit_builders.append(builder)
 
-    @classmethod
-    def pop_implicit_builder(cls, builder: Builder):
-        popped = cls._implicit_builders.pop()
-        assert popped is builder
+@dataclass
+class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
+
+    bb: list[Builder]
+    builder: Builder
+
+    def __enter__(self) -> None:
+        self.bb.append(self.builder)
+
+    def __exit__(self, __exc_type: type[BaseException] | None,
+                 __exc_value: BaseException | None,
+                 __traceback: TracebackType | None) -> bool | None:
+        popped = self.bb.pop()
+        assert popped is self.builder
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
