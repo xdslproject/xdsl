@@ -19,7 +19,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     ctx.register_dialect(Func)
 
     parser = Parser(ctx, prog)
-    module = parser.parse_op()
+    module = parser.parse_module()
 
     rewriter = Rewriter()
     transformation(module, rewriter)
@@ -110,6 +110,7 @@ def test_replace_op_new_results():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         add_op = module.ops[1]
+        assert isinstance(add_op, Addi)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
 
