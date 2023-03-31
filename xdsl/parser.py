@@ -449,7 +449,7 @@ class BaseParser(ABC):
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_ops: bool = False):
+                 allow_unregistered_dialect: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
@@ -457,7 +457,25 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_ops = allow_unregistered_ops
+        self.allow_unregistered_dialect = allow_unregistered_dialect
+
+    def _synchronize_lexer_and_tokenizer(self):
+        """
+        Advance the lexer and the tokenizer to the same position,
+        which is the maximum of the two.
+        This is used to allow using both the tokenizer and the lexer,
+        to deprecate slowly the tokenizer.
+        """
+        lexer_pos = self.lexer.pos
+        tokenizer_pos = self.tokenizer.save()
+        pos = max(lexer_pos, tokenizer_pos)
+        self.lexer.pos = pos
+        self.tokenizer.pos = pos
+        self._current_token = self.lexer.lex()
+
+    def _consume_token(self) -> None:
+        """Advance the lexer"""
+        self._current_token = self.lexer.lex()
 
     def _synchronize_lexer_and_tokenizer(self):
         """
