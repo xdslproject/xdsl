@@ -1,7 +1,7 @@
 from dataclasses import (dataclass, field)
 from typing import Any
 
-from xdsl.ir import (Attribute, MLContext, MLIRType, OpResult, Operation,
+from xdsl.ir import (Attribute, MLContext, TypeAttribute, OpResult, Operation,
                      SSAValue)
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
@@ -277,7 +277,7 @@ class PDLFunctions(InterpreterFunctions):
         type_values = interpreter.get_values(op.typeValues)
 
         for type_value in type_values:
-            assert isinstance(type_value, MLIRType)
+            assert isinstance(type_value, TypeAttribute)
 
         attributes = dict(zip(attribute_value_names, attribute_values))
 
