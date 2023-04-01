@@ -1317,42 +1317,20 @@ class BaseParser(ABC):
 
         return None
 
-    _Question_Type = TypeVar("_Question_Type")
-
-    @overload
-    def parse_int_or_question(self, context_msg: str,
-                              question_value: Literal['?'],
-                              allow_negative: bool) -> int | Literal['?']:
-        ...
-
-    @overload
-    def parse_int_or_question(
-            self,
-            context_msg: str,
-            question_value: _Question_Type,
-            allow_negative: bool = True) -> int | _Question_Type:
-        ...
-
-    def parse_int_or_question(
-            self,
-            context_msg: str = "",
-            question_value: _Question_Type = '?',
-            allow_negative: bool = True
-    ) -> int | _Question_Type | Literal['?']:
+    def _parse_int_or_question(self,
+                               context_msg: str = "") -> int | Literal['?']:
+        """Parse either an integer literal, or a '?'."""
         self._synchronize_lexer_and_tokenizer()
         if self._parse_optional_token(Token.Kind.QUESTION) is not None:
-            return question_value
+            return '?'
         negative = False
-        if allow_negative and self._parse_optional_token(
-                Token.Kind.MINUS) is not None:
+        if self._parse_optional_token(Token.Kind.MINUS) is not None:
             negative = True
-        if self._parse_optional_token(Token.Kind.INTEGER_LIT) is None:
-            value = self._current_token.get_int_value()
+        if (token := self._parse_optional_token(
+                Token.Kind.INTEGER_LIT)) is not None:
+            value = token.get_int_value()
             return -value if negative else value
-        if allow_negative:
-            self.raise_error("Expected integer literal or `?`" + context_msg)
-        self.raise_error("Expected non-negative integer literal or `?`" +
-                         context_msg)
+        self.raise_error("Expected an integer literal or `?`" + context_msg)
 
     def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
         """Parse a specific identifier."""
@@ -1384,24 +1362,30 @@ class BaseParser(ABC):
         self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
             self.Delimiter.SQUARE,
-            lambda: self.parse_int_or_question(" in stride list"),
+            lambda: self._parse_int_or_question(" in stride list"),
             " in stride list")
+        # Pyright widen `Literal['?']` to `str` for some reasons
+        strides = cast(list[int | Literal['?']], strides)
 
-        # Replace the '?' with 'None'
-        strides = [
-            None if not isinstance(stride, int) else stride
-            for stride in strides
-        ]
+        # Convert to the attribute expected input
+        strides = [None if stride == '?' else stride for stride in strides]
 
         # Case without offset
         if self._parse_optional_token(Token.Kind.GREATER) is not None:
+            self._synchronize_lexer_and_tokenizer()
             return StridedLayoutAttr(strides)
 
         # Parse the optional offset
-        if self._parse_optional_token(Token.Kind.COMMA) is not None:
-            self.parse_keyword("offset", " after comma")
-            self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
-            pass
+        self._parse_token(
+            Token.Kind.COMMA,
+            "Expected end of strided attribute or ',' for offset.")
+        self.parse_keyword("offset", " after comma")
+        self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
+        offset = self._parse_int_or_question(" in stride offset")
+        self._parse_token(Token.Kind.GREATER,
+                          "Expected '>' in end of stride attribute")
+        self._synchronize_lexer_and_tokenizer()
+        return StridedLayoutAttr(strides, None if offset == '?' else offset)
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)
