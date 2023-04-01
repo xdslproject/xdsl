@@ -1311,6 +1311,43 @@ class BaseParser(ABC):
             if (val := attr_parser()) is not None:
                 return val
 
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.text == "strided":
+            return self.parse_strided_layout_attr()
+
+        return None
+
+    def parse_int_or_question(
+            self,
+            context_msg: str = "",
+            allow_negative: bool = True) -> int | Literal['?']:
+        self._synchronize_lexer_and_tokenizer()
+        if self._consume_if(Token.Kind.QUESTION) is not None:
+            return '?'
+        negative = False
+        if allow_negative and self._consume_if(Token.Kind.MINUS) is not None:
+            negative = True
+        if self._consume_if(Token.Kind.INTEGER_LIT) is None:
+            value = self._current_token.get_int_value()
+            return -value if negative else value
+        if allow_negative:
+            self.raise_error("Expected integer literal or `?`" + context_msg)
+        self.raise_error("Expected non-negative integer literal or `?`" +
+                         context_msg)
+
+    def parse_strided_layout_attr(self) -> Attribute:
+        # Consume `strided` keyword
+        self._consume_token(Token.Kind.BARE_IDENT)
+
+        self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
+        self._parse_token(Token.Kind.L_SQUARE,
+                          "Expected `[` in strided attribute ")
+
+        self.parse_comma_separated_list(
+            self.Delimiter.SQUARE,
+            lambda: self.parse_int_or_question(" in stride list"),
+            " in stride list")
+
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)
         with self.tokenizer.backtracking("Builtin attribute {}".format(
