@@ -215,6 +215,23 @@ class Token:
 
     span: Span
 
+    @property
+    def text(self):
+        """The text composing the token."""
+        return self.span.text
+
+    def get_int_value(self):
+        """
+        Translate the token text into an integer value.
+        This function will raise an exception if the token is not an integer 
+        literal.
+        """
+        if self.kind != Token.Kind.INTEGER_LIT:
+            raise ValueError("Token is not an integer literal!")
+        if self.text[:2] in ['0x', '0X']:
+            return int(self.text, 16)
+        return int(self.text, 10)
+
 
 @dataclass
 class Lexer:

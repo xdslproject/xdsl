@@ -4,18 +4,23 @@ from xdsl.utils.lexer import Input, Lexer, Token
 from xdsl.utils.exceptions import ParseError
 
 
+def get_token(input: str) -> Token:
+    file = Input(input, "<unknown>")
+    lexer = Lexer(file)
+    token = lexer.lex()
+    return token
+
+
 def assert_single_token(input: str,
                         expected_kind: Token.Kind,
                         expected_text: str | None = None):
     if expected_text is None:
         expected_text = input
 
-    file = Input(input, "<unknown>")
-    lexer = Lexer(file)
-    token = lexer.lex()
+    token = get_token(input)
 
     assert token.kind == expected_kind
-    assert token.span.text == expected_text
+    assert token.text == expected_text
 
 
 def assert_token_fail(input: str):
@@ -166,3 +171,13 @@ def test_whitespace_skip(text: str):
 @pytest.mark.parametrize('text', ['', '   ', '\n\n', '// Comment\n'])
 def test_eof(text: str):
     assert_single_token(text, Token.Kind.EOF, '')
+
+
+@pytest.mark.parametrize('text, expected', [('0', 0), ('010', 10),
+                                            ('123456789', 123456789),
+                                            ('0x1234', 4660),
+                                            ('0xabcdef23', 2882400035)])
+def test_token_get_int_value(text: str, expected: int):
+    token = get_token(text)
+    assert token.kind == Token.Kind.INTEGER_LIT
+    assert token.get_int_value() == expected
