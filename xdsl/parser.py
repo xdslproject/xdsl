@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, overload
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
@@ -1317,17 +1317,36 @@ class BaseParser(ABC):
 
         return None
 
+    _Question_Type = TypeVar("_Question_Type")
+
+    @overload
+    def parse_int_or_question(self, context_msg: str,
+                              question_value: Literal['?'],
+                              allow_negative: bool) -> int | Literal['?']:
+        ...
+
+    @overload
+    def parse_int_or_question(
+            self,
+            context_msg: str,
+            question_value: _Question_Type,
+            allow_negative: bool = True) -> int | _Question_Type:
+        ...
+
     def parse_int_or_question(
             self,
             context_msg: str = "",
-            allow_negative: bool = True) -> int | Literal['?']:
+            question_value: _Question_Type = '?',
+            allow_negative: bool = True
+    ) -> int | _Question_Type | Literal['?']:
         self._synchronize_lexer_and_tokenizer()
-        if self._consume_if(Token.Kind.QUESTION) is not None:
-            return '?'
+        if self._parse_optional_token(Token.Kind.QUESTION) is not None:
+            return question_value
         negative = False
-        if allow_negative and self._consume_if(Token.Kind.MINUS) is not None:
+        if allow_negative and self._parse_optional_token(
+                Token.Kind.MINUS) is not None:
             negative = True
-        if self._consume_if(Token.Kind.INTEGER_LIT) is None:
+        if self._parse_optional_token(Token.Kind.INTEGER_LIT) is None:
             value = self._current_token.get_int_value()
             return -value if negative else value
         if allow_negative:
@@ -1368,10 +1387,18 @@ class BaseParser(ABC):
             lambda: self.parse_int_or_question(" in stride list"),
             " in stride list")
 
-        if self._consume_if(Token.Kind.GREATER)
+        # Replace the '?' with 'None'
+        strides = [
+            None if not isinstance(stride, int) else stride
+            for stride in strides
+        ]
+
+        # Case without offset
+        if self._parse_optional_token(Token.Kind.GREATER) is not None:
+            return StridedLayoutAttr(strides)
 
         # Parse the optional offset
-        if self._consume_if(Token.Kind.COMMA) is not None:
+        if self._parse_optional_token(Token.Kind.COMMA) is not None:
             self.parse_keyword("offset", " after comma")
             self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
             pass
