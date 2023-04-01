@@ -1313,7 +1313,9 @@ class BaseParser(ABC):
 
         self._synchronize_lexer_and_tokenizer()
         if self._current_token.text == "strided":
-            return self.parse_strided_layout_attr()
+            strided = self.parse_strided_layout_attr()
+            self._synchronize_lexer_and_tokenizer()
+            return strided
 
         return None
 
@@ -1372,7 +1374,6 @@ class BaseParser(ABC):
 
         # Case without offset
         if self._parse_optional_token(Token.Kind.GREATER) is not None:
-            self._synchronize_lexer_and_tokenizer()
             return StridedLayoutAttr(strides)
 
         # Parse the optional offset
@@ -1384,7 +1385,6 @@ class BaseParser(ABC):
         offset = self._parse_int_or_question(" in stride offset")
         self._parse_token(Token.Kind.GREATER,
                           "Expected '>' in end of stride attribute")
-        self._synchronize_lexer_and_tokenizer()
         return StridedLayoutAttr(strides, None if offset == '?' else offset)
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
