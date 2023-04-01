@@ -19,7 +19,7 @@ mlir-opt --lower-affine --arith-expand --convert-scf-to-cf --convert-vector-to-l
 if [[ $CI_RUN == 1 ]];
 then
     # Use the built clang version in CI container for supporting opaque pointers.
-    ${GITHUB_WORKSPACE}/llvm-project/build/bin/clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
+    ${GITHUB_WORKSPACE}/llvm-project/build/bin/clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -L${GITHUB_WORKSPACE}/llvm-project/build/lib/ -lmlir_c_runner_utils
 else
     # Client's defualt clang version should be high enough to support opaque pointers.
     clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -lmlir_c_runner_utils
