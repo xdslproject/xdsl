@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Annotated, Union
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
-from xdsl.ir import (MLIRType, ParametrizedAttribute, Operation, Dialect,
+from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Operation, Dialect,
                      OpResult, SSAValue)
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
                        ParameterDef, ParamAttrConstraint, AnyOf,
@@ -10,7 +10,7 @@ from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
 
 
 @irdl_attr_definition
-class ComplexType(ParametrizedAttribute, MLIRType):
+class ComplexType(ParametrizedAttribute, TypeAttribute):
     name = "cmath.complex"
     data: ParameterDef[Float64Type | Float32Type]
 

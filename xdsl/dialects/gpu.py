@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated, Generic, Sequence, Type, TypeVar
 
-from xdsl.ir import (Attribute, MLIRType, OpResult, Operation, Dialect,
+from xdsl.ir import (Attribute, TypeAttribute, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)
 from xdsl.irdl import (AttrSizedOperandSegments, Operand, OptOpAttr,
                        OptOpResult, OptOperand, ParameterDef, VarOperand,
@@ -15,7 +15,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
-class AsyncTokenType(ParametrizedAttribute, MLIRType):
+class AsyncTokenType(ParametrizedAttribute, TypeAttribute):
     name = "gpu.async.token"
 
 

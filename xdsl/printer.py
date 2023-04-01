@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
+from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
                      Attribute, Region, Operation, Data, ParametrizedAttribute)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
@@ -514,7 +514,7 @@ class Printer:
 
         if self.target == self.Target.MLIR:
             # For the MLIR target, we may print differently some attributes
-            self.print("!" if isinstance(attribute, MLIRType) else "#")
+            self.print("!" if isinstance(attribute, TypeAttribute) else "#")
             self.print(attribute.name)
 
             if isinstance(attribute, Data):
