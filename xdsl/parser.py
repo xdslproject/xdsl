@@ -485,7 +485,7 @@ class BaseParser(ABC):
             assert self._current_token.kind == expected_kind, "Consumed an unexpected token!"
         self._current_token = self.lexer.lex()
 
-    def _consume_if(self, expected_kind: Token.Kind) -> Token | None:
+    def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
         """
         If the current token is of the expected kind, consume it and return it.
         Otherwise, return False.
@@ -642,20 +642,20 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
-            if self._consume_if(Token.Kind.R_PAREN) is not None:
+            if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
                 return []
         elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
-            if self._consume_if(Token.Kind.GREATER) is not None:
+            if self._parse_optional_token(Token.Kind.GREATER) is not None:
                 return []
         elif delimiter == self.Delimiter.SQUARE:
             self._parse_token(Token.Kind.L_SQUARE,
                               "Expected '['" + context_msg)
-            if self._consume_if(Token.Kind.R_SQUARE) is not None:
+            if self._parse_optional_token(Token.Kind.R_SQUARE) is not None:
                 return []
         elif delimiter == self.Delimiter.BRACES:
             self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
-            if self._consume_if(Token.Kind.R_BRACE) is not None:
+            if self._parse_optional_token(Token.Kind.R_BRACE) is not None:
                 return []
         else:
             assert False, "Unknown delimiter"
@@ -663,7 +663,7 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         elems = [parse()]
         self._synchronize_lexer_and_tokenizer()
-        while self._consume_if(Token.Kind.COMMA) is not None:
+        while self._parse_optional_token(Token.Kind.COMMA) is not None:
             self._synchronize_lexer_and_tokenizer()
             elems.append(parse())
             self._synchronize_lexer_and_tokenizer()
