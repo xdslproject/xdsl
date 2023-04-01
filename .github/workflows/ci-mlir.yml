@@ -110,7 +110,7 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         # Update links used by dynamic loader.
-        ldconfig
+        sudo ldconfig
         ./benchmarks/dialects/experimental/stencil/run-laplace-benchmark.sh 1
 
     - name: Test MLIR dependent examples/tutorials
