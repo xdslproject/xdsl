@@ -18,12 +18,12 @@ from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
-    AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
-    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    UnregisteredAttr, VectorType, SymbolRefAttr, DenseArrayBase,
-    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
-    StridedLayoutAttr)
+    AnyVectorType, DenseArrayBase, DenseResourceAttr, DictionaryAttr,
+    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
+    IntegerType, Signedness, StridedLayoutAttr, StringAttr, IntegerAttr,
+    ArrayAttr, TensorType, UnrankedTensorType, UnregisteredAttr, VectorType,
+    SymbolRefAttr, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
+    UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
