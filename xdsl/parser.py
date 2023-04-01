@@ -1375,6 +1375,7 @@ class BaseParser(ABC):
 
         # Case without offset
         if self._parse_optional_token(Token.Kind.GREATER) is not None:
+            self._synchronize_lexer_and_tokenizer()
             return StridedLayoutAttr(strides)
 
         # Parse the optional offset
@@ -1386,23 +1387,8 @@ class BaseParser(ABC):
         offset = self._parse_int_or_question(" in stride offset")
         self._parse_token(Token.Kind.GREATER,
                           "Expected '>' in end of stride attribute")
+        self._synchronize_lexer_and_tokenizer()
         return StridedLayoutAttr(strides, None if offset == '?' else offset)
-
-        # Replace the '?' with 'None'
-        strides = [
-            None if not isinstance(stride, int) else stride
-            for stride in strides
-        ]
-
-        # Case without offset
-        if self._parse_optional_token(Token.Kind.GREATER) is not None:
-            return StridedLayoutAttr(strides)
-
-        # Parse the optional offset
-        if self._parse_optional_token(Token.Kind.COMMA) is not None:
-            self.parse_keyword("offset", " after comma")
-            self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
-            pass
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)
