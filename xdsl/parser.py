@@ -1352,23 +1352,6 @@ class BaseParser(ABC):
             return keyword
         return None
 
-    def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
-        """Parse a specific identifier."""
-
-        error_msg = f"Expected '{keyword}'" + context_msg
-        if self.parse_optional_keyword(keyword) is not None:
-            return keyword
-        self.raise_error(error_msg)
-
-    def parse_optional_keyword(self, keyword: str) -> str | None:
-        """Parse a specific identifier if it is present"""
-
-        if (self._current_token.kind == Token.Kind.BARE_IDENT
-                and self._current_token.text == keyword):
-            self._consume_token(Token.Kind.BARE_IDENT)
-            return keyword
-        return None
-
     def parse_strided_layout_attr(self) -> Attribute:
         """
         Parse a strided layout attribute.
@@ -1405,10 +1388,18 @@ class BaseParser(ABC):
                           "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == '?' else offset)
 
-        if self._consume_if(Token.Kind.GREATER)
+        # Replace the '?' with 'None'
+        strides = [
+            None if not isinstance(stride, int) else stride
+            for stride in strides
+        ]
+
+        # Case without offset
+        if self._parse_optional_token(Token.Kind.GREATER) is not None:
+            return StridedLayoutAttr(strides)
 
         # Parse the optional offset
-        if self._consume_if(Token.Kind.COMMA) is not None:
+        if self._parse_optional_token(Token.Kind.COMMA) is not None:
             self.parse_keyword("offset", " after comma")
             self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
             pass
