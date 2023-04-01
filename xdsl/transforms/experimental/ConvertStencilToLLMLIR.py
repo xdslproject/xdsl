@@ -170,10 +170,10 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     # to a loop, which has access to them either way)
     entry = op.region.blocks[0]
 
-    for arg in entry.args:
+    for idx, arg in enumerate(entry.args):
         arg_uses = set(arg.uses)
         for use in arg_uses:
-            use.operation.replace_operand(use.index, op.args[use.index])
+            use.operation.replace_operand(use.index, op.args[idx])
         entry.erase_arg(arg)
 
     dim = len(op.lb.array.data)
