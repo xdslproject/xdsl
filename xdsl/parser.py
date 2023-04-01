@@ -640,20 +640,20 @@ class BaseParser(ABC):
         produced.
         """
         self._synchronize_lexer_and_tokenizer()
-        if delimiter == BaseParser.Delimiter.PAREN:
+        if delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
             if self._consume_if(Token.Kind.R_PAREN) is not None:
                 return []
-        elif delimiter == BaseParser.Delimiter.ANGLE:
+        elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
             if self._consume_if(Token.Kind.GREATER) is not None:
                 return []
-        elif delimiter == BaseParser.Delimiter.SQUARE:
+        elif delimiter == self.Delimiter.SQUARE:
             self._parse_token(Token.Kind.L_SQUARE,
                               "Expected '['" + context_msg)
             if self._consume_if(Token.Kind.R_SQUARE) is not None:
                 return []
-        elif delimiter == BaseParser.Delimiter.BRACES:
+        elif delimiter == self.Delimiter.BRACES:
             self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
             if self._consume_if(Token.Kind.R_BRACE) is not None:
                 return []
@@ -668,14 +668,14 @@ class BaseParser(ABC):
             elems.append(parse())
             self._synchronize_lexer_and_tokenizer()
 
-        if delimiter == BaseParser.Delimiter.PAREN:
+        if delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
-        elif delimiter == BaseParser.Delimiter.ANGLE:
+        elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
-        elif delimiter == BaseParser.Delimiter.SQUARE:
+        elif delimiter == self.Delimiter.SQUARE:
             self._parse_token(Token.Kind.R_SQUARE,
                               "Expected ']'" + context_msg)
-        elif delimiter == BaseParser.Delimiter.BRACES:
+        elif delimiter == self.Delimiter.BRACES:
             self._parse_token(Token.Kind.R_BRACE, "Expected '}'" + context_msg)
         else:
             assert False, "Unknown delimiter"
