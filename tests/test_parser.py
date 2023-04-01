@@ -7,8 +7,9 @@ from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
 from xdsl.ir import (MLContext, Attribute, Operation, Region,
                      ParametrizedAttribute)
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition
-from xdsl.parser import XDSLParser, MLIRParser
+from xdsl.parser import BaseParser, XDSLParser, MLIRParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import ParseError
 
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
@@ -135,3 +136,68 @@ def test_parse_block_name():
 
     assert block.args[0].name == 'name'
     assert block.args[1].name is None
+
+
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
+                         [(BaseParser.Delimiter.PAREN, '(', ')'),
+                          (BaseParser.Delimiter.SQUARE, '[', ']'),
+                          (BaseParser.Delimiter.BRACES, '{', '}'),
+                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+def test_parse_comma_separated_list(delimiter: BaseParser.Delimiter,
+                                    open_bracket: str, close_bracket: str):
+    input = open_bracket + "2, 4, 5" + close_bracket
+    parser = XDSLParser(MLContext(), input)
+    res = parser.parse_comma_separated_list(delimiter,
+                                            parser.parse_int_literal,
+                                            ' in test')
+    assert res == [2, 4, 5]
+
+
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
+                         [(BaseParser.Delimiter.PAREN, '(', ')'),
+                          (BaseParser.Delimiter.SQUARE, '[', ']'),
+                          (BaseParser.Delimiter.BRACES, '{', '}'),
+                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+def test_parse_comma_separated_list_empty(delimiter: BaseParser.Delimiter,
+                                          open_bracket: str,
+                                          close_bracket: str):
+    input = open_bracket + close_bracket
+    parser = XDSLParser(MLContext(), input)
+    res = parser.parse_comma_separated_list(delimiter,
+                                            parser.parse_int_literal,
+                                            ' in test')
+    assert res == []
+
+
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
+                         [(BaseParser.Delimiter.PAREN, '(', ')'),
+                          (BaseParser.Delimiter.SQUARE, '[', ']'),
+                          (BaseParser.Delimiter.BRACES, '{', '}'),
+                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+def test_parse_comma_separated_list_error_element(
+        delimiter: BaseParser.Delimiter, open_bracket: str,
+        close_bracket: str):
+    input = open_bracket + "o" + close_bracket
+    parser = XDSLParser(MLContext(), input)
+    with pytest.raises(ParseError) as e:
+        parser.parse_comma_separated_list(delimiter, parser.parse_int_literal,
+                                          ' in test')
+    assert e.value.span.text == 'o'
+    assert e.value.msg == "Expected integer literal here"
+
+
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
+                         [(BaseParser.Delimiter.PAREN, '(', ')'),
+                          (BaseParser.Delimiter.SQUARE, '[', ']'),
+                          (BaseParser.Delimiter.BRACES, '{', '}'),
+                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+def test_parse_comma_separated_list_error_delimiters(
+        delimiter: BaseParser.Delimiter, open_bracket: str,
+        close_bracket: str):
+    input = open_bracket + "2, 4 5"
+    parser = XDSLParser(MLContext(), input)
+    with pytest.raises(ParseError) as e:
+        parser.parse_comma_separated_list(delimiter, parser.parse_int_literal,
+                                          ' in test')
+    assert e.value.span.text == '5'
+    assert e.value.msg == "Expected '" + close_bracket + "' in test"
