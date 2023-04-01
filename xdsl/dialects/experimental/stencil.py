@@ -8,7 +8,7 @@ from xdsl.dialects import memref
 from xdsl.dialects.builtin import (AnyIntegerAttr, IntegerAttr,
                                    ParametrizedAttribute, ArrayAttr, f32, f64,
                                    IntegerType, IntAttr, AnyFloat)
-from xdsl.ir import Operation, Dialect, MLIRType
+from xdsl.ir import Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -39,7 +39,8 @@ _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
 
 
 @irdl_attr_definition
-class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
+class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute,
+                TypeAttribute):
     name = "stencil.field"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -66,7 +67,8 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
+class TempType(Generic[_FieldTypeElement], ParametrizedAttribute,
+               TypeAttribute):
     name = "stencil.temp"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -100,7 +102,7 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class ResultType(ParametrizedAttribute, MLIRType):
+class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
     elem: ParameterDef[AnyFloat]
 
@@ -124,7 +126,7 @@ class ArrayLength(AttrConstraint):
             )
 
 
-# TODO: How can we inherit from MLIRType and ParametrizedAttribute?
+# TODO: How can we inherit from TypeAttribute and ParametrizedAttribute?
 @dataclass(frozen=True)
 class ElementType(ParametrizedAttribute):
     name = "stencil.element"

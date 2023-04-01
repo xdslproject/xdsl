@@ -296,9 +296,8 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass
-class MLIRType:
+class TypeAttribute:
     """
-    A class representing an MLIR type.
     This class should only be inherited by classes inheriting Attribute.
     This class is only used for printing attributes in the MLIR format,
     inheriting this class prefix the attribute by `!` instead of `#`.
@@ -307,7 +306,7 @@ class MLIRType:
     def __post_init__(self):
         if not isinstance(self, Attribute):
             raise TypeError(
-                "MLIRType should only be inherited by classes inheriting Attribute"
+                "TypeAttribute should only be inherited by classes inheriting Attribute"
             )
 
 
