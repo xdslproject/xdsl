@@ -1335,18 +1335,46 @@ class BaseParser(ABC):
         self.raise_error("Expected non-negative integer literal or `?`" +
                          context_msg)
 
+    def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
+        """Parse a specific identifier."""
+
+        error_msg = f"Expected '{keyword}'" + context_msg
+        if self.parse_optional_keyword(keyword) is not None:
+            return keyword
+        self.raise_error(error_msg)
+
+    def parse_optional_keyword(self, keyword: str) -> str | None:
+        """Parse a specific identifier if it is present"""
+
+        if (self._current_token.kind == Token.Kind.BARE_IDENT
+                and self._current_token.text == keyword):
+            self._consume_token(Token.Kind.BARE_IDENT)
+            return keyword
+        return None
+
     def parse_strided_layout_attr(self) -> Attribute:
-        # Consume `strided` keyword
-        self._consume_token(Token.Kind.BARE_IDENT)
+        """
+        Parse a strided layout attribute.
+        | `strided` `<` `[` comma-separated-int-or-question `]`
+          (`,` `offset` `:` integer-literal)? `>`
+        """
+        # Parse `strided` keyword
+        self.parse_keyword("strided")
 
+        # Parse stride list
         self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
-        self._parse_token(Token.Kind.L_SQUARE,
-                          "Expected `[` in strided attribute ")
-
-        self.parse_comma_separated_list(
+        strides = self.parse_comma_separated_list(
             self.Delimiter.SQUARE,
             lambda: self.parse_int_or_question(" in stride list"),
             " in stride list")
+
+        if self._consume_if(Token.Kind.GREATER)
+
+        # Parse the optional offset
+        if self._consume_if(Token.Kind.COMMA) is not None:
+            self.parse_keyword("offset", " after comma")
+            self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
+            pass
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)
