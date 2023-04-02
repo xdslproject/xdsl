@@ -15,7 +15,7 @@ from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
-from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
+from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
     AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
@@ -981,7 +981,9 @@ class BaseParser(ABC):
 
         self.parse_characters("<", "Expected parameter list here!")
         # Get the parser for the type, falling back to the unimplemented warning
+        self._synchronize_lexer_and_tokenizer()
         res = builtin_parsers.get(name.text, unimplemented)()
+        self._synchronize_lexer_and_tokenizer()
         self.parse_characters(">", "Expected end of parameter list here!")
 
         return res
@@ -995,9 +997,49 @@ class BaseParser(ABC):
         type = self.expect(
             self.try_parse_type,
             "Type cannot be nil when parsing memref attributes")
+
+        self._synchronize_lexer_and_tokenizer()
+
+        # Unranked case
         if dims is None:
-            return UnrankedMemrefType.from_type(type)
-        return MemRefType.from_element_type_and_shape(type, dims)
+            if self.parse_optional_punctuation(',') is None:
+                self._synchronize_lexer_and_tokenizer()
+                return UnrankedMemrefType.from_type(type)
+            self._synchronize_lexer_and_tokenizer()
+            memory_space = self.parse_attribute()
+            self._synchronize_lexer_and_tokenizer()
+            return UnrankedMemrefType.from_type(type, memory_space)
+
+        if self.parse_optional_punctuation(',') is None:
+            return MemRefType.from_element_type_and_shape(type, dims)
+
+        self._synchronize_lexer_and_tokenizer()
+        memory_or_layout = self.parse_attribute()
+        self._synchronize_lexer_and_tokenizer()
+
+        # If there is both a memory space and a layout, we know that the
+        # layout is the second one
+        if self.parse_optional_punctuation(',') is not None:
+            self._synchronize_lexer_and_tokenizer()
+            memory_space = self.parse_attribute()
+            self._synchronize_lexer_and_tokenizer()
+            return MemRefType.from_element_type_and_shape(
+                type, dims, memory_or_layout, memory_space)
+
+        # Otherwise, there is a single argument, so we check based on the
+        # attribute type. If we don't know, we return an error.
+        # MLIR base itself on the `MemRefLayoutAttrInterface`, which we do not
+        # support.
+
+        # If the argument is an integer, it is a memory space
+        if isa(memory_or_layout, AnyIntegerAttr):
+            return MemRefType.from_element_type_and_shape(
+                type, dims, memory_space=memory_or_layout)
+        if isa(memory_or_layout, StridedLayoutAttr):
+            return MemRefType.from_element_type_and_shape(
+                type, dims, layout=memory_or_layout)
+        self.raise_error("Cannot decide if the given attribute "
+                         "is a layout or a memory space!")
 
     def try_parse_numerical_dims(self,
                                  accept_closing_bracket: bool = False,

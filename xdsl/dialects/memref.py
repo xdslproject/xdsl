@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence, TypeVar, Optional, List, TypeAlias, cast
+from typing import TYPE_CHECKING, Annotated, Sequence, TypeVar, Optional, List, TypeAlias, cast
 
 from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
                                    DenseArrayBase, IndexType, ArrayAttr,
-                                   IntegerType, SymbolRefAttr, StringAttr,
-                                   UnitAttr)
+                                   IntegerType, NoneAttr, SymbolRefAttr,
+                                   StringAttr, UnitAttr)
 from xdsl.ir import (TypeAttribute, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        Generic, Attribute, AnyAttr, Operand, VarOperand,
                        AttrSizedOperandSegments, OpAttr)
 from xdsl.utils.exceptions import VerifyException
+
+if TYPE_CHECKING:
+    from xdsl.parser import BaseParser
+    from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -25,6 +29,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute,
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
+    layout: ParameterDef[Attribute]
+    memory_space: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -35,22 +41,52 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute,
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
-        shape: Sequence[int | AnyIntegerAttr]
+        shape: Sequence[int | AnyIntegerAttr],
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr()
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([
             ArrayAttr[AnyIntegerAttr]([
                 d if isinstance(d, IntegerAttr) else
                 IntegerAttr.from_index_int_value(d) for d in shape
-            ]), referenced_type
+            ]), referenced_type, layout, memory_space
         ])
 
     @staticmethod
     def from_params(
         referenced_type: _MemRefTypeElement,
         shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)])
+            [IntegerAttr.from_int_and_width(1, 64)]),
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr()
     ) -> MemRefType[_MemRefTypeElement]:
-        return MemRefType([shape, referenced_type])
+        return MemRefType([shape, referenced_type, layout, memory_space])
+
+    @staticmethod
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        parser._synchronize_lexer_and_tokenizer()  # type: ignore
+        parser.parse_punctuation('<', ' in memref attribute')
+        shape = parser.parse_attribute()
+        parser.parse_punctuation(',',
+                                 ' between shape and element type parameters')
+        type = parser.parse_attribute()
+        # If we have a layout or a memory space, parse both of them.
+        if parser.parse_optional_punctuation(',') is None:
+            parser.parse_punctuation('>', ' at end of memref attribute')
+            return [shape, type, NoneAttr(), NoneAttr()]
+        layout = parser.parse_attribute()
+        parser.parse_punctuation(',', ' between layout and memory space')
+        memory_space = parser.parse_attribute()
+        parser.parse_punctuation('>', ' at end of memref attribute')
+        parser._synchronize_lexer_and_tokenizer()  # type: ignore
+
+        return [shape, type, layout, memory_space]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print('<', self.shape, ', ', self.element_type)
+        if self.layout != NoneAttr() or self.memory_space != NoneAttr():
+            printer.print(', ', self.layout, ', ', self.memory_space)
+        printer.print('>')
 
 
 _UnrankedMemrefTypeElems = TypeVar("_UnrankedMemrefTypeElems",
@@ -66,12 +102,14 @@ class UnrankedMemrefType(Generic[_UnrankedMemrefTypeElems],
     name = "unranked_memref"
 
     element_type: ParameterDef[_UnrankedMemrefTypeElems]
+    memory_space: ParameterDef[Attribute]
 
     @staticmethod
     def from_type(
-        referenced_type: _UnrankedMemrefTypeElemsInit
+        referenced_type: _UnrankedMemrefTypeElemsInit,
+        memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
-        return UnrankedMemrefType([referenced_type])
+        return UnrankedMemrefType([referenced_type, memory_space])
 
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
