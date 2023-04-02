@@ -472,6 +472,10 @@ class BaseParser(ABC):
         self.lexer.pos = pos
         self.tokenizer.pos = pos
         self._current_token = self.lexer.lex()
+        # Make sure both point to the same position,
+        # to avoid having problems with `backtracking`.
+        if self._current_token.span.start > self.tokenizer.pos:
+            self.tokenizer.pos = self._current_token.span.start
 
     def _consume_token(self, expected_kind: Token.Kind | None) -> None:
         """
@@ -1018,6 +1022,7 @@ class BaseParser(ABC):
 
         This will, for example, include backtracking errors, if any occurred previously.
         """
+        self._synchronize_lexer_and_tokenizer()
         if at_position is None:
             at_position = self.tokenizer.next_token(peek=True)
 
