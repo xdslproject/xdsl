@@ -9,12 +9,12 @@ import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, auto
 from io import StringIO
 from typing import Any, NoReturn, TypeVar, Iterable, IO, cast
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Span, StringLiteral
+from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
@@ -431,6 +431,12 @@ class BaseParser(ABC):
     parsing of region completes)
     """
 
+    lexer: Lexer
+    tokenizer: Tokenizer
+
+    _current_token: Token
+    """Token at the current location"""
+
     T_ = TypeVar("T_")
     """
     Type var used for handling function that return single or multiple Spans.
@@ -445,11 +451,65 @@ class BaseParser(ABC):
                  name: str = '<unknown>',
                  allow_unregistered_ops: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
+        self.lexer = Lexer(Input(input, name))
+        self._current_token = self.lexer.lex()
         self.ctx = ctx
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
         self.allow_unregistered_ops = allow_unregistered_ops
+
+    def _synchronize_lexer_and_tokenizer(self):
+        """
+        Advance the lexer and the tokenizer to the same position,
+        which is the maximum of the two.
+        This is used to allow using both the tokenizer and the lexer,
+        to deprecate slowly the tokenizer.
+        """
+        lexer_pos = self._current_token.span.start
+        tokenizer_pos = self.tokenizer.save()
+        pos = max(lexer_pos, tokenizer_pos)
+        self.lexer.pos = pos
+        self.tokenizer.pos = pos
+        self._current_token = self.lexer.lex()
+        # Make sure both point to the same position,
+        # to avoid having problems with `backtracking`.
+        if self._current_token.span.start > self.tokenizer.pos:
+            self.tokenizer.pos = self._current_token.span.start
+
+    def _consume_token(self, expected_kind: Token.Kind | None) -> None:
+        """
+        Advance the lexer to the next token.
+        Additionally check that the current token was of a specific kind,
+        and assert if it was not.
+        For reporting errors if the token was not of the expected kind,
+        use `_parse_token` instead.
+        """
+        if expected_kind is not None:
+            assert self._current_token.kind == expected_kind, "Consumed an unexpected token!"
+        self._current_token = self.lexer.lex()
+
+    def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
+        """
+        If the current token is of the expected kind, consume it and return it.
+        Otherwise, return False.
+        """
+        if self._current_token.kind == expected_kind:
+            current_token = self._current_token
+            self._consume_token(expected_kind)
+            return current_token
+        return None
+
+    def _parse_token(self, expected_kind: Token.Kind, error_msg: str) -> Token:
+        """
+        Parse a specific token, and raise an error if it is not present.
+        Returns the token that was parsed.
+        """
+        if self._current_token.kind != expected_kind:
+            self.raise_error(error_msg, self._current_token.span)
+        current_token = self._current_token
+        self._consume_token(expected_kind)
+        return current_token
 
     def parse_module(self) -> ModuleOp:
         op = self.try_parse_operation()
@@ -563,6 +623,69 @@ class BaseParser(ABC):
             'Expected reference here in the format of `@` (suffix-id | string-literal)',
             ParserCommons.double_colon,
             allow_empty=False)
+
+    class Delimiter(Enum):
+        """
+        Supported delimiters when parsing lists.
+        """
+        PAREN = auto()
+        ANGLE = auto()
+        SQUARE = auto()
+        BRACES = auto()
+
+    def parse_comma_separated_list(self,
+                                   delimiter: Delimiter,
+                                   parse: Callable[[], T_],
+                                   context_msg: str = '') -> list[T_]:
+        """
+        Parses greedily a list of elements separated by commas, and delimited
+        by the specified delimiter.
+        The parsing stops when the delimiter is closed, or when an error is
+        produced.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if delimiter == self.Delimiter.PAREN:
+            self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
+            if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
+                return []
+        elif delimiter == self.Delimiter.ANGLE:
+            self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
+            if self._parse_optional_token(Token.Kind.GREATER) is not None:
+                return []
+        elif delimiter == self.Delimiter.SQUARE:
+            self._parse_token(Token.Kind.L_SQUARE,
+                              "Expected '['" + context_msg)
+            if self._parse_optional_token(Token.Kind.R_SQUARE) is not None:
+                return []
+        elif delimiter == self.Delimiter.BRACES:
+            self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
+            if self._parse_optional_token(Token.Kind.R_BRACE) is not None:
+                return []
+        else:
+            assert False, "Unknown delimiter"
+
+        self._synchronize_lexer_and_tokenizer()
+        elems = [parse()]
+        self._synchronize_lexer_and_tokenizer()
+        while self._parse_optional_token(Token.Kind.COMMA) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            elems.append(parse())
+            self._synchronize_lexer_and_tokenizer()
+
+        if delimiter == self.Delimiter.PAREN:
+            self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
+        elif delimiter == self.Delimiter.ANGLE:
+            self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
+        elif delimiter == self.Delimiter.SQUARE:
+            self._parse_token(Token.Kind.R_SQUARE,
+                              "Expected ']'" + context_msg)
+        elif delimiter == self.Delimiter.BRACES:
+            self._parse_token(Token.Kind.R_BRACE, "Expected '}'" + context_msg)
+        else:
+            assert False, "Unknown delimiter"
+
+        self._synchronize_lexer_and_tokenizer()
+        return elems
 
     def parse_list_of(self,
                       try_parse: Callable[[], T_ | None],
@@ -899,6 +1022,7 @@ class BaseParser(ABC):
 
         This will, for example, include backtracking errors, if any occurred previously.
         """
+        self._synchronize_lexer_and_tokenizer()
         if at_position is None:
             at_position = self.tokenizer.next_token(peek=True)
 
