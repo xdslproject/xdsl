@@ -287,6 +287,15 @@ func.func() ["function_type" = !fun<[!f64], [!f32]>, "sym_name" = "truncfop"] {
 // CHECK:   %{{.*}} !f32 = arith.truncf(%{{.*}} : !f64)
 
 
+func.func() ["function_type" = !fun<[!f64, !f64], [!i1]>, "sym_name" = "cmpf"] {
+^12(%39 : !f64, %40 : !f64):
+  %41 : !i1 = arith.cmpf(%39 : !f64, %40 : !f64) ["predicate" = 2 : !i64]
+  func.return(%41 : !i1)
+}
+
+// CHECK:   %{{.*}} !i1 = arith.cmpf(%{{.*}} : !f64, %{{.*}} : !f64)  ["predicate" = 2 : !i64]
+
+
 // fastmath single flag set
 func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_reassoc", "fastmath" = !arith.fastmath<reassoc>] {}
 // CHECK:   "fastmath" = !arith.fastmath<reassoc>

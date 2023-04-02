@@ -475,6 +475,95 @@ class Cmpi(Operation):
 
 
 @irdl_op_definition
+class Cmpf(Operation):
+    """
+    The cmpf operation compares its two operands according to the float
+    comparison rules and the predicate specified by the respective attribute.
+    The predicate defines the type of comparison: (un)orderedness, (in)equality
+    and signed less/greater than (or equal to) as well as predicates that are
+    always true or false.  The operands must have the same type, and this type
+    must be a float type, or a vector or tensor thereof.  The result is an i1,
+    or a vector/tensor thereof having the same shape as the inputs. Unlike cmpi,
+    the operands are always treated as signed. The u prefix indicates
+    *unordered* comparison, not unsigned comparison, so "une" means unordered or
+    not equal. For the sake of readability by humans, custom assembly form for
+    the operation uses a string-typed attribute for the predicate.  The value of
+    this attribute corresponds to lower-cased name of the predicate constant,
+    e.g., "one" means "ordered not equal".  The string representation of the
+    attribute is merely a syntactic sugar and is converted to an integer
+    attribute by the parser.
+
+    Example:
+
+    %r1 = arith.cmpf oeq, %0, %1 : f32
+    %r2 = arith.cmpf ult, %0, %1 : tensor<42x42xf64>
+    %r3 = "arith.cmpf"(%0, %1) {predicate: 0} : (f8, f8) -> i1
+    """
+    name: str = "arith.cmpf"
+    predicate: OpAttr[AnyIntegerAttr]
+    lhs: Annotated[Operand, floatingPointLike]
+    rhs: Annotated[Operand, floatingPointLike]
+    result: Annotated[OpResult, IntegerType(1)]
+
+    @staticmethod
+    def _test_equality_of_operand_types(operand1: SSAValue,
+                                        operand2: SSAValue):
+        if operand1.typ == operand2.typ:
+          return True
+        return False
+
+    @staticmethod
+    def get(operand1: SSAValue | Operation,
+            operand2: SSAValue | Operation, arg: int) -> Cmpf:
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+        
+        if not Cmpf._test_equality_of_operand_types(operand1, operand2):
+            raise TypeError(f"Cmpf operands must have same type, but "
+                            f"provided {operand1.typ} and {operand2.typ}")
+
+        return Cmpf.build(
+            operands=[operand1, operand2],
+            result_types=[IntegerType(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
+
+    @staticmethod
+    def from_mnemonic(operand1: SSAValue | Operation,
+                      operand2: SSAValue | Operation, mnemonic: str) -> Cmpf:
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+        
+        if not Cmpf._test_equality_of_operand_types(operand1, operand2):
+            raise TypeError(f"Cmpf operands must have same type, but "
+                            f"provided {operand1.typ} and {operand2.typ}")
+
+        match mnemonic:
+            case "eq":
+                arg: int = 0
+            case "ne":
+                arg: int = 1
+            case "slt":
+                arg: int = 2
+            case "sle":
+                arg: int = 3
+            case "sgt":
+                arg: int = 4
+            case "sge":
+                arg: int = 5
+            case "ult":
+                arg: int = 6
+            case "ule":
+                arg: int = 7
+            case "ugt":
+                arg: int = 8
+            case "uge":
+                arg: int = 9
+            case _:
+                raise VerifyException(f"unknown cmpf mnemonic: {mnemonic}")
+        return Cmpf.get(operand1, operand2, arg)
+
+
+@irdl_op_definition
 class Select(Operation):
     """
     The `arith.select` operation chooses one value based on a binary condition
@@ -758,6 +847,7 @@ Arith = Dialect([
 
         # Comparison/Condition
         Cmpi,
+        Cmpf,
         Select,
 
         # Logical
