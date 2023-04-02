@@ -18,6 +18,8 @@ mlir-opt --lower-affine --arith-expand --convert-scf-to-cf --convert-vector-to-l
 # Use above obtained LLVM IR files and libmlir_c_runner_utils to get the resultant executable (using default clang in the system).
 if [[ $CI_RUN == 1 ]];
 then
+    # Update links used by dynamic loader.
+    sudo ldconfig
     # Use the built clang version in CI container for supporting opaque pointers.
     ${GITHUB_WORKSPACE}/llvm-project/build/bin/clang -O3 laplace_xdsl_oec.ll laplace_xdsl_ll.ll laplace_oec.ll -o laplace_benchmark -L${GITHUB_WORKSPACE}/llvm-project/build/lib/ -lmlir_c_runner_utils
 else
