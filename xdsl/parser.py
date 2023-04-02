@@ -885,7 +885,7 @@ class BaseParser(ABC):
         self._parse_token(Token.Kind.LESS, "Expected '<' for attribute body!")
 
         start_pos = self._current_token.span.start
-        end_pos: int
+        end_pos: int = start_pos
 
         symbols_stack = [Token.Kind.LESS]
         parentheses = {
