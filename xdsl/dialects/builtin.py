@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 from dataclasses import dataclass
 from enum import Enum
@@ -926,8 +927,13 @@ class UnrealizedConversionCastOp(Operation):
         )
 
 
-@irdl_op_definition
-class UnregisteredOp(Operation):
+class UnregisteredOp(Operation, ABC):
+    """
+    An unregistered operation.
+    
+    Each unregistered op is registered as a subclass of `UnregisteredOp`,
+    and op with different names have distinct subclasses.
+    """
     name: str = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
@@ -941,6 +947,11 @@ class UnregisteredOp(Operation):
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
+        """
+        Return a new unregistered operation type given a name.
+        This function should not be called directly. Use methods from
+        `MLContext` to get an `UnregisteredOp` type.
+        """
 
         class UnregisteredOpWithName(UnregisteredOp):
 
@@ -956,7 +967,76 @@ class UnregisteredOp(Operation):
                 op.attributes['op_name__'] = StringAttr(name)
                 return op
 
-        return UnregisteredOpWithName
+        return irdl_op_definition(UnregisteredOpWithName)
+
+
+@irdl_attr_definition
+class UnregisteredAttr(ParametrizedAttribute, ABC):
+    """
+    An unregistered attribute or type.
+    
+    Each unregistered attribute is registered as a subclass of
+    `UnregisteredAttr`, and attribute with different names have 
+    distinct subclasses.
+    
+    Since attributes do not have a generic format, unregistered
+    attributes represent their original parameters as a string,
+    which is exactly the content parsed from the textual
+    representation.
+    """
+    name: str = "builtin.unregistered"
+
+    attr_name: ParameterDef[StringAttr]
+    is_type: ParameterDef[IntAttr]
+    value: ParameterDef[StringAttr]
+    """
+    This parameter is non-null is the attribute is a type, and null otherwise.
+    """
+
+    def __init__(self, attr_name: str | StringAttr, is_type: bool | IntAttr,
+                 value: str | StringAttr):
+        if isinstance(attr_name, str):
+            attr_name = StringAttr(attr_name)
+        if isinstance(is_type, bool):
+            is_type = IntAttr(int(is_type))
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__([attr_name, is_type, value])
+
+    @classmethod
+    def with_name_and_type(cls, name: str,
+                           is_type: bool) -> type[UnregisteredAttr]:
+        """
+        Return a new unregistered attribute type given a name and a 
+        boolean indicating if the attribute can be a type.
+        This function should not be called directly. Use methods from
+        `MLContext` to get an `UnregisteredAttr` type.
+        """
+
+        class UnregisteredAttrWithName(UnregisteredAttr):
+
+            def verify(self):
+                if self.attr_name.data != name:
+                    raise VerifyException(
+                        "Unregistered attribute name mismatch")
+                if self.is_type.data != int(is_type):
+                    raise VerifyException(
+                        "Unregistered attribute is_type mismatch")
+
+        class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
+
+            def verify(self):
+                if self.attr_name.data != name:
+                    raise VerifyException(
+                        "Unregistered attribute name mismatch")
+                if self.is_type.data != int(is_type):
+                    raise VerifyException(
+                        "Unregistered attribute is_type mismatch")
+
+        if is_type:
+            return UnregisteredAttrWithName
+        else:
+            return UnregisteredAttrTypeWithName
 
 
 @irdl_op_definition
@@ -995,6 +1075,9 @@ Builtin = Dialect(
         UnrealizedConversionCastOp,
     ],
     [
+        UnregisteredAttr,
+
+        # Attributes
         StringAttr,
         SymbolRefAttr,
         SymbolNameAttr,
