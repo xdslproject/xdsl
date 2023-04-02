@@ -1,7 +1,7 @@
 import pytest
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 
-from xdsl.ir import MLContext, MLIRType, ParametrizedAttribute
+from xdsl.ir import MLContext, TypeAttribute, ParametrizedAttribute
 from xdsl.irdl import irdl_op_definition, irdl_attr_definition, Operation
 
 
@@ -86,7 +86,7 @@ def test_get_attr_unregistered(is_type: bool):
     assert attr is not None
     assert issubclass(attr, UnregisteredAttr)
     if is_type:
-        assert issubclass(attr, MLIRType)
+        assert issubclass(attr, TypeAttribute)
 
     assert ctx.get_attr("dummy_attr",
                         allow_unregistered=True,
@@ -96,4 +96,4 @@ def test_get_attr_unregistered(is_type: bool):
                      allow_unregistered=True,
                      create_unregistered_as_type=is_type), UnregisteredAttr)
     if is_type:
-        assert issubclass(attr, MLIRType)
+        assert issubclass(attr, TypeAttribute)

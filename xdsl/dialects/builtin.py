@@ -1023,7 +1023,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
                     raise VerifyException(
                         "Unregistered attribute is_type mismatch")
 
-        class UnregisteredAttrTypeWithName(UnregisteredAttr, MLIRType):
+        class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
 
             def verify(self):
                 if self.attr_name.data != name:
