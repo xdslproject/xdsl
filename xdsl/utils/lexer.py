@@ -6,7 +6,7 @@ import ast
 from dataclasses import dataclass, field
 from io import StringIO
 from enum import Enum, auto
-from typing import cast
+from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast
 from string import hexdigits
 
 from xdsl.utils.exceptions import ParseError
@@ -168,48 +168,99 @@ class Token:
 
     class Kind(Enum):
         # Markers
-        EOF = auto()
+        EOF = object()
 
         # Identifiers
-        BARE_IDENT = auto()
+        BARE_IDENT = object()
         """bare-id ::= (letter|[_]) (letter|digit|[_$.])*"""
-        AT_IDENT = auto()  # @foo
+        AT_IDENT = object()  # @foo
         """at-ident ::= `@` (bare-id | string-literal)"""
-        HASH_IDENT = auto()  # #foo
+        HASH_IDENT = object()  # #foo
         """hash-ident  ::= `#` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-        PERCENT_IDENT = auto()  # %foo
+        PERCENT_IDENT = object()  # %foo
         """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-        CARET_IDENT = auto()  # ^foo
+        CARET_IDENT = object()  # ^foo
         """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-        EXCLAMATION_IDENT = auto()  # !foo
+        EXCLAMATION_IDENT = object()  # !foo
         """exclamation-ident  ::= `!` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
 
         # Literals
-        FLOAT_LIT = auto()  # 1.0
-        INTEGER_LIT = auto()  # 1
-        STRING_LIT = auto()  # "foo"
+        FLOAT_LIT = object()  # 1.0
+        INTEGER_LIT = object()  # 1
+        STRING_LIT = object()  # "foo"
 
         # Punctuation
-        ARROW = auto()  # ->
-        COLON = auto()  # :
-        COMMA = auto()  # ,
-        ELLIPSIS = auto()  # ...
-        EQUAL = auto()  # =
-        GREATER = auto()  # >
-        L_BRACE = auto()  # {
-        L_PAREN = auto()  # (
-        L_SQUARE = auto()  # [
-        LESS = auto()  # <
-        MINUS = auto()  # -
-        PLUS = auto()  # +
-        QUESTION = auto()  # ?
-        R_BRACE = auto()  # }
-        R_PAREN = auto()  # )
-        R_SQUARE = auto()  # ]
-        STAR = auto()  # *
-        VERTICAL_BAR = auto()  # |
-        FILE_METADATA_BEGIN = auto()  # {-#
-        FILE_METADATA_END = auto()  # #-}
+        ARROW = "->"
+        COLON = ":"
+        COMMA = ","
+        ELLIPSIS = "..."
+        EQUAL = "="
+        GREATER = ">"
+        L_BRACE = "{"
+        L_PAREN = "("
+        L_SQUARE = "["
+        LESS = "<"
+        MINUS = "-"
+        PLUS = "+"
+        QUESTION = "?"
+        R_BRACE = "}"
+        R_PAREN = ")"
+        R_SQUARE = "]"
+        STAR = "*"
+        VERTICAL_BAR = "|"
+        FILE_METADATA_BEGIN = "{-#"
+        FILE_METADATA_END = "#-}"
+
+        @staticmethod
+        def get_punctuation_spelling_to_kind_dict() -> dict[str, Token.Kind]:
+            return {
+                "->": Token.Kind.ARROW,
+                ":": Token.Kind.COLON,
+                ",": Token.Kind.COMMA,
+                "...": Token.Kind.ELLIPSIS,
+                "=": Token.Kind.EQUAL,
+                ">": Token.Kind.GREATER,
+                "{": Token.Kind.L_BRACE,
+                "(": Token.Kind.L_PAREN,
+                "[": Token.Kind.L_SQUARE,
+                "<": Token.Kind.LESS,
+                "-": Token.Kind.MINUS,
+                "+": Token.Kind.PLUS,
+                "?": Token.Kind.QUESTION,
+                "}": Token.Kind.R_BRACE,
+                ")": Token.Kind.R_PAREN,
+                "]": Token.Kind.R_SQUARE,
+                "*": Token.Kind.STAR,
+                "|": Token.Kind.VERTICAL_BAR,
+                "{-#": Token.Kind.FILE_METADATA_BEGIN,
+                "#-}": Token.Kind.FILE_METADATA_END,
+            }
+
+        def is_punctuation(self) -> bool:
+            punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict(
+            )
+            return self in punctuation_dict.values()
+
+        @staticmethod
+        def is_spelling_of_punctuation(
+                spelling: str) -> TypeGuard[Token.PunctuationSpelling]:
+            punctuation_dict = \
+                Token.Kind.get_punctuation_spelling_to_kind_dict()
+            return spelling in punctuation_dict.keys()
+
+        @staticmethod
+        def get_punctuation_kind_from_spelling(
+                spelling: Token.PunctuationSpelling) -> Token.Kind:
+            assert Token.Kind.is_spelling_of_punctuation(spelling), \
+            "Kind.get_punctuation_kind_from_spelling: spelling is not a " \
+            "valid punctuation spelling!"
+            return Token.Kind.get_punctuation_spelling_to_kind_dict()[spelling]
+
+    PunctuationSpelling: ClassVar[TypeAlias] = Literal["->", ":", ",", "...",
+                                                       "=", ">", "{", "(", "[",
+                                                       "<", "-", "+", "?", "}",
+                                                       ")", "]", "*", "|",
+                                                       "{-#", "#-}"]
 
     kind: Kind
 
