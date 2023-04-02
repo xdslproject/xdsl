@@ -97,22 +97,52 @@ class MLContext:
                allow_unregistered: bool = False) -> type[Operation]:
         """
         Get an operation class from its name.
-        If the operation is not registered, raise a exception unless
+        If the operation is not registered, raise an exception unless
         allow_unregistered is True, in which case return an UnregisteredOp.
         """
         if op_type := self.get_optional_op(name, allow_unregistered):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
-    def get_optional_attr(self, name: str) -> type[Attribute] | None:
-        """Get an attribute class from its name if it exists."""
-        if name not in self._registeredAttrs:
-            return None
-        return self._registeredAttrs[name]
+    def get_optional_attr(
+            self,
+            name: str,
+            allow_unregistered: bool = False,
+            create_unregistered_as_type: bool = False
+    ) -> type[Attribute] | None:
+        """
+        Get an attribute class from its name if it exists.
+        If the attribute is not registered, return None unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if name in self._registeredAttrs:
+            return self._registeredAttrs[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredAttr
+            attr_type = UnregisteredAttr.with_name_and_type(
+                name, create_unregistered_as_type)
+            self._registeredAttrs[name] = attr_type
+            return attr_type
 
-    def get_attr(self, name: str) -> type[Attribute]:
-        """Get an attribute class from its name."""
-        if attr_type := self.get_optional_attr(name):
+        return None
+
+    def get_attr(self,
+                 name: str,
+                 allow_unregistered: bool = False,
+                 create_unregistered_as_type: bool = False) -> type[Attribute]:
+        """
+        Get an attribute class from its name.
+        If the attribute is not registered, raise an exception unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if attr_type := self.get_optional_attr(name, allow_unregistered,
+                                               create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
