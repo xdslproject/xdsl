@@ -463,22 +463,6 @@ class BaseParser(ABC):
         """
         Advance the lexer and the tokenizer to the same position,
         which is the maximum of the two.
-        """
-        lexer_pos = self.lexer.pos
-        tokenizer_pos = self.tokenizer.save()
-        pos = max(lexer_pos, tokenizer_pos)
-        self.lexer.pos = pos
-        self.tokenizer.pos = pos
-        self._current_token = self.lexer.lex()
-
-    def _consume_token(self) -> None:
-        """Advance the lexer"""
-        self._current_token = self.lexer.lex()
-
-    def _synchronize_lexer_and_tokenizer(self):
-        """
-        Advance the lexer and the tokenizer to the same position,
-        which is the maximum of the two.
         This is used to allow using both the tokenizer and the lexer,
         to deprecate slowly the tokenizer.
         """
@@ -493,7 +477,7 @@ class BaseParser(ABC):
         if self._current_token.span.start > self.tokenizer.pos:
             self.tokenizer.pos = self._current_token.span.start
 
-    def _consume_token(self, expected_kind: Token.Kind | None) -> None:
+    def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
         """
         Advance the lexer to the next token.
         Additionally check that the current token was of a specific kind,
@@ -501,14 +485,16 @@ class BaseParser(ABC):
         For reporting errors if the token was not of the expected kind,
         use `_parse_token` instead.
         """
+        consumed_token = self._current_token
         if expected_kind is not None:
-            assert self._current_token.kind == expected_kind, "Consumed an unexpected token!"
+            assert consumed_token.kind == expected_kind, "Consumed an unexpected token!"
         self._current_token = self.lexer.lex()
+        return consumed_token
 
     def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
         """
         If the current token is of the expected kind, consume it and return it.
-        Otherwise, return False.
+        Otherwise, return None.
         """
         if self._current_token.kind == expected_kind:
             current_token = self._current_token
@@ -526,6 +512,13 @@ class BaseParser(ABC):
         current_token = self._current_token
         self._consume_token(expected_kind)
         return current_token
+
+    def _parse_optional_token_in(
+            self, expected_kinds: Iterable[Token.Kind]) -> Token | None:
+        """Parse one of the expected tokens if present, and returns it."""
+        if self._current_token.kind not in expected_kinds:
+            return None
+        return self._consume_token()
 
     def parse_module(self) -> ModuleOp:
         op = self.try_parse_operation()
@@ -889,12 +882,10 @@ class BaseParser(ABC):
         string for `<`, `(`, `[`, `{`, and may contain string literals.
         """
         self._synchronize_lexer_and_tokenizer()
-        if self._current_token.kind != Token.Kind.LESS:
-            self.raise_error("Expected `<` for attribute body!",
-                             self._current_token.span)
-        self._consume_token()
+        self._parse_token(Token.Kind.LESS, "Expected '<' for attribute body!")
+
         start_pos = self._current_token.span.start
-        end_pos = self._current_token.span.start
+        end_pos: int
 
         symbols_stack = [Token.Kind.LESS]
         parentheses = {
@@ -910,10 +901,16 @@ class BaseParser(ABC):
             Token.Kind.R_BRACE: '`}`'
         }
         while True:
-            if self._current_token.kind in parentheses.values():
-                symbols_stack.append(self._current_token.kind)
-            elif self._current_token.kind in parentheses.keys():
-                closing = parentheses[self._current_token.kind]
+            # Opening a new parenthesis
+            if (token := self._parse_optional_token_in(
+                    parentheses.values())) is not None:
+                symbols_stack.append(token.kind)
+                continue
+
+            # Closing a parenthesis
+            if (token := self._parse_optional_token_in(
+                    parentheses.keys())) is not None:
+                closing = parentheses[token.kind]
                 if symbols_stack[-1] != closing:
                     self.raise_error(
                         "Mismatched {} in attribute body!".format(
@@ -922,15 +919,21 @@ class BaseParser(ABC):
                 symbols_stack.pop()
                 if len(symbols_stack) == 0:
                     break
+                end_pos = self._current_token.span.start
+                continue
 
-            elif self._current_token.kind == Token.Kind.EOF:  # type: ignore
-                self.raise_error("Unexpected end of file in attribute body!")
+            # Checking for unexpected EOF
+            if self._parse_optional_token(Token.Kind.EOF) is not None:
+                self.raise_error(
+                    "Unexpected end of file before closing of attribute body!")
 
+            # Other tokens
             end_pos = self._current_token.span.end
             self._consume_token()
 
         body = self.lexer.input.slice(start_pos, end_pos)
         assert body is not None
+        self._synchronize_lexer_and_tokenizer()
         return body
 
     @abstractmethod
