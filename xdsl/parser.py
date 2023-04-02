@@ -155,57 +155,6 @@ class Tokenizer:
         """
         self.pos = save
 
-    @contextlib.contextmanager
-    def backtracking(self, region_name: str | None = None):
-        """
-        This context manager can be used to mark backtracking regions.
-
-        When an error is thrown during backtracking, it is recorded and stored together
-        with some meta information in the history attribute.
-
-        The backtracker accepts the following exceptions:
-        - ParseError: signifies that the region could not be parsed because of
-          (unexpected) syntax errors
-        - AssertionError: this error should probably be phased out in favour
-          of the two above
-        - EOFError: signals that EOF was reached unexpectedly
-
-        Any other error will be printed to stderr, but backtracking will continue
-        as normal.
-        """
-        save = self.save()
-        starting_position = self.pos
-        try:
-            yield
-            # Clear error history when something doesn't fail
-            # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure,
-            # something has been parsed (we assume)
-            if self.pos > starting_position and self.history is not None:
-                self.history = None
-        except Exception as ex:
-            how_far_we_got = self.pos
-
-            # If we have no error history, start recording!
-            if not self.history:
-                self.history = self._history_entry_from_exception(
-                    ex, region_name, how_far_we_got)
-
-            # If we got further than on previous attempts
-            elif how_far_we_got > self.history.get_farthest_point():
-                # Throw away history
-                self.history = None
-                # Generate new history entry,
-                self.history = self._history_entry_from_exception(
-                    ex, region_name, how_far_we_got)
-
-            # Otherwise, add to exception, if we are in a named region
-            elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.history = self._history_entry_from_exception(
-                    ex, region_name, how_far_we_got)
-
-            self.resume_from(save)
-
     def _history_entry_from_exception(self, ex: Exception, region: str | None,
                                       pos: int) -> BacktrackingHistory:
         """
@@ -460,6 +409,72 @@ class BaseParser(ABC):
         self.forward_block_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
 
+    def resume_from(self, pos: int):
+        """
+        Resume parsing from a given position.
+        """
+        self.tokenizer.pos = pos
+        self.lexer.pos = pos
+        self._current_token = self.lexer.lex()
+
+    @contextlib.contextmanager
+    def backtracking(self, region_name: str | None = None):
+        """
+        This context manager can be used to mark backtracking regions.
+
+        When an error is thrown during backtracking, it is recorded and stored together
+        with some meta information in the history attribute.
+
+        The backtracker accepts the following exceptions:
+        - ParseError: signifies that the region could not be parsed because of
+          (unexpected) syntax errors
+        - AssertionError: this error should probably be phased out in favour
+          of the two above
+        - EOFError: signals that EOF was reached unexpectedly
+
+        Any other error will be printed to stderr, but backtracking will continue
+        as normal.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        save = self.tokenizer.save()
+        starting_position = self.tokenizer.pos
+        try:
+            yield
+            # Clear error history when something doesn't fail
+            # This is because we are only interested in the last "cascade" of failures.
+            # If a backtracking() completes without failure,
+            # something has been parsed (we assume)
+            if self.tokenizer.pos > starting_position and self.tokenizer.history is not None:
+                self.tokenizer.history = None
+        except Exception as ex:
+            how_far_we_got = self.tokenizer.pos
+
+            # If we have no error history, start recording!
+            if not self.tokenizer.history:
+                self.tokenizer.history = (
+                    self.tokenizer.
+                    _history_entry_from_exception(  # type: ignore
+                        ex, region_name, how_far_we_got))
+
+            # If we got further than on previous attempts
+            elif how_far_we_got > self.tokenizer.history.get_farthest_point():
+                # Throw away history
+                self.tokenizer.history = None
+                # Generate new history entry,
+                self.tokenizer.history = (
+                    self.tokenizer.
+                    _history_entry_from_exception(  # type: ignore
+                        ex, region_name, how_far_we_got))
+
+            # Otherwise, add to exception, if we are in a named region
+            elif region_name is not None and how_far_we_got - starting_position > 0:
+                self.tokenizer.history = (
+                    self.tokenizer.
+                    _history_entry_from_exception(  # type: ignore
+                        ex, region_name, how_far_we_got))
+
+            self.resume_from(save)
+
     def _synchronize_lexer_and_tokenizer(self):
         """
         Advance the lexer and the tokenizer to the same position,
@@ -618,7 +633,7 @@ class BaseParser(ABC):
         return args
 
     def try_parse_single_reference(self) -> Span | None:
-        with self.tokenizer.backtracking('part of a reference'):
+        with self.backtracking('part of a reference'):
             self.parse_characters('@', "references must start with `@`")
             if (reference := self.try_parse_string_literal()) is not None:
                 return reference
@@ -785,7 +800,7 @@ class BaseParser(ABC):
             ParserCommons.boolean_literal)
 
     def try_parse_value_id_and_type(self) -> tuple[Span, Attribute] | None:
-        with self.tokenizer.backtracking("value id and type"):
+        with self.backtracking("value id and type"):
             value_id = self.try_parse_value_id()
 
             if value_id is None:
@@ -816,7 +831,7 @@ class BaseParser(ABC):
         if kind is None:
             return None
 
-        with self.tokenizer.backtracking("dialect attribute or type"):
+        with self.backtracking("dialect attribute or type"):
             self.tokenizer.consume_peeked(kind)
             if kind.text == '!':
                 return self._parse_dialect_type_or_attribute_inner('type')
@@ -829,7 +844,7 @@ class BaseParser(ABC):
         """
         if not self.tokenizer.starts_with('!'):
             return None
-        with self.tokenizer.backtracking("dialect type"):
+        with self.backtracking("dialect type"):
             self.parse_characters('!', "Dialect type must start with a `!`")
             return self._parse_dialect_type_or_attribute_inner('type')
 
@@ -839,7 +854,7 @@ class BaseParser(ABC):
         """
         if not self.tokenizer.starts_with('#'):
             return None
-        with self.tokenizer.backtracking("dialect attribute"):
+        with self.backtracking("dialect attribute"):
             self.parse_characters('#',
                                   "Dialect attribute must start with a `#`")
             return self._parse_dialect_type_or_attribute_inner('attribute')
@@ -1121,7 +1136,7 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     def try_parse_operation(self) -> Operation | None:
-        with self.tokenizer.backtracking("operation"):
+        with self.backtracking("operation"):
             return self.parse_operation()
 
     def parse_operation(self) -> Operation:
@@ -1274,7 +1289,7 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     def try_parse_attribute(self) -> Attribute | None:
-        with self.tokenizer.backtracking("attribute"):
+        with self.backtracking("attribute"):
             return self.parse_attribute()
 
     def _parse_attribute_type(self) -> Attribute:
@@ -1390,8 +1405,7 @@ class BaseParser(ABC):
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)
-        with self.tokenizer.backtracking("Builtin attribute {}".format(
-                name.text)):
+        with self.backtracking("Builtin attribute {}".format(name.text)):
             self.tokenizer.consume_peeked(name)
             parsers = {
                 'dense': self._parse_builtin_dense_attr,
@@ -1528,7 +1542,7 @@ class BaseParser(ABC):
         if bool is not None:
             return bool
 
-        with self.tokenizer.backtracking("built in int attribute"):
+        with self.backtracking("built in int attribute"):
             value = self.expect(
                 self.try_parse_integer_literal,
                 'Integer attribute must start with an integer literal!')
@@ -1543,7 +1557,7 @@ class BaseParser(ABC):
             return IntegerAttr.from_params(int(value.text), type)
 
     def try_parse_builtin_float_attr(self) -> AnyFloatAttr | None:
-        with self.tokenizer.backtracking("float literal"):
+        with self.backtracking("float literal"):
             value = self.expect(
                 self.try_parse_float_literal,
                 "Float attribute must start with a float literal!",
@@ -1572,7 +1586,7 @@ class BaseParser(ABC):
         if not self.tokenizer.starts_with('"'):
             return None
 
-        with self.tokenizer.backtracking("string literal"):
+        with self.backtracking("string literal"):
             literal = self.try_parse_string_literal()
             if literal is None:
                 self.raise_error("Invalid string literal")
@@ -1581,7 +1595,7 @@ class BaseParser(ABC):
     def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
             return None
-        with self.tokenizer.backtracking("array literal"):
+        with self.backtracking("array literal"):
             self.parse_characters("[", "Array literals must start with `[`")
             attrs = self.parse_list_of(self.try_parse_attribute,
                                        "Expected array entry!")
@@ -1679,7 +1693,7 @@ class BaseParser(ABC):
     def try_parse_function_type(self) -> FunctionType | None:
         if not self.tokenizer.starts_with("("):
             return None
-        with self.tokenizer.backtracking("function type"):
+        with self.backtracking("function type"):
             return self.parse_function_type()
 
     def parse_region_list(self) -> list[Region]:
@@ -1822,7 +1836,7 @@ class MLIRParser(BaseParser):
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        with self.tokenizer.backtracking("builtin type"):
+        with self.backtracking("builtin type"):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:
@@ -1945,7 +1959,7 @@ class XDSLParser(BaseParser):
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        with self.tokenizer.backtracking("builtin type"):
+        with self.backtracking("builtin type"):
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type_xdsl)
             if name is None:
