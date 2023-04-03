@@ -1,14 +1,11 @@
-from io import StringIO
-
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import AnyIntegerAttr, StridedLayoutAttr, i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
+from xdsl.dialects.builtin import StridedLayoutAttr, i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
                                   Load, Store, UnrankedMemrefType,
                                   ExtractAlignedPointerAsIndexOp, Subview,
                                   Cast)
 from xdsl.dialects import builtin, memref, func, arith, scf
-from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 
@@ -259,7 +256,7 @@ def test_memref_subview_constant_parameters():
     assert isinstance(subview.result.typ.layout, StridedLayoutAttr)
     assert isa(subview.result.typ.layout.strides, ArrayAttr[IntAttr])
     out_strides = [i.data for i in subview.result.typ.layout.strides.data]
-    assert out_strides == [100, 10, 1]
+    assert out_strides == [300, 30, 3]
     assert isinstance(subview.result.typ.layout.offset, IntAttr)
     assert subview.result.typ.layout.offset.data == 222
 

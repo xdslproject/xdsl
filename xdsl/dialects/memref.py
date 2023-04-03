@@ -393,6 +393,9 @@ class Subview(Operation):
         for input_size in reversed(source_shape[1:]):
             layout_strides.insert(0, layout_strides[0] * input_size)
 
+        for i in range(len(layout_strides)):
+            layout_strides[i] *= strides[i]
+
         layout_offset = sum([
             stride * offset
             for (stride, offset) in zip(layout_strides, offsets)
