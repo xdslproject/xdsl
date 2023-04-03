@@ -5,7 +5,7 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
                                  Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
-                                 SIToFPOp, ExtFOp, TruncFOp, Cmpf)
+                                 SIToFPOp, ExtFOp, TruncFOp, Cmpf, Negf)
 from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
 from xdsl.utils.exceptions import VerifyException
 
@@ -71,6 +71,17 @@ def test_cast_fp_and_si_ops():
     assert fp.result == si.input
     assert isinstance(si.result.typ, IntegerType)
     assert fp.result.typ == f32
+
+
+def test_negf_op():
+    a = Constant.from_float_and_width(1.0, f32)
+    neg_a = Negf.get(a)
+
+    b = Constant.from_float_and_width(1.0, f64)
+    neg_b = Negf.get(b)
+
+    assert neg_a.result.typ == f32
+    assert neg_b.result.typ == f64
 
 
 def test_extend_truncate_fpops():
