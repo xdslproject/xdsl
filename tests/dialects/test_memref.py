@@ -2,13 +2,14 @@ from io import StringIO
 
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
+from xdsl.dialects.builtin import AnyIntegerAttr, StridedLayoutAttr, i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
                                   Load, Store, UnrankedMemrefType,
                                   ExtractAlignedPointerAsIndexOp, Subview,
                                   Cast)
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 
 
 def test_memreftype():
@@ -243,6 +244,24 @@ def test_memref_subview():
     assert subview.static_sizes is static_sizes
     assert subview.static_strides is static_strides
     assert subview.result.typ is res_memref_type
+
+
+def test_memref_subview_constant_parameters():
+    element_type = i32
+    shape: list[int] = [10, 10, 10]
+    alloc = Alloc.get(element_type, 8, list(shape))
+
+    subview = Subview.from_static_parameters(alloc, element_type, shape,
+                                             [2, 2, 2], [2, 2, 2], [3, 3, 3])
+
+    assert isinstance(subview, Subview)
+    assert isinstance(subview.result.typ, MemRefType)
+    assert isinstance(subview.result.typ.layout, StridedLayoutAttr)
+    assert isa(subview.result.typ.layout.strides, ArrayAttr[IntAttr])
+    out_strides = [i.data for i in subview.result.typ.layout.strides.data]
+    assert out_strides == [100, 10, 1]
+    assert isinstance(subview.result.typ.layout.offset, IntAttr)
+    assert subview.result.typ.layout.offset.data == 222
 
 
 def test_memref_cast():

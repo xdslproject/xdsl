@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Sequence, TypeVar, Optional, List, TypeAlias, cast
 
-from xdsl.dialects.builtin import (DenseIntOrFPElementsAttr, IntegerAttr,
-                                   DenseArrayBase, IndexType, ArrayAttr,
-                                   IntegerType, NoneAttr, SymbolRefAttr,
-                                   StringAttr, UnitAttr)
+from xdsl.dialects.builtin import (AnyIntegerAttr, DenseIntOrFPElementsAttr,
+                                   IntegerAttr, DenseArrayBase, IndexType,
+                                   StridedLayoutAttr, ArrayAttr, NoneAttr,
+                                   SymbolRefAttr, i64, StringAttr, UnitAttr)
 from xdsl.ir import (TypeAttribute, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
@@ -18,8 +18,6 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
-
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
@@ -378,6 +376,46 @@ class Subview(Operation):
     result: Annotated[OpResult, MemRefType]
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def from_static_parameters(
+        source: SSAValue | Operation,
+        source_element_type: Attribute,
+        source_shape: Sequence[int],
+        offsets: Sequence[int],
+        sizes: Sequence[int],
+        strides: Sequence[int],
+    ) -> Subview:
+
+        source = SSAValue.get(source)
+
+        layout_strides = [1]
+        for input_size in reversed(source_shape[1:]):
+            layout_strides.insert(0, layout_strides[0] * input_size)
+
+        layout_offset = sum([
+            stride * offset
+            for (stride, offset) in zip(layout_strides, offsets)
+        ])
+
+        layout = StridedLayoutAttr(layout_strides, layout_offset)
+
+        return_typ = MemRefType.from_element_type_and_shape(
+            source_element_type,
+            sizes,
+            layout,
+        )
+
+        return Subview.build(operands=[source, [], [], []],
+                             result_types=[return_typ],
+                             attributes={
+                                 "static_offsets":
+                                 DenseArrayBase.from_list(i64, offsets),
+                                 "static_sizes":
+                                 DenseArrayBase.from_list(i64, sizes),
+                                 "static_strides":
+                                 DenseArrayBase.from_list(i64, strides)
+                             })
 
 
 @irdl_op_definition
