@@ -125,9 +125,10 @@ class Tokenizer:
     The position in the input. Points to the first unconsumed character.
     """
 
-    _break_on: tuple[str, ...] = ('.', '%', ' ', '(', ')', '[', ']', '{', '}',
-                                  '<', '>', ':', '=', '@', '?', '|', '->', '-',
-                                  '//', '\n', '\t', '#', '"', "'", ',', '!')
+    _break_on: tuple[str,
+                     ...] = ('.', '%', ' ', '(', ')', '[', ']', '{', '}', '<',
+                             '>', ':', '=', '@', '?', '|', '->', '-', '//',
+                             '\n', '\t', '#', '"', "'", ',', '!', '+', '*')
     """
     characters the tokenizer should break on
     """
@@ -1828,6 +1829,42 @@ class BaseParser(ABC):
     def try_parse_builtin_dict_attr(self):
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
+
+    def parse_optional_punctuation(
+        self, punctuation: Token.PunctuationSpelling
+    ) -> Token.PunctuationSpelling | None:
+        """
+        Parse a punctuation, if it is present. Otherwise, return None.
+        Punctuations are defined by `Token.PunctuationSpelling`.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        # This check is only necessary to catch errors made by users that
+        # are not using pyright.
+        assert Token.Kind.is_spelling_of_punctuation(punctuation), \
+          "'parse_optional_punctuation' must be " \
+          "called with a valid punctuation"
+        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
+        if self._parse_optional_token(kind) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return punctuation
+        return None
+
+    def parse_punctuation(self,
+                          punctuation: Token.PunctuationSpelling,
+                          context_msg: str = '') -> Token.PunctuationSpelling:
+        """
+        Parse a punctuation. Punctuations are defined by
+        `Token.PunctuationSpelling`.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        # This check is only necessary to catch errors made by users that
+        # are not using pyright.
+        assert Token.Kind.is_spelling_of_punctuation(punctuation), \
+            "'parse_punctuation' must be called with a valid punctuation"
+        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
+        self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
+        self._synchronize_lexer_and_tokenizer()
+        return punctuation
 
 
 class MLIRParser(BaseParser):
