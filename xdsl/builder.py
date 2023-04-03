@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import TracebackType
 
-from typing import Callable, ClassVar, TypeAlias, overload
+from typing import Callable, ClassVar, Sequence, TypeAlias, overload
 import threading
 import contextlib
 
@@ -54,7 +54,7 @@ class Builder:
 
     @staticmethod
     def _region_args(
-        input_types: list[Attribute] | ArrayAttr[Attribute]
+        input_types: Sequence[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -62,12 +62,10 @@ class Builder:
         """
 
         if isinstance(input_types, ArrayAttr):
-            input_type_seq = input_types.data
-        else:
-            input_type_seq = input_types
+            input_types = input_types.data
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_type_seq)
+            block = Block.from_arg_types(input_types)
             builder = Builder(block)
 
             func(builder, block.args)
@@ -80,7 +78,7 @@ class Builder:
     @overload
     @staticmethod
     def region(
-        input: list[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -109,7 +107,7 @@ class Builder:
 
     @staticmethod
     def region(
-        input: list[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute]
         | Callable[[Builder], None]
     ) -> Callable[[_CallableRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
@@ -132,7 +130,7 @@ class Builder:
 
     @staticmethod
     def _implicit_region_args(
-        input_types: list[Attribute] | ArrayAttr[Attribute]
+        input_types: Sequence[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -140,12 +138,10 @@ class Builder:
         """
 
         if isinstance(input_types, ArrayAttr):
-            input_type_seq = input_types.data
-        else:
-            input_type_seq = input_types
+            input_types = input_types.data
 
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_type_seq)
+            block = Block.from_arg_types(input_types)
             builder = Builder(block)
 
             with _ImplicitBuilder(builder):
@@ -159,7 +155,7 @@ class Builder:
     @overload
     @staticmethod
     def implicit_region(
-        input: list[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute]
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -188,7 +184,7 @@ class Builder:
 
     @staticmethod
     def implicit_region(
-        input: list[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute]
         | Callable[[], None]
     ) -> Callable[[_CallableImplicitRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
