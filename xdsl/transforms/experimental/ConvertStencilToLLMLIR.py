@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar, Any
+from typing import TypeVar
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
