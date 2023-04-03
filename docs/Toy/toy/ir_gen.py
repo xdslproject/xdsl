@@ -183,7 +183,7 @@ class IRGen:
         func = self.builder.insert(
             FuncOp.from_region(function_ast.proto.name,
                                func_type,
-                               Region.from_block_list([block]),
+                               Region([block]),
                                private=private))
 
         return func

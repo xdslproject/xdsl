@@ -10,7 +10,7 @@ def test_for():
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
     bodyblock = Block.from_arg_types([IndexType()])
-    body = Region.from_block_list([bodyblock])
+    body = Region([bodyblock])
     f = For.get(lb, ub, step, [carried], body)
 
     assert f.lb is lb.result
@@ -39,7 +39,7 @@ def test_parallel():
     sj = Constant.from_int_and_width(3, IndexType())
     sk = Constant.from_int_and_width(8, IndexType())
 
-    body = Region.from_block_list([])
+    body = Region()
 
     lowerBounds = [lbi, lbj, lbk]
     upperBounds = [ubi, ubj, ubk]
