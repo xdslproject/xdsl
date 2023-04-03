@@ -6,7 +6,7 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
                                  Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
                                  SIToFPOp, ExtFOp, TruncFOp, Cmpf)
-from xdsl.dialects.builtin import i32, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
 
 
 class Test_integer_arith_construction:
@@ -34,7 +34,7 @@ class Test_integer_arith_construction:
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
     def test_Cmpi_from_mnemonic(self, input):
-        _ = Cmpi.from_mnemonic(self.a, self.b, input)
+        _ = Cmpi.get(self.a, self.b, input)
 
 
 class Test_float_arith_construction:
@@ -87,20 +87,20 @@ def test_extend_truncate_fpops():
 def test_cmpf_from_mnemonic():
     a = Constant.from_float_and_width(1.0, f64)
     b = Constant.from_float_and_width(2.0, f64)
-    cmpi_ops = [None] * 10
+    cmpf_ops = [None] * 10
 
-    cmpi_ops[0] = Cmpf.from_mnemonic(a, b, "eq")
-    cmpi_ops[1] = Cmpf.from_mnemonic(a, b, "ne")
-    cmpi_ops[2] = Cmpf.from_mnemonic(a, b, "slt")
-    cmpi_ops[3] = Cmpf.from_mnemonic(a, b, "sle")
-    cmpi_ops[4] = Cmpf.from_mnemonic(a, b, "sgt")
-    cmpi_ops[5] = Cmpf.from_mnemonic(a, b, "sge")
-    cmpi_ops[6] = Cmpf.from_mnemonic(a, b, "ult")
-    cmpi_ops[7] = Cmpf.from_mnemonic(a, b, "ule")
-    cmpi_ops[8] = Cmpf.from_mnemonic(a, b, "ugt")
-    cmpi_ops[9] = Cmpf.from_mnemonic(a, b, "uge")
+    cmpf_ops[0] = Cmpf.get(a, b, "eq")
+    cmpf_ops[1] = Cmpf.get(a, b, "ne")
+    cmpf_ops[2] = Cmpf.get(a, b, "slt")
+    cmpf_ops[3] = Cmpf.get(a, b, "sle")
+    cmpf_ops[4] = Cmpf.get(a, b, "sgt")
+    cmpf_ops[5] = Cmpf.get(a, b, "sge")
+    cmpf_ops[6] = Cmpf.get(a, b, "ult")
+    cmpf_ops[7] = Cmpf.get(a, b, "ule")
+    cmpf_ops[8] = Cmpf.get(a, b, "ugt")
+    cmpf_ops[9] = Cmpf.get(a, b, "uge")
 
-    for index, op in enumerate(cmpi_ops):
+    for index, op in enumerate(cmpf_ops):
         assert op.lhs.typ == f64
         assert op.rhs.typ == f64
         assert op.predicate.value.data == index
@@ -110,11 +110,11 @@ def test_cmpf_get():
     a = Constant.from_float_and_width(1.0, f32)
     b = Constant.from_float_and_width(2.0, f32)
 
-    cmpi_op = Cmpf.get(a, b, 1)
+    cmpf_op = Cmpf.get(a, b, 1)
 
-    assert cmpi_op.lhs.typ == f32
-    assert cmpi_op.rhs.typ == f32
-    assert cmpi_op.predicate.value.data == 1
+    assert cmpf_op.lhs.typ == f32
+    assert cmpf_op.rhs.typ == f32
+    assert cmpf_op.predicate.value.data == 1
 
 
 def test_cmpf_missmatch_type():
@@ -122,6 +122,16 @@ def test_cmpf_missmatch_type():
     b = Constant.from_float_and_width(2.0, f64)
 
     with pytest.raises(TypeError) as e:
-        cmpi_op = Cmpf.get(a, b, 1)
+        cmpf_op = Cmpf.get(a, b, 1)
     assert e.value.args[
-        0] == "Cmpf operands must have same type, but provided !f32 and !f64"
+        0] == "Comparison operands must have same type, but provided !f32 and !f64"
+
+
+def test_cmpi_missmatch_type():
+    a = Constant.from_float_and_width(1, i32)
+    b = Constant.from_float_and_width(2, i64)
+
+    with pytest.raises(TypeError) as e:
+        cmpi_op = Cmpi.get(a, b, 1)
+    assert e.value.args[
+        0] == "Comparison operands must have same type, but provided !i32 and !i64"
