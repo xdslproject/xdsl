@@ -13,6 +13,10 @@ from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArg
 
 @dataclass
 class _ImplicitBuilders(threading.local):
+    """
+    Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
+    default.
+    """
     bb: list[Builder] = field(default_factory=list)
 
 
@@ -183,7 +187,7 @@ class Builder:
         For regions that don't have inputs or outputs:
         ``` python
         @Builder.implicit_region
-        def func(builder: Builder) -> None:
+        def func() -> None:
             ...
         ```
         """
@@ -217,6 +221,10 @@ class Builder:
 
 @dataclass
 class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
+    """
+    Stores the current implicit builder context, consisting of the stack of builders in
+    the current thread, and the current builder.
+    """
 
     bb: list[Builder]
     builder: Builder
