@@ -55,17 +55,17 @@
       %54 = "arith.constant"() {"value" = 4 : index} : () -> index
       %55 = "arith.constant"() {"value" = 4 : index} : () -> index
       %56 = "arith.constant"() {"value" = 4 : index} : () -> index
-      %57 = "arith.addi"(%13, %54) : (index, index) -> index
-      %58 = "arith.addi"(%12, %55) : (index, index) -> index
-      %59 = "arith.addi"(%11, %56) : (index, index) -> index
-      "memref.store"(%53, %4, %57, %58, %59) : (f64, memref<72x72x72xf64>, index, index, index) -> ()
-      %60 = "arith.constant"() {"value" = 4 : index} : () -> index
-      %61 = "arith.constant"() {"value" = 4 : index} : () -> index
-      %62 = "arith.constant"() {"value" = 4 : index} : () -> index
-      %63 = "arith.addi"(%13, %60) : (index, index) -> index
-      %64 = "arith.addi"(%12, %61) : (index, index) -> index
-      %65 = "arith.addi"(%11, %62) : (index, index) -> index
-      "memref.store"(%53, %5, %63, %64, %65) : (f64, memref<72x72x72xf64>, index, index, index) -> ()
+      %57 = "arith.constant"() {"value" = 4 : index} : () -> index
+      %58 = "arith.constant"() {"value" = 4 : index} : () -> index
+      %59 = "arith.constant"() {"value" = 4 : index} : () -> index
+      %60 = "arith.addi"(%13, %54) : (index, index) -> index
+      %61 = "arith.addi"(%12, %55) : (index, index) -> index
+      %62 = "arith.addi"(%11, %56) : (index, index) -> index
+      %63 = "arith.addi"(%13, %57) : (index, index) -> index
+      %64 = "arith.addi"(%12, %58) : (index, index) -> index
+      %65 = "arith.addi"(%11, %59) : (index, index) -> index
+      "memref.store"(%53, %4, %60, %61, %62) : (f64, memref<72x72x72xf64>, index, index, index) -> ()
+      "memref.store"(%52, %5, %63, %64, %65) : (f64, memref<72x72x72xf64>, index, index, index) -> ()
       "scf.yield"() : () -> ()
     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
     "func.return"() : () -> ()

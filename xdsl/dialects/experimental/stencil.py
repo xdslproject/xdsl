@@ -479,7 +479,6 @@ class ReturnOp(Operation):
     """
     name: str = "stencil.return"
     arg: Annotated[VarOperand, ResultType | AnyFloat]
-    # arg: Annotated[Operand, ResultType | AnyFloat]
 
     @staticmethod
     def get(*res: Sequence[SSAValue | Operation]):

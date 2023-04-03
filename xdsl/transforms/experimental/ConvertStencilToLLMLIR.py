@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar, Any
+from typing import TypeVar, Any, List
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
@@ -9,7 +9,7 @@ from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.memref import MemRef, MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
@@ -97,58 +97,12 @@ class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-
-        # parallel = op.parent_op()
-        # assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
-
-        # cast = self.return_target[str(op)]
-
-        # print(self.return_target)
-        # print("\n\n return target above\n")
-        # print(self.return_target[str(op)])
-        # print("\n")
-
-        # assert isinstance(cast, CastOp)
-
-        # offsets = cast.lb
-        # assert isinstance(offsets, IndexAttr)
-
-        # assert (block := op.parent_block()) is not None
-
-        # off_const_ops = [
-        #     arith.Constant.from_int_and_width(-x.value.data,
-        #                                         builtin.IndexType())
-        #     for x in offsets.array.data
-        # ]
-        # off_const_ops.reverse()
-
-        # args = list(block.args)
-        # args.reverse()
-
-        # off_sum_ops = [
-        #     arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
-        # ]
-
-        # # load1 = memref.Store.get(op.arg[0], cast.result, off_sum_ops)
-        # load = [
-        #     memref.Store.get(op.arg[i], cast.result, off_sum_ops) for i in range(len(op.arg))
-        # ]
-        # # load = memref.Store.get(op.arg, cast.result, off_sum_ops)
-
-        # rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, *load])
-
-        off_const_ops = []
-        off_sum_ops = []
-        load = []
+        off_const_ops: List[arith.Constant] = []
+        off_sum_ops: List[arith.Addi] = []
+        load: List[memref.Store] = []
 
         for j in range(len(op.arg)):
-            cast = self.return_target[str(op)*(j+1)]
-
-            # print(self.return_target)
-            # print("\n\n return target above\n")
-            # print(self.return_target[str(op)])
-            # print("\n")
-
+            cast = self.return_target[str(op)+"_result"+str(j)]
             assert isinstance(cast, CastOp)
 
             offsets = cast.lb
@@ -156,61 +110,26 @@ class ReturnOpToMemref(RewritePattern):
 
             assert (block := op.parent_block()) is not None
 
-            off_const_ops1 = [
+            off_const_ops_curr = [
                 arith.Constant.from_int_and_width(-x.value.data,
                                                   builtin.IndexType())
                 for x in offsets.array.data
             ]
-            off_const_ops1.reverse()
-
-            for x in off_const_ops1:
-                off_const_ops.append(x)
+            off_const_ops_curr.reverse()
+            off_const_ops.extend(off_const_ops_curr)
 
             args = list(block.args)
             args.reverse()
 
-            off_sum_ops1 = [
-                arith.Addi.get(i, x) for i, x in zip(args, off_const_ops1)
+            off_sum_ops_curr = [
+                arith.Addi.get(i, x) for i, x in zip(args, off_const_ops_curr)
             ]
+            off_sum_ops.extend(off_sum_ops_curr)
 
-            for x in off_sum_ops1:
-                off_sum_ops.append(x)
+            load_curr = memref.Store.get(op.arg[j], cast.result, off_sum_ops_curr)
+            load.append(load_curr)
 
-            load1 = memref.Store.get(op.arg[j], cast.result, off_sum_ops1)
-            # load1 = [
-            #     memref.Store.get(op.arg[i], cast.result, off_sum_ops) for i in range(len(op.arg))
-            # ]
-
-            load.append(load1)
-            # for x in load1:
-                # load.append(x)
-
-            # load = memref.Store.get(op.arg, cast.result, off_sum_ops)
-
-            # rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, *load])
-        
-        # print(len(off_const_ops))
-        # print("\n")
-        # print(off_const_ops[0] == off_const_ops[3])
-        # print("\n")
-        # print(off_const_ops[0])
-        # print("\n")
-        # print(off_const_ops[3])
-        # print("\n")
-        # print(len(off_sum_ops))
-        # print("\n")
-        # print(len(load))
-
-        # print(load[:3])
-        # print(load[0])
-        # print("\n")
-        # print(load[1])
-        # print("\n")
-
-
-        # rewriter.replace_matched_op([*off_const_ops[3:], *off_sum_ops[3:], *load[1:]])
-        rewriter.insert_op_after_matched_op([*off_const_ops[3:], *off_sum_ops[3:], *load[1:]])
-        rewriter.replace_matched_op([*off_const_ops[:3], *off_sum_ops[:3], *load[:1]])
+        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, *load])
 
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
@@ -410,16 +329,14 @@ def return_target_analysis(module: ModuleOp):
         for i, res in enumerate(list(apply.res)):
             if (len(res.uses) > 1) or (not isinstance(
                 (store := list(res.uses)[0].operation), StoreOp)):
-                warn("Only single store for a single return op atm")
+                warn("Only single store for a single return op result atm")
                 return
 
             cast = store.field.owner
 
             assert isinstance(cast, CastOp)
 
-            return_targets[str(op)*(i+1)] = cast
-            # return_tagets[op].append(cast)
-            # return_targets[op+op] = cast
+            return_targets[str(op)+"_result"+str(i)] = cast
 
     module.walk(map_returns)
 
