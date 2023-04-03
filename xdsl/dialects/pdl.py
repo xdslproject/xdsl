@@ -203,16 +203,13 @@ class OperationOp(Operation):
         if typeValues is None:
             typeValues = []
 
-        attributes: dict[str, Attribute] = {
-            'attributeValueNames': attributeValueNames
-        }
-        if opName is not None:
-            attributes['opName'] = opName
-
         return OperationOp.build(
             operands=[operandValues, attributeValues, typeValues],
             result_types=[OperationType()],
-            attributes=attributes)
+            attributes={
+                "attributeValueNames": attributeValueNames,
+                "opName": opName
+            })
 
 
 @irdl_op_definition
@@ -228,10 +225,10 @@ class PatternOp(Operation):
     @staticmethod
     def get(benefit: IntegerAttr[IntegerType], sym_name: StringAttr | None,
             body: Region) -> PatternOp:
-        attributes: dict[str, Attribute] = {'benefit': benefit}
-        if sym_name is not None:
-            attributes['sym_name'] = sym_name
-        return PatternOp.build(attributes=attributes,
+        return PatternOp.build(attributes={
+            "benefit": benefit,
+            "sym_name": sym_name,
+        },
                                regions=[body],
                                result_types=[])
 
@@ -416,10 +413,8 @@ class TypeOp(Operation):
 
     @staticmethod
     def get(constantType: TypeType | None = None) -> TypeOp:
-        attributes: dict[str, Attribute] = {}
-        if constantType is not None:
-            attributes['constantType'] = constantType
-        return TypeOp.build(attributes=attributes, result_types=[TypeType()])
+        return TypeOp.build(attributes={"constantType": constantType},
+                            result_types=[TypeType()])
 
 
 @irdl_op_definition

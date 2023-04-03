@@ -687,11 +687,11 @@ class AllocateTypeOp(MPIBaseOp):
         count: SSAValue | Operation,
         bindc_name: StringAttr | None = None,
     ) -> AllocateTypeOp:
-        attrs: dict[str, Attribute] = {'dtype': dtype()}
-        if bindc_name is not None:
-            attrs['bindc_name'] = bindc_name
         return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
-                                    attributes=attrs,
+                                    attributes={
+                                        "dtype": dtype(),
+                                        "bindc_name": bindc_name,
+                                    },
                                     operands=[count])
 
 
