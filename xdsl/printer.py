@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
     NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
     ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
-    UnregisteredOp, VectorType, DictionaryAttr)
+    UnregisteredAttr, UnregisteredOp, VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -510,6 +510,12 @@ class Printer:
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
                 self.print(" : ", attribute.type)
+            return
+
+        if isinstance(attribute, UnregisteredAttr):
+            self.print('!' if attribute.is_type.data else '#')
+            self.print(attribute.attr_name.data, '<', attribute.value.data,
+                       '>')
             return
 
         if self.target == self.Target.MLIR:
