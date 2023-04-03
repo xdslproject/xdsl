@@ -12,15 +12,6 @@ from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArg
 
 
 @dataclass
-class _ImplicitBuilders(threading.local):
-    """
-    Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
-    default.
-    """
-    stack: list[Builder] = field(default_factory=list)
-
-
-@dataclass
 class Builder:
     """
     A helper class to construct IRs, by keeping track of where to insert an
@@ -36,14 +27,12 @@ class Builder:
     Operations will be inserted in this block.
     """
 
-    _implicit_builder_stack: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
-
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts `op` in `self.block` at the end of the block.
         """
 
-        implicit_builder = Builder.get_implicit_builder()
+        implicit_builder = _ImplicitBuilder.get_implicit_builder()
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
@@ -136,7 +125,7 @@ class Builder:
         block = Block()
         builder = Builder(block)
 
-        with Builder._push_implicit_builder(builder):
+        with _ImplicitBuilder.push_implicit_builder(builder):
             func()
 
         return Region.from_block_list([block])
@@ -159,7 +148,7 @@ class Builder:
             block = Block.from_arg_types(input_type_seq)
             builder = Builder(block)
 
-            with Builder._push_implicit_builder(builder):
+            with _ImplicitBuilder.push_implicit_builder(builder):
                 func(block.args)
 
             region = Region.from_block_list([block])
@@ -207,15 +196,17 @@ class Builder:
         else:
             return Builder._implicit_region_args(input)
 
-    @classmethod
-    def _push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
-        return _ImplicitBuilder(cls._implicit_builder_stack.stack, builder)
 
-    @classmethod
-    def get_implicit_builder(cls) -> Builder | None:
-        stack = cls._implicit_builder_stack.stack
-        if len(stack):
-            return stack[-1]
+# Implicit builders
+
+
+@dataclass
+class _ImplicitBuilders(threading.local):
+    """
+    Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
+    default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
+    """
+    stack: list[Builder] = field(default_factory=list)
 
 
 @dataclass
@@ -224,6 +215,8 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
     Stores the current implicit builder context, consisting of the stack of builders in
     the current thread, and the current builder.
     """
+
+    _stack: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
 
     stack: list[Builder]
     builder: Builder
@@ -237,6 +230,16 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
         popped = self.stack.pop()
         assert popped is self.builder
 
+    @classmethod
+    def push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
+        return _ImplicitBuilder(cls._stack.stack, builder)
+
+    @classmethod
+    def get_implicit_builder(cls) -> Builder | None:
+        stack = cls._stack.stack
+        if len(stack):
+            return stack[-1]
+
 
 _CallableRegionFuncType: TypeAlias = Callable[
     [Builder, tuple[BlockArgument, ...]], None]
@@ -245,7 +248,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[
 
 
 def _op_init_callback(op: Operation):
-    if (b := Builder.get_implicit_builder()) is not None:
+    if (b := _ImplicitBuilder.get_implicit_builder()) is not None:
         b.insert(op)
 
 
