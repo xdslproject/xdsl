@@ -17,7 +17,7 @@ class _ImplicitBuilders(threading.local):
     Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
     default.
     """
-    bb: list[Builder] = field(default_factory=list)
+    stack: list[Builder] = field(default_factory=list)
 
 
 @dataclass
@@ -210,13 +210,13 @@ class Builder:
 
     @classmethod
     def _push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
-        return _ImplicitBuilder(cls._local.bb, builder)
+        return _ImplicitBuilder(cls._local.stack, builder)
 
     @classmethod
     def get_implicit_builder(cls) -> Builder | None:
-        bb = cls._local.bb
-        if len(bb):
-            return bb[-1]
+        stack = cls._local.stack
+        if len(stack):
+            return stack[-1]
 
 
 @dataclass
@@ -226,16 +226,16 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
     the current thread, and the current builder.
     """
 
-    bb: list[Builder]
+    stack: list[Builder]
     builder: Builder
 
     def __enter__(self) -> None:
-        self.bb.append(self.builder)
+        self.stack.append(self.builder)
 
     def __exit__(self, __exc_type: type[BaseException] | None,
                  __exc_value: BaseException | None,
                  __traceback: TracebackType | None) -> bool | None:
-        popped = self.bb.pop()
+        popped = self.stack.pop()
         assert popped is self.builder
 
 
