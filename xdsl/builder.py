@@ -5,17 +5,15 @@ from typing import Callable, ClassVar, TypeAlias, overload
 import threading
 import contextlib
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from xdsl.dialects.builtin import ArrayAttr
 
 from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
 
 
+@dataclass
 class _ImplicitBuilders(threading.local):
-    bb: list[Builder]
-
-    def __init__(self):
-        self.bb = []
+    bb: list[Builder] = field(default_factory=list)
 
 
 @dataclass
