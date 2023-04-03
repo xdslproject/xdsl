@@ -273,7 +273,7 @@ class ReturnOp(Operation):
 
     @staticmethod
     def from_input(input: SSAValue | None = None) -> ReturnOp:
-        return ReturnOp.create(operands=[input] if input is not None else [])
+        return ReturnOp.build(operands=[input])
 
 
 @irdl_op_definition
