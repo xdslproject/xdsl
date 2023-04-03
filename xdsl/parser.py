@@ -399,7 +399,7 @@ class BaseParser(ABC):
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_ops: bool = False):
+                 allow_unregistered_dialect: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
@@ -407,7 +407,7 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_ops = allow_unregistered_ops
+        self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def resume_from(self, pos: int):
         """
