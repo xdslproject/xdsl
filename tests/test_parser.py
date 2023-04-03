@@ -12,6 +12,8 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
 
+# pyright: reportPrivateUsage=false
+
 
 @pytest.mark.parametrize("input,expected", [("0, 1, 1", [0, 1, 1]),
                                             ("1, 0, 1", [1, 0, 1]),
@@ -243,12 +245,12 @@ def test_get_punctuation_kind(punctuation: Token.Kind):
     list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys()))
 def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     parser = XDSLParser(MLContext(), punctuation)
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
+
+    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
-    parse_token = parser._parse_token  # type: ignore
-    assert parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
+    parser._synchronize_lexer_and_tokenizer()
+    assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
 @pytest.mark.parametrize(
@@ -256,7 +258,7 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys()))
 def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     parser = XDSLParser(MLContext(), 'e +')
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
+    parser._synchronize_lexer_and_tokenizer()
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, ' in test')
     assert e.value.span.text == 'e'
@@ -268,12 +270,11 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys()))
 def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
     parser = XDSLParser(MLContext(), punctuation)
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
+    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
-    parse_token = parser._parse_token  # type: ignore
-    assert parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
+    parser._synchronize_lexer_and_tokenizer()
+    assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
 @pytest.mark.parametrize(
@@ -282,5 +283,5 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
 def test_parse_optional_punctuation_fail(
         punctuation: Token.PunctuationSpelling):
     parser = XDSLParser(MLContext(), 'e +')
-    parser._synchronize_lexer_and_tokenizer()  # type: ignore
+    parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
