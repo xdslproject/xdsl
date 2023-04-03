@@ -3,4 +3,5 @@ toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
+# Remember to update the CI pyright versions when updating this line
 pyright<1.1.300
