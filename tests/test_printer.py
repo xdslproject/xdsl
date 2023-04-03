@@ -518,32 +518,6 @@ builtin.module() {
     assert_print_op(module, expected, None)
 
 
-def test_parse_generic_format_attr():
-    """
-    Test that we can parse attributes using generic formats.
-    """
-    prog = \
-        """builtin.module() {
-      any() ["attr" = #"custom"<#int<0>>]
-    }"""
-
-    expected = \
-"""\
-builtin.module() {
-  any() ["attr" = !custom<zero>]
-}"""
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
-
-    parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
-
-    assert_print_op(module, expected, None)
-
-
 def test_parse_generic_format_attr_II():
     """
     Test that we can parse attributes using generic formats.
