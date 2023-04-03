@@ -164,6 +164,8 @@ class LoadOpShapeInference(RewritePattern):
         assert isinstance(op.res.typ, TempType)
         res_typ: TempType[Attribute] = op.res.typ
 
+        # TODO We need to think about that. Do we want an API for this? Do we just want
+        # to recreate the whole operation?
         op.res.typ = TempType.from_shape(
             IndexAttr.size_from_bounds(op.lb, op.ub),
             res_typ.element_type,
