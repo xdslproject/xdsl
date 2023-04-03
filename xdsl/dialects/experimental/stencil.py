@@ -481,7 +481,7 @@ class ReturnOp(Operation):
     arg: Annotated[VarOperand, ResultType | AnyFloat]
 
     @staticmethod
-    def get(*res: Sequence[SSAValue | Operation]):
+    def get(*res: SSAValue | Operation):
         return ReturnOp.build(operands=[*res])
 
 

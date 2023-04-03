@@ -9,7 +9,7 @@ from xdsl.ir import BlockArgument, MLContext, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.memref import MemRef, MemRefType
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
@@ -100,6 +100,9 @@ class ReturnOpToMemref(RewritePattern):
         off_const_ops: List[arith.Constant] = []
         off_sum_ops: List[arith.Addi] = []
         load: List[memref.Store] = []
+
+        parallel = op.parent_op()
+        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
         for j in range(len(op.arg)):
             cast = self.return_target[str(op)+"_result"+str(j)]
