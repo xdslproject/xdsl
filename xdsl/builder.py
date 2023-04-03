@@ -32,7 +32,7 @@ class Builder:
         Inserts `op` in `self.block` at the end of the block.
         """
 
-        implicit_builder = _ImplicitBuilder.get_implicit_builder()
+        implicit_builder = _ImplicitBuilder.get()
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
@@ -125,7 +125,7 @@ class Builder:
         block = Block()
         builder = Builder(block)
 
-        with _ImplicitBuilder.push_implicit_builder(builder):
+        with _ImplicitBuilder(builder):
             func()
 
         return Region.from_block_list([block])
@@ -148,7 +148,7 @@ class Builder:
             block = Block.from_arg_types(input_type_seq)
             builder = Builder(block)
 
-            with _ImplicitBuilder.push_implicit_builder(builder):
+            with _ImplicitBuilder(builder):
                 func(block.args)
 
             region = Region.from_block_list([block])
@@ -201,12 +201,24 @@ class Builder:
 
 
 @dataclass
-class _ImplicitBuilders(threading.local):
+class _ImplicitBuilderStack(threading.local):
     """
     Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
     default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
     """
     stack: list[Builder] = field(default_factory=list)
+
+    def push(self, builder: Builder) -> None:
+        self.stack.append(builder)
+
+    def get(self) -> Builder | None:
+        if len(self.stack):
+            return self.stack[-1]
+
+    def pop(self, builder: Builder) -> Builder:
+        popped = self.stack.pop()
+        assert popped is builder
+        return popped
 
 
 @dataclass
@@ -216,29 +228,21 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
     the current thread, and the current builder.
     """
 
-    _stack: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
+    _stack: ClassVar[_ImplicitBuilderStack] = _ImplicitBuilderStack()
 
-    stack: list[Builder]
     builder: Builder
 
     def __enter__(self) -> None:
-        self.stack.append(self.builder)
+        type(self)._stack.push(self.builder)
 
     def __exit__(self, __exc_type: type[BaseException] | None,
                  __exc_value: BaseException | None,
                  __traceback: TracebackType | None) -> bool | None:
-        popped = self.stack.pop()
-        assert popped is self.builder
+        type(self)._stack.pop(self.builder)
 
     @classmethod
-    def push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
-        return _ImplicitBuilder(cls._stack.stack, builder)
-
-    @classmethod
-    def get_implicit_builder(cls) -> Builder | None:
-        stack = cls._stack.stack
-        if len(stack):
-            return stack[-1]
+    def get(cls) -> Builder | None:
+        return cls._stack.get()
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
@@ -248,7 +252,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[
 
 
 def _op_init_callback(op: Operation):
-    if (b := _ImplicitBuilder.get_implicit_builder()) is not None:
+    if (b := _ImplicitBuilder.get()) is not None:
         b.insert(op)
 
 
