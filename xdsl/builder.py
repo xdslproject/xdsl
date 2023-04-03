@@ -8,7 +8,7 @@ import contextlib
 from dataclasses import dataclass
 from xdsl.dialects.builtin import ArrayAttr
 
-from xdsl.ir import OperationInvT, Attribute, Region, Block, BlockArgument
+from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
 
 
 class _ImplicitBuilders(threading.local):
@@ -237,3 +237,22 @@ _CallableRegionFuncType: TypeAlias = Callable[
     [Builder, tuple[BlockArgument, ...]], None]
 _CallableImplicitRegionFuncType: TypeAlias = Callable[
     [tuple[BlockArgument, ...]], None]
+
+
+def _op_init_callback(op: Operation):
+    if (b := Builder.get_implicit_builder()) is not None:
+        b.insert(op)
+
+
+def _override_operation_post_init() -> None:
+    old_post_init = Operation.__post_init__
+
+    def new_post_init(self: Operation) -> None:
+        old_post_init(self)
+        _op_init_callback(self)
+
+    Operation.__post_init__ = new_post_init
+
+
+# set up the operation callback for implicit construction
+_override_operation_post_init()
