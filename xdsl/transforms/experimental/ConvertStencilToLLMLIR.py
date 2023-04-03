@@ -148,10 +148,23 @@ class LoadOpToMemref(RewritePattern):
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
+        assert isa(cast.result.typ, FieldType[Attribute])
 
         verify_load_bounds(cast, op)
 
-        rewriter.replace_matched_op([], list(cast.results))
+        assert op.lb and op.ub
+
+        element_type = cast.result.typ.element_type
+        shape = [i.value.data for i in cast.result.typ.shape.data]
+
+        offsets = [i.value.data for i in (op.lb - cast.lb).array.data]
+        sizes = [i.value.data for i in (op.ub - op.lb).array.data]
+        strides = [1] * len(sizes)
+
+        subview = memref.Subview.from_static_parameters(
+            cast.result, element_type, shape, offsets, sizes, strides)
+
+        rewriter.replace_matched_op(subview)
 
 
 class LoadOpShapeInference(RewritePattern):
@@ -263,16 +276,14 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
 
-        load = op.temp.owner
-        assert isinstance(load, LoadOp)
+        owner = op.temp.owner
+        assert isinstance(owner, Operation)
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        assert isinstance(load.lb, IndexAttr)
-        assert isinstance(load.field.owner, CastOp)
-        memref_offset = (op.offset - load.field.owner.lb).array.data
+        memref_offset = (op.offset).array.data
         off_const_ops = [
             arith.Constant.from_int_and_width(x.value.data,
                                               builtin.IndexType())
@@ -285,7 +296,7 @@ class AccessOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
         ]
 
-        load = memref.Load.get(load.res, off_sum_ops)
+        load = memref.Load.get(owner, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
