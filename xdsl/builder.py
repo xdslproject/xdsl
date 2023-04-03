@@ -58,7 +58,7 @@ class Builder:
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
-        function with some input arguments.
+        region with some input arguments.
         """
 
         if isinstance(input_types, ArrayAttr):
@@ -136,7 +136,7 @@ class Builder:
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
-        function with some input arguments.
+        region with some input arguments.
         """
 
         if isinstance(input_types, ArrayAttr):
