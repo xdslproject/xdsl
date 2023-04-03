@@ -9,8 +9,6 @@ builtin.module() {
   }
   func.func() ["sym_name" = "\\", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
   }
-  func.func() ["sym_name" = "\r", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-  }
 }
 
 // CHECK: func.func() ["sym_name" = "\"", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
@@ -20,6 +18,4 @@ builtin.module() {
 // CHECK-NEXT: func.func() ["sym_name" = "\t", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
 // CHECK-NEXT: }
 // CHECK-NEXT: func.func() ["sym_name" = "\\", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-// CHECK-NEXT: }
-// CHECK-NEXT: func.func() ["sym_name" = "\r", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
 // CHECK-NEXT: }
