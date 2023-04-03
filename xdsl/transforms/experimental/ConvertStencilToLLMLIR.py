@@ -14,6 +14,7 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -47,10 +48,9 @@ class CastOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
-        assert isinstance(op.field.typ, FieldType | MemRefType)
-        field_typ: FieldType[Attribute] | MemRefType[Attribute] = op.field.typ
+        assert isa(op.field.typ, FieldType[Attribute] | MemRefType[Attribute])
 
-        result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
+        result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
                                                    op.lb, op.ub)
 
         cast = memref.Cast.get(op.field, result_typ)
@@ -62,7 +62,7 @@ class CastOpToMemref(RewritePattern):
         if self.gpu:
             unranked = memref.Cast.get(
                 cast.dest,
-                memref.UnrankedMemrefType.from_type(field_typ.element_type))
+                memref.UnrankedMemrefType.from_type(op.field.typ.element_type))
             register = gpu.HostRegisterOp.from_memref(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
@@ -161,14 +161,13 @@ class LoadOpShapeInference(RewritePattern):
         verify_load_bounds(cast, op)
 
         assert op.lb and op.ub
-        assert isinstance(op.res.typ, TempType)
-        res_typ: TempType[Attribute] = op.res.typ
+        assert isa(op.res.typ, TempType[Attribute])
 
         # TODO We need to think about that. Do we want an API for this? Do we just want
         # to recreate the whole operation?
         op.res.typ = TempType.from_shape(
             IndexAttr.size_from_bounds(op.lb, op.ub),
-            res_typ.element_type,
+            op.res.typ.element_type,
         )
 
 
@@ -219,11 +218,10 @@ class ApplyOpShapeInference(RewritePattern):
         assert op.lb and op.ub
 
         for result in op.results:
-            assert isinstance(result.typ, TempType)
-            result_typ: TempType[Attribute] = result.typ
+            assert isa(result.typ, TempType[Attribute])
             result.typ = TempType.from_shape(
                 IndexAttr.size_from_bounds(op.lb, op.ub),
-                result_typ.element_type)
+                result.typ.element_type)
 
 
 class ApplyOpToParallel(RewritePattern):
@@ -298,9 +296,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
         for arg in op.body.blocks[0].args:
-            if isinstance(arg.typ, FieldType):
-                typ: FieldType[Attribute] = arg.typ
-                memreftyp = GetMemRefFromField(typ)
+            if isa(arg.typ, FieldType[Attribute]):
+                memreftyp = GetMemRefFromField(arg.typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)
                 inputs.append(memreftyp)
             else:
@@ -315,9 +312,8 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
                           /):
-        assert isinstance(op.result.typ, FieldType)
-        typ: FieldType[Any] = op.result.typ
-        op.result.typ = GetMemRefFromField(typ)
+        assert isa(op.result.typ, FieldType[Attribute])
+        op.result.typ = GetMemRefFromField(op.result.typ)
 
         if op.field.typ == op.result.typ:
             rewriter.replace_matched_op([], [op.field])
