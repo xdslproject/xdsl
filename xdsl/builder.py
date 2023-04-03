@@ -36,7 +36,7 @@ class Builder:
     Operations will be inserted in this block.
     """
 
-    _local: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
+    _implicit_builder_stack: ClassVar[_ImplicitBuilders] = _ImplicitBuilders()
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
@@ -209,11 +209,11 @@ class Builder:
 
     @classmethod
     def _push_implicit_builder(cls, builder: Builder) -> _ImplicitBuilder:
-        return _ImplicitBuilder(cls._local.stack, builder)
+        return _ImplicitBuilder(cls._implicit_builder_stack.stack, builder)
 
     @classmethod
     def get_implicit_builder(cls) -> Builder | None:
-        stack = cls._local.stack
+        stack = cls._implicit_builder_stack.stack
         if len(stack):
             return stack[-1]
 
