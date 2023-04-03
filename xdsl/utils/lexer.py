@@ -5,7 +5,7 @@ import ast
 
 from dataclasses import dataclass, field
 from io import StringIO
-from enum import Enum, auto
+from enum import Enum
 from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast
 from string import hexdigits
 
