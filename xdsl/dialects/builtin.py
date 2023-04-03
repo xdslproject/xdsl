@@ -911,6 +911,44 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
+@irdl_attr_definition
+class StridedLayoutAttr(ParametrizedAttribute):
+    """
+    An attribute representing a strided layout of a shaped type.
+    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+
+    Contrary to MLIR, we represent dynamic offsets and strides with
+    `NoneAttr`, and we do not restrict offsets and strides to 64-bits
+    integers.
+    """
+    name: str = "strided"
+
+    strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
+    offset: ParameterDef[IntAttr | NoneAttr]
+
+    def __init__(self,
+                 strides: ArrayAttr[IntAttr | NoneAttr]
+                 | Sequence[int | None | IntAttr | NoneAttr],
+                 offset: int | None | IntAttr | NoneAttr = 0) -> None:
+        if not isinstance(strides, ArrayAttr):
+            strides_values: list[IntAttr | NoneAttr] = []
+            for stride in strides:
+                if isinstance(stride, int):
+                    strides_values.append(IntAttr(stride))
+                elif stride is None:
+                    strides_values.append(NoneAttr())
+                else:
+                    strides_values.append(stride)
+            strides = ArrayAttr(strides_values)
+
+        if isinstance(offset, int):
+            offset = IntAttr(offset)
+        if offset is None:
+            offset = NoneAttr()
+
+        super().__init__([strides, offset])
+
+
 @irdl_op_definition
 class UnrealizedConversionCastOp(Operation):
     name: str = "builtin.unrealized_conversion_cast"

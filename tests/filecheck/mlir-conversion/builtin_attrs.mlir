@@ -160,4 +160,24 @@
 
   // CHECK: "type_attr" = index
 
+  "func.func"() ({}) {function_type = () -> (),
+                      strided = strided<[1, 0x23, -23, -0x21, ?], offset: -3>,
+                      sym_name = "strided"} : () -> ()
+  // CHECK: "strided" = strided<[1, 35, -23, -33, ?], offset: -3>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      strided = strided<[], offset: ?>,
+                      sym_name = "strided"} : () -> ()
+  // CHECK: "strided" = strided<[], offset: ?>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      strided = strided<[], offset: 0>,
+                      sym_name = "strided"} : () -> ()
+  // CHECK: "strided" = strided<[]>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      strided = strided<[]>,
+                      sym_name = "strided"} : () -> ()
+  // CHECK: "strided" = strided<[]>
+
 }) : () -> ()

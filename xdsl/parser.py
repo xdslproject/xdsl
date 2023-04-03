@@ -22,7 +22,8 @@ from xdsl.dialects.builtin import (
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     UnregisteredAttr, VectorType, SymbolRefAttr, DenseArrayBase,
-    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
+    StridedLayoutAttr)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -1310,6 +1311,82 @@ class BaseParser(ABC):
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
+
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.text == "strided":
+            strided = self.parse_strided_layout_attr()
+            self._synchronize_lexer_and_tokenizer()
+            return strided
+
+        return None
+
+    def _parse_int_or_question(self,
+                               context_msg: str = "") -> int | Literal['?']:
+        """Parse either an integer literal, or a '?'."""
+        self._synchronize_lexer_and_tokenizer()
+        if self._parse_optional_token(Token.Kind.QUESTION) is not None:
+            return '?'
+        negative = False
+        if self._parse_optional_token(Token.Kind.MINUS) is not None:
+            negative = True
+        if (token := self._parse_optional_token(
+                Token.Kind.INTEGER_LIT)) is not None:
+            value = token.get_int_value()
+            return -value if negative else value
+        self.raise_error("Expected an integer literal or `?`" + context_msg)
+
+    def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
+        """Parse a specific identifier."""
+
+        error_msg = f"Expected '{keyword}'" + context_msg
+        if self.parse_optional_keyword(keyword) is not None:
+            return keyword
+        self.raise_error(error_msg)
+
+    def parse_optional_keyword(self, keyword: str) -> str | None:
+        """Parse a specific identifier if it is present"""
+
+        if (self._current_token.kind == Token.Kind.BARE_IDENT
+                and self._current_token.text == keyword):
+            self._consume_token(Token.Kind.BARE_IDENT)
+            return keyword
+        return None
+
+    def parse_strided_layout_attr(self) -> Attribute:
+        """
+        Parse a strided layout attribute.
+        | `strided` `<` `[` comma-separated-int-or-question `]`
+          (`,` `offset` `:` integer-literal)? `>`
+        """
+        # Parse `strided` keyword
+        self.parse_keyword("strided")
+
+        # Parse stride list
+        self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
+        strides = self.parse_comma_separated_list(
+            self.Delimiter.SQUARE,
+            lambda: self._parse_int_or_question(" in stride list"),
+            " in stride list")
+        # Pyright widen `Literal['?']` to `str` for some reasons
+        strides = cast(list[int | Literal['?']], strides)
+
+        # Convert to the attribute expected input
+        strides = [None if stride == '?' else stride for stride in strides]
+
+        # Case without offset
+        if self._parse_optional_token(Token.Kind.GREATER) is not None:
+            return StridedLayoutAttr(strides)
+
+        # Parse the optional offset
+        self._parse_token(
+            Token.Kind.COMMA,
+            "Expected end of strided attribute or ',' for offset.")
+        self.parse_keyword("offset", " after comma")
+        self._parse_token(Token.Kind.COLON, "Expected ':' after 'offset'")
+        offset = self._parse_int_or_question(" in stride offset")
+        self._parse_token(Token.Kind.GREATER,
+                          "Expected '>' in end of stride attribute")
+        return StridedLayoutAttr(strides, None if offset == '?' else offset)
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
         name = self.tokenizer.next_token(peek=True)

@@ -13,9 +13,10 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
     Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
-    ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
-    UnregisteredAttr, UnregisteredOp, VectorType, DictionaryAttr)
+    NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr,
+    SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
+    FunctionType, UnrankedTensorType, UnregisteredAttr, UnregisteredOp,
+    VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -475,6 +476,24 @@ class Printer:
             self.print("tensor<*x")
             self.print(attribute.element_type)
             self.print(">")
+            return
+
+        # strided attributes have an alias in MLIR and xDSL
+        if isinstance(attribute, StridedLayoutAttr):
+            self.print("strided<[")
+
+            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
+                self.print(value.data if isinstance(value, IntAttr) else '?')
+
+            self.print_list(attribute.strides.data, print_int_or_question,
+                            ', ')
+            self.print(']')
+            if attribute.offset == IntAttr(0):
+                self.print('>')
+                return
+            self.print(', offset: ')
+            print_int_or_question(attribute.offset)
+            self.print('>')
             return
 
         # memref types have an alias in MLIR, but not in xDSL
