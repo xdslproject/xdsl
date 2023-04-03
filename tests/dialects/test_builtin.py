@@ -1,9 +1,10 @@
+from typing import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
-                                   i32, f32, FloatAttr, ArrayAttr, IntAttr,
-                                   FloatData, SymbolRefAttr,
-                                   VectorBaseTypeConstraint,
+                                   NoneAttr, StridedLayoutAttr, i32, f32,
+                                   FloatAttr, ArrayAttr, IntAttr, FloatData,
+                                   SymbolRefAttr, VectorBaseTypeConstraint,
                                    VectorRankConstraint,
                                    VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
@@ -171,3 +172,19 @@ def test_unrealized_conversion_cast():
 
     assert (conv_op2.inputs[0].typ == f32)
     assert (conv_op2.outputs[0].typ == i32)
+
+
+@pytest.mark.parametrize(
+    "strides, offset, expected_strides, expected_offset",
+    [([2], None, ArrayAttr([IntAttr(2)]), NoneAttr()),
+     ([None], 2, ArrayAttr([NoneAttr()]), IntAttr(2)),
+     ([IntAttr(2)], NoneAttr(), ArrayAttr([IntAttr(2)]), NoneAttr()),
+     ([NoneAttr()], IntAttr(2), ArrayAttr([NoneAttr()]), IntAttr(2))])
+def test_strided_constructor(strides: ArrayAttr[IntAttr | NoneAttr]
+                             | Sequence[int | None | IntAttr | NoneAttr],
+                             offset: int | None | IntAttr | NoneAttr,
+                             expected_strides: ArrayAttr[IntAttr | NoneAttr],
+                             expected_offset: IntAttr | NoneAttr):
+    strided = StridedLayoutAttr(strides, offset)
+    assert strided.strides == expected_strides
+    assert strided.offset == expected_offset
