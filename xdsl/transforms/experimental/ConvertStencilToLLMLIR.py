@@ -105,7 +105,7 @@ class ReturnOpToMemref(RewritePattern):
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
         for j in range(len(op.arg)):
-            cast = self.return_target[str(op)+"_result"+str(j)]
+            cast = self.return_target[str(op) + "_result" + str(j)]
             assert isinstance(cast, CastOp)
 
             offsets = cast.lb
@@ -129,7 +129,8 @@ class ReturnOpToMemref(RewritePattern):
             ]
             off_sum_ops.extend(off_sum_ops_curr)
 
-            load_curr = memref.Store.get(op.arg[j], cast.result, off_sum_ops_curr)
+            load_curr = memref.Store.get(op.arg[j], cast.result,
+                                         off_sum_ops_curr)
             load.append(load_curr)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, *load])
@@ -339,7 +340,7 @@ def return_target_analysis(module: ModuleOp):
 
             assert isinstance(cast, CastOp)
 
-            return_targets[str(op)+"_result"+str(i)] = cast
+            return_targets[str(op) + "_result" + str(i)] = cast
 
     module.walk(map_returns)
 
