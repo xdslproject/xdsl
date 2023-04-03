@@ -46,7 +46,6 @@ class Builder:
         implicit_builder = Builder.get_implicit_builder()
 
         if implicit_builder is not None and implicit_builder is not self:
-
             raise ValueError(
                 'Cannot insert operation explicitly when an implicit '
                 'builder exists.')
