@@ -478,10 +478,11 @@ class ReturnOp(Operation):
       stencil.return %0 : !stencil.result<f64>
     """
     name: str = "stencil.return"
-    arg: Annotated[Operand, ResultType | AnyFloat]
+    arg: Annotated[VarOperand, ResultType | AnyFloat]
+    # arg: Annotated[Operand, ResultType | AnyFloat]
 
     @staticmethod
-    def get(*res: SSAValue | Operation):
+    def get(*res: Sequence[SSAValue | Operation]):
         return ReturnOp.build(operands=[*res])
 
 
