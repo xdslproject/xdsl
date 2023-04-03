@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from functools import reduce
 from inspect import isclass
-from typing import (Annotated, Any, Generic, Literal, Sequence, TypeAlias,
-                    TypeVar, Union, cast, get_args, get_origin, get_type_hints,
-                    overload)
+from typing import (Annotated, Any, Generic, Literal, Mapping, Sequence,
+                    TypeAlias, TypeVar, Union, cast, get_args, get_origin,
+                    get_type_hints, overload)
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, OpTrait, Operation,
@@ -1038,7 +1038,7 @@ def irdl_op_builder(
                        | Sequence[SSAValue | Operation]
                        | None],
     res_types: Sequence[Attribute | Sequence[Attribute]],
-    attributes: dict[str, Attribute], successors: Sequence[Block],
+    attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
                                  | Sequence[Block]]]
@@ -1072,6 +1072,8 @@ def irdl_op_builder(
 
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
+        if attr is None:
+            continue
         if not isinstance(attr, Attribute):
             raise ValueError(error_prefix +
                              f"{attr_name} is expected to be an "

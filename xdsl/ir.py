@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Mapping, Protocol,
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -630,7 +630,7 @@ class Operation(IRNode):
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute]]
         | None = None,
-        attributes: dict[str, Attribute] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                           | Sequence[Region | Sequence[Operation]
