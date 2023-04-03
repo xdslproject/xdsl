@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, overload
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
