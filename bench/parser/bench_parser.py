@@ -23,7 +23,7 @@ def parse_file(file: str, ctx: MLContext):
     """
     Parse the given file.
     """
-    parser = MLIRParser(ctx, file, allow_unregistered_ops=True)
+    parser = MLIRParser(ctx, file, allow_unregistered_dialect=True)
     parser.parse_op()
 
 

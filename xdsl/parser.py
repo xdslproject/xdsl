@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
@@ -21,8 +21,8 @@ from xdsl.dialects.builtin import (
     AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    VectorType, SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr,
-    OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
+    UnregisteredAttr, VectorType, SymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -443,13 +443,13 @@ class BaseParser(ABC):
     Basically the output type of all try_parse functions is `T_ | None`
     """
 
-    allow_unregistered_ops: bool
+    allow_unregistered_dialect: bool
 
     def __init__(self,
                  ctx: MLContext,
                  input: str,
                  name: str = '<unknown>',
-                 allow_unregistered_ops: bool = False):
+                 allow_unregistered_dialect: bool = False):
         self.tokenizer = Tokenizer(Input(input, name))
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
@@ -457,7 +457,7 @@ class BaseParser(ABC):
         self.ssaValues = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
-        self.allow_unregistered_ops = allow_unregistered_ops
+        self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def _synchronize_lexer_and_tokenizer(self):
         """
@@ -477,7 +477,7 @@ class BaseParser(ABC):
         if self._current_token.span.start > self.tokenizer.pos:
             self.tokenizer.pos = self._current_token.span.start
 
-    def _consume_token(self, expected_kind: Token.Kind | None) -> None:
+    def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
         """
         Advance the lexer to the next token.
         Additionally check that the current token was of a specific kind,
@@ -485,14 +485,16 @@ class BaseParser(ABC):
         For reporting errors if the token was not of the expected kind,
         use `_parse_token` instead.
         """
+        consumed_token = self._current_token
         if expected_kind is not None:
-            assert self._current_token.kind == expected_kind, "Consumed an unexpected token!"
+            assert consumed_token.kind == expected_kind, "Consumed an unexpected token!"
         self._current_token = self.lexer.lex()
+        return consumed_token
 
     def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
         """
         If the current token is of the expected kind, consume it and return it.
-        Otherwise, return False.
+        Otherwise, return None.
         """
         if self._current_token.kind == expected_kind:
             current_token = self._current_token
@@ -510,6 +512,13 @@ class BaseParser(ABC):
         current_token = self._current_token
         self._consume_token(expected_kind)
         return current_token
+
+    def _parse_optional_token_in(
+            self, expected_kinds: Iterable[Token.Kind]) -> Token | None:
+        """Parse one of the expected tokens if present, and returns it."""
+        if self._current_token.kind not in expected_kinds:
+            return None
+        return self._consume_token()
 
     def parse_module(self) -> ModuleOp:
         op = self.try_parse_operation()
@@ -834,19 +843,28 @@ class BaseParser(ABC):
                                   "Dialect attribute must start with a `#`")
             return self._parse_dialect_type_or_attribute_inner('attribute')
 
-    def _parse_dialect_type_or_attribute_inner(self, kind: str) -> Attribute:
+    def _parse_dialect_type_or_attribute_inner(
+            self, kind: Literal['attribute'] | Literal['type']) -> Attribute:
+        is_type = kind == 'type'
         type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
 
         if type_name is None:
             self.raise_error("Expected dialect {} name here!".format(kind))
 
-        type_def = self.ctx.get_optional_attr(type_name.text)
+        type_def = self.ctx.get_optional_attr(
+            type_name.text,
+            self.allow_unregistered_dialect,
+            create_unregistered_as_type=is_type)
         if type_def is None:
             self.raise_error(
                 "'{}' is not a known attribute!".format(type_name.text),
                 type_name)
 
         # Pass the task of parsing parameters on to the attribute/type definition
+        if issubclass(type_def, UnregisteredAttr):
+            body = self._parse_unregistered_attr_body()
+            self._synchronize_lexer_and_tokenizer()
+            return type_def(type_name.text, is_type, body)
         if issubclass(type_def, ParametrizedAttribute):
             param_list = type_def.parse_parameters(self)
             return type_def.new(param_list)
@@ -857,6 +875,66 @@ class BaseParser(ABC):
                 ">", "Invalid attribute parametrization, expected `>`!")
             return cast(Data[Any], type_def(param))
         assert False, "Attributes are either ParametrizedAttribute or Data."
+
+    def _parse_unregistered_attr_body(self) -> str:
+        """
+        Parse the body of an unregistered attribute, which is a balanced
+        string for `<`, `(`, `[`, `{`, and may contain string literals.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        self._parse_token(Token.Kind.LESS, "Expected '<' for attribute body!")
+
+        start_pos = self._current_token.span.start
+        end_pos: int = start_pos
+
+        symbols_stack = [Token.Kind.LESS]
+        parentheses = {
+            Token.Kind.GREATER: Token.Kind.LESS,
+            Token.Kind.R_PAREN: Token.Kind.L_PAREN,
+            Token.Kind.R_SQUARE: Token.Kind.L_SQUARE,
+            Token.Kind.R_BRACE: Token.Kind.L_BRACE
+        }
+        parentheses_names = {
+            Token.Kind.GREATER: '`>`',
+            Token.Kind.R_PAREN: '`)`',
+            Token.Kind.R_SQUARE: '`]`',
+            Token.Kind.R_BRACE: '`}`'
+        }
+        while True:
+            # Opening a new parenthesis
+            if (token := self._parse_optional_token_in(
+                    parentheses.values())) is not None:
+                symbols_stack.append(token.kind)
+                continue
+
+            # Closing a parenthesis
+            if (token := self._parse_optional_token_in(
+                    parentheses.keys())) is not None:
+                closing = parentheses[token.kind]
+                if symbols_stack[-1] != closing:
+                    self.raise_error(
+                        "Mismatched {} in attribute body!".format(
+                            parentheses_names[self._current_token.kind]),
+                        self._current_token.span)
+                symbols_stack.pop()
+                if len(symbols_stack) == 0:
+                    break
+                end_pos = self._current_token.span.start
+                continue
+
+            # Checking for unexpected EOF
+            if self._parse_optional_token(Token.Kind.EOF) is not None:
+                self.raise_error(
+                    "Unexpected end of file before closing of attribute body!")
+
+            # Other tokens
+            end_pos = self._current_token.span.end
+            self._consume_token()
+
+        body = self.lexer.input.slice(start_pos, end_pos)
+        assert body is not None
+        self._synchronize_lexer_and_tokenizer()
+        return body
 
     @abstractmethod
     def try_parse_builtin_type(self) -> Attribute | None:
@@ -1108,7 +1186,7 @@ class BaseParser(ABC):
             op_name = span.text
 
         op_type = self.ctx.get_optional_op(
-            op_name, allow_unregistered=self.allow_unregistered_ops)
+            op_name, allow_unregistered=self.allow_unregistered_dialect)
 
         if op_type is not None:
             return op_type
@@ -1899,7 +1977,8 @@ class XDSLParser(BaseParser):
                               "Successor list is enclosed in round brackets")
         return successors
 
-    def _parse_dialect_type_or_attribute_inner(self, kind: str) -> Attribute:
+    def _parse_dialect_type_or_attribute_inner(
+            self, kind: Literal['attribute'] | Literal['type']) -> Attribute:
         if self.tokenizer.starts_with('"'):
             name = self.try_parse_string_literal()
             if name is None:
@@ -1949,12 +2028,12 @@ def Parser(ctx: MLContext,
            prog: str,
            source: Source = Source.XDSL,
            filename: str = '<unknown>',
-           allow_unregistered_ops: bool = False) -> BaseParser:
+           allow_unregistered_dialect: bool = False) -> BaseParser:
     selected_parser = {
         Source.XDSL: XDSLParser,
         Source.MLIR: MLIRParser
     }[source]
-    return selected_parser(ctx, prog, filename, allow_unregistered_ops)
+    return selected_parser(ctx, prog, filename, allow_unregistered_dialect)
 
 
 setattr(Parser, 'Source', Source)

@@ -175,10 +175,10 @@ class xDSLOptMain:
                                 "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
-            "--allow-unregistered-ops",
+            "--allow-unregistered-dialect",
             default=False,
             action='store_true',
-            help="Allow the parsing of unregistered operations.")
+            help="Allow the parsing of unregistered dialects.")
 
     def register_all_dialects(self):
         """
@@ -212,12 +212,14 @@ class xDSLOptMain:
         """
 
         def parse_xdsl(io: IO[str]):
-            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return XDSLParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         def parse_mlir(io: IO[str]):
-            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return MLIRParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
