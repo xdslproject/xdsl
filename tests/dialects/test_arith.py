@@ -7,6 +7,7 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
                                  SIToFPOp, ExtFOp, TruncFOp, Cmpf)
 from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.utils.exceptions import VerifyException
 
 
 class Test_integer_arith_construction:
@@ -87,18 +88,14 @@ def test_extend_truncate_fpops():
 def test_cmpf_from_mnemonic():
     a = Constant.from_float_and_width(1.0, f64)
     b = Constant.from_float_and_width(2.0, f64)
-    cmpf_ops = [None] * 10
+    operations = [
+        "false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord", "ueq", "ugt",
+        "uge", "ult", "ule", "une", "uno", "true"
+    ]
+    cmpf_ops = [None] * len(operations)
 
-    cmpf_ops[0] = Cmpf.get(a, b, "eq")
-    cmpf_ops[1] = Cmpf.get(a, b, "ne")
-    cmpf_ops[2] = Cmpf.get(a, b, "slt")
-    cmpf_ops[3] = Cmpf.get(a, b, "sle")
-    cmpf_ops[4] = Cmpf.get(a, b, "sgt")
-    cmpf_ops[5] = Cmpf.get(a, b, "sge")
-    cmpf_ops[6] = Cmpf.get(a, b, "ult")
-    cmpf_ops[7] = Cmpf.get(a, b, "ule")
-    cmpf_ops[8] = Cmpf.get(a, b, "ugt")
-    cmpf_ops[9] = Cmpf.get(a, b, "uge")
+    for i in range(len(operations)):
+        cmpf_ops[i] = Cmpf.get(a, b, operations[i])
 
     for index, op in enumerate(cmpf_ops):
         assert op.lhs.typ == f64
@@ -135,3 +132,23 @@ def test_cmpi_missmatch_type():
         cmpi_op = Cmpi.get(a, b, 1)
     assert e.value.args[
         0] == "Comparison operands must have same type, but provided !i32 and !i64"
+
+
+def test_cmpf_incorrect_comparison():
+    a = Constant.from_float_and_width(1.0, f32)
+    b = Constant.from_float_and_width(2.0, f32)
+
+    with pytest.raises(VerifyException) as e:
+        # 'eq' is a comparison op for cmpi but not cmpf
+        cmpf_op = Cmpf.get(a, b, "eq")
+    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
+
+
+def test_cmpf_incorrect_comparison():
+    a = Constant.from_float_and_width(1, i32)
+    b = Constant.from_float_and_width(2, i32)
+
+    with pytest.raises(VerifyException) as e:
+        # 'oeq' is a comparison op for cmpf but not cmpi
+        cmpi_op = Cmpi.get(a, b, "oeq")
+    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"

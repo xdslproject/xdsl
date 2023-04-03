@@ -434,20 +434,8 @@ class ComparisonOperation():
     """
 
     @staticmethod
-    def _get_comparison_predicate(mnemonic: str) -> int:
-        comparison_operations = {
-            "eq": 0,
-            "ne": 1,
-            "slt": 2,
-            "sle": 3,
-            "sgt": 4,
-            "sge": 5,
-            "ult": 6,
-            "ule": 7,
-            "ugt": 8,
-            "uge": 9
-        }
-
+    def _get_comparison_predicate(
+            mnemonic: str, comparison_operations: dict[str, int]) -> int:
         if mnemonic in comparison_operations:
             return comparison_operations[mnemonic]
         else:
@@ -500,9 +488,22 @@ class Cmpi(Operation, ComparisonOperation):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
         Cmpi._validate_operand_types(operand1, operand2)
-        
+
         if isinstance(arg, str):
-          arg = Cmpi._get_comparison_predicate(arg)
+            cmpi_comparison_operations = {
+                "eq": 0,
+                "ne": 1,
+                "slt": 2,
+                "sle": 3,
+                "sgt": 4,
+                "sge": 5,
+                "ult": 6,
+                "ule": 7,
+                "ugt": 8,
+                "uge": 9
+            }
+            arg = Cmpi._get_comparison_predicate(arg,
+                                                 cmpi_comparison_operations)
 
         return Cmpi.build(
             operands=[operand1, operand2],
@@ -548,9 +549,28 @@ class Cmpf(Operation, ComparisonOperation):
         operand2 = SSAValue.get(operand2)
 
         Cmpf._validate_operand_types(operand1, operand2)
-        
+
         if isinstance(arg, str):
-          arg = Cmpf._get_comparison_predicate(arg)
+            cmpf_comparison_operations = {
+                "false": 0,
+                "oeq": 1,
+                "ogt": 2,
+                "oge": 3,
+                "olt": 4,
+                "ole": 5,
+                "one": 6,
+                "ord": 7,
+                "ueq": 8,
+                "ugt": 9,
+                "uge": 10,
+                "ult": 11,
+                "ule": 12,
+                "une": 13,
+                "uno": 14,
+                "true": 15
+            }
+            arg = Cmpf._get_comparison_predicate(arg,
+                                                 cmpf_comparison_operations)
 
         return Cmpf.build(
             operands=[operand1, operand2],
