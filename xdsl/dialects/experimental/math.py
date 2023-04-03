@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Union
 
-from xdsl.dialects.builtin import IntegerType, AnyFloat, Attribute
+from xdsl.dialects.builtin import IntegerType, AnyFloat
 from xdsl.ir import Operation, SSAValue, OpResult, Dialect
 from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand
 from xdsl.dialects.arith import FastMathFlagsAttr
@@ -28,12 +28,8 @@ class AbsFOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> AbsFOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
-
         operand = SSAValue.get(operand)
-        return AbsFOp.build(attributes=attributes,
+        return AbsFOp.build(attributes={"fastmath": fastmath},
                             operands=[operand],
                             result_types=[operand.typ])
 
@@ -92,9 +88,7 @@ class Atan2Op(Operation):
     def get(lhs: Union[Operation, SSAValue],
             rhs: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> Atan2Op:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
@@ -126,12 +120,8 @@ class AtanOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> AtanOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
-
         operand = SSAValue.get(operand)
-        return AtanOp.build(attributes=attributes,
+        return AtanOp.build(attributes={"fastmath": fastmath},
                             operands=[operand],
                             result_types=[operand.typ])
 
@@ -158,9 +148,7 @@ class CbrtOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> CbrtOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return CbrtOp.build(attributes=attributes,
@@ -191,12 +179,8 @@ class CeilOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> CeilOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
-
         operand = SSAValue.get(operand)
-        return CeilOp.build(attributes=attributes,
+        return CeilOp.build(attributes={"fastmath": fastmath},
                             operands=[operand],
                             result_types=[operand.typ])
 
@@ -227,9 +211,7 @@ class CopySignOp(Operation):
     def get(lhs: Union[Operation, SSAValue],
             rhs: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> CopySignOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
@@ -261,9 +243,7 @@ class CosOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> CosOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return CosOp.build(attributes=attributes,
@@ -359,9 +339,7 @@ class ErfOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> ErfOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ErfOp.build(attributes=attributes,
@@ -392,9 +370,7 @@ class Exp2Op(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> Exp2Op:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Exp2Op.build(attributes=attributes,
@@ -427,9 +403,7 @@ class ExpM1Op(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> ExpM1Op:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ExpM1Op.build(attributes=attributes,
@@ -460,9 +434,7 @@ class ExpOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> ExpOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ExpOp.build(attributes=attributes,
@@ -503,9 +475,7 @@ class FPowIOp(Operation):
     def get(lhs: Union[Operation, SSAValue],
             rhs: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> FPowIOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
@@ -537,9 +507,7 @@ class FloorOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> FloorOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return FloorOp.build(attributes=attributes,
@@ -579,9 +547,7 @@ class FmaOp(Operation):
             b: Union[Operation, SSAValue],
             c: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> FmaOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         a = SSAValue.get(a)
         b = SSAValue.get(b)
@@ -638,9 +604,7 @@ class Log10Op(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> Log10Op:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log10Op.build(attributes=attributes,
@@ -670,9 +634,7 @@ class Log1pOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> Log1pOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log1pOp.build(attributes=attributes,
@@ -700,9 +662,7 @@ class Log2Op(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> Log2Op:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log2Op.build(attributes=attributes,
@@ -730,9 +690,7 @@ class LogOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> LogOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return LogOp.build(attributes=attributes,
@@ -765,9 +723,7 @@ class PowFOp(Operation):
     def get(lhs: Union[Operation, SSAValue],
             rhs: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> PowFOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
@@ -802,9 +758,7 @@ class RoundEvenOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> RoundEvenOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RoundEvenOp.build(attributes=attributes,
@@ -838,9 +792,7 @@ class RoundOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> RoundOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RoundOp.build(attributes=attributes,
@@ -867,9 +819,7 @@ class RsqrtOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> RsqrtOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RsqrtOp.build(attributes=attributes,
@@ -900,9 +850,7 @@ class SinOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> SinOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return SinOp.build(attributes=attributes,
@@ -929,9 +877,7 @@ class SqrtOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> SqrtOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return SqrtOp.build(attributes=attributes,
@@ -959,9 +905,7 @@ class TanOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> TanOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TanOp.build(attributes=attributes,
@@ -989,9 +933,7 @@ class TanhOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> TanhOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TanhOp.build(attributes=attributes,
@@ -1024,9 +966,7 @@ class TruncOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
             fastmath: FastMathFlagsAttr | None = None) -> TruncOp:
-        attributes: dict[str, Attribute] = {}
-        if fastmath is not None:
-            attributes["fastmath"] = fastmath
+        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TruncOp.build(attributes=attributes,

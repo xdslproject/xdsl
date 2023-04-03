@@ -171,13 +171,13 @@ class AllReduceOp(Operation):
     def from_op(op: AllReduceOperationAttr,
                 operand: SSAValue | Operation,
                 uniform: UnitAttr | None = None):
-        attributes: dict[str, Attribute] = {"op": op}
-        if uniform is not None:
-            attributes["uniform"] = uniform
 
         return AllReduceOp.build(operands=[operand],
                                  result_types=[SSAValue.get(operand).typ],
-                                 attributes=attributes,
+                                 attributes={
+                                     "op": op,
+                                     "uniform": uniform,
+                                 },
                                  regions=[Region()])
 
     @staticmethod
