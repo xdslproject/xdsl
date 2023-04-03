@@ -18,6 +18,8 @@ from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
+# TODO docstrings and comments
+
 
 def GetMemRefFromField(
     input_type: FieldType[_TypeElement] | TempType[_TypeElement]
