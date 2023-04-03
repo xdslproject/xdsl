@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar, Any, List
+from typing import TypeVar, Any
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
@@ -97,9 +97,9 @@ class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-        off_const_ops: List[arith.Constant] = []
-        off_sum_ops: List[arith.Addi] = []
-        load: List[memref.Store] = []
+        off_const_ops: list[arith.Constant] = []
+        off_sum_ops: list[arith.Addi] = []
+        load: list[memref.Store] = []
 
         parallel = op.parent_op()
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
