@@ -207,7 +207,7 @@ class OpResult(SSAValue):
         return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
             self.typ,
-            self.result_index,
+            self.index,
             self.op.name,
             len(self.uses),
         )
