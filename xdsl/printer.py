@@ -505,6 +505,10 @@ class Printer:
                 attribute.shape.data, lambda x: self.print(x.value.data)
                 if x.value.data != -1 else self.print("?"), "x")
             self.print("x", attribute.element_type)
+            if not isinstance(attribute.layout, NoneAttr):
+                self.print(", ", attribute.layout)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
@@ -514,6 +518,8 @@ class Printer:
             attribute = cast(AnyUnrankedMemrefType, attribute)
             self.print("memref<*x")
             self.print(attribute.element_type)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
