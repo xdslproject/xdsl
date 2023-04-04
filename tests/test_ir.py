@@ -286,3 +286,24 @@ ModuleOp(
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
 )'''
+
+
+def test_op_custom_verify_is_done_last():
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(1, i32)
+    error = Exception("CustomException")
+
+    def verify_():
+        raise error
+    a.__dict__['verify_'] = verify_
+    a.attributes.pop('value')
+    b.attributes.pop('value')
+    try:
+        a.verify()
+    except Exception as e_a:
+        assert e_a is not error
+        try:
+            b.verify()
+        except Exception as e_b:
+            assert e_a.args == e_b.args
+            assert e_a.args == ("attribute value expected",)
