@@ -1,18 +1,19 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Iterable
+
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
+from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp, HaloSwapOp
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -359,10 +360,53 @@ def return_target_analysis(module: ModuleOp):
     return return_targets
 
 
+def all_matching_uses(op_res: Iterable[SSAValue], typ: type[_TypeElement]) -> _TypeElement | None:
+    for res in op_res:
+        for use in res.uses:
+            if isinstance(use.operation, typ):
+                yield use.operation
+
+
+def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+    applies: list[LoadOp] = list(all_matching_uses([op.res], ApplyOp))
+    assert len(applies) > 0, "Load must be followed by Apply!"
+
+    shape_lb: None | IndexAttr = None
+    shape_ub: None | IndexAttr = None
+
+    for apply in applies:
+        stores: list[StoreOp] = list(all_matching_uses(apply.res, StoreOp))
+
+        assert len(stores) > 0, "Apply must be followed by store!"
+        for store in stores:
+            lb, ub = store.lb, store.ub
+            if shape_lb is None:
+                shape_lb = lb
+                shape_ub = ub
+                continue
+
+            shape_lb = IndexAttr.min(lb, shape_lb)
+            shape_ub = IndexAttr.max(ub, shape_ub)
+    return shape_lb, shape_ub
+
+
+class HaloOpShapeInference(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
+        loads: list[LoadOp] = list(all_matching_uses([op.input_stencil], LoadOp))
+        assert len(loads) == 1, "I cannot handle this right now"
+        halo_lb, halo_ub = infer_halo_from_load_op(loads[0])
+        op.attributes['halo_lb'] = halo_lb
+        op.attributes['halo_ub'] = halo_ub
+        op.attributes['lb'] = loads[0].lb
+        op.attributes['ub'] = loads[0].ub
+
+
 ShapeInference = GreedyRewritePatternApplier([
     ApplyOpShapeInference(),
     LoadOpShapeInference(),
     StoreOpShapeInference(),
+    HaloOpShapeInference(),
 ])
 
 

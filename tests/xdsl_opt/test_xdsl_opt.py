@@ -17,6 +17,7 @@ def test_opt():
         'convert-stencil-to-ll-mlir',
         'convert-stencil-to-gpu',
         'stencil-shape-inference',
+        'stencil-to-local-2d-horizontal',
         'frontend-desymrefy',
     ]
 
