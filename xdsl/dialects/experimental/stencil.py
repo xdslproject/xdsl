@@ -213,7 +213,7 @@ class CastOp(Operation):
     This operation casts dynamically shaped input fields to statically shaped fields.
 
     Example:
-      %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64>
+        %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64> # noqa
     """
     name: str = "stencil.cast"
     field: Annotated[Operand, FieldType]
@@ -241,7 +241,7 @@ class ExternalLoadOp(Operation):
     This operation loads from an external field type, e.g. to bring data into the stencil
 
     Example:
-      %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64>
+      %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64> # noqa
     """
     name: str = "stencil.external_load"
     field: Annotated[Operand, Attribute]
@@ -259,7 +259,7 @@ class ExternalStoreOp(Operation):
     This operation takes a stencil field and then stores this to an external type
 
     Example:
-      stencil.store %temp to %field : !stencil.field<128x128xf64> to !fir.array<128x128xf64>
+      stencil.store %temp to %field : !stencil.field<128x128xf64> to !fir.array<128x128xf64> # noqa
     """
     name: str = "stencil.external_store"
     temp: Annotated[Operand, FieldType]
