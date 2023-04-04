@@ -539,8 +539,7 @@ class Printer:
 
         if isinstance(attribute, UnregisteredAttr):
             self.print('!' if attribute.is_type.data else '#')
-            self.print(attribute.attr_name.data, '<', attribute.value.data,
-                       '>')
+            self.print(attribute.attr_name.data, attribute.value.data)
             return
 
         if self.target == self.Target.MLIR:
