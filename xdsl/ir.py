@@ -686,6 +686,7 @@ class Operation(IRNode):
         if verify_nested_ops:
             for region in self.regions:
                 region.verify()
+
         # Custom verifier
         self.verify_()
 
