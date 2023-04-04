@@ -44,7 +44,7 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
 @dataclass
 class CastOpToMemref(RewritePattern):
 
-    return_target: dict[str, CastOp | memref.Cast]
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
     gpu: bool = False
 
     @op_type_rewrite_pattern
@@ -95,47 +95,40 @@ class StoreOpShapeInference(RewritePattern):
 @dataclass
 class ReturnOpToMemref(RewritePattern):
 
-    return_target: dict[str, CastOp | memref.Cast]
+    return_target: dict[ReturnOp, CastOp | memref.Cast]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-        off_const_ops: list[arith.Constant] = []
-        off_sum_ops: list[arith.Addi] = []
-        load: list[memref.Store] = []
 
         parallel = op.parent_op()
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
-        for j in range(len(op.arg)):
-            cast = self.return_target[str(op) + "_result" + str(j)]
-            assert isinstance(cast, CastOp)
+        cast = self.return_target[op]
 
-            offsets = cast.lb
-            assert isinstance(offsets, IndexAttr)
+        assert isinstance(cast, CastOp)
 
-            assert (block := op.parent_block()) is not None
+        offsets = cast.lb
+        assert isinstance(offsets, IndexAttr)
 
-            off_const_ops_curr = [
-                arith.Constant.from_int_and_width(-x.value.data,
-                                                  builtin.IndexType())
-                for x in offsets.array.data
-            ]
-            off_const_ops_curr.reverse()
-            off_const_ops.extend(off_const_ops_curr)
+        assert (block := op.parent_block()) is not None
 
-            args = list(block.args)
-            args.reverse()
+        off_const_ops = [
+            arith.Constant.from_int_and_width(-x.value.data,
+                                              builtin.IndexType())
+            for x in offsets.array.data
+        ]
+        off_const_ops.reverse()
 
-            off_sum_ops_curr = [
-                arith.Addi.get(i, x) for i, x in zip(args, off_const_ops_curr)
-            ]
-            off_sum_ops.extend(off_sum_ops_curr)
+        args = list(block.args)
+        args.reverse()
 
-            load_curr = memref.Store.get(op.arg[j], cast.result,
-                                         off_sum_ops_curr)
-            load.append(load_curr)
+        off_sum_ops = [
+            arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
+        ]
 
-        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, *load])
+        load = memref.Store.get(op.arg, cast.result, off_sum_ops)
+
+        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
 
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
@@ -339,7 +332,7 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
 
 def return_target_analysis(module: ModuleOp):
 
-    return_targets: dict[str, CastOp | memref.Cast] = {}
+    return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
 
     def map_returns(op: Operation) -> None:
         if not isinstance(op, ReturnOp):
@@ -348,17 +341,18 @@ def return_target_analysis(module: ModuleOp):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
-        for i, res in enumerate(list(apply.res)):
-            if (len(res.uses) > 1) or (not isinstance(
-                (store := list(res.uses)[0].operation), StoreOp)):
-                warn("Only single store for a single return op result atm")
-                return
+        res = list(apply.res)[0]
 
-            cast = store.field.owner
+        if (len(res.uses) > 1) or (not isinstance(
+            (store := list(res.uses)[0].operation), StoreOp)):
+            warn("Only single store result atm")
+            return
 
-            assert isinstance(cast, CastOp)
+        cast = store.field.owner
 
-            return_targets[str(op) + "_result" + str(i)] = cast
+        assert isinstance(cast, CastOp)
+
+        return_targets[op] = cast
 
     module.walk(map_returns)
 
@@ -372,7 +366,7 @@ ShapeInference = GreedyRewritePatternApplier([
 ])
 
 
-def StencilConversion(return_targets: dict[str, CastOp | memref.Cast],
+def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
                       gpu: bool):
     return GreedyRewritePatternApplier([
         ApplyOpToParallel(),
