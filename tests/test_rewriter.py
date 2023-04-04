@@ -2,7 +2,7 @@ from typing import Callable
 from conftest import assert_print_op
 
 from xdsl.dialects.arith import Arith, Constant, Addi
-from xdsl.dialects.builtin import ModuleOp, Builtin, i32
+from xdsl.dialects.builtin import ModuleOp, Builtin, i32, i64
 from xdsl.dialects.scf import Scf, Yield
 from xdsl.dialects.func import Func
 from xdsl.ir import MLContext, Block
@@ -19,7 +19,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     ctx.register_dialect(Func)
 
     parser = Parser(ctx, prog)
-    module = parser.parse_op()
+    module = parser.parse_module()
 
     rewriter = Rewriter()
     transformation(module, rewriter)
@@ -110,6 +110,7 @@ def test_replace_op_new_results():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         add_op = module.ops[1]
+        assert isinstance(add_op, Addi)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
 
@@ -253,10 +254,11 @@ def test_insert_block_before():
   %0 : !i1 = arith.constant() ["value" = true]
 }"""
 
-    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+    def insert_empty_block_before(module: ModuleOp,
+                                  rewriter: Rewriter) -> None:
         rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
 
-    rewrite_and_compare(prog, expected, transformation)
+    rewrite_and_compare(prog, expected, insert_empty_block_before)
 
 
 def test_insert_block_after():
@@ -273,8 +275,48 @@ def test_insert_block_after():
 ^1:
 }"""
 
-    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+    def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
         rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
+
+    rewrite_and_compare(prog, expected, insert_empty_block_after)
+
+
+def test_insert_op_before():
+    """Test the insertion of an operation before another operation."""
+    prog = \
+    """builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !i64 = arith.constant() ["value" = 34 : !i64]
+  %1 : !i32 = arith.constant() ["value" = 43 : !i32]
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant = Constant.from_int_and_width(34, i64)
+        rewriter.insert_op_before(module.regions[0].blocks[0].ops[0], constant)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_op_after():
+    """Test the insertion of an operation after another operation."""
+    prog = \
+    """builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
+  %1 : !i64 = arith.constant() ["value" = 34 : !i64]
+}"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant = Constant.from_int_and_width(34, i64)
+        rewriter.insert_op_after(module.regions[0].blocks[0].ops[0], constant)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -313,8 +355,8 @@ def test_preserve_naming_multiple_ops():
     expected = \
 """builtin.module() {
   %i : !i32 = arith.constant() ["value" = 1 : !i32]
-  %i1 : !i32 = arith.addi(%i : !i32, %i : !i32)
-  %0 : !i32 = arith.addi(%i1 : !i32, %i1 : !i32)
+  %i_1 : !i32 = arith.addi(%i : !i32, %i : !i32)
+  %0 : !i32 = arith.addi(%i_1 : !i32, %i_1 : !i32)
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:

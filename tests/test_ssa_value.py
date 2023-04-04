@@ -5,20 +5,22 @@ from typing import Annotated
 from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
 
-from xdsl.ir import Block, Operation, OpResult, BlockArgument
+from xdsl.ir import Block, Operation, OpResult, BlockArgument, SSAValue
 from xdsl.irdl import irdl_op_definition
 
 
 def test_ssa():
-    a = OpResult(i32, [], [])
     c = Constant.from_int_and_width(1, i32)
-
     with pytest.raises(TypeError):
-        _ = a.get([c])
+        # test that we raise a TypeError if we give an incorrect type
+        # hence ignore
+        _ = SSAValue.get([c])  # type: ignore
 
     b0 = Block.from_ops([c])
     with pytest.raises(TypeError):
-        _ = a.get(b0)
+        # test that we raise a TypeError if we give an incorrect type
+        # hence ignore
+        _ = SSAValue.get(b0)  # type: ignore
 
 
 @irdl_op_definition
@@ -31,27 +33,44 @@ class TwoResultOp(Operation):
 
 def test_var_mixed_builder():
     op = TwoResultOp.build(result_types=[StringAttr("0"), StringAttr("2")])
-    b = OpResult(i32, [], [])
 
     with pytest.raises(ValueError):
-        _ = b.get(op)
+        _ = SSAValue.get(op)
 
 
-@pytest.mark.parametrize("name,result", [
-    ('a', 'a'),
-    ('test', 'test'),
-    ('test1', None),
-    ('1', None),
+@pytest.mark.parametrize("name", [
+    "test",
+    "-2",
+    "test_123",
+    "kebab-case-name",
+    None,
 ])
-def test_ssa_value_name_hints(name, result):
-    """
-    The rewriter assumes, that ssa value name hints (their .name field) does not end in
-    a numeric value. If it does, it will generate broken rewrites that potentially assign
-    twice to an SSA value.
+def test_ssa_value_name_hints(name: str | None):
+    r"""
+    As per the MLIR language reference, legal SSA value names must conform to
+        ([0-9]+|([A-Za-z_$.-][\w$.-]*))
 
-    Therefore, the SSAValue class prevents the setting of names ending in a number.
+    https://mlir.llvm.org/docs/LangRef/#identifiers-and-keywords
+
+    xDSL SSA value name hints are a refinement of these rules.
+    We only accept non-numeric name hints, because the printer will
+    generate its own numeric names.
+
+    This test tests valid name hints:
     """
     val = BlockArgument(i32, Block(), 0)
 
     val.name = name
-    assert val.name == result
+    assert val.name == name
+
+
+@pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::', '42'])
+def test_invalid_ssa_vals(name: str):
+    """
+    This test tests invalid name hints that raise an error, because
+    they don't conform to the rules of how SSA value names should be
+    structured.
+    """
+    val = BlockArgument(i32, Block(), 0)
+    with pytest.raises(ValueError):
+        val.name = name

@@ -2,6 +2,8 @@ import argparse
 import sys
 import os
 from io import StringIO
+from xdsl.frontend.passes.desymref import Desymrefy
+from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
@@ -23,8 +25,9 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
+from xdsl.dialects.experimental.math import Math
 
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU, StencilShapeInference
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -172,10 +175,10 @@ class xDSLOptMain:
                                 "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
-            "--allow-unregistered-ops",
+            "--allow-unregistered-dialect",
             default=False,
             action='store_true',
-            help="Allow the parsing of unregistered operations.")
+            help="Allow the parsing of unregistered dialects.")
 
     def register_all_dialects(self):
         """
@@ -191,6 +194,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Scf)
         self.ctx.register_dialect(Cf)
         self.ctx.register_dialect(CMath)
+        self.ctx.register_dialect(Math)
         self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
@@ -198,6 +202,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(GPU)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
+        self.ctx.register_dialect(Symref)
 
     def register_all_frontends(self):
         """
@@ -207,12 +212,14 @@ class xDSLOptMain:
         """
 
         def parse_xdsl(io: IO[str]):
-            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return XDSLParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         def parse_mlir(io: IO[str]):
-            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return MLIRParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
@@ -227,6 +234,9 @@ class xDSLOptMain:
         self.available_passes[
             'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
+        self.available_passes[
+            'stencil-shape-inference'] = StencilShapeInference
+        self.available_passes['frontend-desymrefy'] = Desymrefy
 
     def register_all_targets(self):
         """

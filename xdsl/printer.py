@@ -6,16 +6,17 @@ from enum import Enum
 from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
+from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
                      Attribute, Region, Operation, Data, ParametrizedAttribute)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
     DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
     Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
-    ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
-    UnregisteredOp, VectorType, DictionaryAttr)
+    NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr,
+    SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
+    FunctionType, UnrankedTensorType, UnregisteredAttr, UnregisteredOp,
+    VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -34,6 +35,9 @@ class Printer:
 
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
+    """
+    maps SSA Values to their "allocated" names
+    """
     _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
     _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
     _next_valid_name_id: int = field(default=0, init=False)
@@ -160,11 +164,12 @@ class Printer:
     def _print_result_value(self, op: Operation, idx: int) -> None:
         val = op.results[idx]
         self.print("%")
-        if val in self._ssa_values.keys():
+        if val in self._ssa_values:
             name = self._ssa_values[val]
         elif val.name:
             curr_ind = self._ssa_names.get(val.name, 0)
-            name = val.name + (str(curr_ind) if curr_ind != 0 else "")
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{val.name}{suffix}"
             self._ssa_values[val] = name
             self._ssa_names[val.name] = curr_ind + 1
         else:
@@ -243,6 +248,7 @@ class Printer:
         self.print("%")
         if arg.name and arg.name not in self._ssa_values.values():
             name = arg.name
+            self._ssa_names[arg.name] = self._ssa_names.get(arg.name, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name
@@ -472,6 +478,24 @@ class Printer:
             self.print(">")
             return
 
+        # strided attributes have an alias in MLIR and xDSL
+        if isinstance(attribute, StridedLayoutAttr):
+            self.print("strided<[")
+
+            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
+                self.print(value.data if isinstance(value, IntAttr) else '?')
+
+            self.print_list(attribute.strides.data, print_int_or_question,
+                            ', ')
+            self.print(']')
+            if attribute.offset == IntAttr(0):
+                self.print('>')
+                return
+            self.print(', offset: ')
+            print_int_or_question(attribute.offset)
+            self.print('>')
+            return
+
         # memref types have an alias in MLIR, but not in xDSL
         if (isinstance(attribute, MemRefType)
                 and self.target == self.Target.MLIR):
@@ -481,6 +505,10 @@ class Printer:
                 attribute.shape.data, lambda x: self.print(x.value.data)
                 if x.value.data != -1 else self.print("?"), "x")
             self.print("x", attribute.element_type)
+            if not isinstance(attribute.layout, NoneAttr):
+                self.print(", ", attribute.layout)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
@@ -490,6 +518,8 @@ class Printer:
             attribute = cast(AnyUnrankedMemrefType, attribute)
             self.print("memref<*x")
             self.print(attribute.element_type)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
@@ -507,9 +537,14 @@ class Printer:
                 self.print(" : ", attribute.type)
             return
 
+        if isinstance(attribute, UnregisteredAttr):
+            self.print('!' if attribute.is_type.data else '#')
+            self.print(attribute.attr_name.data, attribute.value.data)
+            return
+
         if self.target == self.Target.MLIR:
             # For the MLIR target, we may print differently some attributes
-            self.print("!" if isinstance(attribute, MLIRType) else "#")
+            self.print("!" if isinstance(attribute, TypeAttribute) else "#")
             self.print(attribute.name)
 
             if isinstance(attribute, Data):

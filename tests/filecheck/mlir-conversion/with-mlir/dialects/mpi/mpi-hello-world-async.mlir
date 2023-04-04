@@ -3,20 +3,25 @@
 "builtin.module"() ({
   "func.func"() ({
     "mpi.init"() : () -> ()
-    %0 = "mpi.comm.rank"() : () -> i32
-    %1 = "arith.constant"() {"value" = 0 : i32} : () -> i32
-    %2 = "arith.cmpi"(%0, %1) {"predicate" = 0 : i64} : (i32, i32) -> i1
+    %rank = "mpi.comm.rank"() : () -> i32
+    %cst0 = "arith.constant"() {"value" = 0 : i32} : () -> i32
+    %cst1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    %cst2 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    %reqs = "mpi.allocate"(%cst2) {dtype = !mpi.request} : (i32) -> !mpi.vector<!mpi.request>
+    %rank_is_zero = "arith.cmpi"(%rank, %cst0) {"predicate" = 0 : i64} : (i32, i32) -> i1
     %ref = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
     %tag = "arith.constant"() {"value" = 1 : i32} : () -> i32
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
-    "scf.if"(%2) ({
+    "scf.if"(%rank_is_zero) ({
       %dest = "arith.constant"() {"value" = 1 : i32} : () -> i32
-      %req = "mpi.isend"(%buff, %count, %dtype, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.request
+      %req = "mpi.vector_get"(%reqs, %cst0) : (!mpi.vector<!mpi.request>, i32) -> !mpi.request
+      "mpi.isend"(%buff, %count, %dtype, %dest, %tag, %req) : (!llvm.ptr, i32, !mpi.datatype, i32, i32, !mpi.request) -> ()
       "mpi.wait"(%req) : (!mpi.request) -> ()
       "scf.yield"() : () -> ()
     }, {
       %source = "arith.constant"() {"value" = 0 : i32} : () -> i32
-      %req = "mpi.irecv"(%buff, %count, %dtype, %source, %tag) {"tag" = 1 : i32} : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> !mpi.request
+      %req = "mpi.vector_get"(%reqs, %cst0) : (!mpi.vector<!mpi.request>, i32) -> !mpi.request
+      "mpi.irecv"(%buff, %count, %dtype, %source, %tag, %req) {"tag" = 1 : i32} : (!llvm.ptr, i32, !mpi.datatype, i32, i32, !mpi.request) -> ()
       %status = "mpi.wait"(%req) : (!mpi.request) -> !mpi.status
       "scf.yield"() : () -> ()
     }) : (i1) -> ()

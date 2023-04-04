@@ -128,11 +128,11 @@ class FuncOp(Operation):
                     /,
                     private: bool = False):
         attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr.from_str(name),
+            "sym_name": StringAttr(name),
             "function_type": ftype,
         }
         if private:
-            attributes["sym_visibility"] = StringAttr.from_str("private")
+            attributes["sym_visibility"] = StringAttr("private")
 
         return FuncOp.create(attributes=attributes, regions=[region])
 
@@ -273,7 +273,7 @@ class ReturnOp(Operation):
 
     @staticmethod
     def from_input(input: SSAValue | None = None) -> ReturnOp:
-        return ReturnOp.create(operands=[input] if input is not None else [])
+        return ReturnOp.build(operands=[input])
 
 
 @irdl_op_definition

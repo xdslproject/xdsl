@@ -1,9 +1,10 @@
 from xdsl.dialects import builtin, arith, memref
 from xdsl.dialects.gpu import (
-    AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp, BlockDimOp,
-    BlockIdOp, GlobalIdOp, GridDimOp, HostRegisterOp, LaneIdOp, LaunchOp,
-    ModuleEndOp, ModuleOp, DimensionAttr, NumSubgroupsOp, SetDefaultDeviceOp,
-    SubgroupIdOp, SubgroupSizeOp, TerminatorOp, ThreadIdOp, YieldOp)
+    AllocOp, AllReduceOp, AllReduceOperationAttr, AsyncTokenType, BarrierOp,
+    BlockDimOp, BlockIdOp, DeallocOp, GlobalIdOp, GridDimOp, HostRegisterOp,
+    LaneIdOp, LaunchOp, MemcpyOp, ModuleEndOp, ModuleOp, DimensionAttr,
+    NumSubgroupsOp, SetDefaultDeviceOp, SubgroupIdOp, SubgroupSizeOp,
+    TerminatorOp, ThreadIdOp, YieldOp)
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -11,6 +12,41 @@ def test_dimension():
     dim = DimensionAttr.from_dimension("x")
 
     assert dim.data == "x"
+
+
+def test_alloc():
+    typ = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [10, 10, 10])
+    alloc = AllocOp.get(typ, is_async=True)
+
+    assert isinstance(alloc, AllocOp)
+    assert alloc.result.typ is typ
+    assert len(alloc.asyncDependencies) == 0
+    assert len(alloc.dynamicSizes) == 0
+    assert alloc.asyncToken is not None
+    assert isinstance(alloc.asyncToken.typ, AsyncTokenType)
+    assert alloc.hostShared is None
+
+    dyntyp = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [-1, -1, -1])
+    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    dynamic_sizes = [ten, ten, ten]
+    token = alloc.asyncToken
+
+    full_alloc = AllocOp.get(return_type=dyntyp,
+                             dynamic_sizes=dynamic_sizes,
+                             host_shared=True,
+                             async_dependencies=[token])
+
+    assert isinstance(full_alloc, AllocOp)
+    assert full_alloc.result.typ is dyntyp
+    assert len(full_alloc.asyncDependencies) == 1
+    assert full_alloc.asyncDependencies[0] is token
+    assert len(full_alloc.dynamicSizes) == 3
+    assert full_alloc.dynamicSizes == tuple(d.result for d in dynamic_sizes)
+    assert full_alloc.asyncToken is None
+    assert "hostShared" in full_alloc.attributes.keys()
+    assert isinstance(full_alloc.hostShared, builtin.UnitAttr)
 
 
 def test_all_reduce_operation():
@@ -73,6 +109,31 @@ def test_block_id():
 
     assert isinstance(block_id, BlockIdOp)
     assert block_id.dimension is dim
+
+
+def test_dealloc():
+
+    typ = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [10, 10, 10])
+    alloc = AllocOp.get(typ, is_async=True)
+
+    assert alloc.asyncToken is not None  # For pyright
+
+    dealloc = DeallocOp.get(buffer=alloc.result,
+                            async_dependencies=[alloc.asyncToken],
+                            is_async=True)
+
+    assert dealloc.asyncToken is not None
+    assert isinstance(dealloc.asyncToken.typ, AsyncTokenType)
+    assert dealloc.buffer is alloc.result
+    assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
+
+    alloc2 = AllocOp.get(typ, is_async=True)
+    sync_dealloc = DeallocOp.get(buffer=alloc2.result)
+
+    assert sync_dealloc.asyncToken is None
+    assert sync_dealloc.buffer is alloc2.result
+    assert len(sync_dealloc.asyncDependencies) == 0
 
 
 def test_gpu_module():
@@ -170,6 +231,35 @@ def test_launch():
     assert nd_launch.asyncToken.typ == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
     assert nd_launch.dynamicSharedMemorySize is ten.result
+
+
+def test_memcpy():
+
+    typ = memref.MemRefType.from_element_type_and_shape(
+        builtin.Float32Type(), [10, 10, 10])
+    host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
+    alloc = AllocOp.get(typ, is_async=True)
+
+    assert alloc.asyncToken is not None  #for Pyright
+
+    memcpy = MemcpyOp.get(host_alloc, alloc.result, [alloc.asyncToken])
+
+    assert isinstance(memcpy, MemcpyOp)
+    assert memcpy.src is host_alloc.memref
+    assert memcpy.dst is alloc.result
+    assert memcpy.asyncDependencies == tuple([alloc.asyncToken])
+    assert memcpy.asyncToken is None
+
+    memcpy2 = MemcpyOp.get(alloc.result,
+                           host_alloc.memref, [alloc.asyncToken],
+                           is_async=True)
+
+    assert isinstance(memcpy2, MemcpyOp)
+    assert memcpy2.src is alloc.result
+    assert memcpy2.dst is host_alloc.memref
+    assert memcpy2.asyncDependencies == tuple([alloc.asyncToken])
+    assert memcpy2.asyncToken is not None
+    assert isinstance(memcpy2.asyncToken.typ, AsyncTokenType)
 
 
 def test_num_subgroups():

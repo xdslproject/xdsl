@@ -142,6 +142,24 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
+    def insert_op_after(op: Operation, new_op: Operation):
+        """Inserts a new operation after another operation."""
+        if op.parent is None:
+            raise Exception(
+                "Cannot insert an operation after a toplevel operation")
+        op_idx = op.parent.get_operation_index(op)
+        op.parent.insert_op(new_op, op_idx + 1)
+
+    @staticmethod
+    def insert_op_before(op: Operation, new_op: Operation):
+        """Inserts a new operation before another operation."""
+        if op.parent is None:
+            raise Exception(
+                "Cannot insert an operation before a toplevel operation")
+        op_idx = op.parent.get_operation_index(op)
+        op.parent.insert_op(new_op, op_idx)
+
+    @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
         """Move the region blocks to a new region."""
         new_region = Region()

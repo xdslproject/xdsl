@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Mapping, Protocol,
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -52,8 +52,6 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    registered_unregistered_ops: dict[str, type[Operation]] = field(
-        default_factory=dict)
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -76,27 +74,75 @@ class MLContext:
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_optional_op(self, name: str) -> type[Operation] | None:
-        """Get an operation class from its name if it exists."""
-        if name not in self._registeredOps:
-            return None
-        return self._registeredOps[name]
+    def get_optional_op(
+            self,
+            name: str,
+            allow_unregistered: bool = False) -> type[Operation] | None:
+        """
+        Get an operation class from its name if it exists.
+        If the operation is not registered, return None unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if name in self._registeredOps:
+            return self._registeredOps[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredOp
+            op_type = UnregisteredOp.with_name(name)
+            self._registeredOps[name] = op_type
+            return op_type
+        return None
 
-    def get_op(self, name: str) -> type[Operation]:
-        """Get an operation class from its name."""
-        if op_type := self.get_optional_op(name):
+    def get_op(self,
+               name: str,
+               allow_unregistered: bool = False) -> type[Operation]:
+        """
+        Get an operation class from its name.
+        If the operation is not registered, raise an exception unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if op_type := self.get_optional_op(name, allow_unregistered):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
-    def get_optional_attr(self, name: str) -> type[Attribute] | None:
-        """Get an attribute class from its name if it exists."""
-        if name not in self._registeredAttrs:
-            return None
-        return self._registeredAttrs[name]
+    def get_optional_attr(
+            self,
+            name: str,
+            allow_unregistered: bool = False,
+            create_unregistered_as_type: bool = False
+    ) -> type[Attribute] | None:
+        """
+        Get an attribute class from its name if it exists.
+        If the attribute is not registered, return None unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if name in self._registeredAttrs:
+            return self._registeredAttrs[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredAttr
+            attr_type = UnregisteredAttr.with_name_and_type(
+                name, create_unregistered_as_type)
+            self._registeredAttrs[name] = attr_type
+            return attr_type
 
-    def get_attr(self, name: str) -> type[Attribute]:
-        """Get an attribute class from its name."""
-        if attr_type := self.get_optional_attr(name):
+        return None
+
+    def get_attr(self,
+                 name: str,
+                 allow_unregistered: bool = False,
+                 create_unregistered_as_type: bool = False) -> type[Attribute]:
+        """
+        Get an attribute class from its name.
+        If the attribute is not registered, raise an exception unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if attr_type := self.get_optional_attr(name, allow_unregistered,
+                                               create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
@@ -128,7 +174,7 @@ class SSAValue(ABC):
     _name: str | None = field(init=False, default=None)
 
     _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'[A-Za-z0-9._$-]*[A-Za-z._$-]')
+        r'([A-Za-z_$.-][\w$.-]*)')
 
     @property
     @abstractmethod
@@ -144,9 +190,19 @@ class SSAValue(ABC):
         return self._name
 
     @name.setter
-    def name(self, name: str):
-        if self._name_regex.fullmatch(name):
+    def name(self, name: str | None):
+        # only allow valid names
+        if SSAValue.is_valid_name(name):
             self._name = name
+        else:
+            raise ValueError(
+                "Invalid SSA Value name format!",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
+            )
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        return name is None or cls._name_regex.fullmatch(name)
 
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
@@ -174,6 +230,9 @@ class SSAValue(ABC):
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
+        # carry over name if possible
+        if value.name is None:
+            value.name = self.name
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -267,9 +326,8 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass
-class MLIRType:
+class TypeAttribute:
     """
-    A class representing an MLIR type.
     This class should only be inherited by classes inheriting Attribute.
     This class is only used for printing attributes in the MLIR format,
     inheriting this class prefix the attribute by `!` instead of `#`.
@@ -278,7 +336,7 @@ class MLIRType:
     def __post_init__(self):
         if not isinstance(self, Attribute):
             raise TypeError(
-                "MLIRType should only be inherited by classes inheriting Attribute"
+                "TypeAttribute should only be inherited by classes inheriting Attribute"
             )
 
 
@@ -447,6 +505,20 @@ class IRNode(ABC):
         ...
 
 
+@dataclass(frozen=True)
+class OpTrait():
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, or to specify
+    additional semantic information.
+    Some traits may define parameters.
+    """
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -474,6 +546,13 @@ class Operation(IRNode):
 
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
+
+    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
+    """
+    Traits attached to an operation definition.
+    This is a static field, and is made empty by default by PyRDL if not set
+    by the operation definition.
+    """
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -547,11 +626,11 @@ class Operation(IRNode):
     def build(
         cls: type[OpT],
         operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]]
+                           | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute]]
         | None = None,
-        attributes: dict[str, Attribute] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                           | Sequence[Region | Sequence[Operation]
@@ -665,6 +744,20 @@ class Operation(IRNode):
             region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
         return op
 
+    @classmethod
+    def has_trait(cls, trait: OpTrait) -> bool:
+        """
+        Check if the operation implements a trait with the given parameters.
+        """
+        return trait in cls.traits
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+        """
+        Get all the traits of the given type satisfied by this operation.
+        """
+        return [t for t in cls.traits if isinstance(t, trait_type)]
+
     def erase(self,
               safe_erase: bool = True,
               drop_references: bool = True) -> None:
@@ -759,6 +852,9 @@ class Operation(IRNode):
         return None
 
 
+OperationInvT = TypeVar('OperationInvT', bound=Operation)
+
+
 @dataclass()
 class Block(IRNode):
     """A sequence of operations"""
@@ -793,7 +889,7 @@ class Block(IRNode):
         return self._args
 
     @staticmethod
-    def from_arg_types(arg_types: list[Attribute]) -> Block:
+    def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
             BlockArgument(typ, b, index)

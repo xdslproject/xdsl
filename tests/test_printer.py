@@ -10,7 +10,7 @@ from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
                        irdl_op_definition, Operation, Operand)
-from xdsl.parser import Parser, BaseParser, XDSLParser
+from xdsl.parser import Parser, BaseParser, Source, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
@@ -137,7 +137,7 @@ builtin.module() {
     ctx.register_dialect(Builtin)
 
     parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
+    module = parser.parse_module()
 
     diagnostic = Diagnostic()
     diagnostic.add_message(module.ops[0], "Test message")
@@ -204,7 +204,7 @@ def test_two_same_op_messages():
     ctx.register_dialect(Builtin)
 
     parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
+    module = parser.parse_module()
 
     diagnostic = Diagnostic()
     diagnostic.add_message(module.ops[0], "Test message 1")
@@ -518,32 +518,6 @@ builtin.module() {
     assert_print_op(module, expected, None)
 
 
-def test_parse_generic_format_attr():
-    """
-    Test that we can parse attributes using generic formats.
-    """
-    prog = \
-        """builtin.module() {
-      any() ["attr" = #"custom"<#int<0>>]
-    }"""
-
-    expected = \
-"""\
-builtin.module() {
-  any() ["attr" = !custom<zero>]
-}"""
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
-
-    parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
-
-    assert_print_op(module, expected, None)
-
-
 def test_parse_generic_format_attr_II():
     """
     Test that we can parse attributes using generic formats.
@@ -635,7 +609,7 @@ def test_parse_dense_mlir():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
 
-    parser = Parser(ctx, prog, source=Parser.Source.MLIR)
+    parser = Parser(ctx, prog, source=Source.MLIR)
     module = parser.parse_op()
 
     assert_print_op(module,

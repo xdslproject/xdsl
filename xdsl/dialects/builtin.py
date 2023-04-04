@@ -1,11 +1,12 @@
 from __future__ import annotations
+from abc import ABC
 
 from dataclasses import dataclass
 from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
                     TYPE_CHECKING, Any, TypeVar, overload)
 
-from xdsl.ir import (Block, Data, MLContext, MLIRType, ParametrizedAttribute,
+from xdsl.ir import (Block, Data, TypeAttribute, ParametrizedAttribute,
                      Operation, Region, Attribute, Dialect, SSAValue,
                      AttributeCovT, AttributeInvT)
 
@@ -238,7 +239,7 @@ class SignednessAttr(Data[Signedness]):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute):
+class IntegerType(ParametrizedAttribute, TypeAttribute):
     name: str = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -317,17 +318,17 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, MLIRType):
+class Float16Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f16"
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, MLIRType):
+class Float32Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f32"
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, MLIRType):
+class Float64Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f64"
 
 
@@ -472,7 +473,7 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeInvT], ParametrizedAttribute, MLIRType):
+class VectorType(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -510,7 +511,7 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 
 @irdl_attr_definition
-class TensorType(Generic[AttributeCovT], ParametrizedAttribute, MLIRType):
+class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -550,7 +551,7 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 
 @irdl_attr_definition
 class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute,
-                         MLIRType):
+                         TypeAttribute):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
@@ -873,15 +874,15 @@ class DenseArrayBase(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class FunctionType(ParametrizedAttribute, MLIRType):
+class FunctionType(ParametrizedAttribute, TypeAttribute):
     name = "fun"
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    def from_lists(inputs: List[Attribute],
-                   outputs: List[Attribute]) -> FunctionType:
+    def from_lists(inputs: Sequence[Attribute],
+                   outputs: Sequence[Attribute]) -> FunctionType:
         return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
 
     @staticmethod
@@ -910,8 +911,67 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
+@irdl_attr_definition
+class StridedLayoutAttr(ParametrizedAttribute):
+    """
+    An attribute representing a strided layout of a shaped type.
+    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+
+    Contrary to MLIR, we represent dynamic offsets and strides with
+    `NoneAttr`, and we do not restrict offsets and strides to 64-bits
+    integers.
+    """
+    name: str = "strided"
+
+    strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
+    offset: ParameterDef[IntAttr | NoneAttr]
+
+    def __init__(self,
+                 strides: ArrayAttr[IntAttr | NoneAttr]
+                 | Sequence[int | None | IntAttr | NoneAttr],
+                 offset: int | None | IntAttr | NoneAttr = 0) -> None:
+        if not isinstance(strides, ArrayAttr):
+            strides_values: list[IntAttr | NoneAttr] = []
+            for stride in strides:
+                if isinstance(stride, int):
+                    strides_values.append(IntAttr(stride))
+                elif stride is None:
+                    strides_values.append(NoneAttr())
+                else:
+                    strides_values.append(stride)
+            strides = ArrayAttr(strides_values)
+
+        if isinstance(offset, int):
+            offset = IntAttr(offset)
+        if offset is None:
+            offset = NoneAttr()
+
+        super().__init__([strides, offset])
+
+
 @irdl_op_definition
-class UnregisteredOp(Operation):
+class UnrealizedConversionCastOp(Operation):
+    name: str = "builtin.unrealized_conversion_cast"
+
+    inputs: VarOperand
+    outputs: VarOpResult
+
+    @staticmethod
+    def get(inputs: Sequence[SSAValue | Operation],
+            result_type: Sequence[Attribute]):
+        return UnrealizedConversionCastOp.build(
+            operands=[inputs],
+            result_types=[result_type],
+        )
+
+
+class UnregisteredOp(Operation, ABC):
+    """
+    An unregistered operation.
+    
+    Each unregistered op is registered as a subclass of `UnregisteredOp`,
+    and op with different names have distinct subclasses.
+    """
     name: str = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
@@ -924,9 +984,12 @@ class UnregisteredOp(Operation):
         return self.op_name__  # type: ignore
 
     @classmethod
-    def with_name(cls, name: str, ctx: MLContext) -> type[Operation]:
-        if name in ctx.registered_unregistered_ops:
-            return ctx.registered_unregistered_ops[name]  # type: ignore
+    def with_name(cls, name: str) -> type[Operation]:
+        """
+        Return a new unregistered operation type given a name.
+        This function should not be called directly. Use methods from
+        `MLContext` to get an `UnregisteredOp` type.
+        """
 
         class UnregisteredOpWithName(UnregisteredOp):
 
@@ -942,8 +1005,76 @@ class UnregisteredOp(Operation):
                 op.attributes['op_name__'] = StringAttr(name)
                 return op
 
-        ctx.registered_unregistered_ops[name] = UnregisteredOpWithName
-        return UnregisteredOpWithName
+        return irdl_op_definition(UnregisteredOpWithName)
+
+
+@irdl_attr_definition
+class UnregisteredAttr(ParametrizedAttribute, ABC):
+    """
+    An unregistered attribute or type.
+    
+    Each unregistered attribute is registered as a subclass of
+    `UnregisteredAttr`, and attribute with different names have 
+    distinct subclasses.
+    
+    Since attributes do not have a generic format, unregistered
+    attributes represent their original parameters as a string,
+    which is exactly the content parsed from the textual
+    representation.
+    """
+    name: str = "builtin.unregistered"
+
+    attr_name: ParameterDef[StringAttr]
+    is_type: ParameterDef[IntAttr]
+    value: ParameterDef[StringAttr]
+    """
+    This parameter is non-null is the attribute is a type, and null otherwise.
+    """
+
+    def __init__(self, attr_name: str | StringAttr, is_type: bool | IntAttr,
+                 value: str | StringAttr):
+        if isinstance(attr_name, str):
+            attr_name = StringAttr(attr_name)
+        if isinstance(is_type, bool):
+            is_type = IntAttr(int(is_type))
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__([attr_name, is_type, value])
+
+    @classmethod
+    def with_name_and_type(cls, name: str,
+                           is_type: bool) -> type[UnregisteredAttr]:
+        """
+        Return a new unregistered attribute type given a name and a 
+        boolean indicating if the attribute can be a type.
+        This function should not be called directly. Use methods from
+        `MLContext` to get an `UnregisteredAttr` type.
+        """
+
+        class UnregisteredAttrWithName(UnregisteredAttr):
+
+            def verify(self):
+                if self.attr_name.data != name:
+                    raise VerifyException(
+                        "Unregistered attribute name mismatch")
+                if self.is_type.data != int(is_type):
+                    raise VerifyException(
+                        "Unregistered attribute is_type mismatch")
+
+        class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
+
+            def verify(self):
+                if self.attr_name.data != name:
+                    raise VerifyException(
+                        "Unregistered attribute name mismatch")
+                if self.is_type.data != int(is_type):
+                    raise VerifyException(
+                        "Unregistered attribute is_type mismatch")
+
+        if is_type:
+            return UnregisteredAttrWithName
+        else:
+            return UnregisteredAttrTypeWithName
 
 
 @irdl_op_definition
@@ -976,8 +1107,15 @@ f32 = Float32Type()
 f64 = Float64Type()
 
 Builtin = Dialect(
-    [ModuleOp, UnregisteredOp],
     [
+        ModuleOp,
+        UnregisteredOp,
+        UnrealizedConversionCastOp,
+    ],
+    [
+        UnregisteredAttr,
+
+        # Attributes
         StringAttr,
         SymbolRefAttr,
         SymbolNameAttr,

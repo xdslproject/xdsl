@@ -5,8 +5,9 @@ from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
                                  RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
                                  XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
                                  Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
-                                 SIToFPOp)
-from xdsl.dialects.builtin import i32, f32, IndexType, IntegerType, Float32Type
+                                 SIToFPOp, ExtFOp, TruncFOp, Cmpf, Negf)
+from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.utils.exceptions import VerifyException
 
 
 class Test_integer_arith_construction:
@@ -34,7 +35,7 @@ class Test_integer_arith_construction:
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
     def test_Cmpi_from_mnemonic(self, input):
-        _ = Cmpi.from_mnemonic(self.a, self.b, input)
+        _ = Cmpi.get(self.a, self.b, input)
 
 
 class Test_float_arith_construction:
@@ -70,3 +71,95 @@ def test_cast_fp_and_si_ops():
     assert fp.result == si.input
     assert isinstance(si.result.typ, IntegerType)
     assert fp.result.typ == f32
+
+
+def test_negf_op():
+    a = Constant.from_float_and_width(1.0, f32)
+    neg_a = Negf.get(a)
+
+    b = Constant.from_float_and_width(1.0, f64)
+    neg_b = Negf.get(b)
+
+    assert neg_a.result.typ == f32
+    assert neg_b.result.typ == f64
+
+
+def test_extend_truncate_fpops():
+    a = Constant.from_float_and_width(1.0, f32)
+    b = Constant.from_float_and_width(2.0, f64)
+    ext_op = ExtFOp.get(a, f64)
+    trunc_op = TruncFOp.get(b, f32)
+
+    assert ext_op.input == a.result
+    assert ext_op.result.typ == f64
+    assert trunc_op.input == b.result
+    assert trunc_op.result.typ == f32
+
+
+def test_cmpf_from_mnemonic():
+    a = Constant.from_float_and_width(1.0, f64)
+    b = Constant.from_float_and_width(2.0, f64)
+    operations = [
+        "false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord", "ueq", "ugt",
+        "uge", "ult", "ule", "une", "uno", "true"
+    ]
+    cmpf_ops = [None] * len(operations)
+
+    for i in range(len(operations)):
+        cmpf_ops[i] = Cmpf.get(a, b, operations[i])
+
+    for index, op in enumerate(cmpf_ops):
+        assert op.lhs.typ == f64
+        assert op.rhs.typ == f64
+        assert op.predicate.value.data == index
+
+
+def test_cmpf_get():
+    a = Constant.from_float_and_width(1.0, f32)
+    b = Constant.from_float_and_width(2.0, f32)
+
+    cmpf_op = Cmpf.get(a, b, 1)
+
+    assert cmpf_op.lhs.typ == f32
+    assert cmpf_op.rhs.typ == f32
+    assert cmpf_op.predicate.value.data == 1
+
+
+def test_cmpf_missmatch_type():
+    a = Constant.from_float_and_width(1.0, f32)
+    b = Constant.from_float_and_width(2.0, f64)
+
+    with pytest.raises(TypeError) as e:
+        cmpf_op = Cmpf.get(a, b, 1)
+    assert e.value.args[
+        0] == "Comparison operands must have same type, but provided !f32 and !f64"
+
+
+def test_cmpi_missmatch_type():
+    a = Constant.from_float_and_width(1, i32)
+    b = Constant.from_float_and_width(2, i64)
+
+    with pytest.raises(TypeError) as e:
+        cmpi_op = Cmpi.get(a, b, 1)
+    assert e.value.args[
+        0] == "Comparison operands must have same type, but provided !i32 and !i64"
+
+
+def test_cmpf_incorrect_comparison():
+    a = Constant.from_float_and_width(1.0, f32)
+    b = Constant.from_float_and_width(2.0, f32)
+
+    with pytest.raises(VerifyException) as e:
+        # 'eq' is a comparison op for cmpi but not cmpf
+        cmpf_op = Cmpf.get(a, b, "eq")
+    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
+
+
+def test_cmpf_incorrect_comparison():
+    a = Constant.from_float_and_width(1, i32)
+    b = Constant.from_float_and_width(2, i32)
+
+    with pytest.raises(VerifyException) as e:
+        # 'oeq' is a comparison op for cmpf but not cmpi
+        cmpi_op = Cmpi.get(a, b, "oeq")
+    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
