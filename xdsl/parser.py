@@ -271,11 +271,14 @@ class Tokenizer:
             if self.input.content.startswith(part, i):
                 return i + len(part)
         # Otherwise return the start of the next break
-        return min(
+        break_pos = list(
             filter(
                 lambda x: x >= 0,
                 (self.input.content.find(part, i) for part in self._break_on),
             ))
+        # Make sure that we break at some point
+        break_pos.append(self.input.len)
+        return min(break_pos)
 
     def next_pos(self, i: int | None = None) -> int:
         """
@@ -756,6 +759,52 @@ class BaseParser(ABC):
             items.append(next_item)
 
         return items
+
+    def parse_optional_integer(self,
+                               allow_boolean: bool = True,
+                               allow_negative: bool = True) -> int | None:
+        self._synchronize_lexer_and_tokenizer()
+        # Parse true and false if needed
+        if allow_boolean:
+            if self._current_token.kind == Token.Kind.BARE_IDENT:
+                if self._current_token.text == 'true':
+                    self._consume_token(Token.Kind.BARE_IDENT)
+                    self._synchronize_lexer_and_tokenizer()
+                    return 1
+                elif self._current_token.text == 'false':
+                    self._consume_token(Token.Kind.BARE_IDENT)
+                    self._synchronize_lexer_and_tokenizer()
+                    return 0
+                return None
+
+        # Parse negative numbers if required
+        is_negative = False
+        if allow_negative:
+            is_negative = self._parse_optional_token(
+                Token.Kind.MINUS) is not None
+
+        # Parse the actual number
+        if (int_token := self._parse_optional_token(
+                Token.Kind.INTEGER_LIT)) is None:
+            if is_negative:
+                self.raise_error("Expected integer literal after '-'")
+            self._synchronize_lexer_and_tokenizer()
+            return None
+
+        # Get the value and optionally negate it
+        value = int_token.get_int_value()
+        if is_negative:
+            value = -value
+        self._synchronize_lexer_and_tokenizer()
+        return value
+
+    def parse_integer(self,
+                      allow_boolean: bool = True,
+                      allow_negative: bool = True,
+                      context_msg: str = '') -> int:
+        return self.expect(
+            lambda: self.parse_optional_integer(allow_boolean, allow_negative),
+            'Expected integer literal' + context_msg)
 
     def try_parse_integer_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(
