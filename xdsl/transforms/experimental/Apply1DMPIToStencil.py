@@ -1,5 +1,5 @@
 from typing import List
-from xdsl.ir import Operation, MLContext
+from xdsl.ir import Operation, MLContext, Block
 from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
                                    op_type_rewrite_pattern,
                                    PatternRewriteWalker,
@@ -14,7 +14,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(self, op: stencil.ExternalLoadOp,
                           rewriter: PatternRewriter, /):
         assert isinstance(op.field.typ, memref.MemRefType)
-        if len(op.field.typ.shape) <= 1: return
+        memref_type: memref.MemRefType = op.field.typ
+        if len(memref_type.shape) <= 1: return
         mpi_operations: List[Operation] = []
 
         # Rank and size
@@ -36,9 +37,12 @@ class ApplyMPIToExternalLoad(RewritePattern):
         ]
 
         # The underlying datatype we use in communications and size in dimension zero
-        datatype_op = mpi.GetDtypeOp.get(op.field.typ.element_type)
-        dim_zero_const = arith.Constant.from_attr(
-            builtin.IntegerAttr(0, builtin.IndexType()), builtin.IndexType())
+        element_type: TypeAttribute = memref_type.element_type
+        datatype_op = mpi.GetDtypeOp.get(element_type)
+        int_attr: IntegerAttr[IndexType] = builtin.IntegerAttr(
+            0, builtin.IndexType())
+        dim_zero_const = arith.Constant.from_attr(int_attr,
+                                                  builtin.IndexType())
         dim_zero_size_op = memref.Dim.from_source_and_index(
             op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp.get(dim_zero_size_op, builtin.i32)
@@ -155,7 +159,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [wait_op]
 
         parent_op = op.parent
+        assert isinstance(parent_op.ops, list)
         idx = parent_op.ops.index(op)
+        assert isinstance(parent_op, Block)
         parent_op.insert_op(mpi_operations, idx + 1)
 
 
