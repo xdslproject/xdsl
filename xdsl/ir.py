@@ -631,7 +631,7 @@ class Operation(IRNode):
     def build(
         cls: type[OpT],
         operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]]
+                           | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute]]
         | None = None,
