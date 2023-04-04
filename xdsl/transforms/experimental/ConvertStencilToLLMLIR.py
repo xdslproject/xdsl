@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Any
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
@@ -14,11 +14,8 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
-
-# TODO docstrings and comments
 
 
 def GetMemRefFromField(
@@ -50,9 +47,10 @@ class CastOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
-        assert isa(op.field.typ, FieldType[Attribute] | MemRefType[Attribute])
+        assert isinstance(op.field.typ, FieldType | MemRefType)
+        field_typ: FieldType[Attribute] | MemRefType[Attribute] = op.field.typ
 
-        result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
+        result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
                                                    op.lb, op.ub)
 
         cast = memref.Cast.get(op.field, result_typ)
@@ -64,7 +62,7 @@ class CastOpToMemref(RewritePattern):
         if self.gpu:
             unranked = memref.Cast.get(
                 cast.dest,
-                memref.UnrankedMemrefType.from_type(op.field.typ.element_type))
+                memref.UnrankedMemrefType.from_type(field_typ.element_type))
             register = gpu.HostRegisterOp.from_memref(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
@@ -88,8 +86,8 @@ class StoreOpShapeInference(RewritePattern):
 
         assert isinstance(owner, ApplyOp | LoadOp)
 
-        owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
-        owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
+        #owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
+        #owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
 
 
 @dataclass
@@ -162,16 +160,6 @@ class LoadOpShapeInference(RewritePattern):
 
         verify_load_bounds(cast, op)
 
-        assert op.lb and op.ub
-        assert isa(op.res.typ, TempType[Attribute])
-
-        # TODO We need to think about that. Do we want an API for this? Do we just want
-        # to recreate the whole operation?
-        op.res.typ = TempType.from_shape(
-            IndexAttr.size_from_bounds(op.lb, op.ub),
-            op.res.typ.element_type,
-        )
-
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 
@@ -217,14 +205,6 @@ class ApplyOpShapeInference(RewritePattern):
 
         op.walk(access_shape_infer_walk)
 
-        assert op.lb and op.ub
-
-        for result in op.results:
-            assert isa(result.typ, TempType[Attribute])
-            result.typ = TempType.from_shape(
-                IndexAttr.size_from_bounds(op.lb, op.ub),
-                result.typ.element_type)
-
 
 class ApplyOpToParallel(RewritePattern):
 
@@ -237,23 +217,25 @@ class ApplyOpToParallel(RewritePattern):
         dim = len(op.lb.array.data)
 
         #Then create the corresponding scf.parallel
-        dims = IndexAttr.size_from_bounds(op.lb, op.ub)
-        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
+        lowerBounds = [
+            arith.Constant.from_int_and_width(x.value.data, builtin.IndexType())
+            for x in op.lb.array.data
+        ]
         upperBounds = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType())
-            for x in dims
+            arith.Constant.from_int_and_width(x.value.data, builtin.IndexType())
+            for x in op.ub.array.data
         ]
 
         # Move the body to the loop
         body.blocks[0].add_op(scf.Yield.get())
-        p = scf.ParallelOp.get(lowerBounds=[zero] * dim,
+        p = scf.ParallelOp.get(lowerBounds=lowerBounds,
                                upperBounds=upperBounds,
                                steps=[one] * dim,
                                body=body)
 
         # Replace with the loop and necessary constants.
-        rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
+        rewriter.insert_op_before_matched_op([one, *lowerBounds, *upperBounds, p])
         rewriter.erase_matched_op(False)
 
 
@@ -298,8 +280,9 @@ class StencilTypeConversionFuncOp(RewritePattern):
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
         for arg in op.body.blocks[0].args:
-            if isa(arg.typ, FieldType[Attribute]):
-                memreftyp = GetMemRefFromField(arg.typ)
+            if isinstance(arg.typ, FieldType):
+                typ: FieldType[Attribute] = arg.typ
+                memreftyp = GetMemRefFromField(typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)
                 inputs.append(memreftyp)
             else:
@@ -314,8 +297,9 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
                           /):
-        assert isa(op.result.typ, FieldType[Attribute])
-        op.result.typ = GetMemRefFromField(op.result.typ)
+        assert isinstance(op.result.typ, FieldType)
+        typ: FieldType[Any] = op.result.typ
+        op.result.typ = GetMemRefFromField(typ)
 
         if op.field.typ == op.result.typ:
             rewriter.replace_matched_op([], [op.field])
