@@ -160,8 +160,8 @@ class IndexAttr(ParametrizedAttribute):
             for lb, ub in zip(lb.array.data, ub.array.data)
         ]
 
-    #TODO : come to an agreement on, do we want to allow that kind of things on
-    # Attributes? Author's opinion is a clear yes :P
+    # TODO : come to an agreement on, do we want to allow that kind of things
+    # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
         integer_attrs: list[Attribute] = [
             IntegerAttr(-e.value.data, IntegerType(64))
