@@ -1,11 +1,14 @@
 from typing import List
-from xdsl.ir import Operation, MLContext, Block
+from xdsl.ir import Operation, MLContext, Block, TypeAttribute
+from xdsl.irdl import Operand
 from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
                                    op_type_rewrite_pattern,
                                    PatternRewriteWalker,
                                    GreedyRewritePatternApplier)
 from xdsl.dialects import builtin, llvm, arith, mpi, memref, scf
 from xdsl.dialects.experimental import stencil
+
+AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 
 
 class ApplyMPIToExternalLoad(RewritePattern):
@@ -14,7 +17,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(self, op: stencil.ExternalLoadOp,
                           rewriter: PatternRewriter, /):
         assert isinstance(op.field.typ, memref.MemRefType)
-        memref_type: memref.MemRefType = op.field.typ
+        memref_type: memref.MemRefType[AnyNumericType] = op.field.typ
         if len(memref_type.shape) <= 1: return
         mpi_operations: List[Operation] = []
 
@@ -39,7 +42,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         # The underlying datatype we use in communications and size in dimension zero
         element_type: TypeAttribute = memref_type.element_type
         datatype_op = mpi.GetDtypeOp.get(element_type)
-        int_attr: IntegerAttr[IndexType] = builtin.IntegerAttr(
+        int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
             0, builtin.IndexType())
         dim_zero_const = arith.Constant.from_attr(int_attr,
                                                   builtin.IndexType())
@@ -154,14 +157,15 @@ class ApplyMPIToExternalLoad(RewritePattern):
         ])
 
         mpi_operations += [bottom_halo_exhange]
+        req_ops: Operand = alloc_request_op.results[0]
 
-        wait_op = mpi.Waitall.get(alloc_request_op, four)
+        wait_op = mpi.Waitall.get(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
         parent_op = op.parent
-        assert isinstance(parent_op.ops, list)
-        idx = parent_op.ops.index(op)
         assert isinstance(parent_op, Block)
+        parent_ops: List[Operation] = parent_op.ops
+        idx = parent_ops.index(op)
         parent_op.insert_op(mpi_operations, idx + 1)
 
 
