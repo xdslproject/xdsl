@@ -742,10 +742,9 @@ class Negf(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
       fastmath: FastMathFlagsAttr | None = None) -> Negf:
-        attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Negf.build(attributes=attributes, operands=[operand],
+        return Negf.build(attributes={"fastmath": fastmath}, operands=[operand],
                           result_types=[operand.typ])
 
 
