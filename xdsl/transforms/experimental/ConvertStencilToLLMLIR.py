@@ -262,7 +262,7 @@ class AccessOpToMemref(RewritePattern):
         off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
+        #args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
