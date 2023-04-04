@@ -255,7 +255,7 @@ class OpResult(SSAValue):
     op: Operation
     """The operation defining the variable."""
 
-    result_index: int
+    index: int
     """The index of the result in the defining operation."""
 
     @property
@@ -266,7 +266,7 @@ class OpResult(SSAValue):
         return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
             self.typ,
-            self.result_index,
+            self.index,
             self.op.name,
             len(self.uses),
         )
