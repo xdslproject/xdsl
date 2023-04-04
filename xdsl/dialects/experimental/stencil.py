@@ -481,8 +481,8 @@ class ReturnOp(Operation):
     arg: Annotated[Operand, ResultType | AnyFloat]
 
     @staticmethod
-    def get(*res: SSAValue | Operation):
-        return ReturnOp.build(operands=[*res])
+    def get(res: SSAValue | Operation):
+        return ReturnOp.build(operands=[res])
 
 
 @irdl_op_definition
