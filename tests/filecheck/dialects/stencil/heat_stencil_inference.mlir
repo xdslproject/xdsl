@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s | filecheck %s
+// RUN: xdsl-opt %s -t mlir -p stencil-shape-inference | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
@@ -193,7 +193,7 @@
 // CHECK-NEXT:      %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
 // CHECK-NEXT:      %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>
 // CHECK-NEXT:      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[104 : i64, 104 : i64, 104 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[100 : i64, 100 : i64, 100 : i64], f32>
-// CHECK-NEXT:      %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<[100 : i64, 100 : i64, 100 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
+// CHECK-NEXT:      %6 = "stencil.load"(%t0_w_size_3) {"lb" = #stencil.index<[-2 : i64, -2 : i64, -2 : i64]>, "ub" = #stencil.index<[102 : i64, 102 : i64, 102 : i64]>} : (!stencil.field<[100 : i64, 100 : i64, 100 : i64], f32>) -> !stencil.temp<[104 : i64, 104 : i64, 104 : i64], f32>
 // CHECK-NEXT:      %7 = "stencil.apply"(%6) ({
 // CHECK-NEXT:      ^2(%t0_buff : !stencil.temp<[-1 : i64], f32>):
 // CHECK-NEXT:        %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
@@ -323,11 +323,10 @@
 // CHECK-NEXT:        %dt_1 = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
 // CHECK-NEXT:        %115 = "arith.mulf"(%114, %dt_1) : (f32, f32) -> f32
 // CHECK-NEXT:        "stencil.return"(%115) : (f32) -> ()
-// CHECK-NEXT:      }) : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
-// CHECK-NEXT:      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[100 : i64, 100 : i64, 100 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>, !stencil.field<[100 : i64, 100 : i64, 100 : i64], f32>) -> ()
+// CHECK-NEXT:      }) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[100 : i64, 100 : i64, 100 : i64]>} : (!stencil.temp<[104 : i64, 104 : i64, 104 : i64], f32>) -> !stencil.temp<[100 : i64, 100 : i64, 100 : i64], f32>
+// CHECK-NEXT:      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[100 : i64, 100 : i64, 100 : i64]>} : (!stencil.temp<[100 : i64, 100 : i64, 100 : i64], f32>, !stencil.field<[100 : i64, 100 : i64, 100 : i64], f32>) -> ()
 // CHECK-NEXT:      "scf.yield"() : () -> ()
 // CHECK-NEXT:    }) : (index, index, index) -> ()
 // CHECK-NEXT:    "func.return"() : () -> ()
 // CHECK-NEXT:  }) {"sym_name" = "myfunc", "function_type" = (memref<2xmemref<?x?x?xf32>>) -> (), "sym_visibility" = "private", "param_names" = ["data"]} : () -> ()
 // CHECK-NEXT:}) : () -> ()
-// CHECK-NEXT:
