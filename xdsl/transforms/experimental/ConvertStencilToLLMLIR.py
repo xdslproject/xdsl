@@ -277,7 +277,7 @@ class AccessOpToMemref(RewritePattern):
 
         load = op.temp.owner
         assert isinstance(load, LoadOp)
-        assert load.lb
+        assert load.lb is not None
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
