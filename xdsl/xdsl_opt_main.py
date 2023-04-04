@@ -28,6 +28,7 @@ from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU, StencilShapeInference
+from xdsl.transforms.experimental.Apply1DMPIToStencil import Apply1DMpi
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -237,6 +238,7 @@ class xDSLOptMain:
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
         self.available_passes['frontend-desymrefy'] = Desymrefy
+        self.available_passes['apply-mpi'] = Apply1DMpi
 
     def register_all_targets(self):
         """
