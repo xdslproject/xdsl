@@ -899,9 +899,11 @@ class BaseParser(ABC):
         string for `<`, `(`, `[`, `{`, and may contain string literals.
         """
         self._synchronize_lexer_and_tokenizer()
-        self._parse_token(Token.Kind.LESS, "Expected '<' for attribute body!")
+        start_token = self._parse_optional_token(Token.Kind.LESS)
+        if start_token is None:
+            return ""
 
-        start_pos = self._current_token.span.start
+        start_pos = start_token.span.start
         end_pos: int = start_pos
 
         symbols_stack = [Token.Kind.LESS]
@@ -935,8 +937,8 @@ class BaseParser(ABC):
                         self._current_token.span)
                 symbols_stack.pop()
                 if len(symbols_stack) == 0:
+                    end_pos = token.span.end
                     break
-                end_pos = self._current_token.span.start
                 continue
 
             # Checking for unexpected EOF
@@ -945,7 +947,6 @@ class BaseParser(ABC):
                     "Unexpected end of file before closing of attribute body!")
 
             # Other tokens
-            end_pos = self._current_token.span.end
             self._consume_token()
 
         body = self.lexer.input.slice(start_pos, end_pos)
