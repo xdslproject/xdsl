@@ -267,10 +267,7 @@ class DeallocOp(Operation):
             async_dependencies: Sequence[SSAValue | Operation] | None = None,
             is_async: bool = False) -> DeallocOp:
         return DeallocOp.build(
-            operands=[
-                async_dependencies if async_dependencies is not None else [],
-                buffer
-            ],
+            operands=[async_dependencies, buffer],
             result_types=[[AsyncTokenType()] if is_async else []])
 
 
@@ -292,10 +289,7 @@ class MemcpyOp(Operation):
             async_dependencies: Sequence[SSAValue | Operation] | None = None,
             is_async: bool = False) -> MemcpyOp:
         return MemcpyOp.build(
-            operands=[
-                async_dependencies if async_dependencies is not None else [],
-                source, destination
-            ],
+            operands=[async_dependencies, source, destination],
             result_types=[[AsyncTokenType()] if is_async else []])
 
     def verify_(self) -> None:

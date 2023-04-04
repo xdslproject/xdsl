@@ -937,7 +937,7 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
 
 @overload
 def irdl_build_arg_list(construct: Literal[VarIRConstruct.OPERAND],
-                        args: Sequence[SSAValue | Sequence[SSAValue]],
+                        args: Sequence[SSAValue | Sequence[SSAValue] | None],
                         arg_defs: Sequence[tuple[str, OperandDef]],
                         error_prefix: str) -> tuple[list[SSAValue], list[int]]:
     ...
@@ -946,7 +946,7 @@ def irdl_build_arg_list(construct: Literal[VarIRConstruct.OPERAND],
 @overload
 def irdl_build_arg_list(
         construct: Literal[VarIRConstruct.RESULT],
-        args: Sequence[Attribute | Sequence[Attribute]],
+        args: Sequence[Attribute | Sequence[Attribute] | None],
         arg_defs: Sequence[tuple[str, ResultDef]],
         error_prefix: str) -> tuple[list[Attribute], list[int]]:
     ...
@@ -954,16 +954,19 @@ def irdl_build_arg_list(
 
 @overload
 def irdl_build_arg_list(construct: Literal[VarIRConstruct.REGION],
-                        args: Sequence[Region | Sequence[Region]],
+                        args: Sequence[Region | Sequence[Region] | None],
                         arg_defs: Sequence[tuple[str, RegionDef]],
                         error_prefix: str) -> tuple[list[Region], list[int]]:
     ...
 
 
+_T = TypeVar('_T')
+
+
 def irdl_build_arg_list(construct: VarIRConstruct,
-                        args: Sequence[Any],
+                        args: Sequence[_T | Sequence[_T] | None],
                         arg_defs: Sequence[tuple[str, Any]],
-                        error_prefix: str = "") -> tuple[list[Any], list[int]]:
+                        error_prefix: str = "") -> tuple[list[_T], list[int]]:
     """Build a list of arguments (operands, results, regions)"""
 
     if len(args) != len(arg_defs):
@@ -971,24 +974,30 @@ def irdl_build_arg_list(construct: VarIRConstruct,
             f"Expected {len(arg_defs)} {get_construct_name(construct)}, "
             f"but got {len(args)}")
 
-    res = list[Any]()
+    res = list[_T]()
     arg_sizes = list[int]()
 
     for arg_idx, ((arg_name, arg_def), arg) in enumerate(zip(arg_defs, args)):
-        if isinstance(arg_def, VariadicDef):
-            if not isinstance(arg, list):
+        if arg is None:
+            if not isinstance(arg_def, OptionalDef):
                 raise ValueError(
                     error_prefix +
-                    f"variadic {construct} {arg_idx} '{arg_name}' "
-                    f" expects a list, but got {arg}")
-            arg = cast(list[Any], arg)
+                    f"passed None to a non-optional {construct} {arg_idx} '{arg_name}'"
+                )
+        elif isinstance(arg, Sequence):
+            if not isinstance(arg_def, VariadicDef):
+                raise ValueError(
+                    error_prefix +
+                    f"passed Sequence to non-variadic {construct} {arg_idx} '{arg_name}'"
+                )
+            arg = cast(Sequence[_T], arg)
 
             # Check we have at most one argument for optional defintions.
             if isinstance(arg_def, OptionalDef) and len(arg) > 1:
                 raise ValueError(
                     error_prefix +
                     f"optional {construct} {arg_idx} '{arg_name}' "
-                    "expects a list of size at most 1, but "
+                    "expects a list of size at most 1 or None, but "
                     f"got a list of size {len(arg)}")
 
             res.extend(arg)
@@ -1037,11 +1046,11 @@ def irdl_op_builder(
     operands: Sequence[SSAValue | Operation
                        | Sequence[SSAValue | Operation]
                        | None],
-    res_types: Sequence[Attribute | Sequence[Attribute]],
+    res_types: Sequence[Attribute | Sequence[Attribute] | None],
     attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
-                                 | Sequence[Block]]]
+                                 | Sequence[Block]] | None]
 ) -> _OpT:
     """Builder for an irdl operation."""
 
