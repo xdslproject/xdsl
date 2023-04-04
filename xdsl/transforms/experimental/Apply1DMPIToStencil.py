@@ -1,6 +1,7 @@
 from typing import List
 from xdsl.ir import Operation, MLContext, Block, TypeAttribute
 from xdsl.irdl import Operand
+from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
                                    op_type_rewrite_pattern,
                                    PatternRewriteWalker,
@@ -16,7 +17,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ExternalLoadOp,
                           rewriter: PatternRewriter, /):
-        assert isinstance(op.field.typ, memref.MemRefType)
+        assert isa(op.field.typ, memref.MemRefType[AnyNumericType])
         memref_type: memref.MemRefType[AnyNumericType] = op.field.typ
         if len(memref_type.shape) <= 1: return
         mpi_operations: List[Operation] = []
@@ -163,7 +164,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [wait_op]
 
         parent_op = op.parent
-        assert isinstance(parent_op, Block)
+        assert isa(parent_op, Block)
         parent_ops: List[Operation] = parent_op.ops
         idx = parent_ops.index(op)
         parent_op.insert_op(mpi_operations, idx + 1)
