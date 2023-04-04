@@ -276,14 +276,15 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
 
-        owner = op.temp.owner
-        assert isinstance(owner, Operation)
+        load = op.temp.owner
+        assert isinstance(load, LoadOp)
+        assert load.lb
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        memref_offset = (op.offset).array.data
+        memref_offset = (op.offset - load.lb).array.data
         off_const_ops = [
             arith.Constant.from_int_and_width(x.value.data,
                                               builtin.IndexType())
@@ -296,7 +297,7 @@ class AccessOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
         ]
 
-        load = memref.Load.get(owner, off_sum_ops)
+        load = memref.Load.get(load, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
