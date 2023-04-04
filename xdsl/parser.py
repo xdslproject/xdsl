@@ -344,8 +344,8 @@ class ParserCommons:
         "opaque", "tuple", "index", "dense"
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
     )
-    builtin_attr_names = ('dense', 'opaque', 'affine_map', 'array',
-                          'dense_resource', 'sparse')
+    builtin_attr_names = ('dense', 'opaque', 'affine_set', 'affine_map',
+                          'array', 'dense_resource', 'sparse')
     builtin_type = re.compile("(({}))".format(")|(".join(_builtin_type_names)))
     builtin_type_xdsl = re.compile("!(({}))".format(
         ")|(".join(_builtin_type_names)))
@@ -933,7 +933,7 @@ class BaseParser(ABC):
                 if symbols_stack[-1] != closing:
                     self.raise_error(
                         "Mismatched {} in attribute body!".format(
-                            parentheses_names[self._current_token.kind]),
+                            parentheses_names[token.kind]),
                         self._current_token.span)
                 symbols_stack.pop()
                 if len(symbols_stack) == 0:
@@ -1036,7 +1036,11 @@ class BaseParser(ABC):
         if isa(memory_or_layout, AnyIntegerAttr):
             return MemRefType.from_element_type_and_shape(
                 type, dims, memory_space=memory_or_layout)
-        if isa(memory_or_layout, StridedLayoutAttr):
+
+        # We only accept strided layouts and affine_maps
+        if (isa(memory_or_layout, StridedLayoutAttr)
+                or (isinstance(memory_or_layout, UnregisteredAttr)
+                    and memory_or_layout.attr_name.data == "affine_map")):
             return MemRefType.from_element_type_and_shape(
                 type, dims, layout=memory_or_layout)
         self.raise_error("Cannot decide if the given attribute "
@@ -1456,6 +1460,8 @@ class BaseParser(ABC):
                 'opaque': self._parse_builtin_opaque_attr,
                 'dense_resource': self._parse_builtin_dense_resource_attr,
                 'array': self._parse_builtin_array_attr,
+                'affine_map': self._parse_builtin_affine_attr,
+                'affine_set': self._parse_builtin_affine_attr,
             }
 
             def not_implemented(_name: Span):
@@ -1540,6 +1546,52 @@ class BaseParser(ABC):
         self.parse_characters(">", err_msg)
 
         return DenseArrayBase.from_list(element_type, values)
+
+    def _parse_builtin_affine_attr(self, name: Span) -> UnregisteredAttr:
+        # First, retrieve the attribute definition.
+        # Since we do not define affine attributes, we use an unregistered
+        # attribute definition.
+        attr_def = self.ctx.get_optional_attr(
+            name.text,
+            allow_unregistered=self.allow_unregistered_dialect,
+            create_unregistered_as_type=False)
+        if attr_def is None:
+            self.raise_error(f"Unknown {name.text} attribute",
+                             at_position=name)
+        assert issubclass(
+            attr_def, UnregisteredAttr
+        ), f"{name.text} was registered, but should be reserved for builtin"
+
+        # We then parse the attribute body. Affine attributes are closed by
+        # `>`, so we can wait until we see this token. We just need to make
+        # sure that we do not stop at a `>=`.
+        self._synchronize_lexer_and_tokenizer()
+        start_pos = self._current_token.span.start
+        end_pos = start_pos
+        self.parse_punctuation('<', f' in {name.text} attribute')
+
+        # Loop until we see the closing `>`.
+        while True:
+            token = self._consume_token()
+
+            # Check for early EOF.
+            if token.kind == Token.Kind.EOF:
+                self.raise_error(
+                    f"Expected '>' in end of {name.text} attribute")
+
+            # Check for closing `>`.
+            if token.kind == Token.Kind.GREATER:
+                # Check that there is no `=` after the `>`.
+                if self._parse_optional_token(Token.Kind.EQUAL) is None:
+                    end_pos = token.span.end
+                    break
+                self._consume_token()
+
+        contents = self.lexer.input.slice(start_pos, end_pos)
+        assert contents is not None, 'Fatal error in parser'
+
+        self._synchronize_lexer_and_tokenizer()
+        return attr_def(name.text, False, contents)
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
