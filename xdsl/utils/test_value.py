@@ -5,4 +5,4 @@ class TestSSAValue(SSAValue):
 
     @property
     def owner(self) -> Operation | Block:
-        assert False
+        assert False, 'Attempting to get the owner of a `TestSSAValue`'
