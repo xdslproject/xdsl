@@ -1,5 +1,5 @@
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import StringAttr, i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
@@ -19,7 +19,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
 
-    parser = Parser(ctx, prog)
+    parser = Parser(ctx, prog, allow_unregistered_dialect=True)
     module = parser.parse_module()
 
     walker.rewrite_module(module)
@@ -127,6 +127,33 @@ def test_op_type_rewrite_pattern_static_decorator():
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
         rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
+def test_op_type_rewrite_pattern_union_type():
+    """Test op_type_rewrite_pattern decorator on static functions."""
+
+    prog = \
+"""builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: Constant | Addi, rewriter: PatternRewriter):
+        rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
 
     rewrite_and_compare(
         prog, expected,

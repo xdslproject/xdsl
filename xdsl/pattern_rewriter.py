@@ -3,12 +3,14 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+from types import UnionType
+from typing import Callable, TypeVar, Union, get_args, get_origin
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
                      SSAValue)
 from xdsl.rewriter import Rewriter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
@@ -389,10 +391,15 @@ def op_type_rewrite_pattern(
                 "op_type_rewrite_pattern expects the decorated function to "
                 "have two arguments.")
     expected_type: type[_OperationT] = params[-2].annotation
-    if not issubclass(expected_type, Operation):
+
+    expected_types = (expected_type, )
+    if get_origin(expected_type) in [Union, UnionType]:
+        expected_types = get_args(expected_type)
+    if not all(issubclass(t, Operation) for t in expected_types):
         raise Exception(
-            "op_type_rewrite_pattern expects the first non-self argument"
-            "type hint to be an Operation subclass")
+            "op_type_rewrite_pattern expects the first non-self argument "
+            "type hint to be an `Operation` subclass or a union of `Operation` "
+            "subclasses.")
 
     if not is_method:
 
