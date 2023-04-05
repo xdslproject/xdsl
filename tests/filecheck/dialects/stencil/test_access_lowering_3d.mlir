@@ -13,7 +13,7 @@
     }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 
-// CHECK-NEXT: "builtin.module"() ({
+// CHECK:      "builtin.module"() ({
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:   ^0(%0 : memref<?x?x?xf64>):
 // CHECK-NEXT:     %1 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<76x74x72xf64>
@@ -24,12 +24,12 @@
 // CHECK-NEXT:     %6 = "arith.constant"() {"value" = 68 : index} : () -> index
 // CHECK-NEXT:     "scf.parallel"(%2, %2, %2, %4, %5, %6, %3, %3, %3) ({
 // CHECK-NEXT:     ^1(%7 : index, %8 : index, %9 : index):
-// CHECK-NEXT:       %10 = "arith.constant"() {"value" = 5 : index} : () -> index
+// CHECK-NEXT:       %10 = "arith.constant"() {"value" = 3 : index} : () -> index
 // CHECK-NEXT:       %11 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:       %12 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %13 = "arith.addi"(%9, %10) : (index, index) -> index
+// CHECK-NEXT:       %12 = "arith.constant"() {"value" = 5 : index} : () -> index
+// CHECK-NEXT:       %13 = "arith.addi"(%7, %10) : (index, index) -> index
 // CHECK-NEXT:       %14 = "arith.addi"(%8, %11) : (index, index) -> index
-// CHECK-NEXT:       %15 = "arith.addi"(%7, %12) : (index, index) -> index
+// CHECK-NEXT:       %15 = "arith.addi"(%9, %12) : (index, index) -> index
 // CHECK-NEXT:       %16 = "memref.load"(%1, %13, %14, %15) : (memref<76x74x72xf64>, index, index, index) -> f64
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
