@@ -28,6 +28,7 @@ from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU, StencilShapeInference
+from xdsl.transforms.experimental.stencil_global_to_local import global_stencil_to_local_stencil_2d_horizontal
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -236,6 +237,8 @@ class xDSLOptMain:
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
+        self.available_passes[
+            'stencil-to-local-2d-horizontal'] = global_stencil_to_local_stencil_2d_horizontal
         self.available_passes['frontend-desymrefy'] = Desymrefy
 
     def register_all_targets(self):
