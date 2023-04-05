@@ -718,6 +718,24 @@ class VectorGetOp(MPIBaseOp):
                                  operands=[vect, element])
 
 
+@irdl_op_definition
+class NullRequestOp(MPIBaseOp):
+    """
+    This sets a given request object to the MPI_REQUEST_NULL magic
+    value.
+
+    Due to restrictions in the current MPI dialect, we can't return a
+    new request object here. That will be fixed soon though!
+    """
+    name = "mpi.request_null"
+
+    request: Annotated[Operand, RequestType]
+
+    @staticmethod
+    def get(req: SSAValue | Operation):
+        return NullRequestOp.build(operands=[req])
+
+
 MPI = Dialect([
     Isend,
     Irecv,

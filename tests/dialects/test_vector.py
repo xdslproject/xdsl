@@ -1,31 +1,29 @@
 import pytest
 
-from typing import TypeVar, List
+from typing import List
 
 from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
 from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
 from xdsl.ir import OpResult
 from xdsl.irdl import Attribute
-
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
-_VectorTypeElems = TypeVar("_VectorTypeElems", bound=Attribute)
+from xdsl.utils.test_value import TestSSAValue
 
 
 def get_MemRef_SSAVal_from_element_type_and_shape(
-        referenced_type: _MemRefTypeElement,
-        shape: List[int | AnyIntegerAttr]) -> OpResult:
+        referenced_type: Attribute,
+        shape: List[int | AnyIntegerAttr]) -> TestSSAValue:
     memref_type = MemRefType.from_element_type_and_shape(
         referenced_type, shape)
-    return OpResult(memref_type, [], [])
+    return TestSSAValue(memref_type)
 
 
 def get_Vector_SSAVal_from_element_type_and_shape(
-        referenced_type: _VectorTypeElems,
-        shape: List[int | AnyIntegerAttr]) -> OpResult:
+        referenced_type: Attribute,
+        shape: List[int | AnyIntegerAttr]) -> TestSSAValue:
     vector_type = VectorType.from_element_type_and_shape(
         referenced_type, shape)
-    return OpResult(vector_type, [], [])
+    return TestSSAValue(vector_type)
 
 
 def test_vectorType():
@@ -65,8 +63,8 @@ def test_vector_load_i32():
 def test_vector_load_i32_with_dimensions():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
         i32, [2, 3])
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
     load = Load.get(memref_ssa_value, [index1, index2])
 
     assert type(load.results[0]) is OpResult
@@ -118,8 +116,8 @@ def test_vector_store_i32_with_dimensions():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
         i32, [4, 5])
 
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
     store = Store.get(vector_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
@@ -156,7 +154,7 @@ def test_vector_store_verify_indexing_exception():
 
 
 def test_vector_broadcast():
-    index1 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
     broadcast = Broadcast.get(index1)
 
     assert type(broadcast.results[0]) is OpResult
@@ -165,7 +163,7 @@ def test_vector_broadcast():
 
 
 def test_vector_broadcast_verify_type_matching():
-    index1 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
     res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
     broadcast = Broadcast.build(operands=[index1],
@@ -180,9 +178,9 @@ def test_vector_broadcast_verify_type_matching():
 def test_vector_fma():
     i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
 
-    lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    lhs_vector_ssa_value = TestSSAValue(i32_vector_type)
+    rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
+    acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
     fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
                   acc_vector_ssa_value)
@@ -197,9 +195,9 @@ def test_vector_fma():
 def test_vector_fma_with_dimensions():
     i32_vector_type = VectorType.from_element_type_and_shape(i32, [2, 3])
 
-    lhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    rhs_vector_ssa_value = OpResult(i32_vector_type, [], [])
-    acc_vector_ssa_value = OpResult(i32_vector_type, [], [])
+    lhs_vector_ssa_value = TestSSAValue(i32_vector_type)
+    rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
+    acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
     fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
                   acc_vector_ssa_value)
@@ -345,8 +343,8 @@ def test_vector_masked_load_with_dimensions():
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
         i32, [1])
 
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
 
     maskedload = Maskedload.get(memref_ssa_value, [index1, index2],
                                 mask_vector_ssa_value,
@@ -441,8 +439,8 @@ def test_vector_masked_store_with_dimensions():
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
         i32, [1])
 
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
 
     maskedstore = Maskedstore.get(memref_ssa_value, [index1, index2],
                                   mask_vector_ssa_value,
@@ -506,8 +504,8 @@ def test_vector_create_mask():
 
 
 def test_vector_create_mask_with_dimensions():
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
 
     create_mask = Createmask.get([index1, index2])
 

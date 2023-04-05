@@ -13,7 +13,12 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp, ExternalStoreOp, HaloSwapOp
+from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
+                                                FieldType, IndexAttr, LoadOp,
+                                                ReturnOp, StoreOp, TempType,
+                                                ExternalLoadOp, HaloSwapOp,
+                                                ExternalStoreOp)
+
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -39,7 +44,6 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
     dims = IndexAttr.size_from_bounds(lb, ub)
-    dims.reverse()
 
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
@@ -120,10 +124,8 @@ class ReturnOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -136,8 +138,8 @@ class ReturnOpToMemref(RewritePattern):
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
 
-    if [i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data
-        ] != [i.value.data for i in cast.lb.array.data]:
+    if ([i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data] !=
+        [i.value.data for i in cast.lb.array.data]):  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
@@ -168,8 +170,8 @@ class LoadOpShapeInference(RewritePattern):
         assert op.lb and op.ub
         assert isa(op.res.typ, TempType[Attribute])
 
-        # TODO We need to think about that. Do we want an API for this? Do we just want
-        # to recreate the whole operation?
+        # TODO: We need to think about that. Do we want an API for this?
+        # Do we just want to recreate the whole operation?
         op.res.typ = TempType.from_shape(
             IndexAttr.size_from_bounds(op.lb, op.ub),
             op.res.typ.element_type,
@@ -239,7 +241,7 @@ class ApplyOpToParallel(RewritePattern):
         body = prepare_apply_body(op, rewriter)
         dim = len(op.lb.array.data)
 
-        #Then create the corresponding scf.parallel
+        # Then create the corresponding scf.parallel
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
         zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
@@ -280,10 +282,8 @@ class AccessOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in memref_offset
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -416,6 +416,9 @@ ShapeInference = GreedyRewritePatternApplier([
 
 def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
                       gpu: bool):
+    """
+    List of rewrite passes for stencil
+    """
     return GreedyRewritePatternApplier([
         ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
@@ -447,6 +450,7 @@ def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
         [StencilConversion(return_targets, gpu=True)]),
                                         apply_recursively=False,
                                         walk_reverse=True)
+
     the_one_pass.rewrite_module(module)
 
 
