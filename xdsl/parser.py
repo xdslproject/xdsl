@@ -276,7 +276,9 @@ class Tokenizer:
                 lambda x: x >= 0,
                 (self.input.content.find(part, i) for part in self._break_on),
             ))
-        return min(min(break_pos), self.input.len)
+        # Make sure that we break at some point
+        break_pos.append(self.input.len)
+        return min(break_pos)
 
     def next_pos(self, i: int | None = None) -> int:
         """
