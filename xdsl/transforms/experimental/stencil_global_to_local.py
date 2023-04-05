@@ -7,9 +7,9 @@ from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import MLContext, Operation, SSAValue, Block, Region
+from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf
+from xdsl.dialects import builtin, mpi, memref, arith, scf, func
 from xdsl.dialects.experimental import stencil
 
 _T = TypeVar('_T', bound=Attribute)
@@ -477,3 +477,86 @@ def generate_memcpy(source: SSAValue,
         *indices,
         loop,
     ]
+
+
+class MpiLoopInvariantCodeMotion(RewritePattern):
+    """
+    This rewrite moves all memref.allo, mpi.comm.rank, mpi.allocate
+    and mpi.unwrap_memref ops and moves them "up" until it hits a
+    func.func, and then places them *before* the op they appear in.
+    """
+    seen_ops: set[Operation]
+
+    def __init__(self):
+        self.seen_ops = set()
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Alloc | mpi.CommRank
+                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp,
+                          rewriter: PatternRewriter, /):
+        if op in self.seen_ops:
+            return
+        self.seen_ops.add(op)
+
+        # memref unwraps can always be moved to their allocation
+        if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
+                op.ref.owner, memref.Alloc):
+            op.detach()
+            rewriter.insert_op_after(op, op.ref.owner)
+            return
+
+        base = op
+        parent = op.parent_op()
+        # walk upwards until we hit a function
+        while parent is not None and not isinstance(parent, func.FuncOp):
+            base = parent
+            parent = base.parent_op()
+
+        # check that we did not run into "nowhere"
+        assert parent is not None, "Expected MPI to be inside a func.FuncOp!"
+
+        # check that we "ascended"
+        if base == op:
+            return
+
+        if not can_loop_invariant_code_move(op):
+            return
+
+        ops = list(collect_args_recursive(op))
+        for op in ops:
+            op.detach()
+        rewriter.insert_op_before(ops, base)
+
+
+_LOOP_INVARIANT_OPS = (arith.Constant, arith.Addi, arith.Muli)
+
+
+def can_loop_invariant_code_move(op: Operation):
+    """
+    This function walks the def-use chain up to see if all the args are
+    "constant enough" to move outside the loop.
+
+    This check is very conservative, but that means it definitely works!
+    """
+
+    for arg in op.operands:
+        if not isinstance(arg, OpResult):
+            print("{} is not opresult".format(arg))
+            return False
+        if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
+            print("{} is not loop invariant".format(arg))
+            return False
+        if not can_loop_invariant_code_move(arg.owner):
+            return False
+    return True
+
+
+def collect_args_recursive(op: Operation) -> Iterable[Operation]:
+    """
+    Collect the def-use chain "upwards" of an operation.
+    Check with can_loop_invariant_code_move prior to using this!
+    """
+    for arg in op.operands:
+        assert isinstance(arg, OpResult)
+        yield from collect_args_recursive(arg.owner)
+    yield op

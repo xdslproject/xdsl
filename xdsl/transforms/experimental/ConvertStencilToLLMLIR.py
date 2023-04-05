@@ -22,7 +22,8 @@ from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D
+from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D, \
+    MpiLoopInvariantCodeMotion
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -465,5 +466,8 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
-    PatternRewriteWalker(LowerHaloExchangeToMpi(
-        HorizontalSlices2D(2))).rewrite_module(module)
+    PatternRewriteWalker(
+        GreedyRewritePatternApplier([
+            LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
+            MpiLoopInvariantCodeMotion(),
+        ])).rewrite_module(module)
