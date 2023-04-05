@@ -496,8 +496,7 @@ def test_vector_print():
 
 
 def test_vector_create_mask():
-    val = TestSSAValue(IndexType())
-    create_mask = Createmask.get(val)
+    create_mask = Createmask.get([])
 
     assert type(create_mask.results[0]) is OpResult
     assert type(create_mask.results[0].typ) is VectorType
