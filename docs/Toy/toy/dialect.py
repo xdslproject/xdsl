@@ -2,9 +2,7 @@
 Toy language dialect from MLIR tutorial.
 """
 
-from __future__ import annotations
-
-from typing import Annotated, TypeAlias, cast
+from typing import Annotated, TypeAlias, cast, Self
 
 from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
                      OpResult)
@@ -37,15 +35,15 @@ class ConstantOp(Operation):
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
 
-    @staticmethod
-    def from_list(data: list[float], shape: list[int]) -> ConstantOp:
+    @classmethod
+    def from_list(cls, data: list[float], shape: list[int]) -> Self:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
-        return ConstantOp.from_value(value)
+        return cls.from_value(value)
 
-    @staticmethod
-    def from_value(value: DenseIntOrFPElementsAttr) -> ConstantOp:
-        return ConstantOp.create(result_types=[value.type],
-                                 attributes={"value": value})
+    @classmethod
+    def from_value(cls, value: DenseIntOrFPElementsAttr) -> Self:
+        return cls.create(result_types=[value.type],
+                          attributes={"value": value})
 
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:
@@ -75,13 +73,13 @@ class AddOp(Operation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
+    @classmethod
+    def from_summands(cls, lhs: SSAValue, rhs: SSAValue) -> Self:
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        return AddOp.create(result_types=[result_typ], operands=[lhs, rhs])
+        return cls.create(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -194,15 +192,16 @@ class GenericCallOp(Operation):
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
-            return_types: list[Attribute]) -> GenericCallOp:
+    @classmethod
+    def get(cls, callee: str | SymbolRefAttr,
+            operands: list[SSAValue | OpResult],
+            return_types: list[Attribute]) -> Self:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return GenericCallOp.create(operands=operands,
-                                    result_types=return_types,
-                                    attributes={"callee": callee})
+        return cls.create(operands=operands,
+                          result_types=return_types,
+                          attributes={"callee": callee})
 
 
 @irdl_op_definition
@@ -216,8 +215,8 @@ class MulOp(Operation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
+    @classmethod
+    def from_summands(cls, lhs: SSAValue, rhs: SSAValue) -> Self:
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
@@ -248,8 +247,8 @@ class PrintOp(Operation):
     name: str = 'toy.print'
     input: Annotated[Operand, AnyAttr()]
 
-    @staticmethod
-    def from_input(input: SSAValue) -> PrintOp:
+    @classmethod
+    def from_input(cls, input: SSAValue) -> Self:
         return PrintOp.create(operands=[input])
 
 
@@ -271,8 +270,8 @@ class ReturnOp(Operation):
     name: str = 'toy.return'
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_input(input: SSAValue | None = None) -> ReturnOp:
+    @classmethod
+    def from_input(cls, input: SSAValue | None = None) -> Self:
         return ReturnOp.build(operands=[input])
 
 
@@ -291,8 +290,8 @@ class ReshapeOp(Operation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
 
-    @staticmethod
-    def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
+    @classmethod
+    def from_input(cls, arg: SSAValue, shape: list[int]) -> Self:
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
                 f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
@@ -301,8 +300,8 @@ class ReshapeOp(Operation):
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
-    @staticmethod
-    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
+    @classmethod
+    def from_input_and_type(cls, arg: SSAValue, t: TensorTypeF64) -> Self:
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
                 f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
