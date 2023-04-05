@@ -14,7 +14,6 @@ typeCheckingMode = "strict"
     "tests/dialects/test_memref.py",
     "tests/dialects/test_mpi.py",
     "tests/dialects/test_mpi_lowering.py",
-    "tests/dialects/test_vector.py",
     "tests/xdsl_opt/test_xdsl_opt.py",
 ]
 "ignore" = [
