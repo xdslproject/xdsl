@@ -913,6 +913,7 @@ class Block(IRNode):
             for index, typ in enumerate(arg_types))
         return b
 
+    @deprecated('Please use Block(ops, arg_types=arg_types)')
     @staticmethod
     def from_ops(ops: list[Operation],
                  arg_types: list[Attribute] | None = None):
@@ -1153,7 +1154,7 @@ class Region(IRNode):
 
     @staticmethod
     def from_operation_list(ops: list[Operation]) -> Region:
-        block = Block.from_ops(ops)
+        block = Block(ops)
         region = Region()
         region.add_block(block)
         return region

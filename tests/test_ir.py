@@ -19,7 +19,7 @@ def test_ops_accessor():
     # Operation to add these constants
     c = Addi.get(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     # Create a region to include a, b, c
     region = Region([block0])
 
@@ -43,7 +43,7 @@ def test_ops_accessor_II():
     # Operation to add these constants
     c = Addi.get(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     # Create a region to include a, b, c
     region = Region([block0])
 
@@ -87,9 +87,9 @@ def test_ops_accessor_III():
     f = Addi.get(c, d)
 
     # Create Blocks and Regions
-    block0 = Block.from_ops([a, b, e])
-    block1 = Block.from_ops([c, d, f])
-    block2 = Block.from_ops([])
+    block0 = Block([a, b, e])
+    block1 = Block([c, d, f])
+    block2 = Block()
 
     region0 = Region([block0, block1])
     region1 = Region([block2])
