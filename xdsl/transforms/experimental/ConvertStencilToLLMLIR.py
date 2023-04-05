@@ -40,7 +40,6 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
     dims = IndexAttr.size_from_bounds(lb, ub)
-    dims.reverse()
 
     return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
@@ -121,10 +120,8 @@ class ReturnOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -281,10 +278,8 @@ class AccessOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in memref_offset
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
