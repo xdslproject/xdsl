@@ -202,6 +202,7 @@ class IndexAttr(ParametrizedAttribute):
     def as_tuple(self) -> tuple[int, ...]:
         return tuple(e.value.data for e in self.array.data)
 
+
 @dataclass(frozen=True)
 class LoopAttr(ParametrizedAttribute):
     name = "stencil.loop"
@@ -532,9 +533,7 @@ class HaloSwapOp(Operation):
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(
-            operands=[input_stencil]
-        )
+        return HaloSwapOp.build(operands=[input_stencil])
 
 
 Stencil = Dialect([

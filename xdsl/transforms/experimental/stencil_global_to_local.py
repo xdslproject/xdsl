@@ -477,7 +477,8 @@ def generate_memcpy(source: SSAValue,
 
     # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(cst0, y_len, cst1, [],
-                       Block.from_callable([builtin.IndexType()], loop_body))  # type: ignore
+                       Block.from_callable([builtin.IndexType()],
+                                           loop_body))  # type: ignore
 
     return [
         y0,

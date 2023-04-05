@@ -237,7 +237,8 @@ class xDSLOptMain:
         self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
         self.available_passes[
             'stencil-shape-inference'] = StencilShapeInference
-        self.available_passes['stencil-to-local-2d-horizontal'] = global_stencil_to_local_stencil_2d_horizontal
+        self.available_passes[
+            'stencil-to-local-2d-horizontal'] = global_stencil_to_local_stencil_2d_horizontal
         self.available_passes['frontend-desymrefy'] = Desymrefy
 
     def register_all_targets(self):

@@ -363,6 +363,8 @@ def return_target_analysis(module: ModuleOp):
 
 
 _OpT = TypeVar('_OpT', bound=Operation)
+
+
 def all_matching_uses(op_res: Iterable[SSAValue],
                       typ: type[_OpT]) -> Iterable[_OpT]:
     for res in op_res:
