@@ -1,13 +1,15 @@
 from dataclasses import dataclass
 from typing import TypeVar, Iterable, ClassVar
 from abc import ABC, abstractmethod
+from math import prod
 
+from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import MLContext
+from xdsl.ir import MLContext, Operation, SSAValue, Block, Region
 from xdsl.irdl import Attribute
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, mpi, memref, arith, scf
 from xdsl.dialects.experimental import stencil
 
 _T = TypeVar('_T', bound=Attribute)
@@ -18,7 +20,8 @@ class HaloExchangeDef:
     """
     This declares a region to be "halo-exchanged".
     The semantics define that the region specified by offset and size
-    is the
+    is the *received part*. To get the section that should be sent,
+    use the source_area() method to get the source area.
 
     offset gives the coordinates from the origin of the stencil field.
 
@@ -51,7 +54,30 @@ class HaloExchangeDef:
     offset: tuple[int, ...]
     size: tuple[int, ...]
     source_offset: tuple[int, ...]
-    neighbor: tuple[int, ...]
+    neighbor: int
+
+    @property
+    def elem_count(self) -> int:
+        return prod(self.size)
+
+    @property
+    def dim(self) -> int:
+        return len(self.offset)
+
+    def source_area(self) -> 'HaloExchangeDef':
+        """
+        Since a HaloExchangeDef by default specifies the area to receive into,
+        this method returns the area that should be read from.
+        """
+        # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
+        return HaloExchangeDef(
+            offset=tuple(
+                val - offs
+                for val, offs in zip(self.offset, self.source_offset)),
+            size=self.size,
+            source_offset=tuple(0 for _ in range(len(self.source_offset))),
+            neighbor=self.neighbor,
+        )
 
 
 class DimsHelper:
@@ -106,15 +132,29 @@ class DimsHelper:
     DIM_Y: ClassVar[int] = 1
     DIM_Z: ClassVar[int] = 2
 
-    def __init__(self, buff_lb: tuple[int, ...], buff_ub: tuple[int, ...],
-                 core_lb: tuple[int, ...], core_ub: tuple[int, ...]):
-        assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(
-            core_ub), "Expected all args to be of the same dimensions!"
+    def __init__(
+        self,
+        buff_lb: tuple[int, ...],
+        buff_ub: tuple[int, ...],
+        core_lb: tuple[int, ...],
+        core_ub: tuple[int, ...],
+    ):
+        assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub), \
+            "Expected all args to be of the same dimensions!"
         self.dims = len(buff_lb)
         self.buff_lb = buff_lb
         self.buff_ub = buff_ub
         self.core_lb = core_lb
         self.core_ub = core_ub
+
+    @staticmethod
+    def from_halo_swap_op(op: stencil.HaloSwapOp):
+        return DimsHelper(
+            op.buff_lb.as_tuple(),
+            op.buff_ub.as_tuple(),
+            op.core_lb.as_tuple(),
+            op.core_ub.as_tuple(),
+        )
 
     # positions
 
@@ -165,6 +205,10 @@ class SlicingStrategy(ABC):
         raise NotImplementedError(
             "SlicingStrategy must implement halo_exchange_defs!")
 
+    @abstractmethod
+    def comm_count(self) -> int:
+        raise NotImplementedError("SlicingStrategy must implement comm_count!")
+
 
 @dataclass
 class HorizontalSlices2D(SlicingStrategy):
@@ -172,6 +216,9 @@ class HorizontalSlices2D(SlicingStrategy):
 
     def __post_init__(self):
         assert self.slices > 1, "must slice into at least two pieces!"
+
+    def comm_count(self) -> int:
+        return self.slices
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         # slice on the last dimension only
@@ -198,7 +245,7 @@ class HorizontalSlices2D(SlicingStrategy):
                 0,
                 dims.halo_size(dims.DIM_Y),
             ),
-            neighbor=(-1, 0),
+            neighbor=-1,
         )
         # lower halo exchange:
         yield HaloExchangeDef(
@@ -214,7 +261,7 @@ class HorizontalSlices2D(SlicingStrategy):
                 0,
                 -dims.halo_size(dims.DIM_Y),
             ),
-            neighbor=(1, 0),
+            neighbor=1,
         )
 
 
@@ -243,8 +290,8 @@ class AddHaloExchangeOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter,
                           /):
-        swap_op = stencil.HaloSwapOp.get(op.field)
-        rewriter.insert_op_before_matched_op(swap_op)
+        swap_op = stencil.HaloSwapOp.get(op.res)
+        rewriter.insert_op_after_matched_op(swap_op)
 
 
 def global_stencil_to_local_stencil_2d_horizontal(ctx: MLContext | None,
@@ -265,4 +312,171 @@ class LowerHaloExchangeToMpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.HaloSwapOp,
                           rewriter: PatternRewriter, /):
-        pass
+        exchanges = list(
+            self.strategy.halo_exchange_defs(DimsHelper.from_halo_swap_op(op)))
+        assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
+        rewriter.replace_matched_op(
+            list(
+                generate_mpi_calls_for(
+                    op.input_stencil,
+                    exchanges,
+                    op.input_stencil.typ.element_type,
+                    self.strategy,
+                )),
+            [],
+        )
+
+
+def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
+                           dtype: Attribute,
+                           strat: SlicingStrategy) -> Iterable[Operation]:
+    # allocate request array
+    req_cnt = arith.Constant.from_int_and_width(
+        len(exchanges) * 2, builtin.i32)
+    reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
+
+    # get comm rank
+    rank = mpi.CommRank.get()
+    # define static tag of 0
+    # TODO: what is tag?
+    tag = arith.Constant.from_int_and_width(0, builtin.i32)
+
+    yield from (req_cnt, reqs, rank, tag)
+
+    recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
+
+    for i, ex in enumerate(exchanges):
+        neighbor_offset = arith.Constant.from_int_and_width(
+            ex.neighbor, builtin.i32)
+        neighbor_rank = arith.Addi.get(rank, neighbor_offset)
+        yield from (neighbor_offset, neighbor_rank)
+
+        # generate a temp buffer to store the data in
+        alloc_outbound = memref.Alloc.get(dtype, 64, (ex.elem_count, ))
+        alloc_inbound = memref.Alloc.get(dtype, 64, (ex.elem_count, ))
+        yield from (alloc_outbound, alloc_inbound)
+
+        # boundary condition:
+        bound = arith.Constant.from_int_and_width(
+            0 if ex.neighbor < 0 else strat.comm_count(), builtin.i32)
+        comparison = 'slt' if ex.neighbor < 0 else 'sge'
+
+        cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
+        yield from (bound, cond_val)
+
+        recv_buffers.append((ex, alloc_inbound, cond_val.result))
+
+        def body():
+            # copy source area to outbound buffer
+            yield from generate_memcpy(source, ex.source_area(),
+                                       alloc_outbound.memref)
+            # get ptr, count, dtype
+            unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
+            yield unwrap_out
+            # get two unique indices
+            cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
+            cst_in = arith.Constant.from_int_and_width(i + len(exchanges),
+                                                       builtin.i32)
+            yield from (cst_i, cst_in)
+            # from these indices, get request objects
+            req_send = mpi.VectorGetOp.get(reqs, cst_i)
+            req_recv = mpi.VectorGetOp.get(reqs, cst_in)
+            yield from (req_send, req_recv)
+
+            # isend call
+            yield mpi.Isend.get(unwrap_out.ptr, unwrap_out.len, unwrap_out.typ,
+                                neighbor_rank, tag, req_send)
+
+            # get ptr for receive buffer
+            unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
+            yield unwrap_in
+
+            # Irecv call
+            yield mpi.Irecv.get(unwrap_in.ptr, unwrap_in.len, unwrap_in.typ,
+                                neighbor_rank, tag, req_send)
+            yield scf.Yield.get()
+
+        yield scf.If.get(
+            cond_val,
+            [],
+            Region.from_operation_list(list(body())),
+            Region.from_operation_list([scf.Yield.get()]),
+        )
+
+    # wait for all calls to complete
+    yield mpi.Waitall.get(reqs, req_cnt)
+
+    # start shuffling data into the main memref again
+    for ex, buffer, cond_val in recv_buffers:
+        yield scf.If.get(
+            cond_val,
+            [],
+            Region.from_operation_list(
+                list(
+                    generate_memcpy(
+                        source,
+                        ex.source_area(),
+                        buffer.memref,
+                        reverse=True,
+                    )) + [scf.Yield.get()]),
+            Region.from_operation_list([scf.Yield.get()]),
+        )
+
+
+def generate_dest_rank_conditional(cond_val: SSAValue,
+                                   body: Iterable[Operation]):
+    return
+
+
+def generate_memcpy(source: SSAValue,
+                    ex: HaloExchangeDef,
+                    dest: SSAValue,
+                    reverse: bool = False) -> list[Operation]:
+    """
+    This function generates a memcpy routine to copy over the parts
+    specified by the `ex` from `source` into `dest`.
+
+    If reverse=True, it insteads copy from `dest` into the parts of
+    `source` as specified by `ex`
+
+    """
+    assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
+    y0 = arith.Constant.from_int_and_width(ex.offset[1], builtin.IndexType())
+    x_len = arith.Constant.from_int_and_width(ex.size[0], builtin.IndexType())
+    y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
+    cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
+    cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
+
+    indices = [
+        arith.Constant.from_int_and_width(i, builtin.IndexType())
+        for i in range(ex.offset[0], ex.offset[0] + ex.size[0])
+    ]
+
+    def loop_body(y: SSAValue):
+        linearized_y = arith.Muli.get(y, x_len)
+        y_with_offset = arith.Addi.get(y, y0)
+        yield from (linearized_y, y_with_offset)
+
+        for x in indices:
+            linearized_idx = arith.Addi.get(linearized_y, x)
+            if reverse:
+                load = memref.Load.get(dest, [linearized_idx])
+                store = memref.Store.get(load, source, [x, y_with_offset])
+            else:
+                load = memref.Load.get(source, [x, y_with_offset])
+                store = memref.Store.get(load, dest, [linearized_idx])
+            yield from (linearized_idx, load, store)
+        yield scf.Yield()
+
+    loop = scf.For.get(cst0, y_len, cst1, [],
+                       Block.from_callable([builtin.IndexType()], loop_body))
+
+    return [
+        y0,
+        x_len,
+        y_len,
+        cst0,
+        cst1,
+        *indices,
+        loop,
+    ]

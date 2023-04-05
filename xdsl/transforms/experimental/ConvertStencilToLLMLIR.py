@@ -17,6 +17,8 @@ from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldT
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D
+
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 # TODO docstrings and comments
@@ -360,7 +362,8 @@ def return_target_analysis(module: ModuleOp):
     return return_targets
 
 
-def all_matching_uses(op_res: Iterable[SSAValue], typ: type[_TypeElement]) -> _TypeElement | None:
+def all_matching_uses(op_res: Iterable[SSAValue],
+                      typ: type[_TypeElement]) -> _TypeElement | None:
     for res in op_res:
         for use in res.uses:
             if isinstance(use.operation, typ):
@@ -391,15 +394,16 @@ def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 
 
 class HaloOpShapeInference(RewritePattern):
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
-        loads: list[LoadOp] = list(all_matching_uses([op.input_stencil], LoadOp))
-        assert len(loads) == 1, "I cannot handle this right now"
-        halo_lb, halo_ub = infer_halo_from_load_op(loads[0])
-        op.attributes['halo_lb'] = halo_lb
-        op.attributes['halo_ub'] = halo_ub
-        op.attributes['lb'] = loads[0].lb
-        op.attributes['ub'] = loads[0].ub
+        assert isinstance(op.input_stencil.owner, LoadOp)
+        load = op.input_stencil.owner
+        halo_lb, halo_ub = infer_halo_from_load_op(load)
+        op.attributes['core_lb'] = halo_lb
+        op.attributes['core_ub'] = halo_ub
+        op.attributes['buff_lb'] = load.lb
+        op.attributes['buff_ub'] = load.ub
 
 
 ShapeInference = GreedyRewritePatternApplier([
@@ -455,3 +459,5 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
+    PatternRewriteWalker(LowerHaloExchangeToMpi(
+        HorizontalSlices2D(2))).rewrite_module(module)

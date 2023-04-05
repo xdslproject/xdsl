@@ -199,6 +199,8 @@ class IndexAttr(ParametrizedAttribute):
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
 
+    def as_tuple(self) -> tuple[int, ...]:
+        return tuple(e.value.data for e in self.array.data)
 
 @dataclass(frozen=True)
 class LoopAttr(ParametrizedAttribute):
@@ -521,7 +523,12 @@ class CombineOp(Operation):
 class HaloSwapOp(Operation):
     name = "stencil.halo_swap"
 
-    input_stencil: Annotated[Operand, FieldType]
+    input_stencil: Annotated[Operand, TempType]
+
+    buff_lb: OptOpAttr[IndexAttr]
+    buff_ub: OptOpAttr[IndexAttr]
+    core_lb: OptOpAttr[IndexAttr]
+    core_ub: OptOpAttr[IndexAttr]
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
