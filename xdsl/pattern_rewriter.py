@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
                      SSAValue)
 from xdsl.rewriter import Rewriter
-from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)

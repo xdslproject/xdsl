@@ -1,5 +1,5 @@
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.dialects.builtin import StringAttr, i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
 from xdsl.ir import MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
