@@ -2,7 +2,7 @@ import pytest
 
 from typing import List
 
-from xdsl.dialects.builtin import i1, i32, i64, IntegerType, IndexType, VectorType
+from xdsl.dialects.builtin import IntegerAttr, i1, i32, i64, IntegerType, IndexType, VectorType
 from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
 from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
 from xdsl.ir import OpResult
@@ -20,7 +20,7 @@ def get_MemRef_SSAVal_from_element_type_and_shape(
 
 def get_Vector_SSAVal_from_element_type_and_shape(
         referenced_type: Attribute,
-        shape: List[int | AnyIntegerAttr]) -> TestSSAValue:
+        shape: List[int | IntegerAttr[IndexType]]) -> TestSSAValue:
     vector_type = VectorType.from_element_type_and_shape(
         referenced_type, shape)
     return TestSSAValue(vector_type)
