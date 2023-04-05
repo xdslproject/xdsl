@@ -188,6 +188,7 @@
 // CHECK-NEXT:       %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
 // CHECK-NEXT:       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
 // CHECK-NEXT:       %t1_w_size_3 = "memref.cast"(%t1_w_size_1) : (memref<?x?x?xf32>) -> memref<58x88x48xf32>
+// CHECK-NEXT:       %t1_w_size_3_1 = "memref.subview"(%t1_w_size_3) {"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 50, 80, 40>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<50x80x40xf32, strided<[3200, 40, 1], offset: 12964>>
 // CHECK-NEXT:       %6 = "memref.subview"(%t0_w_size_3) {"static_offsets" = array<i64: 2, 2, 2>, "static_sizes" = array<i64: 54, 84, 44>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>
 // CHECK-NEXT:       %7 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:       %8 = "arith.constant"() {"value" = 1 : index} : () -> index
@@ -400,13 +401,7 @@
 // CHECK-NEXT:         %199 = "arith.addf"(%108, %198) : (f32, f32) -> f32
 // CHECK-NEXT:         %dt_1 = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
 // CHECK-NEXT:         %200 = "arith.mulf"(%199, %dt_1) : (f32, f32) -> f32
-// CHECK-NEXT:         %201 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:         %202 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:         %203 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:         %204 = "arith.addi"(%12, %201) : (index, index) -> index
-// CHECK-NEXT:         %205 = "arith.addi"(%13, %202) : (index, index) -> index
-// CHECK-NEXT:         %206 = "arith.addi"(%14, %203) : (index, index) -> index
-// CHECK-NEXT:         "memref.store"(%200, %t1_w_size_3, %204, %205, %206) : (f32, memref<58x88x48xf32>, index, index, index) -> ()
+// CHECK-NEXT:         "memref.store"(%200, %t1_w_size_3_1, %12, %13, %14) : (f32, memref<50x80x40xf32, strided<[3200, 40, 1], offset: 12964>>, index, index, index) -> ()
 // CHECK-NEXT:         "scf.yield"() : () -> ()
 // CHECK-NEXT:       }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
