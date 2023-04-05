@@ -16,7 +16,7 @@
 // CHECK:      "builtin.module"() ({
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:   ^0(%0 : memref<?x?x?xf64>):
-// CHECK-NEXT:     %1 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<76x74x72xf64>
+// CHECK-NEXT:     %1 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x74x76xf64>
 // CHECK-NEXT:     %2 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:     %3 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:     %4 = "arith.constant"() {"value" = 64 : index} : () -> index
@@ -30,7 +30,7 @@
 // CHECK-NEXT:       %13 = "arith.addi"(%7, %10) : (index, index) -> index
 // CHECK-NEXT:       %14 = "arith.addi"(%8, %11) : (index, index) -> index
 // CHECK-NEXT:       %15 = "arith.addi"(%9, %12) : (index, index) -> index
-// CHECK-NEXT:       %16 = "memref.load"(%1, %13, %14, %15) : (memref<76x74x72xf64>, index, index, index) -> f64
+// CHECK-NEXT:       %16 = "memref.load"(%1, %13, %14, %15) : (memref<72x74x76xf64>, index, index, index) -> f64
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
