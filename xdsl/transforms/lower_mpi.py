@@ -789,6 +789,7 @@ def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
         LowerMpiGetDtype(lib_info),
         LowerMpiAllocateType(lib_info),
         LowerMpiVectorGet(lib_info),
+        LowerNullRequestOp(lib_info),
     ]),
                                    apply_recursively=True)
     walker1.rewrite_module(module)

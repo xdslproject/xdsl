@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Iterable
+
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
@@ -15,10 +16,13 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 FieldType, IndexAttr, LoadOp,
                                                 ReturnOp, StoreOp, TempType,
-                                                ExternalLoadOp,
+                                                ExternalLoadOp, HaloSwapOp,
                                                 ExternalStoreOp)
+
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -358,10 +362,57 @@ def return_target_analysis(module: ModuleOp):
     return return_targets
 
 
+_OpT = TypeVar('_OpT', bound=Operation)
+
+
+def all_matching_uses(op_res: Iterable[SSAValue],
+                      typ: type[_OpT]) -> Iterable[_OpT]:
+    for res in op_res:
+        for use in res.uses:
+            if isinstance(use.operation, typ):
+                yield use.operation
+
+
+def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+    """
+    This method infers the core size (as used in DimsHelper)
+    from an LoadOp by walking the def-use chain down to the `apply`
+    """
+    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
+    assert len(applies) > 0, "Load must be followed by Apply!"
+
+    shape_lb: None | IndexAttr = None
+    shape_ub: None | IndexAttr = None
+
+    for apply in applies:
+        assert apply.lb is not None and apply.ub is not None
+        shape_lb = IndexAttr.min(apply.lb, shape_lb)
+        shape_ub = IndexAttr.max(apply.ub, shape_ub)
+
+    assert shape_lb is not None and shape_ub is not None
+    return shape_lb, shape_ub
+
+
+class HaloOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
+        assert isinstance(op.input_stencil.owner, LoadOp)
+        load = op.input_stencil.owner
+        halo_lb, halo_ub = infer_core_size(load)
+        op.attributes['core_lb'] = halo_lb
+        op.attributes['core_ub'] = halo_ub
+        assert load.lb is not None
+        assert load.ub is not None
+        op.attributes['buff_lb'] = load.lb
+        op.attributes['buff_ub'] = load.ub
+
+
 ShapeInference = GreedyRewritePatternApplier([
     ApplyOpShapeInference(),
     LoadOpShapeInference(),
     StoreOpShapeInference(),
+    HaloOpShapeInference(),
 ])
 
 
@@ -414,3 +465,5 @@ def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
                                         apply_recursively=False,
                                         walk_reverse=True)
     the_one_pass.rewrite_module(module)
+    PatternRewriteWalker(LowerHaloExchangeToMpi(
+        HorizontalSlices2D(2))).rewrite_module(module)
