@@ -304,7 +304,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     def match_and_rewrite(self, op: stencil.HaloSwapOp,
                           rewriter: PatternRewriter, /):
         exchanges = list(
-            self.strategy.halo_exchange_defs(DimsHelper.from_halo_swap_op(op)))
+            self.strategy.halo_exchange_defs(DimsHelper(op)))
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
         rewriter.replace_matched_op(
             list(
