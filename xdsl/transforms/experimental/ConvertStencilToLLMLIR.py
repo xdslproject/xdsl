@@ -373,7 +373,11 @@ def all_matching_uses(op_res: Iterable[SSAValue],
                 yield use.operation
 
 
-def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+    """
+    This method infers the core size (as used in DimsHelper)
+    from an LoadOp by walking the def-use chain down to the `apply`
+    """
     applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
     assert len(applies) > 0, "Load must be followed by Apply!"
 
@@ -381,18 +385,10 @@ def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     shape_ub: None | IndexAttr = None
 
     for apply in applies:
-        stores: list[StoreOp] = list(all_matching_uses(apply.res, StoreOp))
+        assert apply.lb is not None and apply.ub is not None
+        shape_lb = IndexAttr.min(apply.lb, shape_lb)
+        shape_ub = IndexAttr.max(apply.ub, shape_ub)
 
-        assert len(stores) > 0, "Apply must be followed by store!"
-        for store in stores:
-            lb, ub = store.lb, store.ub
-            if shape_lb is None:
-                shape_lb = lb
-                shape_ub = ub
-                continue
-
-            shape_lb = IndexAttr.min(lb, shape_lb)
-            shape_ub = IndexAttr.max(ub, shape_ub)
     assert shape_lb is not None and shape_ub is not None
     return shape_lb, shape_ub
 
@@ -403,7 +399,7 @@ class HaloOpShapeInference(RewritePattern):
     def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
         assert isinstance(op.input_stencil.owner, LoadOp)
         load = op.input_stencil.owner
-        halo_lb, halo_ub = infer_halo_from_load_op(load)
+        halo_lb, halo_ub = infer_core_size(load)
         op.attributes['core_lb'] = halo_lb
         op.attributes['core_ub'] = halo_ub
         assert load.lb is not None
