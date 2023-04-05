@@ -149,6 +149,10 @@ class DimsHelper:
 
     @staticmethod
     def from_halo_swap_op(op: stencil.HaloSwapOp):
+        assert op.buff_lb is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.buff_ub is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
         return DimsHelper(
             op.buff_lb.as_tuple(),
             op.buff_ub.as_tuple(),
@@ -352,8 +356,8 @@ def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
         yield from (neighbor_offset, neighbor_rank)
 
         # generate a temp buffer to store the data in
-        alloc_outbound = memref.Alloc.get(dtype, 64, (ex.elem_count, ))
-        alloc_inbound = memref.Alloc.get(dtype, 64, (ex.elem_count, ))
+        alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
         yield from (alloc_outbound, alloc_inbound)
 
         # boundary condition:
@@ -366,22 +370,23 @@ def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
 
         recv_buffers.append((ex, alloc_inbound, cond_val.result))
 
-        def body():
+        # get two unique indices
+        cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
+        cst_in = arith.Constant.from_int_and_width(i + len(exchanges),
+                                                   builtin.i32)
+        yield from (cst_i, cst_in)
+        # from these indices, get request objects
+        req_send = mpi.VectorGetOp.get(reqs, cst_i)
+        req_recv = mpi.VectorGetOp.get(reqs, cst_in)
+        yield from (req_send, req_recv)
+
+        def then():
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(),
                                        alloc_outbound.memref)
             # get ptr, count, dtype
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
             yield unwrap_out
-            # get two unique indices
-            cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
-            cst_in = arith.Constant.from_int_and_width(i + len(exchanges),
-                                                       builtin.i32)
-            yield from (cst_i, cst_in)
-            # from these indices, get request objects
-            req_send = mpi.VectorGetOp.get(reqs, cst_i)
-            req_recv = mpi.VectorGetOp.get(reqs, cst_in)
-            yield from (req_send, req_recv)
 
             # isend call
             yield mpi.Isend.get(unwrap_out.ptr, unwrap_out.len, unwrap_out.typ,
@@ -396,15 +401,22 @@ def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
                                 neighbor_rank, tag, req_send)
             yield scf.Yield.get()
 
+        def else_():
+            # set the request object to MPI_REQUEST_NULL s.t. they are ignored
+            # in the waitall call
+            yield mpi.NullRequestOp.get(req_send)
+            yield mpi.NullRequestOp.get(req_recv)
+            yield scf.Yield.get()
+
         yield scf.If.get(
             cond_val,
             [],
-            Region.from_operation_list(list(body())),
-            Region.from_operation_list([scf.Yield.get()]),
+            Region.from_operation_list(list(then())),
+            Region.from_operation_list(list(else_())),
         )
 
     # wait for all calls to complete
-    yield mpi.Waitall.get(reqs, req_cnt)
+    yield mpi.Waitall.get(reqs.result, req_cnt.result)
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
@@ -421,11 +433,6 @@ def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
                     )) + [scf.Yield.get()]),
             Region.from_operation_list([scf.Yield.get()]),
         )
-
-
-def generate_dest_rank_conditional(cond_val: SSAValue,
-                                   body: Iterable[Operation]):
-    return
 
 
 def generate_memcpy(source: SSAValue,
@@ -468,8 +475,9 @@ def generate_memcpy(source: SSAValue,
             yield from (linearized_idx, load, store)
         yield scf.Yield()
 
+    # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(cst0, y_len, cst1, [],
-                       Block.from_callable([builtin.IndexType()], loop_body))
+                       Block.from_callable([builtin.IndexType()], loop_body))  # type: ignore
 
     return [
         y0,

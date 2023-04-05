@@ -362,8 +362,9 @@ def return_target_analysis(module: ModuleOp):
     return return_targets
 
 
+_OpT = TypeVar('_OpT', bound=Operation)
 def all_matching_uses(op_res: Iterable[SSAValue],
-                      typ: type[_TypeElement]) -> _TypeElement | None:
+                      typ: type[_OpT]) -> Iterable[_OpT]:
     for res in op_res:
         for use in res.uses:
             if isinstance(use.operation, typ):
@@ -371,7 +372,7 @@ def all_matching_uses(op_res: Iterable[SSAValue],
 
 
 def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
-    applies: list[LoadOp] = list(all_matching_uses([op.res], ApplyOp))
+    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
     assert len(applies) > 0, "Load must be followed by Apply!"
 
     shape_lb: None | IndexAttr = None
@@ -390,6 +391,7 @@ def infer_halo_from_load_op(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 
             shape_lb = IndexAttr.min(lb, shape_lb)
             shape_ub = IndexAttr.max(ub, shape_ub)
+    assert shape_lb is not None and shape_ub is not None
     return shape_lb, shape_ub
 
 
@@ -402,6 +404,8 @@ class HaloOpShapeInference(RewritePattern):
         halo_lb, halo_ub = infer_halo_from_load_op(load)
         op.attributes['core_lb'] = halo_lb
         op.attributes['core_ub'] = halo_ub
+        assert load.lb is not None
+        assert load.ub is not None
         op.attributes['buff_lb'] = load.lb
         op.attributes['buff_ub'] = load.ub
 
