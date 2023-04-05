@@ -23,33 +23,29 @@ class HaloExchangeDef:
     is the *received part*. To get the section that should be sent,
     use the source_area() method to get the source area.
 
-    offset gives the coordinates from the origin of the stencil field.
-
-    size gives the size of the buffer to be exchanged.
-
-    source_offset gives a translation (n-d offset) where the data should be
-    read from that is exchanged with the other node.
-
-    Finally, neighbor gives the n-dimensional offset to the node with whom
-    this edge should be exchanged.
+     - offset gives the coordinates from the origin of the stencil field.
+     - size gives the size of the buffer to be exchanged.
+     - source_offset gives a translation (n-d offset) where the data should be
+       read from that is exchanged with the other node.
+     - neighbor gives the offset in rank to the node this data is to be
+       exchanged with
 
     Example:
 
         offset = [4, 0]
         size   = [10, 1]
         source_offset = [0, 1]
-        neighbor = [-1, 0]
+        neighbor = -1
 
     To visualize:
-    a0  b0        c0
-        xxxxxxxxxx    a1
-        oooooooooo    b1
+    0   4         14
+        xxxxxxxxxx    0
+        oooooooooo    1
 
     Where `x` signifies the area that should be received,
     and `o` the area that should be read from.
 
-    This will be sent to the neighbor of 0 * k + (-1) where k is the number
-    of nodes per row of data.
+    This data will be exchanged with the node of rank (my_rank -1)
     """
     offset: tuple[int, ...]
     size: tuple[int, ...]
@@ -119,7 +115,6 @@ class DimsHelper:
         - core_size(n) = cn - bn
         - halo_size(n, start) = bn - an
         - halo_size(n, end  ) = dn - cn
-
     """
 
     dims: int
@@ -132,35 +127,27 @@ class DimsHelper:
     DIM_Y: ClassVar[int] = 1
     DIM_Z: ClassVar[int] = 2
 
-    def __init__(
-        self,
-        buff_lb: tuple[int, ...],
-        buff_ub: tuple[int, ...],
-        core_lb: tuple[int, ...],
-        core_ub: tuple[int, ...],
-    ):
+    def __init__(self, op: stencil.HaloSwapOp):
+        assert op.buff_lb is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.buff_ub is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
+
+        buff_lb = op.buff_lb.as_tuple()
+        buff_ub = op.buff_ub.as_tuple()
+        core_lb = op.core_lb.as_tuple()
+        core_ub = op.core_ub.as_tuple()
+
         assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub), \
-            "Expected all args to be of the same dimensions!"
+            "Expected all args to be of the same length!"
+
         self.dims = len(buff_lb)
         self.buff_lb = buff_lb
         self.buff_ub = buff_ub
         self.core_lb = core_lb
         self.core_ub = core_ub
 
-    @staticmethod
-    def from_halo_swap_op(op: stencil.HaloSwapOp):
-        assert op.buff_lb is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.buff_ub is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
-        return DimsHelper(
-            op.buff_lb.as_tuple(),
-            op.buff_ub.as_tuple(),
-            op.core_lb.as_tuple(),
-            op.core_ub.as_tuple(),
-        )
-
-    # positions
+    # Helpers for specific positions:
 
     def buffer_start(self, dim: int):
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
@@ -178,7 +165,7 @@ class DimsHelper:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
         return self.buff_ub[dim]
 
-    # sizes
+    # Helpers for specific sizes:
 
     def buff_size(self, dim: int):
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
@@ -225,7 +212,7 @@ class HorizontalSlices2D(SlicingStrategy):
         return self.slices
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
-        # slice on the last dimension only
+        # slice on the y-axis
         assert len(shape) == 2, \
             "HorizontalSlices2D only works on 2d fields!"
         assert shape[1] % self.slices == 0, \
@@ -335,6 +322,8 @@ def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
                            dtype: Attribute,
                            strat: SlicingStrategy) -> Iterable[Operation]:
     # allocate request array
+    # we need two request objects per exchange
+    # one for the send, one for the recv
     req_cnt = arith.Constant.from_int_and_width(
         len(exchanges) * 2, builtin.i32)
     reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
