@@ -1449,13 +1449,8 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if self._parse_optional_token(Token.Kind.QUESTION) is not None:
             return '?'
-        negative = False
-        if self._parse_optional_token(Token.Kind.MINUS) is not None:
-            negative = True
-        if (token := self._parse_optional_token(
-                Token.Kind.INTEGER_LIT)) is not None:
-            value = token.get_int_value()
-            return -value if negative else value
+        if (v := self.parse_optional_integer(allow_boolean=False)) is not None:
+            return v
         self.raise_error("Expected an integer literal or `?`" + context_msg)
 
     def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
