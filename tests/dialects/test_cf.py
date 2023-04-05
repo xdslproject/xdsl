@@ -27,8 +27,8 @@ def test_condbranch():
     d = Subi.get(a, b)
     e = Muli.get(a, b)
 
-    block0 = Block.from_arg_types([i32])
-    block1 = Block.from_arg_types([i32])
+    block0 = Block(arg_types=[i32])
+    block1 = Block(arg_types=[i32])
 
     branch0 = ConditionalBranch.get(c, block0, [d], block1, [e])
     assert branch0.cond is c.results[0]

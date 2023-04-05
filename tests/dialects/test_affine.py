@@ -33,7 +33,7 @@ def test_for_mismatch_operands_results_types():
         "upper_bound": IntegerAttr.from_index_int_value(5),
         "step": IntegerAttr.from_index_int_value(1)
     }
-    b = Block.from_arg_types((IntegerType(32), ))
+    b = Block(arg_types=(IntegerType(32), ))
     inp = b.args[0]
     f = For.create(operands=[inp],
                    regions=[Region()],
@@ -51,7 +51,7 @@ def test_for_mismatch_blockargs():
         "upper_bound": IntegerAttr.from_index_int_value(5),
         "step": IntegerAttr.from_index_int_value(1)
     }
-    b = Block.from_arg_types((IndexType(), ))
+    b = Block(arg_types=(IndexType(), ))
     inp = b.args[0]
     f = For.create(
         operands=[inp],
