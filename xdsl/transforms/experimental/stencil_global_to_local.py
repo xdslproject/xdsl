@@ -183,7 +183,7 @@ class DimsHelper:
 
 
 @dataclass
-class SlicingStrategy(ABC):
+class DomainDecompositionStrategy(ABC):
 
     @abstractmethod
     def calc_resize(self, shape: tuple[int]) -> tuple[int]:
@@ -202,7 +202,7 @@ class SlicingStrategy(ABC):
 
 
 @dataclass
-class HorizontalSlices2D(SlicingStrategy):
+class HorizontalSlices2D(DomainDecompositionStrategy):
     slices: int
 
     def __post_init__(self):
@@ -258,7 +258,7 @@ class HorizontalSlices2D(SlicingStrategy):
 
 @dataclass
 class ChangeStoreOpSizes(RewritePattern):
-    strategy: SlicingStrategy
+    strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter,
@@ -276,7 +276,7 @@ class AddHaloExchangeOps(RewritePattern):
     """
     This rewrite adds a `stencil.halo_exchange` before each `stencil.load` op
     """
-    strategy: SlicingStrategy
+    strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter,
@@ -298,7 +298,7 @@ def global_stencil_to_local_stencil_2d_horizontal(ctx: MLContext | None,
 
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
-    strategy: SlicingStrategy
+    strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.HaloSwapOp,
@@ -317,9 +317,9 @@ class LowerHaloExchangeToMpi(RewritePattern):
         )
 
 
-def generate_mpi_calls_for(source: SSAValue, exchanges: list[HaloExchangeDef],
-                           dtype: Attribute,
-                           strat: SlicingStrategy) -> Iterable[Operation]:
+def generate_mpi_calls_for(
+        source: SSAValue, exchanges: list[HaloExchangeDef], dtype: Attribute,
+        strat: DomainDecompositionStrategy) -> Iterable[Operation]:
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
