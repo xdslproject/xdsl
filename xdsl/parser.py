@@ -763,6 +763,11 @@ class BaseParser(ABC):
     def parse_optional_integer(self,
                                allow_boolean: bool = True,
                                allow_negative: bool = True) -> int | None:
+        """
+        Parse an (possible negative) integer. The integer can either be
+        decimal or hexadecimal.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        """
         self._synchronize_lexer_and_tokenizer()
         # Parse true and false if needed
         if allow_boolean:
@@ -802,6 +807,12 @@ class BaseParser(ABC):
                       allow_boolean: bool = True,
                       allow_negative: bool = True,
                       context_msg: str = '') -> int:
+        """
+        Parse an (possible negative) integer, if present. The integer can
+        either be decimal or hexadecimal.
+        Optionally allow parsing of 'true' or 'false' into 1 and 0.
+        """
+
         return self.expect(
             lambda: self.parse_optional_integer(allow_boolean, allow_negative),
             'Expected integer literal' + context_msg)
