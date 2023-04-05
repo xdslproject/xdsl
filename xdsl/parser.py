@@ -21,9 +21,9 @@ from xdsl.dialects.builtin import (
     AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    UnregisteredAttr, VectorType, SymbolRefAttr, DenseArrayBase,
-    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
-    StridedLayoutAttr)
+    UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
+    DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
+    UnitAttr, i64, StridedLayoutAttr)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -1478,7 +1478,9 @@ class BaseParser(ABC):
         type = self.expect(self.try_parse_type,
                            "Dense attribute must be typed!")
 
-        assert isa(type, AnyTensorType)
+        if not isa(type, VectorOrTensorOf[Attribute]):
+            self.raise_error(
+                "Expected vector or tensor type for dense attribute")
 
         return DenseIntOrFPElementsAttr.from_list(type, info)
 

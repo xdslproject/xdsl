@@ -100,6 +100,13 @@
   // CHECK: "value1" = dense<[0]> : tensor<1xi32>, "value2" = dense<[0.0, 1.0]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<[0]> : vector<1xi32>,
+                      value2 = dense<[0.0, 1.0]> : vector<2xf64>,
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<[0]> : vector<1xi32>, "value2" = dense<[0.0, 1.0]> : vector<2xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
                       value1 = opaque<"test", "contents">,
                       value2 = opaque<"test", "contents"> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
