@@ -68,8 +68,7 @@ def test_all_reduce():
     assert all_reduce.uniform is None
     assert all_reduce.result.typ is all_reduce.operand.typ
 
-    body_block = Block.from_arg_types(
-        [builtin.IndexType(), builtin.IndexType()])
+    body_block = Block(arg_types=[builtin.IndexType(), builtin.IndexType()])
 
     ops: list[Operation] = [
         sum := Operation.clone(arith.Addi.get(*body_block.args)),

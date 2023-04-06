@@ -9,7 +9,7 @@ def test_for():
     ub = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
-    bodyblock = Block.from_arg_types([IndexType()])
+    bodyblock = Block(arg_types=[IndexType()])
     body = Region([bodyblock])
     f = For.get(lb, ub, step, [carried], body)
 

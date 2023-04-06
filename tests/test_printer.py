@@ -339,7 +339,7 @@ builtin.module() {
 
 
 def test_print_custom_block_arg_name():
-    block = Block.from_arg_types([i32, i32])
+    block = Block(arg_types=[i32, i32])
     block.args[0].name = "test"
     block.args[1].name = "test"
 

@@ -141,7 +141,7 @@ class IRGen:
         proto_args = function_ast.proto.args
 
         # Create the block for the current function
-        block = Block.from_arg_types([
+        block = Block(arg_types=[
             UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
         ])
         self.builder = Builder(block)

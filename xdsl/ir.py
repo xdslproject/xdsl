@@ -879,7 +879,7 @@ class Block(IRNode):
     def __init__(self,
                  ops: Iterable[Operation] = (),
                  *,
-                 arg_types: tuple[Attribute, ...] = (),
+                 arg_types: Iterable[Attribute] = (),
                  parent: Region | None = None,
                  declared_at: Span | None = None):
         super().__init__(self)
@@ -909,6 +909,7 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
+    @deprecated('Please use Block(arg_types=arg_types)')
     @staticmethod
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
@@ -935,7 +936,7 @@ class Block(IRNode):
 
     @staticmethod
     def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
-        b = Block.from_arg_types(block_arg_types)
+        b = Block(arg_types=block_arg_types)
         b.add_ops(f(*b.args))
         return b
 
