@@ -1,12 +1,11 @@
 from typing import Sequence
 import pytest
 
-from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
-                                   NoneAttr, StridedLayoutAttr, i32, f32,
-                                   FloatAttr, ArrayAttr, IntAttr, FloatData,
-                                   SymbolRefAttr, VectorBaseTypeConstraint,
-                                   VectorRankConstraint,
-                                   VectorBaseTypeAndRankConstraint)
+from xdsl.dialects.builtin import (
+    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, NoneAttr,
+    StridedLayoutAttr, StringAttr, i32, f32, FloatAttr, ArrayAttr, IntAttr,
+    FloatData, SymbolRefAttr, VectorBaseTypeConstraint, VectorRankConstraint,
+    VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
@@ -188,3 +187,8 @@ def test_strided_constructor(strides: ArrayAttr[IntAttr | NoneAttr]
     strided = StridedLayoutAttr(strides, offset)
     assert strided.strides == expected_strides
     assert strided.offset == expected_offset
+
+
+def test_complex_init():
+    assert ComplexType(f32) == ComplexType.new([f32])
+    assert ComplexType(i32) == ComplexType.new([i32])
