@@ -871,7 +871,7 @@ class Block(IRNode):
     """Parent region containing the block."""
 
     def __init__(self,
-                 *ops: Operation,
+                 ops: Iterable[Operation] = (),
                  arg_types: tuple[Attribute, ...] = (),
                  parent: Region | None = None,
                  declared_at: Span | None = None):
