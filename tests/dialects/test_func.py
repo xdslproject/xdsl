@@ -98,7 +98,7 @@ def test_call():
     b = Constant.from_int_and_width(2, i32)
 
     # Create a block using the types of a, b
-    block0 = Block.from_arg_types([a.result.typ, b.result.typ])
+    block0 = Block(arg_types=[a.result.typ, b.result.typ])
     # Create a Addi operation to use the args of the block
     c = Addi.get(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
@@ -147,7 +147,7 @@ def test_call_II():
     a = Constant.from_int_and_width(1, i32)
 
     # Create a block using the type of a
-    block0 = Block.from_arg_types([a.result.typ])
+    block0 = Block(arg_types=[a.result.typ])
     # Create a Addi operation to use the args of the block
     c = Addi.get(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block

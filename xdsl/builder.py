@@ -65,7 +65,7 @@ class Builder:
             input_types = input_types.data
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_types)
+            block = Block(arg_types=input_types)
             builder = Builder(block)
 
             func(builder, block.args)
@@ -141,7 +141,7 @@ class Builder:
             input_types = input_types.data
 
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_types)
+            block = Block(arg_types=input_types)
             builder = Builder(block)
 
             with _ImplicitBuilder(builder):
