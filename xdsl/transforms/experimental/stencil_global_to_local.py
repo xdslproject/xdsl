@@ -321,20 +321,21 @@ class LowerHaloExchangeToMpi(RewritePattern):
 def generate_mpi_calls_for(
         source: SSAValue, exchanges: list[HaloExchangeDef], dtype: Attribute,
         strat: DomainDecompositionStrategy) -> Iterable[Operation]:
+    # call mpi init (this will be hoisted to function level)
+    init = mpi.Init()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
     req_cnt = arith.Constant.from_int_and_width(
         len(exchanges) * 2, builtin.i32)
     reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
-
     # get comm rank
     rank = mpi.CommRank.get()
     # define static tag of 0
     # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
-    yield from (req_cnt, reqs, rank, tag)
+    yield from (init, req_cnt, reqs, rank, tag)
 
     recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
 
@@ -509,7 +510,8 @@ def generate_memcpy(source: SSAValue,
             # add an scf.yield at the end
             yield scf.Yield()
 
-        yield scf.For.get(cst0, x_len, cst1, [], [Block.from_callable([builtin.IndexType()], inner)])
+        yield scf.For.get(cst0, x_len, cst1, [],
+                          [Block.from_callable([builtin.IndexType()], inner)])
 
         yield scf.Yield()
 
@@ -539,13 +541,15 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
     func.func, and then places them *before* the op they appear in.
     """
     seen_ops: set[Operation]
+    has_init: set[func.FuncOp]
 
     def __init__(self):
         self.seen_ops = set()
+        self.has_init = set()
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc | mpi.CommRank
-                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp,
+                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp | mpi.Init,
                           rewriter: PatternRewriter, /):
         if op in self.seen_ops:
             return
@@ -567,6 +571,7 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
 
         # check that we did not run into "nowhere"
         assert parent is not None, "Expected MPI to be inside a func.FuncOp!"
+        assert isinstance(parent, func.FuncOp)  # this must be true now
 
         # check that we "ascended"
         if base == op:
@@ -574,6 +579,20 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
 
         if not can_loop_invariant_code_move(op):
             return
+
+        # if we move an mpi.init, generate a finalize()!
+        if isinstance(op, mpi.Init):
+            # ignore multiple inits
+            if parent in self.has_init:
+                rewriter.erase_matched_op()
+                return
+            self.has_init.add(parent)
+            # add a finalize() call to the end of the function
+            parent.regions[0].blocks[-1].insert_op(
+                mpi.Finalize(),
+                len(parent.regions[0].blocks[-1].ops) -
+                1,  # insert before return
+            )
 
         ops = list(collect_args_recursive(op))
         for found_ops in ops:
