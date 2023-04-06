@@ -1122,10 +1122,10 @@ class Block(IRNode):
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
-    blocks: list[Block]
+    blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Operation | None = field(repr=False)
+    parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
     def __init__(self,

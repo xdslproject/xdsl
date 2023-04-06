@@ -437,30 +437,21 @@ class OptResultDef(VarResultDef, OptionalDef):
 OptOpResult: TypeAlias = OpResult | None
 
 
-@dataclass
+@dataclass(init=True)
 class RegionDef(Region):
     """
     An IRDL region definition.
     """
-
-    def __init__(self):
-        super().__init__(parent=None)
 
 
 @dataclass
 class VarRegionDef(RegionDef, VariadicDef):
     """An IRDL variadic region definition."""
 
-    def __init__(self):
-        super().__init__()
-
 
 @dataclass
 class OptRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition."""
-
-    def __init__(self):
-        super().__init__()
 
 
 VarRegion: TypeAlias = list[Region]
@@ -470,9 +461,6 @@ OptRegion: TypeAlias = Region | None
 @dataclass
 class SingleBlockRegionDef(RegionDef):
     """An IRDL region definition that expects exactly one block."""
-
-    def __init__(self):
-        super().__init__()
 
 
 class VarSingleBlockRegionDef(RegionDef, VariadicDef):
