@@ -523,8 +523,8 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
             return
 
         ops = list(collect_args_recursive(op))
-        for op in ops:
-            op.detach()
+        for found_ops in ops:
+            found_ops.detach()
         rewriter.insert_op_before(ops, base)
 
 
