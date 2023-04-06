@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Mapping, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
+                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -860,21 +860,36 @@ class Operation(IRNode):
 OperationInvT = TypeVar('OperationInvT', bound=Operation)
 
 
-@dataclass()
+@dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: Span | None = None
+    declared_at: Span | None
 
-    _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
-                                             init=False)
+    _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    ops: list[Operation] = field(default_factory=list, init=False)
+    ops: list[Operation]
     """Ordered operations contained in the block."""
 
-    parent: Region | None = field(default=None, init=False, repr=False)
+    parent: Region | None
     """Parent region containing the block."""
+
+    def __init__(self,
+                 ops: Iterable[Operation] = (),
+                 *,
+                 arg_types: tuple[Attribute, ...] = (),
+                 parent: Region | None = None,
+                 declared_at: Span | None = None):
+        super().__init__(self)
+        self.declared_at = declared_at
+        self._args = tuple(
+            BlockArgument(typ, self, index)
+            for index, typ in enumerate(arg_types))
+        self.ops = []
+        self.parent = parent
+
+        self.add_ops(ops)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -972,7 +987,7 @@ class Block(IRNode):
         self._attach_op(operation)
         self.ops.append(operation)
 
-    def add_ops(self, ops: list[Operation]) -> None:
+    def add_ops(self, ops: Iterable[Operation]) -> None:
         """
         Add operations at the end of the block.
         The operations should not be attached to another block.

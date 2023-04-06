@@ -571,7 +571,7 @@ class BaseParser(ABC):
         block_id, args = self._parse_optional_block_label()
 
         if block_id is None:
-            block = Block(self.tokenizer.last_token)
+            block = Block(declared_at=self.tokenizer.last_token)
         elif self.forward_block_references.pop(block_id.text,
                                                None) is not None:
             block = self.blocks[block_id.text]
@@ -587,7 +587,7 @@ class BaseParser(ABC):
                     [(block.declared_at, None)],
                     self.tokenizer.history,
                 )
-            block = Block(block_id)
+            block = Block(declared_at=block_id)
             self.blocks[block_id.text] = block
 
         block_args: list[BlockArgument] = []
