@@ -6,7 +6,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
+from xdsl.ir import Block, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
@@ -97,6 +97,24 @@ class StoreOpShapeInference(RewritePattern):
         owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
 
 
+# Collect up to 'number' block arguments by walking up the region tree
+# and collecting block arguments as we reach new parent regions.
+def collectBlockArguments(number: int, block: Block):
+    args = []
+
+    while len(args) < number:
+        args = list(block.args) + args
+
+        current_parent = block.parent
+
+        while not isinstance(current_parent, Block):
+            current_parent = current_parent.parent
+
+        block = current_parent
+
+    return args
+
+
 @dataclass
 class ReturnOpToMemref(RewritePattern):
 
@@ -106,7 +124,7 @@ class ReturnOpToMemref(RewritePattern):
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
 
         parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
+        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
 
         subview = self.return_target[op]
 
@@ -114,7 +132,13 @@ class ReturnOpToMemref(RewritePattern):
 
         assert (block := op.parent_block()) is not None
 
-        args = list(block.args)
+        off_const_ops = [
+            arith.Constant.from_int_and_width(-x.value.data,
+                                              builtin.IndexType())
+            for x in offsets.array.data
+        ]
+
+        args = collectBlockArguments(len(off_const_ops), block)
 
         store = memref.Store.get(op.arg, subview.result, args)
 
@@ -248,12 +272,35 @@ class ApplyOpToParallel(RewritePattern):
             for x in dims
         ]
 
-        # Move the body to the loop
+        # Generate an outer parallel loop as well as two inner sequential
+        # loops. The inner sequential loops ensure that the computational
+        # kernel itself is not slowed down by the OpenMP runtime.
         body.blocks[0].add_op(scf.Yield.get())
-        p = scf.ParallelOp.get(lowerBounds=[zero] * dim,
-                               upperBounds=upperBounds,
-                               steps=[one] * dim,
-                               body=body)
+        body.blocks[0].erase_arg(body.blocks[0].args[2])
+        body.blocks[0].erase_arg(body.blocks[0].args[1])
+
+        block_outer_for = Block.from_arg_types([builtin.IndexType()])
+        block_inner_for = Block.from_arg_types([builtin.IndexType()])
+        p = scf.ParallelOp.get(lowerBounds=[zero] * (dim - 2),
+                               upperBounds=upperBounds[0:dim - 2],
+                               steps=[one] * (dim - 2),
+                               body=[block_outer_for])
+
+        inner_for = scf.For.get(lb=zero,
+                                ub=upperBounds[-1],
+                                step=one,
+                                iter_args=[],
+                                body=body)
+        block_inner_for.add_op(inner_for)
+        block_inner_for.add_op(scf.Yield())
+
+        outer_for = scf.For.get(lb=zero,
+                                ub=upperBounds[-2],
+                                step=one,
+                                iter_args=[],
+                                body=block_inner_for)
+        block_outer_for.add_op(outer_for)
+        block_outer_for.add_op(scf.Yield())
 
         # Replace with the loop and necessary constants.
         rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
@@ -280,7 +327,7 @@ class AccessOpToMemref(RewritePattern):
             for x in memref_offset
         ]
 
-        args = list(block.args)
+        args = collectBlockArguments(len(memref_offset), block)
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
