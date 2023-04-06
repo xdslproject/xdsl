@@ -872,6 +872,7 @@ class Block(IRNode):
 
     def __init__(self,
                  ops: Iterable[Operation] = (),
+                 *,
                  arg_types: tuple[Attribute, ...] = (),
                  parent: Region | None = None,
                  declared_at: Span | None = None):
