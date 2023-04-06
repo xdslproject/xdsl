@@ -873,7 +873,7 @@ class BaseParser(ABC):
             assert index_token is not None, 'Fatal error in SSA value parsing'
             self.raise_error(
                 'SSA value tuple index out of bounds. '
-                f'Tuple is of size {tuple_size} but got {index} index.',
+                f'Tuple is of size {tuple_size} but tried to access element {index}.',
                 index_token.span)
 
         self._synchronize_lexer_and_tokenizer()
@@ -1327,6 +1327,11 @@ class BaseParser(ABC):
                                     for block_name in successors
                                 ],
                                 regions=regions)
+
+        expected_results = sum(r[1] for r in results)
+        if len(op.results) != expected_results:
+            self.raise_error(f'Operation has {len(op.results)} results, '
+                             f'but were given {expected_results} to bind.')
 
         # Register the result SSA value names in the parser
         res_idx = 0
