@@ -74,7 +74,7 @@ def test_func_II():
 
 def test_wrong_blockarg_types():
     r = Region.from_block_list(
-        [Block.from_callable([i32], lambda x: [Addi.get(x, x)])])
+        [Block.from_callable([i32], lambda *x: [Addi.get(x[0], x[0])])])
     f = FuncOp.from_region("f", [i32, i32], [], r)
     with pytest.raises(VerifyException) as e:
         f.verify()
@@ -85,7 +85,7 @@ def test_wrong_blockarg_types():
 
 
 def test_callable_constructor():
-    f = FuncOp.from_callable("f", [], [], lambda: [])
+    f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
     assert f.body.ops == []
 
