@@ -18,7 +18,7 @@ def test_for_mismatch_operands_results_counts():
         "step": IntegerAttr.from_index_int_value(1)
     }
     f = For.create(operands=[],
-                   regions=[Region.from_block_list([])],
+                   regions=[Region()],
                    attributes=attributes,
                    result_types=[IndexType()])
     with pytest.raises(Exception) as e:
@@ -36,7 +36,7 @@ def test_for_mismatch_operands_results_types():
     b = Block.from_arg_types((IntegerType(32), ))
     inp = b.args[0]
     f = For.create(operands=[inp],
-                   regions=[Region.from_block_list([])],
+                   regions=[Region()],
                    attributes=attributes,
                    result_types=[IndexType()])
     with pytest.raises(Exception) as e:
@@ -53,13 +53,11 @@ def test_for_mismatch_blockargs():
     }
     b = Block.from_arg_types((IndexType(), ))
     inp = b.args[0]
-    f = For.create(operands=[inp],
-                   regions=[
-                       Region.from_block_list(
-                           [Block.from_callable([], lambda *args: [])])
-                   ],
-                   attributes=attributes,
-                   result_types=[IndexType()])
+    f = For.create(
+        operands=[inp],
+        regions=[Region([Block.from_callable([], lambda *args: [])])],
+        attributes=attributes,
+        result_types=[IndexType()])
     with pytest.raises(Exception) as e:
         f.verify()
     assert e.value.args[
