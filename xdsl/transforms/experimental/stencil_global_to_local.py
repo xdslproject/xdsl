@@ -7,9 +7,9 @@ from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import MLContext, Operation, SSAValue, Block, Region
+from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf
+from xdsl.dialects import builtin, mpi, memref, arith, scf, func
 from xdsl.dialects.experimental import stencil
 
 _T = TypeVar('_T', bound=Attribute)
@@ -68,7 +68,7 @@ class HaloExchangeDef:
         # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
         return HaloExchangeDef(
             offset=tuple(
-                val - offs
+                val + offs
                 for val, offs in zip(self.offset, self.source_offset)),
             size=self.size,
             source_offset=tuple(0 for _ in range(len(self.source_offset))),
@@ -133,10 +133,11 @@ class DimsHelper:
         assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
         assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
 
-        buff_lb = op.buff_lb.as_tuple()
-        buff_ub = op.buff_ub.as_tuple()
-        core_lb = op.core_lb.as_tuple()
-        core_ub = op.core_ub.as_tuple()
+        # translate everything to "memref" coordinates
+        buff_lb = (op.buff_lb - op.buff_lb).as_tuple()
+        buff_ub = (op.buff_ub - op.buff_lb).as_tuple()
+        core_lb = (op.core_lb - op.buff_lb).as_tuple()
+        core_ub = (op.core_ub - op.buff_lb).as_tuple()
 
         assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub), \
             "Expected all args to be of the same length!"
@@ -442,6 +443,14 @@ def generate_memcpy(source: SSAValue,
     cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
     cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
 
+    # enable to get verbose information on what buffers are exchanged:
+    #print("Generating memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
+    #    ex.offset[0], ex.offset[0] + ex.size[0],
+    #    ex.offset[1], ex.offset[1] + ex.size[1],
+    #    '<-' if reverse else '->',
+    #    0, ex.elem_count
+    #))
+
     indices = [
         arith.Constant.from_int_and_width(i, builtin.IndexType())
         for i in range(ex.offset[0], ex.offset[0] + ex.size[0])
@@ -477,3 +486,86 @@ def generate_memcpy(source: SSAValue,
         *indices,
         loop,
     ]
+
+
+class MpiLoopInvariantCodeMotion(RewritePattern):
+    """
+    This rewrite moves all memref.allo, mpi.comm.rank, mpi.allocate
+    and mpi.unwrap_memref ops and moves them "up" until it hits a
+    func.func, and then places them *before* the op they appear in.
+    """
+    seen_ops: set[Operation]
+
+    def __init__(self):
+        self.seen_ops = set()
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Alloc | mpi.CommRank
+                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp,
+                          rewriter: PatternRewriter, /):
+        if op in self.seen_ops:
+            return
+        self.seen_ops.add(op)
+
+        # memref unwraps can always be moved to their allocation
+        if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
+                op.ref.owner, memref.Alloc):
+            op.detach()
+            rewriter.insert_op_after(op, op.ref.owner)
+            return
+
+        base = op
+        parent = op.parent_op()
+        # walk upwards until we hit a function
+        while parent is not None and not isinstance(parent, func.FuncOp):
+            base = parent
+            parent = base.parent_op()
+
+        # check that we did not run into "nowhere"
+        assert parent is not None, "Expected MPI to be inside a func.FuncOp!"
+
+        # check that we "ascended"
+        if base == op:
+            return
+
+        if not can_loop_invariant_code_move(op):
+            return
+
+        ops = list(collect_args_recursive(op))
+        for found_ops in ops:
+            found_ops.detach()
+        rewriter.insert_op_before(ops, base)
+
+
+_LOOP_INVARIANT_OPS = (arith.Constant, arith.Addi, arith.Muli)
+
+
+def can_loop_invariant_code_move(op: Operation):
+    """
+    This function walks the def-use chain up to see if all the args are
+    "constant enough" to move outside the loop.
+
+    This check is very conservative, but that means it definitely works!
+    """
+
+    for arg in op.operands:
+        if not isinstance(arg, OpResult):
+            print("{} is not opresult".format(arg))
+            return False
+        if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
+            print("{} is not loop invariant".format(arg))
+            return False
+        if not can_loop_invariant_code_move(arg.owner):
+            return False
+    return True
+
+
+def collect_args_recursive(op: Operation) -> Iterable[Operation]:
+    """
+    Collect the def-use chain "upwards" of an operation.
+    Check with can_loop_invariant_code_move prior to using this!
+    """
+    for arg in op.operands:
+        assert isinstance(arg, OpResult)
+        yield from collect_args_recursive(arg.owner)
+    yield op
