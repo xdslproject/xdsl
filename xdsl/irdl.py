@@ -1027,6 +1027,22 @@ def irdl_build_operations_arg(
 _RegionArg: TypeAlias = Region | Sequence[Operation] | Sequence[Block]
 
 
+def irdl_build_region_arg(r: _RegionArg) -> Region:
+    if isinstance(r, Region):
+        return r
+
+    if not len(r):
+        return Region()
+
+    if isinstance(r[0], Operation):
+        ops = cast(Sequence[Operation], r)
+        blocks = (Block(ops), )
+    else:
+        blocks = cast(Sequence[Block], r)
+
+    return Region(blocks)
+
+
 def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
                            | None) -> Region | list[Region]:
     if r is None:
@@ -1035,10 +1051,16 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         return r
     elif not len(r):
         return []
-    elif isinstance(r[0], Operation | Block):
-        return Region.get(cast(Sequence[Operation] | Sequence[Block], r))
+    elif isinstance(r[0], Operation):
+        ops = cast(Sequence[Operation], r)
+        return Region([Block(ops)])
+    elif isinstance(r[0], Block):
+        blocks = cast(Sequence[Block], r)
+        return Region(blocks)
     else:
-        return [Region.get(_r) for _r in cast(Sequence[_RegionArg], r)]
+        return [
+            irdl_build_region_arg(_r) for _r in cast(Sequence[_RegionArg], r)
+        ]
 
 
 def irdl_op_builder(
