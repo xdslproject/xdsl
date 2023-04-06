@@ -245,7 +245,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         # Create a function operation.
         entry_block = Block()
-        body_region = Region.from_block_list([entry_block])
+        body_region = Region([entry_block])
         func_op = func.FuncOp.from_region(node.name, argument_types,
                                           return_types, body_region)
 

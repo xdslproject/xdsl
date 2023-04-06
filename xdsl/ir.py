@@ -8,6 +8,7 @@ from io import StringIO
 from itertools import chain
 from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
                     Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -1122,15 +1123,25 @@ class Block(IRNode):
         return id(self)
 
 
-@dataclass
+@dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
-    blocks: list[Block] = field(default_factory=list, init=False)
+    blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Operation | None = field(default=None, init=False, repr=False)
+    parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
+
+    def __init__(self,
+                 blocks: Iterable[Block] = (),
+                 *,
+                 parent: Operation | None = None):
+        super().__init__(self)
+        self.parent = parent
+        self.blocks = []
+        for block in blocks:
+            self.add_block(block)
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
@@ -1151,6 +1162,7 @@ class Region(IRNode):
         region.add_block(block)
         return region
 
+    @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
         region = Region()
@@ -1166,7 +1178,7 @@ class Region(IRNode):
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
-                return Region.from_block_list(cast(list[Block], arg))
+                return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
                 return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")
