@@ -10,8 +10,6 @@ from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
                     Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
 from xdsl.utils.deprecation import deprecated
 
-from xdsl.utils.deprecation import deprecated
-
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
