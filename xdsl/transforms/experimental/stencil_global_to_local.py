@@ -68,7 +68,7 @@ class HaloExchangeDef:
         # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
         return HaloExchangeDef(
             offset=tuple(
-                val - offs
+                val + offs
                 for val, offs in zip(self.offset, self.source_offset)),
             size=self.size,
             source_offset=tuple(0 for _ in range(len(self.source_offset))),
@@ -133,10 +133,11 @@ class DimsHelper:
         assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
         assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
 
-        buff_lb = op.buff_lb.as_tuple()
-        buff_ub = op.buff_ub.as_tuple()
-        core_lb = op.core_lb.as_tuple()
-        core_ub = op.core_ub.as_tuple()
+        # translate everything to "memref" coordinates
+        buff_lb = (op.buff_lb - op.buff_lb).as_tuple()
+        buff_ub = (op.buff_ub - op.buff_lb).as_tuple()
+        core_lb = (op.core_lb - op.buff_lb).as_tuple()
+        core_ub = (op.core_ub - op.buff_lb).as_tuple()
 
         assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub), \
             "Expected all args to be of the same length!"
@@ -441,6 +442,14 @@ def generate_memcpy(source: SSAValue,
     y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
     cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
     cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
+
+    # enable to get verbose information on what buffers are exchanged:
+    #print("Generating memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
+    #    ex.offset[0], ex.offset[0] + ex.size[0],
+    #    ex.offset[1], ex.offset[1] + ex.size[1],
+    #    '<-' if reverse else '->',
+    #    0, ex.elem_count
+    #))
 
     indices = [
         arith.Constant.from_int_and_width(i, builtin.IndexType())
