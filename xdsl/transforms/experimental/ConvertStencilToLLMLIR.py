@@ -105,12 +105,11 @@ def collectBlockArguments(number: int, block: Block):
     while len(args) < number:
         args = list(block.args) + args
 
-        current_parent = block.parent
+        parent = block.parent_block()
+        if parent is None:
+            break
 
-        while not isinstance(current_parent, Block):
-            current_parent = current_parent.parent
-
-        block = current_parent
+        block = parent
 
     return args
 
