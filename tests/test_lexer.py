@@ -181,3 +181,15 @@ def test_token_get_int_value(text: str, expected: int):
     token = get_token(text)
     assert token.kind == Token.Kind.INTEGER_LIT
     assert token.get_int_value() == expected
+
+
+@pytest.mark.parametrize('text, expected', [('0.', 0.0), ('1.', 1.0),
+                                            ('0.2', 0.2), ('38.1243', 38.1243),
+                                            ('92.54e43', 92.54e43),
+                                            ('92.5E43', 92.5E43),
+                                            ('43.3e-54', 43.3e-54),
+                                            ('32.E+25', 32.E+25)])
+def test_token_get_float_value(text: str, expected: float):
+    token = get_token(text)
+    assert token.kind == Token.Kind.FLOAT_LIT
+    assert token.get_float_value() == expected

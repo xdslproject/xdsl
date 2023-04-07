@@ -283,6 +283,16 @@ class Token:
             return int(self.text, 16)
         return int(self.text, 10)
 
+    def get_float_value(self):
+        """
+        Translate the token text into a float value.
+        This function will raise an exception if the token is not a float 
+        literal.
+        """
+        if self.kind != Token.Kind.FLOAT_LIT:
+            raise ValueError("Token is not a float literal!")
+        return float(self.text)
+
 
 @dataclass
 class Lexer:
