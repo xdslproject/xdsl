@@ -4,8 +4,8 @@ from typing import Annotated, Generic, Sequence, TypeVar
 
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
-from xdsl.ir import (Attribute, Block, Dialect, MLIRType, OpResult, Operation,
-                     ParametrizedAttribute, Region, SSAValue)
+from xdsl.ir import (Attribute, Block, Dialect, TypeAttribute, OpResult,
+                     Operation, ParametrizedAttribute, Region, SSAValue)
 from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
                        OptOperand, OptRegion, ParameterDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition)
@@ -14,22 +14,22 @@ from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
-class AttributeType(ParametrizedAttribute, MLIRType):
+class AttributeType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.attribute"
 
 
 @irdl_attr_definition
-class OperationType(ParametrizedAttribute, MLIRType):
+class OperationType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.operation"
 
 
 @irdl_attr_definition
-class TypeType(ParametrizedAttribute, MLIRType):
+class TypeType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.type"
 
 
 @irdl_attr_definition
-class ValueType(ParametrizedAttribute, MLIRType):
+class ValueType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.value"
 
 
@@ -41,7 +41,7 @@ _RangeT = TypeVar("_RangeT",
 
 
 @irdl_attr_definition
-class RangeType(Generic[_RangeT], ParametrizedAttribute, MLIRType):
+class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     name = "pdl.range"
     elementType: ParameterDef[_RangeT]
 
@@ -112,6 +112,22 @@ class AttributeOp(Operation):
     value: OptOpAttr[Attribute]
     valueType: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, AttributeType]
+
+    @staticmethod
+    def get(value: Attribute | None = None,
+            valueType: SSAValue | None = None) -> AttributeOp:
+        attributes: dict[str, Attribute] = {}
+        if value is not None:
+            attributes['value'] = value
+
+        if valueType is None:
+            value_type = []
+        else:
+            value_type = [valueType]
+
+        return AttributeOp.build(operands=[value_type],
+                                 attributes=attributes,
+                                 result_types=[AttributeType()])
 
 
 @irdl_op_definition
@@ -187,16 +203,13 @@ class OperationOp(Operation):
         if typeValues is None:
             typeValues = []
 
-        attributes: dict[str, Attribute] = {
-            'attributeValueNames': attributeValueNames
-        }
-        if opName is not None:
-            attributes['opName'] = opName
-
         return OperationOp.build(
             operands=[operandValues, attributeValues, typeValues],
             result_types=[OperationType()],
-            attributes=attributes)
+            attributes={
+                "attributeValueNames": attributeValueNames,
+                "opName": opName
+            })
 
 
 @irdl_op_definition
@@ -212,10 +225,10 @@ class PatternOp(Operation):
     @staticmethod
     def get(benefit: IntegerAttr[IntegerType], sym_name: StringAttr | None,
             body: Region) -> PatternOp:
-        attributes: dict[str, Attribute] = {'benefit': benefit}
-        if sym_name is not None:
-            attributes['sym_name'] = sym_name
-        return PatternOp.build(attributes=attributes,
+        return PatternOp.build(attributes={
+            "benefit": benefit,
+            "sym_name": sym_name,
+        },
                                regions=[body],
                                result_types=[])
 
@@ -224,7 +237,7 @@ class PatternOp(Operation):
                       sym_name: StringAttr | None,
                       callable: Block.BlockCallback) -> PatternOp:
         block = Block.from_callable([], callable)
-        region = Region.from_block_list([block])
+        region = Region([block])
         return PatternOp.get(benefit, sym_name, region)
 
 
@@ -385,7 +398,7 @@ class RewriteOp(Operation):
                       external_args: Sequence[SSAValue],
                       body: Block.BlockCallback) -> RewriteOp:
         block = Block.from_callable([], body)
-        region = Region.from_block_list([block])
+        region = Region([block])
         return RewriteOp.get(name, root, external_args, region)
 
 
@@ -400,10 +413,8 @@ class TypeOp(Operation):
 
     @staticmethod
     def get(constantType: TypeType | None = None) -> TypeOp:
-        attributes: dict[str, Attribute] = {}
-        if constantType is not None:
-            attributes['constantType'] = constantType
-        return TypeOp.build(attributes=attributes, result_types=[TypeType()])
+        return TypeOp.build(attributes={"constantType": constantType},
+                            result_types=[TypeType()])
 
 
 @irdl_op_definition

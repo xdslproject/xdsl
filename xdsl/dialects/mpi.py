@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
                                    AnyFloat, i32)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
-                     ParametrizedAttribute, Dialect, MLIRType)
+                     ParametrizedAttribute, Dialect, TypeAttribute)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
                        OptOperand, OptOpAttr)
@@ -21,7 +21,7 @@ AnyNumericType = AnyFloat | IntegerType
 
 
 @irdl_attr_definition
-class OperationType(ParametrizedAttribute, MLIRType):
+class OperationType(ParametrizedAttribute, TypeAttribute):
     """
     This type represents the MPI_Op type.
 
@@ -53,7 +53,7 @@ class MpiOp:
 
 
 @irdl_attr_definition
-class RequestType(ParametrizedAttribute, MLIRType):
+class RequestType(ParametrizedAttribute, TypeAttribute):
     """
     This type represents the MPI_Request type.
 
@@ -63,7 +63,7 @@ class RequestType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class StatusType(ParametrizedAttribute, MLIRType):
+class StatusType(ParametrizedAttribute, TypeAttribute):
     """
     This type represents the MPI_Status type.
 
@@ -73,7 +73,7 @@ class StatusType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class DataType(ParametrizedAttribute, MLIRType):
+class DataType(ParametrizedAttribute, TypeAttribute):
     """
     This type represents MPI_Datatype
     """
@@ -85,7 +85,7 @@ _VectorT = TypeVar('_VectorT', bound=VectorWrappable)
 
 
 @irdl_attr_definition
-class VectorType(Generic[_VectorT], ParametrizedAttribute, MLIRType):
+class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
     This type holds multiple MPI types
     """
@@ -687,11 +687,11 @@ class AllocateTypeOp(MPIBaseOp):
         count: SSAValue | Operation,
         bindc_name: StringAttr | None = None,
     ) -> AllocateTypeOp:
-        attrs: dict[str, Attribute] = {'dtype': dtype()}
-        if bindc_name is not None:
-            attrs['bindc_name'] = bindc_name
         return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
-                                    attributes=attrs,
+                                    attributes={
+                                        "dtype": dtype(),
+                                        "bindc_name": bindc_name,
+                                    },
                                     operands=[count])
 
 
@@ -716,6 +716,24 @@ class VectorGetOp(MPIBaseOp):
 
         return VectorGetOp.build(result_types=[ssa_val.typ.wrapped_type],
                                  operands=[vect, element])
+
+
+@irdl_op_definition
+class NullRequestOp(MPIBaseOp):
+    """
+    This sets a given request object to the MPI_REQUEST_NULL magic
+    value.
+
+    Due to restrictions in the current MPI dialect, we can't return a
+    new request object here. That will be fixed soon though!
+    """
+    name = "mpi.request_null"
+
+    request: Annotated[Operand, RequestType]
+
+    @staticmethod
+    def get(req: SSAValue | Operation):
+        return NullRequestOp.build(operands=[req])
 
 
 MPI = Dialect([

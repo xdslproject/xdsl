@@ -78,6 +78,7 @@ class MpiLibraryInfo:
 
     # MPI_Request
     MPI_Request_size: int = 4
+    MPI_REQUEST_NULL = 0x2c000000
 
     # MPI_Status
     MPI_Status_size: int = 20
@@ -741,6 +742,29 @@ class MpiAddExternalFuncDefs(RewritePattern):
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
                                       module.body.blocks[0],
                                       len(module.body.blocks[0].ops))
+
+
+class LowerNullRequestOp(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.NullRequestOp,
+                          rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+        self, op: mpi.NullRequestOp
+    ) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.comm.size operation
+
+        int MPI_Comm_size(MPI_Comm comm, int *size)
+        """
+        assert isa(op.request.typ, llvm.LLVMPointerType)
+        return [
+            val :=
+            arith.Constant.from_int_and_width(self.info.MPI_REQUEST_NULL, i32),
+            llvm.StoreOp.get(val, op.request),
+        ], []
 
 
 @dataclass

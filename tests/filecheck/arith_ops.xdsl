@@ -287,6 +287,33 @@ func.func() ["function_type" = !fun<[!f64], [!f32]>, "sym_name" = "truncfop"] {
 // CHECK:   %{{.*}} !f32 = arith.truncf(%{{.*}} : !f64)
 
 
+func.func() ["function_type" = !fun<[!f64, !f64], [!i1]>, "sym_name" = "cmpf"] {
+^12(%39 : !f64, %40 : !f64):
+  %41 : !i1 = arith.cmpf(%39 : !f64, %40 : !f64) ["predicate" = 2 : !i64]
+  func.return(%41 : !i1)
+}
+
+// CHECK:   %{{.*}} !i1 = arith.cmpf(%{{.*}} : !f64, %{{.*}} : !f64)  ["predicate" = 2 : !i64]
+
+
+func.func() ["function_type" = !fun<[!i32, !i32], [!i1]>, "sym_name" = "cmpi"] {
+^12(%42 : !i32, %43 : !i32):
+  %44 : !i1 = arith.cmpi(%42 : !f64, %43 : !f64) ["predicate" = 1 : !i64]
+  func.return(%44 : !i1)
+}
+
+// CHECK:   %{{.*}} !i1 = arith.cmpi(%{{.*}} : !i32, %{{.*}} : !i32)  ["predicate" = 1 : !i64]
+
+
+func.func() ["function_type" = !fun<[!f32], [!f32]>, "sym_name" = "negf"] {
+^12(%45 : !f32):
+  %46 : !f32 = arith.negf(%45 : !f32)
+  func.return(%46 : !f32)
+}
+
+// CHECK:   %{{.*}} !f32 = arith.negf(%{{.*}} : !f32)
+
+
 // fastmath single flag set
 func.func() ["function_type" = !fun<[], []>, "sym_name" = "fast_reassoc", "fastmath" = !arith.fastmath<reassoc>] {}
 // CHECK:   "fastmath" = !arith.fastmath<reassoc>

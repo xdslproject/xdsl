@@ -1,14 +1,13 @@
-from io import StringIO
-
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
+from xdsl.dialects.builtin import StridedLayoutAttr, i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
 from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
                                   Load, Store, UnrankedMemrefType,
                                   ExtractAlignedPointerAsIndexOp, Subview,
                                   Cast)
 from xdsl.dialects import builtin, memref, func, arith, scf
-from xdsl.printer import Printer
+from xdsl.utils.hints import isa
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_memreftype():
@@ -34,7 +33,7 @@ def test_memreftype():
 
 def test_memref_load_i32():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
     load = Load.get(memref_ssa_value, [])
 
     assert load.memref is memref_ssa_value
@@ -44,9 +43,9 @@ def test_memref_load_i32():
 
 def test_memref_load_i32_with_dimensions():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
     load = Load.get(memref_ssa_value, [index1, index2])
 
     assert load.memref is memref_ssa_value
@@ -57,8 +56,8 @@ def test_memref_load_i32_with_dimensions():
 
 def test_memref_store_i32():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
-    i32_ssa_value = OpResult(i32, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+    i32_ssa_value = TestSSAValue(i32)
     store = Store.get(i32_ssa_value, memref_ssa_value, [])
 
     assert store.memref is memref_ssa_value
@@ -68,10 +67,10 @@ def test_memref_store_i32():
 
 def test_memref_store_i32_with_dimensions():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
-    i32_ssa_value = OpResult(i32, [], [])
-    index1 = OpResult(IndexType, [], [])
-    index2 = OpResult(IndexType, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+    i32_ssa_value = TestSSAValue(i32)
+    index1 = TestSSAValue(IndexType())
+    index2 = TestSSAValue(IndexType())
     store = Store.get(i32_ssa_value, memref_ssa_value, [index1, index2])
 
     assert store.memref is memref_ssa_value
@@ -198,7 +197,7 @@ def test_memref_matmul_verify():
 
 def test_memref_subview():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
 
     res_memref_type = MemRefType.from_element_type_and_shape(i32, [1, 1])
 
@@ -245,9 +244,27 @@ def test_memref_subview():
     assert subview.result.typ is res_memref_type
 
 
+def test_memref_subview_constant_parameters():
+    element_type = i32
+    shape: list[int] = [10, 10, 10]
+    alloc = Alloc.get(element_type, 8, list(shape))
+
+    subview = Subview.from_static_parameters(alloc, element_type, shape,
+                                             [2, 2, 2], [2, 2, 2], [3, 3, 3])
+
+    assert isinstance(subview, Subview)
+    assert isinstance(subview.result.typ, MemRefType)
+    assert isinstance(subview.result.typ.layout, StridedLayoutAttr)
+    assert isa(subview.result.typ.layout.strides, ArrayAttr[IntAttr])
+    out_strides = [i.data for i in subview.result.typ.layout.strides.data]
+    assert out_strides == [300, 30, 3]
+    assert isinstance(subview.result.typ.layout.offset, IntAttr)
+    assert subview.result.typ.layout.offset.data == 222
+
+
 def test_memref_cast():
     i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
-    memref_ssa_value = OpResult(i32_memref_type, [], [])
+    memref_ssa_value = TestSSAValue(i32_memref_type)
 
     res_type = UnrankedMemrefType.from_type(i32)
 

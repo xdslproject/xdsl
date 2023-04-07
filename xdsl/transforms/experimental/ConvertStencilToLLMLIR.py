@@ -1,21 +1,33 @@
 from dataclasses import dataclass
-from typing import TypeVar, Any
+from typing import TypeVar, Iterable
+
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
+from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
+                                                FieldType, IndexAttr, LoadOp,
+                                                ReturnOp, StoreOp, TempType,
+                                                ExternalLoadOp, HaloSwapOp,
+                                                ExternalStoreOp)
 from xdsl.pipeline import ModulePass
+
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+
+from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D, \
+    MpiLoopInvariantCodeMotion
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
+
+# TODO docstrings and comments
 
 
 def GetMemRefFromField(
@@ -33,7 +45,6 @@ def GetMemRefFromFieldWithLBAndUB(
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
     dims = IndexAttr.size_from_bounds(lb, ub)
-    dims.reverse()
 
     return memref.MemRefType.from_element_type_and_shape(
         memref_element_type, dims)
@@ -48,11 +59,10 @@ class CastOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
-        assert isinstance(op.field.typ, FieldType | memref.MemRefType)
-        field_typ: FieldType[Attribute] | memref.MemRefType[
-            Attribute] = op.field.typ
+        assert isa(op.field.typ,
+                   FieldType[Attribute] | memref.MemRefType[Attribute])
 
-        result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
+        result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
                                                    op.lb, op.ub)
 
         cast = memref.Cast.get(op.field, result_typ)
@@ -64,7 +74,7 @@ class CastOpToMemref(RewritePattern):
         if self.gpu:
             unranked = memref.Cast.get(
                 cast.dest,
-                memref.UnrankedMemrefType.from_type(field_typ.element_type))
+                memref.UnrankedMemrefType.from_type(op.field.typ.element_type))
             register = gpu.HostRegisterOp.from_memref(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
@@ -104,6 +114,7 @@ class ReturnOpToMemref(RewritePattern):
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
         cast = self.return_target[op]
+
         assert isinstance(cast, CastOp)
 
         offsets = cast.lb
@@ -116,10 +127,8 @@ class ReturnOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -132,8 +141,8 @@ class ReturnOpToMemref(RewritePattern):
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
 
-    if [i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data
-        ] != [i.value.data for i in cast.lb.array.data]:
+    if ([i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data] !=
+        [i.value.data for i in cast.lb.array.data]):  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
@@ -161,6 +170,16 @@ class LoadOpShapeInference(RewritePattern):
 
         verify_load_bounds(cast, op)
 
+        assert op.lb and op.ub
+        assert isa(op.res.typ, TempType[Attribute])
+
+        # TODO: We need to think about that. Do we want an API for this?
+        # Do we just want to recreate the whole operation?
+        op.res.typ = TempType.from_shape(
+            IndexAttr.size_from_bounds(op.lb, op.ub),
+            op.res.typ.element_type,
+        )
+
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 
@@ -171,10 +190,10 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     # to a loop, which has access to them either way)
     entry = op.region.blocks[0]
 
-    for arg in entry.args:
+    for idx, arg in enumerate(entry.args):
         arg_uses = set(arg.uses)
         for use in arg_uses:
-            use.operation.replace_operand(use.index, op.args[use.index])
+            use.operation.replace_operand(use.index, op.args[idx])
         entry.erase_arg(arg)
 
     dim = len(op.lb.array.data)
@@ -206,6 +225,14 @@ class ApplyOpShapeInference(RewritePattern):
 
         op.walk(access_shape_infer_walk)
 
+        assert op.lb and op.ub
+
+        for result in op.results:
+            assert isa(result.typ, TempType[Attribute])
+            result.typ = TempType.from_shape(
+                IndexAttr.size_from_bounds(op.lb, op.ub),
+                result.typ.element_type)
+
 
 class ApplyOpToParallel(RewritePattern):
 
@@ -217,7 +244,7 @@ class ApplyOpToParallel(RewritePattern):
         body = prepare_apply_body(op, rewriter)
         dim = len(op.lb.array.data)
 
-        #Then create the corresponding scf.parallel
+        # Then create the corresponding scf.parallel
         dims = IndexAttr.size_from_bounds(op.lb, op.ub)
         zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
@@ -258,10 +285,8 @@ class AccessOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in memref_offset
         ]
-        off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -279,9 +304,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
         for arg in op.body.blocks[0].args:
-            if isinstance(arg.typ, FieldType):
-                typ: FieldType[Attribute] = arg.typ
-                memreftyp = GetMemRefFromField(typ)
+            if isa(arg.typ, FieldType[Attribute]):
+                memreftyp = GetMemRefFromField(arg.typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)
                 inputs.append(memreftyp)
             else:
@@ -296,17 +320,23 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter,
                           /):
-        assert isinstance(op.result.typ, FieldType)
-        typ: FieldType[Any] = op.result.typ
-        op.result.typ = GetMemRefFromField(typ)
+        assert isa(op.result.typ, FieldType[Attribute])
+        op.result.typ = GetMemRefFromField(op.result.typ)
 
         if op.field.typ == op.result.typ:
             rewriter.replace_matched_op([], [op.field])
         pass
 
 
-def return_target_analysis(op: Operation):
+class TrivialExternalStoreOpCleanup(RewritePattern):
 
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter,
+                          /):
+        rewriter.erase_matched_op()
+
+
+def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
 
     def map_returns(op: Operation) -> None:
@@ -324,24 +354,75 @@ def return_target_analysis(op: Operation):
             return
 
         cast = store.field.owner
+
         assert isinstance(cast, CastOp)
 
         return_targets[op] = cast
 
-    op.walk(map_returns)
+    module.walk(map_returns)
 
     return return_targets
+
+
+_OpT = TypeVar('_OpT', bound=Operation)
+
+
+def all_matching_uses(op_res: Iterable[SSAValue],
+                      typ: type[_OpT]) -> Iterable[_OpT]:
+    for res in op_res:
+        for use in res.uses:
+            if isinstance(use.operation, typ):
+                yield use.operation
+
+
+def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+    """
+    This method infers the core size (as used in DimsHelper)
+    from an LoadOp by walking the def-use chain down to the `apply`
+    """
+    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
+    assert len(applies) > 0, "Load must be followed by Apply!"
+
+    shape_lb: None | IndexAttr = None
+    shape_ub: None | IndexAttr = None
+
+    for apply in applies:
+        assert apply.lb is not None and apply.ub is not None
+        shape_lb = IndexAttr.min(apply.lb, shape_lb)
+        shape_ub = IndexAttr.max(apply.ub, shape_ub)
+
+    assert shape_lb is not None and shape_ub is not None
+    return shape_lb, shape_ub
+
+
+class HaloOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
+        assert isinstance(op.input_stencil.owner, LoadOp)
+        load = op.input_stencil.owner
+        halo_lb, halo_ub = infer_core_size(load)
+        op.attributes['core_lb'] = halo_lb
+        op.attributes['core_ub'] = halo_ub
+        assert load.lb is not None
+        assert load.ub is not None
+        op.attributes['buff_lb'] = load.lb
+        op.attributes['buff_ub'] = load.ub
 
 
 ShapeInference = GreedyRewritePatternApplier([
     ApplyOpShapeInference(),
     LoadOpShapeInference(),
     StoreOpShapeInference(),
+    HaloOpShapeInference(),
 ])
 
 
 def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
                       gpu: bool):
+    """
+    List of rewrite passes for stencil
+    """
     return GreedyRewritePatternApplier([
         ApplyOpToParallel(),
         StencilTypeConversionFuncOp(),
@@ -350,7 +431,8 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
         AccessOpToMemref(),
         ReturnOpToMemref(return_targets),
         StoreOpCleanup(),
-        TrivialExternalLoadOpCleanup()
+        TrivialExternalLoadOpCleanup(),
+        TrivialExternalStoreOpCleanup()
     ])
 
 
@@ -394,3 +476,8 @@ class ConvertStencilToLLMLIRPass(ModulePass):
                                             apply_recursively=False,
                                             walk_reverse=True)
         the_one_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([
+                LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
+                MpiLoopInvariantCodeMotion(),
+            ])).rewrite_module(op)

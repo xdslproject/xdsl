@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                    AnyIntegerAttr, IndexType, UnitAttr, i32,
                                    i64)
-from xdsl.ir import (MLIRType, ParametrizedAttribute, Attribute, Dialect,
+from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
                        irdl_attr_definition, irdl_op_definition, VarOperand,
@@ -18,14 +18,14 @@ if TYPE_CHECKING:
 GEP_USE_SSA_VAL = -2147483648
 """
 
-This is used in the getelementptr index list to signify that an ssa value 
+This is used in the getelementptr index list to signify that an ssa value
 should be used for this index.
 
 """
 
 
 @irdl_attr_definition
-class LLVMStructType(ParametrizedAttribute, MLIRType):
+class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
@@ -57,7 +57,7 @@ class LLVMStructType(ParametrizedAttribute, MLIRType):
 
 
 @irdl_attr_definition
-class LLVMPointerType(ParametrizedAttribute, MLIRType):
+class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
@@ -103,6 +103,45 @@ class LLVMPointerType(ParametrizedAttribute, MLIRType):
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
+
+
+@irdl_attr_definition
+class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
+    name = "llvm.array"
+
+    size: ParameterDef[IntAttr]
+    type: ParameterDef[Attribute]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_string(str(self.size.data))
+        printer.print_string(" x ")
+        printer.print_attribute(self.type)
+        printer.print_string(">")
+
+    @staticmethod
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        if not parser.tokenizer.starts_with('<'):
+            return [NoneAttr(), NoneAttr()]
+        parser.parse_characters('<', "llvm.array parameters expected")
+        size = IntAttr(parser.parse_int_literal())
+        if not parser.tokenizer.starts_with('x'):
+            parser.parse_characters('>', "End of llvm.array type expected!")
+            return [size, NoneAttr()]
+        parser.parse_characters(
+            'x', "llvm.array size and type must be separated by `x`")
+        type = parser.try_parse_type()
+        if type is None:
+            parser.raise_error(
+                "Expected second parameter of llvm.array to be a type!")
+        parser.parse_characters('>', "End of llvm.array parameters expected!")
+        return [size, type]
+
+    @staticmethod
+    def from_size_and_type(size: int | IntAttr, type: Attribute):
+        if isinstance(size, int):
+            size = IntAttr(size)
+        return LLVMArrayType([size, type])
 
 
 @irdl_op_definition
@@ -337,4 +376,4 @@ LLVM = Dialect([
     NullOp,
     LoadOp,
     StoreOp,
-], [LLVMStructType, LLVMPointerType])
+], [LLVMStructType, LLVMPointerType, LLVMArrayType])

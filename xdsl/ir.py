@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Protocol, Sequence,
-                    TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
+                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -52,8 +53,6 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    registered_unregistered_ops: dict[str, type[Operation]] = field(
-        default_factory=dict)
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -76,27 +75,75 @@ class MLContext:
                 f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_optional_op(self, name: str) -> type[Operation] | None:
-        """Get an operation class from its name if it exists."""
-        if name not in self._registeredOps:
-            return None
-        return self._registeredOps[name]
+    def get_optional_op(
+            self,
+            name: str,
+            allow_unregistered: bool = False) -> type[Operation] | None:
+        """
+        Get an operation class from its name if it exists.
+        If the operation is not registered, return None unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if name in self._registeredOps:
+            return self._registeredOps[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredOp
+            op_type = UnregisteredOp.with_name(name)
+            self._registeredOps[name] = op_type
+            return op_type
+        return None
 
-    def get_op(self, name: str) -> type[Operation]:
-        """Get an operation class from its name."""
-        if op_type := self.get_optional_op(name):
+    def get_op(self,
+               name: str,
+               allow_unregistered: bool = False) -> type[Operation]:
+        """
+        Get an operation class from its name.
+        If the operation is not registered, raise an exception unless
+        allow_unregistered is True, in which case return an UnregisteredOp.
+        """
+        if op_type := self.get_optional_op(name, allow_unregistered):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
-    def get_optional_attr(self, name: str) -> type[Attribute] | None:
-        """Get an attribute class from its name if it exists."""
-        if name not in self._registeredAttrs:
-            return None
-        return self._registeredAttrs[name]
+    def get_optional_attr(
+            self,
+            name: str,
+            allow_unregistered: bool = False,
+            create_unregistered_as_type: bool = False
+    ) -> type[Attribute] | None:
+        """
+        Get an attribute class from its name if it exists.
+        If the attribute is not registered, return None unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if name in self._registeredAttrs:
+            return self._registeredAttrs[name]
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredAttr
+            attr_type = UnregisteredAttr.with_name_and_type(
+                name, create_unregistered_as_type)
+            self._registeredAttrs[name] = attr_type
+            return attr_type
 
-    def get_attr(self, name: str) -> type[Attribute]:
-        """Get an attribute class from its name."""
-        if attr_type := self.get_optional_attr(name):
+        return None
+
+    def get_attr(self,
+                 name: str,
+                 allow_unregistered: bool = False,
+                 create_unregistered_as_type: bool = False) -> type[Attribute]:
+        """
+        Get an attribute class from its name.
+        If the attribute is not registered, raise an exception unless
+        allow_unregistered in True, in which case return an UnregisteredAttr.
+        Since UnregisteredAttr may be a type (for MLIR compatibility), an
+        additional flag is required to create an UnregisterAttr that is
+        also a type.
+        """
+        if attr_type := self.get_optional_attr(name, allow_unregistered,
+                                               create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
@@ -209,7 +256,7 @@ class OpResult(SSAValue):
     op: Operation
     """The operation defining the variable."""
 
-    result_index: int
+    index: int
     """The index of the result in the defining operation."""
 
     @property
@@ -220,7 +267,7 @@ class OpResult(SSAValue):
         return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
             self.typ,
-            self.result_index,
+            self.index,
             self.op.name,
             len(self.uses),
         )
@@ -280,9 +327,8 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass
-class MLIRType:
+class TypeAttribute:
     """
-    A class representing an MLIR type.
     This class should only be inherited by classes inheriting Attribute.
     This class is only used for printing attributes in the MLIR format,
     inheriting this class prefix the attribute by `!` instead of `#`.
@@ -291,7 +337,7 @@ class MLIRType:
     def __post_init__(self):
         if not isinstance(self, Attribute):
             raise TypeError(
-                "MLIRType should only be inherited by classes inheriting Attribute"
+                "TypeAttribute should only be inherited by classes inheriting Attribute"
             )
 
 
@@ -581,11 +627,11 @@ class Operation(IRNode):
     def build(
         cls: type[OpT],
         operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]]
+                           | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute]]
         | None = None,
-        attributes: dict[str, Attribute] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                           | Sequence[Region | Sequence[Operation]
@@ -807,21 +853,39 @@ class Operation(IRNode):
         return None
 
 
-@dataclass()
+OperationInvT = TypeVar('OperationInvT', bound=Operation)
+
+
+@dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: Span | None = None
+    declared_at: Span | None
 
-    _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
-                                             init=False)
+    _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    ops: list[Operation] = field(default_factory=list, init=False)
+    ops: list[Operation]
     """Ordered operations contained in the block."""
 
-    parent: Region | None = field(default=None, init=False, repr=False)
+    parent: Region | None
     """Parent region containing the block."""
+
+    def __init__(self,
+                 ops: Iterable[Operation] = (),
+                 *,
+                 arg_types: Iterable[Attribute] = (),
+                 parent: Region | None = None,
+                 declared_at: Span | None = None):
+        super().__init__(self)
+        self.declared_at = declared_at
+        self._args = tuple(
+            BlockArgument(typ, self, index)
+            for index, typ in enumerate(arg_types))
+        self.ops = []
+        self.parent = parent
+
+        self.add_ops(ops)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -840,8 +904,9 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
+    @deprecated('Please use Block(arg_types=arg_types)')
     @staticmethod
-    def from_arg_types(arg_types: list[Attribute]) -> Block:
+    def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
             BlockArgument(typ, b, index)
@@ -866,7 +931,7 @@ class Block(IRNode):
 
     @staticmethod
     def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
-        b = Block.from_arg_types(block_arg_types)
+        b = Block(arg_types=block_arg_types)
         b.add_ops(f(*b.args))
         return b
 
@@ -919,7 +984,7 @@ class Block(IRNode):
         self._attach_op(operation)
         self.ops.append(operation)
 
-    def add_ops(self, ops: list[Operation]) -> None:
+    def add_ops(self, ops: Iterable[Operation]) -> None:
         """
         Add operations at the end of the block.
         The operations should not be attached to another block.
@@ -1054,15 +1119,25 @@ class Block(IRNode):
         return id(self)
 
 
-@dataclass
+@dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
-    blocks: list[Block] = field(default_factory=list, init=False)
+    blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Operation | None = field(default=None, init=False, repr=False)
+    parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
+
+    def __init__(self,
+                 blocks: Iterable[Block] = (),
+                 *,
+                 parent: Operation | None = None):
+        super().__init__(self)
+        self.parent = parent
+        self.blocks = []
+        for block in blocks:
+            self.add_block(block)
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
@@ -1083,6 +1158,7 @@ class Region(IRNode):
         region.add_block(block)
         return region
 
+    @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
         region = Region()
@@ -1098,7 +1174,7 @@ class Region(IRNode):
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
-                return Region.from_block_list(cast(list[Block], arg))
+                return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
                 return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")

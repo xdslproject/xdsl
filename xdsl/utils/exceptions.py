@@ -39,6 +39,13 @@ class InvalidIRException(Exception):
     pass
 
 
+class InterpretationError(Exception):
+    """
+    An error that can be raised during interpretation, or Interpreter setup.
+    """
+    pass
+
+
 @dataclass
 class BuilderNotFoundException(Exception):
     """

@@ -444,7 +444,7 @@ def test_two_var_region_builder():
             i32, [2, 2])
 
 
-def test_two_var_operand_builder2():
+def test_two_var_operand_builder3():
     region1 = Region()
     region2 = Region()
     region3 = Region()
@@ -469,11 +469,11 @@ def test_two_var_operand_builder2():
 def test_parent_pointers():
     op = ResultOp.build(result_types=[StringAttr("0")])
     block = Block.from_ops([op])
-    reg = Region.from_block_list([block])
+    reg = Region([block])
     reg_op = RegionOp.build(regions=[reg])
 
     block_2 = Block.from_ops([reg_op])
-    reg_2 = Region.from_block_list([block_2])
+    reg_2 = Region([block_2])
     reg_op_2 = RegionOp.build(regions=[reg_2])
 
     assert op.parent_block() is block

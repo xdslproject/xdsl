@@ -5,12 +5,13 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, TypeVar, Union, Set, Optional
 
-from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type, IndexType,
-                                   IntAttr, IntegerType, Float32Type, IntegerAttr,
-                                   FloatAttr, Attribute, AnyFloat, AnyIntegerAttr)
+from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type,
+                                   IndexType, IntAttr, IntegerType,
+                                   Float32Type, IntegerAttr, FloatAttr,
+                                   Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
-from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr,
-                       Operand, irdl_attr_definition)
+from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr, Operand,
+                       irdl_attr_definition, OptOpAttr)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -19,6 +20,69 @@ signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 _FloatTypeT = TypeVar('_FloatTypeT', bound=AnyFloat)
+
+
+class FastMathFlag(Enum):
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+
+@dataclass
+class FastMathFlags:
+    flags: Set[FastMathFlag]
+
+    # TODO should we implement all/more set operators?
+    def __or__(self, other: FastMathFlags):
+        return FastMathFlags(self.flags | other.flags)
+
+    def __contains__(self, item: FastMathFlag):
+        return item in self.flags
+
+    @staticmethod
+    def try_parse(parser: BaseParser) -> Optional[FastMathFlags]:
+        if parser.try_parse_characters("none") is not None:
+            return FastMathFlags(set())
+        if parser.try_parse_characters("fast") is not None:
+            return FastMathFlags(set(FastMathFlag))
+
+        for option in FastMathFlag:
+            if parser.try_parse_characters(option.value) is not None:
+                return FastMathFlags({option})
+
+        return None
+
+
+@irdl_attr_definition
+class FastMathFlagsAttr(Data[FastMathFlags]):
+    name: str = "arith.fastmath"
+
+    @staticmethod
+    def parse_parameter(parser: BaseParser) -> FastMathFlags:
+        flags = parser.parse_list_of(lambda: FastMathFlags.try_parse(parser),
+                                     "Expected fast math flags")
+        result = functools.reduce(FastMathFlags.__or__, flags,
+                                  FastMathFlags(set()))
+        return result
+
+    def print_parameter(self, printer: Printer):
+        data = self.data
+        if len(data.flags) == 0:
+            printer.print("none")
+        elif len(data.flags) == len(FastMathFlag):
+            printer.print("fast")
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print(",".join(flag.value for flag in FastMathFlag
+                                   if flag in data))
+
+    @staticmethod
+    def from_flags(flags: FastMathFlags):
+        return FastMathFlagsAttr(flags)
 
 
 @irdl_op_definition
@@ -46,9 +110,7 @@ class Constant(Operation):
                              typ: _FloatTypeT) -> Constant:
         if isinstance(val, float):
             val = FloatAttr(val, typ)
-        return Constant.create(
-            result_types=[typ],
-            attributes={"value": val})
+        return Constant.create(result_types=[typ], attributes={"value": val})
 
 
 @dataclass
@@ -58,8 +120,10 @@ class BinaryOperation(Operation):
     # TODO replace with trait
     def verify_(self) -> None:
         if len(self.operands) != 2 or len(self.results) != 1:
-            raise VerifyException("Binary operation expects 2 operands and 1 result.")
-        if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
+            raise VerifyException(
+                "Binary operation expects 2 operands and 1 result.")
+        if not (self.operands[0].typ == self.operands[1].typ ==
+                self.results[0].typ):
             raise VerifyException(
                 "expect all input and result types to be equal")
 
@@ -412,13 +476,13 @@ class ShRSI(Operation):
                            result_types=[operand1.typ])
 
 
-@irdl_op_definition
-class Cmpi(Operation):
+@dataclass
+class ComparisonOperation():
     """
-    The `cmpi` operation is a comparison for integers.
+    A generic comparison operation, operation definitions inherit this class.
 
-    Its first argument is an attribute that defines which type of comparison is
-    performed. The following comparisons are supported:
+    The first argument to these comparison operations is the type of comparison
+    being performed, the following comparisons are supported:
 
     -   equal (mnemonic: `"eq"`; integer value: `0`)
     -   not equal (mnemonic: `"ne"`; integer value: `1`)
@@ -431,6 +495,50 @@ class Cmpi(Operation):
     -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
     -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
     """
+
+    @staticmethod
+    def _get_comparison_predicate(
+            mnemonic: str, comparison_operations: dict[str, int]) -> int:
+        if mnemonic in comparison_operations:
+            return comparison_operations[mnemonic]
+        else:
+            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
+
+    @staticmethod
+    def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
+        if operand1.typ != operand2.typ:
+            raise TypeError(f"Comparison operands must have same type, but "
+                            f"provided {operand1.typ} and {operand2.typ}")
+
+
+@irdl_op_definition
+class Cmpi(Operation, ComparisonOperation):
+    """
+    The cmpi operation is a generic comparison for integer-like types. Its two
+    arguments can be integers, vectors or tensors thereof as long as their types
+    match. The operation produces an i1 for the former case, a vector or a
+    tensor of i1 with the same shape as inputs in the other cases.
+
+    The result is `1` if the comparison is true and `0` otherwise. For vector or
+    tensor operands, the comparison is performed elementwise and the element of
+    the result indicates whether the comparison is true for the operand elements
+    with the same indices as those of the result.
+
+    Example:
+
+    // Custom form of scalar "signed less than" comparison.
+    %x = arith.cmpi slt, %lhs, %rhs : i32
+
+    // Generic form of the same operation.
+    %x = "arith.cmpi"(%lhs, %rhs) {predicate = 2 : i64} : (i32, i32) -> i1
+
+    // Custom form of vector equality comparison.
+    %x = arith.cmpi eq, %lhs, %rhs : vector<4xi64>
+
+    // Generic form of the same operation.
+    %x = "arith.cmpi"(%lhs, %rhs) {predicate = 0 : i64}
+        : (vector<4xi64>, vector<4xi64>) -> vector<4xi1>
+    """
     name: str = "arith.cmpi"
     predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
@@ -439,39 +547,98 @@ class Cmpi(Operation):
 
     @staticmethod
     def get(operand1: Union[Operation, SSAValue],
-            operand2: Union[Operation, SSAValue], arg: int) -> Cmpi:
+            operand2: Union[Operation, SSAValue], arg: int | str) -> Cmpi:
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+        Cmpi._validate_operand_types(operand1, operand2)
+
+        if isinstance(arg, str):
+            cmpi_comparison_operations = {
+                "eq": 0,
+                "ne": 1,
+                "slt": 2,
+                "sle": 3,
+                "sgt": 4,
+                "sge": 5,
+                "ult": 6,
+                "ule": 7,
+                "ugt": 8,
+                "uge": 9
+            }
+            arg = Cmpi._get_comparison_predicate(arg,
+                                                 cmpi_comparison_operations)
+
         return Cmpi.build(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
+
+@irdl_op_definition
+class Cmpf(Operation, ComparisonOperation):
+    """
+    The cmpf operation compares its two operands according to the float
+    comparison rules and the predicate specified by the respective attribute.
+    The predicate defines the type of comparison: (un)orderedness, (in)equality
+    and signed less/greater than (or equal to) as well as predicates that are
+    always true or false.  The operands must have the same type, and this type
+    must be a float type, or a vector or tensor thereof.  The result is an i1,
+    or a vector/tensor thereof having the same shape as the inputs. Unlike cmpi,
+    the operands are always treated as signed. The u prefix indicates
+    *unordered* comparison, not unsigned comparison, so "une" means unordered or
+    not equal. For the sake of readability by humans, custom assembly form for
+    the operation uses a string-typed attribute for the predicate.  The value of
+    this attribute corresponds to lower-cased name of the predicate constant,
+    e.g., "one" means "ordered not equal".  The string representation of the
+    attribute is merely a syntactic sugar and is converted to an integer
+    attribute by the parser.
+
+    Example:
+
+    %r1 = arith.cmpf oeq, %0, %1 : f32
+    %r2 = arith.cmpf ult, %0, %1 : tensor<42x42xf64>
+    %r3 = "arith.cmpf"(%0, %1) {predicate: 0} : (f8, f8) -> i1
+    """
+    name: str = "arith.cmpf"
+    predicate: OpAttr[AnyIntegerAttr]
+    lhs: Annotated[Operand, floatingPointLike]
+    rhs: Annotated[Operand, floatingPointLike]
+    result: Annotated[OpResult, IntegerType(1)]
+
     @staticmethod
-    def from_mnemonic(operand1: Union[Operation, SSAValue],
-                      operand2: Union[Operation, SSAValue], mnemonic: str) -> Cmpi:
-        match mnemonic:
-            case "eq":
-                arg: int = 0
-            case "ne":
-                arg: int = 1
-            case "slt":
-                arg: int = 2
-            case "sle":
-                arg: int = 3
-            case "sgt":
-                arg: int = 4
-            case "sge":
-                arg: int = 5
-            case "ult":
-                arg: int = 6
-            case "ule":
-                arg: int = 7
-            case "ugt":
-                arg: int = 8
-            case "uge":
-                arg: int = 9
-            case _:
-                raise VerifyException(f"unknown cmpi mnemonic: {mnemonic}")
-        return Cmpi.get(operand1, operand2, arg)
+    def get(operand1: SSAValue | Operation, operand2: SSAValue | Operation,
+            arg: int | str) -> Cmpf:
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+
+        Cmpf._validate_operand_types(operand1, operand2)
+
+        if isinstance(arg, str):
+            cmpf_comparison_operations = {
+                "false": 0,
+                "oeq": 1,
+                "ogt": 2,
+                "oge": 3,
+                "olt": 4,
+                "ole": 5,
+                "one": 6,
+                "ord": 7,
+                "ueq": 8,
+                "ugt": 9,
+                "uge": 10,
+                "ult": 11,
+                "ule": 12,
+                "une": 13,
+                "uno": 14,
+                "true": 15
+            }
+            arg = Cmpf._get_comparison_predicate(arg,
+                                                 cmpf_comparison_operations)
+
+        return Cmpf.build(
+            operands=[operand1, operand2],
+            result_types=[IntegerType(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)})
 
 
 @irdl_op_definition
@@ -566,6 +733,22 @@ class Divf(BinaryOperation):
 
 
 @irdl_op_definition
+class Negf(Operation):
+    name: str = "arith.negf"
+    fastmath: OptOpAttr[FastMathFlagsAttr]
+    operand: Annotated[Operand, floatingPointLike]
+    result: Annotated[OpResult, floatingPointLike]
+
+    @staticmethod
+    def get(operand: Union[Operation, SSAValue],
+      fastmath: FastMathFlagsAttr | None = None) -> Negf:
+
+        operand = SSAValue.get(operand)
+        return Negf.build(attributes={"fastmath": fastmath}, operands=[operand],
+                          result_types=[operand.typ])
+
+
+@irdl_op_definition
 class Maxf(BinaryOperation):
     name: str = "arith.maxf"
     lhs: Annotated[Operand, floatingPointLike]
@@ -605,10 +788,7 @@ class IndexCastOp(Operation):
 
     @classmethod
     def get(cls, input: SSAValue | Operation, target_type: Attribute):
-        return cls.build(
-            operands=[input],
-            result_types=[target_type]
-        )
+        return cls.build(operands=[input], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -620,10 +800,7 @@ class FPToSIOp(Operation):
 
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return FPToSIOp.build(
-            operands=[op],
-            result_types=[target_typ]
-        )
+        return FPToSIOp.build(operands=[op], result_types=[target_typ])
 
 
 @irdl_op_definition
@@ -635,10 +812,7 @@ class SIToFPOp(Operation):
 
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return SIToFPOp.build(
-            operands=[op],
-            result_types=[target_typ]
-        )
+        return SIToFPOp.build(operands=[op], result_types=[target_typ])
 
 
 @irdl_op_definition
@@ -650,10 +824,7 @@ class ExtFOp(Operation):
 
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(
-            operands=[op],
-            result_types=[target_typ]
-        )
+        return ExtFOp.build(operands=[op], result_types=[target_typ])
 
 
 @irdl_op_definition
@@ -665,73 +836,11 @@ class TruncFOp(Operation):
 
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(
-            operands=[op],
-            result_types=[target_typ]
-        )
+        return ExtFOp.build(operands=[op], result_types=[target_typ])
 
 
-class FastMathFlag(Enum):
-    REASSOC = "reassoc"
-    NO_NANS = "nnan"
-    NO_INFS = "ninf"
-    NO_SIGNED_ZEROS = "nsz"
-    ALLOW_RECIP = "arcp"
-    ALLOW_CONTRACT = "contract"
-    APPROX_FUNC = "afn"
-
-
-@dataclass
-class FastMathFlags:
-    flags: Set[FastMathFlag]
-
-    # TODO should we implement all/more set operators?
-    def __or__(self, other: FastMathFlags):
-        return FastMathFlags(self.flags | other.flags)
-
-    def __contains__(self, item: FastMathFlag):
-        return item in self.flags
-
-    @staticmethod
-    def try_parse(parser: BaseParser) -> Optional[FastMathFlags]:
-        if parser.try_parse_characters("none") is not None:
-            return FastMathFlags(set())
-        if parser.try_parse_characters("fast") is not None:
-            return FastMathFlags(set(FastMathFlag))
-
-        for option in FastMathFlag:
-            if parser.try_parse_characters(option.value) is not None:
-                return FastMathFlags({option})
-
-        return None
-
-
-@irdl_attr_definition
-class FastMathFlagsAttr(Data[FastMathFlags]):
-    name: str = "arith.fastmath"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> FastMathFlags:
-        flags = parser.parse_list_of(lambda: FastMathFlags.try_parse(parser), "Expected fast math flags")
-        result = functools.reduce(FastMathFlags.__or__, flags, FastMathFlags(set()))
-        return result
-
-    def print_parameter(self, printer: Printer):
-        data = self.data
-        if len(data.flags) == 0:
-            printer.print("none")
-        elif len(data.flags) == len(FastMathFlag):
-            printer.print("fast")
-        else:
-            # make sure we emit flags in a consistent order
-            printer.print(",".join(flag.value for flag in FastMathFlag if flag in data))
-
-    @staticmethod
-    def from_flags(flags: FastMathFlags):
-        return FastMathFlagsAttr(flags)
-
-
-Arith = Dialect([
+Arith = Dialect(
+    [
         Constant,
 
         # Integer-like
@@ -755,9 +864,11 @@ Arith = Dialect([
         Subf,
         Mulf,
         Divf,
+        Negf,
 
         # Comparison/Condition
         Cmpi,
+        Cmpf,
         Select,
 
         # Logical
@@ -780,6 +891,7 @@ Arith = Dialect([
         SIToFPOp,
         ExtFOp,
         TruncFOp,
-], [
+    ],
+    [
         FastMathFlagsAttr,
-])
+    ])

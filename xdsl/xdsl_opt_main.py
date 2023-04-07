@@ -29,6 +29,7 @@ from xdsl.dialects.experimental.math import Math
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass, StencilShapeInferencePass
+from xdsl.transforms.experimental.stencil_global_to_local import GlobalStencilToLocalStencil2DHorizontal
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -176,10 +177,10 @@ class xDSLOptMain:
                                 "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
-            "--allow-unregistered-ops",
+            "--allow-unregistered-dialect",
             default=False,
             action='store_true',
-            help="Allow the parsing of unregistered operations.")
+            help="Allow the parsing of unregistered dialects.")
 
     def register_all_dialects(self):
         """
@@ -213,12 +214,14 @@ class xDSLOptMain:
         """
 
         def parse_xdsl(io: IO[str]):
-            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return XDSLParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         def parse_mlir(io: IO[str]):
-            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return MLIRParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
@@ -236,6 +239,7 @@ class xDSLOptMain:
         self.register_pass(ConvertStencilToLLMLIRPass)
         self.register_pass(ConvertStencilToGPUPass)
         self.register_pass(StencilShapeInferencePass)
+        self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
 
     def register_all_targets(self):
