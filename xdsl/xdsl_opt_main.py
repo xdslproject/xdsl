@@ -2,7 +2,6 @@ import argparse
 import sys
 import os
 from io import StringIO
-from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -21,13 +20,14 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
-from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
+from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass, StencilShapeInferencePass
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
