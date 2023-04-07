@@ -5,6 +5,7 @@ from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.pipeline import ModulePass
 from xdsl.rewriter import Rewriter
+from xdsl.dialects import builtin
 
 # Background
 # ==========
@@ -352,5 +353,5 @@ class DesymrefyPass(ModulePass):
 
     name = 'frontend-desymrefy'
 
-    def apply(self, ctx: MLContext, op: Operation):
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp):
         Desymrefier().desymrefy(op)

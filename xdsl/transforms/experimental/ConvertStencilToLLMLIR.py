@@ -362,29 +362,29 @@ class StencilShapeInferencePass(ModulePass):
                                             apply_recursively=False,
                                             walk_reverse=True)
 
-    def apply(self, ctx: MLContext, op: Operation) -> None:
-        self.inference_walker.rewrite_operation(op)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        self.inference_walker.rewrite_module(op)
 
 
 class ConvertStencilToGPUPass(ModulePass):
 
     name = 'convert-stencil-to-gpu'
 
-    def apply(self, ctx: MLContext, op: Operation) -> None:
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets = return_target_analysis(op)
 
         the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
             [StencilConversion(return_targets, gpu=True)]),
                                             apply_recursively=False,
                                             walk_reverse=True)
-        the_one_pass.rewrite_operation(op)
+        the_one_pass.rewrite_module(op)
 
 
 class ConvertStencilToLLMLIRPass(ModulePass):
 
     name = 'convert-stencil-to-ll-mlir'
 
-    def apply(self, ctx: MLContext, op: Operation) -> None:
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
 
         return_targets: dict[ReturnOp,
                              CastOp | memref.Cast] = return_target_analysis(op)
@@ -393,4 +393,4 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             [StencilConversion(return_targets, gpu=False)]),
                                             apply_recursively=False,
                                             walk_reverse=True)
-        the_one_pass.rewrite_operation(op)
+        the_one_pass.rewrite_module(op)

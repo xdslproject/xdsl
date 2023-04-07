@@ -2,8 +2,8 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
+from xdsl.dialects import builtin
 
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
 from xdsl.pipeline import ModulePass
 from xdsl.xdsl_opt_main import xDSLOptMain
@@ -99,8 +99,8 @@ def test_operation_deletion():
 
                 name = 'remove-constant'
 
-                def apply(self, ctx: MLContext, op: Operation):
-                    if isinstance(op, ModuleOp):
+                def apply(self, ctx: MLContext, op: builtin.ModuleOp):
+                    if isinstance(op, builtin.ModuleOp):
                         op.ops[0].detach()
 
             self.register_pass(RemoveConstantPass)
