@@ -388,7 +388,7 @@ def generate_mpi_calls_for(
 
             # Irecv call
             yield mpi.Irecv.get(unwrap_in.ptr, unwrap_in.len, unwrap_in.typ,
-                                neighbor_rank, tag, req_send)
+                                neighbor_rank, tag, req_recv)
             yield scf.Yield.get()
 
         def else_():
