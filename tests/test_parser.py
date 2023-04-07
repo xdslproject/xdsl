@@ -142,7 +142,8 @@ def test_parse_block_name():
 
 
 @pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
-                         [(BaseParser.Delimiter.PAREN, '(', ')'),
+                         [(BaseParser.Delimiter.NONE, '', ''),
+                          (BaseParser.Delimiter.PAREN, '(', ')'),
                           (BaseParser.Delimiter.SQUARE, '[', ']'),
                           (BaseParser.Delimiter.BRACES, '{', '}'),
                           (BaseParser.Delimiter.ANGLE, '<', '>')])
@@ -170,6 +171,13 @@ def test_parse_comma_separated_list_empty(delimiter: BaseParser.Delimiter,
                                             parser.parse_int_literal,
                                             ' in test')
     assert res == []
+
+
+def test_parse_comma_separated_list_none_delimiter_empty():
+    parser = XDSLParser(MLContext(), 'o')
+    with pytest.raises(ParseError):
+        parser.parse_comma_separated_list(BaseParser.Delimiter.NONE,
+                                          parser.parse_int_literal, ' in test')
 
 
 @pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
