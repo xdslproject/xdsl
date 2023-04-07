@@ -661,6 +661,7 @@ class BaseParser(ABC):
         ANGLE = auto()
         SQUARE = auto()
         BRACES = auto()
+        NONE = auto()
 
     def parse_comma_separated_list(self,
                                    delimiter: Delimiter,
@@ -668,12 +669,14 @@ class BaseParser(ABC):
                                    context_msg: str = '') -> list[T_]:
         """
         Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter.
-        The parsing stops when the delimiter is closed, or when an error is
-        produced.
+        by the specified delimiter. The parsing stops when the delimiter is
+        closed, or when an error is produced. If no delimiter is specified, at
+        least one element is expected to be parsed.
         """
         self._synchronize_lexer_and_tokenizer()
-        if delimiter == self.Delimiter.PAREN:
+        if delimiter == self.Delimiter.NONE:
+            pass
+        elif delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
             if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
                 return []
@@ -701,7 +704,9 @@ class BaseParser(ABC):
             elems.append(parse())
             self._synchronize_lexer_and_tokenizer()
 
-        if delimiter == self.Delimiter.PAREN:
+        if delimiter == self.Delimiter.NONE:
+            pass
+        elif delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
         elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
