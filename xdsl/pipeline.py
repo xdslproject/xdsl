@@ -15,6 +15,4 @@ class ModulePass(ABC):
 
     @abstractmethod
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        pass
-
-    pass
+        ...
