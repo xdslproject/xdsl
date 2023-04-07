@@ -3,7 +3,7 @@ from typing import Callable
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
-from xdsl.pipeline import OperationPass
+from xdsl.pipeline import ModulePass
 from xdsl.rewriter import Rewriter
 
 # Background
@@ -348,7 +348,7 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
 
-class DesymrefyPass(OperationPass):
+class DesymrefyPass(ModulePass):
 
     name = 'frontend-desymrefy'
 

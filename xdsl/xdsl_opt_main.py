@@ -7,7 +7,7 @@ from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
-from xdsl.pipeline import OperationPass
+from xdsl.pipeline import ModulePass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -50,7 +50,7 @@ class xDSLOptMain:
     file type.
     """
 
-    available_passes: Dict[str, Type[OperationPass]]
+    available_passes: Dict[str, Type[ModulePass]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
@@ -61,7 +61,7 @@ class xDSLOptMain:
     stream.
     """
 
-    pipeline: List[OperationPass]
+    pipeline: List[ModulePass]
     """ The pass-pipeline to be applied. """
 
     def __init__(self,
@@ -223,7 +223,7 @@ class xDSLOptMain:
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
 
-    def register_pass(self, opPass: Type[OperationPass]):
+    def register_pass(self, opPass: Type[ModulePass]):
         self.available_passes[opPass.name] = opPass
 
     def register_all_passes(self):

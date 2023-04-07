@@ -13,7 +13,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, FieldType, IndexAttr, LoadOp, ReturnOp, StoreOp, TempType, ExternalLoadOp
-from xdsl.pipeline import OperationPass
+from xdsl.pipeline import ModulePass
 from xdsl.utils.exceptions import VerifyException
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -353,7 +353,7 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
     ])
 
 
-class StencilShapeInferencePass(OperationPass):
+class StencilShapeInferencePass(ModulePass):
 
     name = 'stencil-shape-inference'
 
@@ -365,7 +365,7 @@ class StencilShapeInferencePass(OperationPass):
         self.inference_walker.rewrite_operation(op)
 
 
-class ConvertStencilToGPUPass(OperationPass):
+class ConvertStencilToGPUPass(ModulePass):
 
     name = 'convert-stencil-to-gpu'
 
@@ -379,7 +379,7 @@ class ConvertStencilToGPUPass(OperationPass):
         the_one_pass.rewrite_operation(op)
 
 
-class ConvertStencilToLLMLIRPass(OperationPass):
+class ConvertStencilToLLMLIRPass(ModulePass):
 
     name = 'convert-stencil-to-ll-mlir'
 

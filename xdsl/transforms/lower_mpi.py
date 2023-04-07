@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
-from xdsl.pipeline import OperationPass
+from xdsl.pipeline import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
@@ -744,7 +744,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
 
 @dataclass
-class LowerMPIPass(OperationPass):
+class LowerMPIPass(ModulePass):
 
     name = 'lower-mpi'
 

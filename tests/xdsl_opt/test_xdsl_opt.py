@@ -5,7 +5,7 @@ import pytest
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
-from xdsl.pipeline import OperationPass
+from xdsl.pipeline import ModulePass
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -95,7 +95,7 @@ def test_operation_deletion():
 
         def register_all_passes(self):
 
-            class RemoveConstantPass(OperationPass):
+            class RemoveConstantPass(ModulePass):
 
                 name = 'remove-constant'
 
