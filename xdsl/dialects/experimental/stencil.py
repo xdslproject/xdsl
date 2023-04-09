@@ -5,7 +5,7 @@ from typing import Sequence, TypeVar, Any, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (AnyIntegerAttr, IntegerAttr,
+from xdsl.dialects.builtin import (AnyIntegerAttr, Float32Type, Float64Type, IntegerAttr,
                                    ParametrizedAttribute, ArrayAttr, f32, f64,
                                    IntegerType, IntAttr, AnyFloat)
 from xdsl.ir import Operation, Dialect, TypeAttribute
@@ -417,7 +417,7 @@ class ApplyOp(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, TempType]
+    args: Annotated[VarOperand, TempType | Float64Type | Float32Type]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     region: Region
