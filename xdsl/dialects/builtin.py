@@ -416,7 +416,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
     element_type: ParameterDef[IntegerType | AnyFloat]
 
     def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        super().__init__([element_type])
+        ParametrizedAttribute.__init__(self, [element_type])
 
 
 @irdl_attr_definition
