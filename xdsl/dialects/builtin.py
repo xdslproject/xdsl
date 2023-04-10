@@ -297,6 +297,16 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     value: ParameterDef[IntAttr]
     typ: ParameterDef[_IntegerAttrTyp]
 
+    @overload
+    def __init__(self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr,
+                 typ: _IntegerAttrTyp) -> None:
+        ...
+
+    @overload
+    def __init__(self: IntegerAttr[IntegerType], value: int | IntAttr,
+                 typ: int) -> None:
+        ...
+
     def __init__(self, value: int | IntAttr,
                  typ: int | IntegerType | IndexType) -> None:
         if isinstance(value, int):
