@@ -411,6 +411,15 @@ AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
 
 @irdl_attr_definition
+class ComplexType(ParametrizedAttribute, TypeAttribute):
+    name: str = "complex"
+    element_type: ParameterDef[IntegerType | AnyFloat]
+
+    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
+        ParametrizedAttribute.__init__(self, [element_type])
+
+
+@irdl_attr_definition
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name: str = "dictionary"
 
@@ -1134,6 +1143,7 @@ Builtin = Dialect(
         OpaqueAttr,
 
         # Types
+        ComplexType,
         FunctionType,
         Float16Type,
         Float32Type,
