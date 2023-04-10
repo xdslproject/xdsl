@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import pytest
+
 from xdsl.dialects.builtin import IntAttr, StringAttr, i32
 
 from xdsl.ir import Attribute, OpResult, Operation, Region
