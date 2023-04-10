@@ -131,6 +131,12 @@
 
   // CHECK: tensor<?xi32>
 
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = tensor<?xi32, "encoding">,
+                      sym_name = "tensor_with_encoding"} : () -> ()
+
+  // CHECK: tensor<?xi32, "encoding">
+
   "func.func"() ({}) {function_type = () -> (), 
                       memref = memref<2xf32>,
                       sym_name = "memref"} : () -> ()

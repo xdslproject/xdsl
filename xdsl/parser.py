@@ -1192,17 +1192,18 @@ class BaseParser(ABC):
         if type is None:
             self.raise_error("Expected tensor type here!")
 
-        if self.tokenizer.starts_with(','):
-            # TODO: add tensor encoding!
-            self.raise_error("Parsing tensor encoding is not supported!")
+        if shape is None:
+            if self.parse_optional_punctuation(',') is not None:
+                self.raise_error("Unranked tensors don't have an encoding!")
+            return UnrankedTensorType.from_type(type)
 
-        if shape is None and self.tokenizer.starts_with(','):
-            self.raise_error("Unranked tensors don't have an encoding!")
+        self._synchronize_lexer_and_tokenizer()
+        if self.parse_optional_punctuation(',') is not None:
+            self._synchronize_lexer_and_tokenizer()
+            encoding = self.parse_attribute()
+            return TensorType.from_type_and_list(type, shape, encoding)
 
-        if shape is not None:
-            return TensorType.from_type_and_list(type, shape)
-
-        return UnrankedTensorType.from_type(type)
+        return TensorType.from_type_and_list(type, shape)
 
     def _try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
         """
