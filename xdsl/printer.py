@@ -466,6 +466,10 @@ class Printer:
             if len(attribute.shape.data) != 0:
                 self.print("x")
             self.print(attribute.element_type)
+            if isinstance(attribute,
+                          TensorType) and attribute.encoding != NoneAttr():
+                self.print(", ")
+                self.print(attribute.encoding)
             self.print(">")
             return
 

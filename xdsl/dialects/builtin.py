@@ -24,6 +24,12 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
+@irdl_attr_definition
+class NoneAttr(ParametrizedAttribute):
+    """An attribute representing the absence of an attribute."""
+    name: str = "none"
+
+
 @dataclass
 class ArrayOfConstraint(AttrConstraint):
     """
@@ -516,6 +522,7 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[AttributeCovT]
+    encoding: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -526,7 +533,8 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]] | None = None
+        shape: Sequence[int | IntegerAttr[IndexType]] | None = None,
+        encoding: Attribute = NoneAttr()
     ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
@@ -534,16 +542,17 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
                     d, int) else d for d in shape
-            ]), referenced_type
+            ]), referenced_type, encoding
         ])
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: AnyArrayAttr = AnyArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)])
+            [IntegerAttr.from_int_and_width(1, 64)]),
+        encoding: Attribute = NoneAttr()
     ) -> TensorType[AttributeInvT]:
-        return TensorType([shape, referenced_type])
+        return TensorType([shape, referenced_type, encoding])
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
@@ -889,12 +898,6 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
     def from_attrs(inputs: ArrayAttr[Attribute],
                    outputs: ArrayAttr[Attribute]) -> FunctionType:
         return FunctionType([inputs, outputs])
-
-
-@irdl_attr_definition
-class NoneAttr(ParametrizedAttribute):
-    """An attribute representing the absence of an attribute."""
-    name: str = "none"
 
 
 @irdl_attr_definition
