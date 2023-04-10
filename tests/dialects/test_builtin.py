@@ -3,8 +3,8 @@ import pytest
 
 from xdsl.dialects.builtin import (
     ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, NoneAttr,
-    StridedLayoutAttr, StringAttr, i32, f32, FloatAttr, ArrayAttr, IntAttr,
-    FloatData, SymbolRefAttr, VectorBaseTypeConstraint, VectorRankConstraint,
+    StridedLayoutAttr, i32, f32, FloatAttr, ArrayAttr, IntAttr, FloatData,
+    SymbolRefAttr, VectorBaseTypeConstraint, VectorRankConstraint,
     VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
 from xdsl.dialects.arith import Constant
