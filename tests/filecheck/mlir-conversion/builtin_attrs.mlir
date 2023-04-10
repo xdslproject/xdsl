@@ -218,4 +218,14 @@
                       sym_name = "strided"} : () -> ()
   // CHECK: "strided" = strided<[]>
 
+  "func.func"() ({}) {function_type = () -> (),
+                      complex = complex<i32>,
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "complex" = complex<i32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      complex = complex<f32>,
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "complex" = complex<f32>
+
 }) : () -> ()

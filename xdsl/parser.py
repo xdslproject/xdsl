@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
     DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64, StridedLayoutAttr)
+    UnitAttr, i64, StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -1082,8 +1082,13 @@ class BaseParser(ABC):
 
         return res
 
-    def parse_complex_attrs(self):
-        self.raise_error("ComplexType is unimplemented!")
+    def parse_complex_attrs(self) -> ComplexType:
+        element_type = self.parse_attribute()
+        if not isa(element_type, IntegerType | AnyFloat):
+            self.raise_error(
+                "Complex type must be parameterized by an integer or float type!"
+            )
+        return ComplexType(element_type)
 
     def parse_memref_attrs(
             self) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
