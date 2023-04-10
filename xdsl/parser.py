@@ -1145,8 +1145,6 @@ class BaseParser(ABC):
 
     def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
         """
-        """
-
         Parse a ranked or unranked shape with the following format:
         
         shape ::= ranked-shape | unranked-shape
@@ -1154,12 +1152,6 @@ class BaseParser(ABC):
         unranked-shape ::= `*`x type
         dimension ::= `?` | decimal-literal
           
-        each dimension is also required to be non-negative.
-        """
-          shape ::= ranked-shape | unranked-shape
-          ranked-shape ::= (dimension `x`)* type
-          unranked-shape ::= `*`x type
-          dimension ::= `?` | decimal-literal
         each dimension is also required to be non-negative.
         """
         self._synchronize_lexer_and_tokenizer()
