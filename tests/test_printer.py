@@ -10,7 +10,7 @@ from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
                        irdl_op_definition, Operation, Operand)
-from xdsl.parser import Parser, BaseParser, Source, XDSLParser
+from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
