@@ -105,8 +105,8 @@ class Rewriter:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
 
-        first_op = block._first  # pyright: ignore[reportPrivateUsage]
-        last_op = block._last  # pyright: ignore[reportPrivateUsage]
+        first_op = block.first_op
+        last_op = block.last_op
 
         if first_op is None:
             return
@@ -135,8 +135,8 @@ class Rewriter:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
 
-        first_op = block._first  # pyright: ignore[reportPrivateUsage]
-        last_op = block._last  # pyright: ignore[reportPrivateUsage]
+        first_op = block.first_op
+        last_op = block.last_op
 
         if first_op is None:
             return
