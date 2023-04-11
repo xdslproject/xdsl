@@ -108,15 +108,15 @@ class ReturnOpToMemref(RewritePattern):
         parallel = op.parent_op()
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
-        cast = self.return_target[op]
+        subview = self.return_target[op]
 
-        assert isinstance(cast, memref.Subview)
+        assert isinstance(subview, memref.Subview)
 
         assert (block := op.parent_block()) is not None
 
         args = list(block.args)
 
-        store = memref.Store.get(op.arg, cast.result, args)
+        store = memref.Store.get(op.arg, subview.result, args)
 
         rewriter.replace_matched_op([store])
 
