@@ -157,7 +157,7 @@ class IRGen:
 
         # Implicitly return void if no return statement was emitted.
         return_op = None
-        if len(block.ops):
+        if not block.is_empty:
             last_op = block.ops[-1]
             if isinstance(last_op, ReturnOp):
                 return_op = last_op
