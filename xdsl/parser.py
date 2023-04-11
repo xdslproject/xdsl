@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal
+from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, Sequence
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
     DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64, StridedLayoutAttr)
+    UnitAttr, i64, StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -377,7 +377,7 @@ class BaseParser(ABC):
     ctx: MLContext
     """xDSL context."""
 
-    ssaValues: dict[str, SSAValue]
+    ssa_values: dict[str, tuple[SSAValue]]
     blocks: dict[str, Block]
     forward_block_references: dict[str, list[Span]]
     """
@@ -408,7 +408,7 @@ class BaseParser(ABC):
         self.lexer = Lexer(Input(input, name))
         self._current_token = self.lexer.lex()
         self.ctx = ctx
-        self.ssaValues = dict()
+        self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
@@ -553,11 +553,6 @@ class BaseParser(ABC):
             self.raise_error("Expected ModuleOp at top level!",
                              self.tokenizer.next_token())
 
-    def get_ssa_val(self, name: Span) -> SSAValue:
-        if name.text not in self.ssaValues:
-            self.raise_error('SSA Value used before assignment', name)
-        return self.ssaValues[name.text]
-
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
         This function takes a span containing a block id (like `^42`) and returns a block.
@@ -597,7 +592,7 @@ class BaseParser(ABC):
 
         for i, (name, type) in enumerate(args):
             arg = BlockArgument(type, block, i)
-            self.ssaValues[name.text] = arg
+            self.ssa_values[name.text[1:]] = (arg, )
             # store ssa val name if valid
             if SSAValue.is_valid_name(name.text[1:]):
                 arg.name = name.text[1:]
@@ -661,6 +656,7 @@ class BaseParser(ABC):
         ANGLE = auto()
         SQUARE = auto()
         BRACES = auto()
+        NONE = auto()
 
     def parse_comma_separated_list(self,
                                    delimiter: Delimiter,
@@ -668,27 +664,33 @@ class BaseParser(ABC):
                                    context_msg: str = '') -> list[T_]:
         """
         Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter.
-        The parsing stops when the delimiter is closed, or when an error is
-        produced.
+        by the specified delimiter. The parsing stops when the delimiter is
+        closed, or when an error is produced. If no delimiter is specified, at
+        least one element is expected to be parsed.
         """
         self._synchronize_lexer_and_tokenizer()
-        if delimiter == self.Delimiter.PAREN:
+        if delimiter == self.Delimiter.NONE:
+            pass
+        elif delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
             if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
+                self._synchronize_lexer_and_tokenizer()
                 return []
         elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
             if self._parse_optional_token(Token.Kind.GREATER) is not None:
+                self._synchronize_lexer_and_tokenizer()
                 return []
         elif delimiter == self.Delimiter.SQUARE:
             self._parse_token(Token.Kind.L_SQUARE,
                               "Expected '['" + context_msg)
             if self._parse_optional_token(Token.Kind.R_SQUARE) is not None:
+                self._synchronize_lexer_and_tokenizer()
                 return []
         elif delimiter == self.Delimiter.BRACES:
             self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
             if self._parse_optional_token(Token.Kind.R_BRACE) is not None:
+                self._synchronize_lexer_and_tokenizer()
                 return []
         else:
             assert False, "Unknown delimiter"
@@ -701,7 +703,9 @@ class BaseParser(ABC):
             elems.append(parse())
             self._synchronize_lexer_and_tokenizer()
 
-        if delimiter == self.Delimiter.PAREN:
+        if delimiter == self.Delimiter.NONE:
+            pass
+        elif delimiter == self.Delimiter.PAREN:
             self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
         elif delimiter == self.Delimiter.ANGLE:
             self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
@@ -839,16 +843,45 @@ class BaseParser(ABC):
     def try_parse_value_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.value_id)
 
-    def try_parse_operand(self) -> SSAValue | None:
-        """Try to parse an operand with format `%<value-id>`."""
-        value_id = self.try_parse_value_id()
-        if value_id is None:
-            return None
-        return self.get_ssa_val(value_id)
+    _decimal_integer_regex = re.compile(r'[0-9]+')
 
-    def parse_operand(self, msg: str = "operand expected") -> SSAValue:
+    def parse_optional_operand(self) -> SSAValue | None:
+        """
+        Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
+        if name_token is None:
+            return None
+        name = name_token.text[1:]
+
+        index = 0
+        index_token = self._parse_optional_token(Token.Kind.HASH_IDENT)
+        if index_token is not None:
+            if re.fullmatch(self._decimal_integer_regex,
+                            index_token.text[1:]) is None:
+                self.raise_error('Expected integer as SSA value tuple index',
+                                 index_token.span)
+            index = int(index_token.text[1:], 10)
+
+        if name not in self.ssa_values.keys():
+            self.raise_error('SSA value used before assignment',
+                             name_token.span)
+
+        tuple_size = len(self.ssa_values[name])
+        if index >= tuple_size:
+            assert index_token is not None, 'Fatal error in SSA value parsing'
+            self.raise_error(
+                'SSA value tuple index out of bounds. '
+                f'Tuple is of size {tuple_size} but tried to access element {index}.',
+                index_token.span)
+
+        self._synchronize_lexer_and_tokenizer()
+        return self.ssa_values[name][index]
+
+    def parse_operand(self, msg: str = "Expected an operand.") -> SSAValue:
         """Parse an operand with format `%<value-id>`."""
-        return self.expect(self.try_parse_operand, msg)
+        return self.expect(self.parse_optional_operand, msg)
 
     def try_parse_suffix_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.suffix_id)
@@ -1049,20 +1082,102 @@ class BaseParser(ABC):
 
         return res
 
-    def parse_complex_attrs(self):
-        self.raise_error("ComplexType is unimplemented!")
+    def _parse_shape_dimension(self) -> int:
+        """
+        Parse a single shape dimension, which is a decimal literal or `?`.
+        `?` is interpreted as -1. Note that if the integer literal is in
+        hexadecimal form, it will be split into multiple tokens. For example,
+        `0x10` will be split into `0` and `x10`.
+        """
+        if self._current_token.kind not in (Token.Kind.INTEGER_LIT,
+                                            Token.Kind.QUESTION):
+            self.raise_error(
+                "Expected either integer literal or '?' in shape dimension, "
+                f"got {self._current_token.kind.name}!")
+
+        if self.parse_optional_punctuation('?') is not None:
+            return -1
+
+        # If the integer literal starts with `0x`, this is decomposed into
+        # `0` and `x`.
+        int_token = self._consume_token(Token.Kind.INTEGER_LIT)
+        if int_token.text[:2] == '0x':
+            self.resume_from(int_token.span.start + 1)
+            return 0
+
+        return int_token.get_int_value()
+
+    def _parse_shape_delimiter(self) -> None:
+        """
+        Parse 'x', a shape delimiter. Note that if 'x' is followed by other
+        characters, it will split the token. For instance, 'x1' will be split
+        into 'x' and '1'.
+        """
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            self.raise_error("Expected 'x' in shape delimiter, got "
+                             f"{self._current_token.kind.name}")
+
+        if self._current_token.text[0] != 'x':
+            self.raise_error("Expected 'x' in shape delimiter, got "
+                             f"{self._current_token.text}")
+
+        # Move the lexer to the position after 'x'.
+        self.resume_from(self._current_token.span.start + 1)
+
+    def _parse_ranked_shape(self) -> tuple[list[int], Attribute]:
+        """
+        Parse a ranked shape with the following format:
+          ranked-shape ::= (dimension `x`)* type
+          dimension ::= `?` | decimal-literal
+        each dimension is also required to be non-negative.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        dims: list[int] = []
+        while self._current_token.kind in (Token.Kind.INTEGER_LIT,
+                                           Token.Kind.QUESTION):
+            dim = self._parse_shape_dimension()
+            dims.append(dim)
+            self._parse_shape_delimiter()
+
+        self._synchronize_lexer_and_tokenizer()
+        type = self.expect(self.try_parse_type, 'Expected shape type.')
+        return dims, type
+
+    def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
+        """
+        Parse a ranked or unranked shape with the following format:
+        
+        shape ::= ranked-shape | unranked-shape
+        ranked-shape ::= (dimension `x`)* type
+        unranked-shape ::= `*`x type
+        dimension ::= `?` | decimal-literal
+          
+        each dimension is also required to be non-negative.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self.parse_optional_punctuation('*') is not None:
+            self._parse_shape_delimiter()
+            type = self.expect(self.try_parse_type, 'Expected shape type.')
+            self._synchronize_lexer_and_tokenizer()
+            return None, type
+        res = self._parse_ranked_shape()
+        self._synchronize_lexer_and_tokenizer()
+        return res
+
+    def parse_complex_attrs(self) -> ComplexType:
+        element_type = self.parse_attribute()
+        if not isa(element_type, IntegerType | AnyFloat):
+            self.raise_error(
+                "Complex type must be parameterized by an integer or float type!"
+            )
+        return ComplexType(element_type)
 
     def parse_memref_attrs(
             self) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
-        dims = self._parse_tensor_or_memref_dims()
-        type = self.expect(
-            self.try_parse_type,
-            "Type cannot be nil when parsing memref attributes")
-
-        self._synchronize_lexer_and_tokenizer()
+        shape, type = self._parse_shape()
 
         # Unranked case
-        if dims is None:
+        if shape is None:
             if self.parse_optional_punctuation(',') is None:
                 self._synchronize_lexer_and_tokenizer()
                 return UnrankedMemrefType.from_type(type)
@@ -1072,7 +1187,7 @@ class BaseParser(ABC):
             return UnrankedMemrefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(',') is None:
-            return MemRefType.from_element_type_and_shape(type, dims)
+            return MemRefType.from_element_type_and_shape(type, shape)
 
         self._synchronize_lexer_and_tokenizer()
         memory_or_layout = self.parse_attribute()
@@ -1085,7 +1200,7 @@ class BaseParser(ABC):
             memory_space = self.parse_attribute()
             self._synchronize_lexer_and_tokenizer()
             return MemRefType.from_element_type_and_shape(
-                type, dims, memory_or_layout, memory_space)
+                type, shape, memory_or_layout, memory_space)
 
         # Otherwise, there is a single argument, so we check based on the
         # attribute type. If we don't know, we return an error.
@@ -1095,14 +1210,14 @@ class BaseParser(ABC):
         # If the argument is an integer, it is a memory space
         if isa(memory_or_layout, AnyIntegerAttr):
             return MemRefType.from_element_type_and_shape(
-                type, dims, memory_space=memory_or_layout)
+                type, shape, memory_space=memory_or_layout)
 
         # We only accept strided layouts and affine_maps
         if (isa(memory_or_layout, StridedLayoutAttr)
                 or (isinstance(memory_or_layout, UnregisteredAttr)
                     and memory_or_layout.attr_name.data == "affine_map")):
             return MemRefType.from_element_type_and_shape(
-                type, dims, layout=memory_or_layout)
+                type, shape, layout=memory_or_layout)
         self.raise_error("Cannot decide if the given attribute "
                          "is a layout or a memory space!")
 
@@ -1142,34 +1257,21 @@ class BaseParser(ABC):
 
         return VectorType.from_element_type_and_shape(type, shape)
 
-    def _parse_tensor_or_memref_dims(self) -> list[int] | None:
-        # Check for unranked-ness
-        if self.tokenizer.next_token_of_pattern('*') is not None:
-            # Consume `x`
-            self.parse_characters(
-                'x', 'Unranked tensors must follow format (`<*x` type `>`)')
-        else:
-            # Parse rank:
-            return list(self.try_parse_numerical_dims(lower_bound=0))
-
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
-        shape = self._parse_tensor_or_memref_dims()
-        type = self.try_parse_type()
+        shape, type = self._parse_shape()
 
-        if type is None:
-            self.raise_error("Expected tensor type here!")
+        if shape is None:
+            if self.parse_optional_punctuation(',') is not None:
+                self.raise_error("Unranked tensors don't have an encoding!")
+            return UnrankedTensorType.from_type(type)
 
-        if self.tokenizer.starts_with(','):
-            # TODO: add tensor encoding!
-            self.raise_error("Parsing tensor encoding is not supported!")
+        self._synchronize_lexer_and_tokenizer()
+        if self.parse_optional_punctuation(',') is not None:
+            self._synchronize_lexer_and_tokenizer()
+            encoding = self.parse_attribute()
+            return TensorType.from_type_and_list(type, shape, encoding)
 
-        if shape is None and self.tokenizer.starts_with(','):
-            self.raise_error("Unranked tensors don't have an encoding!")
-
-        if shape is not None:
-            return TensorType.from_type_and_list(type, shape)
-
-        return UnrankedTensorType.from_type(type)
+        return TensorType.from_type_and_list(type, shape)
 
     def _try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
         """
@@ -1240,7 +1342,7 @@ class BaseParser(ABC):
 
     @abstractmethod
     def _parse_op_result_list(
-            self) -> tuple[list[Span], list[Attribute] | None]:
+            self) -> list[tuple[Span, int, Attribute | None]]:
         raise NotImplementedError()
 
     def try_parse_operation(self) -> Operation | None:
@@ -1248,8 +1350,13 @@ class BaseParser(ABC):
             return self.parse_operation()
 
     def parse_operation(self) -> Operation:
-        result_list, ret_types = self._parse_op_result_list()
-        if len(result_list) > 0:
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind == Token.Kind.PERCENT_IDENT:
+            results = self._parse_op_result_list()
+        else:
+            results = []
+        ret_types = [result[2] for result in results]
+        if len(results) > 0:
             self.parse_characters(
                 '=',
                 'Operation definitions expect an `=` after op-result-list!')
@@ -1260,8 +1367,8 @@ class BaseParser(ABC):
             assert isinstance(
                 self, XDSLParser
             ), "Only xDSL format currently supports custom op parsing"
-            assert ret_types is not None, "Return types must be in xDSL format"
             op_type = self._get_op_by_name(op_name)
+            ret_types = cast(list[Attribute], ret_types)
             op = op_type.parse(ret_types, self)
         else:
             # Check for basic op format
@@ -1274,32 +1381,41 @@ class BaseParser(ABC):
             args, successors, attrs, regions, func_type = self.parse_operation_details(
             )
 
-            if ret_types is None:
+            if any(res_type is None for res_type in ret_types):
                 assert func_type is not None
                 ret_types = func_type.outputs.data
+            ret_types = cast(Sequence[Attribute], ret_types)
 
             op_type = self._get_op_by_name(op_name)
 
-            op = op_type.create(
-                operands=[self.ssaValues[span.text] for span in args],
-                result_types=ret_types,
-                attributes=attrs,
-                successors=[
-                    self._get_block_from_name(block_name)
-                    for block_name in successors
-                ],
-                regions=regions)
+            op = op_type.create(operands=args,
+                                result_types=ret_types,
+                                attributes=attrs,
+                                successors=[
+                                    self._get_block_from_name(block_name)
+                                    for block_name in successors
+                                ],
+                                regions=regions)
+
+        expected_results = sum(r[1] for r in results)
+        if len(op.results) != expected_results:
+            self.raise_error(f'Operation has {len(op.results)} results, '
+                             f'but were given {expected_results} to bind.')
 
         # Register the result SSA value names in the parser
-        for idx, res in enumerate(result_list):
-            ssa_val_name = res.text
-            if ssa_val_name in self.ssaValues:
+        res_idx = 0
+        for res_span, res_size, _ in results:
+            ssa_val_name = res_span.text[1:]  # Removing the leading '%'
+            if ssa_val_name in self.ssa_values:
                 self.raise_error(
-                    f"SSA value {ssa_val_name} is already defined", res)
-            self.ssaValues[ssa_val_name] = op.results[idx]
+                    f"SSA value %{ssa_val_name} is already defined", res_span)
+            self.ssa_values[ssa_val_name] = tuple(op.results[res_idx:res_idx +
+                                                             res_size])
+            res_idx += res_size
             # Carry over `ssa_val_name` for non-numeric names:
-            if SSAValue.is_valid_name(ssa_val_name[1:]):
-                self.ssaValues[ssa_val_name].name = ssa_val_name[1:]
+            if SSAValue.is_valid_name(ssa_val_name):
+                for val in self.ssa_values[ssa_val_name]:
+                    val.name = ssa_val_name
 
         return op
 
@@ -1318,7 +1434,7 @@ class BaseParser(ABC):
         self.raise_error(f'Unknown operation {op_name}!', span)
 
     def parse_region(self) -> Region:
-        oldSSAVals = self.ssaValues.copy()
+        old_ssa_values = self.ssa_values.copy()
         oldBBNames = self.blocks
         oldForwardRefs = self.forward_block_references
         self.blocks = dict()
@@ -1354,7 +1470,7 @@ class BaseParser(ABC):
 
             return region
         finally:
-            self.ssaValues = oldSSAVals
+            self.ssa_values = old_ssa_values
             self.blocks = oldBBNames
             self.forward_block_references = oldForwardRefs
 
@@ -1890,7 +2006,7 @@ class BaseParser(ABC):
     @abstractmethod
     def parse_operation_details(
         self,
-    ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
+    ) -> tuple[list[SSAValue], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
         """
         Must return a tuple consisting of:
@@ -1905,7 +2021,7 @@ class BaseParser(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def _parse_op_args_list(self) -> list[Span]:
+    def _parse_op_args_list(self) -> list[SSAValue]:
         raise NotImplementedError()
 
     # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
@@ -1931,20 +2047,14 @@ class BaseParser(ABC):
         args, successors, attributes, regions, _ = self.parse_operation_details(
         )
 
-        for x in args:
-            if x.text not in self.ssaValues:
-                self.raise_error(
-                    "Unknown SSAValue name, known SSA Values are: {}".format(
-                        ", ".join(self.ssaValues.keys())), x)
-
-        return op_type.create(
-            operands=[self.ssaValues[span.text] for span in args],
-            result_types=result_types,
-            attributes=attributes,
-            successors=[
-                self._get_block_from_name(span) for span in successors
-            ],
-            regions=regions)
+        return op_type.create(operands=args,
+                              result_types=result_types,
+                              attributes=attributes,
+                              successors=[
+                                  self._get_block_from_name(span)
+                                  for span in successors
+                              ],
+                              regions=regions)
 
     def parse_paramattr_parameters(self,
                                    skip_white_space: bool = True
@@ -2066,21 +2176,32 @@ class MLIRParser(BaseParser):
 
         return builtin_val
 
+    def _parse_op_result(self) -> tuple[Span, int, Attribute | None]:
+        value_token = self._parse_token(Token.Kind.PERCENT_IDENT,
+                                        'Expected result SSA value!')
+        if self._parse_optional_token(Token.Kind.COLON) is None:
+            return (value_token.span, 1, None)
+
+        size_token = self._parse_token(Token.Kind.INTEGER_LIT,
+                                       'Expected SSA value tuple size')
+        size = size_token.get_int_value()
+        return (value_token.span, size, None)
+
     def _parse_op_result_list(
-            self) -> tuple[list[Span], list[Attribute] | None]:
-        return (
-            self.parse_list_of(self.try_parse_value_id,
-                               "Expected op-result here!",
-                               allow_empty=True),
-            None,
-        )
+            self) -> list[tuple[Span, int, Attribute | None]]:
+        self._synchronize_lexer_and_tokenizer()
+        res = self.parse_comma_separated_list(self.Delimiter.NONE,
+                                              self._parse_op_result,
+                                              ' in operation result list')
+        self._synchronize_lexer_and_tokenizer()
+        return res
 
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         return self.parse_optional_dictionary_attr_dict()
 
     def parse_operation_details(
         self,
-    ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
+    ) -> tuple[list[SSAValue], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
         args = self._parse_op_args_list()
         succ = self._parse_optional_successor_list()
@@ -2113,15 +2234,10 @@ class MLIRParser(BaseParser):
                               "Successor list is enclosed in square brackets")
         return successors
 
-    def _parse_op_args_list(self) -> list[Span]:
-        self.parse_characters(
-            "(", "Operation args list must be enclosed by brackets!")
-        args = self.parse_list_of(self.try_parse_value_id,
-                                  "Expected another bare-id here")
-        self.parse_characters(
-            ")", "Operation args list must be closed by a closing bracket")
-        # TODO: check if type is correct here!
-        return args
+    def _parse_op_args_list(self) -> list[SSAValue]:
+        return self.parse_comma_separated_list(self.Delimiter.PAREN,
+                                               self.parse_operand,
+                                               ' in operation argument list')
 
     def parse_region_list(self) -> list[Region]:
         """
@@ -2181,17 +2297,15 @@ class XDSLParser(BaseParser):
         return value
 
     def _parse_op_result_list(
-            self) -> tuple[list[Span], list[Attribute] | None]:
+            self) -> list[tuple[Span, int, Attribute | None]]:
         if not self.tokenizer.starts_with("%"):
-            return list(), list()
+            return []
         results = self.parse_list_of(
             self.try_parse_value_id_and_type,
             "Expected (value-id `:` type) here!",
             allow_empty=False,
         )
-        # TODO: this is hideous, make it cleaner
-        # zip(*results) works, but is barely readable :/
-        return [name for name, _ in results], [type for _, type in results]
+        return [(name, 1, type) for name, type in results]
 
     def try_parse_builtin_attr(self) -> Attribute | None:
         """
@@ -2226,7 +2340,7 @@ class XDSLParser(BaseParser):
 
     def parse_operation_details(
         self,
-    ) -> tuple[list[Span], list[Span], dict[str, Attribute], list[Region],
+    ) -> tuple[list[SSAValue], list[Span], dict[str, Attribute], list[Region],
                FunctionType | None]:
         """
         Must return a tuple consisting of:
@@ -2282,15 +2396,14 @@ class XDSLParser(BaseParser):
             '>', 'Malformed attribute arguments, reached end of args list!')
         return attr(args)
 
-    def _parse_op_args_list(self) -> list[Span]:
+    def _parse_op_args_list(self) -> list[SSAValue]:
         self.parse_characters(
             "(", "Operation args list must be enclosed by brackets!")
         args = self.parse_list_of(self.try_parse_value_id_and_type,
                                   "Expected another bare-id here")
         self.parse_characters(
             ")", "Operation args list must be closed by a closing bracket")
-        # TODO: check if type is correct here!
-        return [name for name, _ in args]
+        return [self.ssa_values[arg.text[1:]][0] for arg, _ in args]
 
     def try_parse_type(self) -> Attribute | None:
         return self.try_parse_attribute()

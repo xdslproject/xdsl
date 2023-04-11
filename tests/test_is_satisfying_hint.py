@@ -4,7 +4,8 @@ from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
 
-from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, FloatData, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import (ArrayAttr, IndexType, IntAttr, FloatData,
+                                   IntegerAttr, IntegerType)
 
 
 class Class1:
