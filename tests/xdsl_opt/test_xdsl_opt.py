@@ -2,9 +2,10 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
+from xdsl.dialects import builtin
 
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
+from xdsl.passes import ModulePass
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -95,10 +96,15 @@ def test_operation_deletion():
 
         def register_all_passes(self):
 
-            def remove_constant(ctx: MLContext, module: ModuleOp):
-                module.ops[0].detach()
+            class RemoveConstantPass(ModulePass):
 
-            self.available_passes['remove-constant'] = remove_constant
+                name = 'remove-constant'
+
+                def apply(self, ctx: MLContext, op: builtin.ModuleOp):
+                    if isinstance(op, builtin.ModuleOp):
+                        op.ops[0].detach()
+
+            self.register_pass(RemoveConstantPass)
 
     opt = xDSLOptMainPass(args=[filename_in, '-p', 'remove-constant'])
 
