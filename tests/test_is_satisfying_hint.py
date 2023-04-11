@@ -134,6 +134,66 @@ def test_list_hint_nested():
     assert isa([[], [[]]], list[list[list[int]]])
     assert isa([[], [[0, 32]]], list[list[list[int]]])
 
+################################################################################
+# Tuple
+################################################################################
+
+
+def test_tuple_hint_empty():
+    """Test that empty tuple satisfy all tuple hints."""
+    assert isa(tuple(), tuple[int, ...])
+    assert isa(tuple(), tuple[bool, ...])
+    assert isa(tuple(), tuple[Class1, ...])
+
+
+def test_tuple_hint_correct():
+    """
+    Test that tuple hints work correcly on non-empty tuples of the right type.
+    """
+    assert isa((42,), tuple[int])
+    assert isa((0, 3, 5), tuple[int, int, int])
+    assert isa((False,), tuple[bool])
+    assert isa((True, False), tuple[bool, ...])
+    assert isa((True, 1, "test"), tuple[bool, int, str])
+    assert isa((Class1(), SubClass1()), tuple[Class1, ...])
+
+
+def test_tuple_hint_not_list_failure():
+    """Test that tuple hints work correcly on non tuple."""
+    assert not isa(0, tuple[int])
+    assert not isa(0, tuple[Any])
+    assert not isa(True, tuple[bool])
+    assert not isa(True, tuple[Any])
+    assert not isa("", tuple[Any])
+    assert not isa("", tuple[str])
+    assert not isa(Class1(), tuple[Class1])
+    assert not isa(Class1(), tuple[Any])
+    assert not isa({}, tuple[dict[Any, Any]])
+    assert not isa({}, tuple[Any])
+
+
+def test_tuple_hint_failure():
+    """
+    Test that tuple hints work correcly on non-empty tuples of the wrong type.
+    """
+    assert not isa((0,), tuple[bool])
+    assert not isa((0, True), tuple[bool, bool])
+    assert not isa((True, 0), tuple[bool, bool])
+    assert not isa((True, False, True, 0), tuple[bool, ...])
+    assert not isa((Class2()), tuple[Class1])
+
+
+def test_tuple_hint_nested():
+    """
+    Test that we can check nested tuple hints.
+    """
+    assert isa(((),), tuple[tuple[int, ...]])
+    assert isa(((0,),), tuple[tuple[int]])
+    assert isa((0, (1,2)), tuple[int, tuple[int, int]])
+    assert isa(((0, 1), (2, 3), (4, 5)), tuple[tuple[int, int], ...])
+    assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, int], ...])
+    assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, ...], ...])
+
 
 ################################################################################
 # Dictionary
