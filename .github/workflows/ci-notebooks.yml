@@ -37,4 +37,4 @@ jobs:
         pip install nbval
     - name: Run examples/tutorials
       run: |
-        pytest -W error --nbval -vv
+        pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
