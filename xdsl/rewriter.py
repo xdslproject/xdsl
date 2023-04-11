@@ -77,10 +77,22 @@ class Rewriter:
                     raise Exception(
                         "Cannot inline block which has operations using "
                         "the block arguments.")
+
         ops = list(block.iter_ops())
-        for op in ops:
-            op.detach()
-        target_block.insert_op(ops, pos)
+        for block_op in ops:
+            block_op.detach()
+
+        for i, target_op in enumerate(target_block.iter_ops()):
+            if pos == i:
+                target_block.insert_ops_before(ops, target_op)
+                return
+        else:
+            i = 0
+            if i != pos:
+                raise Exception(
+                    "Cannot inline block at index greater than number "
+                    "of ops.")
+            target_block.add_ops(ops)
 
     @staticmethod
     def inline_block_before(block: Block, op: Operation):
