@@ -31,6 +31,13 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         elem_hint, = get_args(hint)
         return all(isa(elem, elem_hint) for elem in arg_list)
 
+    if origin is tuple:
+        if not isinstance(arg, tuple):
+            return False
+        arg_list: tuple[Any] = cast(tuple[Any], arg)
+        elem_hint, = get_args(hint)
+        return all(isa(elem, elem_hint) for elem in arg_list)
+
     if origin is dict:
         if not isinstance(arg, dict):
             return False
