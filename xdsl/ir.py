@@ -976,6 +976,11 @@ class Block(IRNode):
             )
         operation.parent = self
 
+    @property
+    def is_empty(self) -> bool:
+        """Returns `True` if there are no operations in the current block."""
+        return not len(self.ops)
+
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
