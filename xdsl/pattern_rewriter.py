@@ -79,8 +79,7 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        op_idx = block.get_operation_index(self.current_operation)
-        block.insert_op(op, op_idx + 1)
+        block.insert_ops_after(op, self.current_operation)
         self.added_operations_after += op
 
     def insert_op_at_pos(self, op: Operation | list[Operation], block: Block,
