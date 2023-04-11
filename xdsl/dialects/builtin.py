@@ -900,7 +900,7 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             raise TypeError(f"Unsupported element type {type}")
 
-    def as_tuple(self) -> tuple[int] | tuple[float]:
+    def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
         return tuple(x.data for x in self.data.data)
 
 
