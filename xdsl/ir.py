@@ -1039,10 +1039,14 @@ class Block(IRNode):
 
         next_op = existing_op.next_op
         if next_op is None:
-            # prev_op is previous _last
+            # No `next_op`, means `prev_op` is the last op in the block.
             self._last = new_op
         else:
+            # `next_op` exists, so we need to point its `_prev_op` field to
+            # `new_op`.
             next_op._prev_op = new_op  # pyright: ignore[reportPrivateUsage]
+
+        # Update next/previous operation fields.
 
         existing_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
         new_op._prev_op = existing_op  # pyright: ignore[reportPrivateUsage]
@@ -1064,10 +1068,14 @@ class Block(IRNode):
 
         prev_op = existing_op.prev_op
         if prev_op is None:
-            # curr_op is previous _first
+            # No `prev_op`, means `next_op` is the first op in the block.
             self._first = new_op
         else:
+            # `prev_op` exists, so we need to point its `_next_op` field to
+            # `prev_op`.
             prev_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
+
+        # Update next/previous operation fields.
 
         new_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
         new_op._next_op = existing_op  # pyright: ignore[reportPrivateUsage]
