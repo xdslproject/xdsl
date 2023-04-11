@@ -5,7 +5,7 @@ import pytest
 from xdsl.dialects import builtin
 
 from xdsl.ir import MLContext
-from xdsl.pipeline import ModulePass
+from xdsl.passes import ModulePass
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 

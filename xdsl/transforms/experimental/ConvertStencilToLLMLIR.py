@@ -18,7 +18,7 @@ from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 ReturnOp, StoreOp, TempType,
                                                 ExternalLoadOp, HaloSwapOp,
                                                 ExternalStoreOp)
-from xdsl.pipeline import ModulePass
+from xdsl.passes import ModulePass
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa

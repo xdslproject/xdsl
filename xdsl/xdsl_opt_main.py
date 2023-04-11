@@ -7,7 +7,7 @@ from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
-from xdsl.pipeline import ModulePass
+from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf

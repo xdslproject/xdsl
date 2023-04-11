@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
-from xdsl.pipeline import ModulePass
+from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TypeVar, Iterable, ClassVar
 from abc import ABC, abstractmethod
 from math import prod
-from xdsl.pipeline import ModulePass
+from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
