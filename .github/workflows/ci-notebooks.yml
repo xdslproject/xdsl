@@ -37,4 +37,5 @@ jobs:
         pip install nbval
     - name: Run examples/tutorials
       run: |
+        # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
         pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
