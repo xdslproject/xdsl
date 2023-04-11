@@ -520,22 +520,6 @@ class CombineOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
 
-@irdl_op_definition
-class HaloSwapOp(Operation):
-    name = "stencil.halo_swap"
-
-    input_stencil: Annotated[Operand, TempType]
-
-    buff_lb: OptOpAttr[IndexAttr]
-    buff_ub: OptOpAttr[IndexAttr]
-    core_lb: OptOpAttr[IndexAttr]
-    core_ub: OptOpAttr[IndexAttr]
-
-    @staticmethod
-    def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(operands=[input_stencil])
-
-
 Stencil = Dialect([
     CastOp,
     ExternalLoadOp,
@@ -550,7 +534,6 @@ Stencil = Dialect([
     StoreResultOp,
     ReturnOp,
     CombineOp,
-    HaloSwapOp,
 ], [
     FieldType,
     TempType,

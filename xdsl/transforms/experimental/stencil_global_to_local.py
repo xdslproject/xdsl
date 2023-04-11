@@ -11,112 +11,12 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
 from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
-from xdsl.dialects.experimental import stencil
+from xdsl.dialects.experimental import stencil, halo
 
 _T = TypeVar('_T', bound=Attribute)
 
 
-@dataclass
-class HaloExchangeDef:
-    """
-    This declares a region to be "halo-exchanged".
-    The semantics define that the region specified by offset and size
-    is the *received part*. To get the section that should be sent,
-    use the source_area() method to get the source area.
-
-     - offset gives the coordinates from the origin of the stencil field.
-     - size gives the size of the buffer to be exchanged.
-     - source_offset gives a translation (n-d offset) where the data should be
-       read from that is exchanged with the other node.
-     - neighbor gives the offset in rank to the node this data is to be
-       exchanged with
-
-    Example:
-
-        offset = [4, 0]
-        size   = [10, 1]
-        source_offset = [0, 1]
-        neighbor = -1
-
-    To visualize:
-    0   4         14
-        xxxxxxxxxx    0
-        oooooooooo    1
-
-    Where `x` signifies the area that should be received,
-    and `o` the area that should be read from.
-
-    This data will be exchanged with the node of rank (my_rank -1)
-    """
-    offset: tuple[int, ...]
-    size: tuple[int, ...]
-    source_offset: tuple[int, ...]
-    neighbor: int
-
-    @property
-    def elem_count(self) -> int:
-        return prod(self.size)
-
-    @property
-    def dim(self) -> int:
-        return len(self.offset)
-
-    def source_area(self) -> 'HaloExchangeDef':
-        """
-        Since a HaloExchangeDef by default specifies the area to receive into,
-        this method returns the area that should be read from.
-        """
-        # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
-        return HaloExchangeDef(
-            offset=tuple(
-                val + offs
-                for val, offs in zip(self.offset, self.source_offset)),
-            size=self.size,
-            source_offset=tuple(0 for _ in range(len(self.source_offset))),
-            neighbor=self.neighbor,
-        )
-
-
 class DimsHelper:
-    """
-    Helper for getting various dimensions of an n-dimensional data array
-    assuming we know outer dims, and halo.
-
-    On the terminology used:
-
-    In each dimension, we are given four points. we abbreviate them in
-    annotations to an, bn, cn, dn, with n being the dimension. In 2d, these
-    create the following pattern, higher dimensional examples can
-    be derived from this:
-
-    a0 b0          c0 d0
-    +--+-----------+--+ a1
-    |  |           |  |
-    +--+-----------+--+ b1
-    |  |           |  |
-    |  |           |  |
-    |  |           |  |
-    |  |           |  |
-    +--+-----------+--+ c1
-    |  |           |  |
-    +--+-----------+--+ d1
-
-    We can now name these points:
-
-         - a: buffer_start
-         - b: core_start
-         - c: core_end
-         - d: buffer_end
-
-    This class provides easy getters for these four.
-
-    We can also define some common sizes on this object:
-
-        - buff_size(n) = dn - an
-        - core_size(n) = cn - bn
-        - halo_size(n, start) = bn - an
-        - halo_size(n, end  ) = dn - cn
-    """
 
     dims: int
     buff_lb: tuple[int, ...]
@@ -128,7 +28,7 @@ class DimsHelper:
     DIM_Y: ClassVar[int] = 1
     DIM_Z: ClassVar[int] = 2
 
-    def __init__(self, op: stencil.HaloSwapOp):
+    def __init__(self, op: halo.HaloSwapOp):
         assert op.buff_lb is not None, "HaloSwapOp must be lowered after shape inference!"
         assert op.buff_ub is not None, "HaloSwapOp must be lowered after shape inference!"
         assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
@@ -193,8 +93,8 @@ class DomainDecompositionStrategy(ABC):
             "SlicingStrategy must implement calc_resize!")
 
     @abstractmethod
-    def halo_exchange_defs(self,
-                           dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+    def halo_exchange_defs(
+            self, dims: DimsHelper) -> Iterable[halo.HaloExchangeDecl]:
         raise NotImplementedError(
             "SlicingStrategy must implement halo_exchange_defs!")
 
@@ -222,10 +122,10 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
 
         return shape[0], shape[1] // self.slices
 
-    def halo_exchange_defs(self,
-                           dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+    def halo_exchange_defs(
+            self, dims: DimsHelper) -> Iterable[halo.HaloExchangeDecl]:
         # upper halo exchange:
-        yield HaloExchangeDef(
+        yield halo.HaloExchangeDecl.from_tuples(
             offset=(
                 dims.core_start(dims.DIM_X),
                 dims.buffer_start(dims.DIM_Y),
@@ -241,7 +141,7 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
             neighbor=-1,
         )
         # lower halo exchange:
-        yield HaloExchangeDef(
+        yield halo.HaloExchangeDecl.from_tuples(
             offset=(
                 dims.core_start(dims.DIM_X),
                 dims.core_end(dims.DIM_Y),
@@ -283,7 +183,7 @@ class AddHaloExchangeOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter,
                           /):
-        swap_op = stencil.HaloSwapOp.get(op.res)
+        swap_op = halo.HaloSwapOp.get(op.res)
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -306,8 +206,8 @@ class LowerHaloExchangeToMpi(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.HaloSwapOp,
-                          rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: halo.HaloSwapOp, rewriter: PatternRewriter,
+                          /):
         exchanges = list(self.strategy.halo_exchange_defs(DimsHelper(op)))
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
         rewriter.replace_matched_op(
@@ -323,7 +223,8 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
 
 def generate_mpi_calls_for(
-        source: SSAValue, exchanges: list[HaloExchangeDef], dtype: Attribute,
+        source: SSAValue, exchanges: list[halo.HaloExchangeDecl],
+        dtype: Attribute,
         strat: DomainDecompositionStrategy) -> Iterable[Operation]:
     # allocate request array
     # we need two request objects per exchange
@@ -340,7 +241,8 @@ def generate_mpi_calls_for(
 
     yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
+    recv_buffers: list[tuple[halo.HaloExchangeDecl, memref.Alloc,
+                             SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
         neighbor_offset = arith.Constant.from_int_and_width(
@@ -429,7 +331,7 @@ def generate_mpi_calls_for(
 
 
 def generate_memcpy(source: SSAValue,
-                    ex: HaloExchangeDef,
+                    ex: halo.HaloExchangeDecl,
                     dest: SSAValue,
                     reverse: bool = False) -> list[Operation]:
     """
