@@ -1027,10 +1027,12 @@ class Block(IRNode):
 
     @property
     def first_op(self) -> Operation | None:
+        """The first operation in `self`"""
         return self._first_op
 
     @property
     def last_op(self) -> Operation | None:
+        """The last operation in `self`"""
         return self._last_op
 
     @property
