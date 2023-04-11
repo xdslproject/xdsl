@@ -1095,6 +1095,13 @@ class Block(IRNode):
         for op in ops:
             self.add_op(op)
 
+    def insert_ops_before(self,
+                          ops: list[Operation],
+                          next_op: Operation,
+                          name: str | None = None) -> None:
+        for op in ops:
+            self.insert_op_before(op, next_op, name)
+
     def insert_ops_after(self,
                          ops: list[Operation],
                          prev_op: Operation,
