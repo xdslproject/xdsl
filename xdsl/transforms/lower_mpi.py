@@ -741,7 +741,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
             arg, res = types
             rewriter.insert_op_at_pos(func.FuncOp.external(name, arg, res),
                                       module.body.blocks[0],
-                                      module.body.blocks[0].len_ops())
+                                      module.body.blocks[0].num_ops())
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):
