@@ -70,7 +70,7 @@ class Rewriter:
         """
         if block.is_ancestor(target_block):
             raise Exception("Cannot inline a block in a child block.")
-        for op in block.iter_ops():
+        for op in block.ops:
             for operand in op.operands:
                 if isinstance(operand,
                               BlockArgument) and operand.block is block:
@@ -78,7 +78,7 @@ class Rewriter:
                         "Cannot inline block which has operations using "
                         "the block arguments.")
 
-        ops = list(block.iter_ops())
+        ops = list(block.ops)
         for block_op in ops:
             block_op.detach()
 
@@ -107,7 +107,7 @@ class Rewriter:
             op.parent.insert_op_before(first_op, op)
             return
 
-        ops = list(block.iter_ops())
+        ops = list(block.ops)
         for block_op in ops:
             block_op.detach()
 
@@ -137,7 +137,7 @@ class Rewriter:
             op.parent.insert_op_after(first_op, op)
             return
 
-        ops = list(block.iter_ops())
+        ops = list(block.ops)
         for block_op in ops:
             block_op.detach()
 

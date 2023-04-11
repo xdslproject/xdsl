@@ -23,7 +23,7 @@ def test_ops_accessor():
     region = Region([block0])
 
     assert len(region.ops) == 3
-    assert len(list(region.blocks[0].iter_ops())) == 3
+    assert len(list(region.blocks[0].ops)) == 3
 
     # Operation to subtract b from a
     d = Subi.get(a, b)
@@ -47,7 +47,7 @@ def test_ops_accessor_II():
     region = Region([block0])
 
     assert len(region.ops) == 3
-    assert len(list(region.blocks[0].iter_ops())) == 3
+    assert len(list(region.blocks[0].ops)) == 3
 
     # Operation to subtract b from a
     d = Subi.get(a, b)
@@ -259,7 +259,7 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
         program) == False
 
     block = program.ops[0].regions[0].blocks[0]
-    ops = list(block.iter_ops())
+    ops = list(block.ops)
     assert ops[0].is_structurally_equivalent(ops[1]) == False
     assert block.is_structurally_equivalent(
         program.ops[0].regions[0].blocks[1]) == False

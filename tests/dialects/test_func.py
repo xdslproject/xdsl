@@ -62,8 +62,8 @@ def test_func_II():
     # Use this region to create a func0
     func1 = FuncOp.from_region("func1", [], [], region0)
 
-    ops0 = list(func1.regions[0].blocks[0].iter_ops())
-    ops1 = list(func1.regions[0].blocks[1].iter_ops())
+    ops0 = list(func1.regions[0].blocks[0].ops)
+    ops1 = list(func1.regions[0].blocks[1].ops)
 
     assert len(ops0) == 3
     assert len(ops1) == 3

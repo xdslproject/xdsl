@@ -165,7 +165,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         parent_op = op.parent
         assert isa(parent_op, Block)
-        parent_ops: List[Operation] = parent_op.ops
+        parent_ops = list(parent_op.ops)
         idx = parent_ops.index(op)
         parent_op.insert_op(mpi_operations, idx + 1)
 

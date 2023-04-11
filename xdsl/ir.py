@@ -867,6 +867,39 @@ class Operation(IRNode):
 OperationInvT = TypeVar('OperationInvT', bound=Operation)
 
 
+@dataclass
+class _BlockOpsIterator:
+    """
+    Single-pass iterable of the operations in a block. Follows the next_op for
+    each operation.
+    """
+
+    next_op: Operation | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_op = self.next_op
+        if next_op is not None:
+            self.next_op = next_op.next_op
+            return next_op
+        raise StopIteration
+
+
+@dataclass
+class _BlockOps:
+    """
+    Multi-pass iterable of the operations in a block. Follows the next_op for
+    each operation.
+    """
+
+    first_op: Operation | None
+
+    def __iter__(self):
+        return _BlockOpsIterator(self.first_op)
+
+
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -900,9 +933,8 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
-    @deprecated('Please use `iter_ops()` or `list(iter_ops())`')
-    def ops(self) -> list[Operation]:
-        return list(self.iter_ops())
+    def ops(self) -> _BlockOps:
+        return _BlockOps(self._first_op)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -993,12 +1025,6 @@ class Block(IRNode):
             )
         operation.parent = self
 
-    def iter_ops(self) -> Iterable[Operation]:
-        curr = self._first_op
-        while curr is not None:
-            yield curr
-            curr = curr.next_op
-
     @property
     def first_op(self) -> Operation | None:
         return self._first_op
@@ -1013,12 +1039,12 @@ class Block(IRNode):
 
     def num_ops(self) -> int:
         result = 0
-        for _ in self.iter_ops():
+        for _ in self.ops:
             result += 1
         return result
 
     def op_at_index(self, index: int) -> Operation:
-        it = iter(self.iter_ops())
+        it = iter(self.ops)
         for _ in range(index):
             next(it)
         return next(it)
@@ -1147,7 +1173,7 @@ class Block(IRNode):
 
         # Default value, above check should rule this case out
         i = -1
-        for i, op in enumerate(self.iter_ops()):
+        for i, op in enumerate(self.ops):
             if index == i:
                 self.insert_ops_before(ops, op)
                 return
@@ -1167,7 +1193,7 @@ class Block(IRNode):
         """Get the operation position in a block."""
         if op.parent is not self:
             raise Exception("Operation is not a children of the block.")
-        for idx, block_op in enumerate(self.iter_ops()):
+        for idx, block_op in enumerate(self.ops):
             if block_op is op:
                 return idx
         assert False, "Unexpected xdsl error"
@@ -1209,11 +1235,11 @@ class Block(IRNode):
 
     def walk(self, fun: Callable[[Operation], None]) -> None:
         """Call a function on all operations contained in the block."""
-        for op in self.iter_ops():
+        for op in self.ops:
             op.walk(fun)
 
     def verify(self) -> None:
-        for operation in self.iter_ops():
+        for operation in self.ops:
             if operation.parent != self:
                 raise Exception(
                     "Parent pointer of operation does not refer to containing region"
@@ -1226,7 +1252,7 @@ class Block(IRNode):
         This function is called prior to deleting a block.
         """
         self.parent = None
-        for op in self.iter_ops():
+        for op in self.ops:
             op.drop_all_references()
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -1238,7 +1264,7 @@ class Block(IRNode):
         assert self.parent is None, "Blocks with parents should first be detached " + \
                                     "before erasure."
         self.drop_all_references()
-        for op in self.iter_ops():
+        for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
 
     def is_structurally_equivalent(
@@ -1267,7 +1293,7 @@ class Block(IRNode):
         context[self] = other
         if not all(
                 op.is_structurally_equivalent(other_op, context)
-                for op, other_op in zip(self.iter_ops(), other.iter_ops())):
+                for op, other_op in zip(self.ops, other.ops)):
             return False
 
         return True
@@ -1349,7 +1375,7 @@ class Region(IRNode):
             raise ValueError(
                 "'ops' property of Region class is only available "
                 "for single-block regions.")
-        return list(self.blocks[0].iter_ops())
+        return list(self.blocks[0].ops)
 
     @property
     def op(self) -> Operation:
@@ -1449,7 +1475,7 @@ class Region(IRNode):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
-            for op in block.iter_ops():
+            for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
             dest.insert_block(new_block, insert_index)
             insert_index += 1

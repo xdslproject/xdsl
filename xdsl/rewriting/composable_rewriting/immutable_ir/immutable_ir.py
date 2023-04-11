@@ -273,8 +273,7 @@ class IBlock:
             IOperation.from_mutable(op,
                                     value_map=value_map,
                                     block_map=block_map,
-                                    existing_operands=None)
-            for op in block.iter_ops()
+                                    existing_operands=None) for op in block.ops
         ]
 
         return IBlock(args, immutable_ops)

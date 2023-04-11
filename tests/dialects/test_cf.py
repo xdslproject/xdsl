@@ -12,7 +12,7 @@ def test_branch():
 
     block0 = Block.from_ops([a, b, c])
     br0 = Branch.get(block0)
-    ops = list(br0.successors[0].iter_ops())
+    ops = list(br0.successors[0].ops)
 
     assert br0.successors[0] is block0
     assert ops[0] is a

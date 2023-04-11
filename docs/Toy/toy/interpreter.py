@@ -61,7 +61,7 @@ class ToyFunctions(InterpreterFunctions):
         interpreter.push_scope(f'ctx_{op.sym_name.data}')
         block = op.body.blocks[0]
         interpreter.set_values(zip(block.args, args))
-        for body_op in block.iter_ops():
+        for body_op in block.ops:
             interpreter.run(body_op)
         last_op = block.last_op
         assert isinstance(last_op, toy.ReturnOp)

@@ -256,7 +256,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )
-        self.added_operations_before += list(block.iter_ops())
+        self.added_operations_before += list(block.ops)
         Rewriter.inline_block_before(block, self.current_operation)
 
     def inline_block_before(self, block: Block, op: Operation):
