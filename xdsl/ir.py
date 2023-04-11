@@ -1145,16 +1145,19 @@ class Block(IRNode):
             self.add_ops(ops)
             return
 
-        i = 0
+        # Default value, above check should rule this case out
+        i = -1
         for i, op in enumerate(self.iter_ops()):
             if index == i:
                 self.insert_ops_before(ops, op)
                 return
 
-        if i != index:
+        len_ops = i + 1
+
+        if len_ops != index:
             raise ValueError(
                 f"Can't insert operation in index {index} in a block with "
-                f"{i} operations.")
+                f"{len_ops} operations.")
 
         assert self.last_op is not None
 
