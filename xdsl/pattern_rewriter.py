@@ -481,7 +481,7 @@ class PatternRewriteWalker:
     def _rewrite_op(self, op: Operation) -> Operation | None:
         """
         Rewrite an operation, along with its regions.
-        Returns by how much operations the walker should move.
+        Returns the next operation to iterate over.
         """
         # First, we rewrite the regions if needed
         if self.walk_regions_first:
