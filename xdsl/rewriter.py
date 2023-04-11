@@ -92,9 +92,25 @@ class Rewriter:
         if op.parent is None:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos)
+
+        first_op = block._first  # pyright: ignore[reportPrivateUsage]
+        last_op = block._last  # pyright: ignore[reportPrivateUsage]
+
+        if first_op is None:
+            return
+
+        if first_op is last_op:
+            # block has only one operation
+            block.detach_op(first_op)
+            op.parent.insert_op_before(first_op, op)
+            return
+
+        ops = list(block.iter_ops())
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_before(ops, op)
+        block.erase()
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
@@ -106,9 +122,24 @@ class Rewriter:
         if op.parent is None:
             raise Exception(
                 "Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
+
+        first_op = block._first  # pyright: ignore[reportPrivateUsage]
+        last_op = block._last  # pyright: ignore[reportPrivateUsage]
+
+        if first_op is None:
+            return
+
+        if first_op is last_op:
+            # block has only one operation
+            block.detach_op(first_op)
+            op.parent.insert_op_after(first_op, op)
+            return
+
+        ops = list(block.iter_ops())
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_after(ops, op)
 
     @staticmethod
     def insert_block_after(block: Block | List[Block], target: Block):
