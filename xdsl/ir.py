@@ -1024,54 +1024,54 @@ class Block(IRNode):
         return next(it)
 
     def insert_op_after(self,
-                        curr_op: Operation,
-                        prev_op: Operation,
+                        new_op: Operation,
+                        existing_op: Operation,
                         name: str | None = None) -> None:
-        if prev_op.parent is not self:
+        if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation after operation not in current block")
 
         if name:
-            for res in curr_op.results:
+            for res in new_op.results:
                 res.name = name
 
-        self._attach_op(curr_op)
+        self._attach_op(new_op)
 
-        next_op = prev_op.next_op
+        next_op = existing_op.next_op
         if next_op is None:
             # prev_op is previous _last
-            self._last = curr_op
+            self._last = new_op
         else:
-            next_op._prev_op = curr_op  # pyright: ignore[reportPrivateUsage]
+            next_op._prev_op = new_op  # pyright: ignore[reportPrivateUsage]
 
-        prev_op._next_op = curr_op  # pyright: ignore[reportPrivateUsage]
-        curr_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
-        curr_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+        existing_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
+        new_op._prev_op = existing_op  # pyright: ignore[reportPrivateUsage]
+        new_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
 
     def insert_op_before(self,
-                         curr_op: Operation,
-                         next_op: Operation,
+                         new_op: Operation,
+                         existing_op: Operation,
                          name: str | None = None) -> None:
-        if next_op.parent is not self:
+        if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation before operation not in current block")
 
         if name:
-            for res in curr_op.results:
+            for res in new_op.results:
                 res.name = name
 
-        self._attach_op(curr_op)
+        self._attach_op(new_op)
 
-        prev_op = next_op.prev_op
+        prev_op = existing_op.prev_op
         if prev_op is None:
             # curr_op is previous _first
-            self._first = curr_op
+            self._first = new_op
         else:
-            prev_op._next_op = curr_op  # pyright: ignore[reportPrivateUsage]
+            prev_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
 
-        curr_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
-        curr_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
-        next_op._prev_op = curr_op  # pyright: ignore[reportPrivateUsage]
+        new_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+        new_op._next_op = existing_op  # pyright: ignore[reportPrivateUsage]
+        existing_op._prev_op = new_op  # pyright: ignore[reportPrivateUsage]
 
     def add_op(self, operation: Operation) -> None:
         """
@@ -1097,18 +1097,18 @@ class Block(IRNode):
 
     def insert_ops_before(self,
                           ops: list[Operation],
-                          next_op: Operation,
+                          existing_op: Operation,
                           name: str | None = None) -> None:
         for op in ops:
-            self.insert_op_before(op, next_op, name)
+            self.insert_op_before(op, existing_op, name)
 
     def insert_ops_after(self,
                          ops: list[Operation],
-                         prev_op: Operation,
+                         existing_op: Operation,
                          name: str | None = None) -> None:
         for op in ops:
-            self.insert_op_after(op, prev_op, name)
-            prev_op = op
+            self.insert_op_after(op, existing_op, name)
+            existing_op = op
 
     def insert_op(self,
                   ops: Operation | list[Operation],
