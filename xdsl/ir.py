@@ -1209,7 +1209,7 @@ class Region(IRNode):
             raise ValueError(
                 "'ops' property of Region class is only available "
                 "for single-block regions.")
-        return self.blocks[0].ops
+        return list(self.blocks[0].ops)
 
     @property
     def op(self) -> Operation:

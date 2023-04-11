@@ -16,7 +16,7 @@ def test_builder():
     b.insert(x)
     b.insert(y)
 
-    ops = block.ops
+    ops = list(block.ops)
 
     assert len(ops) == 2
     assert ops[0] is x

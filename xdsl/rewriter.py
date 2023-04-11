@@ -78,9 +78,11 @@ class Rewriter:
                     raise Exception(
                         "Cannot inline block which has operations using "
                         "the block arguments.")
-        ops = block.ops.copy()
-        for op in ops:
-            op.detach()
+
+        ops = list(block.ops)
+        for block_op in ops:
+            block_op.detach()
+
         target_block.insert_op(ops, pos)
 
     @staticmethod
