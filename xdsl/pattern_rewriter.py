@@ -4,7 +4,7 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, TypeVar, Union, get_args, get_origin, Generator
+from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
@@ -308,13 +308,13 @@ class PatternRewriter:
             )
         return Rewriter.move_region_contents_to_new_regions(region)
 
-    def iter_affected_ops(self) -> Generator[Operation, None, None]:
+    def iter_affected_ops(self) -> Iterable[Operation]:
         yield from self.added_operations_before
         if not self.has_erased_matched_operation:
             yield self.current_operation
         yield from self.added_operations_after
 
-    def iter_affected_ops_reversed(self) -> Generator[Operation, None, None]:
+    def iter_affected_ops_reversed(self) -> Iterable[Operation]:
         yield from reversed(self.added_operations_after)
         if not self.has_erased_matched_operation:
             yield self.current_operation

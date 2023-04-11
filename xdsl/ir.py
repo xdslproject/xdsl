@@ -993,7 +993,7 @@ class Block(IRNode):
             )
         operation.parent = self
 
-    def iter_ops(self):
+    def iter_ops(self) -> Iterable[Operation]:
         curr = self._first
         while curr is not None:
             yield curr
