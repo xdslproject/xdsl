@@ -180,7 +180,7 @@ def test_tuple_hint_failure():
     assert not isa((0, True), tuple[bool, bool])
     assert not isa((True, 0), tuple[bool, bool])
     assert not isa((True, False, True, 0), tuple[bool, ...])
-    assert not isa((Class2()), tuple[Class1])
+    assert not isa((Class2(),), tuple[Class1])
 
 
 def test_tuple_hint_nested():
@@ -189,7 +189,7 @@ def test_tuple_hint_nested():
     """
     assert isa(((),), tuple[tuple[int, ...]])
     assert isa(((0,),), tuple[tuple[int]])
-    assert isa((0, (1,2)), tuple[int, tuple[int, int]])
+    assert isa((0, (1, 2)), tuple[int, tuple[int, int]])
     assert isa(((0, 1), (2, 3), (4, 5)), tuple[tuple[int, int], ...])
     assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, int], ...])
     assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, ...], ...])
