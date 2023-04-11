@@ -58,7 +58,11 @@ class Rewriter:
         if len(op.results) == 0:
             block.insert_ops_after(new_ops, op)
         else:
-            block.insert_ops_after(new_ops, op, op.results[0].name)
+            block.insert_ops_after(new_ops, op)
+
+            for new_op in new_ops:
+                for res in new_op.results:
+                    res.name = op.results[0].name
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod

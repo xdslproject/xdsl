@@ -1118,17 +1118,11 @@ class Block(IRNode):
             next(it)
         return next(it)
 
-    def insert_op_after(self,
-                        new_op: Operation,
-                        existing_op: Operation,
-                        name: str | None = None) -> None:
+    def insert_op_after(self, new_op: Operation,
+                        existing_op: Operation) -> None:
         if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation after operation not in current block")
-
-        if name:
-            for res in new_op.results:
-                res.name = name
 
         self._attach_op(new_op)
 
@@ -1137,17 +1131,11 @@ class Block(IRNode):
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
 
-    def insert_op_before(self,
-                         new_op: Operation,
-                         existing_op: Operation,
-                         name: str | None = None) -> None:
+    def insert_op_before(self, new_op: Operation,
+                         existing_op: Operation) -> None:
         if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation before operation not in current block")
-
-        if name:
-            for res in new_op.results:
-                res.name = name
 
         self._attach_op(new_op)
 
@@ -1176,25 +1164,19 @@ class Block(IRNode):
         for op in ops:
             self.add_op(op)
 
-    def insert_ops_before(self,
-                          ops: list[Operation],
-                          existing_op: Operation,
-                          name: str | None = None) -> None:
+    def insert_ops_before(self, ops: list[Operation],
+                          existing_op: Operation) -> None:
         for op in ops:
-            self.insert_op_before(op, existing_op, name)
+            self.insert_op_before(op, existing_op)
 
-    def insert_ops_after(self,
-                         ops: list[Operation],
-                         existing_op: Operation,
-                         name: str | None = None) -> None:
+    def insert_ops_after(self, ops: list[Operation],
+                         existing_op: Operation) -> None:
         for op in ops:
-            self.insert_op_after(op, existing_op, name)
+            self.insert_op_after(op, existing_op)
+
             existing_op = op
 
-    def insert_op(self,
-                  ops: Operation | list[Operation],
-                  index: int,
-                  name: str | None = None) -> None:
+    def insert_op(self, ops: Operation | list[Operation], index: int) -> None:
         """
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
@@ -1234,7 +1216,7 @@ class Block(IRNode):
 
         assert self.last_op is not None
 
-        self.insert_ops_after(ops, self.last_op, name=name)
+        self.insert_ops_after(ops, self.last_op)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
