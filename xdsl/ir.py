@@ -573,11 +573,73 @@ class Operation(IRNode):
 
     @property
     def next_op(self) -> Operation | None:
+        """
+        Next operation in block containing `self`.
+        """
         return self._next_op
+
+    def set_next_op(self, new_op: Operation) -> Operation | None:
+        """
+        Sets `next_op` on `self`, and `prev_op` on `self.next_op`.
+        Returns previous `self.next_op`.
+        """
+
+        if self._next_op is not None:
+            # update next node
+            self._next_op._prev_op = new_op
+
+        # set next and previous on new node
+        new_op._prev_op = self
+        new_op._next_op = self._next_op
+
+        # update self
+        self._next_op = new_op
+
+        return new_op._next_op
 
     @property
     def prev_op(self) -> Operation | None:
+        """
+        Previous operation in block containing `self`.
+        """
         return self._prev_op
+
+    def set_prev_op(self, new_op: Operation) -> Operation | None:
+        """
+        Sets `prev_op` on `self`, and `next_op` on `self.prev_op`.
+        Returns previous `self.prev_op`.
+        """
+
+        if self._prev_op is not None:
+            # update prev node
+            self._prev_op._next_op = new_op
+
+        # set next and previous on new node
+        new_op._prev_op = self._prev_op
+        new_op._next_op = self
+
+        # update self
+        self._prev_op = new_op
+
+        return new_op._prev_op
+
+    def detach_prev_next_ops(
+            self) -> tuple[Operation | None, Operation | None]:
+        """
+        Detach `self` from linked list, by setting the `next_op` and `prev_op`
+        properties of `self.prev_op` and `self.next_op` to each other. Return
+        `(self.prev_op, self.next_op)`.
+        """
+        prev_op = self._prev_op
+        next_op = self._next_op
+
+        if prev_op is not None:
+            prev_op._next_op = next_op
+
+        if next_op is not None:
+            next_op._prev_op = prev_op
+
+        return prev_op, next_op
 
     @property
     def operands(self) -> tuple[SSAValue, ...]:
@@ -1067,20 +1129,10 @@ class Block(IRNode):
 
         self._attach_op(new_op)
 
-        next_op = existing_op.next_op
+        next_op = existing_op.set_next_op(new_op)
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
-        else:
-            # `next_op` exists, so we need to point its `_prev_op` field to
-            # `new_op`.
-            next_op._prev_op = new_op  # pyright: ignore[reportPrivateUsage]
-
-        # Update next/previous operation fields.
-
-        existing_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
-        new_op._prev_op = existing_op  # pyright: ignore[reportPrivateUsage]
-        new_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
 
     def insert_op_before(self,
                          new_op: Operation,
@@ -1096,34 +1148,22 @@ class Block(IRNode):
 
         self._attach_op(new_op)
 
-        prev_op = existing_op.prev_op
+        prev_op = existing_op.set_prev_op(new_op)
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
             self._first_op = new_op
-        else:
-            # `prev_op` exists, so we need to point its `_next_op` field to
-            # `prev_op`.
-            prev_op._next_op = new_op  # pyright: ignore[reportPrivateUsage]
-
-        # Update next/previous operation fields.
-
-        new_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
-        new_op._next_op = existing_op  # pyright: ignore[reportPrivateUsage]
-        existing_op._prev_op = new_op  # pyright: ignore[reportPrivateUsage]
 
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
         The operation should not be attached to another block already.
         """
-        self._attach_op(operation)
         if self._last_op is None:
+            self._attach_op(operation)
             self._first_op = operation
             self._last_op = operation
         else:
-            self._last_op._next_op = operation  # pyright: ignore[reportPrivateUsage]
-            operation._prev_op = self._last_op  # pyright: ignore[reportPrivateUsage]
-            self._last_op = operation
+            self.insert_op_after(operation, self._last_op)
 
     def add_ops(self, ops: Iterable[Operation]) -> None:
         """
@@ -1213,18 +1253,14 @@ class Block(IRNode):
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
 
-        prev_op = op.prev_op
-        if prev_op is not None:
-            prev_op._next_op = op.next_op  # pyright: ignore[reportPrivateUsage]
-        else:
-            # first op
-            self._first_op = op.next_op
+        prev_op, next_op = op.detach_prev_next_ops()
+        if prev_op is None:
+            assert self._first_op is op
+            self._first_op = next_op
 
         next_op = op.next_op
-        if next_op is not None:
-            next_op._prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
-        else:
-            # last op
+        if next_op is None:
+            assert self._last_op is op
             self._last_op = op.prev_op
 
         return op
