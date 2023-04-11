@@ -106,8 +106,7 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        target_op.parent.insert_op(op,
-                                   target_block.get_operation_index(target_op))
+        target_block.insert_ops_before(op, target_op)
 
     def insert_op_after(self, op: Operation | list[Operation],
                         target_op: Operation):
