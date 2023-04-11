@@ -488,7 +488,7 @@ class TerminatorOp(Operation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.terminator must terminate its parent block")
         if op is not None and not isinstance(op, LaunchOp):
@@ -521,7 +521,7 @@ class YieldOp(Operation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.yield must terminate its parent block")
         if op is not None:

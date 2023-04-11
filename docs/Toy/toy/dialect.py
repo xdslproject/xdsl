@@ -160,7 +160,7 @@ class FuncOp(Operation):
         if block.is_empty:
             raise VerifyException("Expected FuncOp to not be empty")
 
-        last_op = block.ops[-1]
+        last_op = block.last_op
 
         if not isinstance(last_op, ReturnOp):
             raise VerifyException(
