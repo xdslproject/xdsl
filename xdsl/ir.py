@@ -549,7 +549,10 @@ class Operation(IRNode):
     """The block containing this operation."""
 
     _next_op: Operation | None = field(default=None, repr=False)
+    """Next operation in block containing `self`."""
+
     _prev_op: Operation | None = field(default=None, repr=False)
+    """Previous operation in block containing `self`."""
 
     traits: ClassVar[frozenset[OpTrait]] = field(init=False)
     """
