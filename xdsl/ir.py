@@ -1217,10 +1217,14 @@ class Region(IRNode):
         Get the operation of a single-operation single-block region.
         Returns an exception if the region is not single-operation single-block.
         """
-        if len(self.blocks) != 1 or len(self.blocks[0].ops) != 1:
-            raise ValueError("'op' property of Region class is only available "
-                             "for single-operation single-block regions.")
-        return self.blocks[0].ops[0]
+        if len(self.blocks) == 1:
+            first_op = self.blocks[0].first_op
+            last_op = self.blocks[0].last_op
+            if first_op is last_op and first_op is not None:
+                return first_op
+
+        raise ValueError("'op' property of Region class is only available "
+                         "for single-operation single-block regions.")
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
