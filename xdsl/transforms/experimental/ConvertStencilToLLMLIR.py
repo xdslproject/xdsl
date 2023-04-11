@@ -16,8 +16,9 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 FieldType, IndexAttr, LoadOp,
                                                 ReturnOp, StoreOp, TempType,
-                                                ExternalLoadOp, HaloSwapOp,
+                                                ExternalLoadOp,
                                                 ExternalStoreOp)
+from xdsl.dialects.experimental import halo
 from xdsl.passes import ModulePass
 
 from xdsl.utils.exceptions import VerifyException
@@ -410,16 +411,18 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 class HaloOpShapeInference(RewritePattern):
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: halo.HaloSwapOp, rewriter: PatternRewriter, /):
         assert isinstance(op.input_stencil.owner, LoadOp)
         load = op.input_stencil.owner
         halo_lb, halo_ub = infer_core_size(load)
-        op.attributes['core_lb'] = halo_lb
-        op.attributes['core_ub'] = halo_ub
         assert load.lb is not None
         assert load.ub is not None
-        op.attributes['buff_lb'] = load.lb
-        op.attributes['buff_ub'] = load.ub
+        op.shape = halo.HaloShapeInformation.from_index_attrs(
+            buff_lb=load.lb,
+            core_lb=halo_lb,
+            core_ub=halo_ub,
+            buff_ub=load.ub,
+        )
 
 
 ShapeInference = GreedyRewritePatternApplier([
