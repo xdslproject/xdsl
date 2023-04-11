@@ -437,7 +437,7 @@ class OptResultDef(VarResultDef, OptionalDef):
 OptOpResult: TypeAlias = OpResult | None
 
 
-@dataclass
+@dataclass(init=True)
 class RegionDef(Region):
     """
     An IRDL region definition.

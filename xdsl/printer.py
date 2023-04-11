@@ -11,12 +11,12 @@ from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr,
-    SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredAttr, UnregisteredOp,
-    VectorType, DictionaryAttr)
+    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr,
+    Float16Type, Float32Type, Float64Type, FloatAttr, FloatData, IndexType,
+    IntegerType, NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr,
+    StringAttr, SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType,
+    UnitAttr, FunctionType, UnrankedTensorType, UnregisteredAttr,
+    UnregisteredOp, VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -368,6 +368,11 @@ class Printer:
             self.print_attribute(typ)
             return
 
+        # Complex types have MLIR shorthands but XDSL does not.
+        if isinstance(attribute, ComplexType):
+            self.print("complex<", attribute.element_type, ">")
+            return
+
         if isinstance(attribute, ArrayAttr):
             self.print_string("[")
             self.print_list(
@@ -466,6 +471,10 @@ class Printer:
             if len(attribute.shape.data) != 0:
                 self.print("x")
             self.print(attribute.element_type)
+            if isinstance(attribute,
+                          TensorType) and attribute.encoding != NoneAttr():
+                self.print(", ")
+                self.print(attribute.encoding)
             self.print(">")
             return
 

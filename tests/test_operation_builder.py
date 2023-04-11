@@ -1,6 +1,8 @@
 from __future__ import annotations
-from typing import Annotated
+
 import pytest
+
+from typing import Annotated
 
 from xdsl.dialects.builtin import DenseArrayBase, Operation, StringAttr, i32
 from xdsl.dialects.arith import Constant
@@ -11,7 +13,7 @@ from xdsl.irdl import (AttrSizedRegionSegments, OptOpResult, OptOperand,
                        SingleBlockRegion, VarOpResult, VarRegion,
                        VarSingleBlockRegion, irdl_op_definition,
                        AttrSizedResultSegments, VarOperand,
-                       AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
+                       AttrSizedOperandSegments, OpAttr, OptOpAttr)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -469,11 +471,11 @@ def test_two_var_operand_builder3():
 def test_parent_pointers():
     op = ResultOp.build(result_types=[StringAttr("0")])
     block = Block.from_ops([op])
-    reg = Region.from_block_list([block])
+    reg = Region([block])
     reg_op = RegionOp.build(regions=[reg])
 
     block_2 = Block.from_ops([reg_op])
-    reg_2 = Region.from_block_list([block_2])
+    reg_2 = Region([block_2])
     reg_op_2 = RegionOp.build(regions=[reg_2])
 
     assert op.parent_block() is block

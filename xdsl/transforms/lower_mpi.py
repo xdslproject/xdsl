@@ -1,6 +1,7 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
+from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
@@ -14,7 +15,7 @@ from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
 from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
 
 
-@dataclass
+@dataclass(frozen=True)
 class MpiLibraryInfo:
     """
     This object is meant to capture characteristics of a specific MPI implementations.
@@ -766,33 +767,40 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
         ], []
 
 
-def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
-    # TODO: how to get the lib info in here?
-    lib_info = MpiLibraryInfo()
+@dataclass
+class LowerMPIPass(ModulePass):
+
+    name = 'lower-mpi'
 
     # lower to func.call
-    walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
-        LowerMpiInit(lib_info),
-        LowerMpiFinalize(lib_info),
-        LowerMpiWait(lib_info),
-        LowerMpiWaitall(lib_info),
-        LowerMpiCommRank(lib_info),
-        LowerMpiCommSize(lib_info),
-        LowerMpiIsend(lib_info),
-        LowerMpiIrecv(lib_info),
-        LowerMpiSend(lib_info),
-        LowerMpiRecv(lib_info),
-        LowerMpiReduce(lib_info),
-        LowerMpiAllreduce(lib_info),
-        LowerMpiBcast(lib_info),
-        LowerMpiUnwrapMemrefOp(lib_info),
-        LowerMpiGetDtype(lib_info),
-        LowerMpiAllocateType(lib_info),
-        LowerMpiVectorGet(lib_info),
-    ]),
-                                   apply_recursively=True)
-    walker1.rewrite_module(module)
 
-    # add func.func to declare external functions
-    walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
-    walker2.rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+
+        # TODO: how to get the lib info in here?
+        lib_info = MpiLibraryInfo()
+        walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
+            LowerMpiInit(lib_info),
+            LowerMpiFinalize(lib_info),
+            LowerMpiWait(lib_info),
+            LowerMpiWaitall(lib_info),
+            LowerMpiCommRank(lib_info),
+            LowerMpiCommSize(lib_info),
+            LowerMpiIsend(lib_info),
+            LowerMpiIrecv(lib_info),
+            LowerMpiSend(lib_info),
+            LowerMpiRecv(lib_info),
+            LowerMpiReduce(lib_info),
+            LowerMpiAllreduce(lib_info),
+            LowerMpiBcast(lib_info),
+            LowerMpiUnwrapMemrefOp(lib_info),
+            LowerMpiGetDtype(lib_info),
+            LowerMpiAllocateType(lib_info),
+            LowerMpiVectorGet(lib_info),
+        ]),
+                                       apply_recursively=True)
+
+        # add func.func to declare external functions
+        walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
+
+        walker1.rewrite_module(op)
+        walker2.rewrite_module(op)

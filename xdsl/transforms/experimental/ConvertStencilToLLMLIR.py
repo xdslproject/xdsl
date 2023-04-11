@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Iterable
+
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation
+from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, ModuleOp
+from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
@@ -15,10 +16,15 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 FieldType, IndexAttr, LoadOp,
                                                 ReturnOp, StoreOp, TempType,
-                                                ExternalLoadOp,
+                                                ExternalLoadOp, HaloSwapOp,
                                                 ExternalStoreOp)
+from xdsl.passes import ModulePass
+
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+from xdsl.transforms.experimental.stencil_global_to_local import LowerHaloExchangeToMpi, HorizontalSlices2D, \
+    MpiLoopInvariantCodeMotion
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -53,7 +59,8 @@ class CastOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
-        assert isa(op.field.typ, FieldType[Attribute] | MemRefType[Attribute])
+        assert isa(op.field.typ,
+                   FieldType[Attribute] | memref.MemRefType[Attribute])
 
         result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
                                                    op.lb, op.ub)
@@ -341,8 +348,7 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
         rewriter.erase_matched_op()
 
 
-def return_target_analysis(module: ModuleOp):
-
+def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
 
     def map_returns(op: Operation) -> None:
@@ -370,10 +376,57 @@ def return_target_analysis(module: ModuleOp):
     return return_targets
 
 
+_OpT = TypeVar('_OpT', bound=Operation)
+
+
+def all_matching_uses(op_res: Iterable[SSAValue],
+                      typ: type[_OpT]) -> Iterable[_OpT]:
+    for res in op_res:
+        for use in res.uses:
+            if isinstance(use.operation, typ):
+                yield use.operation
+
+
+def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
+    """
+    This method infers the core size (as used in DimsHelper)
+    from an LoadOp by walking the def-use chain down to the `apply`
+    """
+    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
+    assert len(applies) > 0, "Load must be followed by Apply!"
+
+    shape_lb: None | IndexAttr = None
+    shape_ub: None | IndexAttr = None
+
+    for apply in applies:
+        assert apply.lb is not None and apply.ub is not None
+        shape_lb = IndexAttr.min(apply.lb, shape_lb)
+        shape_ub = IndexAttr.max(apply.ub, shape_ub)
+
+    assert shape_lb is not None and shape_ub is not None
+    return shape_lb, shape_ub
+
+
+class HaloOpShapeInference(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
+        assert isinstance(op.input_stencil.owner, LoadOp)
+        load = op.input_stencil.owner
+        halo_lb, halo_ub = infer_core_size(load)
+        op.attributes['core_lb'] = halo_lb
+        op.attributes['core_ub'] = halo_ub
+        assert load.lb is not None
+        assert load.ub is not None
+        op.attributes['buff_lb'] = load.lb
+        op.attributes['buff_ub'] = load.ub
+
+
 ShapeInference = GreedyRewritePatternApplier([
     ApplyOpShapeInference(),
     LoadOpShapeInference(),
     StoreOpShapeInference(),
+    HaloOpShapeInference(),
 ])
 
 
@@ -395,34 +448,48 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
     ])
 
 
-# TODO: We probably want to factor that in another file
-def StencilShapeInference(ctx: MLContext, module: ModuleOp):
+class StencilShapeInferencePass(ModulePass):
 
-    inference_pass = PatternRewriteWalker(ShapeInference,
-                                          apply_recursively=False,
-                                          walk_reverse=True)
+    name = 'stencil-shape-inference'
 
-    inference_pass.rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
 
-
-def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
-
-    return_targets = return_target_analysis(module)
-
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilConversion(return_targets, gpu=True)]),
-                                        apply_recursively=False,
-                                        walk_reverse=True)
-
-    the_one_pass.rewrite_module(module)
+        inference_walker = PatternRewriteWalker(ShapeInference,
+                                                apply_recursively=False,
+                                                walk_reverse=True)
+        inference_walker.rewrite_module(op)
 
 
-def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
+class ConvertStencilToGPUPass(ModulePass):
 
-    return_targets = return_target_analysis(module)
+    name = 'convert-stencil-to-gpu'
 
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilConversion(return_targets, gpu=False)]),
-                                        apply_recursively=False,
-                                        walk_reverse=True)
-    the_one_pass.rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        return_targets = return_target_analysis(op)
+
+        the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+            [StencilConversion(return_targets, gpu=True)]),
+                                            apply_recursively=False,
+                                            walk_reverse=True)
+        the_one_pass.rewrite_module(op)
+
+
+class ConvertStencilToLLMLIRPass(ModulePass):
+
+    name = 'convert-stencil-to-ll-mlir'
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+
+        return_targets: dict[ReturnOp,
+                             CastOp | memref.Cast] = return_target_analysis(op)
+
+        the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+            [StencilConversion(return_targets, gpu=False)]),
+                                            apply_recursively=False,
+                                            walk_reverse=True)
+        the_one_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([
+                LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
+                MpiLoopInvariantCodeMotion(),
+            ])).rewrite_module(op)

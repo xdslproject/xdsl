@@ -5,11 +5,11 @@
 builtin.module() {
 
   func.func() ["function_type" = !fun<[], []>, "sym_name" = "builtin"] {
-    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>
-    %x1 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32>, [0 : !i32]>]
+    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32, !none>, [0 : !i32]>
+    %x1 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32, !none>, [0 : !i32]>]
 
-    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32>, [0.0 : !f32]>
-    %x2 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32>, [0.0 : !f32]>]
+    // CHECK: "test" = !dense<!tensor<[1 : !index], !i32, !none>, [0.0 : !f32]>
+    %x2 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = !dense<!tensor<[1 : !index], !i32, !none>, [0.0 : !f32]>]
 
     // CHECK: "test" = true
     %x3 : !i64 = arith.constant() ["value" = 0 : !i64, "test" = true]

@@ -1,7 +1,7 @@
-from xdsl.ir import MLContext, Use
-from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.parser import Parser
 from xdsl.dialects.arith import Arith
+from xdsl.dialects.builtin import ModuleOp, Builtin
+from xdsl.ir import MLContext, Use
+from xdsl.parser import Parser
 
 test_prog = """
 builtin.module() {

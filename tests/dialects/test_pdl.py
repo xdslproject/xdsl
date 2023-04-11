@@ -10,7 +10,7 @@ attribute_type = pdl.AttributeType()
 value_type = pdl.ValueType()
 operation_type = pdl.OperationType()
 
-block = Block.from_arg_types([
+block = Block(arg_types=[
     type_type,
     attribute_type,
     value_type,

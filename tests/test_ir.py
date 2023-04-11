@@ -1,15 +1,15 @@
-from typing import cast
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
-from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
-from xdsl.dialects.scf import If
-from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import Builtin
+from typing import cast
+
+from xdsl.dialects.arith import Arith, Addi, Subi, Constant
+from xdsl.dialects.builtin import Builtin, IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.func import Func
-from xdsl.dialects.arith import Arith
 from xdsl.dialects.cf import Cf
+from xdsl.dialects.scf import If
+
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
+from xdsl.parser import XDSLParser
 
 
 def test_ops_accessor():
@@ -20,7 +20,7 @@ def test_ops_accessor():
 
     block0 = Block.from_ops([a, b, c])
     # Create a region to include a, b, c
-    region = Region.from_block_list([block0])
+    region = Region([block0])
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -44,7 +44,7 @@ def test_ops_accessor_II():
 
     block0 = Block.from_ops([a, b, c])
     # Create a region to include a, b, c
-    region = Region.from_block_list([block0])
+    region = Region([block0])
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -90,8 +90,8 @@ def test_ops_accessor_III():
     block1 = Block.from_ops([c, d, f])
     block2 = Block.from_ops([])
 
-    region0 = Region.from_block_list([block0, block1])
-    region1 = Region.from_block_list([block2])
+    region0 = Region([block0, block1])
+    region1 = Region([block2])
 
     with pytest.raises(ValueError):
         region0.ops

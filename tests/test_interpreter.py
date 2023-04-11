@@ -1,6 +1,6 @@
-from dataclasses import dataclass
-
 import pytest
+
+from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls

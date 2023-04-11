@@ -147,7 +147,7 @@ class FuncOp(Operation):
         return FuncOp.from_region(
             name,
             ftype,
-            Region.from_block_list([Block.from_callable(input_types, func)]),
+            Region([Block.from_callable(input_types, func)]),
             private=private)
 
     def verify_(self):
