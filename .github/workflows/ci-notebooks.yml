@@ -37,7 +37,4 @@ jobs:
         pip install nbval
     - name: Run examples/tutorials
       run: |
-        pytest -W error --nbval-lax docs/irdl.ipynb --maxfail 1 -vv
-        pytest -W error --nbval docs/tutorial.ipynb --maxfail 1 -vv
-        pytest -W error --nbval docs/database_example.ipynb --maxfail 1 -vv
-        pytest -W error --nbval docs/Toy/Toy_Ch1.ipynb -vv
+        pytest -W error --nbval -vv
