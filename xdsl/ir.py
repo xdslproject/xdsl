@@ -972,6 +972,16 @@ class Block(IRNode):
             )
         operation.parent = self
 
+    @property
+    def first_op(self) -> Operation | None:
+        """The first operation in `self`"""
+        return self.ops[0] if len(self.ops) else None
+
+    @property
+    def last_op(self) -> Operation | None:
+        """The last operation in `self`"""
+        return self.ops[-1] if len(self.ops) else None
+
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.

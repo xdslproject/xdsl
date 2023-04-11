@@ -311,7 +311,7 @@ class ModuleOp(IRDLOperation):
 
     def verify_(self):
         if (len(self.body.ops) == 0
-                or not isinstance(self.body.ops[-1], ModuleEndOp)):
+                or not isinstance(self.body.block.last_op, ModuleEndOp)):
             raise VerifyException("gpu.module must end with gpu.module_end")
 
 
@@ -486,7 +486,7 @@ class TerminatorOp(IRDLOperation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.terminator must terminate its parent block")
         if op is not None and not isinstance(op, LaunchOp):
@@ -519,7 +519,7 @@ class YieldOp(IRDLOperation):
         block = self.parent_block()
         op = self.parent_op()
         if block is not None:
-            if self is not block.ops[-1]:
+            if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.yield must terminate its parent block")
         if op is not None:
