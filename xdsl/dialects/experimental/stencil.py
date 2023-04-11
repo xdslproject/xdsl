@@ -5,10 +5,9 @@ from typing import Sequence, TypeVar, Any, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import (AnyIntegerAttr, Float32Type, Float64Type,
-                                   IntegerAttr, ParametrizedAttribute,
-                                   ArrayAttr, f32, f64, IntegerType, IntAttr,
-                                   AnyFloat)
+from xdsl.dialects.builtin import (AnyIntegerAttr, IntegerAttr,
+                                   ParametrizedAttribute, ArrayAttr, f32, f64,
+                                   IntegerType, IntAttr, AnyFloat)
 from xdsl.ir import Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
