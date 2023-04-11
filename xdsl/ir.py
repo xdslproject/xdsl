@@ -897,7 +897,7 @@ class Block(IRNode):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
+        return f"Block(_args={repr(self._args)}, num_ops={self.num_ops()})"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
@@ -981,6 +981,10 @@ class Block(IRNode):
         """Returns `True` if there are no operations in `self`."""
         return not len(self.ops)
 
+    def num_ops(self) -> int:
+        """Returns the number of operations in `self`."""
+        return len(self.ops)
+
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
@@ -1005,10 +1009,11 @@ class Block(IRNode):
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
         """
-        if index < 0 or index > len(self.ops):
+
+        if index < 0 or index > self.num_ops():
             raise ValueError(
                 f"Can't insert operation in index {index} in a block with "
-                f"{len(self.ops)} operations.")
+                f"{self.num_ops()} operations.")
         if not isinstance(ops, list):
             ops = [ops]
         if name:
@@ -1102,7 +1107,7 @@ class Block(IRNode):
         if not isinstance(other, Block):
             return False
         if len(self.args) != len(other.args) or \
-           len(self.ops) != len(other.ops):
+           self.num_ops() != other.num_ops():
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
