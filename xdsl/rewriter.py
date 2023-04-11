@@ -55,12 +55,11 @@ class Rewriter:
             else:
                 old_result.replace_by(new_result)
 
-        op_idx = block.get_operation_index(op)
-        block.erase_op(op_idx, safe_erase=safe_erase)
         if len(op.results) == 0:
-            block.insert_op(new_ops, op_idx)
-            return
-        block.insert_op(new_ops, op_idx, op.results[0].name)
+            block.insert_ops_after(new_ops, op)
+        else:
+            block.insert_ops_after(new_ops, op, op.results[0].name)
+        block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
     def inline_block_at_pos(block: Block, target_block: Block, pos: int):
