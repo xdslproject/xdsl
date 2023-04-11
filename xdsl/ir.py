@@ -1035,6 +1035,7 @@ class Block(IRNode):
 
     @property
     def is_empty(self) -> bool:
+        """Returns `True` if there are no operations in the current block."""
         return self._first_op is None
 
     def num_ops(self) -> int:
