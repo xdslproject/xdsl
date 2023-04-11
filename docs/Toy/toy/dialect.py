@@ -157,7 +157,7 @@ class FuncOp(Operation):
 
         block = self.body.blocks[0]
 
-        if not block.len_ops():
+        if block.is_empty:
             raise VerifyException("Expected FuncOp to not be empty")
 
         last_op = block.last_op
