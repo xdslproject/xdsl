@@ -891,6 +891,11 @@ class Block(IRNode):
 
         self.add_ops(ops)
 
+    @property
+    @deprecated('Please use `iter_ops()` or `list(iter_ops())`')
+    def ops(self) -> list[Operation]:
+        return list(self.iter_ops())
+
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
 
