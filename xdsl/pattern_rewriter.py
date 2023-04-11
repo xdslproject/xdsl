@@ -121,12 +121,10 @@ class PatternRewriter:
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
         self.has_done_action = True
-        op = op if isinstance(op, list) else [op]
-        if len(op) == 0:
+        ops = op if isinstance(op, list) else [op]
+        if len(ops) == 0:
             return
-        target_op.parent.insert_op(
-            op,
-            target_block.get_operation_index(target_op) + 1)
+        target_block.insert_ops_after(ops, target_op)
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
