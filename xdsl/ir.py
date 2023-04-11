@@ -876,8 +876,8 @@ class Block(IRNode):
     _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    _first: Operation | None = field(repr=False)
-    _last: Operation | None = field(repr=False)
+    _first_op: Operation | None = field(repr=False)
+    _last_op: Operation | None = field(repr=False)
 
     parent: Region | None
     """Parent region containing the block."""
@@ -893,8 +893,8 @@ class Block(IRNode):
         self._args = tuple(
             BlockArgument(typ, self, index)
             for index, typ in enumerate(arg_types))
-        self._first = None
-        self._last = None
+        self._first_op = None
+        self._last_op = None
         self.parent = parent
 
         self.add_ops(ops)
@@ -994,22 +994,22 @@ class Block(IRNode):
         operation.parent = self
 
     def iter_ops(self) -> Iterable[Operation]:
-        curr = self._first
+        curr = self._first_op
         while curr is not None:
             yield curr
             curr = curr.next_op
 
     @property
     def first_op(self) -> Operation | None:
-        return self._first
+        return self._first_op
 
     @property
     def last_op(self) -> Operation | None:
-        return self._last
+        return self._last_op
 
     @property
     def is_empty(self) -> bool:
-        return self._first is None
+        return self._first_op is None
 
     def len_ops(self) -> int:
         result = 0
@@ -1040,7 +1040,7 @@ class Block(IRNode):
         next_op = existing_op.next_op
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
-            self._last = new_op
+            self._last_op = new_op
         else:
             # `next_op` exists, so we need to point its `_prev_op` field to
             # `new_op`.
@@ -1069,7 +1069,7 @@ class Block(IRNode):
         prev_op = existing_op.prev_op
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
-            self._first = new_op
+            self._first_op = new_op
         else:
             # `prev_op` exists, so we need to point its `_next_op` field to
             # `prev_op`.
@@ -1087,13 +1087,13 @@ class Block(IRNode):
         The operation should not be attached to another block already.
         """
         self._attach_op(operation)
-        if self._last is None:
-            self._first = operation
-            self._last = operation
+        if self._last_op is None:
+            self._first_op = operation
+            self._last_op = operation
         else:
-            self._last._next_op = operation  # pyright: ignore[reportPrivateUsage]
-            operation._prev_op = self._last  # pyright: ignore[reportPrivateUsage]
-            self._last = operation
+            self._last_op._next_op = operation  # pyright: ignore[reportPrivateUsage]
+            operation._prev_op = self._last_op  # pyright: ignore[reportPrivateUsage]
+            self._last_op = operation
 
     def add_ops(self, ops: Iterable[Operation]) -> None:
         """
@@ -1188,14 +1188,14 @@ class Block(IRNode):
             prev_op._next_op = op.next_op  # pyright: ignore[reportPrivateUsage]
         else:
             # first op
-            self._first = op.next_op
+            self._first_op = op.next_op
 
         next_op = op.next_op
         if next_op is not None:
             next_op._prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
         else:
             # last op
-            self._last = op.prev_op
+            self._last_op = op.prev_op
 
         return op
 
