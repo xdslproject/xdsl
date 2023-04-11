@@ -28,18 +28,26 @@
 // CHECK-NEXT:     %8 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %9 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %10 = "arith.constant"() {"value" = 64 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%6, %6, %6, %8, %9, %10, %7, %7, %7) ({
-// CHECK-NEXT:     ^1(%11 : index, %12 : index, %13 : index):
-// CHECK-NEXT:       %14 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %15 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %16 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %17 = "arith.addi"(%11, %14) : (index, index) -> index
-// CHECK-NEXT:       %18 = "arith.addi"(%12, %15) : (index, index) -> index
-// CHECK-NEXT:       %19 = "arith.addi"(%13, %16) : (index, index) -> index
-// CHECK-NEXT:       %20 = "memref.load"(%5, %17, %18, %19) : (memref<64x64x64xf64, strided<[5184, 72, 1], offset: 15845>>, index, index, index) -> f64
-// CHECK-NEXT:       "memref.store"(%20, %4, %11, %12, %13) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
+// CHECK-NEXT:     "scf.parallel"(%6, %8, %7) ({
+// CHECK-NEXT:     ^1(%11 : index):
+// CHECK-NEXT:       "scf.for"(%6, %9, %7) ({
+// CHECK-NEXT:       ^2(%12 : index):
+// CHECK-NEXT:         "scf.for"(%6, %10, %7) ({
+// CHECK-NEXT:         ^3(%13 : index):
+// CHECK-NEXT:           %14 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:           %15 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:           %16 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:           %17 = "arith.addi"(%11, %14) : (index, index) -> index
+// CHECK-NEXT:           %18 = "arith.addi"(%12, %15) : (index, index) -> index
+// CHECK-NEXT:           %19 = "arith.addi"(%13, %16) : (index, index) -> index
+// CHECK-NEXT:           %20 = "memref.load"(%5, %17, %18, %19) : (memref<64x64x64xf64, strided<[5184, 72, 1], offset: 15845>>, index, index, index) -> f64
+// CHECK-NEXT:           "memref.store"(%20, %4, %11, %12, %13) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
+// CHECK-NEXT:           "scf.yield"() : () -> ()
+// CHECK-NEXT:         }) : (index, index, index) -> ()
+// CHECK-NEXT:         "scf.yield"() : () -> ()
+// CHECK-NEXT:       }) : (index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
-// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
+// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>, memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
