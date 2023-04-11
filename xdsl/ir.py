@@ -572,6 +572,14 @@ class Operation(IRNode):
         return self.parent
 
     @property
+    def next_op(self) -> Operation | None:
+        return self._next_op
+
+    @property
+    def prev_op(self) -> Operation | None:
+        return self._prev_op
+
+    @property
     def operands(self) -> tuple[SSAValue, ...]:
         return self._operands
 
@@ -989,7 +997,7 @@ class Block(IRNode):
         curr = self._first
         while curr is not None:
             yield curr
-            curr = curr._next_op  # pyright: ignore[reportPrivateUsage]
+            curr = curr.next_op
 
     @property
     def first_op(self) -> Operation | None:
@@ -1029,7 +1037,7 @@ class Block(IRNode):
 
         self._attach_op(curr_op)
 
-        next_op = prev_op._next_op  # pyright: ignore[reportPrivateUsage]
+        next_op = prev_op.next_op
         if next_op is None:
             # prev_op is previous _last
             self._last = curr_op
@@ -1054,7 +1062,7 @@ class Block(IRNode):
 
         self._attach_op(curr_op)
 
-        prev_op = next_op._prev_op  # pyright: ignore[reportPrivateUsage]
+        prev_op = next_op.prev_op
         if prev_op is None:
             # curr_op is previous _first
             self._first = curr_op
@@ -1084,14 +1092,6 @@ class Block(IRNode):
         Add operations at the end of the block.
         The operations should not be attached to another block.
         """
-        # if self._last is None:
-        #     self._first = operation
-        #     self._last = operation
-        # else:
-        #     self._last._next_op = operation  # pyright: ignore[reportPrivateUsage]
-        #     operation._prev_op = self._last  # pyright: ignore[reportPrivateUsage]
-        #     self._last = operation
-
         for op in ops:
             self.add_op(op)
 
@@ -1166,16 +1166,20 @@ class Block(IRNode):
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
-        if op._prev_op is not None:  # pyright: ignore[reportPrivateUsage]
-            op._prev_op._next_op = op._next_op  # pyright: ignore[reportPrivateUsage]
+
+        prev_op = op.prev_op
+        if prev_op is not None:
+            prev_op._next_op = op.next_op  # pyright: ignore[reportPrivateUsage]
         else:
             # first op
-            self._first = op._next_op  # pyright: ignore[reportPrivateUsage]
-        if op._next_op is not None:  # pyright: ignore[reportPrivateUsage]
-            op._next_op._prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
+            self._first = op.next_op
+
+        next_op = op.next_op
+        if next_op is not None:
+            next_op._prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
         else:
             # last op
-            self._last = op._prev_op  # pyright: ignore[reportPrivateUsage]
+            self._last = op.prev_op
 
         return op
 

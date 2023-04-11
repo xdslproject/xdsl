@@ -487,8 +487,8 @@ class PatternRewriteWalker:
         if self.walk_regions_first:
             self._rewrite_op_regions(op)
 
-        prev_op = op._prev_op  # pyright: ignore[reportPrivateUsage]
-        next_op = op._next_op  # pyright: ignore[reportPrivateUsage]
+        prev_op = op.prev_op
+        next_op = op.next_op
 
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
