@@ -1119,10 +1119,10 @@ class Block(IRNode):
         The operations should not be attached to another block.
         """
 
-        # if index < 0 or index > len(self.ops):
-        #     raise ValueError(
-        #         f"Can't insert operation in index {index} in a block with "
-        #         f"{len(self.ops)} operations.")
+        if index < 0 or index > self.len_ops():
+            raise ValueError(
+                f"Can't insert operation in index {index} in a block with "
+                f"{self.len_ops()} operations.")
         if not isinstance(ops, list):
             ops = [ops]
 
