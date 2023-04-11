@@ -10,6 +10,7 @@ from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
@@ -32,22 +33,21 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 def GetMemRefFromField(
     input_type: FieldType[_TypeElement] | TempType[_TypeElement]
-) -> memref.MemRefType[_TypeElement]:
+) -> MemRefType[_TypeElement]:
     dims = [i.value.data for i in input_type.shape.data]
 
-    return memref.MemRefType.from_element_type_and_shape(
-        input_type.element_type, dims)
+    return MemRefType.from_element_type_and_shape(input_type.element_type,
+                                                  dims)
 
 
-def GetMemRefFromFieldWithLBAndUB(
-        memref_element_type: _TypeElement, lb: IndexAttr,
-        ub: IndexAttr) -> memref.MemRefType[_TypeElement]:
+def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
+                                  lb: IndexAttr,
+                                  ub: IndexAttr) -> MemRefType[_TypeElement]:
     # lb and ub defines the minimum and maximum coordinates of the resulting memref,
     # so its shape is simply ub - lb, computed here.
     dims = IndexAttr.size_from_bounds(lb, ub)
 
-    return memref.MemRefType.from_element_type_and_shape(
-        memref_element_type, dims)
+    return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
 
 @dataclass
