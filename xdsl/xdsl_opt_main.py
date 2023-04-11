@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+
 from io import StringIO
 from xdsl.frontend.symref import Symref
 
