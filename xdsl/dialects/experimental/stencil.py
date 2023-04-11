@@ -418,7 +418,7 @@ class ApplyOp(Operation):
       }
     """
     name: str = "stencil.apply"
-    args: Annotated[VarOperand, TempType | Float64Type | Float32Type]
+    args: Annotated[VarOperand, Attribute]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     region: Region
