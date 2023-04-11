@@ -1,6 +1,8 @@
 from __future__ import annotations
-from typing import Annotated
+
 import pytest
+
+from typing import Annotated
 
 from xdsl.dialects.builtin import DenseArrayBase, Operation, StringAttr, i32
 from xdsl.dialects.arith import Constant
@@ -11,7 +13,7 @@ from xdsl.irdl import (AttrSizedRegionSegments, OptOpResult, OptOperand,
                        SingleBlockRegion, VarOpResult, VarRegion,
                        VarSingleBlockRegion, irdl_op_definition,
                        AttrSizedResultSegments, VarOperand,
-                       AttrSizedOperandSegments, OpAttr, Region, OptOpAttr)
+                       AttrSizedOperandSegments, OpAttr, OptOpAttr)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_

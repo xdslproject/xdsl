@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
     UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
     DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64, StridedLayoutAttr)
+    UnitAttr, i64, StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -1082,20 +1082,102 @@ class BaseParser(ABC):
 
         return res
 
-    def parse_complex_attrs(self):
-        self.raise_error("ComplexType is unimplemented!")
+    def _parse_shape_dimension(self) -> int:
+        """
+        Parse a single shape dimension, which is a decimal literal or `?`.
+        `?` is interpreted as -1. Note that if the integer literal is in
+        hexadecimal form, it will be split into multiple tokens. For example,
+        `0x10` will be split into `0` and `x10`.
+        """
+        if self._current_token.kind not in (Token.Kind.INTEGER_LIT,
+                                            Token.Kind.QUESTION):
+            self.raise_error(
+                "Expected either integer literal or '?' in shape dimension, "
+                f"got {self._current_token.kind.name}!")
+
+        if self.parse_optional_punctuation('?') is not None:
+            return -1
+
+        # If the integer literal starts with `0x`, this is decomposed into
+        # `0` and `x`.
+        int_token = self._consume_token(Token.Kind.INTEGER_LIT)
+        if int_token.text[:2] == '0x':
+            self.resume_from(int_token.span.start + 1)
+            return 0
+
+        return int_token.get_int_value()
+
+    def _parse_shape_delimiter(self) -> None:
+        """
+        Parse 'x', a shape delimiter. Note that if 'x' is followed by other
+        characters, it will split the token. For instance, 'x1' will be split
+        into 'x' and '1'.
+        """
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            self.raise_error("Expected 'x' in shape delimiter, got "
+                             f"{self._current_token.kind.name}")
+
+        if self._current_token.text[0] != 'x':
+            self.raise_error("Expected 'x' in shape delimiter, got "
+                             f"{self._current_token.text}")
+
+        # Move the lexer to the position after 'x'.
+        self.resume_from(self._current_token.span.start + 1)
+
+    def _parse_ranked_shape(self) -> tuple[list[int], Attribute]:
+        """
+        Parse a ranked shape with the following format:
+          ranked-shape ::= (dimension `x`)* type
+          dimension ::= `?` | decimal-literal
+        each dimension is also required to be non-negative.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        dims: list[int] = []
+        while self._current_token.kind in (Token.Kind.INTEGER_LIT,
+                                           Token.Kind.QUESTION):
+            dim = self._parse_shape_dimension()
+            dims.append(dim)
+            self._parse_shape_delimiter()
+
+        self._synchronize_lexer_and_tokenizer()
+        type = self.expect(self.try_parse_type, 'Expected shape type.')
+        return dims, type
+
+    def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
+        """
+        Parse a ranked or unranked shape with the following format:
+        
+        shape ::= ranked-shape | unranked-shape
+        ranked-shape ::= (dimension `x`)* type
+        unranked-shape ::= `*`x type
+        dimension ::= `?` | decimal-literal
+          
+        each dimension is also required to be non-negative.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self.parse_optional_punctuation('*') is not None:
+            self._parse_shape_delimiter()
+            type = self.expect(self.try_parse_type, 'Expected shape type.')
+            self._synchronize_lexer_and_tokenizer()
+            return None, type
+        res = self._parse_ranked_shape()
+        self._synchronize_lexer_and_tokenizer()
+        return res
+
+    def parse_complex_attrs(self) -> ComplexType:
+        element_type = self.parse_attribute()
+        if not isa(element_type, IntegerType | AnyFloat):
+            self.raise_error(
+                "Complex type must be parameterized by an integer or float type!"
+            )
+        return ComplexType(element_type)
 
     def parse_memref_attrs(
             self) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
-        dims = self._parse_tensor_or_memref_dims()
-        type = self.expect(
-            self.try_parse_type,
-            "Type cannot be nil when parsing memref attributes")
-
-        self._synchronize_lexer_and_tokenizer()
+        shape, type = self._parse_shape()
 
         # Unranked case
-        if dims is None:
+        if shape is None:
             if self.parse_optional_punctuation(',') is None:
                 self._synchronize_lexer_and_tokenizer()
                 return UnrankedMemrefType.from_type(type)
@@ -1105,7 +1187,7 @@ class BaseParser(ABC):
             return UnrankedMemrefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(',') is None:
-            return MemRefType.from_element_type_and_shape(type, dims)
+            return MemRefType.from_element_type_and_shape(type, shape)
 
         self._synchronize_lexer_and_tokenizer()
         memory_or_layout = self.parse_attribute()
@@ -1118,7 +1200,7 @@ class BaseParser(ABC):
             memory_space = self.parse_attribute()
             self._synchronize_lexer_and_tokenizer()
             return MemRefType.from_element_type_and_shape(
-                type, dims, memory_or_layout, memory_space)
+                type, shape, memory_or_layout, memory_space)
 
         # Otherwise, there is a single argument, so we check based on the
         # attribute type. If we don't know, we return an error.
@@ -1128,14 +1210,14 @@ class BaseParser(ABC):
         # If the argument is an integer, it is a memory space
         if isa(memory_or_layout, AnyIntegerAttr):
             return MemRefType.from_element_type_and_shape(
-                type, dims, memory_space=memory_or_layout)
+                type, shape, memory_space=memory_or_layout)
 
         # We only accept strided layouts and affine_maps
         if (isa(memory_or_layout, StridedLayoutAttr)
                 or (isinstance(memory_or_layout, UnregisteredAttr)
                     and memory_or_layout.attr_name.data == "affine_map")):
             return MemRefType.from_element_type_and_shape(
-                type, dims, layout=memory_or_layout)
+                type, shape, layout=memory_or_layout)
         self.raise_error("Cannot decide if the given attribute "
                          "is a layout or a memory space!")
 
@@ -1175,22 +1257,8 @@ class BaseParser(ABC):
 
         return VectorType.from_element_type_and_shape(type, shape)
 
-    def _parse_tensor_or_memref_dims(self) -> list[int] | None:
-        # Check for unranked-ness
-        if self.tokenizer.next_token_of_pattern('*') is not None:
-            # Consume `x`
-            self.parse_characters(
-                'x', 'Unranked tensors must follow format (`<*x` type `>`)')
-        else:
-            # Parse rank:
-            return list(self.try_parse_numerical_dims(lower_bound=0))
-
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
-        shape = self._parse_tensor_or_memref_dims()
-        type = self.try_parse_type()
-
-        if type is None:
-            self.raise_error("Expected tensor type here!")
+        shape, type = self._parse_shape()
 
         if shape is None:
             if self.parse_optional_punctuation(',') is not None:

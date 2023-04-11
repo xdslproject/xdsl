@@ -1,6 +1,6 @@
-from io import StringIO
-
 import pytest
+
+from io import StringIO
 
 from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
                                    ArrayAttr, Builtin, SymbolRefAttr)

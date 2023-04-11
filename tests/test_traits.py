@@ -1,9 +1,10 @@
 from __future__ import annotations
+
+import pytest
+
 from abc import ABC
 from dataclasses import dataclass
 from typing import Annotated
-
-import pytest
 
 from xdsl.ir import OpResult, OpTrait, Operation
 from xdsl.irdl import Operand, irdl_op_definition

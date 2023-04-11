@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TypeVar, Iterable, ClassVar
 from abc import ABC, abstractmethod
 from math import prod
+from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
@@ -286,15 +287,18 @@ class AddHaloExchangeOps(RewritePattern):
         rewriter.insert_op_after_matched_op(swap_op)
 
 
-def global_stencil_to_local_stencil_2d_horizontal(ctx: MLContext | None,
-                                                  module: builtin.ModuleOp):
-    strategy = HorizontalSlices2D(2)
+class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
 
-    gpra = GreedyRewritePatternApplier(
-        [ChangeStoreOpSizes(strategy),
-         AddHaloExchangeOps(strategy)])
+    name = 'stencil-to-local-2d-horizontal'
 
-    PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        strategy = HorizontalSlices2D(2)
+
+        gpra = GreedyRewritePatternApplier(
+            [ChangeStoreOpSizes(strategy),
+             AddHaloExchangeOps(strategy)])
+
+        PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
 
 
 @dataclass

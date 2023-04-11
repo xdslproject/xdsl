@@ -8,7 +8,7 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    op_type_rewrite_pattern)
 from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, ModuleOp
+from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
@@ -18,6 +18,7 @@ from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 ReturnOp, StoreOp, TempType,
                                                 ExternalLoadOp, HaloSwapOp,
                                                 ExternalStoreOp)
+from xdsl.passes import ModulePass
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -52,22 +53,18 @@ def GetMemRefFromFieldWithLBAndUB(memref_element_type: _TypeElement,
 @dataclass
 class CastOpToMemref(RewritePattern):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast]
     gpu: bool = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
 
-        assert isa(op.field.typ, FieldType[Attribute] | MemRefType[Attribute])
+        assert isa(op.field.typ,
+                   FieldType[Attribute] | memref.MemRefType[Attribute])
 
         result_typ = GetMemRefFromFieldWithLBAndUB(op.field.typ.element_type,
                                                    op.lb, op.ub)
 
         cast = memref.Cast.get(op.field, result_typ)
-
-        for k, v in self.return_target.items():
-            if v == op:
-                self.return_target[k] = cast
 
         if self.gpu:
             unranked = memref.Cast.get(
@@ -103,7 +100,7 @@ class StoreOpShapeInference(RewritePattern):
 @dataclass
 class ReturnOpToMemref(RewritePattern):
 
-    return_target: dict[ReturnOp, CastOp | memref.Cast]
+    return_target: dict[ReturnOp, CastOp | memref.Subview]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
@@ -111,30 +108,17 @@ class ReturnOpToMemref(RewritePattern):
         parallel = op.parent_op()
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
 
-        cast = self.return_target[op]
+        subview = self.return_target[op]
 
-        assert isinstance(cast, CastOp)
-
-        offsets = cast.lb
-        assert isinstance(offsets, IndexAttr)
+        assert isinstance(subview, memref.Subview)
 
         assert (block := op.parent_block()) is not None
 
-        off_const_ops = [
-            arith.Constant.from_int_and_width(-x.value.data,
-                                              builtin.IndexType())
-            for x in offsets.array.data
-        ]
-
         args = list(block.args)
 
-        off_sum_ops = [
-            arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
-        ]
+        store = memref.Store.get(op.arg, subview.result, args)
 
-        load = memref.Store.get(op.arg, cast.result, off_sum_ops)
-
-        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load])
+        rewriter.replace_matched_op([store])
 
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
@@ -153,10 +137,23 @@ class LoadOpToMemref(RewritePattern):
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
+        assert isa(cast.result.typ, FieldType[Attribute])
 
         verify_load_bounds(cast, op)
 
-        rewriter.replace_matched_op([], list(cast.results))
+        assert op.lb and op.ub
+
+        element_type = cast.result.typ.element_type
+        shape = [i.value.data for i in cast.result.typ.shape.data]
+
+        offsets = [i.value.data for i in (op.lb - cast.lb).array.data]
+        sizes = [i.value.data for i in (op.ub - op.lb).array.data]
+        strides = [1] * len(sizes)
+
+        subview = memref.Subview.from_static_parameters(
+            cast.result, element_type, shape, offsets, sizes, strides)
+
+        rewriter.replace_matched_op(subview)
 
 
 class LoadOpShapeInference(RewritePattern):
@@ -270,14 +267,13 @@ class AccessOpToMemref(RewritePattern):
 
         load = op.temp.owner
         assert isinstance(load, LoadOp)
+        assert load.lb is not None
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        assert isinstance(load.lb, IndexAttr)
-        assert isinstance(load.field.owner, CastOp)
-        memref_offset = (op.offset - load.field.owner.lb).array.data
+        memref_offset = (op.offset - load.lb).array.data
         off_const_ops = [
             arith.Constant.from_int_and_width(x.value.data,
                                               builtin.IndexType())
@@ -290,13 +286,16 @@ class AccessOpToMemref(RewritePattern):
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
         ]
 
-        load = memref.Load.get(load.res, off_sum_ops)
+        load = memref.Load.get(load, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load],
                                     [load.res])
 
 
+@dataclass
 class StencilTypeConversionFuncOp(RewritePattern):
+
+    return_targets: dict[ReturnOp, CastOp | memref.Subview]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
@@ -311,6 +310,26 @@ class StencilTypeConversionFuncOp(RewritePattern):
 
         op.attributes["function_type"] = FunctionType.from_lists(
             inputs, list(op.function_type.outputs.data))
+
+        stores: list[StoreOp] = []
+        op.walk(lambda o: stores.append(o) if isinstance(o, StoreOp) else None)
+
+        for store in stores:
+            cast = store.field.owner
+            assert isinstance(cast, CastOp)
+            assert isa(cast.result.typ, FieldType[Attribute])
+            new_cast = cast.clone()
+            source_shape = [i.value.data for i in cast.result.typ.shape.data]
+            offsets = [i.value.data for i in (store.lb - cast.lb).array.data]
+            sizes = [i.value.data for i in (store.ub - store.lb).array.data]
+            subview = memref.Subview.from_static_parameters(
+                new_cast.result, cast.result.typ.element_type, source_shape,
+                offsets, sizes, [1] * len(sizes))
+            rewriter.replace_op(cast, [new_cast, subview])
+
+            returns = [r for r, c in self.return_targets.items() if c == cast]
+            for r in returns:
+                self.return_targets[r] = subview
 
 
 class TrivialExternalLoadOpCleanup(RewritePattern):
@@ -334,9 +353,8 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
         rewriter.erase_matched_op()
 
 
-def return_target_analysis(module: ModuleOp):
-
-    return_targets: dict[ReturnOp, CastOp | memref.Cast] = {}
+def return_target_analysis(module: builtin.ModuleOp):
+    return_targets: dict[ReturnOp, CastOp | memref.Subview] = {}
 
     def map_returns(op: Operation) -> None:
         if not isinstance(op, ReturnOp):
@@ -417,15 +435,15 @@ ShapeInference = GreedyRewritePatternApplier([
 ])
 
 
-def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
+def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Subview],
                       gpu: bool):
     """
     List of rewrite passes for stencil
     """
     return GreedyRewritePatternApplier([
         ApplyOpToParallel(),
-        StencilTypeConversionFuncOp(),
-        CastOpToMemref(return_targets, gpu),
+        StencilTypeConversionFuncOp(return_targets),
+        CastOpToMemref(gpu),
         LoadOpToMemref(),
         AccessOpToMemref(),
         ReturnOpToMemref(return_targets),
@@ -435,39 +453,48 @@ def StencilConversion(return_targets: dict[ReturnOp, CastOp | memref.Cast],
     ])
 
 
-# TODO: We probably want to factor that in another file
-def StencilShapeInference(ctx: MLContext, module: ModuleOp):
+class StencilShapeInferencePass(ModulePass):
 
-    inference_pass = PatternRewriteWalker(ShapeInference,
-                                          apply_recursively=False,
-                                          walk_reverse=True)
+    name = 'stencil-shape-inference'
 
-    inference_pass.rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
 
-
-def ConvertStencilToGPU(ctx: MLContext, module: ModuleOp):
-
-    return_targets = return_target_analysis(module)
-
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilConversion(return_targets, gpu=True)]),
-                                        apply_recursively=False,
-                                        walk_reverse=True)
-
-    the_one_pass.rewrite_module(module)
+        inference_walker = PatternRewriteWalker(ShapeInference,
+                                                apply_recursively=False,
+                                                walk_reverse=True)
+        inference_walker.rewrite_module(op)
 
 
-def ConvertStencilToLLMLIR(ctx: MLContext, module: ModuleOp):
+class ConvertStencilToGPUPass(ModulePass):
 
-    return_targets = return_target_analysis(module)
+    name = 'convert-stencil-to-gpu'
 
-    the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
-        [StencilConversion(return_targets, gpu=False)]),
-                                        apply_recursively=False,
-                                        walk_reverse=True)
-    the_one_pass.rewrite_module(module)
-    PatternRewriteWalker(
-        GreedyRewritePatternApplier([
-            LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
-            MpiLoopInvariantCodeMotion(),
-        ])).rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        return_targets = return_target_analysis(op)
+
+        the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+            [StencilConversion(return_targets, gpu=True)]),
+                                            apply_recursively=False,
+                                            walk_reverse=True)
+        the_one_pass.rewrite_module(op)
+
+
+class ConvertStencilToLLMLIRPass(ModulePass):
+
+    name = 'convert-stencil-to-ll-mlir'
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+
+        return_targets: dict[ReturnOp, CastOp
+                             | memref.Subview] = return_target_analysis(op)
+
+        the_one_pass = PatternRewriteWalker(GreedyRewritePatternApplier(
+            [StencilConversion(return_targets, gpu=False)]),
+                                            apply_recursively=False,
+                                            walk_reverse=True)
+        the_one_pass.rewrite_module(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([
+                LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
+                MpiLoopInvariantCodeMotion(),
+            ])).rewrite_module(op)

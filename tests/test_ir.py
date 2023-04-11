@@ -1,15 +1,15 @@
-from typing import cast
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
-from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
-from xdsl.dialects.scf import If
-from xdsl.parser import XDSLParser
-from xdsl.dialects.builtin import Builtin
+from typing import cast
+
+from xdsl.dialects.arith import Arith, Addi, Subi, Constant
+from xdsl.dialects.builtin import Builtin, IntegerType, i32, IntegerAttr, ModuleOp
 from xdsl.dialects.func import Func
-from xdsl.dialects.arith import Arith
 from xdsl.dialects.cf import Cf
+from xdsl.dialects.scf import If
+
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
+from xdsl.parser import XDSLParser
 
 
 def test_ops_accessor():
