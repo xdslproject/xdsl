@@ -772,30 +772,30 @@ class LowerMPIPass(ModulePass):
 
     name = 'lower-mpi'
 
-    # TODO: how to get the lib info in here?
-    lib_info = MpiLibraryInfo()
-
     # lower to func.call
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+
+        # TODO: how to get the lib info in here?
+        lib_info = MpiLibraryInfo()
         walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
-            LowerMpiInit(self.lib_info),
-            LowerMpiFinalize(self.lib_info),
-            LowerMpiWait(self.lib_info),
-            LowerMpiWaitall(self.lib_info),
-            LowerMpiCommRank(self.lib_info),
-            LowerMpiCommSize(self.lib_info),
-            LowerMpiIsend(self.lib_info),
-            LowerMpiIrecv(self.lib_info),
-            LowerMpiSend(self.lib_info),
-            LowerMpiRecv(self.lib_info),
-            LowerMpiReduce(self.lib_info),
-            LowerMpiAllreduce(self.lib_info),
-            LowerMpiBcast(self.lib_info),
-            LowerMpiUnwrapMemrefOp(self.lib_info),
-            LowerMpiGetDtype(self.lib_info),
-            LowerMpiAllocateType(self.lib_info),
-            LowerMpiVectorGet(self.lib_info),
+            LowerMpiInit(lib_info),
+            LowerMpiFinalize(lib_info),
+            LowerMpiWait(lib_info),
+            LowerMpiWaitall(lib_info),
+            LowerMpiCommRank(lib_info),
+            LowerMpiCommSize(lib_info),
+            LowerMpiIsend(lib_info),
+            LowerMpiIrecv(lib_info),
+            LowerMpiSend(lib_info),
+            LowerMpiRecv(lib_info),
+            LowerMpiReduce(lib_info),
+            LowerMpiAllreduce(lib_info),
+            LowerMpiBcast(lib_info),
+            LowerMpiUnwrapMemrefOp(lib_info),
+            LowerMpiGetDtype(lib_info),
+            LowerMpiAllocateType(lib_info),
+            LowerMpiVectorGet(lib_info),
         ]),
                                        apply_recursively=True)
 

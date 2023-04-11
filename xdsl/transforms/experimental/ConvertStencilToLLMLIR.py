@@ -440,12 +440,12 @@ class StencilShapeInferencePass(ModulePass):
 
     name = 'stencil-shape-inference'
 
-    inference_walker = PatternRewriteWalker(ShapeInference,
-                                            apply_recursively=False,
-                                            walk_reverse=True)
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        self.inference_walker.rewrite_module(op)
+
+        inference_walker = PatternRewriteWalker(ShapeInference,
+                                                apply_recursively=False,
+                                                walk_reverse=True)
+        inference_walker.rewrite_module(op)
 
 
 class ConvertStencilToGPUPass(ModulePass):
