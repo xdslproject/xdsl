@@ -1145,15 +1145,20 @@ class Block(IRNode):
             self.add_ops(ops)
             return
 
-        if index == 0:
-            # set new head, then add after
-            prev_op = ops[0]
-            ops = ops[1:]
-            self.insert_op_before(prev_op, first_op, name)
-        else:
-            prev_op = self.op_at_index(index - 1)
+        i = 0
+        for i, op in enumerate(self.iter_ops()):
+            if index == i:
+                self.insert_ops_before(ops, op)
+                return
 
-        self.insert_ops_after(ops, prev_op, name)
+        if i != index:
+            raise ValueError(
+                f"Can't insert operation in index {index} in a block with "
+                f"{i} operations.")
+
+        assert self.last_op is not None
+
+        self.insert_ops_after(ops, self.last_op, name=name)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
