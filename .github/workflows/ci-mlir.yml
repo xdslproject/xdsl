@@ -26,7 +26,9 @@ jobs:
         path: xdsl
 
     - name: Python Setup
-      run: apt install --no-install-recommends --yes python${{matrix.python-version}}
+      run: |
+        apt install --no-install-recommends --yes python${{matrix.python-version}}
+        python -m pip install pip
 
     - name: Upgrade pip
       run: |
