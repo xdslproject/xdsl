@@ -331,7 +331,7 @@ class ParserCommons:
     decimal_literal = re.compile(r"[+-]?([1-9][0-9]*)")
     string_literal = re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"')
     float_literal = re.compile(r"[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?")
-    bare_id = re.compile(r"[A-Za-z_][\w$.]+")
+    bare_id = re.compile(r"[A-Za-z_][\w$.]*")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     suffix_id = re.compile(r"([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     """
@@ -765,6 +765,29 @@ class BaseParser(ABC):
 
         return items
 
+    def parse_optional_boolean(self) -> bool | None:
+        """
+        Parse a boolean, if present, with the format `true` or `false`.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind == Token.Kind.BARE_IDENT:
+            if self._current_token.text == 'true':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return True
+            elif self._current_token.text == 'false':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return False
+        return None
+
+    def parse_boolean(self, context_msg: str = '') -> bool:
+        """
+        Parse a boolean with the format `true` or `false`.
+        """
+        return self.expect(lambda: self.parse_optional_boolean(),
+                           'Expected boolean literal' + context_msg)
+
     def parse_optional_integer(self,
                                allow_boolean: bool = True,
                                allow_negative: bool = True) -> int | None:
@@ -776,16 +799,8 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         # Parse true and false if needed
         if allow_boolean:
-            if self._current_token.kind == Token.Kind.BARE_IDENT:
-                if self._current_token.text == 'true':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 1
-                elif self._current_token.text == 'false':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 0
-                return None
+            if (boolean := self.parse_optional_boolean()) is not None:
+                return 1 if boolean else 0
 
         # Parse negative numbers if required
         is_negative = False
@@ -808,12 +823,40 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return value
 
+    def parse_optional_number(self) -> int | float | None:
+        """
+        Parse an integer or float literal, if present.
+        """
+
+        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+
+        if (value :=
+                self.parse_optional_integer(allow_boolean=False,
+                                            allow_negative=False)) is not None:
+            return -value if is_negative else value
+
+        if (value :=
+                self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
+            value = value.get_float_value()
+            return -value if is_negative else value
+
+        if is_negative:
+            self.raise_error("Expected integer or float literal after '-'")
+        return None
+
+    def parse_number(self, context_msg: str = '') -> int | float:
+        """
+        Parse an integer or float literal.
+        """
+        return self.expect(lambda: self.parse_optional_number(),
+                           'Expected integer or float literal' + context_msg)
+
     def parse_integer(self,
                       allow_boolean: bool = True,
                       allow_negative: bool = True,
                       context_msg: str = '') -> int:
         """
-        Parse an (possible negative) integer, if present. The integer can
+        Parse an (possible negative) integer. The integer can
         either be decimal or hexadecimal.
         Optionally allow parsing of 'true' or 'false' into 1 and 0.
         """
@@ -1544,9 +1587,9 @@ class BaseParser(ABC):
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
             return self.try_parse_builtin_named_attr()
-        # Order here is important!
-        attrs = (self.try_parse_builtin_float_attr,
-                 self.try_parse_builtin_int_attr, self.try_parse_builtin_type)
+
+        attrs = (self.parse_optional_builtin_int_or_float_attr,
+                 self.try_parse_builtin_type)
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
@@ -1975,51 +2018,47 @@ class BaseParser(ABC):
         else:
             return None
 
-    def try_parse_builtin_int_attr(
-            self) -> IntegerAttr[IntegerType | IndexType] | None:
+    def parse_optional_builtin_int_or_float_attr(
+            self) -> AnyIntegerAttr | AnyFloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
 
-        with self.backtracking("built in int attribute"):
-            value = self.expect(
-                self.try_parse_integer_literal,
-                'Integer attribute must start with an integer literal!')
-            if self.tokenizer.next_token(peek=True).text != ':':
-                return IntegerAttr.from_params(int(value.text), i64)
-            type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
 
-            if not isinstance(type, IntegerType | IndexType):
+        # Parse the value
+        if (value := self.parse_optional_number()) is None:
+            return None
+
+        self._synchronize_lexer_and_tokenizer()
+        # If no types are given, we take the default ones
+        if self._current_token.kind != Token.Kind.COLON:
+            if isinstance(value, float):
+                return FloatAttr(value, Float64Type())
+            return IntegerAttr(value, i64)
+
+        # Otherwise, we parse the attribute type
+        type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
+
+        if isinstance(type, AnyFloat):
+            return FloatAttr(float(value), type)
+
+        if isinstance(type, IntegerType | IndexType):
+            if isinstance(value, float):
                 self.raise_error(
-                    f"Expected IntegerType | IndexType, got {type}")
+                    'Floating point value is not valid for integer type.')
+            return IntegerAttr(value, type)
 
-            return IntegerAttr.from_params(int(value.text), type)
-
-    def try_parse_builtin_float_attr(self) -> AnyFloatAttr | None:
-        with self.backtracking("float literal"):
-            value = self.expect(
-                self.try_parse_float_literal,
-                "Float attribute must start with a float literal!",
-            )
-            # If we don't see a ':' indicating a type signature
-            if not self.tokenizer.starts_with(":"):
-                return FloatAttr(float(value.text), Float32Type())
-
-            type = self._parse_attribute_type()
-            if not isinstance(type, AnyFloat):
-                self.raise_error(
-                    "Float attribute must be typed with a float type!")
-            return FloatAttr(float(value.text), type)
+        self.raise_error('Invalid type given for integer or float attribute.')
 
     def try_parse_builtin_boolean_attr(
             self) -> IntegerAttr[IntegerType | IndexType] | None:
-        span = self.try_parse_boolean_literal()
-
-        if span is None:
-            return None
-
-        int_val = ["false", "true"].index(span.text)
-        return IntegerAttr.from_params(int_val, IntegerType(1))
+        self._synchronize_lexer_and_tokenizer()
+        if (value := self.parse_optional_boolean()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerAttr.from_params(1 if value else 0, IntegerType(1))
+        return None
 
     def try_parse_builtin_str_attr(self):
         if not self.tokenizer.starts_with('"'):

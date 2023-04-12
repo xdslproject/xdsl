@@ -67,6 +67,18 @@
 
   // CHECK: 54 : index
 
+  "func.func"() ({}) {function_type = () -> (), value = 54 : f32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 54.0 : f32
+
+  "func.func"() ({}) {function_type = () -> (), value = 0x132 : i32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 306 : i32
+
+  "func.func"() ({}) {function_type = () -> (), value = 0x132 : f32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 306.0 : f32
+
 
   "func.func"() ({}) {function_type = () -> (), value = "foo", sym_name = "string_attr"} : () -> ()
 
