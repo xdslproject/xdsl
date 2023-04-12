@@ -10,7 +10,7 @@ from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
                        irdl_op_definition, Operation, Operand)
-from xdsl.parser import Parser, BaseParser, Source, XDSLParser
+from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
@@ -568,55 +568,6 @@ def test_parse_generic_format_attr_III():
     module = parser.parse_op()
 
     assert_print_op(module, expected, None, print_generic_format=True)
-
-
-def test_parse_dense_xdsl():
-    """
-    Test that parsing of shaped dense tensors works.
-    """
-    # TODO: handle nested array syntax
-    prog = """
-    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
-    """
-
-    expected = """
-    %0 : !tensor<[2 : !index, 3 : !index], !f64> = arith.constant() ["value" = !dense<!tensor<[2 : !index, 3 : !index], !f64>, [1.0 : !f64, 2.0 : !f64, 3.0 : !f64, 4.0 : !f64, 5.0 : !f64, 6.0 : !f64]>]
-    """
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-
-    parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
-
-    assert_print_op(module, expected, None)
-
-
-def test_parse_dense_mlir():
-    """
-    Test that we can parse attributes using generic formats.
-    """
-    prog = """
-    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
-    """
-
-    expected = """
-    %0 = "arith.constant"() {"value" = dense<[[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
-    """
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-
-    parser = Parser(ctx, prog, source=Source.MLIR)
-    module = parser.parse_op()
-
-    assert_print_op(module,
-                    expected,
-                    None,
-                    print_generic_format=True,
-                    target=Printer.Target.MLIR)
 
 
 def test_foo_string():

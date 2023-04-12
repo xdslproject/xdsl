@@ -1,3 +1,5 @@
+from conftest import assert_print_op
+
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
@@ -7,8 +9,6 @@ from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    PatternRewriter, AnonymousRewritePattern,
                                    GreedyRewritePatternApplier)
 from xdsl.parser import Parser
-
-from conftest import assert_print_op
 from xdsl.utils.hints import isa
 
 

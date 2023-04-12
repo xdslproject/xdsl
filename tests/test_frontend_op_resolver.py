@@ -2,20 +2,21 @@ import pytest
 import xdsl.frontend.dialects.builtin as builtin
 
 from xdsl.dialects.arith import Addi, Constant, Mulf
-from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, i32, i64, f32, f64
+from xdsl.dialects.builtin import (Float32Type, Float64Type, IntegerType, i32,
+                                   i64, f32, f64)
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.op_resolver import OpResolver
 
 
 def test_raises_exception_on_unknown_op():
     with pytest.raises(FrontendProgramException) as err:
-        op = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "unknown")
+        _ = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "unknown")
     assert err.value.msg == "Internal failure: operation 'unknown' does not exist in module 'xdsl.frontend.dialects.arith'."
 
 
 def test_raises_exception_on_unknown_overload():
     with pytest.raises(FrontendProgramException) as err:
-        op = OpResolver.resolve_op_overload("__unknown__", builtin._Integer)
+        _ = OpResolver.resolve_op_overload("__unknown__", builtin._Integer)
     assert err.value.msg == "Internal failure: '_Integer' does not overload '__unknown__'."
 
 
