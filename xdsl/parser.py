@@ -2035,7 +2035,7 @@ class BaseParser(ABC):
         if self._current_token.kind != Token.Kind.COLON:
             if isinstance(value, float):
                 return FloatAttr(value, Float64Type())
-            return IntegerAttr(value, IntegerType(64))
+            return IntegerAttr(value, i64)
 
         # Otherwise, we parse the attribute type
         type = self._parse_attribute_type()
