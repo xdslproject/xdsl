@@ -22,15 +22,19 @@
 // CHECK-NEXT:     %4 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:     %5 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %6 = "arith.constant"() {"value" = 68 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%3, %3, %5, %6, %4, %4) ({
-// CHECK-NEXT:     ^1(%7 : index, %8 : index):
-// CHECK-NEXT:       %9 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %10 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:       %11 = "arith.addi"(%7, %9) : (index, index) -> index
-// CHECK-NEXT:       %12 = "arith.addi"(%8, %10) : (index, index) -> index
-// CHECK-NEXT:       %13 = "memref.load"(%2, %11, %12) : (memref<72x72xf64, strided<[72, 1]>>, index, index) -> f64
+// CHECK-NEXT:     "scf.parallel"(%3, %5, %4) ({
+// CHECK-NEXT:     ^1(%7 : index):
+// CHECK-NEXT:       "scf.for"(%3, %6, %4) ({
+// CHECK-NEXT:       ^2(%8 : index):
+// CHECK-NEXT:         %9 = "arith.constant"() {"value" = 3 : index} : () -> index
+// CHECK-NEXT:         %10 = "arith.constant"() {"value" = 4 : index} : () -> index
+// CHECK-NEXT:         %11 = "arith.addi"(%7, %9) : (index, index) -> index
+// CHECK-NEXT:         %12 = "arith.addi"(%8, %10) : (index, index) -> index
+// CHECK-NEXT:         %13 = "memref.load"(%2, %11, %12) : (memref<72x72xf64, strided<[72, 1]>>, index, index) -> f64
+// CHECK-NEXT:         "scf.yield"() : () -> ()
+// CHECK-NEXT:       }) : (index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
-// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 2, 2, 2, 0>} : (index, index, index, index, index, index) -> ()
+// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
