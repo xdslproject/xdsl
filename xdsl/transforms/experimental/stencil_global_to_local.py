@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar, Iterable, ClassVar
+from typing import TypeVar, Iterable, ClassVar, Callable
 from abc import ABC, abstractmethod
 from math import prod
 from xdsl.passes import ModulePass
@@ -325,20 +325,21 @@ class LowerHaloExchangeToMpi(RewritePattern):
 def generate_mpi_calls_for(
         source: SSAValue, exchanges: list[HaloExchangeDef], dtype: Attribute,
         strat: DomainDecompositionStrategy) -> Iterable[Operation]:
+    # call mpi init (this will be hoisted to function level)
+    init = mpi.Init()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
     req_cnt = arith.Constant.from_int_and_width(
         len(exchanges) * 2, builtin.i32)
     reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
-
     # get comm rank
     rank = mpi.CommRank.get()
     # define static tag of 0
     # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
-    yield from (req_cnt, reqs, rank, tag)
+    yield from (init, req_cnt, reqs, rank, tag)
 
     recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
 
@@ -391,7 +392,7 @@ def generate_mpi_calls_for(
 
             # Irecv call
             yield mpi.Irecv.get(unwrap_in.ptr, unwrap_in.len, unwrap_in.typ,
-                                neighbor_rank, tag, req_send)
+                                neighbor_rank, tag, req_recv)
             yield scf.Yield.get()
 
         def else_():
@@ -441,40 +442,90 @@ def generate_memcpy(source: SSAValue,
 
     """
     assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
+    x0 = arith.Constant.from_int_and_width(ex.offset[0], builtin.IndexType())
+    x0.result.name = "x0"
     y0 = arith.Constant.from_int_and_width(ex.offset[1], builtin.IndexType())
+    y0.result.name = "y0"
     x_len = arith.Constant.from_int_and_width(ex.size[0], builtin.IndexType())
+    x_len.result.name = "x_len"
     y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
+    y_len.result.name = "y_len"
     cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
     cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
 
+    # TODO: set to something like ex.size[1] < 8?
+    unroll_inner = False
+
     # enable to get verbose information on what buffers are exchanged:
-    #print("Generating memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
+    #print("Generating{} memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
+    #    " unrolled" if unrolled else "",
     #    ex.offset[0], ex.offset[0] + ex.size[0],
     #    ex.offset[1], ex.offset[1] + ex.size[1],
     #    '<-' if reverse else '->',
     #    0, ex.elem_count
     #))
 
-    indices = [
-        arith.Constant.from_int_and_width(i, builtin.IndexType())
-        for i in range(ex.offset[0], ex.offset[0] + ex.size[0])
-    ]
+    # only generate indices if we actually want to unroll
+    if unroll_inner:
+        indices = [
+            arith.Constant.from_int_and_width(i, builtin.IndexType())
+            for i in range(ex.offset[0], ex.offset[0] + ex.size[0])
+        ]
+    else:
+        indices = []
 
-    def loop_body(y: SSAValue):
-        linearized_y = arith.Muli.get(y, x_len)
-        y_with_offset = arith.Addi.get(y, y0)
-        yield from (linearized_y, y_with_offset)
+    def loop_body_unrolled(i: SSAValue):
+        """
+        Generates last loop unrolled (not using scf.for)
+        """
+        dest_idx = arith.Muli.get(i, x_len)
+        y = arith.Addi.get(i, y0)
+        yield from (dest_idx, y)
 
         for x in indices:
-            linearized_idx = arith.Addi.get(linearized_y, x)
+            linearized_idx = arith.Addi.get(dest_idx, x)
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
-                store = memref.Store.get(load, source, [x, y_with_offset])
+                store = memref.Store.get(load, source, [x, y])
             else:
-                load = memref.Load.get(source, [x, y_with_offset])
+                load = memref.Load.get(source, [x, y])
                 store = memref.Store.get(load, dest, [linearized_idx])
             yield from (linearized_idx, load, store)
         yield scf.Yield()
+
+    def loop_body_with_for(i: SSAValue):
+        """
+        Generates last loop as scf.for
+        """
+        dest_idx = arith.Muli.get(i, x_len)
+        y = arith.Addi.get(i, y0)
+        yield from (dest_idx, y)
+
+        def inner(j: SSAValue):
+            x = arith.Addi.get(j, x0)
+            linearized_idx = arith.Addi.get(dest_idx, j)
+            if reverse:
+                load = memref.Load.get(dest, [linearized_idx])
+                store = memref.Store.get(load, source, [x, y])
+            else:
+                load = memref.Load.get(source, [x, y])
+                store = memref.Store.get(load, dest, [linearized_idx])
+            yield from (x, linearized_idx, load, store)
+            # add an scf.yield at the end
+            yield scf.Yield()
+
+        yield scf.For.get(
+            cst0,
+            x_len,
+            cst1,
+            [],
+            [Block.from_callable([builtin.IndexType()], inner)]  # type: ignore
+        )
+
+        yield scf.Yield()
+
+    loop_body: Callable[[SSAValue], Iterable[
+        Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
 
     # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(cst0, y_len, cst1, [],
@@ -482,6 +533,7 @@ def generate_memcpy(source: SSAValue,
                                            loop_body))  # type: ignore
 
     return [
+        x0,
         y0,
         x_len,
         y_len,
@@ -499,13 +551,15 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
     func.func, and then places them *before* the op they appear in.
     """
     seen_ops: set[Operation]
+    has_init: set[func.FuncOp]
 
     def __init__(self):
         self.seen_ops = set()
+        self.has_init = set()
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc | mpi.CommRank
-                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp,
+                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp | mpi.Init,
                           rewriter: PatternRewriter, /):
         if op in self.seen_ops:
             return
@@ -527,6 +581,7 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
 
         # check that we did not run into "nowhere"
         assert parent is not None, "Expected MPI to be inside a func.FuncOp!"
+        assert isinstance(parent, func.FuncOp)  # this must be true now
 
         # check that we "ascended"
         if base == op:
@@ -534,6 +589,20 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
 
         if not can_loop_invariant_code_move(op):
             return
+
+        # if we move an mpi.init, generate a finalize()!
+        if isinstance(op, mpi.Init):
+            # ignore multiple inits
+            if parent in self.has_init:
+                rewriter.erase_matched_op()
+                return
+            self.has_init.add(parent)
+            # add a finalize() call to the end of the function
+            parent.regions[0].blocks[-1].insert_op(
+                mpi.Finalize(),
+                len(parent.regions[0].blocks[-1].ops) -
+                1,  # insert before return
+            )
 
         ops = list(collect_args_recursive(op))
         for found_ops in ops:
