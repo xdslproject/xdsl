@@ -407,6 +407,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             if len(store) > 1:
                 warn("Each stencil result should be stored only once.")
+                return
 
             cast = store[0].field.owner
 
