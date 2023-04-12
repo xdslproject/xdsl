@@ -995,6 +995,16 @@ class Block(IRNode):
         """Returns the number of operations in `self`."""
         return len(self.ops)
 
+    def insert_op_after(self, new_op: Operation,
+                        existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(new_op, index + 1)
+
+    def insert_op_before(self, new_op: Operation,
+                         existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(new_op, index)
+
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
@@ -1010,6 +1020,16 @@ class Block(IRNode):
         """
         for op in ops:
             self.add_op(op)
+
+    def insert_ops_before(self, ops: list[Operation],
+                          existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(ops, index)
+
+    def insert_ops_after(self, ops: list[Operation],
+                         existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(ops, index + 1)
 
     def insert_op(self,
                   ops: Operation | list[Operation],
