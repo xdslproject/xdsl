@@ -44,9 +44,9 @@ jobs:
         pip install -e .[extras]
         pip install nbval
 
-    - name: Install CI dependencies
-      run: |
-        pip install codecov
+    # - name: Install CI dependencies
+    #  run: |
+    #    pip install codecov
 
     - name: Cache binaries
       id: cache-binary
@@ -118,12 +118,12 @@ jobs:
         coverage report
         coverage xml
 
-    - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.10'
-      uses: codecov/codecov-action@v3
-      with:
-        fail_ci_if_error: true
-        verbose: true
-        directory: ${GITHUB_WORKSPACE}/../
-        files: coverage.xml
-        token: ${{ secrets.CODECOV_TOKEN }}
+    # - name: Upload coverage to Codecov
+    #   if: matrix.python-version == '3.10'
+    #   uses: codecov/codecov-action@v3
+    #   with:
+    #     fail_ci_if_error: true
+    #     verbose: true
+    #     directory: ${GITHUB_WORKSPACE}/../
+    #     files: coverage.xml
+    #     token: ${{ secrets.CODECOV_TOKEN }}
