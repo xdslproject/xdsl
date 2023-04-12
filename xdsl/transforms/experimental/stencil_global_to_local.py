@@ -510,9 +510,13 @@ def generate_memcpy(source: SSAValue,
             # add an scf.yield at the end
             yield scf.Yield()
 
-        yield scf.For.get(cst0, x_len, cst1, [],
-                          [Block.from_callable([builtin.IndexType()], inner)
-                           ])  # type: ignore
+        yield scf.For.get(
+            cst0,
+            x_len,
+            cst1,
+            [],
+            [Block.from_callable([builtin.IndexType()], inner)]  # type: ignore
+        )
 
         yield scf.Yield()
 
