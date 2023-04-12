@@ -27,6 +27,7 @@ jobs:
 
     - name: Python Setup
       run: |
+        apt update
         apt install --no-install-recommends --yes python${{matrix.python-version}}
         python -m pip install pip
 
