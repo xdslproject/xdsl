@@ -192,3 +192,11 @@ def test_strided_constructor(strides: ArrayAttr[IntAttr | NoneAttr]
 def test_complex_init():
     assert ComplexType(f32) == ComplexType.new([f32])
     assert ComplexType(i32) == ComplexType.new([i32])
+
+
+def test_dense_as_tuple():
+    floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
+    assert floats.as_tuple() == (3.14159, 2.71828)
+
+    ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
+    assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)

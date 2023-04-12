@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import itertools
+import math
 import re
 import sys
 import traceback
@@ -21,7 +22,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
     Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
     StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
+    UnregisteredAttr, RankedVectorOrTensorOf, VectorType, SymbolRefAttr,
     DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
     UnitAttr, i64, StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
@@ -1640,20 +1641,65 @@ class BaseParser(ABC):
 
             return parsers.get(name.text, not_implemented)(name)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> Attribute | None:
-        err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"  # noqa
-        self.parse_characters("<", err_msg)
-        info = list(self._parse_builtin_dense_attr_args())
-        self.parse_characters(">", err_msg)
-        self.parse_characters(":", err_msg)
+    def _parse_builtin_dense_attr(self,
+                                  _name: Span) -> DenseIntOrFPElementsAttr:
+        self._synchronize_lexer_and_tokenizer()
+        self.parse_punctuation('<', ' in dense attribute')
+
+        # The flatten list of elements
+        values: list[BaseParser._TensorLiteralElement]
+        # The dense shape.
+        # If it is `None`, then there is no values.
+        # If it is `[]`, then this is a splat attribute, meaning it has the same
+        # value everywhere.
+        shape: list[int] | None
+        if self._current_token.text == '>':
+            values, shape = [], None
+        else:
+            values, shape = self._parse_tensor_literal()
+        self.parse_punctuation('>', ' in dense attribute')
+
+        # Parse the dense type.
+        self.parse_punctuation(':', ' in dense attribute')
+        self._synchronize_lexer_and_tokenizer()
         type = self.expect(self.try_parse_type,
-                           "Dense attribute must be typed!")
+                           'Dense attribute must be typed!')
+        self._synchronize_lexer_and_tokenizer()
 
-        if not isa(type, VectorOrTensorOf[Attribute]):
+        # Check that the type is correct.
+        if not isa(
+                type, RankedVectorOrTensorOf[IntegerType]
+                | RankedVectorOrTensorOf[IndexType]
+                | RankedVectorOrTensorOf[AnyFloat]):
+            self.raise_error('Expected vector or tensor type of '
+                             'integer, index, or float type')
+
+        # Check that the shape matches the data when given a shaped data.
+        type_shape = [dim.value.data for dim in type.shape.data]
+        num_values = math.prod(type_shape)
+
+        if shape is None and num_values != 0:
+            self.raise_error('Expected at least one element in the '
+                             'dense literal, but got None')
+        if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
-                "Expected vector or tensor type for dense attribute")
+                f'Shape mismatch in dense literal. Expected {type_shape} '
+                f'shape from the type, but got {shape} shape.')
+        if any(dim == -1 for dim in type_shape):
+            self.raise_error(
+                f'Dense literal attribute should have a static shape.')
 
-        return DenseIntOrFPElementsAttr.from_list(type, info)
+        element_type = type.element_type
+        # Convert list of elements to a list of values.
+        if shape != []:
+            data_values = [
+                value.to_type(self, element_type) for value in values
+            ]
+        else:
+            assert len(values) == 1, "Fatal error in parser"
+            data_values = [values[0].to_type(self, element_type)] * num_values
+
+        return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
         self.parse_characters("<", "Opaque attribute must be parametrized")
@@ -1765,6 +1811,130 @@ class BaseParser(ABC):
 
         self._synchronize_lexer_and_tokenizer()
         return attr_def(name.text, False, contents)
+
+    @dataclass
+    class _TensorLiteralElement:
+        """
+        The representation of a tensor literal element used during parsing.
+        It is either an integer, float, or boolean. It also has a check if
+        the element has a negative sign (it is already applied to the value).
+        This class is used to parse a tensor literal before the tensor literal
+        type is known
+        """
+        is_negative: bool
+        value: int | float | bool
+        """
+        An integer, float, boolean, integer complex, or float complex value.
+        The tuple should be of type `_TensorLiteralElement`, but python does
+        not allow classes to self-reference.
+        """
+        span: Span
+
+        def to_int(self,
+                   parser: BaseParser,
+                   allow_negative: bool = True,
+                   allow_booleans: bool = True) -> int:
+            """
+            Convert the element to an int value, possibly disallowing negative
+            values. Raises an error if the type is compatible.
+            """
+            if self.is_negative and not allow_negative:
+                parser.raise_error('Expected non-negative integer values',
+                                   at_position=self.span)
+            if isinstance(self.value, bool) and not allow_booleans:
+                parser.raise_error(
+                    'Boolean values are only allowed for i1 types',
+                    at_position=self.span)
+            if not isinstance(self.value, bool | int):
+                parser.raise_error('Expected integer value',
+                                   at_position=self.span)
+            if self.is_negative:
+                return -int(self.value)
+            return int(self.value)
+
+        def to_float(self, parser: BaseParser) -> float:
+            """
+            Convert the element to a float value. Raises an error if the type
+            is compatible.                    
+            """
+            if not isinstance(self.value, int | float):
+                parser.raise_error('Expected float value',
+                                   at_position=self.span)
+            if self.is_negative:
+                return -float(self.value)
+            return float(self.value)
+
+        def to_type(self, parser: BaseParser,
+                    type: AnyFloat | IntegerType | IndexType):
+            if isinstance(type, AnyFloat):
+                return self.to_float(parser)
+            elif isinstance(type, IntegerType):
+                return self.to_int(parser,
+                                   type.signedness.data != Signedness.UNSIGNED,
+                                   type.width.data == 1)
+            elif isinstance(type, IndexType):
+                return self.to_int(parser,
+                                   allow_negative=True,
+                                   allow_booleans=False)
+            else:
+                assert False, 'fatal error in parser'
+
+    def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
+        """
+        Parse a tensor literal element, which can be a boolean, an integer
+        literal, or a float literal.
+        """
+        # boolean case
+        if self._current_token.text == 'true':
+            token = self._consume_token(Token.Kind.BARE_IDENT)
+            return self._TensorLiteralElement(False, True, token.span)
+        if self._current_token.text == 'false':
+            token = self._consume_token(Token.Kind.BARE_IDENT)
+            return self._TensorLiteralElement(False, False, token.span)
+
+        # checking for negation
+        is_negative = False
+        if self._parse_optional_token(Token.Kind.MINUS) is not None:
+            is_negative = True
+
+        # Integer and float case
+        if self._current_token.kind == Token.Kind.FLOAT_LIT:
+            token = self._consume_token(Token.Kind.FLOAT_LIT)
+            value = token.get_float_value()
+        elif self._current_token.kind == Token.Kind.INTEGER_LIT:
+            token = self._consume_token(Token.Kind.INTEGER_LIT)
+            value = token.get_int_value()
+        else:
+            self.raise_error(
+                "Expected either a float, integer, or complex literal")
+
+        if is_negative:
+            value = -value
+        return self._TensorLiteralElement(is_negative, value, token.span)
+
+    def _parse_tensor_literal(
+            self) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
+        """
+        Parse a tensor literal, and returns its flatten data and its shape.
+        
+        For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
+        the data, and [2, 3] for the shape.
+        """
+        if self._current_token.kind == Token.Kind.L_SQUARE:
+            res = self.parse_comma_separated_list(self.Delimiter.SQUARE,
+                                                  self._parse_tensor_literal)
+            if len(res) == 0:
+                return [], [0]
+            sub_literal_shape = res[0][1]
+            if any(r[1] != sub_literal_shape for r in res):
+                self.raise_error(
+                    "Tensor literal has inconsistent ranks between elements")
+            shape = [len(res)] + sub_literal_shape
+            values = [elem for sub_list in res for elem in sub_list[0]]
+            return values, shape
+        else:
+            element = self._parse_tensor_literal_element()
+            return [element], []
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """

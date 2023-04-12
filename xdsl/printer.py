@@ -418,18 +418,16 @@ class Printer:
         if (isinstance(attribute, DenseIntOrFPElementsAttr)
                 and self.target == self.Target.MLIR):
 
+            def print_one_elem(val: Attribute):
+                if isinstance(val, IntegerAttr | FloatAttr):
+                    self.print(val.value.data)
+                else:
+                    raise Exception("unexpected attribute type "
+                                    "in DenseIntOrFPElementsAttr: "
+                                    f"{type(val)}")
+
             def print_dense_list(array: Sequence[AnyIntegerAttr]
                                  | Sequence[AnyFloatAttr], shape: List[int]):
-
-                def print_one_elem(val: Attribute):
-                    if isinstance(val, IntegerAttr):
-                        self.print(val.value.data)
-                    elif isinstance(val, FloatAttr):
-                        self.print(val.value.data)
-                    else:
-                        raise Exception("unexpected attribute type "
-                                        "in DenseIntOrFPElementsAttr: "
-                                        f"{type(val)}")
 
                 self.print('[')
                 if len(shape) > 1:
@@ -447,7 +445,12 @@ class Printer:
                 len(data)
             ]
             assert shape is not None, "If shape is complete, then it cannot be None"
-            print_dense_list(data, shape)
+            if len(data) == 0:
+                pass
+            elif data.count(data[0]) == len(data):
+                print_one_elem(data[0])
+            else:
+                print_dense_list(data, shape)
             self.print("> : ")
             self.print(attribute.type)
             return
