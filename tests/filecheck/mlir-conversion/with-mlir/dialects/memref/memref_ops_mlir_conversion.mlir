@@ -21,7 +21,7 @@
 
 
 // CHECK: "builtin.module"() ({
-// CHECK-NEXT: "memref.global"() {"initial_value" = dense<[0]> : tensor<1xindex>, "sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>} : () -> ()
+// CHECK-NEXT: "memref.global"() {"initial_value" = dense<0> : tensor<1xindex>, "sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>} : () -> ()
 // CHECK-NEXT: "func.func"() ({
 // CHECK-NEXT: %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
 // CHECK-NEXT: %1 = "arith.constant"() {"value" = 0 : index} : () -> index
