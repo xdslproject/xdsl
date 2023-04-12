@@ -331,7 +331,7 @@ class ParserCommons:
     decimal_literal = re.compile(r"[+-]?([1-9][0-9]*)")
     string_literal = re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"')
     float_literal = re.compile(r"[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?")
-    bare_id = re.compile(r"[A-Za-z_][\w$.]+")
+    bare_id = re.compile(r"[A-Za-z_][\w$.]*")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     suffix_id = re.compile(r"([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     """
