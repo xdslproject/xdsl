@@ -28,7 +28,7 @@ jobs:
     - name: Python Setup
       run: |
         apt update
-        apt install --no-install-recommends --yes python${{matrix.python-version}} python3-pip
+        apt install --no-install-recommends --yes python${{matrix.python-version}} python3-pip python-is-python3
 
     - name: Upgrade pip
       run: |
