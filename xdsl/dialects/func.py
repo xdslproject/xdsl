@@ -41,7 +41,7 @@ class FuncOp(Operation):
         }
         op = FuncOp.build(
             attributes=attributes,
-            regions=[Region([Block.from_callable(input_types, func)])])
+            regions=[Region(Block.from_callable(input_types, func))])
         return op
 
     @staticmethod

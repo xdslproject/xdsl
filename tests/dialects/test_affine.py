@@ -53,11 +53,10 @@ def test_for_mismatch_blockargs():
     }
     b = Block(arg_types=(IndexType(), ))
     inp = b.args[0]
-    f = For.create(
-        operands=[inp],
-        regions=[Region([Block.from_callable([], lambda *args: [])])],
-        attributes=attributes,
-        result_types=[IndexType()])
+    f = For.create(operands=[inp],
+                   regions=[Region(Block.from_callable([], lambda *args: []))],
+                   attributes=attributes,
+                   result_types=[IndexType()])
     with pytest.raises(Exception) as e:
         f.verify()
     assert e.value.args[

@@ -182,7 +182,7 @@ class IRegion:
             # This will use the already created Block and populate it
             block.to_mutable(value_mapping=value_mapping,
                              block_mapping=block_mapping)
-        return Region(mutable_blocks)
+        return Region(*mutable_blocks)
 
 
 @dataclass(frozen=True)

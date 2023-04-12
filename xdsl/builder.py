@@ -50,7 +50,7 @@ class Builder:
         block = Block()
         builder = Builder(block)
         func(builder)
-        return Region([block])
+        return Region(block)
 
     @staticmethod
     def _region_args(
@@ -70,7 +70,7 @@ class Builder:
 
             func(builder, block.args)
 
-            region = Region([block])
+            region = Region(block)
             return region
 
         return wrapper
@@ -126,7 +126,7 @@ class Builder:
         with _ImplicitBuilder(builder):
             func()
 
-        return Region([block])
+        return Region(block)
 
     @staticmethod
     def _implicit_region_args(
@@ -147,7 +147,7 @@ class Builder:
             with _ImplicitBuilder(builder):
                 func(block.args)
 
-            region = Region([block])
+            region = Region(block)
             return region
 
         return wrapper

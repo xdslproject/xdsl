@@ -1135,10 +1135,7 @@ class Region(IRNode):
     parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
-    def __init__(self,
-                 blocks: Iterable[Block] = (),
-                 *,
-                 parent: Operation | None = None):
+    def __init__(self, *blocks: Block, parent: Operation | None = None):
         super().__init__(self)
         self.parent = parent
         self.blocks = []
@@ -1164,7 +1161,7 @@ class Region(IRNode):
         region.add_block(block)
         return region
 
-    @deprecated('Please use Region(blocks, parent=None)')
+    @deprecated('Please use Region(*blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
         region = Region()
@@ -1172,7 +1169,7 @@ class Region(IRNode):
             region.add_block(block)
         return region
 
-    @deprecated('Please use Region(blocks) or Region([Block(ops)])')
+    @deprecated('Please use Region(*blocks) or Region(Block(ops))')
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
@@ -1181,7 +1178,7 @@ class Region(IRNode):
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
-                return Region(cast(list[Block], arg))
+                return Region(*cast(list[Block], arg))
             if isinstance(arg[0], Operation):
                 return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")

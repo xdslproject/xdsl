@@ -1040,7 +1040,7 @@ def irdl_build_region_arg(r: _RegionArg) -> Region:
     else:
         blocks = cast(Sequence[Block], r)
 
-    return Region(blocks)
+    return Region(*blocks)
 
 
 def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
@@ -1053,10 +1053,10 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         return []
     elif isinstance(r[0], Operation):
         ops = cast(Sequence[Operation], r)
-        return Region([Block(ops)])
+        return Region(Block(ops))
     elif isinstance(r[0], Block):
         blocks = cast(Sequence[Block], r)
-        return Region(blocks)
+        return Region(*blocks)
     else:
         return [
             irdl_build_region_arg(_r) for _r in cast(Sequence[_RegionArg], r)

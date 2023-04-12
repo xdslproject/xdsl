@@ -21,7 +21,7 @@ def test_ops_accessor():
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -45,7 +45,7 @@ def test_ops_accessor_II():
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -91,8 +91,8 @@ def test_ops_accessor_III():
     block1 = Block([c, d, f])
     block2 = Block()
 
-    region0 = Region([block0, block1])
-    region1 = Region([block2])
+    region0 = Region(block0, block1)
+    region1 = Region(block2)
 
     with pytest.raises(ValueError):
         region0.ops

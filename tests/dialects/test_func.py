@@ -57,7 +57,7 @@ def test_func_II():
     # Create Blocks and Regions
     block0 = Block([a, b, e])
     block1 = Block([c, d, f])
-    region0 = Region([block0, block1])
+    region0 = Region(block0, block1)
 
     # Use this region to create a func0
     func1 = FuncOp.from_region("func1", [], [], region0)
@@ -73,7 +73,7 @@ def test_func_II():
 
 
 def test_wrong_blockarg_types():
-    r = Region([Block.from_callable([i32], lambda *x: [Addi.get(x[0], x[0])])])
+    r = Region(Block.from_callable([i32], lambda *x: [Addi.get(x[0], x[0])]))
     f = FuncOp.from_region("f", [i32, i32], [], r)
     with pytest.raises(VerifyException) as e:
         f.verify()
@@ -105,7 +105,7 @@ def test_call():
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
-    region = Region([block0])
+    region = Region(block0)
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
@@ -154,7 +154,7 @@ def test_call_II():
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
-    region = Region([block0])
+    region = Region(block0)
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body

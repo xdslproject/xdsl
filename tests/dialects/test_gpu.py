@@ -193,7 +193,7 @@ def test_lane_id():
 
 
 def test_launch():
-    body = Region([])
+    body = Region()
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
     gridSize: list[Operation | SSAValue] = [ten, ten, ten]
     blockSize: list[Operation | SSAValue] = [ten, ten, ten]

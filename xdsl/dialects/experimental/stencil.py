@@ -444,7 +444,7 @@ class ApplyOp(Operation):
 
         return ApplyOp.build(operands=[list(args)],
                              attributes=attributes,
-                             regions=[Region([body])],
+                             regions=[Region(body)],
                              result_types=[[
                                  TempType.from_shape([-1] * result_rank,
                                                      field_t.element_type)

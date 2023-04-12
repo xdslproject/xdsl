@@ -144,11 +144,11 @@ class FuncOp(Operation):
                       /,
                       private: bool = False):
         ftype = FunctionType.from_lists(input_types, return_types)
-        return FuncOp.from_region(
-            name,
-            ftype,
-            Region([Block.from_callable(input_types, func)]),
-            private=private)
+        return FuncOp.from_region(name,
+                                  ftype,
+                                  Region(Block.from_callable(
+                                      input_types, func)),
+                                  private=private)
 
     def verify_(self):
         # Check that the returned value matches the type of the function
