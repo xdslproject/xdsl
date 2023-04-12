@@ -419,9 +419,7 @@ class Printer:
                 and self.target == self.Target.MLIR):
 
             def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print(val.value.data)
-                elif isinstance(val, FloatAttr):
+                if isinstance(val, IntegerAttr | FloatAttr):
                     self.print(val.value.data)
                 else:
                     raise Exception("unexpected attribute type "

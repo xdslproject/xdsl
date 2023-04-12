@@ -1928,7 +1928,7 @@ class BaseParser(ABC):
             sub_literal_shape = res[0][1]
             if any(r[1] != sub_literal_shape for r in res):
                 self.raise_error(
-                    "Tensor literal has inconsistent ranks betweenelements")
+                    "Tensor literal has inconsistent ranks between elements")
             shape = [len(res)] + sub_literal_shape
             values = [elem for sub_list in res for elem in sub_list[0]]
             return values, shape
