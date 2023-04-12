@@ -611,9 +611,12 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
-VectorOrTensorOf: TypeAlias = (VectorType[AttributeInvT]
-                               | TensorType[AttributeInvT]
-                               | UnrankedTensorType[AttributeInvT])
+VectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
+                               | TensorType[AttributeCovT]
+                               | UnrankedTensorType[AttributeCovT])
+
+RankedVectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
+                                     | TensorType[AttributeCovT])
 
 
 @dataclass
@@ -675,9 +678,9 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    type: ParameterDef[VectorOrTensorOf[IntegerType]
-                       | VectorOrTensorOf[IndexType]
-                       | VectorOrTensorOf[AnyFloat]]
+    type: ParameterDef[RankedVectorOrTensorOf[IntegerType]
+                       | RankedVectorOrTensorOf[IndexType]
+                       | RankedVectorOrTensorOf[AnyFloat]]
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
@@ -705,7 +708,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_index(
-        type: VectorOrTensorOf[IndexType],
+        type: RankedVectorOrTensorOf[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
@@ -720,7 +723,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_int(
-        type: VectorOrTensorOf[IntegerType],
+        type: RankedVectorOrTensorOf[IntegerType],
         data: Sequence[int] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
@@ -735,7 +738,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_float(
-        type: VectorOrTensorOf[AnyFloat],
+        type: RankedVectorOrTensorOf[AnyFloat],
         data: Sequence[int | float] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int | float):
@@ -751,7 +754,8 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @overload
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute], data: Sequence[int]
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        data: Sequence[int]
         | Sequence[IntegerAttr[IndexType]] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         ...
@@ -759,30 +763,31 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @overload
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute],
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         ...
 
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute], data: Sequence[int | float]
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        data: Sequence[int | float]
         | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            new_type = cast(VectorOrTensorOf[IntegerType], type)
+            new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
                             data)
             return DenseIntOrFPElementsAttr.create_dense_int(
                 new_type, new_data)
         elif isinstance(type.element_type, IndexType):
-            new_type = cast(VectorOrTensorOf[IndexType], type)
+            new_type = cast(RankedVectorOrTensorOf[IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
                             data)
             return DenseIntOrFPElementsAttr.create_dense_index(
                 new_type, new_data)
         elif isinstance(type.element_type, AnyFloat):
-            new_type = cast(VectorOrTensorOf[AnyFloat], type)
+            new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
             new_data = cast(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(
@@ -795,7 +800,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             data: List[int] | List[float],
             typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyVectorType.from_element_type_and_shape(typ, [len(data)])
+        t = VectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
