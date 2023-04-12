@@ -361,10 +361,6 @@ class StencilTypeConversionFuncOp(RewritePattern):
                 offsets, sizes, [1] * len(sizes))
             rewriter.replace_op(cast, [new_cast, subview])
 
-            # returns = [r for r, c in self.return_targets.items() if c[0] == cast]
-            # for r in returns:
-            #     self.return_targets[r][0] = subview
-
             for r, c in self.return_targets.items():
                 for i in range(len(c)):
                     if c[i] == cast:
