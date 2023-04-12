@@ -32,45 +32,35 @@
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:   ^0(%0 : f64, %1 : memref<?x?x?xf64>):
 // CHECK-NEXT:     %2 = "memref.cast"(%1) : (memref<?x?x?xf64>) -> memref<70x70x70xf64>
-// CHECK-NEXT:     %3 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:     %4 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %5 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %3 = "memref.subview"(%2) {"static_offsets" = array<i64: 4, 5, 6>, "static_sizes" = array<i64: 64, 64, 60>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<70x70x70xf64>) -> memref<64x64x60xf64, strided<[4900, 70, 1], offset: 19956>>
+// CHECK-NEXT:     %4 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:     %5 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:     %6 = "arith.constant"() {"value" = 64 : index} : () -> index
-// CHECK-NEXT:     %7 = "arith.constant"() {"value" = 60 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%3, %3, %3, %5, %6, %7, %4, %4, %4) ({
-// CHECK-NEXT:     ^1(%8 : index, %9 : index, %10 : index):
-// CHECK-NEXT:       %11 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64
-// CHECK-NEXT:       %12 = "arith.addf"(%0, %11) : (f64, f64) -> f64
-// CHECK-NEXT:       %13 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %14 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %15 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %16 = "arith.addi"(%8, %13) : (index, index) -> index
-// CHECK-NEXT:       %17 = "arith.addi"(%9, %14) : (index, index) -> index
-// CHECK-NEXT:       %18 = "arith.addi"(%10, %15) : (index, index) -> index
-// CHECK-NEXT:       "memref.store"(%12, %2, %16, %17, %18) : (f64, memref<70x70x70xf64>, index, index, index) -> ()
+// CHECK-NEXT:     %7 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %8 = "arith.constant"() {"value" = 60 : index} : () -> index
+// CHECK-NEXT:     "scf.parallel"(%4, %4, %4, %6, %7, %8, %5, %5, %5) ({
+// CHECK-NEXT:     ^1(%9 : index, %10 : index, %11 : index):
+// CHECK-NEXT:       %12 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64
+// CHECK-NEXT:       %13 = "arith.addf"(%0, %12) : (f64, f64) -> f64
+// CHECK-NEXT:       "memref.store"(%13, %3, %9, %10, %11) : (f64, memref<64x64x60xf64, strided<[4900, 70, 1], offset: 19956>>, index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"function_type" = (f64, memref<?x?x?xf64>) -> (), "sym_name" = "stencil_float64_arg"} : () -> ()
 // CHECK-NEXT:   "func.func"() ({
-// CHECK-NEXT:   ^2(%19 : f32, %20 : memref<?x?x?xf32>):
-// CHECK-NEXT:     %21 = "memref.cast"(%20) : (memref<?x?x?xf32>) -> memref<70x70x70xf32>
-// CHECK-NEXT:     %22 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:     %23 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %24 = "arith.constant"() {"value" = 64 : index} : () -> index
-// CHECK-NEXT:     %25 = "arith.constant"() {"value" = 64 : index} : () -> index
-// CHECK-NEXT:     %26 = "arith.constant"() {"value" = 60 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%22, %22, %22, %24, %25, %26, %23, %23, %23) ({
-// CHECK-NEXT:     ^3(%27 : index, %28 : index, %29 : index):
-// CHECK-NEXT:       %30 = "arith.constant"() {"value" = 1.0 : f32} : () -> f32
-// CHECK-NEXT:       %31 = "arith.addf"(%19, %30) : (f32, f32) -> f32
-// CHECK-NEXT:       %32 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %33 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %34 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %35 = "arith.addi"(%27, %32) : (index, index) -> index
-// CHECK-NEXT:       %36 = "arith.addi"(%28, %33) : (index, index) -> index
-// CHECK-NEXT:       %37 = "arith.addi"(%29, %34) : (index, index) -> index
-// CHECK-NEXT:       "memref.store"(%31, %21, %35, %36, %37) : (f32, memref<70x70x70xf32>, index, index, index) -> ()
+// CHECK-NEXT:   ^2(%14 : f32, %15 : memref<?x?x?xf32>):
+// CHECK-NEXT:     %16 = "memref.cast"(%15) : (memref<?x?x?xf32>) -> memref<70x70x70xf32>
+// CHECK-NEXT:     %17 = "memref.subview"(%16) {"static_offsets" = array<i64: 4, 5, 6>, "static_sizes" = array<i64: 64, 64, 60>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<70x70x70xf32>) -> memref<64x64x60xf32, strided<[4900, 70, 1], offset: 19956>>
+// CHECK-NEXT:     %18 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:     %19 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:     %20 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %21 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %22 = "arith.constant"() {"value" = 60 : index} : () -> index
+// CHECK-NEXT:     "scf.parallel"(%18, %18, %18, %20, %21, %22, %19, %19, %19) ({
+// CHECK-NEXT:     ^3(%23 : index, %24 : index, %25 : index):
+// CHECK-NEXT:       %26 = "arith.constant"() {"value" = 1.0 : f32} : () -> f32
+// CHECK-NEXT:       %27 = "arith.addf"(%14, %26) : (f32, f32) -> f32
+// CHECK-NEXT:       "memref.store"(%27, %17, %23, %24, %25) : (f32, memref<64x64x60xf32, strided<[4900, 70, 1], offset: 19956>>, index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
