@@ -30,5 +30,3 @@ RUN cd llvm-project/build \
 FROM ubuntu:22.04 as install
 RUN --mount=from=build,target=install,source=llvm-project/build/install,rw \
     cp -R install/* /usr/local
-RUN apt update \
- && apt install --no-install-recommends --yes openssl
