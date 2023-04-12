@@ -400,12 +400,15 @@ def return_target_analysis(module: builtin.ModuleOp):
 
         return_targets[op] = []
         for res in list(apply.res):
-            if (len(res.uses) > 1) or (not isinstance(
-                (store := list(res.uses)[0].operation), StoreOp)):
-                warn("Only single store for a single return op result atm")
-                return
+            store = [
+                use.operation for use in list(res.uses)
+                if isinstance(use.operation, StoreOp)
+            ]
 
-            cast = store.field.owner
+            if len(store) > 1:
+                warn("Each stencil result should be stored only once.")
+
+            cast = store[0].field.owner
 
             assert isinstance(cast, CastOp)
 
