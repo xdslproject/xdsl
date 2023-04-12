@@ -405,8 +405,8 @@ def generate_mpi_calls_for(
         yield scf.If.get(
             cond_val,
             [],
-            Region.from_operation_list(list(then())),
-            Region.from_operation_list(list(else_())),
+            Region([Block(then())]),
+            Region([Block(else_())]),
         )
 
     # wait for all calls to complete
@@ -417,15 +417,17 @@ def generate_mpi_calls_for(
         yield scf.If.get(
             cond_val,
             [],
-            Region.from_operation_list(
-                list(
-                    generate_memcpy(
-                        source,
-                        ex.source_area(),
-                        buffer.memref,
-                        reverse=True,
-                    )) + [scf.Yield.get()]),
-            Region.from_operation_list([scf.Yield.get()]),
+            Region([
+                Block(
+                    list(
+                        generate_memcpy(
+                            source,
+                            ex.source_area(),
+                            buffer.memref,
+                            reverse=True,
+                        )) + [scf.Yield.get()])
+            ]),
+            Region([Block([scf.Yield.get()])]),
         )
 
 

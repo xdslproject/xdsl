@@ -128,8 +128,7 @@ def test_op_clone():
 def test_op_clone_with_regions():
     cond = Constant.from_int_and_width(1, 1)
     a = Constant.from_int_and_width(1, 32)
-    if_ = If.get(cond, [], Region.from_operation_list([a]),
-                 Region.from_operation_list([a.clone()]))
+    if_ = If.get(cond, [], Region([Block([a])]), Region([Block([a.clone()])]))
 
     if2 = if_.clone()
 

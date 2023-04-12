@@ -3,7 +3,7 @@ from conftest import assert_print_op
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
-from xdsl.ir import MLContext, Region, Operation
+from xdsl.ir import Block, MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
                                    PatternRewriter, AnonymousRewritePattern,
@@ -871,8 +871,7 @@ def test_move_region_contents_to_new_regions():
         assert isinstance(old_if, If)
         new_region = rewriter.move_region_contents_to_new_regions(
             old_if.regions[0])
-        new_if = If.get(old_if.cond, [], new_region,
-                        Region.from_operation_list([]))
+        new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
         rewriter.insert_op_after(new_if, op.ops[1])
 
     rewrite_and_compare(
