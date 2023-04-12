@@ -2281,11 +2281,10 @@ class Parser(ABC):
         if not self.tokenizer.starts_with('"'):
             return None
 
-        with self.backtracking("string literal"):
-            literal = self.try_parse_string_literal()
-            if literal is None:
-                self.raise_error("Invalid string literal")
-            return StringAttr(literal.string_contents)
+        literal = self.try_parse_string_literal()
+        if literal is None:
+            self.raise_error("Invalid string literal")
+        return StringAttr(literal.string_contents)
 
     def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
@@ -2359,8 +2358,8 @@ class Parser(ABC):
     def try_parse_function_type(self) -> FunctionType | None:
         if not self.tokenizer.starts_with("("):
             return None
-        with self.backtracking("function type"):
-            return self.parse_function_type()
+
+        return self.parse_function_type()
 
     def _parse_builtin_type_with_name(self, name: Span):
         """
