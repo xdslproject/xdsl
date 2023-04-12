@@ -297,6 +297,24 @@ def test_parse_optional_punctuation_fail(
     assert parser.parse_optional_punctuation(punctuation) is None
 
 
+@pytest.mark.parametrize("text, expected_value", [
+    ("true", True),
+    ("false", False),
+    ("True", None),
+    ("False", None),
+])
+def test_parse_boolean(text: str, expected_value: bool | None):
+    parser = MLIRParser(MLContext(), text)
+    assert parser.parse_optional_boolean() == expected_value
+
+    parser = MLIRParser(MLContext(), text)
+    if expected_value is None:
+        with pytest.raises(ParseError):
+            parser.parse_boolean()
+    else:
+        assert parser.parse_boolean() == expected_value
+
+
 @pytest.mark.parametrize("text, expected_value, allow_boolean, allow_negative",
                          [
                              ("42", 42, False, False),

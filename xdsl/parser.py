@@ -765,6 +765,29 @@ class BaseParser(ABC):
 
         return items
 
+    def parse_optional_boolean(self) -> bool | None:
+        """
+        Parse a boolean, if present, with the format `true` or `false`.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind == Token.Kind.BARE_IDENT:
+            if self._current_token.text == 'true':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return True
+            elif self._current_token.text == 'false':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return False
+        return None
+
+    def parse_boolean(self, context_msg: str = '') -> bool:
+        """
+        Parse a boolean with the format `true` or `false`.
+        """
+        return self.expect(lambda: self.parse_optional_boolean(),
+                           'Expected boolean literal' + context_msg)
+
     def parse_optional_integer(self,
                                allow_boolean: bool = True,
                                allow_negative: bool = True) -> int | None:
@@ -776,16 +799,8 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         # Parse true and false if needed
         if allow_boolean:
-            if self._current_token.kind == Token.Kind.BARE_IDENT:
-                if self._current_token.text == 'true':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 1
-                elif self._current_token.text == 'false':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 0
-                return None
+            if (boolean := self.parse_optional_boolean()) is not None:
+                return 1 if boolean else 0
 
         # Parse negative numbers if required
         is_negative = False
@@ -2013,13 +2028,11 @@ class BaseParser(ABC):
 
     def try_parse_builtin_boolean_attr(
             self) -> IntegerAttr[IntegerType | IndexType] | None:
-        span = self.try_parse_boolean_literal()
-
-        if span is None:
-            return None
-
-        int_val = ["false", "true"].index(span.text)
-        return IntegerAttr.from_params(int_val, IntegerType(1))
+        self._synchronize_lexer_and_tokenizer()
+        if (value := self.parse_optional_boolean()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerAttr.from_params(1 if value else 0, IntegerType(1))
+        return None
 
     def try_parse_builtin_str_attr(self):
         if not self.tokenizer.starts_with('"'):
