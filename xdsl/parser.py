@@ -828,9 +828,7 @@ class BaseParser(ABC):
         Parse an integer or float literal, if present.
         """
 
-        is_negative = False
-        if self._parse_optional_token(Token.Kind.MINUS) is not None:
-            is_negative = True
+        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
 
         if (value :=
                 self.parse_optional_integer(allow_boolean=False,
