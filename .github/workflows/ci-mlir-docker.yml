@@ -34,7 +34,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          file: Dockerfile-MLIR
+          file: .github/workflows/Dockerfile-MLIR
           build-args: |
             MLIR_VERSION=${{env.MLIR_VERSION}}
           push: true
