@@ -398,6 +398,7 @@ def return_target_analysis(module: builtin.ModuleOp):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
+        return_targets[op] = []
         for res in list(apply.res):
             if (len(res.uses) > 1) or (not isinstance(
                 (store := list(res.uses)[0].operation), StoreOp)):
@@ -408,10 +409,7 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             assert isinstance(cast, CastOp)
 
-            if return_targets.get(op):
-                return_targets[op].append(cast)
-            else:
-                return_targets[op] = [cast]
+            return_targets[op].append(cast)
 
     module.walk(map_returns)
 
