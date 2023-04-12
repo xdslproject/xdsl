@@ -1,0 +1,43 @@
+name: Build MLIR container
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    env:
+        IMAGE: ghcr.io/xdslproject/xdsl/MLIR
+        CACHE: ghcr.io/xdslproject/xdsl/MLIR-cache
+        MLIR_VERSION: 89996621de073e43de7bed552037b10d2a0fdf80
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          file: Dockerfile-MLIR
+          build-args: |
+            MLIR_VERSION=${{env.MLIR_VERSION}}
+          push: true
+          tags: "${{env.IMAGE}}:${{env.MLIR_VERSION}}"
+          cache-from: type=registry,ref=${{env.CACHE}}:${{env.MLIR_VERSION}}
+          cache-to: type=registry,ref=${{env.CACHE}}:${{env.MLIR_VERSION}},mode=max
