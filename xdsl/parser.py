@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import itertools
+import math
 import re
 import sys
 import traceback
