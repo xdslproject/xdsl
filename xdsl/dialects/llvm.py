@@ -147,7 +147,13 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class GEPOp(Operation):
     """
-    The llvm.getelementptr is documented online in various places:
+    llvm.getelementptr is an instruction to do pointer arithmetic by
+    adding/subtracting offsets from a pointer.
+
+    Since the official MLIR documentation doesn't do a great job (currently)
+    at explaining this oepration, we have added a short doccomment below:
+
+    The llvm.getelementptr is documented online in various places online:
 
     LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
     A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
