@@ -498,11 +498,11 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
+class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[AttributeInvT]
+    element_type: ParameterDef[AttributeCovT]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
