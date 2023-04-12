@@ -299,8 +299,6 @@ def test_parse_optional_punctuation_fail(
 
 @pytest.mark.parametrize("text, expected_value", [
     ("true", True),
-    ("true", True),
-    ("false", False),
     ("false", False),
     ("True", None),
     ("False", None),
