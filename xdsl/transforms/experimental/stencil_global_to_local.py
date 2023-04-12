@@ -511,11 +511,13 @@ def generate_memcpy(source: SSAValue,
             yield scf.Yield()
 
         yield scf.For.get(cst0, x_len, cst1, [],
-                          [Block.from_callable([builtin.IndexType()], inner)]) # type: ignore
+                          [Block.from_callable([builtin.IndexType()], inner)
+                           ])  # type: ignore
 
         yield scf.Yield()
 
-    loop_body : Callable[[SSAValue], Iterable[Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
+    loop_body: Callable[[SSAValue], Iterable[
+        Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
 
     # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(cst0, y_len, cst1, [],
