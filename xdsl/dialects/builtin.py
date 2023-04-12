@@ -901,6 +901,14 @@ class DenseArrayBase(ParametrizedAttribute):
             raise TypeError(f"Unsupported element type {type}")
 
     def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
+        """
+        Get the "raw" data out as a tuple. This will not
+        apply the datatype restrictions that the array element
+        type would suggest!
+
+        e.g. given a dense<i8: 99999999, 255, 256>, as_tuple()
+        would return 1234567, 255, 256 and not 135, 255, 0 (mod 256)
+        """
         return tuple(x.data for x in self.data.data)
 
 
