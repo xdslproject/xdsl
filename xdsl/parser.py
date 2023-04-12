@@ -1587,9 +1587,9 @@ class BaseParser(ABC):
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
             return self.try_parse_builtin_named_attr()
-        # Order here is important!
-        attrs = (self.try_parse_builtin_float_attr,
-                 self.try_parse_builtin_int_attr, self.try_parse_builtin_type)
+
+        attrs = (self.parse_optional_builtin_int_or_float_attr,
+                 self.try_parse_builtin_type)
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
@@ -2018,41 +2018,39 @@ class BaseParser(ABC):
         else:
             return None
 
-    def try_parse_builtin_int_attr(
-            self) -> IntegerAttr[IntegerType | IndexType] | None:
+    def parse_optional_builtin_int_or_float_attr(
+            self) -> AnyIntegerAttr | AnyFloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
 
-        with self.backtracking("built in int attribute"):
-            value = self.expect(
-                self.try_parse_integer_literal,
-                'Integer attribute must start with an integer literal!')
-            if self.tokenizer.next_token(peek=True).text != ':':
-                return IntegerAttr.from_params(int(value.text), i64)
-            type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
 
-            if not isinstance(type, IntegerType | IndexType):
+        # Parse the value
+        if (value := self.parse_optional_number()) is None:
+            return None
+
+        self._synchronize_lexer_and_tokenizer()
+        # If no types are given, we take the default ones
+        if self._current_token.kind != Token.Kind.COLON:
+            if isinstance(value, float):
+                return FloatAttr(value, Float64Type())
+            return IntegerAttr(value, i64)
+
+        # Otherwise, we parse the attribute type
+        type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
+
+        if isinstance(type, AnyFloat):
+            return FloatAttr(float(value), type)
+
+        if isinstance(type, IntegerType | IndexType):
+            if isinstance(value, float):
                 self.raise_error(
-                    f"Expected IntegerType | IndexType, got {type}")
+                    'Floating point value is not valid for integer type.')
+            return IntegerAttr(value, type)
 
-            return IntegerAttr.from_params(int(value.text), type)
-
-    def try_parse_builtin_float_attr(self) -> AnyFloatAttr | None:
-        with self.backtracking("float literal"):
-            value = self.expect(
-                self.try_parse_float_literal,
-                "Float attribute must start with a float literal!",
-            )
-            # If we don't see a ':' indicating a type signature
-            if not self.tokenizer.starts_with(":"):
-                return FloatAttr(float(value.text), Float32Type())
-
-            type = self._parse_attribute_type()
-            if not isinstance(type, AnyFloat):
-                self.raise_error(
-                    "Float attribute must be typed with a float type!")
-            return FloatAttr(float(value.text), type)
+        self.raise_error('Invalid type given for integer or float attribute.')
 
     def try_parse_builtin_boolean_attr(
             self) -> IntegerAttr[IntegerType | IndexType] | None:
