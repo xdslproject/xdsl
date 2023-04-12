@@ -62,6 +62,7 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
+cd xdsl
 pip install --editable .
 # Optional installation of extra requirements
 pip install --requirement requirements-optional.txt
