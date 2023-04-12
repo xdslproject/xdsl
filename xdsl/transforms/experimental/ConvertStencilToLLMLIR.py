@@ -404,11 +404,6 @@ def return_target_analysis(module: builtin.ModuleOp):
                 warn("Only single store for a single return op result atm")
                 return
 
-            if (len(res.uses) > 1) or (not isinstance(
-                (store := list(res.uses)[0].operation), StoreOp)):
-                warn("Only single store result atm")
-                return
-
             cast = store.field.owner
 
             assert isinstance(cast, CastOp)
