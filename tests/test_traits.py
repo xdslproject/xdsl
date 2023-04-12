@@ -1,14 +1,16 @@
 from __future__ import annotations
+
+import pytest
+
 from abc import ABC
 from dataclasses import dataclass
 from typing import Annotated
-
-import pytest
 
 from xdsl.ir import OpResult, OpTrait, Operation
 from xdsl.irdl import Operand, irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 from xdsl.dialects.builtin import IntegerType, i1, i32, i64
+from xdsl.utils.test_value import TestSSAValue
 
 
 @dataclass(frozen=True)
@@ -97,9 +99,9 @@ def test_verifier():
     """
     Check that the traits verifier are correctly called.
     """
-    operand64 = OpResult(i64, [], [])  # type: ignore
-    operand32 = OpResult(i32, [], [])  # type: ignore
-    operand1 = OpResult(i1, [], [])  # type: ignore
+    operand64 = TestSSAValue(i64)
+    operand32 = TestSSAValue(i32)
+    operand1 = TestSSAValue(i1)
     op = TestOp.create(operands=[operand1], result_types=[i32])
     with pytest.raises(VerifyException) as e:
         op.verify()

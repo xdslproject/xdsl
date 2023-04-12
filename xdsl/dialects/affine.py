@@ -71,10 +71,9 @@ class For(Operation):
                       body: Block.BlockCallback,
                       step: int | AnyIntegerAttr = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
-        return For.from_region(
-            operands, lower_bound, upper_bound,
-            Region.from_block_list([Block.from_callable(arg_types, body)]),
-            step)
+        return For.from_region(operands, lower_bound, upper_bound,
+                               Region([Block.from_callable(arg_types, body)]),
+                               step)
 
 
 @irdl_op_definition

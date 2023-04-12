@@ -147,7 +147,7 @@ class FuncOp(Operation):
         return FuncOp.from_region(
             name,
             ftype,
-            Region.from_block_list([Block.from_callable(input_types, func)]),
+            Region([Block.from_callable(input_types, func)]),
             private=private)
 
     def verify_(self):
@@ -273,7 +273,7 @@ class ReturnOp(Operation):
 
     @staticmethod
     def from_input(input: SSAValue | None = None) -> ReturnOp:
-        return ReturnOp.create(operands=[input] if input is not None else [])
+        return ReturnOp.build(operands=[input])
 
 
 @irdl_op_definition

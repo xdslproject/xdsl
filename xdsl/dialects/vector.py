@@ -260,7 +260,7 @@ class Createmask(Operation):
             )
 
     @staticmethod
-    def get(mask_operands: Operation | SSAValue) -> Createmask:
+    def get(mask_operands: list[Operation | SSAValue]) -> Createmask:
         return Createmask.build(
             operands=[mask_operands],
             result_types=[VectorType.from_element_type_and_shape(i1, [1])])

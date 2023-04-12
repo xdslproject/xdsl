@@ -1,3 +1,5 @@
+from conftest import assert_print_op
+
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
@@ -7,8 +9,7 @@ from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    PatternRewriter, AnonymousRewritePattern,
                                    GreedyRewritePatternApplier)
 from xdsl.parser import Parser
-
-from conftest import assert_print_op
+from xdsl.utils.hints import isa
 
 
 def rewrite_and_compare(prog: str, expected_prog: str,
@@ -18,7 +19,7 @@ def rewrite_and_compare(prog: str, expected_prog: str,
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
 
-    parser = Parser(ctx, prog)
+    parser = Parser(ctx, prog, allow_unregistered_dialect=True)
     module = parser.parse_module()
 
     walker.rewrite_module(module)
@@ -133,6 +134,33 @@ def test_op_type_rewrite_pattern_static_decorator():
                              apply_recursively=False))
 
 
+def test_op_type_rewrite_pattern_union_type():
+    """Test op_type_rewrite_pattern decorator on static functions."""
+
+    prog = \
+"""builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 0 : !i32]
+  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
+  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
+}"""
+
+    expected = \
+"""builtin.module() {
+  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
+  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: Constant | Addi, rewriter: PatternRewriter):
+        rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
+
+    rewrite_and_compare(
+        prog, expected,
+        PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                             apply_recursively=False))
+
+
 def test_recursive_rewriter():
     """Test recursive walks on operations created by rewrites."""
 
@@ -156,6 +184,8 @@ def test_recursive_rewriter():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        if not isa(op.value, IntegerAttr):
+            return
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -195,6 +225,8 @@ def test_recursive_rewriter_reversed():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
+        if not isa(op.value, IntegerAttr):
+            return
         val = op.value.value.data
         if val == 0 or val == 1:
             return None
@@ -815,9 +847,11 @@ def test_move_region_contents_to_new_regions():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
+        old_if = op.ops[1]
+        assert isinstance(old_if, If)
         new_region = rewriter.move_region_contents_to_new_regions(
-            op.ops[1].regions[0])
-        new_if = If.get(op.ops[1].cond, [], new_region,
+            old_if.regions[0])
+        new_if = If.get(old_if.cond, [], new_region,
                         Region.from_operation_list([]))
         rewriter.insert_op_after(new_if, op.ops[1])
 

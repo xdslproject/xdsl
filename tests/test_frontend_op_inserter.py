@@ -20,8 +20,8 @@ def test_raises_exception_on_op_with_no_regions():
     op_with_no_region = Constant.from_int_and_width(1, i32)
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_op(op_with_no_region)
-    assert err.value.msg == ("Trying to set the insertion point for operation "
-                             "'arith.constant' with no regions.")
+    assert err.value.msg == ("Trying to set the insertion point for operation"
+                             " 'arith.constant' with no regions.")
 
 
 def test_raises_exception_on_op_with_no_blocks():
@@ -29,19 +29,23 @@ def test_raises_exception_on_op_with_no_blocks():
     op_with_no_region = For.from_region([], 0, 10, Region())
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_op(op_with_no_region)
-    assert err.value.msg == "Trying to set the insertion point for operation 'affine.for' with no blocks in its last region."
+    assert err.value.msg == (
+        "Trying to set the insertion point for operation"
+        " 'affine.for' with no blocks in its last region.")
 
 
 def test_raises_exception_on_op_with_no_blocks_II():
     inserter = OpInserter(Block())
-    empty_region = Region.from_block_list([])
+    empty_region = Region()
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_region(empty_region)
-    assert err.value.msg == "Trying to set the insertion point from the region without blocks."
+    assert err.value.msg == (
+        "Trying to set the insertion point from the region without"
+        " blocks.")
 
 
 def test_inserts_ops():
-    region = Region.from_block_list([Block.from_ops([]), Block.from_ops([])])
+    region = Region([Block.from_ops([]), Block.from_ops([])])
     inserter = OpInserter(region.blocks[0])
 
     a = Constant.from_int_and_width(1, i32)

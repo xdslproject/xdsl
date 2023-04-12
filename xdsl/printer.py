@@ -6,15 +6,16 @@ from enum import Enum
 from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (BlockArgument, MLIRType, SSAValue, Block, Callable,
+from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
                      Attribute, Region, Operation, Data, ParametrizedAttribute)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StringAttr, SymbolRefAttr, IntegerAttr,
-    ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType, UnrankedTensorType,
+    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr,
+    Float16Type, Float32Type, Float64Type, FloatAttr, FloatData, IndexType,
+    IntegerType, NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr,
+    StringAttr, SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType,
+    UnitAttr, FunctionType, UnrankedTensorType, UnregisteredAttr,
     UnregisteredOp, VectorType, DictionaryAttr)
 
 indentNumSpaces = 2
@@ -367,6 +368,11 @@ class Printer:
             self.print_attribute(typ)
             return
 
+        # Complex types have MLIR shorthands but XDSL does not.
+        if isinstance(attribute, ComplexType):
+            self.print("complex<", attribute.element_type, ">")
+            return
+
         if isinstance(attribute, ArrayAttr):
             self.print_string("[")
             self.print_list(
@@ -465,6 +471,10 @@ class Printer:
             if len(attribute.shape.data) != 0:
                 self.print("x")
             self.print(attribute.element_type)
+            if isinstance(attribute,
+                          TensorType) and attribute.encoding != NoneAttr():
+                self.print(", ")
+                self.print(attribute.encoding)
             self.print(">")
             return
 
@@ -477,6 +487,24 @@ class Printer:
             self.print(">")
             return
 
+        # strided attributes have an alias in MLIR and xDSL
+        if isinstance(attribute, StridedLayoutAttr):
+            self.print("strided<[")
+
+            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
+                self.print(value.data if isinstance(value, IntAttr) else '?')
+
+            self.print_list(attribute.strides.data, print_int_or_question,
+                            ', ')
+            self.print(']')
+            if attribute.offset == IntAttr(0):
+                self.print('>')
+                return
+            self.print(', offset: ')
+            print_int_or_question(attribute.offset)
+            self.print('>')
+            return
+
         # memref types have an alias in MLIR, but not in xDSL
         if (isinstance(attribute, MemRefType)
                 and self.target == self.Target.MLIR):
@@ -486,6 +514,10 @@ class Printer:
                 attribute.shape.data, lambda x: self.print(x.value.data)
                 if x.value.data != -1 else self.print("?"), "x")
             self.print("x", attribute.element_type)
+            if not isinstance(attribute.layout, NoneAttr):
+                self.print(", ", attribute.layout)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
@@ -495,6 +527,8 @@ class Printer:
             attribute = cast(AnyUnrankedMemrefType, attribute)
             self.print("memref<*x")
             self.print(attribute.element_type)
+            if not isinstance(attribute.memory_space, NoneAttr):
+                self.print(", ", attribute.memory_space)
             self.print(">")
             return
 
@@ -512,9 +546,16 @@ class Printer:
                 self.print(" : ", attribute.type)
             return
 
+        if isinstance(attribute, UnregisteredAttr):
+            # Do not print `!` or `#` for unregistered builtin attributes
+            if attribute.attr_name.data not in ['affine_map', 'affine_set']:
+                self.print('!' if attribute.is_type.data else '#')
+            self.print(attribute.attr_name.data, attribute.value.data)
+            return
+
         if self.target == self.Target.MLIR:
             # For the MLIR target, we may print differently some attributes
-            self.print("!" if isinstance(attribute, MLIRType) else "#")
+            self.print("!" if isinstance(attribute, TypeAttribute) else "#")
             self.print(attribute.name)
 
             if isinstance(attribute, Data):

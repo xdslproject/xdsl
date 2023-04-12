@@ -1,12 +1,13 @@
 import argparse
 import sys
 import os
+
 from io import StringIO
-from xdsl.frontend.passes.desymref import Desymrefy
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import XDSLParser, MLIRParser, ParseError
+from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
 from xdsl.dialects.scf import Scf
@@ -20,19 +21,21 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
-from xdsl.transforms.lower_mpi import lower_mpi
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 
 from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToLLMLIR, ConvertStencilToGPU, StencilShapeInference
+from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.transforms.lower_mpi import LowerMPIPass
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass, StencilShapeInferencePass
+from xdsl.transforms.experimental.stencil_global_to_local import GlobalStencilToLocalStencil2DHorizontal
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
-from typing import IO, Dict, Callable, List, Sequence
+from typing import IO, Dict, Callable, List, Sequence, Type
 
 
 class xDSLOptMain:
@@ -49,7 +52,7 @@ class xDSLOptMain:
     file type.
     """
 
-    available_passes: Dict[str, Callable[[MLContext, ModuleOp], None]]
+    available_passes: Dict[str, Type[ModulePass]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
@@ -60,7 +63,7 @@ class xDSLOptMain:
     stream.
     """
 
-    pipeline: List[tuple[str, Callable[[ModuleOp], None]]]
+    pipeline: List[ModulePass]
     """ The pass-pipeline to be applied. """
 
     def __init__(self,
@@ -175,10 +178,10 @@ class xDSLOptMain:
                                 "parsing exception and exits with code 0")
 
         arg_parser.add_argument(
-            "--allow-unregistered-ops",
+            "--allow-unregistered-dialect",
             default=False,
             action='store_true',
-            help="Allow the parsing of unregistered operations.")
+            help="Allow the parsing of unregistered dialects.")
 
     def register_all_dialects(self):
         """
@@ -212,15 +215,20 @@ class xDSLOptMain:
         """
 
         def parse_xdsl(io: IO[str]):
-            return XDSLParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return XDSLParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         def parse_mlir(io: IO[str]):
-            return MLIRParser(self.ctx, io.read(), self.get_input_name(),
-                              self.args.allow_unregistered_ops).parse_module()
+            return MLIRParser(
+                self.ctx, io.read(), self.get_input_name(),
+                self.args.allow_unregistered_dialect).parse_module()
 
         self.available_frontends['xdsl'] = parse_xdsl
         self.available_frontends['mlir'] = parse_mlir
+
+    def register_pass(self, opPass: Type[ModulePass]):
+        self.available_passes[opPass.name] = opPass
 
     def register_all_passes(self):
         """
@@ -228,13 +236,12 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        self.available_passes['lower-mpi'] = lower_mpi
-        self.available_passes[
-            'convert-stencil-to-ll-mlir'] = ConvertStencilToLLMLIR
-        self.available_passes['convert-stencil-to-gpu'] = ConvertStencilToGPU
-        self.available_passes[
-            'stencil-shape-inference'] = StencilShapeInference
-        self.available_passes['frontend-desymrefy'] = Desymrefy
+        self.register_pass(LowerMPIPass)
+        self.register_pass(ConvertStencilToLLMLIRPass)
+        self.register_pass(ConvertStencilToGPUPass)
+        self.register_pass(StencilShapeInferencePass)
+        self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
+        self.register_pass(DesymrefyPass)
 
     def register_all_targets(self):
         """
@@ -275,14 +282,7 @@ class xDSLOptMain:
             if p not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
 
-        def make_pass(p: str):
-
-            def pipeline_pass(op: ModuleOp):
-                return self.available_passes[p](self.ctx, op)
-
-            return pipeline_pass
-
-        self.pipeline = [(p, make_pass(p)) for p in pipeline]
+        self.pipeline = [self.available_passes[p]() for p in pipeline]
 
     def parse_input(self) -> ModuleOp:
         """
@@ -317,13 +317,13 @@ class xDSLOptMain:
         assert isinstance(prog, ModuleOp)
         if not self.args.disable_verify:
             prog.verify()
-        for pass_name, p in self.pipeline:
-            p(prog)
+        for p in self.pipeline:
+            p.apply(self.ctx, prog)
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
             if self.args.print_between_passes:
-                print(f"IR after {pass_name}:")
+                print(f"IR after {p.name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(prog)
                 print("\n\n\n")

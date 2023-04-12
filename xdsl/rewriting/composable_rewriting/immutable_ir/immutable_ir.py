@@ -175,14 +175,14 @@ class IRegion:
         # All mutable blocks have to be initialized first so that ops can
         # refer to them in their successor lists.
         for block in self.blocks:
-            mutable_blocks.append(
-                mutable_block := Block.from_arg_types(block.arg_types))
+            mutable_blocks.append(mutable_block := Block(
+                arg_types=block.arg_types))
             block_mapping[block] = mutable_block
         for block in self.blocks:
             # This will use the already created Block and populate it
             block.to_mutable(value_mapping=value_mapping,
                              block_mapping=block_mapping)
-        return Region.from_block_list(mutable_blocks)
+        return Region(mutable_blocks)
 
 
 @dataclass(frozen=True)
@@ -295,7 +295,7 @@ class IBlock:
         if self in block_mapping:
             mutable_block = block_mapping[self]
         else:
-            mutable_block = Block.from_arg_types(self.arg_types)
+            mutable_block = Block(arg_types=self.arg_types)
         for idx, arg in enumerate(self.args):
             value_mapping[arg] = mutable_block.args[idx]
         block_mapping[self] = mutable_block
