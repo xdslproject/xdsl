@@ -151,7 +151,7 @@ class GEPOp(Operation):
     adding/subtracting offsets from a pointer.
 
     Since the official MLIR documentation doesn't do a great job (currently)
-    at explaining this oepration, we have added a short doccomment below:
+    at explaining this operation, we have added a short doccomment below:
 
     The llvm.getelementptr is documented online in various places online:
 
