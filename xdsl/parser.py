@@ -823,12 +823,40 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return value
 
+    def parse_optional_number(self) -> int | float | None:
+        """
+        Parse an integer or float literal, if present.
+        """
+
+        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+
+        if (value :=
+                self.parse_optional_integer(allow_boolean=False,
+                                            allow_negative=False)) is not None:
+            return -value if is_negative else value
+
+        if (value :=
+                self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
+            value = value.get_float_value()
+            return -value if is_negative else value
+
+        if is_negative:
+            self.raise_error("Expected integer or float literal after '-'")
+        return None
+
+    def parse_number(self, context_msg: str = '') -> int | float:
+        """
+        Parse an integer or float literal.
+        """
+        return self.expect(lambda: self.parse_optional_number(),
+                           'Expected integer or float literal' + context_msg)
+
     def parse_integer(self,
                       allow_boolean: bool = True,
                       allow_negative: bool = True,
                       context_msg: str = '') -> int:
         """
-        Parse an (possible negative) integer, if present. The integer can
+        Parse an (possible negative) integer. The integer can
         either be decimal or hexadecimal.
         Optionally allow parsing of 'true' or 'false' into 1 and 0.
         """
