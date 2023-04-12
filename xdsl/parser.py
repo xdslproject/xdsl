@@ -1676,7 +1676,7 @@ class BaseParser(ABC):
 
         # Check that the shape matches the data when given a shaped data.
         type_shape = [dim.value.data for dim in type.shape.data]
-        num_values = reduce((lambda x, y: x * y), type_shape, 1)
+        num_values = math.prod(type_shape)
 
         if shape is None and num_values != 0:
             self.raise_error('Expected at least one element in the '
