@@ -1646,16 +1646,17 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         self.parse_punctuation('<', ' in dense attribute')
 
-        # Parse the data as a list of elements and an optional shape, if given.
-        # If there was only given a single element, then there is no shape.
-        data: tuple[list[BaseParser._TensorLiteralElement],
-                    list[int] | None] | BaseParser._TensorLiteralElement
+        # The flatten list of elements
+        values: list[BaseParser._TensorLiteralElement]
+        # The dense shape.
+        # If it is `None`, then there is no values.
+        # If it is `[]`, then this is a splat attribute, meaning it has the same
+        # value everywhere.
+        shape: list[int] | None
         if self._current_token.text == '>':
-            data = [], None
-        elif self._current_token.text == '[':
-            data = self._parse_tensor_literal_list()
+            values, shape = [], None
         else:
-            data = self._parse_tensor_literal_element()
+            values, shape = self._parse_tensor_literal()
         self.parse_punctuation('>', ' in dense attribute')
 
         # Parse the dense type.
@@ -1677,26 +1678,26 @@ class BaseParser(ABC):
         type_shape = [dim.value.data for dim in type.shape.data]
         num_values = reduce((lambda x, y: x * y), type_shape, 1)
 
-        if isinstance(data, tuple):
-            if data[1] is None and num_values != 0:
-                self.raise_error('Expected at least one element in the '
-                                 'dense literal, but got None')
-            if data[1] is not None and type_shape != data[1]:
-                self.raise_error(
-                    f'Shape mismatch in dense literal. Expected {type_shape} '
-                    f'shape from the type, but got {data[1]} shape.')
+        if shape is None and num_values != 0:
+            self.raise_error('Expected at least one element in the '
+                             'dense literal, but got None')
+        if shape is not None and shape != [] and type_shape != shape:
+            self.raise_error(
+                f'Shape mismatch in dense literal. Expected {type_shape} '
+                f'shape from the type, but got {shape} shape.')
         if any(dim == -1 for dim in type_shape):
             self.raise_error(
                 f'Dense literal attribute should have a static shape.')
 
         element_type = type.element_type
         # Convert list of elements to a list of values.
-        if isinstance(data, tuple):
+        if shape != []:
             data_values = [
-                value.to_type(self, element_type) for value in data[0]
+                value.to_type(self, element_type) for value in values
             ]
         else:
-            data_values = [data.to_type(self, element_type)] * num_values
+            assert len(values) == 1, "Fatal error in parser"
+            data_values = [values[0].to_type(self, element_type)] * num_values
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
@@ -1911,43 +1912,29 @@ class BaseParser(ABC):
             value = -value
         return self._TensorLiteralElement(is_negative, value, token.span)
 
-    def _parse_tensor_literal_list(
-            self) -> tuple[list[_TensorLiteralElement], list[int]]:
+    def _parse_tensor_literal(
+            self) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
         """
-        Parse a tensor literal, which is enclosed in a list, and returns
-        its data as a single list, and its shape.
+        Parse a tensor literal, and returns its flatten data and its shape.
         
         For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
         the data, and [2, 3] for the shape.
         """
-        element_dims: list[int] | None = None
-
-        def parse_element_or_list(
-        ) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
-            nonlocal element_dims
-            if self._current_token.kind == Token.Kind.L_SQUARE:
-                element, shape = self._parse_tensor_literal_list()
-            else:
-                element = [self._parse_tensor_literal_element()]
-                shape = []
-            if element_dims is None:
-                element_dims = shape
-            else:
-                if element_dims != shape:
-                    self.raise_error(
-                        "Tensor literal has inconsistent ranks between elements"
-                    )
-            return element, shape
-
-        res = self.parse_comma_separated_list(
-            self.Delimiter.SQUARE,
-            parse_element_or_list,
-        )
-        if len(res) == 0:
-            return [], []
-        shape: list[int] = [len(res)] + res[0][1]
-        values = [elem for sub_list in res for elem in sub_list[0]]
-        return values, shape
+        if self._current_token.kind == Token.Kind.L_SQUARE:
+            res = self.parse_comma_separated_list(self.Delimiter.SQUARE,
+                                                  self._parse_tensor_literal)
+            if len(res) == 0:
+                return [], [0]
+            sub_literal_shape = res[0][1]
+            if any(r[1] != sub_literal_shape for r in res):
+                self.raise_error(
+                    "Tensor literal has inconsistent ranks betweenelements")
+            shape = [len(res)] + sub_literal_shape
+            values = [elem for sub_list in res for elem in sub_list[0]]
+            return values, shape
+        else:
+            element = self._parse_tensor_literal_element()
+            return [element], []
 
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
