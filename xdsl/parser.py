@@ -1894,22 +1894,21 @@ class Parser(ABC):
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
 
     def try_parse_builtin_named_attr(self) -> Attribute | None:
-        name = self.tokenizer.next_token(peek=True)
-        with self.backtracking("Builtin attribute {}".format(name.text)):
-            self.tokenizer.consume_peeked(name)
-            parsers = {
-                "dense": self._parse_builtin_dense_attr,
-                "opaque": self._parse_builtin_opaque_attr,
-                "dense_resource": self._parse_builtin_dense_resource_attr,
-                "array": self._parse_builtin_array_attr,
-                "affine_map": self._parse_builtin_affine_attr,
-                "affine_set": self._parse_builtin_affine_attr,
-            }
+        name = self.tokenizer.next_token()
 
-            def not_implemented(_name: Span):
-                raise NotImplementedError()
+        parsers = {
+            "dense": self._parse_builtin_dense_attr,
+            "opaque": self._parse_builtin_opaque_attr,
+            "dense_resource": self._parse_builtin_dense_resource_attr,
+            "array": self._parse_builtin_array_attr,
+            "affine_map": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_attr,
+        }
 
-            return parsers.get(name.text, not_implemented)(name)
+        if name.text in parsers:
+            return parsers[name.text](name)
+        else:
+            return None
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self._synchronize_lexer_and_tokenizer()
