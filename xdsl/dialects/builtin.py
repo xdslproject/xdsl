@@ -335,7 +335,7 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f16"
+    name: str = "bf16"
 
 
 @irdl_attr_definition
