@@ -1206,6 +1206,7 @@ class Region(IRNode):
             region.add_block(block)
         return region
 
+    @deprecated('Please use Region(blocks) or Region([Block(ops)])')
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
