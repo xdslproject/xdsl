@@ -29,7 +29,8 @@ from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass, StencilShapeInferencePass
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass
+from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 from xdsl.transforms.experimental.stencil_global_to_local import GlobalStencilToLocalStencil2DHorizontal
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
