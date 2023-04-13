@@ -334,6 +334,11 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
+class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "f16"
+
+
+@irdl_attr_definition
 class Float16Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f16"
 
@@ -1171,6 +1176,7 @@ Builtin = Dialect(
         # Types
         ComplexType,
         FunctionType,
+        BFloat16Type,
         Float16Type,
         Float32Type,
         Float64Type,
