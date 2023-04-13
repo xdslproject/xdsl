@@ -1,15 +1,16 @@
-from typing import cast
+from typing import cast, Annotated
 import pytest
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.dialects.arith import Addi, Subi, Constant
-from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IntegerType, i32, IntegerAttr, ModuleOp, i64
 from xdsl.dialects.scf import If
 from xdsl.parser import XDSLParser
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.cf import Cf
+from xdsl.irdl import irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -288,22 +289,33 @@ ModuleOp(
 )'''
 
 
+@irdl_op_definition
+class CustomVerify(Operation):
+    name = 'test.custom_verify_op'
+    val: Annotated[Operand, i64]
+
+    @staticmethod
+    def get(val: SSAValue):
+        return CustomVerify.build(operands=[val])
+
+    def verify_(self):
+        raise Exception('Custom Verification Check')
+
+
+def test_op_custom_verify_is_called():
+    a = Constant.from_int_and_width(1, i64)
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] == 'Custom Verification Check'
+
+
 def test_op_custom_verify_is_done_last():
     a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(1, i32)
-    error = Exception("CustomException")
-
-    def verify_():
-        raise error
-    a.__dict__['verify_'] = verify_
-    a.attributes.pop('value')
-    b.attributes.pop('value')
-    try:
-        a.verify()
-    except Exception as e_a:
-        assert e_a is not error
-        try:
-            b.verify()
-        except Exception as e_b:
-            assert e_a.args == e_b.args
-            assert e_a.args == ("attribute value expected",)
+    # CustomVerify expects a i64, not i32
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] != 'Custom Verification Check'
+    assert e.value.args[0] == \
+           'test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n'
