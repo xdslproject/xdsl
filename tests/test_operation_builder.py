@@ -332,13 +332,13 @@ def test_region_op_ops():
 
 
 def test_noop_region():
-    region0 = Region.get([])
+    region0 = Region([Block()])
     assert len(region0.ops) == 0
 
 
 def test_singleop_region():
     a = Constant.from_int_and_width(1, i32)
-    region0 = Region.get([a])
+    region0 = Region([Block([a])])
     assert type(region0.op) is Constant
 
 

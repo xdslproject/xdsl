@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import itertools
+import math
 import re
 import sys
 import traceback
@@ -18,12 +19,13 @@ from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
 from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
-    AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
-    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    UnregisteredAttr, VectorOrTensorOf, VectorType, SymbolRefAttr,
-    DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64, StridedLayoutAttr, ComplexType)
+    AnyVectorType, BFloat16Type, DenseResourceAttr, DictionaryAttr,
+    Float16Type, Float32Type, Float64Type, Float80Type, Float128Type,
+    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, UnregisteredAttr,
+    RankedVectorOrTensorOf, VectorType, SymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
+    StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -330,7 +332,7 @@ class ParserCommons:
     decimal_literal = re.compile(r"[+-]?([1-9][0-9]*)")
     string_literal = re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"')
     float_literal = re.compile(r"[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?")
-    bare_id = re.compile(r"[A-Za-z_][\w$.]+")
+    bare_id = re.compile(r"[A-Za-z_][\w$.]*")
     value_id = re.compile(r"%([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     suffix_id = re.compile(r"([0-9]+|([A-Za-z_$.-][\w$.-]*))")
     """
@@ -343,7 +345,7 @@ class ParserCommons:
     boolean_literal = re.compile(r"(true|false)")
     # A list of names that are builtin types
     _builtin_type_names = (
-        r"[su]?i\d+", r"f\d+", "tensor", "vector", "memref", "complex",
+        r"[su]?i\d+", "bf16", r"f\d+", "tensor", "vector", "memref", "complex",
         "opaque", "tuple", "index", "dense"
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
     )
@@ -764,6 +766,29 @@ class BaseParser(ABC):
 
         return items
 
+    def parse_optional_boolean(self) -> bool | None:
+        """
+        Parse a boolean, if present, with the format `true` or `false`.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind == Token.Kind.BARE_IDENT:
+            if self._current_token.text == 'true':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return True
+            elif self._current_token.text == 'false':
+                self._consume_token(Token.Kind.BARE_IDENT)
+                self._synchronize_lexer_and_tokenizer()
+                return False
+        return None
+
+    def parse_boolean(self, context_msg: str = '') -> bool:
+        """
+        Parse a boolean with the format `true` or `false`.
+        """
+        return self.expect(lambda: self.parse_optional_boolean(),
+                           'Expected boolean literal' + context_msg)
+
     def parse_optional_integer(self,
                                allow_boolean: bool = True,
                                allow_negative: bool = True) -> int | None:
@@ -775,16 +800,8 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         # Parse true and false if needed
         if allow_boolean:
-            if self._current_token.kind == Token.Kind.BARE_IDENT:
-                if self._current_token.text == 'true':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 1
-                elif self._current_token.text == 'false':
-                    self._consume_token(Token.Kind.BARE_IDENT)
-                    self._synchronize_lexer_and_tokenizer()
-                    return 0
-                return None
+            if (boolean := self.parse_optional_boolean()) is not None:
+                return 1 if boolean else 0
 
         # Parse negative numbers if required
         is_negative = False
@@ -807,12 +824,40 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return value
 
+    def parse_optional_number(self) -> int | float | None:
+        """
+        Parse an integer or float literal, if present.
+        """
+
+        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
+
+        if (value :=
+                self.parse_optional_integer(allow_boolean=False,
+                                            allow_negative=False)) is not None:
+            return -value if is_negative else value
+
+        if (value :=
+                self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
+            value = value.get_float_value()
+            return -value if is_negative else value
+
+        if is_negative:
+            self.raise_error("Expected integer or float literal after '-'")
+        return None
+
+    def parse_number(self, context_msg: str = '') -> int | float:
+        """
+        Parse an integer or float literal.
+        """
+        return self.expect(lambda: self.parse_optional_number(),
+                           'Expected integer or float literal' + context_msg)
+
     def parse_integer(self,
                       allow_boolean: bool = True,
                       allow_negative: bool = True,
                       context_msg: str = '') -> int:
         """
-        Parse an (possible negative) integer, if present. The integer can
+        Parse an (possible negative) integer. The integer can
         either be decimal or hexadecimal.
         Optionally allow parsing of 'true' or 'false' into 1 and 0.
         """
@@ -1543,9 +1588,9 @@ class BaseParser(ABC):
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
             return self.try_parse_builtin_named_attr()
-        # Order here is important!
-        attrs = (self.try_parse_builtin_float_attr,
-                 self.try_parse_builtin_int_attr, self.try_parse_builtin_type)
+
+        attrs = (self.parse_optional_builtin_int_or_float_attr,
+                 self.try_parse_builtin_type)
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
@@ -1640,20 +1685,65 @@ class BaseParser(ABC):
 
             return parsers.get(name.text, not_implemented)(name)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> Attribute | None:
-        err_msg = "Malformed dense attribute, format must be (`dense<` array-attr `>:` type)"  # noqa
-        self.parse_characters("<", err_msg)
-        info = list(self._parse_builtin_dense_attr_args())
-        self.parse_characters(">", err_msg)
-        self.parse_characters(":", err_msg)
+    def _parse_builtin_dense_attr(self,
+                                  _name: Span) -> DenseIntOrFPElementsAttr:
+        self._synchronize_lexer_and_tokenizer()
+        self.parse_punctuation('<', ' in dense attribute')
+
+        # The flatten list of elements
+        values: list[BaseParser._TensorLiteralElement]
+        # The dense shape.
+        # If it is `None`, then there is no values.
+        # If it is `[]`, then this is a splat attribute, meaning it has the same
+        # value everywhere.
+        shape: list[int] | None
+        if self._current_token.text == '>':
+            values, shape = [], None
+        else:
+            values, shape = self._parse_tensor_literal()
+        self.parse_punctuation('>', ' in dense attribute')
+
+        # Parse the dense type.
+        self.parse_punctuation(':', ' in dense attribute')
+        self._synchronize_lexer_and_tokenizer()
         type = self.expect(self.try_parse_type,
-                           "Dense attribute must be typed!")
+                           'Dense attribute must be typed!')
+        self._synchronize_lexer_and_tokenizer()
 
-        if not isa(type, VectorOrTensorOf[Attribute]):
+        # Check that the type is correct.
+        if not isa(
+                type, RankedVectorOrTensorOf[IntegerType]
+                | RankedVectorOrTensorOf[IndexType]
+                | RankedVectorOrTensorOf[AnyFloat]):
+            self.raise_error('Expected vector or tensor type of '
+                             'integer, index, or float type')
+
+        # Check that the shape matches the data when given a shaped data.
+        type_shape = [dim.value.data for dim in type.shape.data]
+        num_values = math.prod(type_shape)
+
+        if shape is None and num_values != 0:
+            self.raise_error('Expected at least one element in the '
+                             'dense literal, but got None')
+        if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
-                "Expected vector or tensor type for dense attribute")
+                f'Shape mismatch in dense literal. Expected {type_shape} '
+                f'shape from the type, but got {shape} shape.')
+        if any(dim == -1 for dim in type_shape):
+            self.raise_error(
+                f'Dense literal attribute should have a static shape.')
 
-        return DenseIntOrFPElementsAttr.from_list(type, info)
+        element_type = type.element_type
+        # Convert list of elements to a list of values.
+        if shape != []:
+            data_values = [
+                value.to_type(self, element_type) for value in values
+            ]
+        else:
+            assert len(values) == 1, "Fatal error in parser"
+            data_values = [values[0].to_type(self, element_type)] * num_values
+
+        return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
         self.parse_characters("<", "Opaque attribute must be parametrized")
@@ -1766,6 +1856,130 @@ class BaseParser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return attr_def(name.text, False, contents)
 
+    @dataclass
+    class _TensorLiteralElement:
+        """
+        The representation of a tensor literal element used during parsing.
+        It is either an integer, float, or boolean. It also has a check if
+        the element has a negative sign (it is already applied to the value).
+        This class is used to parse a tensor literal before the tensor literal
+        type is known
+        """
+        is_negative: bool
+        value: int | float | bool
+        """
+        An integer, float, boolean, integer complex, or float complex value.
+        The tuple should be of type `_TensorLiteralElement`, but python does
+        not allow classes to self-reference.
+        """
+        span: Span
+
+        def to_int(self,
+                   parser: BaseParser,
+                   allow_negative: bool = True,
+                   allow_booleans: bool = True) -> int:
+            """
+            Convert the element to an int value, possibly disallowing negative
+            values. Raises an error if the type is compatible.
+            """
+            if self.is_negative and not allow_negative:
+                parser.raise_error('Expected non-negative integer values',
+                                   at_position=self.span)
+            if isinstance(self.value, bool) and not allow_booleans:
+                parser.raise_error(
+                    'Boolean values are only allowed for i1 types',
+                    at_position=self.span)
+            if not isinstance(self.value, bool | int):
+                parser.raise_error('Expected integer value',
+                                   at_position=self.span)
+            if self.is_negative:
+                return -int(self.value)
+            return int(self.value)
+
+        def to_float(self, parser: BaseParser) -> float:
+            """
+            Convert the element to a float value. Raises an error if the type
+            is compatible.                    
+            """
+            if not isinstance(self.value, int | float):
+                parser.raise_error('Expected float value',
+                                   at_position=self.span)
+            if self.is_negative:
+                return -float(self.value)
+            return float(self.value)
+
+        def to_type(self, parser: BaseParser,
+                    type: AnyFloat | IntegerType | IndexType):
+            if isinstance(type, AnyFloat):
+                return self.to_float(parser)
+            elif isinstance(type, IntegerType):
+                return self.to_int(parser,
+                                   type.signedness.data != Signedness.UNSIGNED,
+                                   type.width.data == 1)
+            elif isinstance(type, IndexType):
+                return self.to_int(parser,
+                                   allow_negative=True,
+                                   allow_booleans=False)
+            else:
+                assert False, 'fatal error in parser'
+
+    def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
+        """
+        Parse a tensor literal element, which can be a boolean, an integer
+        literal, or a float literal.
+        """
+        # boolean case
+        if self._current_token.text == 'true':
+            token = self._consume_token(Token.Kind.BARE_IDENT)
+            return self._TensorLiteralElement(False, True, token.span)
+        if self._current_token.text == 'false':
+            token = self._consume_token(Token.Kind.BARE_IDENT)
+            return self._TensorLiteralElement(False, False, token.span)
+
+        # checking for negation
+        is_negative = False
+        if self._parse_optional_token(Token.Kind.MINUS) is not None:
+            is_negative = True
+
+        # Integer and float case
+        if self._current_token.kind == Token.Kind.FLOAT_LIT:
+            token = self._consume_token(Token.Kind.FLOAT_LIT)
+            value = token.get_float_value()
+        elif self._current_token.kind == Token.Kind.INTEGER_LIT:
+            token = self._consume_token(Token.Kind.INTEGER_LIT)
+            value = token.get_int_value()
+        else:
+            self.raise_error(
+                "Expected either a float, integer, or complex literal")
+
+        if is_negative:
+            value = -value
+        return self._TensorLiteralElement(is_negative, value, token.span)
+
+    def _parse_tensor_literal(
+            self) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
+        """
+        Parse a tensor literal, and returns its flatten data and its shape.
+        
+        For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
+        the data, and [2, 3] for the shape.
+        """
+        if self._current_token.kind == Token.Kind.L_SQUARE:
+            res = self.parse_comma_separated_list(self.Delimiter.SQUARE,
+                                                  self._parse_tensor_literal)
+            if len(res) == 0:
+                return [], [0]
+            sub_literal_shape = res[0][1]
+            if any(r[1] != sub_literal_shape for r in res):
+                self.raise_error(
+                    "Tensor literal has inconsistent ranks between elements")
+            shape = [len(res)] + sub_literal_shape
+            values = [elem for sub_list in res for elem in sub_list[0]]
+            return values, shape
+        else:
+            element = self._parse_tensor_literal_element()
+            return [element], []
+
     def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
         """
         Dense attribute params must be:
@@ -1805,51 +2019,47 @@ class BaseParser(ABC):
         else:
             return None
 
-    def try_parse_builtin_int_attr(
-            self) -> IntegerAttr[IntegerType | IndexType] | None:
+    def parse_optional_builtin_int_or_float_attr(
+            self) -> AnyIntegerAttr | AnyFloatAttr | None:
         bool = self.try_parse_builtin_boolean_attr()
         if bool is not None:
             return bool
 
-        with self.backtracking("built in int attribute"):
-            value = self.expect(
-                self.try_parse_integer_literal,
-                'Integer attribute must start with an integer literal!')
-            if self.tokenizer.next_token(peek=True).text != ':':
-                return IntegerAttr.from_params(int(value.text), i64)
-            type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
 
-            if not isinstance(type, IntegerType | IndexType):
+        # Parse the value
+        if (value := self.parse_optional_number()) is None:
+            return None
+
+        self._synchronize_lexer_and_tokenizer()
+        # If no types are given, we take the default ones
+        if self._current_token.kind != Token.Kind.COLON:
+            if isinstance(value, float):
+                return FloatAttr(value, Float64Type())
+            return IntegerAttr(value, i64)
+
+        # Otherwise, we parse the attribute type
+        type = self._parse_attribute_type()
+        self._synchronize_lexer_and_tokenizer()
+
+        if isinstance(type, AnyFloat):
+            return FloatAttr(float(value), type)
+
+        if isinstance(type, IntegerType | IndexType):
+            if isinstance(value, float):
                 self.raise_error(
-                    f"Expected IntegerType | IndexType, got {type}")
+                    'Floating point value is not valid for integer type.')
+            return IntegerAttr(value, type)
 
-            return IntegerAttr.from_params(int(value.text), type)
-
-    def try_parse_builtin_float_attr(self) -> AnyFloatAttr | None:
-        with self.backtracking("float literal"):
-            value = self.expect(
-                self.try_parse_float_literal,
-                "Float attribute must start with a float literal!",
-            )
-            # If we don't see a ':' indicating a type signature
-            if not self.tokenizer.starts_with(":"):
-                return FloatAttr(float(value.text), Float32Type())
-
-            type = self._parse_attribute_type()
-            if not isinstance(type, AnyFloat):
-                self.raise_error(
-                    "Float attribute must be typed with a float type!")
-            return FloatAttr(float(value.text), type)
+        self.raise_error('Invalid type given for integer or float attribute.')
 
     def try_parse_builtin_boolean_attr(
             self) -> IntegerAttr[IntegerType | IndexType] | None:
-        span = self.try_parse_boolean_literal()
-
-        if span is None:
-            return None
-
-        int_val = ["false", "true"].index(span.text)
-        return IntegerAttr.from_params(int_val, IntegerType(1))
+        self._synchronize_lexer_and_tokenizer()
+        if (value := self.parse_optional_boolean()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerAttr.from_params(1 if value else 0, IntegerType(1))
+        return None
 
     def try_parse_builtin_str_attr(self):
         if not self.tokenizer.starts_with('"'):
@@ -1989,12 +2199,17 @@ class BaseParser(ABC):
             return IntegerType(int(re_match.group(1)),
                                signedness[name.text[0]])
 
+        if name.text == "bf16":
+            return BFloat16Type()
+
         if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
             width = int(re_match.group(1))
             type = {
                 16: Float16Type,
                 32: Float32Type,
-                64: Float64Type
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
             }.get(width, None)
             if type is None:
                 self.raise_error(

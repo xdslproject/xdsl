@@ -39,8 +39,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         if len(elem_hints) == 2 and elem_hints[1] is ...:
             return all(isa(elem, elem_hints[0]) for elem in arg_tuple)
         else:
-            assert len(elem_hints) == len(arg_tuple)
-            return all(
+            return len(elem_hints) == len(arg_tuple) and all(
                 isa(elem, hint) for elem, hint in zip(arg_tuple, elem_hints))
 
     if origin is dict:

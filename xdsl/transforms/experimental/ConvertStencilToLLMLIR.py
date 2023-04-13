@@ -6,7 +6,7 @@ from warnings import warn
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import BlockArgument, MLContext, Operation, SSAValue
+from xdsl.ir import Block, BlockArgument, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
@@ -97,6 +97,23 @@ class StoreOpShapeInference(RewritePattern):
         owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
 
 
+# Collect up to 'number' block arguments by walking up the region tree
+# and collecting block arguments as we reach new parent regions.
+def collectBlockArguments(number: int, block: Block):
+    args = []
+
+    while len(args) < number:
+        args = list(block.args) + args
+
+        parent = block.parent_block()
+        if parent is None:
+            break
+
+        block = parent
+
+    return args
+
+
 @dataclass
 class ReturnOpToMemref(RewritePattern):
 
@@ -106,15 +123,18 @@ class ReturnOpToMemref(RewritePattern):
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
 
         parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp)
+        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
 
         subview = self.return_target[op]
 
         assert isinstance(subview, memref.Subview)
+        assert isa(subview.result.typ, MemRefType[Attribute])
 
         assert (block := op.parent_block()) is not None
 
-        args = list(block.args)
+        dims = len(subview.result.typ.shape.data)
+
+        args = collectBlockArguments(dims, block)
 
         store = memref.Store.get(op.arg, subview.result, args)
 
@@ -191,10 +211,7 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
             use.operation.replace_operand(use.index, op.args[idx])
         entry.erase_arg(arg)
 
-    dim = len(op.lb.array.data)
-
-    for _ in range(dim):
-        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+    rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
     return rewriter.move_region_contents_to_new_regions(op.region)
 
@@ -237,6 +254,7 @@ class ApplyOpToParallel(RewritePattern):
         assert (op.lb is not None) and (op.ub is not None)
 
         body = prepare_apply_body(op, rewriter)
+        body.blocks[0].add_op(scf.Yield.get())
         dim = len(op.lb.array.data)
 
         # Then create the corresponding scf.parallel
@@ -248,16 +266,28 @@ class ApplyOpToParallel(RewritePattern):
             for x in dims
         ]
 
-        # Move the body to the loop
-        body.blocks[0].add_op(scf.Yield.get())
-        p = scf.ParallelOp.get(lowerBounds=[zero] * dim,
-                               upperBounds=upperBounds,
-                               steps=[one] * dim,
-                               body=body)
+        # Generate an outer parallel loop as well as two inner sequential
+        # loops. The inner sequential loops ensure that the computational
+        # kernel itself is not slowed down by the OpenMP runtime.
+        current_region = body
+        for i in range(1, dim):
+            for_op = scf.For.get(lb=zero,
+                                 ub=upperBounds[-i],
+                                 step=one,
+                                 iter_args=[],
+                                 body=current_region)
+            block = Block(ops=[for_op, scf.Yield()],
+                          arg_types=[builtin.IndexType()])
+            current_region = Region([block])
+
+        p = scf.ParallelOp.get(lowerBounds=[zero],
+                               upperBounds=[upperBounds[0]],
+                               steps=[one],
+                               body=current_region)
 
         # Replace with the loop and necessary constants.
         rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
-        rewriter.erase_matched_op(False)
+        rewriter.erase_matched_op()
 
 
 class AccessOpToMemref(RewritePattern):
@@ -280,7 +310,7 @@ class AccessOpToMemref(RewritePattern):
             for x in memref_offset
         ]
 
-        args = list(block.args)
+        args = collectBlockArguments(len(memref_offset), block)
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)

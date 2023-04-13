@@ -23,17 +23,25 @@
 // CHECK-NEXT:     %5 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %6 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %7 = "arith.constant"() {"value" = 68 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%3, %3, %3, %5, %6, %7, %4, %4, %4) ({
-// CHECK-NEXT:     ^1(%8 : index, %9 : index, %10 : index):
-// CHECK-NEXT:       %11 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %12 = "arith.constant"() {"value" = 4 : index} : () -> index
-// CHECK-NEXT:       %13 = "arith.constant"() {"value" = 5 : index} : () -> index
-// CHECK-NEXT:       %14 = "arith.addi"(%8, %11) : (index, index) -> index
-// CHECK-NEXT:       %15 = "arith.addi"(%9, %12) : (index, index) -> index
-// CHECK-NEXT:       %16 = "arith.addi"(%10, %13) : (index, index) -> index
-// CHECK-NEXT:       %17 = "memref.load"(%2, %14, %15, %16) : (memref<72x74x76xf64, strided<[5624, 76, 1]>>, index, index, index) -> f64
+// CHECK-NEXT:     "scf.parallel"(%3, %5, %4) ({
+// CHECK-NEXT:     ^1(%8 : index):
+// CHECK-NEXT:       "scf.for"(%3, %6, %4) ({
+// CHECK-NEXT:       ^2(%9 : index):
+// CHECK-NEXT:         "scf.for"(%3, %7, %4) ({
+// CHECK-NEXT:         ^3(%10 : index):
+// CHECK-NEXT:           %11 = "arith.constant"() {"value" = 3 : index} : () -> index
+// CHECK-NEXT:           %12 = "arith.constant"() {"value" = 4 : index} : () -> index
+// CHECK-NEXT:           %13 = "arith.constant"() {"value" = 5 : index} : () -> index
+// CHECK-NEXT:           %14 = "arith.addi"(%8, %11) : (index, index) -> index
+// CHECK-NEXT:           %15 = "arith.addi"(%9, %12) : (index, index) -> index
+// CHECK-NEXT:           %16 = "arith.addi"(%10, %13) : (index, index) -> index
+// CHECK-NEXT:           %17 = "memref.load"(%2, %14, %15, %16) : (memref<72x74x76xf64, strided<[5624, 76, 1]>>, index, index, index) -> f64
+// CHECK-NEXT:           "scf.yield"() : () -> ()
+// CHECK-NEXT:         }) : (index, index, index) -> ()
+// CHECK-NEXT:         "scf.yield"() : () -> ()
+// CHECK-NEXT:       }) : (index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
-// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
+// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
