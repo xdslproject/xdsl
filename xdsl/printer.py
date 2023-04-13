@@ -471,13 +471,11 @@ class Printer:
             self.print(f"dense_resource<{handle}> : ", attribute.type)
             return
 
-        # vector types have an alias in MLIR, but not in xDSL
-        if ((isinstance(attribute, VectorType)
-             or isinstance(attribute, TensorType))
+        # tensor types have an alias in MLIR, but not in xDSL
+        if ((isinstance(attribute, TensorType))
                 and self.target == self.Target.MLIR):
             attribute = cast(AnyVectorType, attribute)
-            self.print(
-                "vector<" if isinstance(attribute, VectorType) else "tensor<")
+            self.print("tensor<")
             self.print_list(
                 attribute.shape.data, lambda x: self.print(x.value.data)
                 if x.value.data != -1 else self.print("?"), "x")
@@ -489,6 +487,38 @@ class Printer:
                 self.print(", ")
                 self.print(attribute.encoding)
             self.print(">")
+            return
+
+        # vector types have an alias in MLIR, but not in xDSL
+        if (isinstance(attribute, VectorType)
+                and self.target == self.Target.MLIR):
+            attribute = cast(AnyVectorType, attribute)
+            shape = attribute.get_shape()
+
+            # We separate the dimensions between the static and the scalable ones
+            if attribute.get_num_scalable_dims() == 0:
+                static_dimensions = shape
+                scalable_dimensions = []
+            else:
+                static_dimensions = shape[:-attribute.get_num_scalable_dims()]
+                scalable_dimensions = shape[-attribute.get_num_scalable_dims(
+                ):]
+
+            self.print('vector<')
+            if len(static_dimensions) != 0:
+                self.print_list(static_dimensions, lambda x: self.print(x),
+                                'x')
+                self.print('x')
+
+            if len(scalable_dimensions) != 0:
+                self.print('[')
+                self.print_list(scalable_dimensions, lambda x: self.print(x),
+                                'x')
+                self.print(']')
+                self.print('x')
+
+            self.print(attribute.element_type)
+            self.print('>')
             return
 
         # Unranked tensors have an alias in MLIR, but not in xDSL

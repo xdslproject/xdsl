@@ -1127,21 +1127,27 @@ class BaseParser(ABC):
 
         return res
 
-    def _parse_shape_dimension(self) -> int:
+    def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
         """
         Parse a single shape dimension, which is a decimal literal or `?`.
         `?` is interpreted as -1. Note that if the integer literal is in
         hexadecimal form, it will be split into multiple tokens. For example,
         `0x10` will be split into `0` and `x10`.
+        Optionally allows to not parse `?` as -1.
         """
         if self._current_token.kind not in (Token.Kind.INTEGER_LIT,
                                             Token.Kind.QUESTION):
-            self.raise_error(
-                "Expected either integer literal or '?' in shape dimension, "
-                f"got {self._current_token.kind.name}!")
+            if allow_dynamic:
+                self.raise_error(
+                    "Expected either integer literal or '?' in shape dimension, "
+                    f"got {self._current_token.kind.name}!")
+            self.raise_error("Expected integer literal in shape dimension, "
+                             f"got {self._current_token.kind.name}!")
 
         if self.parse_optional_punctuation('?') is not None:
-            return -1
+            if allow_dynamic:
+                return -1
+            self.raise_error("Unexpected dynamic dimension!")
 
         # If the integer literal starts with `0x`, this is decomposed into
         # `0` and `x`.
@@ -1279,28 +1285,38 @@ class BaseParser(ABC):
                                   "Unexpected end of dimension parameters!")
 
     def parse_vector_attrs(self) -> AnyVectorType:
-        shape = list[int](self.try_parse_numerical_dims())
-        scaling_shape: list[int] | None = None
+        self._synchronize_lexer_and_tokenizer()
 
-        if self.tokenizer.next_token_of_pattern("[") is not None:
-            # We now need to parse the scalable dimensions
-            scaling_shape = list(self.try_parse_numerical_dims())
-            self.parse_characters(
-                "]", "Expected end of scalable vector dimensions here!")
-            self.parse_characters(
-                "x", "Expected end of scalable vector dimensions here!")
+        dims: list[int] = []
+        num_scalable_dims = 0
+        # First, we parse the static dimensions
+        while self._current_token.kind == Token.Kind.INTEGER_LIT:
+            dims.append(self._parse_shape_dimension(allow_dynamic=False))
+            self._parse_shape_delimiter()
 
-        if scaling_shape is not None:
-            # TODO: handle scaling vectors!
-            self.raise_error("Warning: scaling vectors not supported!")
-            pass
+        # Then, we parse the scalable dimensions, if any
+        if self.parse_optional_punctuation('[') is not None:
 
+            # Parse the scalable dimensions
+            dims.append(self._parse_shape_dimension(allow_dynamic=False))
+            num_scalable_dims += 1
+
+            while self.parse_optional_punctuation(']') is None:
+                self._parse_shape_delimiter()
+                dims.append(self._parse_shape_dimension(allow_dynamic=False))
+                num_scalable_dims += 1
+
+            # Parse the `x` between the scalable dimensions and the type
+            self._parse_shape_delimiter()
+
+        self._synchronize_lexer_and_tokenizer()
         type = self.try_parse_type()
         if type is None:
-            self.raise_error(
-                "Expected a type at the end of the vector parameters!")
+            self.raise_error("Expected the vector element types!")
 
-        return VectorType.from_element_type_and_shape(type, shape)
+        self._synchronize_lexer_and_tokenizer()
+        return VectorType.from_element_type_and_shape(type, dims,
+                                                      num_scalable_dims)
 
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self._parse_shape()
