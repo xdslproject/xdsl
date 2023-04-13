@@ -353,7 +353,7 @@ class Float64Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f64"
 
 
-AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+AnyFloat: TypeAlias = BFloat16Type | Float16Type | Float32Type | Float64Type
 
 
 @irdl_attr_definition
