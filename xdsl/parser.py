@@ -2367,6 +2367,12 @@ class MLIRParser(BaseParser):
         parse a builtin-type like i32, index, vector<i32> etc.
         """
         with self.backtracking("builtin type"):
+            # Check the function type separately, it is the only
+            # case of a type starting with a symbol
+            next_token = self.tokenizer.next_token(peek=True)
+            if next_token.text == '(':
+                return self.try_parse_function_type()
+
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:

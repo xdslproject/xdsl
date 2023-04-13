@@ -267,4 +267,24 @@
                       sym_name = "complex"} : () -> ()
   // CHECK: "complex" = complex<f32>
 
+  "func.func"() ({}) {function_type = () -> (),
+                      function = () -> i32,
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "function" = () -> i32
+
+  "func.func"() ({}) {function_type = () -> (),
+                      function = (i1) -> (i32),
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "function" = (i1) -> i32
+
+  "func.func"() ({}) {function_type = () -> (),
+                      function = (i1, i2) -> (i32, i64),
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "function" = (i1, i2) -> (i32, i64)
+
+  "func.func"() ({}) {function_type = () -> (),
+                      function = () -> (() -> i32),
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "function" = () -> (() -> i32)
+
 }) : () -> ()
