@@ -1,7 +1,7 @@
 """Unit tests for IRDL."""
+import pytest
 
 from dataclasses import dataclass
-import pytest
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (AllOf, AnyAttr, AnyOf, AttrConstraint, BaseAttr,

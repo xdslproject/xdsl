@@ -11,12 +11,13 @@ from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr, Float16Type,
-    Float32Type, Float64Type, FloatAttr, FloatData, IndexType, IntegerType,
-    NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr,
-    SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr,
-    FunctionType, UnrankedTensorType, UnregisteredAttr, UnregisteredOp,
-    VectorType, DictionaryAttr)
+    BFloat16Type, ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr,
+    DenseResourceAttr, Float128Type, Float16Type, Float32Type, Float64Type,
+    Float80Type, FloatAttr, FloatData, IndexType, IntegerType, NoneAttr,
+    OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr, SymbolRefAttr,
+    IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType,
+    UnrankedTensorType, UnregisteredAttr, UnregisteredOp, VectorType,
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -322,6 +323,9 @@ class Printer:
             return
 
         if self.target == self.Target.MLIR:
+            if isinstance(attribute, BFloat16Type):
+                self.print('bf16')
+                return
             if isinstance(attribute, Float16Type):
                 self.print('f16')
                 return
@@ -330,6 +334,12 @@ class Printer:
                 return
             if isinstance(attribute, Float64Type):
                 self.print('f64')
+                return
+            if isinstance(attribute, Float80Type):
+                self.print('f80')
+                return
+            if isinstance(attribute, Float128Type):
+                self.print('f128')
                 return
 
         if isinstance(attribute, StringAttr):
@@ -366,6 +376,11 @@ class Printer:
             self.print(value.data)
             self.print(" : ")
             self.print_attribute(typ)
+            return
+
+        # Complex types have MLIR shorthands but XDSL does not.
+        if isinstance(attribute, ComplexType):
+            self.print("complex<", attribute.element_type, ">")
             return
 
         if isinstance(attribute, ArrayAttr):
@@ -413,18 +428,16 @@ class Printer:
         if (isinstance(attribute, DenseIntOrFPElementsAttr)
                 and self.target == self.Target.MLIR):
 
+            def print_one_elem(val: Attribute):
+                if isinstance(val, IntegerAttr | FloatAttr):
+                    self.print(val.value.data)
+                else:
+                    raise Exception("unexpected attribute type "
+                                    "in DenseIntOrFPElementsAttr: "
+                                    f"{type(val)}")
+
             def print_dense_list(array: Sequence[AnyIntegerAttr]
                                  | Sequence[AnyFloatAttr], shape: List[int]):
-
-                def print_one_elem(val: Attribute):
-                    if isinstance(val, IntegerAttr):
-                        self.print(val.value.data)
-                    elif isinstance(val, FloatAttr):
-                        self.print(val.value.data)
-                    else:
-                        raise Exception("unexpected attribute type "
-                                        "in DenseIntOrFPElementsAttr: "
-                                        f"{type(val)}")
 
                 self.print('[')
                 if len(shape) > 1:
@@ -442,7 +455,12 @@ class Printer:
                 len(data)
             ]
             assert shape is not None, "If shape is complete, then it cannot be None"
-            print_dense_list(data, shape)
+            if len(data) == 0:
+                pass
+            elif data.count(data[0]) == len(data):
+                print_one_elem(data[0])
+            else:
+                print_dense_list(data, shape)
             self.print("> : ")
             self.print(attribute.type)
             return
@@ -466,6 +484,10 @@ class Printer:
             if len(attribute.shape.data) != 0:
                 self.print("x")
             self.print(attribute.element_type)
+            if isinstance(attribute,
+                          TensorType) and attribute.encoding != NoneAttr():
+                self.print(", ")
+                self.print(attribute.encoding)
             self.print(">")
             return
 

@@ -140,7 +140,7 @@ class ParallelOp(Operation):
         body: Region | list[Block] | list[Operation],
     ):
         return ParallelOp.build(operands=[lowerBounds, upperBounds, steps, []],
-                                regions=[Region.get(body)],
+                                regions=[body],
                                 result_types=[[]])
 
     def verify_(self) -> None:

@@ -24,6 +24,12 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
+@irdl_attr_definition
+class NoneAttr(ParametrizedAttribute):
+    """An attribute representing the absence of an attribute."""
+    name: str = "none"
+
+
 @dataclass
 class ArrayOfConstraint(AttrConstraint):
     """
@@ -291,6 +297,16 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     value: ParameterDef[IntAttr]
     typ: ParameterDef[_IntegerAttrTyp]
 
+    @overload
+    def __init__(self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr,
+                 typ: _IntegerAttrTyp) -> None:
+        ...
+
+    @overload
+    def __init__(self: IntegerAttr[IntegerType], value: int | IntAttr,
+                 typ: int) -> None:
+        ...
+
     def __init__(self, value: int | IntAttr,
                  typ: int | IntegerType | IndexType) -> None:
         if isinstance(value, int):
@@ -318,6 +334,11 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 @irdl_attr_definition
+class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "bf16"
+
+
+@irdl_attr_definition
 class Float16Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f16"
 
@@ -332,7 +353,18 @@ class Float64Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f64"
 
 
-AnyFloat: TypeAlias = Float16Type | Float32Type | Float64Type
+@irdl_attr_definition
+class Float80Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "f80"
+
+
+@irdl_attr_definition
+class Float128Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "f128"
+
+
+AnyFloat: TypeAlias = (BFloat16Type | Float16Type | Float32Type | Float64Type
+                       | Float80Type | Float128Type)
 
 
 @irdl_attr_definition
@@ -385,6 +417,10 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
                 type = Float32Type()
             elif type == 64:
                 type = Float64Type()
+            elif type == 80:
+                type = Float80Type()
+            elif type == 128:
+                type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data, type])
@@ -402,6 +438,15 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
+
+
+@irdl_attr_definition
+class ComplexType(ParametrizedAttribute, TypeAttribute):
+    name: str = "complex"
+    element_type: ParameterDef[IntegerType | AnyFloat]
+
+    def __init__(self, element_type: IntegerType | AnyFloat) -> None:
+        ParametrizedAttribute.__init__(self, [element_type])
 
 
 @irdl_attr_definition
@@ -473,11 +518,11 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeInvT], ParametrizedAttribute, TypeAttribute):
+class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[AttributeInvT]
+    element_type: ParameterDef[AttributeCovT]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -516,6 +561,7 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[AttributeCovT]
+    encoding: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -526,7 +572,8 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]] | None = None
+        shape: Sequence[int | IntegerAttr[IndexType]] | None = None,
+        encoding: Attribute = NoneAttr()
     ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
@@ -534,16 +581,17 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
                     d, int) else d for d in shape
-            ]), referenced_type
+            ]), referenced_type, encoding
         ])
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: AnyArrayAttr = AnyArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)])
+            [IntegerAttr.from_int_and_width(1, 64)]),
+        encoding: Attribute = NoneAttr()
     ) -> TensorType[AttributeInvT]:
-        return TensorType([shape, referenced_type])
+        return TensorType([shape, referenced_type, encoding])
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
@@ -583,9 +631,12 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
-VectorOrTensorOf: TypeAlias = (VectorType[AttributeInvT]
-                               | TensorType[AttributeInvT]
-                               | UnrankedTensorType[AttributeInvT])
+VectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
+                               | TensorType[AttributeCovT]
+                               | UnrankedTensorType[AttributeCovT])
+
+RankedVectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
+                                     | TensorType[AttributeCovT])
 
 
 @dataclass
@@ -647,9 +698,9 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    type: ParameterDef[VectorOrTensorOf[IntegerType]
-                       | VectorOrTensorOf[IndexType]
-                       | VectorOrTensorOf[AnyFloat]]
+    type: ParameterDef[RankedVectorOrTensorOf[IntegerType]
+                       | RankedVectorOrTensorOf[IndexType]
+                       | RankedVectorOrTensorOf[AnyFloat]]
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
@@ -677,7 +728,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_index(
-        type: VectorOrTensorOf[IndexType],
+        type: RankedVectorOrTensorOf[IndexType],
         data: Sequence[int] | Sequence[IntegerAttr[IndexType]]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
@@ -692,7 +743,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_int(
-        type: VectorOrTensorOf[IntegerType],
+        type: RankedVectorOrTensorOf[IntegerType],
         data: Sequence[int] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
@@ -707,7 +758,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_float(
-        type: VectorOrTensorOf[AnyFloat],
+        type: RankedVectorOrTensorOf[AnyFloat],
         data: Sequence[int | float] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int | float):
@@ -723,7 +774,8 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @overload
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute], data: Sequence[int]
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        data: Sequence[int]
         | Sequence[IntegerAttr[IndexType]] | Sequence[IntegerAttr[IntegerType]]
     ) -> DenseIntOrFPElementsAttr:
         ...
@@ -731,30 +783,31 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @overload
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute],
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         ...
 
     @staticmethod
     def from_list(
-        type: VectorOrTensorOf[Attribute], data: Sequence[int | float]
+        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        data: Sequence[int | float]
         | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
-            new_type = cast(VectorOrTensorOf[IntegerType], type)
+            new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
                             data)
             return DenseIntOrFPElementsAttr.create_dense_int(
                 new_type, new_data)
         elif isinstance(type.element_type, IndexType):
-            new_type = cast(VectorOrTensorOf[IndexType], type)
+            new_type = cast(RankedVectorOrTensorOf[IndexType], type)
             new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
                             data)
             return DenseIntOrFPElementsAttr.create_dense_index(
                 new_type, new_data)
         elif isinstance(type.element_type, AnyFloat):
-            new_type = cast(VectorOrTensorOf[AnyFloat], type)
+            new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
             new_data = cast(
                 Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(
@@ -767,7 +820,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
             data: List[int] | List[float],
             typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyVectorType.from_element_type_and_shape(typ, [len(data)])
+        t = VectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
@@ -803,8 +856,7 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | Float16Type | Float32Type
-                           | Float64Type]
+    elt_type: ParameterDef[IntegerType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
@@ -833,8 +885,7 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_float(
-            typ: Float16Type | Float32Type | Float64Type,
-            data: Sequence[int | float] | Sequence[FloatData]
+            typ: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [
@@ -872,6 +923,17 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             raise TypeError(f"Unsupported element type {type}")
 
+    def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
+        """
+        Get the "raw" data out as a tuple. This will not
+        apply the datatype restrictions that the array element
+        type would suggest!
+
+        e.g. given a dense<i8: 99999999, 255, 256>, as_tuple()
+        would return 1234567, 255, 256 and not 135, 255, 0 (mod 256)
+        """
+        return tuple(x.data for x in self.data.data)
+
 
 @irdl_attr_definition
 class FunctionType(ParametrizedAttribute, TypeAttribute):
@@ -889,12 +951,6 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
     def from_attrs(inputs: ArrayAttr[Attribute],
                    outputs: ArrayAttr[Attribute]) -> FunctionType:
         return FunctionType([inputs, outputs])
-
-
-@irdl_attr_definition
-class NoneAttr(ParametrizedAttribute):
-    """An attribute representing the absence of an attribute."""
-    name: str = "none"
 
 
 @irdl_attr_definition
@@ -1102,9 +1158,12 @@ class ModuleOp(Operation):
 
 
 # FloatXXType shortcuts
+bf16 = BFloat16Type()
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
+f80 = Float64Type()
+f128 = Float64Type()
 
 Builtin = Dialect(
     [
@@ -1131,10 +1190,14 @@ Builtin = Dialect(
         OpaqueAttr,
 
         # Types
+        ComplexType,
         FunctionType,
+        BFloat16Type,
         Float16Type,
         Float32Type,
         Float64Type,
+        Float80Type,
+        Float128Type,
         FloatAttr,
         SignednessAttr,
         TupleType,

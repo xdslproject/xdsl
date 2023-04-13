@@ -50,7 +50,7 @@ class Builder:
         block = Block()
         builder = Builder(block)
         func(builder)
-        return Region.from_block_list([block])
+        return Region([block])
 
     @staticmethod
     def _region_args(
@@ -65,12 +65,12 @@ class Builder:
             input_types = input_types.data
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_types)
+            block = Block(arg_types=input_types)
             builder = Builder(block)
 
             func(builder, block.args)
 
-            region = Region.from_block_list([block])
+            region = Region([block])
             return region
 
         return wrapper
@@ -126,7 +126,7 @@ class Builder:
         with _ImplicitBuilder(builder):
             func()
 
-        return Region.from_block_list([block])
+        return Region([block])
 
     @staticmethod
     def _implicit_region_args(
@@ -141,13 +141,13 @@ class Builder:
             input_types = input_types.data
 
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
-            block = Block.from_arg_types(input_types)
+            block = Block(arg_types=input_types)
             builder = Builder(block)
 
             with _ImplicitBuilder(builder):
                 func(block.args)
 
-            region = Region.from_block_list([block])
+            region = Region([block])
             return region
 
         return wrapper

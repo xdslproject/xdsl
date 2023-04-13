@@ -68,8 +68,7 @@ def test_all_reduce():
     assert all_reduce.uniform is None
     assert all_reduce.result.typ is all_reduce.operand.typ
 
-    body_block = Block.from_arg_types(
-        [builtin.IndexType(), builtin.IndexType()])
+    body_block = Block(arg_types=[builtin.IndexType(), builtin.IndexType()])
 
     ops: list[Operation] = [
         sum := Operation.clone(arith.Addi.get(*body_block.args)),
@@ -194,7 +193,7 @@ def test_lane_id():
 
 
 def test_launch():
-    body = Region.get([])
+    body = Region([])
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
     gridSize: list[Operation | SSAValue] = [ten, ten, ten]
     blockSize: list[Operation | SSAValue] = [ten, ten, ten]

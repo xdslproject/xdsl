@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Mapping, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
+                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -855,21 +856,36 @@ class Operation(IRNode):
 OperationInvT = TypeVar('OperationInvT', bound=Operation)
 
 
-@dataclass()
+@dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: Span | None = None
+    declared_at: Span | None
 
-    _args: tuple[BlockArgument, ...] = field(default_factory=lambda: (),
-                                             init=False)
+    _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    ops: list[Operation] = field(default_factory=list, init=False)
+    ops: list[Operation]
     """Ordered operations contained in the block."""
 
-    parent: Region | None = field(default=None, init=False, repr=False)
+    parent: Region | None
     """Parent region containing the block."""
+
+    def __init__(self,
+                 ops: Iterable[Operation] = (),
+                 *,
+                 arg_types: Iterable[Attribute] = (),
+                 parent: Region | None = None,
+                 declared_at: Span | None = None):
+        super().__init__(self)
+        self.declared_at = declared_at
+        self._args = tuple(
+            BlockArgument(typ, self, index)
+            for index, typ in enumerate(arg_types))
+        self.ops = []
+        self.parent = parent
+
+        self.add_ops(ops)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -888,6 +904,7 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
+    @deprecated('Please use Block(arg_types=arg_types)')
     @staticmethod
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
@@ -914,7 +931,7 @@ class Block(IRNode):
 
     @staticmethod
     def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
-        b = Block.from_arg_types(block_arg_types)
+        b = Block(arg_types=block_arg_types)
         b.add_ops(f(*b.args))
         return b
 
@@ -967,7 +984,7 @@ class Block(IRNode):
         self._attach_op(operation)
         self.ops.append(operation)
 
-    def add_ops(self, ops: list[Operation]) -> None:
+    def add_ops(self, ops: Iterable[Operation]) -> None:
         """
         Add operations at the end of the block.
         The operations should not be attached to another block.
@@ -1102,15 +1119,25 @@ class Block(IRNode):
         return id(self)
 
 
-@dataclass
+@dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
-    blocks: list[Block] = field(default_factory=list, init=False)
+    blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
-    parent: Operation | None = field(default=None, init=False, repr=False)
+    parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
+
+    def __init__(self,
+                 blocks: Iterable[Block] = (),
+                 *,
+                 parent: Operation | None = None):
+        super().__init__(self)
+        self.parent = parent
+        self.blocks = []
+        for block in blocks:
+            self.add_block(block)
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
@@ -1131,6 +1158,7 @@ class Region(IRNode):
         region.add_block(block)
         return region
 
+    @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
         region = Region()
@@ -1138,6 +1166,7 @@ class Region(IRNode):
             region.add_block(block)
         return region
 
+    @deprecated('Please use Region(blocks) or Region([Block(ops)])')
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
@@ -1146,7 +1175,7 @@ class Region(IRNode):
             if len(arg) == 0:
                 return Region.from_operation_list([])
             if isinstance(arg[0], Block):
-                return Region.from_block_list(cast(list[Block], arg))
+                return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
                 return Region.from_operation_list(cast(list[Operation], arg))
         raise TypeError(f"Can't build a region with argument {arg}")

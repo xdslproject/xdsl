@@ -39,11 +39,9 @@ class FuncOp(Operation):
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")
         }
-        op = FuncOp.build(attributes=attributes,
-                          regions=[
-                              Region.from_block_list(
-                                  [Block.from_callable(input_types, func)])
-                          ])
+        op = FuncOp.build(
+            attributes=attributes,
+            regions=[Region([Block.from_callable(input_types, func)])])
         return op
 
     @staticmethod

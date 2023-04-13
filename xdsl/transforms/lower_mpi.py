@@ -1,6 +1,7 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
+from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
@@ -14,7 +15,7 @@ from xdsl.pattern_rewriter import (RewritePattern, PatternRewriter,
 from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
 
 
-@dataclass
+@dataclass(frozen=True)
 class MpiLibraryInfo:
     """
     This object is meant to capture characteristics of a specific MPI implementations.
@@ -77,6 +78,7 @@ class MpiLibraryInfo:
 
     # MPI_Request
     MPI_Request_size: int = 4
+    MPI_REQUEST_NULL = 0x2c000000
 
     # MPI_Status
     MPI_Status_size: int = 20
@@ -742,33 +744,63 @@ class MpiAddExternalFuncDefs(RewritePattern):
                                       len(module.body.blocks[0].ops))
 
 
-def lower_mpi(ctx: MLContext, module: builtin.ModuleOp):
-    # TODO: how to get the lib info in here?
-    lib_info = MpiLibraryInfo()
+class LowerNullRequestOp(_MPIToLLVMRewriteBase):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.NullRequestOp,
+                          rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+        self, op: mpi.NullRequestOp
+    ) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.comm.size operation
+
+        int MPI_Comm_size(MPI_Comm comm, int *size)
+        """
+        assert isa(op.request.typ, llvm.LLVMPointerType)
+        return [
+            val :=
+            arith.Constant.from_int_and_width(self.info.MPI_REQUEST_NULL, i32),
+            llvm.StoreOp.get(val, op.request),
+        ], []
+
+
+@dataclass
+class LowerMPIPass(ModulePass):
+
+    name = 'lower-mpi'
 
     # lower to func.call
-    walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
-        LowerMpiInit(lib_info),
-        LowerMpiFinalize(lib_info),
-        LowerMpiWait(lib_info),
-        LowerMpiWaitall(lib_info),
-        LowerMpiCommRank(lib_info),
-        LowerMpiCommSize(lib_info),
-        LowerMpiIsend(lib_info),
-        LowerMpiIrecv(lib_info),
-        LowerMpiSend(lib_info),
-        LowerMpiRecv(lib_info),
-        LowerMpiReduce(lib_info),
-        LowerMpiAllreduce(lib_info),
-        LowerMpiBcast(lib_info),
-        LowerMpiUnwrapMemrefOp(lib_info),
-        LowerMpiGetDtype(lib_info),
-        LowerMpiAllocateType(lib_info),
-        LowerMpiVectorGet(lib_info),
-    ]),
-                                   apply_recursively=True)
-    walker1.rewrite_module(module)
 
-    # add func.func to declare external functions
-    walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
-    walker2.rewrite_module(module)
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+
+        # TODO: how to get the lib info in here?
+        lib_info = MpiLibraryInfo()
+        walker1 = PatternRewriteWalker(GreedyRewritePatternApplier([
+            LowerMpiInit(lib_info),
+            LowerMpiFinalize(lib_info),
+            LowerMpiWait(lib_info),
+            LowerMpiWaitall(lib_info),
+            LowerMpiCommRank(lib_info),
+            LowerMpiCommSize(lib_info),
+            LowerMpiIsend(lib_info),
+            LowerMpiIrecv(lib_info),
+            LowerMpiSend(lib_info),
+            LowerMpiRecv(lib_info),
+            LowerMpiReduce(lib_info),
+            LowerMpiAllreduce(lib_info),
+            LowerMpiBcast(lib_info),
+            LowerMpiUnwrapMemrefOp(lib_info),
+            LowerMpiGetDtype(lib_info),
+            LowerMpiAllocateType(lib_info),
+            LowerMpiVectorGet(lib_info),
+        ]),
+                                       apply_recursively=True)
+
+        # add func.func to declare external functions
+        walker2 = PatternRewriteWalker(MpiAddExternalFuncDefs())
+
+        walker1.rewrite_module(op)
+        walker2.rewrite_module(op)

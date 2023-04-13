@@ -1,12 +1,11 @@
 from typing import Sequence
 import pytest
 
-from xdsl.dialects.builtin import (DenseArrayBase, DenseIntOrFPElementsAttr,
-                                   NoneAttr, StridedLayoutAttr, i32, f32,
-                                   FloatAttr, ArrayAttr, IntAttr, FloatData,
-                                   SymbolRefAttr, VectorBaseTypeConstraint,
-                                   VectorRankConstraint,
-                                   VectorBaseTypeAndRankConstraint)
+from xdsl.dialects.builtin import (
+    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, NoneAttr,
+    StridedLayoutAttr, i32, f32, FloatAttr, ArrayAttr, IntAttr, FloatData,
+    SymbolRefAttr, VectorBaseTypeConstraint, VectorRankConstraint,
+    VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
@@ -188,3 +187,16 @@ def test_strided_constructor(strides: ArrayAttr[IntAttr | NoneAttr]
     strided = StridedLayoutAttr(strides, offset)
     assert strided.strides == expected_strides
     assert strided.offset == expected_offset
+
+
+def test_complex_init():
+    assert ComplexType(f32) == ComplexType.new([f32])
+    assert ComplexType(i32) == ComplexType.new([i32])
+
+
+def test_dense_as_tuple():
+    floats = DenseArrayBase.from_list(f32, [3.14159, 2.71828])
+    assert floats.as_tuple() == (3.14159, 2.71828)
+
+    ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
+    assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated, Union
 
+from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import IntegerType, AnyFloat
 from xdsl.ir import Operation, SSAValue, OpResult, Dialect
 from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand
-from xdsl.dialects.arith import FastMathFlagsAttr
 
 
 @irdl_op_definition

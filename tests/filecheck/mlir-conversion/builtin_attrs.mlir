@@ -31,11 +31,11 @@
   // CHECK: (ui32, ui64, ui1)
 
   "func.func"() ({
-    ^bb0(%arg0: f16, %arg1: f32, %arg2: f64):
+    ^bb0(%arg0: bf16, %arg1: f16, %arg2: f32, %arg3: f64, %arg3: f80, %arg3: f128):
     "func.return"() : () -> ()
-  }) {function_type = (f16, f32, f64) -> (), sym_name = "float_type"} : () -> ()
+  }) {function_type = (bf16, f16, f32, f64, f80, f128) -> (), sym_name = "float_type"} : () -> ()
 
-  // CHECK: (f16, f32, f64)
+  // CHECK: (bf16, f16, f32, f64, f80, f128)
 
 
   "func.func"() ({}) {function_type = () -> (), value = 42.0 : f32, sym_name = "float_attr"} : () -> ()
@@ -67,6 +67,18 @@
 
   // CHECK: 54 : index
 
+  "func.func"() ({}) {function_type = () -> (), value = 54 : f32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 54.0 : f32
+
+  "func.func"() ({}) {function_type = () -> (), value = 0x132 : i32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 306 : i32
+
+  "func.func"() ({}) {function_type = () -> (), value = 0x132 : f32, sym_name = "index_attr"} : () -> ()
+
+  // CHECK: 306.0 : f32
+
 
   "func.func"() ({}) {function_type = () -> (), value = "foo", sym_name = "string_attr"} : () -> ()
 
@@ -86,18 +98,44 @@
   // CHECK: (vector<4xf32>, vector<f32>, vector<1x12xi32>)
 
   "func.func"() ({
-    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>, %arg3: tensor<*xf64>):
+    ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>, %arg3: tensor<*xf64>, %arg4: tensor<0xi32>):
     "func.return"() : () -> ()
-  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>) -> (), sym_name = "tensor_type"} : () -> ()
+  }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>, tensor<0xi32>) -> (), sym_name = "tensor_type"} : () -> ()
 
-  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>)
+  // CHECK: (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>, tensor<0xi32>)
 
   "func.func"() ({}) {function_type = () -> (),
-                      value1 = dense<[0]> : tensor<1xi32>,
+                      value1 = dense<[[2, 3]]> : tensor<1x2xi32>,
                       value2 = dense<[0.0, 1.0]> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<[0]> : tensor<1xi32>, "value2" = dense<[0.0, 1.0]> : tensor<2xf64>
+  // CHECK: "value1" = dense<[[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.0, 1.0]> : tensor<2xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<[0]> : vector<1xi32>,
+                      value2 = dense<[0.0, 1.0]> : vector<2xf64>,
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<0> : vector<1xi32>, "value2" = dense<[0.0, 1.0]> : vector<2xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<> : tensor<1x23x0x4xi32>,
+                      value2 = dense<[[0.0], [1.0]]> : tensor<2x1xf64>,
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.0], [1.0]]> : tensor<2x1xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<12> : tensor<2x3xi32>,
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<12> : tensor<2x3xi32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<[true, false]> : tensor<2xi1>,
+                      sym_name = "dense_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<[1, 0]> : tensor<2xi1>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = opaque<"test", "contents">,
@@ -123,6 +161,12 @@
                       sym_name = "non_static_shaped_tensor"} : () -> ()
 
   // CHECK: tensor<?xi32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = tensor<?xi32, "encoding">,
+                      sym_name = "tensor_with_encoding"} : () -> ()
+
+  // CHECK: tensor<?xi32, "encoding">
 
   "func.func"() ({}) {function_type = () -> (), 
                       memref = memref<2xf32>,
@@ -204,5 +248,15 @@
                       strided = strided<[]>,
                       sym_name = "strided"} : () -> ()
   // CHECK: "strided" = strided<[]>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      complex = complex<i32>,
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "complex" = complex<i32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      complex = complex<f32>,
+                      sym_name = "complex"} : () -> ()
+  // CHECK: "complex" = complex<f32>
 
 }) : () -> ()

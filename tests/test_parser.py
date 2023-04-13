@@ -1,6 +1,6 @@
-from io import StringIO
-
 import pytest
+
+from io import StringIO
 
 from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
                                    ArrayAttr, Builtin, SymbolRefAttr)
@@ -141,11 +141,13 @@ def test_parse_block_name():
     assert block.args[1].name is None
 
 
-@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
-                         [(BaseParser.Delimiter.PAREN, '(', ')'),
-                          (BaseParser.Delimiter.SQUARE, '[', ']'),
-                          (BaseParser.Delimiter.BRACES, '{', '}'),
-                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket", [
+    (BaseParser.Delimiter.NONE, '', ''),
+    (BaseParser.Delimiter.PAREN, '(', ')'),
+    (BaseParser.Delimiter.SQUARE, '[', ']'),
+    (BaseParser.Delimiter.BRACES, '{', '}'),
+    (BaseParser.Delimiter.ANGLE, '<', '>'),
+])
 def test_parse_comma_separated_list(delimiter: BaseParser.Delimiter,
                                     open_bracket: str, close_bracket: str):
     input = open_bracket + "2, 4, 5" + close_bracket
@@ -156,11 +158,12 @@ def test_parse_comma_separated_list(delimiter: BaseParser.Delimiter,
     assert res == [2, 4, 5]
 
 
-@pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
-                         [(BaseParser.Delimiter.PAREN, '(', ')'),
-                          (BaseParser.Delimiter.SQUARE, '[', ']'),
-                          (BaseParser.Delimiter.BRACES, '{', '}'),
-                          (BaseParser.Delimiter.ANGLE, '<', '>')])
+@pytest.mark.parametrize("delimiter,open_bracket,close_bracket", [
+    (BaseParser.Delimiter.PAREN, '(', ')'),
+    (BaseParser.Delimiter.SQUARE, '[', ']'),
+    (BaseParser.Delimiter.BRACES, '{', '}'),
+    (BaseParser.Delimiter.ANGLE, '<', '>'),
+])
 def test_parse_comma_separated_list_empty(delimiter: BaseParser.Delimiter,
                                           open_bracket: str,
                                           close_bracket: str):
@@ -170,6 +173,13 @@ def test_parse_comma_separated_list_empty(delimiter: BaseParser.Delimiter,
                                             parser.parse_int_literal,
                                             ' in test')
     assert res == []
+
+
+def test_parse_comma_separated_list_none_delimiter_empty():
+    parser = XDSLParser(MLContext(), 'o')
+    with pytest.raises(ParseError):
+        parser.parse_comma_separated_list(BaseParser.Delimiter.NONE,
+                                          parser.parse_int_literal, ' in test')
 
 
 @pytest.mark.parametrize("delimiter,open_bracket,close_bracket",
@@ -285,3 +295,134 @@ def test_parse_optional_punctuation_fail(
     parser = XDSLParser(MLContext(), 'e +')
     parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
+
+
+@pytest.mark.parametrize("text, expected_value", [
+    ("true", True),
+    ("false", False),
+    ("True", None),
+    ("False", None),
+])
+def test_parse_boolean(text: str, expected_value: bool | None):
+    parser = MLIRParser(MLContext(), text)
+    assert parser.parse_optional_boolean() == expected_value
+
+    parser = MLIRParser(MLContext(), text)
+    if expected_value is None:
+        with pytest.raises(ParseError):
+            parser.parse_boolean()
+    else:
+        assert parser.parse_boolean() == expected_value
+
+
+@pytest.mark.parametrize("text, expected_value, allow_boolean, allow_negative",
+                         [
+                             ("42", 42, False, False),
+                             ("42", 42, True, False),
+                             ("42", 42, False, True),
+                             ("42", 42, True, True),
+                             ("-1", None, False, False),
+                             ("-1", None, True, False),
+                             ("-1", -1, False, True),
+                             ("-1", -1, True, True),
+                             ("true", None, False, False),
+                             ("true", 1, True, False),
+                             ("true", None, False, True),
+                             ("true", 1, True, True),
+                             ("false", None, False, False),
+                             ("false", 0, True, False),
+                             ("false", None, False, True),
+                             ("false", 0, True, True),
+                             ("True", None, True, True),
+                             ("False", None, True, True),
+                             ("0x1a", 26, False, False),
+                             ("0x1a", 26, True, False),
+                             ("0x1a", 26, False, True),
+                             ("0x1a", 26, True, True),
+                             ("-0x1a", None, False, False),
+                             ("-0x1a", None, True, False),
+                             ("-0x1a", -26, False, True),
+                             ("-0x1a", -26, True, True),
+                         ])
+def test_parse_int(text: str, expected_value: int | None, allow_boolean: bool,
+                   allow_negative: bool):
+    parser = MLIRParser(MLContext(), text)
+    assert parser.parse_optional_integer(
+        allow_boolean=allow_boolean,
+        allow_negative=allow_negative) == expected_value
+
+    parser = MLIRParser(MLContext(), text)
+    if expected_value is None:
+        with pytest.raises(ParseError):
+            parser.parse_integer(allow_boolean=allow_boolean,
+                                 allow_negative=allow_negative)
+    else:
+        assert parser.parse_integer(
+            allow_boolean=allow_boolean,
+            allow_negative=allow_negative) == expected_value
+
+
+@pytest.mark.parametrize("text, allow_boolean, allow_negative",
+                         [("-false", False, True), ("-false", True, True),
+                          ("-true", False, True), ("-true", True, True),
+                          ("-k", True, True), ("-(", False, True)])
+def test_parse_optional_int_error(text: str, allow_boolean: bool,
+                                  allow_negative: bool):
+    """Test that parsing a negative without an integer after raise an error."""
+    parser = MLIRParser(MLContext(), text)
+    with pytest.raises(ParseError):
+        parser.parse_optional_integer(allow_boolean=allow_boolean,
+                                      allow_negative=allow_negative)
+
+    parser = MLIRParser(MLContext(), text)
+    with pytest.raises(ParseError):
+        parser.parse_integer(allow_boolean=allow_boolean,
+                             allow_negative=allow_negative)
+
+
+@pytest.mark.parametrize("text, expected_value", [
+    ("42", 42),
+    ("-1", -1),
+    ("true", None),
+    ("false", None),
+    ("0x1a", 26),
+    ("-0x1a", -26),
+    ('0.', 0.0),
+    ('1.', 1.0),
+    ('0.2', 0.2),
+    ('38.1243', 38.1243),
+    ('92.54e43', 92.54e43),
+    ('92.5E43', 92.5E43),
+    ('43.3e-54', 43.3e-54),
+    ('32.E+25', 32.E+25),
+])
+def test_parse_number(text: str, expected_value: int | float | None):
+    parser = MLIRParser(MLContext(), text)
+    assert parser.parse_optional_number() == expected_value
+
+    parser = MLIRParser(MLContext(), text)
+    if expected_value is None:
+        with pytest.raises(ParseError):
+            parser.parse_number()
+    else:
+        assert parser.parse_number() == expected_value
+
+
+@pytest.mark.parametrize("text", [
+    ("-false"),
+    ("-true"),
+    ("-k"),
+    ("-("),
+])
+def test_parse_number_error(text: str):
+    """
+    Test that parsing a negative without an
+    integer or a float after raise an error.
+    """
+    parser = MLIRParser(MLContext(), text)
+    with pytest.raises(ParseError):
+        parser.parse_optional_number()
+
+    parser = MLIRParser(MLContext(), text)
+    with pytest.raises(ParseError):
+        parser.parse_number()
