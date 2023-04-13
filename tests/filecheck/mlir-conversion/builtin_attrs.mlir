@@ -31,11 +31,11 @@
   // CHECK: (ui32, ui64, ui1)
 
   "func.func"() ({
-    ^bb0(%arg0: f16, %arg1: f32, %arg2: f64):
+    ^bb0(%arg0: bf16, %arg1: f16, %arg2: f32, %arg3: f64, %arg3: f80, %arg3: f128):
     "func.return"() : () -> ()
-  }) {function_type = (f16, f32, f64) -> (), sym_name = "float_type"} : () -> ()
+  }) {function_type = (bf16, f16, f32, f64, f80, f128) -> (), sym_name = "float_type"} : () -> ()
 
-  // CHECK: (f16, f32, f64)
+  // CHECK: (bf16, f16, f32, f64, f80, f128)
 
 
   "func.func"() ({}) {function_type = () -> (), value = 42.0 : f32, sym_name = "float_attr"} : () -> ()
