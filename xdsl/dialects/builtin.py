@@ -353,7 +353,18 @@ class Float64Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f64"
 
 
-AnyFloat: TypeAlias = BFloat16Type | Float16Type | Float32Type | Float64Type
+@irdl_attr_definition
+class Float80Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "f80"
+
+
+@irdl_attr_definition
+class Float128Type(ParametrizedAttribute, TypeAttribute):
+    name: str = "f128"
+
+
+AnyFloat: TypeAlias = (BFloat16Type | Float16Type | Float32Type | Float64Type
+                       | Float80Type | Float128Type)
 
 
 @irdl_attr_definition
@@ -406,6 +417,10 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
                 type = Float32Type()
             elif type == 64:
                 type = Float64Type()
+            elif type == 80:
+                type = Float80Type()
+            elif type == 128:
+                type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data, type])
@@ -841,8 +856,7 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | Float16Type | Float32Type
-                           | Float64Type]
+    elt_type: ParameterDef[IntegerType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
@@ -871,8 +885,7 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_float(
-            typ: Float16Type | Float32Type | Float64Type,
-            data: Sequence[int | float] | Sequence[FloatData]
+            typ: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [
@@ -1145,9 +1158,12 @@ class ModuleOp(Operation):
 
 
 # FloatXXType shortcuts
+bf16 = BFloat16Type()
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
+f80 = Float64Type()
+f128 = Float64Type()
 
 Builtin = Dialect(
     [
@@ -1180,6 +1196,8 @@ Builtin = Dialect(
         Float16Type,
         Float32Type,
         Float64Type,
+        Float80Type,
+        Float128Type,
         FloatAttr,
         SignednessAttr,
         TupleType,

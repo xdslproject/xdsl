@@ -20,11 +20,12 @@ from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
     AnyVectorType, BFloat16Type, DenseResourceAttr, DictionaryAttr,
-    Float16Type, Float32Type, Float64Type, FloatAttr, FunctionType, IndexType,
-    IntegerType, Signedness, StringAttr, IntegerAttr, ArrayAttr, TensorType,
-    UnrankedTensorType, UnregisteredAttr, RankedVectorOrTensorOf, VectorType,
-    SymbolRefAttr, DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr,
-    NoneAttr, ModuleOp, UnitAttr, i64, StridedLayoutAttr, ComplexType)
+    Float16Type, Float32Type, Float64Type, Float80Type, Float128Type,
+    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, UnregisteredAttr,
+    RankedVectorOrTensorOf, VectorType, SymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
+    StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -2206,7 +2207,9 @@ class BaseParser(ABC):
             type = {
                 16: Float16Type,
                 32: Float32Type,
-                64: Float64Type
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
             }.get(width, None)
             if type is None:
                 self.raise_error(
