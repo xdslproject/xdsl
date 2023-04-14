@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
-from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect, BlockArgument
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
                        OpAttr, OptOpAttr)
 from xdsl.utils.exceptions import VerifyException
@@ -68,6 +68,47 @@ class FuncOp(Operation):
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op
+
+    def replace_argument_type(self, arg: int | BlockArgument,
+                              new_type: Attribute):
+        """
+        Replaces a function argument with a new one
+        """
+
+        if isinstance(arg, int):
+            if len(self.body.blocks[0].args) <= arg:
+                raise IndexError("Block {} does not have argument #{}!".format(
+                    self.body.blocks[0], arg))
+            arg = self.body.blocks[0].args[arg]
+
+        arg.typ = new_type
+        self.update_function_type()
+
+    def update_function_type(self):
+        """
+        Update the function_type attribute to reflect changes in the
+        block argument types.
+        """
+        return_op = self.body.blocks[-1].ops[-1]
+        return_type: tuple[Attribute] = tuple()
+
+        if return_op is not None:
+            return_type = tuple(arg.typ for arg in return_op.operands)
+
+        self.attributes['function_type'] = FunctionType.from_lists(
+            [arg.typ for arg in self.body.blocks[0].args],
+            return_type,
+        )
+
+    def get_return_op(self) -> Return | None:
+        if len(self.body.blocks) == 0:
+            return
+        if len(self.body.blocks[-1].ops) == 0:
+            return
+        # TODO: remove once we have verify() check this!
+        if not isinstance(self.body.blocks[-1].ops[-1], Return):
+            return
+        return self.body.blocks[-1].ops[-1]
 
 
 @irdl_op_definition

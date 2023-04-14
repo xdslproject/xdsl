@@ -83,6 +83,26 @@ def test_wrong_blockarg_types():
         "types as the function input types")
 
 
+def test_func_rewriting_helpers():
+    """
+    test replace_argument_type and update_function_type (implicitly)
+    :return:
+    """
+    func = FuncOp.from_callable('test', [i32, i32, i32], [],
+                                lambda x, y, z: [Return.get()])
+
+    func.replace_argument_type(2, i64)
+    assert func.function_type.inputs.data[2] is i64
+    assert func.body.blocks[0].args[2].typ is i64
+
+    func.replace_argument_type(func.body.blocks[0].args[0], i64)
+    assert func.function_type.inputs.data[0] is i64
+    assert func.body.blocks[0].args[0].typ is i64
+
+    with pytest.raises(IndexError):
+        func.replace_argument_type(3, i64)
+
+
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
