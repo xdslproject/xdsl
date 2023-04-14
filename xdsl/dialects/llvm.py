@@ -329,13 +329,13 @@ class NullOp(Operation):
 
     nullptr: Annotated[OpResult, LLVMPointerType]
 
-    @classmethod
-    def get(cls, ptr_type: LLVMPointerType | None = None):
+    @staticmethod
+    def get(ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
-        return cls.build(result_types=[ptr_type])
+        return NullOp.build(result_types=[ptr_type])
 
 
 @irdl_op_definition
