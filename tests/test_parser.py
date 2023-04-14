@@ -4,8 +4,7 @@ from io import StringIO
 
 from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
                                    ArrayAttr, Builtin, SymbolRefAttr)
-from xdsl.ir import (MLContext, Attribute, Region,
-                     ParametrizedAttribute)
+from xdsl.ir import (MLContext, Attribute, Region, ParametrizedAttribute)
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
 from xdsl.parser import BaseParser, XDSLParser, MLIRParser
 from xdsl.printer import Printer

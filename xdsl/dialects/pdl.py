@@ -5,7 +5,7 @@ from typing import Annotated, Generic, Sequence, TypeVar
 from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
                                    StringAttr)
 from xdsl.ir import (Attribute, Block, Dialect, TypeAttribute, OpResult,
-                     Operation, ParametrizedAttribute, Region, SSAValue)
+                     ParametrizedAttribute, Region, SSAValue)
 from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
                        OptOperand, OptRegion, ParameterDef, VarOpResult,
                        VarOperand, irdl_attr_definition, irdl_op_definition,
@@ -267,7 +267,7 @@ class RangeOp(IRDLOperation):
                     raise VerifyException(
                         f"All arguments must have the same type or be an array  \
                           of the corresponding element type. First element type:\
-                          {elem_type}, current element type: {cur_elem_type}"                                                                             )
+                          {elem_type}, current element type: {cur_elem_type}")
 
 
 @irdl_op_definition
