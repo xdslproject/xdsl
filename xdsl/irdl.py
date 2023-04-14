@@ -325,6 +325,10 @@ _OpT = TypeVar('_OpT', bound='IRDLOperation')
 
 class IRDLOperation(Operation):
 
+    @staticmethod
+    def get_def() -> OpDef:
+        ...
+
     def irdl_init(
         self,
         operands: Sequence[SSAValue | Operation
@@ -340,6 +344,32 @@ class IRDLOperation(Operation):
         | None = None):
         """Initialize a new operation using builders."""
         ...
+
+    def __init__(
+        self: IRDLOperation,
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None):
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+        irdl_op_init(self, self.get_def(), operands, result_types, attributes,
+                     successors, regions)
 
     @classmethod
     def build(
@@ -1219,6 +1249,11 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = dict[str, Any]()
+
+    def get_def(self):
+        return op_def
+
+    new_attrs["get_def"] = get_def
 
     # Add operand access fields
     irdl_op_arg_definition(new_attrs, VarIRConstruct.OPERAND, op_def)
