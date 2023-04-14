@@ -326,6 +326,26 @@ def test_insert_op_at_pos():
                              apply_recursively=False))
 
 
+def test_insert_op_at_pos_negative():
+    """
+    Test rewrites where operations are inserted with a negative position.
+    """
+
+    prog = ModuleOp.from_region_or_ops([Constant.from_int_and_width(5, 32)])
+
+    to_be_inserted = Constant.from_int_and_width(42, 32)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
+        rewriter.insert_op_at_pos(to_be_inserted, mod.regions[0].blocks[0], -1)
+
+    PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite),
+                         apply_recursively=False).rewrite_module(prog)
+
+    assert to_be_inserted in prog.ops
+    assert prog.ops.index(to_be_inserted) == 1
+
+
 def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
