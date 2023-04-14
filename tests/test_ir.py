@@ -298,3 +298,6 @@ def test_replace_operand():
 
     assert new_cst in add.operands
     assert cst0 not in add.operands
+
+    with pytest.raises(ValueError):
+        add.replace_operand(cst0, new_cst)
