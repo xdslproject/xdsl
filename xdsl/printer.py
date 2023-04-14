@@ -11,12 +11,13 @@ from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr, AnyFloatAttr, AnyUnrankedTensorType, AnyVectorType,
-    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, DenseResourceAttr,
-    Float16Type, Float32Type, Float64Type, FloatAttr, FloatData, IndexType,
-    IntegerType, NoneAttr, OpaqueAttr, Signedness, StridedLayoutAttr,
-    StringAttr, SymbolRefAttr, IntegerAttr, ArrayAttr, IntAttr, TensorType,
-    UnitAttr, FunctionType, UnrankedTensorType, UnregisteredAttr,
-    UnregisteredOp, VectorType, DictionaryAttr)
+    BFloat16Type, ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr,
+    DenseResourceAttr, Float128Type, Float16Type, Float32Type, Float64Type,
+    Float80Type, FloatAttr, FloatData, IndexType, IntegerType, NoneAttr,
+    OpaqueAttr, Signedness, StridedLayoutAttr, StringAttr, SymbolRefAttr,
+    IntegerAttr, ArrayAttr, IntAttr, TensorType, UnitAttr, FunctionType,
+    UnrankedTensorType, UnregisteredAttr, UnregisteredOp, VectorType,
+    DictionaryAttr)
 
 indentNumSpaces = 2
 
@@ -322,6 +323,9 @@ class Printer:
             return
 
         if self.target == self.Target.MLIR:
+            if isinstance(attribute, BFloat16Type):
+                self.print('bf16')
+                return
             if isinstance(attribute, Float16Type):
                 self.print('f16')
                 return
@@ -330,6 +334,12 @@ class Printer:
                 return
             if isinstance(attribute, Float64Type):
                 self.print('f64')
+                return
+            if isinstance(attribute, Float80Type):
+                self.print('f80')
+                return
+            if isinstance(attribute, Float128Type):
+                self.print('f128')
                 return
 
         if isinstance(attribute, StringAttr):
