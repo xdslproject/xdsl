@@ -114,7 +114,6 @@ class ReturnOpToMemref(RewritePattern):
         assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
 
         for j in range(len(op.arg)):
-
             subview = self.return_target[op][j]
 
             if subview is None:
