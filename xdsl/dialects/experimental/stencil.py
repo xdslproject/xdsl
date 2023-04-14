@@ -15,7 +15,7 @@ from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        AttrConstraint, Attribute, Region, VerifyException,
                        Generic, AnyOf, Annotated, Operand, OpAttr, OpResult,
                        VarOperand, VarOpResult, OptOpAttr,
-                       AttrSizedOperandSegments, Block)
+                       AttrSizedOperandSegments, Block, IRDLOperation)
 from xdsl.utils.hints import isa
 
 
@@ -211,7 +211,7 @@ class LoopAttr(ParametrizedAttribute):
 
 # Operations
 @irdl_op_definition
-class CastOp(Operation):
+class CastOp(IRDLOperation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
 
@@ -239,7 +239,7 @@ class CastOp(Operation):
 
 # Operations
 @irdl_op_definition
-class ExternalLoadOp(Operation):
+class ExternalLoadOp(IRDLOperation):
     """
     This operation loads from an external field type, e.g. to bring data into the stencil
 
@@ -257,7 +257,7 @@ class ExternalLoadOp(Operation):
 
 
 @irdl_op_definition
-class ExternalStoreOp(Operation):
+class ExternalStoreOp(IRDLOperation):
     """
     This operation takes a stencil field and then stores this to an external type
 
@@ -270,7 +270,7 @@ class ExternalStoreOp(Operation):
 
 
 @irdl_op_definition
-class IndexOp(Operation):
+class IndexOp(IRDLOperation):
     """
     This operation returns the index of the current loop iteration for the
     chosen direction (0, 1, or 2).
@@ -286,7 +286,7 @@ class IndexOp(Operation):
 
 
 @irdl_op_definition
-class AccessOp(Operation):
+class AccessOp(IRDLOperation):
     """
     This operation accesses a temporary element given a constant
     offset. The offset is specified relative to the current position.
@@ -319,7 +319,7 @@ class AccessOp(Operation):
 
 
 @irdl_op_definition
-class DynAccessOp(Operation):
+class DynAccessOp(IRDLOperation):
     """
     This operation accesses a temporary element given a dynamic offset.
     The offset is specified in absolute coordinates. An additional
@@ -338,7 +338,7 @@ class DynAccessOp(Operation):
 
 
 @irdl_op_definition
-class LoadOp(Operation):
+class LoadOp(IRDLOperation):
     """
     This operation takes a field and returns a temporary values.
 
@@ -366,7 +366,7 @@ class LoadOp(Operation):
 
 
 @irdl_op_definition
-class BufferOp(Operation):
+class BufferOp(IRDLOperation):
     """
     Prevents fusion of consecutive stencil.apply operations.
 
@@ -381,7 +381,7 @@ class BufferOp(Operation):
 
 
 @irdl_op_definition
-class StoreOp(Operation):
+class StoreOp(IRDLOperation):
     """
     This operation takes a temp and writes a field on a user defined range.
 
@@ -405,7 +405,7 @@ class StoreOp(Operation):
 
 
 @irdl_op_definition
-class ApplyOp(Operation):
+class ApplyOp(IRDLOperation):
     """
     This operation takes a stencil function plus parameters and applies
     the stencil function to the output temp.
@@ -453,7 +453,7 @@ class ApplyOp(Operation):
 
 
 @irdl_op_definition
-class StoreResultOp(Operation):
+class StoreResultOp(IRDLOperation):
     """
     The store_result operation either stores an operand value or nothing.
 
@@ -467,7 +467,7 @@ class StoreResultOp(Operation):
 
 
 @irdl_op_definition
-class ReturnOp(Operation):
+class ReturnOp(IRDLOperation):
     """
     The return operation terminates the stencil apply and writes
     the results of the stencil operator to the temporary values returned
@@ -489,7 +489,7 @@ class ReturnOp(Operation):
 
 
 @irdl_op_definition
-class CombineOp(Operation):
+class CombineOp(IRDLOperation):
     """
     Combines the results computed on a lower with the results computed on
     an upper domain. The operation combines the domain at a given index/offset
@@ -521,7 +521,7 @@ class CombineOp(Operation):
 
 
 @irdl_op_definition
-class HaloSwapOp(Operation):
+class HaloSwapOp(IRDLOperation):
     name = "stencil.halo_swap"
 
     input_stencil: Annotated[Operand, TempType]

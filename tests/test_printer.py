@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitA
 from xdsl.dialects.func import Func
 from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
-                       irdl_op_definition, Operation, Operand)
+                       irdl_op_definition, IRDLOperation, Operand)
 from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
@@ -70,7 +70,7 @@ builtin.module() {
 
 
 @irdl_op_definition
-class UnitAttrOp(Operation):
+class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
 
     parallelize: OptOpAttr[UnitAttr]
@@ -358,7 +358,7 @@ def test_print_custom_block_arg_name():
 
 
 @irdl_op_definition
-class PlusCustomFormatOp(Operation):
+class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
@@ -488,7 +488,7 @@ class CustomFormatAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class AnyOp(Operation):
+class AnyOp(IRDLOperation):
     name = "any"
 
 

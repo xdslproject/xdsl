@@ -4,13 +4,13 @@ import pytest
 
 from xdsl.dialects.builtin import IntAttr, StringAttr, i32
 
-from xdsl.ir import Attribute, OpResult, Operation, Region
+from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (AttrSizedOperandSegments, AttrSizedRegionSegments,
                        AttrSizedResultSegments, Operand, OptOpAttr,
                        OptOpResult, OptOperand, OptRegion, VarOpResult,
                        VarOperand, VarRegion, irdl_op_definition, OperandDef,
                        ResultDef, AttributeDef, AnyAttr, OpDef, RegionDef,
-                       OpAttr)
+                       OpAttr, IRDLOperation)
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 ################################################################################
@@ -19,7 +19,7 @@ from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 
 @irdl_op_definition
-class OpDefTestOp(Operation):
+class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
     operand: Operand
@@ -47,7 +47,7 @@ def test_get_definition():
 ################################################################################
 
 
-class InvalidTypedFieldTestOp(Operation):
+class InvalidTypedFieldTestOp(IRDLOperation):
     name = "test.invalid_typed_field"
 
     field: int
@@ -59,7 +59,7 @@ def test_invalid_typed_field():
         irdl_op_definition(InvalidTypedFieldTestOp)
 
 
-class InvalidFieldTestOp(Operation):
+class InvalidFieldTestOp(IRDLOperation):
     name = "test.invalid_field"
 
     field = 2
@@ -77,7 +77,7 @@ def test_invalid_field():
 
 
 @irdl_op_definition
-class AttrOp(Operation):
+class AttrOp(IRDLOperation):
     name: str = "test.two_var_result_op"
     attr: OpAttr[StringAttr]
 
@@ -95,7 +95,7 @@ def test_attr_verify():
 
 
 @irdl_op_definition
-class RegionOp(Operation):
+class RegionOp(IRDLOperation):
     name = "test.region_op"
 
     irdl_options = [AttrSizedRegionSegments()]
@@ -127,7 +127,7 @@ def test_region_accessors():
 
 
 @irdl_op_definition
-class OperandOp(Operation):
+class OperandOp(IRDLOperation):
     name = "test.operand_op"
 
     irdl_options = [AttrSizedOperandSegments()]
@@ -157,7 +157,7 @@ def test_operand_accessors():
 
 
 @irdl_op_definition
-class OpResultOp(Operation):
+class OpResultOp(IRDLOperation):
     name = "test.op_result_op"
 
     irdl_options = [AttrSizedResultSegments()]
@@ -182,7 +182,7 @@ def test_opresult_accessors():
 
 
 @irdl_op_definition
-class AttributeOp(Operation):
+class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
     attr: OpAttr[StringAttr]

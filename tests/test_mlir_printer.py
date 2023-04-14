@@ -4,20 +4,20 @@ from typing import Annotated
 from xdsl.ir import (Attribute, Data, MLContext, TypeAttribute, Operation,
                      ParametrizedAttribute, Region)
 from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
-                       irdl_attr_definition, irdl_op_definition)
+                       irdl_attr_definition, irdl_op_definition, IRDLOperation)
 from xdsl.parser import BaseParser, XDSLParser
 from xdsl.printer import Printer
 
 
 @irdl_op_definition
-class ModuleOp(Operation):
+class ModuleOp(IRDLOperation):
     """Module operation. Redefined to not depend on the builtin dialect."""
     name = "module"
     region: Region
 
 
 @irdl_op_definition
-class AnyOp(Operation):
+class AnyOp(IRDLOperation):
     """Operation only used for testing."""
     name = "any"
     op: Annotated[VarOperand, AnyAttr()]

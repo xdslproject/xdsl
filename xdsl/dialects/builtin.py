@@ -14,7 +14,8 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr)
+                       Generic, GenericData, AttrConstraint, AnyAttr,
+                       IRDLOperation)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -1006,7 +1007,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class UnrealizedConversionCastOp(Operation):
+class UnrealizedConversionCastOp(IRDLOperation):
     name: str = "builtin.unrealized_conversion_cast"
 
     inputs: VarOperand
@@ -1021,7 +1022,7 @@ class UnrealizedConversionCastOp(Operation):
         )
 
 
-class UnregisteredOp(Operation, ABC):
+class UnregisteredOp(IRDLOperation, ABC):
     """
     An unregistered operation.
     
@@ -1134,7 +1135,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
 
 @irdl_op_definition
-class ModuleOp(Operation):
+class ModuleOp(IRDLOperation):
     name: str = "builtin.module"
 
     body: SingleBlockRegion

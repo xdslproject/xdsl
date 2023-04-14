@@ -6,7 +6,7 @@ from xdsl.ir import (Attribute, TypeAttribute, OpResult, Operation, Dialect,
 from xdsl.irdl import (AttrSizedOperandSegments, Operand, OptOpAttr,
                        OptOpResult, OptOperand, ParameterDef, VarOperand,
                        irdl_op_definition, irdl_attr_definition,
-                       SingleBlockRegion, OpAttr)
+                       SingleBlockRegion, OpAttr, IRDLOperation)
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
 from xdsl.parser import BaseParser
@@ -113,7 +113,7 @@ _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 
 
 @irdl_op_definition
-class AllocOp(Operation):
+class AllocOp(IRDLOperation):
     name = "gpu.alloc"
     hostShared: OptOpAttr[UnitAttr]
     asyncDependencies: Annotated[VarOperand, AsyncTokenType]
@@ -159,7 +159,7 @@ class AllocOp(Operation):
 
 
 @irdl_op_definition
-class AllReduceOp(Operation):
+class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
     op: OptOpAttr[AllReduceOperationAttr]
     uniform: OptOpAttr[UnitAttr]
@@ -219,7 +219,7 @@ class AllReduceOp(Operation):
 
 
 @irdl_op_definition
-class BarrierOp(Operation):
+class BarrierOp(IRDLOperation):
     name = "gpu.barrier"
 
     @staticmethod
@@ -228,7 +228,7 @@ class BarrierOp(Operation):
 
 
 @irdl_op_definition
-class BlockDimOp(Operation):
+class BlockDimOp(IRDLOperation):
     name = "gpu.block_dim"
     dimension: OpAttr[DimensionAttr]
     result: Annotated[OpResult, IndexType]
@@ -240,7 +240,7 @@ class BlockDimOp(Operation):
 
 
 @irdl_op_definition
-class BlockIdOp(Operation):
+class BlockIdOp(IRDLOperation):
     name = "gpu.block_id"
     dimension: OpAttr[DimensionAttr]
     result: Annotated[OpResult, IndexType]
@@ -252,7 +252,7 @@ class BlockIdOp(Operation):
 
 
 @irdl_op_definition
-class DeallocOp(Operation):
+class DeallocOp(IRDLOperation):
     name = "gpu.dealloc"
 
     asyncDependencies: Annotated[VarOperand, AsyncTokenType]
@@ -272,7 +272,7 @@ class DeallocOp(Operation):
 
 
 @irdl_op_definition
-class MemcpyOp(Operation):
+class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies: Annotated[VarOperand, AsyncTokenType]
@@ -300,7 +300,7 @@ class MemcpyOp(Operation):
 
 
 @irdl_op_definition
-class ModuleOp(Operation):
+class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body: SingleBlockRegion
@@ -318,7 +318,7 @@ class ModuleOp(Operation):
 
 
 @irdl_op_definition
-class GlobalIdOp(Operation):
+class GlobalIdOp(IRDLOperation):
     name = "gpu.global_id"
     dimension: OpAttr[DimensionAttr]
     result: Annotated[OpResult, IndexType]
@@ -330,7 +330,7 @@ class GlobalIdOp(Operation):
 
 
 @irdl_op_definition
-class GridDimOp(Operation):
+class GridDimOp(IRDLOperation):
     name = "gpu.grid_dim"
     dimension: OpAttr[DimensionAttr]
     result: Annotated[OpResult, IndexType]
@@ -342,7 +342,7 @@ class GridDimOp(Operation):
 
 
 @irdl_op_definition
-class HostRegisterOp(Operation):
+class HostRegisterOp(IRDLOperation):
     """
     This op maps the provided host buffer into the device address space.
 
@@ -362,7 +362,7 @@ class HostRegisterOp(Operation):
 
 
 @irdl_op_definition
-class LaneIdOp(Operation):
+class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
     result: Annotated[OpResult, IndexType]
 
@@ -372,7 +372,7 @@ class LaneIdOp(Operation):
 
 
 @irdl_op_definition
-class LaunchOp(Operation):
+class LaunchOp(IRDLOperation):
     name = "gpu.launch"
     asyncDependencies: Annotated[VarOperand, AsyncTokenType]
     gridSizeX: Annotated[Operand, IndexType]
@@ -428,7 +428,7 @@ class LaunchOp(Operation):
 
 
 @irdl_op_definition
-class ModuleEndOp(Operation):
+class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
     @staticmethod
@@ -437,7 +437,7 @@ class ModuleEndOp(Operation):
 
 
 @irdl_op_definition
-class NumSubgroupsOp(Operation):
+class NumSubgroupsOp(IRDLOperation):
     name = "gpu.num_subgroups"
     result: Annotated[OpResult, IndexType]
 
@@ -447,7 +447,7 @@ class NumSubgroupsOp(Operation):
 
 
 @irdl_op_definition
-class SetDefaultDeviceOp(Operation):
+class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
     devIndex: Annotated[Operand, i32]
 
@@ -457,7 +457,7 @@ class SetDefaultDeviceOp(Operation):
 
 
 @irdl_op_definition
-class SubgroupIdOp(Operation):
+class SubgroupIdOp(IRDLOperation):
     name = "gpu.subgroup_id"
     result: Annotated[OpResult, IndexType]
 
@@ -467,7 +467,7 @@ class SubgroupIdOp(Operation):
 
 
 @irdl_op_definition
-class SubgroupSizeOp(Operation):
+class SubgroupSizeOp(IRDLOperation):
     name = "gpu.subgroup_size"
     result: Annotated[OpResult, IndexType]
 
@@ -477,7 +477,7 @@ class SubgroupSizeOp(Operation):
 
 
 @irdl_op_definition
-class TerminatorOp(Operation):
+class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
     @staticmethod
@@ -497,7 +497,7 @@ class TerminatorOp(Operation):
 
 
 @irdl_op_definition
-class ThreadIdOp(Operation):
+class ThreadIdOp(IRDLOperation):
     name = "gpu.thread_id"
     dimension: OpAttr[DimensionAttr]
     result: Annotated[OpResult, IndexType]
@@ -509,7 +509,7 @@ class ThreadIdOp(Operation):
 
 
 @irdl_op_definition
-class YieldOp(Operation):
+class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: Annotated[VarOperand, Attribute]
 

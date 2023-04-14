@@ -320,7 +320,28 @@ def irdl_to_attr_constraint(
 #  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
 #       |_|
 
-_OpT = TypeVar('_OpT', bound=Operation)
+_OpT = TypeVar('_OpT', bound='IRDLOperation')
+
+
+class IRDLOperation(Operation):
+
+    @classmethod
+    def build(
+        cls: type[_OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> _OpT:
+        """Create a new operation using builders."""
+        ...
 
 
 @dataclass

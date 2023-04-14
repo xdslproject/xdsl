@@ -9,7 +9,7 @@ from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
                      OpResult, Operation, SSAValue)
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
                        irdl_attr_definition, irdl_op_definition, VarOperand,
-                       OptOpAttr)
+                       OptOpAttr, IRDLOperation)
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -145,7 +145,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class GEPOp(Operation):
+class GEPOp(IRDLOperation):
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
@@ -205,7 +205,7 @@ class GEPOp(Operation):
 
 
 @irdl_op_definition
-class AllocaOp(Operation):
+class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
     size: Annotated[Operand, IntegerType]
@@ -234,7 +234,7 @@ class AllocaOp(Operation):
 
 
 @irdl_op_definition
-class IntToPtrOp(Operation):
+class IntToPtrOp(IRDLOperation):
     name = "llvm.inttoptr"
 
     input: Annotated[Operand, IntegerType]
@@ -251,7 +251,7 @@ class IntToPtrOp(Operation):
 
 
 @irdl_op_definition
-class PtrToIntOp(Operation):
+class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
     input: Annotated[Operand, LLVMPointerType]
@@ -264,7 +264,7 @@ class PtrToIntOp(Operation):
 
 
 @irdl_op_definition
-class LoadOp(Operation):
+class LoadOp(IRDLOperation):
     name = "llvm.load"
 
     ptr: Annotated[Operand, LLVMPointerType]
@@ -287,7 +287,7 @@ class LoadOp(Operation):
 
 
 @irdl_op_definition
-class StoreOp(Operation):
+class StoreOp(IRDLOperation):
     name = "llvm.store"
 
     value: Operand
@@ -324,7 +324,7 @@ class StoreOp(Operation):
 
 
 @irdl_op_definition
-class NullOp(Operation):
+class NullOp(IRDLOperation):
     name = "llvm.mlir.null"
 
     nullptr: Annotated[OpResult, LLVMPointerType]
@@ -339,7 +339,7 @@ class NullOp(Operation):
 
 
 @irdl_op_definition
-class LLVMExtractValue(Operation):
+class LLVMExtractValue(IRDLOperation):
     name = "llvm.extractvalue"
 
     position: OpAttr[DenseArrayBase]
@@ -349,7 +349,7 @@ class LLVMExtractValue(Operation):
 
 
 @irdl_op_definition
-class LLVMInsertValue(Operation):
+class LLVMInsertValue(IRDLOperation):
     name = "llvm.insertvalue"
 
     position: OpAttr[DenseArrayBase]
@@ -360,7 +360,7 @@ class LLVMInsertValue(Operation):
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(Operation):
+class LLVMMLIRUndef(IRDLOperation):
     name = "llvm.mlir.undef"
 
     res: Annotated[OpResult, AnyAttr()]

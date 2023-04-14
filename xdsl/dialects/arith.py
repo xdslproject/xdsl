@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (ContainerOf, Float16Type, Float64Type,
                                    Attribute, AnyFloat, AnyIntegerAttr)
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (AnyOf, irdl_op_definition, OpAttr, AnyAttr, Operand,
-                       irdl_attr_definition, OptOpAttr)
+                       irdl_attr_definition, OptOpAttr, IRDLOperation)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -86,7 +86,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
 
 
 @irdl_op_definition
-class Constant(Operation):
+class Constant(IRDLOperation):
     name: str = "arith.constant"
     result: Annotated[OpResult, AnyAttr()]
     value: OpAttr[Attribute]
@@ -114,7 +114,7 @@ class Constant(Operation):
 
 
 @dataclass
-class BinaryOperation(Operation):
+class BinaryOperation(IRDLOperation):
     """A generic operation. Operation definitions inherit this class."""
 
     # TODO replace with trait
@@ -399,7 +399,7 @@ class XOrI(BinaryOperation):
 
 
 @irdl_op_definition
-class ShLI(Operation):
+class ShLI(IRDLOperation):
     """
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
@@ -424,7 +424,7 @@ class ShLI(Operation):
 
 
 @irdl_op_definition
-class ShRUI(Operation):
+class ShRUI(IRDLOperation):
     """
     The `shrui` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as unsigned. The high order bits are
@@ -450,7 +450,7 @@ class ShRUI(Operation):
 
 
 @irdl_op_definition
-class ShRSI(Operation):
+class ShRSI(IRDLOperation):
     """
     The `shrsi` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as signed. The high order bits in the
@@ -512,7 +512,7 @@ class ComparisonOperation():
 
 
 @irdl_op_definition
-class Cmpi(Operation, ComparisonOperation):
+class Cmpi(IRDLOperation, ComparisonOperation):
     """
     The cmpi operation is a generic comparison for integer-like types. Its two
     arguments can be integers, vectors or tensors thereof as long as their types
@@ -575,7 +575,7 @@ class Cmpi(Operation, ComparisonOperation):
 
 
 @irdl_op_definition
-class Cmpf(Operation, ComparisonOperation):
+class Cmpf(IRDLOperation, ComparisonOperation):
     """
     The cmpf operation compares its two operands according to the float
     comparison rules and the predicate specified by the respective attribute.
@@ -642,7 +642,7 @@ class Cmpf(Operation, ComparisonOperation):
 
 
 @irdl_op_definition
-class Select(Operation):
+class Select(IRDLOperation):
     """
     The `arith.select` operation chooses one value based on a binary condition
     supplied as its first operand. If the value of the first operand is `1`,
@@ -733,7 +733,7 @@ class Divf(BinaryOperation):
 
 
 @irdl_op_definition
-class Negf(Operation):
+class Negf(IRDLOperation):
     name: str = "arith.negf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, floatingPointLike]
@@ -741,10 +741,11 @@ class Negf(Operation):
 
     @staticmethod
     def get(operand: Union[Operation, SSAValue],
-      fastmath: FastMathFlagsAttr | None = None) -> Negf:
+            fastmath: FastMathFlagsAttr | None = None) -> Negf:
 
         operand = SSAValue.get(operand)
-        return Negf.build(attributes={"fastmath": fastmath}, operands=[operand],
+        return Negf.build(attributes={"fastmath": fastmath},
+                          operands=[operand],
                           result_types=[operand.typ])
 
 
@@ -779,7 +780,7 @@ class Minf(BinaryOperation):
 
 
 @irdl_op_definition
-class IndexCastOp(Operation):
+class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
     input: Operand
@@ -792,7 +793,7 @@ class IndexCastOp(Operation):
 
 
 @irdl_op_definition
-class FPToSIOp(Operation):
+class FPToSIOp(IRDLOperation):
     name = "arith.fptosi"
 
     input: Annotated[Operand, AnyFloat]
@@ -804,7 +805,7 @@ class FPToSIOp(Operation):
 
 
 @irdl_op_definition
-class SIToFPOp(Operation):
+class SIToFPOp(IRDLOperation):
     name = "arith.sitofp"
 
     input: Annotated[Operand, IntegerType]
@@ -816,7 +817,7 @@ class SIToFPOp(Operation):
 
 
 @irdl_op_definition
-class ExtFOp(Operation):
+class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
     input: Annotated[Operand, AnyFloat]
@@ -828,7 +829,7 @@ class ExtFOp(Operation):
 
 
 @irdl_op_definition
-class TruncFOp(Operation):
+class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
     input: Annotated[Operand, AnyFloat]
