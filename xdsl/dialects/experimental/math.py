@@ -57,7 +57,7 @@ class AbsIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Atan2Op(Operation):
+class Atan2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.atan2` ssa-use `,` ssa-use `:` type
@@ -348,7 +348,7 @@ class ErfOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Exp2Op(Operation):
+class Exp2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.exp2` ssa-use `:` type
@@ -379,7 +379,7 @@ class Exp2Op(Operation):
 
 
 @irdl_op_definition
-class ExpM1Op(Operation):
+class ExpM1Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.expm1` ssa-use `:` type
@@ -585,7 +585,7 @@ class IPowIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class Log10Op(Operation):
+class Log10Op(IRDLOperation):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -613,7 +613,7 @@ class Log10Op(Operation):
 
 
 @irdl_op_definition
-class Log1pOp(Operation):
+class Log1pOp(IRDLOperation):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -643,7 +643,7 @@ class Log1pOp(Operation):
 
 
 @irdl_op_definition
-class Log2Op(Operation):
+class Log2Op(IRDLOperation):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of

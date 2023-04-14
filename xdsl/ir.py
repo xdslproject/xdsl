@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
-                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Protocol,
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints

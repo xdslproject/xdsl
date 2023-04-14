@@ -1,7 +1,7 @@
 import re
 from io import StringIO
 from typing import Annotated
-from xdsl.ir import (Attribute, Data, MLContext, TypeAttribute, Operation,
+from xdsl.ir import (Attribute, Data, MLContext, TypeAttribute,
                      ParametrizedAttribute, Region)
 from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
                        irdl_attr_definition, irdl_op_definition, IRDLOperation)
