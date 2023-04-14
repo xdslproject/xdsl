@@ -21,9 +21,16 @@ class If(IRDLOperation):
     false_region: Region
 
     @staticmethod
-    def get(cond: SSAValue | Operation, return_types: List[Attribute],
-            true_region: Region | List[Block] | List[Operation],
-            false_region: Region | List[Block] | List[Operation]) -> If:
+    def get(
+        cond: SSAValue | Operation,
+        return_types: List[Attribute],
+        true_region: Region | List[Block] | List[Operation],
+        false_region: Region | List[Block] | List[Operation] | None = None
+    ) -> If:
+
+        if false_region is None:
+            false_region = Region.from_operation_list([Yield.get()])
+
         return If.build(
             operands=[cond],
             result_types=[return_types],
