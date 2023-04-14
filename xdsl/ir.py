@@ -641,8 +641,14 @@ class Operation(IRNode):
         """Create a new operation using builders."""
         ...
 
-    def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
+    def replace_operand(self, operand: int | SSAValue,
+                        new_operand: SSAValue) -> None:
         """Replace an operand with another operand."""
+        if isinstance(operand, SSAValue):
+            operand_idx = self._operands.index(operand)
+        else:
+            operand_idx = operand
+
         self.operands = list(self._operands[:operand_idx]) + [
             new_operand
         ] + list(self._operands[operand_idx + 1:])

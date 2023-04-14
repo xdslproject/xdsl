@@ -286,3 +286,15 @@ ModuleOp(
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
 )'''
+
+
+def test_replace_operand():
+    cst0 = Constant.from_int_and_width(0, 32).result
+    cst1 = Constant.from_int_and_width(1, 32).result
+    add = Addi.get(cst0, cst1)
+
+    new_cst = Constant.from_int_and_width(2, 32).result
+    add.replace_operand(cst0, new_cst)
+
+    assert new_cst in add.operands
+    assert cst0 not in add.operands
