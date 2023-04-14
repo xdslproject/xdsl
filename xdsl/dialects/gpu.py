@@ -85,9 +85,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
         )
         return [attrtype([StringAttr(vtok.text)])]
 
-    @classmethod
-    def from_op(cls: Type[_GPUAttr[_AllReduceOperationAttr]],
-                value: str) -> AllReduceOperationAttr:
+    @staticmethod
+    def from_op(value: str) -> AllReduceOperationAttr:
         return AllReduceOperationAttr(
             [_AllReduceOperationAttr([StringAttr(value)])])
 
@@ -95,9 +94,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
     def data(self) -> str:
         return self.value.param.data
 
-    @classmethod
-    def from_dimension(cls: Type[_GPUAttr[_DimensionAttr]],
-                       value: str) -> DimensionAttr:
+    @staticmethod
+    def from_dimension(value: str) -> DimensionAttr:
         return DimensionAttr([_DimensionAttr([StringAttr(value)])])
 
     def print_parameters(self, printer: Printer) -> None:
