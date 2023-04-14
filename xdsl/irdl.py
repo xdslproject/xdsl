@@ -329,22 +329,6 @@ class IRDLOperation(Operation):
     def get_def() -> OpDef:
         ...
 
-    def irdl_init(
-        self,
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation] | None]
-        | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]]
-        | None = None,
-        attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                          | Sequence[Region | Sequence[Operation]
-                                     | Sequence[Block]]]
-        | None = None):
-        """Initialize a new operation using builders."""
-        ...
-
     def __init__(
         self: IRDLOperation,
         operands: Sequence[SSAValue | Operation
@@ -388,11 +372,12 @@ class IRDLOperation(Operation):
     ) -> _OpT:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
-        op.irdl_init(operands=operands,
-                     result_types=result_types,
-                     attributes=attributes,
-                     successors=successors,
-                     regions=regions)
+        IRDLOperation.__init__(op,
+                               operands=operands,
+                               result_types=result_types,
+                               attributes=attributes,
+                               successors=successors,
+                               regions=regions)
         op.__post_init__()
         return op
 
@@ -1295,32 +1280,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
             new_attrs[attribute_name] = attribute_field(attribute_name)
 
     new_attrs["traits"] = op_def.traits
-
-    def init(self: cls,
-             operands: Sequence[SSAValue | Operation
-                                | Sequence[SSAValue | Operation]]
-             | None = None,
-             result_types: Sequence[Attribute | Sequence[Attribute]]
-             | None = None,
-             attributes: dict[str, Attribute] | None = None,
-             successors: Sequence[Block] | None = None,
-             regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
-             | None = None):
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
-
-        irdl_op_init(self, op_def, operands, result_types, attributes,
-                     successors, regions)
-
-    new_attrs["irdl_init"] = init
 
     @classmethod
     @property
