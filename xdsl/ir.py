@@ -586,31 +586,32 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: Sequence[SSAValue] | None = None,
-            result_types: Sequence[Attribute] | None = None,
-            attributes: dict[str, Attribute] | None = None,
-            successors: Sequence[Block] | None = None,
-            regions: Sequence[Region] | None = None) -> Operation:
+    def __init__(self,
+                 operands: Sequence[SSAValue] | None = None,
+                 result_types: Sequence[Attribute] | None = None,
+                 attributes: dict[str, Attribute] | None = None,
+                 successors: Sequence[Block] | None = None,
+                 regions: Sequence[Region] | None = None) -> None:
+        self._operands = tuple()
+        self.results = []
+        self.successors = []
+        self.attributes = {}
+        self.regions = []
 
-        operation = op()
         if operands is not None:
-            operation.operands = operands
+            self.operands = list(operands)
         if result_types:
-            operation.results = [
-                OpResult(typ, operation, idx)
+            self.results = [
+                OpResult(typ, self, idx)
                 for (idx, typ) in enumerate(result_types)
             ]
         if attributes:
-            operation.attributes = attributes
+            self.attributes = attributes
         if successors:
-            operation.successors = successors
+            self.successors = list(successors)
         if regions:
             for region in regions:
-                operation.add_region(region)
-        return operation
+                self.add_region(region)
 
     @classmethod
     def create(cls: type[OpT],
@@ -619,9 +620,11 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
-        op = Operation.with_result_types(cls, operands, result_types,
-                                         attributes, successors, regions)
-        return cast(OpT, op)
+        op = cls.__new__(cls)
+        Operation.__init__(op, operands, result_types, attributes, successors,
+                           regions)
+        Operation.__post_init__(op)
+        return op
 
     def replace_operand(self, operand: int | SSAValue,
                         new_operand: SSAValue) -> None:
