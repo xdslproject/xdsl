@@ -96,7 +96,7 @@ class FuncOp(Operation):
             return_type = tuple(arg.typ for arg in return_op.operands)
 
         self.attributes['function_type'] = FunctionType.from_lists(
-            [arg.typ for arg in self.body.blocks[0].args],
+            [arg.typ for arg in self.args],
             return_type,
         )
 
@@ -109,6 +109,10 @@ class FuncOp(Operation):
         if not isinstance(self.body.blocks[-1].ops[-1], Return):
             return
         return self.body.blocks[-1].ops[-1]
+
+    @property
+    def args(self) -> tuple[BlockArgument, ...]:
+        return self.body.blocks[0].args
 
 
 @irdl_op_definition

@@ -89,18 +89,32 @@ def test_func_rewriting_helpers():
     :return:
     """
     func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda x, y, z: [Return.get()])
+                                lambda x, y, z: [Return.get()])  # type: ignore
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
-    assert func.body.blocks[0].args[2].typ is i64
+    assert func.args[2].typ is i64
 
-    func.replace_argument_type(func.body.blocks[0].args[0], i64)
+    func.replace_argument_type(func.args[0], i64)
     assert func.function_type.inputs.data[0] is i64
-    assert func.body.blocks[0].args[0].typ is i64
+    assert func.args[0].typ is i64
 
     with pytest.raises(IndexError):
         func.replace_argument_type(3, i64)
+
+
+def test_func_get_return_op():
+    # pyright complains about lambda arg types unknown
+    # honestly don't know how to fix
+    func_w_ret = FuncOp.from_callable(
+        'test', [i32, i32, i32], [i32],
+        lambda x, y, z: [Return.get(y)])  # type: ignore
+
+    func = FuncOp.from_callable('test', [i32, i32, i32], [],
+                                lambda x, y, z: [])  # type: ignore
+
+    assert func_w_ret.get_return_op() is not None
+    assert func.get_return_op() is None
 
 
 def test_callable_constructor():
