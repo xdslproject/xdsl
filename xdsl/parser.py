@@ -19,12 +19,13 @@ from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
 from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr, AnyFloat, AnyFloatAttr, AnyTensorType, AnyUnrankedTensorType,
-    AnyVectorType, DenseResourceAttr, DictionaryAttr, Float16Type, Float32Type,
-    Float64Type, FloatAttr, FunctionType, IndexType, IntegerType, Signedness,
-    StringAttr, IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType,
-    UnregisteredAttr, RankedVectorOrTensorOf, VectorType, SymbolRefAttr,
-    DenseArrayBase, DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp,
-    UnitAttr, i64, StridedLayoutAttr, ComplexType)
+    AnyVectorType, BFloat16Type, DenseResourceAttr, DictionaryAttr,
+    Float16Type, Float32Type, Float64Type, Float80Type, Float128Type,
+    FloatAttr, FunctionType, IndexType, IntegerType, Signedness, StringAttr,
+    IntegerAttr, ArrayAttr, TensorType, UnrankedTensorType, UnregisteredAttr,
+    RankedVectorOrTensorOf, VectorType, SymbolRefAttr, DenseArrayBase,
+    DenseIntOrFPElementsAttr, OpaqueAttr, NoneAttr, ModuleOp, UnitAttr, i64,
+    StridedLayoutAttr, ComplexType)
 from xdsl.ir import (SSAValue, Block, Callable, Attribute, Operation, Region,
                      BlockArgument, MLContext, ParametrizedAttribute, Data)
 from xdsl.utils.hints import isa
@@ -344,7 +345,7 @@ class ParserCommons:
     boolean_literal = re.compile(r"(true|false)")
     # A list of names that are builtin types
     _builtin_type_names = (
-        r"[su]?i\d+", r"f\d+", "tensor", "vector", "memref", "complex",
+        r"[su]?i\d+", "bf16", r"f\d+", "tensor", "vector", "memref", "complex",
         "opaque", "tuple", "index", "dense"
         # TODO: add all the Float8E4M3FNType, Float8E5M2Type, and BFloat16Type
     )
@@ -2198,12 +2199,17 @@ class BaseParser(ABC):
             return IntegerType(int(re_match.group(1)),
                                signedness[name.text[0]])
 
+        if name.text == "bf16":
+            return BFloat16Type()
+
         if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
             width = int(re_match.group(1))
             type = {
                 16: Float16Type,
                 32: Float32Type,
-                64: Float64Type
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
             }.get(width, None)
             if type is None:
                 self.raise_error(

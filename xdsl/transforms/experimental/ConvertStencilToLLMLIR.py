@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import TypeVar, Iterable
+from typing import TypeVar
 
 from warnings import warn
 
 from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
-from xdsl.ir import Block, BlockArgument, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
@@ -16,7 +16,7 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, CastOp,
                                                 FieldType, IndexAttr, LoadOp,
                                                 ReturnOp, StoreOp, TempType,
-                                                ExternalLoadOp, HaloSwapOp,
+                                                ExternalLoadOp,
                                                 ExternalStoreOp)
 from xdsl.passes import ModulePass
 
@@ -82,19 +82,6 @@ class StoreOpCleanup(RewritePattern):
 
         rewriter.erase_matched_op()
         pass
-
-
-class StoreOpShapeInference(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-
-        owner = op.temp.owner
-
-        assert isinstance(owner, ApplyOp | LoadOp)
-
-        owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
-        owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
 
 
 # Collect up to 'number' block arguments by walking up the region tree
@@ -183,26 +170,6 @@ class LoadOpToMemref(RewritePattern):
         rewriter.replace_matched_op(subview)
 
 
-class LoadOpShapeInference(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        cast = op.field.owner
-        assert isinstance(cast, CastOp)
-
-        verify_load_bounds(cast, op)
-
-        assert op.lb and op.ub
-        assert isa(op.res.typ, TempType[Attribute])
-
-        # TODO: We need to think about that. Do we want an API for this?
-        # Do we just want to recreate the whole operation?
-        op.res.typ = TempType.from_shape(
-            IndexAttr.size_from_bounds(op.lb, op.ub),
-            op.res.typ.element_type,
-        )
-
-
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 
     assert (op.lb is not None) and (op.ub is not None)
@@ -221,36 +188,6 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
     return rewriter.move_region_contents_to_new_regions(op.region)
-
-
-class ApplyOpShapeInference(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-
-        def access_shape_infer_walk(access: Operation) -> None:
-            assert (op.lb is not None) and (op.ub is not None)
-            if not isinstance(access, AccessOp):
-                return
-            assert isinstance(access.temp, BlockArgument)
-            temp_owner = op.args[access.temp.index].owner
-
-            assert isinstance(temp_owner, LoadOp | ApplyOp)
-
-            temp_owner.attributes['lb'] = IndexAttr.min(
-                op.lb + access.offset, temp_owner.lb)
-            temp_owner.attributes['ub'] = IndexAttr.max(
-                op.ub + access.offset, temp_owner.ub)
-
-        op.walk(access_shape_infer_walk)
-
-        assert op.lb and op.ub
-
-        for result in op.results:
-            assert isa(result.typ, TempType[Attribute])
-            result.typ = TempType.from_shape(
-                IndexAttr.size_from_bounds(op.lb, op.ub),
-                result.typ.element_type)
 
 
 class ApplyOpToParallel(RewritePattern):
@@ -423,60 +360,6 @@ def return_target_analysis(module: builtin.ModuleOp):
     return return_targets
 
 
-_OpT = TypeVar('_OpT', bound=Operation)
-
-
-def all_matching_uses(op_res: Iterable[SSAValue],
-                      typ: type[_OpT]) -> Iterable[_OpT]:
-    for res in op_res:
-        for use in res.uses:
-            if isinstance(use.operation, typ):
-                yield use.operation
-
-
-def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
-    """
-    This method infers the core size (as used in DimsHelper)
-    from an LoadOp by walking the def-use chain down to the `apply`
-    """
-    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
-    assert len(applies) > 0, "Load must be followed by Apply!"
-
-    shape_lb: None | IndexAttr = None
-    shape_ub: None | IndexAttr = None
-
-    for apply in applies:
-        assert apply.lb is not None and apply.ub is not None
-        shape_lb = IndexAttr.min(apply.lb, shape_lb)
-        shape_ub = IndexAttr.max(apply.ub, shape_ub)
-
-    assert shape_lb is not None and shape_ub is not None
-    return shape_lb, shape_ub
-
-
-class HaloOpShapeInference(RewritePattern):
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
-        assert isinstance(op.input_stencil.owner, LoadOp)
-        load = op.input_stencil.owner
-        halo_lb, halo_ub = infer_core_size(load)
-        op.attributes['core_lb'] = halo_lb
-        op.attributes['core_ub'] = halo_ub
-        assert load.lb is not None
-        assert load.ub is not None
-        op.attributes['buff_lb'] = load.lb
-        op.attributes['buff_ub'] = load.ub
-
-
-ShapeInference = GreedyRewritePatternApplier([
-    ApplyOpShapeInference(),
-    LoadOpShapeInference(),
-    StoreOpShapeInference(),
-    HaloOpShapeInference(),
-])
-
-
 def StencilConversion(return_targets: dict[ReturnOp,
                                            list[CastOp | memref.Subview
                                                 | None]], gpu: bool):
@@ -494,18 +377,6 @@ def StencilConversion(return_targets: dict[ReturnOp,
         TrivialExternalLoadOpCleanup(),
         TrivialExternalStoreOpCleanup()
     ])
-
-
-class StencilShapeInferencePass(ModulePass):
-
-    name = 'stencil-shape-inference'
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-
-        inference_walker = PatternRewriteWalker(ShapeInference,
-                                                apply_recursively=False,
-                                                walk_reverse=True)
-        inference_walker.rewrite_module(op)
 
 
 class ConvertStencilToGPUPass(ModulePass):
