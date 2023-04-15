@@ -565,21 +565,6 @@ class Operation(IRNode):
     by the operation definition.
     """
 
-    def _update_with_model(self, model: OperationModel):
-        """
-        Must run once after an init() and never again
-        """
-        self.operands = model.operands
-        self.results = [
-            OpResult(typ, self, index)
-            for index, typ in enumerate(model.result_types)
-        ]
-        self.attributes = model.attributes
-        self.successors = model.successors
-
-        for region in model.regions:
-            self.add_region(region)
-
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
             return p.parent
@@ -611,41 +596,24 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    def __init__(self,
-                 operands: Sequence[SSAValue] | None = None,
-                 result_types: Sequence[Attribute] | None = None,
-                 attributes: dict[str, Attribute] | None = None,
-                 successors: Sequence[Block] | None = None,
-                 regions: Sequence[Region] | None = None):
+    def __init__(self, model: OperationModel):
         super().__init__(parent=None)
 
         self._operands = ()
-        if operands is not None:
-            self.operands = tuple(operands)
+        self.operands = tuple(model.operands)
 
-        if result_types is not None:
-            self.results = [
-                OpResult(typ, self, idx)
-                for (idx, typ) in enumerate(result_types)
-            ]
-        else:
-            self.results = []
+        self.results = [
+            OpResult(typ, self, idx)
+            for (idx, typ) in enumerate(model.result_types)
+        ]
 
-        if attributes is not None:
-            self.attributes = attributes
-        else:
-            self.attributes = {}
-
-        if successors:
-            self.successors = list(successors)
-        else:
-            self.successors = []
+        self.attributes = model.attributes
+        self.successors = model.successors
 
         self.regions = []
 
-        if regions:
-            for region in regions:
-                self.add_region(region)
+        for region in model.regions:
+            self.add_region(region)
 
         self.__post_init__()
 
@@ -656,9 +624,34 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
+        if operands is None:
+            operands = ()
+        else:
+            operands = tuple(operands)
+
+        if result_types is None:
+            result_types = []
+        else:
+            result_types = list(result_types)
+
+        if attributes is None:
+            attributes = {}
+
+        if successors is None:
+            successors = []
+        else:
+            successors = list(successors)
+
+        if regions is None:
+            regions = []
+        else:
+            regions = list(regions)
+
+        model = OperationModel(operands, result_types, attributes, successors,
+                               regions)
+
         op = cls.__new__(cls)
-        Operation.__init__(op, operands, result_types, attributes, successors,
-                           regions)
+        Operation.__init__(op, model)
         return op
 
     @classmethod

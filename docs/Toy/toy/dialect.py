@@ -38,10 +38,9 @@ class ConstantOp(Operation):
     res: Annotated[OpResult, TensorTypeF64]
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
-        model = ConstantOp.build_model(result_types=[value.type],
-                                       attributes={"value": value})
-        super().__init__()
-        self._update_with_model(model)
+        super().__init__(
+            ConstantOp.build_model(result_types=[value.type],
+                                   attributes={"value": value}))
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
