@@ -530,7 +530,7 @@ class OperationModel:
     regions: list[Region] = field(default_factory=list)
 
 
-@dataclass
+@dataclass(init=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -611,31 +611,43 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: Sequence[SSAValue] | None = None,
-            result_types: Sequence[Attribute] | None = None,
-            attributes: dict[str, Attribute] | None = None,
-            successors: Sequence[Block] | None = None,
-            regions: Sequence[Region] | None = None) -> Operation:
+    def __init__(self,
+                 operands: Sequence[SSAValue] | None = None,
+                 result_types: Sequence[Attribute] | None = None,
+                 attributes: dict[str, Attribute] | None = None,
+                 successors: Sequence[Block] | None = None,
+                 regions: Sequence[Region] | None = None):
+        super().__init__(parent=None)
 
-        operation = op()
+        self._operands = ()
         if operands is not None:
-            operation.operands = operands
-        if result_types:
-            operation.results = [
-                OpResult(typ, operation, idx)
+            self.operands = tuple(operands)
+
+        if result_types is not None:
+            self.results = [
+                OpResult(typ, self, idx)
                 for (idx, typ) in enumerate(result_types)
             ]
-        if attributes:
-            operation.attributes = attributes
+        else:
+            self.results = []
+
+        if attributes is not None:
+            self.attributes = attributes
+        else:
+            self.attributes = {}
+
         if successors:
-            operation.successors = successors
+            self.successors = list(successors)
+        else:
+            self.successors = []
+
+        self.regions = []
+
         if regions:
             for region in regions:
-                operation.add_region(region)
-        return operation
+                self.add_region(region)
+
+        self.__post_init__()
 
     @classmethod
     def create(cls: type[OpT],
@@ -644,9 +656,10 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
-        op = Operation.with_result_types(cls, operands, result_types,
-                                         attributes, successors, regions)
-        return cast(OpT, op)
+        op = cls.__new__(cls)
+        Operation.__init__(op, operands, result_types, attributes, successors,
+                           regions)
+        return op
 
     @classmethod
     def build(
