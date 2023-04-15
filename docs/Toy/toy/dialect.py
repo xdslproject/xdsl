@@ -37,6 +37,12 @@ class ConstantOp(Operation):
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
 
+    def __init__(self, value: DenseIntOrFPElementsAttr):
+        model = ConstantOp.build_model(result_types=[value.type],
+                                       attributes={"value": value})
+        super().__init__()
+        self._update_with_model(model)
+
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
@@ -44,8 +50,7 @@ class ConstantOp(Operation):
 
     @staticmethod
     def from_value(value: DenseIntOrFPElementsAttr) -> ConstantOp:
-        return ConstantOp.create(result_types=[value.type],
-                                 attributes={"value": value})
+        return ConstantOp(value)
 
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:

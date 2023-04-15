@@ -11,7 +11,7 @@ from typing import (Annotated, Any, Generic, Literal, Mapping, Sequence,
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, OpTrait, Operation,
-                     ParametrizedAttribute, Region, SSAValue)
+                     OperationModel, ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (PyRDLAttrDefinitionError,
                                    PyRDLOpDefinitionError, VerifyException)
@@ -1063,17 +1063,16 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         ]
 
 
-def irdl_op_builder(
-    cls: type[_OpT], op_def: OpDef,
-    operands: Sequence[SSAValue | Operation
-                       | Sequence[SSAValue | Operation]
-                       | None],
+def irdl_op_model_builder(
+    op_def: OpDef, operands: Sequence[SSAValue | Operation
+                                      | Sequence[SSAValue | Operation]
+                                      | None],
     res_types: Sequence[Attribute | Sequence[Attribute] | None],
     attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
                                  | Sequence[Block]] | None]
-) -> _OpT:
+) -> OperationModel:
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseArrayBase, but here we need
@@ -1124,11 +1123,32 @@ def irdl_op_builder(
         built_attributes[AttrSizedRegionSegments.attribute_name] =\
             DenseArrayBase.from_list(i32, region_sizes)
 
-    return cls.create(operands=built_operands,
-                      result_types=built_res_types,
-                      attributes=built_attributes,
-                      successors=successors,
-                      regions=built_regions)
+    return OperationModel(operands=tuple(built_operands),
+                          result_types=built_res_types,
+                          attributes=built_attributes,
+                          successors=list(successors),
+                          regions=built_regions)
+
+
+def irdl_op_builder(
+    cls: type[_OpT], op_def: OpDef,
+    operands: Sequence[SSAValue | Operation
+                       | Sequence[SSAValue | Operation]
+                       | None],
+    res_types: Sequence[Attribute | Sequence[Attribute] | None],
+    attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
+    regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                      | Sequence[Region | Sequence[Operation]
+                                 | Sequence[Block]] | None]
+) -> _OpT:
+    model = irdl_op_model_builder(op_def, operands, res_types, attributes,
+                                  successors, regions)
+
+    return cls.create(operands=model.operands,
+                      result_types=model.result_types,
+                      attributes=model.attributes,
+                      successors=model.successors,
+                      regions=model.regions)
 
 
 def irdl_op_arg_definition(new_attrs: dict[str, Any],
@@ -1214,6 +1234,34 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     new_attrs["traits"] = op_def.traits
 
+    def build_model(
+        cls: type[_OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> OperationModel:
+        """Create a new operation model using builder."""
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+        return irdl_op_model_builder(op_def, operands, result_types,
+                                     attributes, successors, regions)
+
     def builder(
         cls: type[_OpT],
         operands: Sequence[SSAValue | Operation
@@ -1239,6 +1287,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
                                successors, regions)
 
     new_attrs["build"] = classmethod(builder)
+    new_attrs["build_model"] = classmethod(build_model)
 
     @classmethod
     @property

@@ -521,6 +521,16 @@ class OpTrait():
 
 
 @dataclass
+class OperationModel:
+
+    operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
+    result_types: list[Attribute] = field(default_factory=list)
+    attributes: dict[str, Attribute] = field(default_factory=dict)
+    successors: list[Block] = field(default_factory=list)
+    regions: list[Region] = field(default_factory=list)
+
+
+@dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -554,6 +564,21 @@ class Operation(IRNode):
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
+
+    def _update_with_model(self, model: OperationModel):
+        """
+        Must run once after an init() and never again
+        """
+        self.operands = model.operands
+        self.results = [
+            OpResult(typ, self, index)
+            for index, typ in enumerate(model.result_types)
+        ]
+        self.attributes = model.attributes
+        self.successors = model.successors
+
+        for region in model.regions:
+            self.add_region(region)
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -639,6 +664,24 @@ class Operation(IRNode):
         | None = None
     ) -> OpT:
         """Create a new operation using builders."""
+        ...
+
+    @classmethod
+    def build_model(
+        cls: type[OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> OperationModel:
+        """Create a new operation model using builder."""
         ...
 
     def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
