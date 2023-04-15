@@ -74,13 +74,17 @@ class AddOp(IRDLOperation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        return AddOp.create(result_types=[result_typ], operands=[lhs, rhs])
+        super().__init__(
+            AddOp.build_model(result_types=[result_typ], operands=[lhs, rhs]))
+
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
+        return AddOp(lhs, rhs)
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -120,12 +124,12 @@ class FuncOp(IRDLOperation):
     function_type: OpAttr[FunctionType]
     sym_visibility: OptOpAttr[StringAttr]
 
-    @staticmethod
-    def from_region(name: str,
-                    ftype: FunctionType,
-                    region: Region,
-                    /,
-                    private: bool = False):
+    def __init__(self,
+                 name: str,
+                 ftype: FunctionType,
+                 region: Region,
+                 /,
+                 private: bool = False):
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": ftype,
@@ -133,7 +137,16 @@ class FuncOp(IRDLOperation):
         if private:
             attributes["sym_visibility"] = StringAttr("private")
 
-        return FuncOp.create(attributes=attributes, regions=[region])
+        return super().__init__(
+            FuncOp.build_model(attributes=attributes, regions=[region]))
+
+    @staticmethod
+    def from_region(name: str,
+                    ftype: FunctionType,
+                    region: Region,
+                    /,
+                    private: bool = False):
+        return FuncOp(name, ftype, region, private=private)
 
     @staticmethod
     def from_callable(name: str,
@@ -193,15 +206,21 @@ class GenericCallOp(IRDLOperation):
     # Note: naming this results triggers an ArgumentError
     res: Annotated[VarOpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
-            return_types: list[Attribute]) -> GenericCallOp:
+    def __init__(self, callee: str | SymbolRefAttr,
+                 operands: list[SSAValue | OpResult],
+                 return_types: list[Attribute]):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return GenericCallOp.create(operands=operands,
-                                    result_types=return_types,
-                                    attributes={"callee": callee})
+        return super().__init__(
+            GenericCallOp.build_model(operands=[operands],
+                                      result_types=[return_types],
+                                      attributes={"callee": callee}))
+
+    @staticmethod
+    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
+            return_types: list[Attribute]) -> GenericCallOp:
+        return GenericCallOp(callee, operands, return_types)
 
 
 @irdl_op_definition
@@ -215,13 +234,17 @@ class MulOp(IRDLOperation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
+    def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        return MulOp.create(result_types=[result_typ], operands=[lhs, rhs])
+        super().__init__(
+            MulOp.build_model(result_types=[result_typ], operands=[lhs, rhs]))
+
+    @staticmethod
+    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
+        return MulOp(lhs, rhs)
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -249,7 +272,10 @@ class PrintOp(IRDLOperation):
 
     @staticmethod
     def from_input(input: SSAValue) -> PrintOp:
-        return PrintOp.create(operands=[input])
+        return PrintOp(input)
+
+    def __init__(self, input: SSAValue):
+        return super().__init__(PrintOp.build_model(operands=[input]))
 
 
 @irdl_op_definition
@@ -274,6 +300,9 @@ class ReturnOp(IRDLOperation):
     def from_input(input: SSAValue | None = None) -> ReturnOp:
         return ReturnOp.build(operands=[input])
 
+    def __init__(self, input: SSAValue | None = None):
+        return super().__init__(ReturnOp.build_model(operands=[input]))
+
 
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
@@ -292,13 +321,17 @@ class ReshapeOp(IRDLOperation):
 
     @staticmethod
     def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
+        return ReshapeOp(arg, shape)
+
+    def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
                 f'Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}'
             )
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
-        return ReshapeOp.create(result_types=[t], operands=[arg])
+        return super().__init__(
+            ReshapeOp.build_model(result_types=[t], operands=[arg]))
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
@@ -324,6 +357,9 @@ class TransposeOp(IRDLOperation):
 
     @staticmethod
     def from_input(input: SSAValue):
+        return TransposeOp(input)
+
+    def __init__(self, input: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
         if isa(input.typ, TensorTypeF64):
             element_type = input.typ.element_type
@@ -336,7 +372,9 @@ class TransposeOp(IRDLOperation):
                 )
             output_type = input.typ
 
-        return TransposeOp.create(operands=[input], result_types=[output_type])
+        super().__init__(
+            TransposeOp.build_model(operands=[input],
+                                    result_types=[output_type]))
 
 
 Toy = Dialect([
