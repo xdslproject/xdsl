@@ -2490,18 +2490,19 @@ class Parser(ABC):
         """
         parse a builtin-type like i32, index, vector<i32> etc.
         """
-        with self.backtracking("builtin type"):
-            # Check the function type separately, it is the only
-            # case of a type starting with a symbol
-            next_token = self.tokenizer.next_token(peek=True)
-            if next_token.text == "(":
-                return self.try_parse_function_type()
+        # Check the function type separately, it is the only
+        # case of a type starting with a symbol
 
-            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
-            if name is None:
-                self.raise_error("Expected builtin name!")
+        next_token = self.tokenizer.next_token_of_pattern("(", peek=True)
+        if next_token is not None:
+            return self.try_parse_function_type()
 
-            return self._parse_builtin_type_with_name(name)
+        name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
+        if name is None:
+            return None
+
+        type = self._parse_builtin_type_with_name(name)
+        return type
 
     def _parse_op_result(self) -> tuple[Span, int, Attribute | None]:
         value_token = self._parse_token(
