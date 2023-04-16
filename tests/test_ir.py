@@ -1,15 +1,16 @@
 import pytest
 
-from typing import cast
+from typing import cast, Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import Builtin, IntegerType, i32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, ModuleOp
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
+from xdsl.irdl import irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -286,3 +287,35 @@ ModuleOp(
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
 )'''
+
+
+@irdl_op_definition
+class CustomVerify(Operation):
+    name = 'test.custom_verify_op'
+    val: Annotated[Operand, i64]
+
+    @staticmethod
+    def get(val: SSAValue):
+        return CustomVerify.build(operands=[val])
+
+    def verify_(self):
+        raise Exception('Custom Verification Check')
+
+
+def test_op_custom_verify_is_called():
+    a = Constant.from_int_and_width(1, i64)
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] == 'Custom Verification Check'
+
+
+def test_op_custom_verify_is_done_last():
+    a = Constant.from_int_and_width(1, i32)
+    # CustomVerify expects a i64, not i32
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] != 'Custom Verification Check'
+    assert e.value.args[0] == \
+           'test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n'
