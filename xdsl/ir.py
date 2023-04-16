@@ -1006,7 +1006,12 @@ class Block(IRNode):
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
         """
-        if index < 0 or index > len(self.ops):
+        # allow negative indices to specify a position from the back of the array
+        # -1 inserts in the last position
+        if index < 0:
+            index = len(self.ops) + index + 1
+
+        if index > len(self.ops):
             raise ValueError(
                 f"Can't insert operation in index {index} in a block with "
                 f"{len(self.ops)} operations.")
