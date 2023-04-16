@@ -89,7 +89,7 @@ class FuncOp(Operation):
         Update the function_type attribute to reflect changes in the
         block argument types.
         """
-        return_op = self.body.blocks[-1].ops[-1]
+        return_op = self.get_return_op()
         return_type: tuple[Attribute] = tuple()
 
         if return_op is not None:
