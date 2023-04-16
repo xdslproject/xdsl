@@ -596,24 +596,42 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    def __init__(self, model: OperationModel):
+    def __init__(self,
+                 operands: Sequence[SSAValue] | None = None,
+                 result_types: Sequence[Attribute] | None = None,
+                 attributes: dict[str, Attribute] | None = None,
+                 successors: Sequence[Block] | None = None,
+                 regions: Sequence[Region] | None = None):
         super().__init__(parent=None)
 
         self._operands = ()
-        self.operands = tuple(model.operands)
 
-        self.results = [
-            OpResult(typ, self, idx)
-            for (idx, typ) in enumerate(model.result_types)
-        ]
+        if operands is not None:
+            self.operands = tuple(operands)
 
-        self.attributes = model.attributes
-        self.successors = model.successors
+        if result_types is None:
+            self.results = []
+        else:
+            self.results = [
+                OpResult(typ, self, idx)
+                for (idx, typ) in enumerate(result_types)
+            ]
+
+        if attributes is None:
+            self.attributes = {}
+        else:
+            self.attributes = attributes
+
+        if successors is None:
+            self.successors = []
+        else:
+            self.successors = list(successors)
 
         self.regions = []
 
-        for region in model.regions:
-            self.add_region(region)
+        if regions is not None:
+            for region in regions:
+                self.add_region(region)
 
         self.__post_init__()
 
@@ -624,34 +642,10 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
-        if operands is None:
-            operands = ()
-        else:
-            operands = tuple(operands)
-
-        if result_types is None:
-            result_types = []
-        else:
-            result_types = list(result_types)
-
-        if attributes is None:
-            attributes = {}
-
-        if successors is None:
-            successors = []
-        else:
-            successors = list(successors)
-
-        if regions is None:
-            regions = []
-        else:
-            regions = list(regions)
-
-        model = OperationModel(operands, result_types, attributes, successors,
-                               regions)
 
         op = cls.__new__(cls)
-        Operation.__init__(op, model)
+        Operation.__init__(op, operands, result_types, attributes, successors,
+                           regions)
         return op
 
     @classmethod

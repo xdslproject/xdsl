@@ -38,9 +38,9 @@ class ConstantOp(Operation):
     res: Annotated[OpResult, TensorTypeF64]
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
-        super().__init__(
+        super().__init__(**vars(
             ConstantOp.build_model(result_types=[value.type],
-                                   attributes={"value": value}))
+                                   attributes={"value": value})))
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
@@ -84,8 +84,8 @@ class AddOp(Operation):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        super().__init__(
-            AddOp.build_model(result_types=[result_typ], operands=[lhs, rhs]))
+        super().__init__(**vars(
+            AddOp.build_model(result_types=[result_typ], operands=[lhs, rhs])))
 
     @staticmethod
     def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
@@ -142,8 +142,8 @@ class FuncOp(Operation):
         if private:
             attributes["sym_visibility"] = StringAttr("private")
 
-        return super().__init__(
-            FuncOp.build_model(attributes=attributes, regions=[region]))
+        return super().__init__(**vars(
+            FuncOp.build_model(attributes=attributes, regions=[region])))
 
     @staticmethod
     def from_region(name: str,
@@ -217,10 +217,10 @@ class GenericCallOp(Operation):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return super().__init__(
+        return super().__init__(**vars(
             GenericCallOp.build_model(operands=[operands],
                                       result_types=[return_types],
-                                      attributes={"callee": callee}))
+                                      attributes={"callee": callee})))
 
     @staticmethod
     def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
@@ -244,8 +244,8 @@ class MulOp(Operation):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        super().__init__(
-            MulOp.build_model(result_types=[result_typ], operands=[lhs, rhs]))
+        super().__init__(**vars(
+            MulOp.build_model(result_types=[result_typ], operands=[lhs, rhs])))
 
     @staticmethod
     def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
@@ -280,7 +280,7 @@ class PrintOp(Operation):
         return PrintOp(input)
 
     def __init__(self, input: SSAValue):
-        return super().__init__(PrintOp.build_model(operands=[input]))
+        return super().__init__(**vars(PrintOp.build_model(operands=[input])))
 
 
 @irdl_op_definition
@@ -306,7 +306,7 @@ class ReturnOp(Operation):
         return ReturnOp.build(operands=[input])
 
     def __init__(self, input: SSAValue | None = None):
-        return super().__init__(ReturnOp.build_model(operands=[input]))
+        return super().__init__(**vars(ReturnOp.build_model(operands=[input])))
 
 
 @irdl_op_definition
@@ -336,7 +336,7 @@ class ReshapeOp(Operation):
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return super().__init__(
-            ReshapeOp.build_model(result_types=[t], operands=[arg]))
+            **vars(ReshapeOp.build_model(result_types=[t], operands=[arg])))
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
@@ -377,9 +377,9 @@ class TransposeOp(Operation):
                 )
             output_type = input.typ
 
-        super().__init__(
+        super().__init__(**vars(
             TransposeOp.build_model(operands=[input],
-                                    result_types=[output_type]))
+                                    result_types=[output_type])))
 
 
 Toy = Dialect([
