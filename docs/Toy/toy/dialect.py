@@ -6,8 +6,7 @@ from __future__ import annotations
 
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
-                     OpResult)
+from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, OpResult)
 from xdsl.dialects.builtin import (Float64Type, FunctionType, SymbolRefAttr,
                                    TensorType, UnrankedTensorType, f64,
                                    DenseIntOrFPElementsAttr, StringAttr)
