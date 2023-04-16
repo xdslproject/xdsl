@@ -76,7 +76,9 @@ class FuncOp(Operation):
         """
 
         if isinstance(arg, int):
-            if len(self.body.blocks[0].args) <= arg:
+            if arg < 0:
+                arg = len(self.args) + arg
+            if not (0 <= arg < len(self.body.blocks[0].args)):
                 raise IndexError("Block {} does not have argument #{}!".format(
                     self.body.blocks[0], arg))
             arg = self.body.blocks[0].args[arg]

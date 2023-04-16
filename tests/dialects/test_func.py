@@ -3,7 +3,7 @@ import pytest
 from conftest import assert_print_op
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64
+from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64, IntegerType
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -99,8 +99,17 @@ def test_func_rewriting_helpers():
     assert func.function_type.inputs.data[0] is i64
     assert func.args[0].typ is i64
 
+    # check negaitve index
+    i8 = IntegerType(8)
+    func.replace_argument_type(-2, i8)
+    assert func.function_type.inputs.data[1] is i8
+    assert func.args[1].typ is i8
+
     with pytest.raises(IndexError):
         func.replace_argument_type(3, i64)
+
+    with pytest.raises(IndexError):
+        func.replace_argument_type(-4, i64)
 
 
 def test_func_get_return_op():
