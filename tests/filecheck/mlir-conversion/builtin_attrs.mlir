@@ -98,6 +98,14 @@
   // CHECK: (vector<4xf32>, vector<f32>, vector<1x12xi32>)
 
   "func.func"() ({
+    ^bb0(%arg0: vector<[4]xf32>, %arg1: vector<[4x4]xf32>, %arg2: vector<12x[2x3]xi32>):
+    "func.return"() : () -> ()
+  }) {function_type = (vector<[4]xf32>, vector<[4x4]xf32>, vector<12x[2x3]xi32>) -> (), sym_name = "vector_type"} : () -> ()
+
+  // CHECK: (vector<[4]xf32>, vector<[4x4]xf32>, vector<12x[2x3]xi32>)
+
+
+  "func.func"() ({
     ^bb0(%arg0: tensor<4xf32>, %arg1: tensor<f32>, %arg2: tensor<1x12xi32>, %arg3: tensor<*xf64>, %arg4: tensor<0xi32>):
     "func.return"() : () -> ()
   }) {function_type = (tensor<4xf32>, tensor<f32>, tensor<1x12xi32>, tensor<*xf64>, tensor<0xi32>) -> (), sym_name = "tensor_type"} : () -> ()

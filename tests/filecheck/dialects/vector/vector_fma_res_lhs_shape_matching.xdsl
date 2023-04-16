@@ -2,9 +2,9 @@
 
 builtin.module() {
 
-func.func() ["sym_name" = "vector_fma_res_lhs_shape_matching", "function_type" = !fun<[!vector<[2 : !index], !index>, !vector<[3 : !index], !index>], []>, "sym_visibility" = "private"] {
-  ^0(%0 : !vector<[2 : !index], !index>, %1 : !vector<[3 : !index], !index>):
-    %2 : !vector<[2 : !index], !index> = vector.fma(%1 : !vector<[3 : !index], !index>, %0 : !vector<[2 : !index], !index>, %0 : !vector<[2 : !index], !index>)
+func.func() ["sym_name" = "vector_fma_res_lhs_shape_matching", "function_type" = !fun<[!vector<[2 : !index], !index, !int<0>>, !vector<[3 : !index], !index, !int<0>>], []>, "sym_visibility" = "private"] {
+  ^0(%0 : !vector<[2 : !index], !index, !int<0>>, %1 : !vector<[3 : !index], !index, !int<0>>):
+    %2 : !vector<[2 : !index], !index, !int<0>> = vector.fma(%1 : !vector<[3 : !index], !index, !int<0>>, %0 : !vector<[2 : !index], !index, !int<0>>, %0 : !vector<[2 : !index], !index, !int<0>>)
 
     func.return()
   }
