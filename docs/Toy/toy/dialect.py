@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (Float64Type, FunctionType, SymbolRefAttr,
                                    DenseIntOrFPElementsAttr, StringAttr)
 from xdsl.irdl import (OpAttr, Operand, OptOpAttr, OptOperand, VarOpResult,
                        VarOperand, irdl_op_definition, AnyAttr)
+from xdsl.irdl_op import IRDLOperation
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -23,7 +24,7 @@ AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
 
 
 @irdl_op_definition
-class ConstantOp(Operation):
+class ConstantOp(IRDLOperation):
     """
     Constant operation turns a literal into an SSA value. The data is attached
     to the operation as an attribute. For example:
@@ -38,9 +39,8 @@ class ConstantOp(Operation):
     res: Annotated[OpResult, TensorTypeF64]
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
-        super().__init__(**vars(
-            ConstantOp.build_model(result_types=[value.type],
-                                   attributes={"value": value})))
+        super().__init__(result_types=[value.type],
+                         attributes={"value": value})
 
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
@@ -69,7 +69,7 @@ class ConstantOp(Operation):
 
 
 @irdl_op_definition
-class AddOp(Operation):
+class AddOp(IRDLOperation):
     """
     The "add" operation performs element-wise addition between two tensors.
     The shapes of the tensor operands are expected to match.
@@ -84,8 +84,7 @@ class AddOp(Operation):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        super().__init__(**vars(
-            AddOp.build_model(result_types=[result_typ], operands=[lhs, rhs])))
+        super().__init__(result_types=[result_typ], operands=[lhs, rhs])
 
     @staticmethod
     def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
@@ -107,7 +106,7 @@ class AddOp(Operation):
 
 
 @irdl_op_definition
-class FuncOp(Operation):
+class FuncOp(IRDLOperation):
     """
     The "toy.func" operation represents a user defined function. These are
     callable SSA-region operations that contain toy computations.
@@ -142,8 +141,7 @@ class FuncOp(Operation):
         if private:
             attributes["sym_visibility"] = StringAttr("private")
 
-        return super().__init__(**vars(
-            FuncOp.build_model(attributes=attributes, regions=[region])))
+        return super().__init__(attributes=attributes, regions=[region])
 
     @staticmethod
     def from_region(name: str,
@@ -203,7 +201,7 @@ class FuncOp(Operation):
 
 
 @irdl_op_definition
-class GenericCallOp(Operation):
+class GenericCallOp(IRDLOperation):
     name: str = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
@@ -217,10 +215,9 @@ class GenericCallOp(Operation):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
 
-        return super().__init__(**vars(
-            GenericCallOp.build_model(operands=[operands],
-                                      result_types=[return_types],
-                                      attributes={"callee": callee})))
+        return super().__init__(operands=[operands],
+                                result_types=[return_types],
+                                attributes={"callee": callee})
 
     @staticmethod
     def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
@@ -229,7 +226,7 @@ class GenericCallOp(Operation):
 
 
 @irdl_op_definition
-class MulOp(Operation):
+class MulOp(IRDLOperation):
     """
     The "mul" operation performs element-wise multiplication between two
     tensors. The shapes of the tensor operands are expected to match.
@@ -244,8 +241,7 @@ class MulOp(Operation):
             result_typ = lhs.typ
         else:
             result_typ = rhs.typ
-        super().__init__(**vars(
-            MulOp.build_model(result_types=[result_typ], operands=[lhs, rhs])))
+        super().__init__(result_types=[result_typ], operands=[lhs, rhs])
 
     @staticmethod
     def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
@@ -267,7 +263,7 @@ class MulOp(Operation):
 
 
 @irdl_op_definition
-class PrintOp(Operation):
+class PrintOp(IRDLOperation):
     """
     The "print" builtin operation prints a given input tensor, and produces
     no results.
@@ -280,11 +276,11 @@ class PrintOp(Operation):
         return PrintOp(input)
 
     def __init__(self, input: SSAValue):
-        return super().__init__(**vars(PrintOp.build_model(operands=[input])))
+        return super().__init__(operands=[input])
 
 
 @irdl_op_definition
-class ReturnOp(Operation):
+class ReturnOp(IRDLOperation):
     """
     The "return" operation represents a return operation within a function.
     The operation takes an optional tensor operand and produces no results.
@@ -306,11 +302,11 @@ class ReturnOp(Operation):
         return ReturnOp.build(operands=[input])
 
     def __init__(self, input: SSAValue | None = None):
-        return super().__init__(**vars(ReturnOp.build_model(operands=[input])))
+        return super().__init__(operands=[input])
 
 
 @irdl_op_definition
-class ReshapeOp(Operation):
+class ReshapeOp(IRDLOperation):
     """
     Reshape operation is transforming its input tensor into a new tensor with
     the same number of elements but different shapes. For example:
@@ -335,8 +331,7 @@ class ReshapeOp(Operation):
             )
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
-        return super().__init__(
-            **vars(ReshapeOp.build_model(result_types=[t], operands=[arg])))
+        return super().__init__(result_types=[t], operands=[arg])
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
@@ -355,7 +350,7 @@ class ReshapeOp(Operation):
 
 
 @irdl_op_definition
-class TransposeOp(Operation):
+class TransposeOp(IRDLOperation):
     name: str = 'toy.transpose'
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
@@ -377,9 +372,7 @@ class TransposeOp(Operation):
                 )
             output_type = input.typ
 
-        super().__init__(**vars(
-            TransposeOp.build_model(operands=[input],
-                                    result_types=[output_type])))
+        super().__init__(operands=[input], result_types=[output_type])
 
 
 Toy = Dialect([
