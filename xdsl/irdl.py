@@ -1274,16 +1274,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         | None = None
     ) -> OperationModel:
         """Create a new operation model using builder."""
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
         return irdl_op_model_builder(op_def, operands, result_types,
                                      attributes, successors, regions)
 
