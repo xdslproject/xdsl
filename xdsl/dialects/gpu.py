@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Generic, Sequence, Type, TypeVar
+from typing import Annotated, Generic, Sequence, TypeVar
 
 from xdsl.ir import (Attribute, TypeAttribute, OpResult, Operation, Dialect,
                      ParametrizedAttribute, Region, SSAValue)
