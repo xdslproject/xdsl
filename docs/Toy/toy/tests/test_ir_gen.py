@@ -53,7 +53,7 @@ def test_convert_ast():
             c = call_multiply_transpose(a, b)
             call_multiply_transpose(b, a)
             call_multiply_transpose(b, c)
-            a_t = toy.TransposeOp.from_input(a).res
+            a_t = toy.TransposeOp(a).res
             call_multiply_transpose(a_t, c)
             toy.ReturnOp()
 
