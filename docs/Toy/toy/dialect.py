@@ -43,12 +43,7 @@ class ConstantOp(IRDLOperation):
     @staticmethod
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
-        return ConstantOp.from_value(value)
-
-    @staticmethod
-    def from_value(value: DenseIntOrFPElementsAttr) -> ConstantOp:
-        return ConstantOp.create(result_types=[value.type],
-                                 attributes={"value": value})
+        return ConstantOp(value)
 
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:
@@ -84,10 +79,6 @@ class AddOp(IRDLOperation):
         else:
             result_typ = rhs.typ
         super().__init__(result_types=[result_typ], operands=[lhs, rhs])
-
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> AddOp:
-        return AddOp(lhs, rhs)
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -143,14 +134,6 @@ class FuncOp(IRDLOperation):
         return super().__init__(attributes=attributes, regions=[region])
 
     @staticmethod
-    def from_region(name: str,
-                    ftype: FunctionType,
-                    region: Region,
-                    /,
-                    private: bool = False):
-        return FuncOp(name, ftype, region, private=private)
-
-    @staticmethod
     def from_callable(name: str,
                       input_types: list[Attribute],
                       return_types: list[Attribute],
@@ -158,11 +141,10 @@ class FuncOp(IRDLOperation):
                       /,
                       private: bool = False):
         ftype = FunctionType.from_lists(input_types, return_types)
-        return FuncOp.from_region(name,
-                                  ftype,
-                                  Region(Block.from_callable(
-                                      input_types, func)),
-                                  private=private)
+        return FuncOp(name,
+                      ftype,
+                      Region([Block.from_callable(input_types, func)]),
+                      private=private)
 
     def verify_(self):
         # Check that the returned value matches the type of the function
@@ -218,11 +200,6 @@ class GenericCallOp(IRDLOperation):
                                 result_types=[return_types],
                                 attributes={"callee": callee})
 
-    @staticmethod
-    def get(callee: str | SymbolRefAttr, operands: list[SSAValue | OpResult],
-            return_types: list[Attribute]) -> GenericCallOp:
-        return GenericCallOp(callee, operands, return_types)
-
 
 @irdl_op_definition
 class MulOp(IRDLOperation):
@@ -241,10 +218,6 @@ class MulOp(IRDLOperation):
         else:
             result_typ = rhs.typ
         super().__init__(result_types=[result_typ], operands=[lhs, rhs])
-
-    @staticmethod
-    def from_summands(lhs: SSAValue, rhs: SSAValue) -> MulOp:
-        return MulOp(lhs, rhs)
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -270,10 +243,6 @@ class PrintOp(IRDLOperation):
     name: str = 'toy.print'
     input: Annotated[Operand, AnyAttr()]
 
-    @staticmethod
-    def from_input(input: SSAValue) -> PrintOp:
-        return PrintOp(input)
-
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])
 
@@ -296,10 +265,6 @@ class ReturnOp(IRDLOperation):
     name: str = 'toy.return'
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
-    @staticmethod
-    def from_input(input: SSAValue | None = None) -> ReturnOp:
-        return ReturnOp.build(operands=[input])
-
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
 
@@ -318,10 +283,6 @@ class ReshapeOp(IRDLOperation):
     arg: Annotated[Operand, AnyTensorTypeF64]
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
-
-    @staticmethod
-    def from_input(arg: SSAValue, shape: list[int]) -> ReshapeOp:
-        return ReshapeOp(arg, shape)
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
@@ -353,10 +314,6 @@ class TransposeOp(IRDLOperation):
     name: str = 'toy.transpose'
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
-
-    @staticmethod
-    def from_input(input: SSAValue):
-        return TransposeOp(input)
 
     def __init__(self, input: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
