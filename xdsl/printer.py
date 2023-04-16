@@ -495,7 +495,7 @@ class Printer:
             attribute = cast(AnyVectorType, attribute)
             shape = attribute.get_shape()
 
-            # We separate the dimensions between the static and the scalable ones
+            # Separate the dimensions between the static and the scalable ones
             if attribute.get_num_scalable_dims() == 0:
                 static_dimensions = shape
                 scalable_dimensions = []

@@ -1289,12 +1289,12 @@ class BaseParser(ABC):
 
         dims: list[int] = []
         num_scalable_dims = 0
-        # First, we parse the static dimensions
+        # First, parse the static dimensions
         while self._current_token.kind == Token.Kind.INTEGER_LIT:
             dims.append(self._parse_shape_dimension(allow_dynamic=False))
             self._parse_shape_delimiter()
 
-        # Then, we parse the scalable dimensions, if any
+        # Then, parse the scalable dimensions, if any
         if self.parse_optional_punctuation('[') is not None:
 
             # Parse the scalable dimensions
