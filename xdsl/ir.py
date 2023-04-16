@@ -14,7 +14,7 @@ from xdsl.utils.deprecation import deprecated
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
     from xdsl.printer import Printer
-    from xdsl.irdl import OpDef, ParamAttrDef
+    from xdsl.irdl import OpDef, ParamAttrDef, OperationModel
     from xdsl.utils.lexer import Span
 
 OpT = TypeVar('OpT', bound='Operation')
@@ -518,16 +518,6 @@ class OpTrait():
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
-
-
-@dataclass
-class OperationModel:
-
-    operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
-    result_types: list[Attribute] = field(default_factory=list)
-    attributes: dict[str, Attribute] = field(default_factory=dict)
-    successors: list[Block] = field(default_factory=list)
-    regions: list[Region] = field(default_factory=list)
 
 
 @dataclass(init=False)

@@ -11,7 +11,7 @@ from typing import (Annotated, Any, Generic, Literal, Mapping, Sequence,
 from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (Attribute, Block, Data, OpResult, OpTrait, Operation,
-                     OperationModel, ParametrizedAttribute, Region, SSAValue)
+                     ParametrizedAttribute, Region, SSAValue)
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (PyRDLAttrDefinitionError,
                                    PyRDLOpDefinitionError, VerifyException)
@@ -1063,17 +1063,42 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         ]
 
 
+@dataclass
+class OperationModel:
+
+    operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
+    result_types: list[Attribute] = field(default_factory=list)
+    attributes: dict[str, Attribute] = field(default_factory=dict)
+    successors: list[Block] = field(default_factory=list)
+    regions: list[Region] = field(default_factory=list)
+
+
 def irdl_op_model_builder(
-    op_def: OpDef, operands: Sequence[SSAValue | Operation
-                                      | Sequence[SSAValue | Operation]
-                                      | None],
-    res_types: Sequence[Attribute | Sequence[Attribute] | None],
-    attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
+    op_def: OpDef,
+    operands: Sequence[SSAValue | Operation
+                       | Sequence[SSAValue | Operation] | None]
+    | None = None,
+    res_types: Sequence[Attribute | Sequence[Attribute] | None]
+    | None = None,
+    attributes: Mapping[str, Attribute | None] | None = None,
+    successors: Sequence[Block] | None = None,
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
                                  | Sequence[Block]] | None]
+    | None = None
 ) -> OperationModel:
     """Builder for an irdl operation."""
+
+    if operands is None:
+        operands = []
+    if res_types is None:
+        res_types = []
+    if attributes is None:
+        attributes = {}
+    if successors is None:
+        successors = []
+    if regions is None:
+        regions = []
 
     # We need irdl to define DenseArrayBase, but here we need
     # DenseArrayBase.
