@@ -55,8 +55,8 @@ def test_func_II():
     f = Addi.get(c, d)
 
     # Create Blocks and Regions
-    block0 = Block.from_ops([a, b, e])
-    block1 = Block.from_ops([c, d, f])
+    block0 = Block([a, b, e])
+    block1 = Block([c, d, f])
     region0 = Region([block0, block1])
 
     # Use this region to create a func0
