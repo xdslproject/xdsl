@@ -10,7 +10,7 @@ def test_branch():
     # Operation to add these constants
     c = Addi.get(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     br0 = Branch.get(block0)
 
     assert br0.successors[0] is block0

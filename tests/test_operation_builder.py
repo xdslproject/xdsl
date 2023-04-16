@@ -470,11 +470,11 @@ def test_two_var_operand_builder3():
 
 def test_parent_pointers():
     op = ResultOp.build(result_types=[StringAttr("0")])
-    block = Block.from_ops([op])
+    block = Block([op])
     reg = Region([block])
     reg_op = RegionOp.build(regions=[reg])
 
-    block_2 = Block.from_ops([reg_op])
+    block_2 = Block([reg_op])
     reg_2 = Region([block_2])
     reg_op_2 = RegionOp.build(regions=[reg_2])
 
