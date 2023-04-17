@@ -1,7 +1,7 @@
 from __future__ import annotations
 from xdsl.ir import Attribute, Data, Dialect, OpResult, Operation, TypeAttribute
 
-from xdsl.irdl import VarOpResult, irdl_attr_definition, irdl_op_definition
+from xdsl.irdl import VarOpResult, VarOperand, VarRegion, irdl_attr_definition, irdl_op_definition
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
@@ -17,6 +17,8 @@ class TestOp(Operation):
     name: str = "test.op"
 
     res: VarOpResult
+    ops: VarOperand
+    regs: VarRegion
 
     @staticmethod
     def from_result_types(*res: Attribute) -> TestOp:
