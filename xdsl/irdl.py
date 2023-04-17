@@ -219,7 +219,8 @@ def irdl_to_attr_constraint(
 
     # Attribute class case
     # This is a coercion for an `BaseAttr`.
-    if isclass(irdl) and issubclass(irdl, Attribute):
+    if not isinstance(irdl, GenericAlias) and isclass(irdl) and issubclass(
+            irdl, Attribute):
         return BaseAttr(irdl)
 
     # Type variable case
