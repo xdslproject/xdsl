@@ -63,12 +63,14 @@ def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
 
-def test_array_len_attr():
+def test_array_len_and_iter_attr():
     arr = ArrayAttr([IntAttr(i) for i in range(10)])
 
     assert len(arr) == 10
     assert len(arr.data) == len(arr)
 
+    # check that it is iterable
+    assert tuple(arr) == arr.data
 
 @pytest.mark.parametrize('attr, dims, num_scalable_dims', (
     (i32, [1, 2], 0),
