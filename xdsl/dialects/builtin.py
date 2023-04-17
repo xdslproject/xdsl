@@ -99,6 +99,9 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
     def __len__(self):
         return len(self.data)
 
+    def __iter__(self):
+        return iter(self.data)
+
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
