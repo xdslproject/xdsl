@@ -9,6 +9,6 @@ func.func() ["sym_name" = "vector_maskedstore_memref_storevec_type_matching", "f
     func.return()
   }
 
-// CHECK: MemRef element type should match the stored vector type. Obtained types were !index and !i32.
+// CHECK: MemRef element type should match the stored vector type. Obtained types were index and i32.
 
 }

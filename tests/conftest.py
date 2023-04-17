@@ -42,15 +42,17 @@ def assert_print_op(operation: Operation,
 
     file = StringIO("")
     if diagnostic is None:
-        if target is None:
-            printer = Printer(stream=file,
-                              print_generic_format=print_generic_format)
-        else:
-            printer = Printer(stream=file,
-                              print_generic_format=print_generic_format,
-                              target=target)
+        diagnostic = Diagnostic()
+    if target is None:
+        printer = Printer(stream=file,
+                          print_generic_format=print_generic_format,
+                          diagnostic=diagnostic,
+                          target=Printer.Target.XDSL)
     else:
-        printer = Printer(stream=file, diagnostic=diagnostic)
+        printer = Printer(stream=file,
+                          print_generic_format=print_generic_format,
+                          diagnostic=diagnostic,
+                          target=target)
 
     printer.print(operation)
     assert file.getvalue().strip() == expected.strip()

@@ -25,15 +25,15 @@ builtin.module() {
 //CHECK:module {
 //CHECK: irdl.dialect cmath {
 //CHECK: irdl.type complex {
-//CHECK:   irdl.parameters(elementType: AnyOf<!i32, !i64>)
+//CHECK:   irdl.parameters(elementType: AnyOf<i32, i64>)
 //CHECK:  }
 //CHECK: irdl.operation norm {
-//CHECK:   irdl.operands(c: complex<AnyOf<!i32, !i64>>)
-//CHECK:    irdl.results(results: AnyOf<!i32, !i64>)
+//CHECK:   irdl.operands(c: complex<AnyOf<i32, i64>>)
+//CHECK:    irdl.results(results: AnyOf<i32, i64>)
 //CHECK:  }
 //CHECK:  irdl.operation mul {
-//CHECK:    irdl.operands(lhs: complex<AnyOf<!i32, !i64>>, rhs: complex<AnyOf<!i32, !i64>>)
-//CHECK:    irdl.results(results: complex<AnyOf<!i32, !i64>>)
+//CHECK:    irdl.operands(lhs: complex<AnyOf<i32, i64>>, rhs: complex<AnyOf<i32, i64>>)
+//CHECK:    irdl.results(results: complex<AnyOf<i32, i64>>)
 //CHECK:  }
 //CHECK:}
 //CHECK:}
