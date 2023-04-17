@@ -111,6 +111,12 @@ def test_func_rewriting_helpers():
     with pytest.raises(IndexError):
         func.replace_argument_type(-4, i64)
 
+    decl = FuncOp.external('external_func', [], [])
+    assert decl.is_declaration
+
+    with pytest.raises(AssertionError):
+        decl.args
+
 
 def test_func_get_return_op():
     # pyright complains about lambda arg types unknown

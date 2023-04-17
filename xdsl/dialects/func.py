@@ -72,7 +72,9 @@ class FuncOp(Operation):
     def replace_argument_type(self, arg: int | BlockArgument,
                               new_type: Attribute):
         """
-        Replaces a function argument with a new one
+        Replaces the type of the argument specified by arg (either the index of the arg,
+        or the BlockArgument object itself) with new_type. This also takes care of updating
+        the function_type attribute.
         """
 
         if isinstance(arg, int):
@@ -83,19 +85,19 @@ class FuncOp(Operation):
                     self.body.blocks[0], arg))
             arg = self.body.blocks[0].args[arg]
 
+        if arg not in self.args:
+            raise ValueError("Arg {} does not belong to this function!".format(arg))
+
         arg.typ = new_type
         self.update_function_type()
 
     def update_function_type(self):
         """
         Update the function_type attribute to reflect changes in the
-        block argument types.
+        block argument types or return statement arguments.
         """
         # Refuse to work with external function definitions, as they don't have block args
-        if len(self.function_type.inputs) != len(self.args):
-            raise NotImplementedError(
-                "UpdateFunctionType currently not implemented for external function definitions"
-            )
+        assert not self.is_declaration, "update_function_type does not work with function declarations!"
         return_op = self.get_return_op()
         return_type: tuple[Attribute] = self.function_type.outputs.data
 
@@ -108,18 +110,31 @@ class FuncOp(Operation):
         )
 
     def get_return_op(self) -> Return | None:
-        if len(self.body.blocks) == 0:
-            return
-        if len(self.body.blocks[-1].ops) == 0:
-            return
-        # TODO: remove once we have verify() check this!
-        if not isinstance(self.body.blocks[-1].ops[-1], Return):
-            return
-        return self.body.blocks[-1].ops[-1]
+        """
+        Helper for easily retrieving the return operation of a given
+        function. Returns None if it couldn't find a return op.
+        """
+        if self.is_declaration:
+            return None
+        ret_op = self.body.blocks[-1].ops[-1]
+        if not isinstance(ret_op, Return):
+            return None
+        return ret_op
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
+        """
+        A helper to quickly get access to the block arguments of the function
+        """
+        assert not self.is_declaration, "Function declarations don't have BlockArguments!"
         return self.body.blocks[0].args
+
+    @property
+    def is_declaration(self):
+        """
+        A helper to identify functions that are external declarations (have an empty function body)
+        """
+        return len(self.body.blocks[0].ops) == 0
 
 
 @irdl_op_definition
