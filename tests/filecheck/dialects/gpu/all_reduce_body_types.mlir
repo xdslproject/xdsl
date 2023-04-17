@@ -13,4 +13,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: Expected ['!index', '!index'], got ['!index']. A gpu.all_reduce's body must have two arguments matching the result type.
+// CHECK: Expected ['index', 'index'], got ['index']. A gpu.all_reduce's body must have two arguments matching the result type.

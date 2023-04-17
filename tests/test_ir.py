@@ -268,8 +268,8 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 def test_descriptions():
     a = Constant.from_int_and_width(1, 32)
 
-    assert str(a.value) == '1 : !i32'
-    assert f'{a.value}' == '1 : !i32'
+    assert str(a.value) == '1 : i32'
+    assert f'{a.value}' == '1 : i32'
 
     assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
     assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'

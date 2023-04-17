@@ -13,4 +13,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: Expected ['!index'], got ['!f32']. The gpu.yield values types must match its enclosing operation result types.
+// CHECK: Expected ['index'], got ['f32']. The gpu.yield values types must match its enclosing operation result types.
