@@ -646,8 +646,22 @@ class Operation(IRNode):
         """Create a new operation using builders."""
         ...
 
-    def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
-        """Replace an operand with another operand."""
+    def replace_operand(self, operand: int | SSAValue,
+                        new_operand: SSAValue) -> None:
+        """
+        Replace an operand with another operand.
+
+        Raises ValueError if the specified operand is not an operand of this op
+        """
+        if isinstance(operand, SSAValue):
+            try:
+                operand_idx = self._operands.index(operand)
+            except ValueError as err:
+                raise ValueError("{} is not an operand of {}.".format(
+                    operand, self)) from err
+        else:
+            operand_idx = operand
+
         self.operands = list(self._operands[:operand_idx]) + [
             new_operand
         ] + list(self._operands[operand_idx + 1:])
