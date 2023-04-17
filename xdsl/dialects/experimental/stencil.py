@@ -160,6 +160,13 @@ class IndexAttr(ParametrizedAttribute):
             for lb, ub in zip(lb.array.data, ub.array.data)
         ]
 
+    @staticmethod
+    def add_offsets(lb: IndexAttr, ub: IndexAttr) -> list[int]:
+        return [
+            ub.value.data + lb.value.data
+            for lb, ub in zip(lb.array.data, ub.array.data)
+        ]
+
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
@@ -425,16 +432,11 @@ class ApplyOp(Operation):
 
     @staticmethod
     def get(args: Sequence[SSAValue] | Sequence[Operation],
-            body: Block,
+            body: Region | list[Block] | list[Operation],
             lb: IndexAttr | None = None,
             ub: IndexAttr | None = None,
-            result_count: int = 1):
+            result_type: list[Attribute] = []):
         assert len(args) > 0
-        field_t = SSAValue.get(args[0]).typ
-        assert isinstance(field_t, TempType)
-        field_t = cast(FieldType[Attribute], field_t)
-
-        result_rank = len(field_t.shape.data)
 
         attributes = {}
         if lb is not None:
@@ -443,13 +445,12 @@ class ApplyOp(Operation):
             attributes["ub"] = ub
 
         return ApplyOp.build(operands=[list(args)],
-                             attributes=attributes,
-                             regions=[Region([body])],
-                             result_types=[[
-                                 TempType.from_shape([-1] * result_rank,
-                                                     field_t.element_type)
-                                 for _ in range(result_count)
-                             ]])
+                             attributes={
+                                 "lb": lb,
+                                 "ub": ub
+                             },
+                             regions=[body],
+                             result_types=result_type)
 
 
 @irdl_op_definition

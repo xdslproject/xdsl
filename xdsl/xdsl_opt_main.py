@@ -32,6 +32,7 @@ from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 from xdsl.transforms.experimental.stencil_global_to_local import GlobalStencilToLocalStencil2DHorizontal
+from xdsl.transforms.experimental.StencilInlining import StencilInlining
 
 from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
@@ -243,6 +244,7 @@ class xDSLOptMain:
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
+        self.register_pass(StencilInlining)
 
     def register_all_targets(self):
         """
