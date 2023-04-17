@@ -121,12 +121,10 @@ def test_func_rewriting_helpers():
 def test_func_get_return_op():
     # pyright complains about lambda arg types unknown
     # honestly don't know how to fix
-    func_w_ret = FuncOp.from_callable(
-        'test', [i32, i32, i32], [i32],
-        lambda *args: [Return.get(args[1])])
+    func_w_ret = FuncOp.from_callable('test', [i32, i32, i32], [i32],
+                                      lambda *args: [Return.get(args[1])])
 
-    func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda *args: [])
+    func = FuncOp.from_callable('test', [i32, i32, i32], [], lambda *args: [])
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
