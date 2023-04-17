@@ -91,8 +91,12 @@ class FuncOp(Operation):
         Update the function_type attribute to reflect changes in the
         block argument types.
         """
+        if len(self.function_type.inputs) != len(self.args):
+            raise NotImplementedError(
+                "UpdateFunctionType currently not implemented for external function definitions"
+            )
         return_op = self.get_return_op()
-        return_type: tuple[Attribute] = tuple()
+        return_type: tuple[Attribute] = self.function_type.outputs.data
 
         if return_op is not None:
             return_type = tuple(arg.typ for arg in return_op.operands)
