@@ -846,10 +846,9 @@ class Operation(IRNode):
     def __str__(self) -> str:
         from xdsl.printer import Printer
         res = StringIO()
-        printer = Printer(stream=res)
+        printer = Printer(stream=res, target=Printer.Target.XDSL)
         printer.print_op(self)
-        desc = res.getvalue()
-        return desc
+        return res.getvalue()
 
     def __format__(self, __format_spec: str) -> str:
         desc = str(self)

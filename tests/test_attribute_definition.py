@@ -72,7 +72,7 @@ def test_simple_data():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(b)
-    assert stream.getvalue() == "!bool<True>"
+    assert stream.getvalue() == "#bool<True>"
 
 
 def test_simple_data_verifier_failure():
@@ -149,7 +149,7 @@ def test_non_class_data():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!int_list<[0, 1, 42]>"
+    assert stream.getvalue() == "#int_list<[0, 1, 42]>"
 
 
 def test_simple_data_constructor_failure():
@@ -180,14 +180,14 @@ def test_bose_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!bool_wrapper<!bool<True>>"
+    assert stream.getvalue() == "#bool_wrapper<#bool<True>>"
 
 
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolWrapperAttr([StringData("foo")])
-    assert e.value.args[0] == "!str<foo> should be of base attribute bool"
+    assert e.value.args[0] == "#str<foo> should be of base attribute bool"
 
 
 ################################################################################
@@ -208,7 +208,7 @@ def test_union_constraint_left():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!bool_or_int<!bool<True>>"
+    assert stream.getvalue() == "#bool_or_int<#bool<True>>"
 
 
 def test_union_constraint_right():
@@ -217,14 +217,14 @@ def test_union_constraint_right():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!bool_or_int<!int<42>>"
+    assert stream.getvalue() == "#bool_or_int<#int<42>>"
 
 
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolOrIntParamAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute !str<foo>"
+    assert e.value.args[0] == "Unexpected attribute #str<foo>"
 
 
 ################################################################################
@@ -256,7 +256,7 @@ def test_annotated_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!positive_int<!int<42>>"
+    assert stream.getvalue() == "#positive_int<#int<42>>"
 
 
 def test_annotated_constraint_fail():
@@ -286,7 +286,7 @@ def test_typevar_attribute_int():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!int_or_bool_generic<!int<42>>"
+    assert stream.getvalue() == "#int_or_bool_generic<#int<42>>"
 
 
 def test_typevar_attribute_bool():
@@ -295,14 +295,14 @@ def test_typevar_attribute_bool():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!int_or_bool_generic<!bool<True>>"
+    assert stream.getvalue() == "#int_or_bool_generic<#bool<True>>"
 
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
     with pytest.raises(Exception) as e:
         ParamWrapperAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute !str<foo>"
+    assert e.value.args[0] == "Unexpected attribute #str<foo>"
 
 
 @irdl_attr_definition
@@ -318,7 +318,7 @@ def test_param_attr_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "!param_constr<!int_or_bool_generic<!int<42>>>"
+    assert stream.getvalue() == "#param_constr<#int_or_bool_generic<#int<42>>>"
 
 
 def test_param_attr_constraint_fail():
@@ -328,7 +328,7 @@ def test_param_attr_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         ParamConstrAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[0] == "!bool<True> should be of base attribute int"
+    assert e.value.args[0] == "#bool<True> should be of base attribute int"
 
 
 _U = TypeVar("_U", bound=IntData)
@@ -351,7 +351,7 @@ def test_nested_generic_constraint():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue(
-    ) == "!nested_param_wrapper<!int_or_bool_generic<!int<42>>>"
+    ) == "#nested_param_wrapper<#int_or_bool_generic<#int<42>>>"
 
 
 def test_nested_generic_constraint_fail():
@@ -361,7 +361,7 @@ def test_nested_generic_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         NestedParamWrapperAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[0] == "!bool<True> should be of base attribute int"
+    assert e.value.args[0] == "#bool<True> should be of base attribute int"
 
 
 @irdl_attr_definition
@@ -382,7 +382,7 @@ def test_nested_param_attr_constraint():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue(
-    ) == "!nested_param_constr<!nested_param_wrapper<!int_or_bool_generic<!int<42>>>>"
+    ) == "#nested_param_constr<#nested_param_wrapper<#int_or_bool_generic<#int<42>>>>"
 
 
 def test_nested_param_attr_constraint_fail():
@@ -502,7 +502,7 @@ class Test_generic_data_verifier:
         p = Printer(stream=stream)
         p.print_attribute(attr)
         assert stream.getvalue(
-        ) == "!list<[!bool<True>, !list<[!bool<False>]>]>"
+        ) == "#list<[#bool<True>, #list<[#bool<False>]>]>"
 
     def test_generic_data_verifier_fail(self):
         """
@@ -540,7 +540,7 @@ def test_generic_data_wrapper_verifier():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue(
-    ) == "!list_wrapper<!list<[!bool<True>, !bool<False>]>>"
+    ) == "#list_wrapper<#list<[#bool<True>, #bool<False>]>>"
 
 
 def test_generic_data_wrapper_verifier_failure():
@@ -553,7 +553,7 @@ def test_generic_data_wrapper_verifier_failure():
             [ListData([BoolData(True),
                        ListData([BoolData(False)])])])
     assert e.value.args[
-        0] == "!list<[!bool<False>]> should be of base attribute bool"
+        0] == "#list<[#bool<False>]> should be of base attribute bool"
 
 
 @irdl_attr_definition
@@ -573,7 +573,7 @@ def test_generic_data_no_generics_wrapper_verifier():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue(
-    ) == "!list_no_generics_wrapper<!list<[!bool<True>, !list<[!bool<False>]>]>>"
+    ) == "#list_no_generics_wrapper<#list<[#bool<True>, #list<[#bool<False>]>]>>"
 
 
 ################################################################################
