@@ -51,9 +51,11 @@ class CastOpToMemref(RewritePattern):
         field_typ: FieldType[Attribute] | MemRefType[Attribute] = op.field.typ
 
         result_typ = GetMemRefFromFieldWithLBAndUB(field_typ.element_type,
-                                                   op.lb, op.ub)
+                                                   op.lb, op.ub)                                                           
 
-        cast = memref.Cast.get(op.field, result_typ)
+        #cast = memref.Cast.get(op.field, result_typ)
+        cast=builtin.UnrealizedConversionCastOp.get([op.field.owner.field], [op.field.owner.field.typ])
+                
 
         for k, v in self.return_target.items():
             if v == op:
@@ -61,7 +63,7 @@ class CastOpToMemref(RewritePattern):
 
         if self.gpu:
             unranked = memref.Cast.get(
-                cast.dest,
+                cast.outputs[0],
                 memref.UnrankedMemrefType.from_type(field_typ.element_type))
             register = gpu.HostRegisterOp.from_memref(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
@@ -115,10 +117,10 @@ class ReturnOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in offsets.array.data
         ]
-        off_const_ops.reverse()
+        #off_const_ops.reverse()
 
         args = list(block.args)
-        args.reverse()
+        #args.reverse()
 
         off_sum_ops = [
             arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)
@@ -259,7 +261,7 @@ class AccessOpToMemref(RewritePattern):
                                               builtin.IndexType())
             for x in memref_offset
         ]
-        off_const_ops.reverse()
+        #off_const_ops.reverse()
 
         args = list(block.args)
         #args.reverse()
@@ -301,8 +303,8 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
         typ: FieldType[Any] = op.result.typ
         op.result.typ = GetMemRefFromField(typ)
 
-        if op.field.typ == op.result.typ:
-            rewriter.replace_matched_op([], [op.field])
+        #if op.field.typ == op.result.typ:
+        rewriter.replace_matched_op([], [op.field])
         pass
 
 
