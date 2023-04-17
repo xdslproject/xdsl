@@ -76,14 +76,12 @@ class FuncOp(Operation):
         or the BlockArgument object itself) with new_type. This also takes care of updating
         the function_type attribute.
         """
-
         if isinstance(arg, int):
-            if arg < 0:
-                arg = len(self.args) + arg
-            if not (0 <= arg < len(self.body.blocks[0].args)):
-                raise IndexError("Block {} does not have argument #{}!".format(
+            try:
+                arg = self.body.blocks[0].args[arg]
+            except IndexError:
+                raise IndexError("Block {} does not have argument #{}".format(
                     self.body.blocks[0], arg))
-            arg = self.body.blocks[0].args[arg]
 
         if arg not in self.args:
             raise ValueError(
