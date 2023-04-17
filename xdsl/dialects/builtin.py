@@ -332,6 +332,8 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     ) -> IntegerAttr[IntegerType | IndexType]:
         return IntegerAttr(value, typ)
 
+    def get_value(self) -> int:
+        return self.value.data
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
@@ -438,6 +440,9 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     @deprecated_constructor
     def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
         return FloatAttr(value, width)
+
+    def get_value(self) -> float:
+        return self.value.data
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
