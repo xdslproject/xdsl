@@ -47,4 +47,4 @@ class TestType(Data[str], TypeAttribute):
         printer.print_string_literal(self.data)
 
 
-Test = Dialect([ProduceValuesOp], [TestType])
+Test = Dialect([TestOp], [TestType])
