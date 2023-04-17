@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
+                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
 from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
@@ -623,8 +623,40 @@ class Operation(IRNode):
                                          attributes, successors, regions)
         return cast(OpT, op)
 
-    def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
-        """Replace an operand with another operand."""
+    @classmethod
+    def build(
+        cls: type[OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> OpT:
+        """Create a new operation using builders."""
+        ...
+
+    def replace_operand(self, operand: int | SSAValue,
+                        new_operand: SSAValue) -> None:
+        """
+        Replace an operand with another operand.
+
+        Raises ValueError if the specified operand is not an operand of this op
+        """
+        if isinstance(operand, SSAValue):
+            try:
+                operand_idx = self._operands.index(operand)
+            except ValueError as err:
+                raise ValueError("{} is not an operand of {}.".format(
+                    operand, self)) from err
+        else:
+            operand_idx = operand
+
         self.operands = list(self._operands[:operand_idx]) + [
             new_operand
         ] + list(self._operands[operand_idx + 1:])

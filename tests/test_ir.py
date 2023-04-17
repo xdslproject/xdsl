@@ -319,3 +319,18 @@ def test_op_custom_verify_is_done_last():
     assert e.value.args[0] != 'Custom Verification Check'
     assert e.value.args[0] == \
            'test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n'
+
+
+def test_replace_operand():
+    cst0 = Constant.from_int_and_width(0, 32).result
+    cst1 = Constant.from_int_and_width(1, 32).result
+    add = Addi.get(cst0, cst1)
+
+    new_cst = Constant.from_int_and_width(2, 32).result
+    add.replace_operand(cst0, new_cst)
+
+    assert new_cst in add.operands
+    assert cst0 not in add.operands
+
+    with pytest.raises(ValueError):
+        add.replace_operand(cst0, new_cst)
