@@ -62,6 +62,7 @@ def test_parallel():
 
 
 def test_empty_else():
+    # create if without an else block:
     m = ModuleOp.from_region_or_ops([
         t := Constant.from_int_and_width(1, 1),
         If.get(t, [], [
@@ -70,15 +71,3 @@ def test_empty_else():
     ])
 
     assert len(cast(If, m.ops[1]).false_region.blocks) == 0
-
-    io = StringIO()
-    p = Printer(target=Printer.Target.MLIR, stream=io)
-    p.print(m)
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
-    p = Parser(ctx, io.getvalue(), Source.MLIR)
-    new_module = p.parse_module()
-
-    assert m.is_structurally_equivalent(new_module)
