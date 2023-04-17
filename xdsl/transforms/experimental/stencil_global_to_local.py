@@ -491,7 +491,7 @@ def generate_memcpy(source: SSAValue,
                 load = memref.Load.get(source, [x, y])
                 store = memref.Store.get(load, dest, [linearized_idx])
             yield from (linearized_idx, load, store)
-        yield scf.Yield()
+        yield scf.Yield.get()
 
     def loop_body_with_for(i: SSAValue):
         """
@@ -512,7 +512,7 @@ def generate_memcpy(source: SSAValue,
                 store = memref.Store.get(load, dest, [linearized_idx])
             yield from (x, linearized_idx, load, store)
             # add an scf.yield at the end
-            yield scf.Yield()
+            yield scf.Yield.get()
 
         yield scf.For.get(
             cst0,
@@ -522,7 +522,7 @@ def generate_memcpy(source: SSAValue,
             [Block.from_callable([builtin.IndexType()], inner)]  # type: ignore
         )
 
-        yield scf.Yield()
+        yield scf.Yield.get()
 
     loop_body: Callable[[SSAValue], Iterable[
         Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
