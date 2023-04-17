@@ -378,7 +378,6 @@ class IRDLOperation(Operation):
                                attributes=attributes,
                                successors=successors,
                                regions=regions)
-        op.__post_init__()
         return op
 
 

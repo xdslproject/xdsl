@@ -612,6 +612,7 @@ class Operation(IRNode):
         if regions:
             for region in regions:
                 self.add_region(region)
+        self.__post_init__()
 
     @classmethod
     def create(cls: type[OpT],
@@ -623,7 +624,6 @@ class Operation(IRNode):
         op = cls.__new__(cls)
         Operation.__init__(op, operands, result_types, attributes, successors,
                            regions)
-        Operation.__post_init__(op)
         return op
 
     def replace_operand(self, operand: int | SSAValue,
