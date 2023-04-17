@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import cast
 
 from xdsl.ir import MLContext
 from xdsl.dialects.arith import Constant, Arith
@@ -67,6 +68,9 @@ def test_empty_else():
             Yield.get(),
         ]),
     ])
+
+    assert len(cast(If, m.ops[1]).false_region.blocks) == 0
+
     io = StringIO()
     p = Printer(target=Printer.Target.MLIR, stream=io)
     p.print(m)
