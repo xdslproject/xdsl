@@ -86,7 +86,8 @@ class FuncOp(Operation):
             arg = self.body.blocks[0].args[arg]
 
         if arg not in self.args:
-            raise ValueError("Arg {} does not belong to this function!".format(arg))
+            raise ValueError(
+                "Arg {} does not belong to this function!".format(arg))
 
         arg.typ = new_type
         self.update_function_type()
