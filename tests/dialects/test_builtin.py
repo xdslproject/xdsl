@@ -72,6 +72,7 @@ def test_array_len_and_iter_attr():
     # check that it is iterable
     assert tuple(arr) == arr.data
 
+
 @pytest.mark.parametrize('attr, dims, num_scalable_dims', (
     (i32, [1, 2], 0),
     (i32, [1, 2], 1),
