@@ -117,10 +117,10 @@ def test_func_get_return_op():
     # honestly don't know how to fix
     func_w_ret = FuncOp.from_callable(
         'test', [i32, i32, i32], [i32],
-        lambda x, y, z: [Return.get(y)])  # type: ignore
+        lambda *args: [Return.get(args[1])])  # type: ignore
 
     func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda x, y, z: [])  # type: ignore
+                                lambda *args: [])  # type: ignore
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
