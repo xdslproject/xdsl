@@ -1,7 +1,13 @@
-from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import Region, IndexType
+from io import StringIO
+
+from xdsl.ir import MLContext
+from xdsl.dialects.arith import Constant, Arith
+from xdsl.dialects.builtin import Region, IndexType, ModuleOp, Builtin
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp
+from xdsl.dialects.scf import For, ParallelOp, If, Yield, Scf
+
+from xdsl.printer import Printer
+from xdsl.parser import Parser, Source
 
 
 def test_for():
@@ -52,3 +58,23 @@ def test_parallel():
     assert p.upperBound == tuple(l.result for l in upperBounds)
     assert p.step == tuple(l.result for l in steps)
     assert p.body is body
+
+
+def test_empty_else():
+    m = ModuleOp.from_region_or_ops([
+        t := Constant.from_int_and_width(1, 1),
+        If.get(t, [], [
+            Yield.get(),
+        ]),
+    ])
+    io = StringIO()
+    p = Printer(target=Printer.Target.MLIR, stream=io)
+    p.print(m)
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Scf)
+    p = Parser(ctx, io.getvalue(), Source.MLIR)
+    new_module = p.parse_module()
+
+    assert m.is_structurally_equivalent(new_module)

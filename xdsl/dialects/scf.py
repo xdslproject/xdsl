@@ -29,7 +29,7 @@ class If(IRDLOperation):
     ) -> If:
 
         if false_region is None:
-            false_region = Region.from_operation_list([Yield.get()])
+            false_region = Region()
 
         return If.build(
             operands=[cond],
