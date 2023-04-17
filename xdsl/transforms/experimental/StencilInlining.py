@@ -285,6 +285,7 @@ class InliningRewrite(StencilInliningPattern):
 
         # Remove consumer op from the IR.
         consumer_op_parent = consumer_op.parent
+        assert isinstance(consumer_op_parent, Block)
         consumer_op_parent.erase_op(consumer_op, False)
 
         # Remove producer op from the IR.
