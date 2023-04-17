@@ -91,6 +91,7 @@ class FuncOp(Operation):
         Update the function_type attribute to reflect changes in the
         block argument types.
         """
+        # Refuse to work with external function definitions, as they don't have block args
         if len(self.function_type.inputs) != len(self.args):
             raise NotImplementedError(
                 "UpdateFunctionType currently not implemented for external function definitions"
