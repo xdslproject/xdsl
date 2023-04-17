@@ -89,7 +89,7 @@ def test_func_rewriting_helpers():
     :return:
     """
     func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda x, y, z: [Return.get()])  # type: ignore
+                                lambda *args: [Return.get()])
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
@@ -117,10 +117,10 @@ def test_func_get_return_op():
     # honestly don't know how to fix
     func_w_ret = FuncOp.from_callable(
         'test', [i32, i32, i32], [i32],
-        lambda *args: [Return.get(args[1])])  # type: ignore
+        lambda *args: [Return.get(args[1])])
 
     func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda *args: [])  # type: ignore
+                                lambda *args: [])
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
