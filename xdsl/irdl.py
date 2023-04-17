@@ -1183,8 +1183,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
-        cls,
-        Operation), f"class {cls.__name__} should be a subclass of Operation"
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
 
     # Get all fields of the class, including the parent classes
     clsdict = dict[str, Any]()
