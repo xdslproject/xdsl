@@ -16,7 +16,7 @@ def test_ssa():
         # hence ignore
         _ = SSAValue.get([c])  # type: ignore
 
-    b0 = Block.from_ops([c])
+    b0 = Block([c])
     with pytest.raises(TypeError):
         # test that we raise a TypeError if we give an incorrect type
         # hence ignore

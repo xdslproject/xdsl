@@ -330,10 +330,10 @@ class Dim(IRDLOperation):
 
     result: Annotated[OpResult, IndexType]
 
-    @classmethod
-    def from_source_and_index(cls, source: SSAValue | Operation,
+    @staticmethod
+    def from_source_and_index(source: SSAValue | Operation,
                               index: SSAValue | Operation):
-        return cls.build(operands=[source, index], result_types=[IndexType()])
+        return Dim.build(operands=[source, index], result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -344,9 +344,9 @@ class Rank(IRDLOperation):
 
     rank: Annotated[OpResult, IndexType]
 
-    @classmethod
-    def from_memref(cls, memref: Operation | SSAValue):
-        return cls.build(operands=[memref], result_types=[IndexType()])
+    @staticmethod
+    def from_memref(memref: Operation | SSAValue):
+        return Rank.build(operands=[memref], result_types=[IndexType()])
 
 
 @irdl_op_definition

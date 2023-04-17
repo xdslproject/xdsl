@@ -524,33 +524,53 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[AttributeCovT]
+    num_scalable_dims: ParameterDef[IntAttr]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
+    def get_num_scalable_dims(self) -> int:
+        return self.num_scalable_dims.data
+
     def get_shape(self) -> List[int]:
         return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_scalable_dims() < 0:
+            raise VerifyException(
+                f"Number of scalable dimensions {self.get_num_dims()} cannot"
+                " be negative")
+        if self.get_num_scalable_dims() > self.get_num_dims():
+            raise VerifyException(
+                f"Number of scalable dimensions {self.get_num_scalable_dims()}"
+                " cannot be larger than number of dimensions"
+                f" {self.get_num_dims()}")
 
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]]
+        shape: Sequence[int | IntegerAttr[IndexType]],
+        num_scalable_dims: int | IntAttr = 0,
     ) -> VectorType[AttributeInvT]:
-
+        if isinstance(num_scalable_dims, int):
+            num_scalable_dims = IntAttr(num_scalable_dims)
         return VectorType([
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
                     d, int) else d for d in shape
-            ]), referenced_type
+            ]),
+            referenced_type,
+            num_scalable_dims,
         ])
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)])
+            [IntegerAttr.from_int_and_width(1, 64)]),
+        num_scalable_dims: IntAttr = IntAttr(0),
     ) -> VectorType[AttributeInvT]:
-        return VectorType([shape, referenced_type])
+        return VectorType([shape, referenced_type, num_scalable_dims])
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]

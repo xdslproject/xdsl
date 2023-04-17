@@ -787,9 +787,9 @@ class IndexCastOp(IRDLOperation):
 
     result: OpResult
 
-    @classmethod
-    def get(cls, input: SSAValue | Operation, target_type: Attribute):
-        return cls.build(operands=[input], result_types=[target_type])
+    @staticmethod
+    def get(input_arg: SSAValue | Operation, target_type: Attribute):
+        return IndexCastOp.build(operands=[input_arg], result_types=[target_type])
 
 
 @irdl_op_definition
