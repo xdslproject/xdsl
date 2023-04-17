@@ -435,7 +435,7 @@ class ApplyOp(Operation):
             body: Region | list[Block] | list[Operation],
             lb: IndexAttr | None = None,
             ub: IndexAttr | None = None,
-            result_type: list[Attribute] = []):
+            result_type: list[list[Attribute]] = []):
         assert len(args) > 0
 
         attributes = {}
