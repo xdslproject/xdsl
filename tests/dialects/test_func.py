@@ -3,7 +3,7 @@ import pytest
 from conftest import assert_print_op
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64
+from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64, IntegerType
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -81,6 +81,53 @@ def test_wrong_blockarg_types():
     assert e.value.args[0] == (
         "Expected entry block arguments to have the same "
         "types as the function input types")
+
+
+def test_func_rewriting_helpers():
+    """
+    test replace_argument_type and update_function_type (implicitly)
+    :return:
+    """
+    func = FuncOp.from_callable('test', [i32, i32, i32], [],
+                                lambda *args: [Return.get()])
+
+    func.replace_argument_type(2, i64)
+    assert func.function_type.inputs.data[2] is i64
+    assert func.args[2].typ is i64
+
+    func.replace_argument_type(func.args[0], i64)
+    assert func.function_type.inputs.data[0] is i64
+    assert func.args[0].typ is i64
+
+    # check negaitve index
+    i8 = IntegerType(8)
+    func.replace_argument_type(-2, i8)
+    assert func.function_type.inputs.data[1] is i8
+    assert func.args[1].typ is i8
+
+    with pytest.raises(IndexError):
+        func.replace_argument_type(3, i64)
+
+    with pytest.raises(IndexError):
+        func.replace_argument_type(-4, i64)
+
+    decl = FuncOp.external('external_func', [], [])
+    assert decl.is_declaration
+
+    with pytest.raises(AssertionError):
+        decl.args
+
+
+def test_func_get_return_op():
+    # pyright complains about lambda arg types unknown
+    # honestly don't know how to fix
+    func_w_ret = FuncOp.from_callable('test', [i32, i32, i32], [i32],
+                                      lambda *args: [Return.get(args[1])])
+
+    func = FuncOp.from_callable('test', [i32, i32, i32], [], lambda *args: [])
+
+    assert func_w_ret.get_return_op() is not None
+    assert func.get_return_op() is None
 
 
 def test_callable_constructor():
