@@ -643,14 +643,17 @@ class Operation(IRNode):
 
     def replace_operand(self, operand: int | SSAValue,
                         new_operand: SSAValue) -> None:
-        """Replace an operand with another operand."""
+        """
+        Replace an operand with another operand.
+
+        Raises ValueError if the specified operand is not an operand of this op
+        """
         if isinstance(operand, SSAValue):
             try:
                 operand_idx = self._operands.index(operand)
             except ValueError as err:
                 raise ValueError("{} is not an operand of {}!".format(
-                    operand, self
-                )) from err
+                    operand, self)) from err
         else:
             operand_idx = operand
 
