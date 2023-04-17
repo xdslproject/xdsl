@@ -213,7 +213,7 @@ class ApplyOpToParallel(RewritePattern):
                                  step=one,
                                  iter_args=[],
                                  body=current_region)
-            block = Block(ops=[for_op, scf.Yield()],
+            block = Block(ops=[for_op, scf.Yield.get()],
                           arg_types=[builtin.IndexType()])
             current_region = Region([block])
 
