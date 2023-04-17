@@ -7,25 +7,24 @@ from xdsl.printer import Printer
 
 
 @irdl_op_definition
-class ProduceValuesOp(Operation):
+class TestOp(Operation):
     """
     This operation can produce an arbitrary number of SSAValues with arbitrary
     types. It is used in filecheck testing to reduce to artificial dependencies
     on other dialects (i.e. dependencies that only come from the structure of
     the test rather than the actual dialect).
     """
-    name: str = "test.produce_values"
+    name: str = "test.op"
 
     res: VarOpResult
 
     @staticmethod
-    def from_result_types(*res: Attribute) -> ProduceValuesOp:
-        return ProduceValuesOp.create(result_types=res)
+    def from_result_types(*res: Attribute) -> TestOp:
+        return TestOp.create(result_types=res)
 
     @staticmethod
-    def get_values(
-            *res: Attribute) -> tuple[ProduceValuesOp, tuple[OpResult, ...]]:
-        op = ProduceValuesOp.from_result_types(*res)
+    def get_values(*res: Attribute) -> tuple[TestOp, tuple[OpResult, ...]]:
+        op = TestOp.from_result_types(*res)
         return op, tuple(op.results)
 
 
