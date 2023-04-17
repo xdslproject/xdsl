@@ -125,7 +125,7 @@ class InliningRewrite(StencilInliningPattern):
                         conserved_return_val.append(return_val)
                         inlined_op_res_list.append(
                             producer_op.results[0].op.results[i].typ)
-                if not external_use_flag:
+                if not len(conserved_return_val):
                     # Erase the producer_op's return op if no result is needed to be conserved
                     # after inlining.
                     producer_op.region.blocks[0].erase_op(op)
