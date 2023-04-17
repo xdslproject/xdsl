@@ -49,7 +49,7 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[Attribute]):
+class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
     name: str = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -99,7 +99,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[Attribute]):
     def __len__(self):
         return len(self.data)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[AttributeCovT]:
         return iter(self.data)
 
 
