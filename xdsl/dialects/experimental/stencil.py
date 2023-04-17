@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast
+from typing import Sequence, TypeVar, Any, cast, Iterable
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -156,23 +156,23 @@ class IndexAttr(ParametrizedAttribute):
     @staticmethod
     def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
         return [
-            ub.value.data - lb.value.data
-            for lb, ub in zip(lb.array.data, ub.array.data)
+            ub.get_value() - lb.get_value()
+            for lb, ub in zip(lb, ub)
         ]
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
         integer_attrs: list[Attribute] = [
-            IntegerAttr(-e.value.data, IntegerType(64))
-            for e in self.array.data
+            IntegerAttr(-e.get_value(), IntegerType(64))
+            for e in self
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
         integer_attrs: list[Attribute] = [
-            IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
-            for se, oe in zip(self.array.data, o.array.data)
+            IntegerAttr(se.get_value() + oe.get_value(), IntegerType(64))
+            for se, oe in zip(self, o)
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
 
@@ -184,8 +184,8 @@ class IndexAttr(ParametrizedAttribute):
         if b is None:
             return a
         integer_attrs: list[Attribute] = [
-            IntegerAttr(min(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
+            IntegerAttr(min(ae.get_value(), be.get_value()), IntegerType(64))
+            for ae, be in zip(a, b)
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
 
@@ -194,13 +194,16 @@ class IndexAttr(ParametrizedAttribute):
         if b is None:
             return a
         integer_attrs: list[Attribute] = [
-            IntegerAttr(max(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
+            IntegerAttr(max(ae.get_value(), be.get_value()), IntegerType(64))
+            for ae, be in zip(a, b)
         ]
         return IndexAttr([ArrayAttr(integer_attrs)])
 
     def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.value.data for e in self.array.data)
+        return tuple(e.get_value() for e in self)
+
+    def __iter__(self) -> Iterable[IntegerAttr[IntegerType]]:
+        return iter(self.array)
 
 
 @dataclass(frozen=True)
