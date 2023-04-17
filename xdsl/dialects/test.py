@@ -1,5 +1,5 @@
 from __future__ import annotations
-from xdsl.ir import Attribute, Data, Dialect, MLIRType, OpResult, Operation
+from xdsl.ir import Attribute, Data, Dialect, OpResult, Operation, TypeAttribute
 
 from xdsl.irdl import VarOpResult, irdl_attr_definition, irdl_op_definition
 from xdsl.parser import BaseParser
@@ -30,7 +30,7 @@ class ProduceValuesOp(Operation):
 
 
 @irdl_attr_definition
-class TestType(Data[str], MLIRType):
+class TestType(Data[str], TypeAttribute):
     """
     This attribute is used for testing in places where any attribute can be
     used. This allows reducing the artificial dependencies on attributes from
@@ -42,9 +42,8 @@ class TestType(Data[str], MLIRType):
     def parse_parameter(parser: BaseParser) -> str:
         return parser.parse_str_literal()
 
-    @staticmethod
-    def print_parameter(data: str, printer: Printer) -> None:
-        printer.print_string_literal(data)
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string_literal(self.data)
 
 
 Test = Dialect([ProduceValuesOp], [TestType])
