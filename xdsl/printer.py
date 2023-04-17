@@ -4,7 +4,6 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
-import warnings
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (BlockArgument, TypeAttribute, SSAValue, Block, Callable,
