@@ -1,14 +1,9 @@
-from io import StringIO
 from typing import cast
 
-from xdsl.ir import MLContext
-from xdsl.dialects.arith import Constant, Arith
-from xdsl.dialects.builtin import Region, IndexType, ModuleOp, Builtin
+from xdsl.dialects.arith import Constant
+from xdsl.dialects.builtin import Region, IndexType, ModuleOp
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp, If, Yield, Scf
-
-from xdsl.printer import Printer
-from xdsl.parser import Parser, Source
+from xdsl.dialects.scf import For, ParallelOp, If, Yield
 
 
 def test_for():
