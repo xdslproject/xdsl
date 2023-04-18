@@ -1,6 +1,6 @@
 from xdsl.dialects import mpi, func, llvm, builtin
 from xdsl.ir import Operation, Attribute, OpResult
-from xdsl.irdl import irdl_op_definition, VarOpResult
+from xdsl.irdl import irdl_op_definition, VarOpResult, IRDLOperation
 from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
 from xdsl.dialects.builtin import i32
@@ -33,7 +33,7 @@ def check_emitted_function_signature(
 
 
 @irdl_op_definition
-class CreateTestValsOp(Operation):
+class CreateTestValsOp(IRDLOperation):
     name = "testing.test"
     result: VarOpResult
 

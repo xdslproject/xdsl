@@ -7,13 +7,13 @@ from xdsl.dialects.builtin import (IndexType, VectorType, i1,
                                    VectorBaseTypeAndRankConstraint)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
+from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand, IRDLOperation
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
 
 @irdl_op_definition
-class Load(Operation):
+class Load(IRDLOperation):
     name = "vector.load"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -44,7 +44,7 @@ class Load(Operation):
 
 
 @irdl_op_definition
-class Store(Operation):
+class Store(IRDLOperation):
     name = "vector.store"
     vector: Annotated[Operand, VectorType]
     memref: Annotated[Operand, MemRefType]
@@ -68,7 +68,7 @@ class Store(Operation):
 
 
 @irdl_op_definition
-class Broadcast(Operation):
+class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source: Annotated[Operand, AnyAttr()]
     vector: Annotated[OpResult, VectorType]
@@ -91,7 +91,7 @@ class Broadcast(Operation):
 
 
 @irdl_op_definition
-class FMA(Operation):
+class FMA(IRDLOperation):
     name = "vector.fma"
     lhs: Annotated[Operand, VectorType]
     rhs: Annotated[Operand, VectorType]
@@ -149,7 +149,7 @@ class FMA(Operation):
 
 
 @irdl_op_definition
-class Maskedload(Operation):
+class Maskedload(IRDLOperation):
     name = "vector.maskedload"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -200,7 +200,7 @@ class Maskedload(Operation):
 
 
 @irdl_op_definition
-class Maskedstore(Operation):
+class Maskedstore(IRDLOperation):
     name = "vector.maskedstore"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -237,7 +237,7 @@ class Maskedstore(Operation):
 
 
 @irdl_op_definition
-class Print(Operation):
+class Print(IRDLOperation):
     name = "vector.print"
     source: Annotated[Operand, AnyAttr()]
 
@@ -247,7 +247,7 @@ class Print(Operation):
 
 
 @irdl_op_definition
-class Createmask(Operation):
+class Createmask(IRDLOperation):
     name = "vector.create_mask"
     mask_operands: Annotated[VarOperand, IndexType]
     mask_vector: Annotated[OpResult, VectorBaseTypeConstraint(i1)]

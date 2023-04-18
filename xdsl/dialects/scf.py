@@ -6,12 +6,12 @@ from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (AnyAttr, AttrSizedOperandSegments, Operand,
                        SingleBlockRegion, VarOperand, VarOpResult,
-                       irdl_op_definition)
+                       irdl_op_definition, IRDLOperation)
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class If(Operation):
+class If(IRDLOperation):
     name: str = "scf.if"
     output: Annotated[VarOpResult, AnyAttr()]
     cond: Annotated[Operand, IntegerType(1)]
@@ -32,7 +32,7 @@ class If(Operation):
 
 
 @irdl_op_definition
-class Yield(Operation):
+class Yield(IRDLOperation):
     name: str = "scf.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -43,7 +43,7 @@ class Yield(Operation):
 
 
 @irdl_op_definition
-class Condition(Operation):
+class Condition(IRDLOperation):
     name: str = "scf.condition"
     cond: Annotated[Operand, IntegerType(1)]
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -56,7 +56,7 @@ class Condition(Operation):
 
 
 @irdl_op_definition
-class For(Operation):
+class For(IRDLOperation):
     name: str = "scf.for"
 
     lb: Annotated[Operand, IndexType]
@@ -120,7 +120,7 @@ class For(Operation):
 
 
 @irdl_op_definition
-class ParallelOp(Operation):
+class ParallelOp(IRDLOperation):
     name = "scf.parallel"
     lowerBound: Annotated[VarOperand, IndexType]
     upperBound: Annotated[VarOperand, IndexType]
@@ -165,7 +165,7 @@ class ParallelOp(Operation):
 
 
 @irdl_op_definition
-class While(Operation):
+class While(IRDLOperation):
     name: str = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]
 

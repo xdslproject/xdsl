@@ -4,12 +4,12 @@ from typing import Annotated, List, Union
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect, BlockArgument
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
-                       OpAttr, OptOpAttr)
+                       OpAttr, OptOpAttr, IRDLOperation)
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class FuncOp(Operation):
+class FuncOp(IRDLOperation):
     name: str = "func.func"
 
     body: Region
@@ -136,7 +136,7 @@ class FuncOp(Operation):
 
 
 @irdl_op_definition
-class Call(Operation):
+class Call(IRDLOperation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
@@ -157,7 +157,7 @@ class Call(Operation):
 
 
 @irdl_op_definition
-class Return(Operation):
+class Return(IRDLOperation):
     name: str = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
 

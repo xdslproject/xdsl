@@ -10,7 +10,7 @@ from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
-from xdsl.irdl import irdl_op_definition, Operand
+from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -289,7 +289,7 @@ ModuleOp(
 
 
 @irdl_op_definition
-class CustomVerify(Operation):
+class CustomVerify(IRDLOperation):
     name = 'test.custom_verify_op'
     val: Annotated[Operand, i64]
 
