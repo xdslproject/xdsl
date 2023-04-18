@@ -36,7 +36,7 @@ def test_simple_forgotten_op():
     ctx.register_dialect(Arith)
 
     lit = Constant.from_int_and_width(42, 32)
-    add = Addi.get(lit, lit)
+    add = Addi(lit, lit)
 
     add.verify()
 
@@ -59,8 +59,8 @@ def test_forgotten_op_non_fail():
     ctx.register_dialect(Arith)
 
     lit = Constant.from_int_and_width(42, 32)
-    add = Addi.get(lit, lit)
-    add2 = Addi.get(add, add)
+    add = Addi(lit, lit)
+    add2 = Addi(add, add)
     mod = ModuleOp([add, add2])
     mod.verify()
 

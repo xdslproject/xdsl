@@ -43,7 +43,6 @@ from xdsl.dialects.builtin import (
     f64,
     IndexType,
     IntegerType,
-    Float32Type,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -55,7 +54,6 @@ class Test_integer_arith_construction:
     @pytest.mark.parametrize(
         "func",
         [
-            Addi,
             Subi,
             DivUI,
             DivSI,
@@ -76,8 +74,17 @@ class Test_integer_arith_construction:
             ShRSI,
         ],
     )
-    def test_arith_ops(self, func):
+    def test_arith_ops_get(self, func):
         op = func.get(self.a, self.b)
+        assert op.operands[0].op is self.a
+        assert op.operands[1].op is self.b
+
+    @pytest.mark.parametrize(
+        "func",
+        [Addi],
+    )
+    def test_arith_ops_init(self, func):
+        op = func(self.a, self.b)
         assert op.operands[0].op is self.a
         assert op.operands[1].op is self.b
 

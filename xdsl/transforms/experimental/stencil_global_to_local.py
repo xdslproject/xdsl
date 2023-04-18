@@ -356,7 +356,7 @@ def generate_mpi_calls_for(
 
     for i, ex in enumerate(exchanges):
         neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor, builtin.i32)
-        neighbor_rank = arith.Addi.get(rank, neighbor_offset)
+        neighbor_rank = arith.Addi(rank, neighbor_offset)
         yield from (neighbor_offset, neighbor_rank)
 
         # generate a temp buffer to store the data in
@@ -506,11 +506,11 @@ def generate_memcpy(
         Generates last loop unrolled (not using scf.for)
         """
         dest_idx = arith.Muli.get(i, x_len)
-        y = arith.Addi.get(i, y0)
+        y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
         for x in indices:
-            linearized_idx = arith.Addi.get(dest_idx, x)
+            linearized_idx = arith.Addi(dest_idx, x)
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
                 store = memref.Store.get(load, source, [x, y])
@@ -525,12 +525,12 @@ def generate_memcpy(
         Generates last loop as scf.for
         """
         dest_idx = arith.Muli.get(i, x_len)
-        y = arith.Addi.get(i, y0)
+        y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
         def inner(j: SSAValue):
-            x = arith.Addi.get(j, x0)
-            linearized_idx = arith.Addi.get(dest_idx, j)
+            x = arith.Addi(j, x0)
+            linearized_idx = arith.Addi(dest_idx, j)
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
                 store = memref.Store.get(load, source, [x, y])
@@ -557,12 +557,8 @@ def generate_memcpy(
 
     # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(
-        cst0,
-        y_len,
-        cst1,
-        [],
-        Block.from_callable([builtin.IndexType()], loop_body),  # type: ignore
-    )
+        cst0, y_len, cst1, [], Block.from_callable([builtin.IndexType()], loop_body)
+    )  # type: ignore
 
     return [
         x0,

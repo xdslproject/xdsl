@@ -22,7 +22,7 @@ class SwapInputs(RewritePattern):
             return
         if not isinstance(op.lhs.op, arith.Addi):
             return
-        new_op = arith.Addi.get(op.rhs, op.lhs)
+        new_op = arith.Addi(op.rhs, op.lhs)
         rewriter.replace_op(op, [new_op])
 
 
@@ -64,8 +64,8 @@ def swap_arguments_input():
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
-            x_y = arith.Addi.get(x, y).result
-            x_y_z = arith.Addi.get(x_y, z).result
+            x_y = arith.Addi(x, y).result
+            x_y_z = arith.Addi(x_y, z).result
             func.Return.get(x_y_z)
 
         func.FuncOp.from_region("impl", [], [], impl)
@@ -82,8 +82,8 @@ def swap_arguments_output():
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
-            x_y = arith.Addi.get(x, y).result
-            z_x_y = arith.Addi.get(z, x_y).result
+            x_y = arith.Addi(x, y).result
+            z_x_y = arith.Addi(z, x_y).result
             func.Return.get(z_x_y)
 
         func.FuncOp.from_region("impl", [], [], impl)
@@ -182,7 +182,7 @@ def add_zero_input():
         def impl():
             x = arith.Constant.from_int_and_width(4, 32)
             y = arith.Constant.from_int_and_width(0, 32)
-            z = arith.Addi.get(x, y)
+            z = arith.Addi(x, y)
             func.Return.get(z)
 
         func.FuncOp.from_region("impl", [], [], impl)
