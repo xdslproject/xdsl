@@ -252,7 +252,7 @@ class xDSLOptMain:
         """
 
         def _output_xdsl(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output)
+            printer = Printer(stream=output, target=Printer.Target.XDSL)
             printer.print_op(prog)
             print("\n", file=output)
 

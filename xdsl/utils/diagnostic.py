@@ -22,7 +22,7 @@ class Diagnostic:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
         f = StringIO()
-        p = Printer(stream=f, diagnostic=self)
+        p = Printer(stream=f, diagnostic=self, target=Printer.Target.XDSL)
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)

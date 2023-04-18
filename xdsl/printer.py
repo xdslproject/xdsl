@@ -32,7 +32,7 @@ class Printer:
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
-    target: Target = field(default=Target.XDSL)
+    target: Target = field(default=Target.MLIR)
 
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)

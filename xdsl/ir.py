@@ -846,10 +846,9 @@ class Operation(IRNode):
     def __str__(self) -> str:
         from xdsl.printer import Printer
         res = StringIO()
-        printer = Printer(stream=res)
+        printer = Printer(stream=res, target=Printer.Target.XDSL)
         printer.print_op(self)
-        desc = res.getvalue()
-        return desc
+        return res.getvalue()
 
     def __format__(self, __format_spec: str) -> str:
         desc = str(self)
@@ -1172,19 +1171,14 @@ class Region(IRNode):
         return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
+    @deprecated('Please use Region([Block(ops)])')
     def from_operation_list(ops: list[Operation]) -> Region:
-        block = Block(ops)
-        region = Region()
-        region.add_block(block)
-        return region
+        return Region([Block(ops)])
 
     @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
-        region = Region()
-        for block in blocks:
-            region.add_block(block)
-        return region
+        return Region(blocks)
 
     @deprecated('Please use Region(blocks) or Region([Block(ops)])')
     @staticmethod
@@ -1193,11 +1187,11 @@ class Region(IRNode):
             return arg
         if isinstance(arg, list):
             if len(arg) == 0:
-                return Region.from_operation_list([])
+                return Region([Block()])
             if isinstance(arg[0], Block):
                 return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
-                return Region.from_operation_list(cast(list[Operation], arg))
+                return Region([Block(cast(list[Operation], arg))])
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
@@ -1210,7 +1204,7 @@ class Region(IRNode):
             raise ValueError(
                 "'ops' property of Region class is only available "
                 "for single-block regions.")
-        return self.blocks[0].ops
+        return self.block.ops
 
     @property
     def op(self) -> Operation:
@@ -1221,7 +1215,19 @@ class Region(IRNode):
         if len(self.blocks) != 1 or len(self.blocks[0].ops) != 1:
             raise ValueError("'op' property of Region class is only available "
                              "for single-operation single-block regions.")
-        return self.blocks[0].ops[0]
+        return self.block.ops[0]
+
+    @property
+    def block(self) -> Block:
+        """
+        Get the block of a single-block region.
+        Returns an exception if the region is not single-block.
+        """
+        if len(self.blocks) != 1:
+            raise ValueError(
+                "'block' property of Region class is only available "
+                "for single-block regions.")
+        return self.blocks[0]
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""

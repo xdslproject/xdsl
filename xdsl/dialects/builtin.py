@@ -1045,7 +1045,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
 class UnregisteredOp(IRDLOperation, ABC):
     """
     An unregistered operation.
-    
+
     Each unregistered op is registered as a subclass of `UnregisteredOp`,
     and op with different names have distinct subclasses.
     """
@@ -1089,11 +1089,11 @@ class UnregisteredOp(IRDLOperation, ABC):
 class UnregisteredAttr(ParametrizedAttribute, ABC):
     """
     An unregistered attribute or type.
-    
+
     Each unregistered attribute is registered as a subclass of
-    `UnregisteredAttr`, and attribute with different names have 
+    `UnregisteredAttr`, and attribute with different names have
     distinct subclasses.
-    
+
     Since attributes do not have a generic format, unregistered
     attributes represent their original parameters as a string,
     which is exactly the content parsed from the textual
@@ -1122,7 +1122,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     def with_name_and_type(cls, name: str,
                            is_type: bool) -> type[UnregisteredAttr]:
         """
-        Return a new unregistered attribute type given a name and a 
+        Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
         This function should not be called directly. Use methods from
         `MLContext` to get an `UnregisteredAttr` type.
@@ -1162,12 +1162,12 @@ class ModuleOp(IRDLOperation):
 
     @property
     def ops(self) -> List[Operation]:
-        return self.regions[0].blocks[0].ops
+        return self.regions[0].block.ops
 
     @staticmethod
     def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
         if isinstance(ops, list):
-            region = Region.from_operation_list(ops)
+            region = Region([Block(ops)])
         elif isinstance(ops, Region):
             region = ops
         else:

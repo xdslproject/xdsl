@@ -24,7 +24,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        # CHECK: Type signature and the type of the return value do not match at position 0: expected !i32, got !i64.
+        # CHECK: Type signature and the type of the return value do not match at position 0: expected i32, got i64.
         def test_wrong_return_type(a: i32, b: i64) -> i32:
             return b
 
@@ -48,7 +48,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        # CHECK: Expected the same types for binary operation 'Add', but got !i32 and !i64.
+        # CHECK: Expected the same types for binary operation 'Add', but got i32 and i64.
         def bin_op_type_mismatch(a: i32, b: i64) -> i32:
             return a + b
 
@@ -60,7 +60,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        # CHECK: Expected the same types for comparison operator 'Lt', but got !i32 and !i64.
+        # CHECK: Expected the same types for comparison operator 'Lt', but got i32 and i64.
         def cmp_op_type_mismatch(a: i32, b: i64) -> i1:
             return a < b
 
