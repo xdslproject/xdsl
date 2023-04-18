@@ -331,13 +331,13 @@ def test_region_op_ops():
 
 
 def test_noop_region():
-    region0 = Region([Block()])
+    region0 = Region(Block())
     assert len(region0.ops) == 0
 
 
 def test_singleop_region():
     a = Constant.from_int_and_width(1, i32)
-    region0 = Region([Block([a])])
+    region0 = Region(Block([a]))
     assert type(region0.op) is Constant
 
 
@@ -470,11 +470,11 @@ def test_two_var_operand_builder3():
 def test_parent_pointers():
     op = ResultOp.build(result_types=[StringAttr("0")])
     block = Block([op])
-    reg = Region([block])
+    reg = Region(block)
     reg_op = RegionOp.build(regions=[reg])
 
     block_2 = Block([reg_op])
-    reg_2 = Region([block_2])
+    reg_2 = Region(block_2)
     reg_op_2 = RegionOp.build(regions=[reg_2])
 
     assert op.parent_block() is block
