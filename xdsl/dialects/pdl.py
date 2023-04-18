@@ -267,7 +267,7 @@ class RangeOp(IRDLOperation):
                     raise VerifyException(
                         f"All arguments must have the same type or be an array  \
                           of the corresponding element type. First element type:\
-                          {elem_type}, current element type: {cur_elem_type}")
+                          {elem_type}, current element type: {cur_elem_type}"                                                                             )
 
 
 @irdl_op_definition
