@@ -114,7 +114,7 @@ class FuncOp(IRDLOperation):
         """
         if self.is_declaration:
             return None
-        ret_op = self.body.blocks[-1].ops[-1]
+        ret_op = self.body.blocks[-1].last_op
         if not isinstance(ret_op, Return):
             return None
         return ret_op

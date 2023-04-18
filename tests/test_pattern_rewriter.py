@@ -687,10 +687,9 @@ scf.if(%0 : !i1) {
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
+        first_op = op.true_region.blocks[0].first_op
+        if isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
             rewriter.inline_block_at_pos(inner_if_block,
                                          op.true_region.blocks[0], 0)
 
@@ -757,12 +756,10 @@ scf.if(%0 : !i1) {
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
-            rewriter.inline_block_before(inner_if_block,
-                                         op.true_region.blocks[0].ops[0])
+        first_op = op.true_region.blocks[0].first_op
+        if isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
+            rewriter.inline_block_before(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog, expected,
@@ -830,12 +827,10 @@ def test_inline_block_after():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
-            rewriter.inline_block_after(inner_if_block,
-                                        op.true_region.blocks[0].ops[0])
+        first_op = op.true_region.blocks[0].first_op
+        if first_op is not None and isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
+            rewriter.inline_block_after(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog, expected,

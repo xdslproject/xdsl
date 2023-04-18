@@ -83,13 +83,14 @@ class For(IRDLOperation):
                     f"induction variable must match the carried variables.")
         if len(self.iter_args) > 0:
             if (len(self.body.ops) == 0
-                    or not isinstance(self.body.ops[-1], Yield)):
+                    or not isinstance(self.body.block.last_op, Yield)):
                 raise VerifyException(
                     "The scf.for's body does not end with a scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body.")
-        if (len(self.body.ops) > 0 and isinstance(self.body.ops[-1], Yield)):
-            yieldop = self.body.ops[-1]
+        if (len(self.body.ops) > 0
+                and isinstance(self.body.block.last_op, Yield)):
+            yieldop = self.body.block.last_op
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
