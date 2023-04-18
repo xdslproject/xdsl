@@ -11,7 +11,7 @@
       "stencil.return"(%6) : (f64) -> ()
     }) : (f64) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f64>
     %4 = "stencil.apply"(%3) ( {
-    ^bb0(%arg2: !stencil.temp<[66 : i64, 66 : i64, 63 : i64], f64>):  // no predecessors
+    ^bb0(%arg2: !stencil.temp<[66 : i64, 66 : i64, 63 : i64], f64>):
       %5 = "stencil.access"(%arg2) {"offset" = #stencil.index<[-1 : i64, 0 : i64, 0 : i64]>} : (!stencil.temp<[66 : i64, 66 : i64, 63 : i64], f64>) -> f64
       %6 = "stencil.access"(%arg2) {"offset" = #stencil.index<[1 : i64, 0 : i64, 0 : i64]>} : (!stencil.temp<[66 : i64, 66 : i64, 63 : i64], f64>) -> f64
       %7 = "arith.addf"(%5, %6) : (f64, f64) -> f64
@@ -34,7 +34,7 @@
 // CHECK-NEXT:       %7 = "arith.addf"(%5, %6) : (f64, f64) -> f64
 // CHECK-NEXT:       %8 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64
 // CHECK-NEXT:       %9 = "arith.addf"(%5, %6) : (f64, f64) -> f64
-// CHECK-NEXT:       %10 = "arith.addf"(%7, %8) : (f64, f64) -> f64
+// CHECK-NEXT:       %10 = "arith.addf"(%7, %9) : (f64, f64) -> f64
 // CHECK-NEXT:       %11 = "stencil.store_result"(%10) : (f64) -> !stencil.result<f64>
 // CHECK-NEXT:       "stencil.return"(%7, %11) : (f64, !stencil.result<f64>) -> ()
 // CHECK-NEXT:     }) {"lb" = #stencil.index<[1 : i64, 2 : i64, 3 : i64]>, "ub" = #stencil.index<[65 : i64, 66 : i64, 63 : i64]>} : (f64) -> (!stencil.temp<[64 : i64, 64 : i64, 60 : i64], f64>, !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f64>)

@@ -123,6 +123,14 @@ def find_producer_op_result_traces(producer_op: ApplyOp,
                 producer_op_result_traces.append(use.operation.args[use.index])
 
 
+def get_total_num_store_result_ops(apply_op: ApplyOp) -> int:
+    num = 0
+    for op in apply_op.region.ops:
+        if (isinstance(op, StoreResultOp)):
+            num += 1
+    return num
+
+
 @dataclass
 class InliningRewrite(StencilInliningPattern):
 
@@ -210,6 +218,7 @@ class InliningRewrite(StencilInliningPattern):
                                     producer_op_unit_clone_normal_op.results[0]
                                 )
                         else:
+                            access_flag: bool = True
                             use_other_than_store_or_return = 0
                             for use in producer_op_unit.results[0].uses:
                                 if not isinstance(use.operation,
@@ -219,7 +228,21 @@ class InliningRewrite(StencilInliningPattern):
                                     use_other_than_store_or_return = 1
                                     break
 
-                            if not use_other_than_store_or_return:
+                            if not len(producer_op_unit.results[0].uses):
+                                num_store_result_op = get_total_num_store_result_ops(
+                                    producer_op)
+                                if len(producer_op_external_uses
+                                       ) and not isinstance(
+                                           producer_op.region.ops[
+                                               i + 1 + num_store_result_op],
+                                           ReturnOp):
+                                    access_flag = False
+                                elif i != len(
+                                        producer_op.region.ops
+                                ) - 1 and not len(producer_op_external_uses):
+                                    access_flag = False
+
+                            if not use_other_than_store_or_return and access_flag:
                                 res_final = producer_op_unit_clone_normal_op.results[
                                     0]
 
