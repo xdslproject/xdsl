@@ -7,7 +7,7 @@ from typing import List, Annotated
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
-from xdsl.ir import Attribute, MLContext, OpResult, ParametrizedAttribute, Block
+from xdsl.ir import Attribute, MLContext, OpResult, Operation, ParametrizedAttribute, Block
 from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
                        irdl_op_definition, IRDLOperation, Operand)
 from xdsl.parser import Parser, BaseParser, XDSLParser
@@ -487,8 +487,7 @@ class CustomFormatAttr(ParametrizedAttribute):
         printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
 
 
-@irdl_op_definition
-class AnyOp(IRDLOperation):
+class AnyOp(Operation):
     name = "any"
 
 
