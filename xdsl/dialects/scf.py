@@ -70,16 +70,16 @@ class For(Operation):
     body: SingleBlockRegion
 
     def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.blocks[0].args):
+        if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.blocks[0].args)}. The body must have the induction "
+                f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments.")
         for idx, arg in enumerate(self.iter_args):
-            if self.body.blocks[0].args[idx + 1].typ != arg.typ:
+            if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.body.blocks[0].args[idx].typ}. Arguments after the "
+                    f"got {self.body.block.args[idx].typ}. Arguments after the "
                     f"induction variable must match the carried variables.")
         if len(self.iter_args) > 0:
             if (len(self.body.ops) == 0
@@ -151,8 +151,7 @@ class ParallelOp(Operation):
                 "bounds, and steps for scf.parallel. Got "
                 f"{len(self.lowerBound)}, {len(self.upperBound)} and "
                 f"{len(self.step)}.")
-        body_args = self.body.blocks[0].args if len(
-            self.body.blocks) != 0 else ()
+        body_args = self.body.block.args if len(self.body.blocks) != 0 else ()
         if len(self.lowerBound) != len(body_args) or not all(
             [isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
@@ -177,16 +176,16 @@ class While(Operation):
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
-            if self.before_region.blocks[0].args[idx].typ != arg.typ:
+            if self.before_region.block.args[idx].typ != arg.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.before_region.blocks[0].args[idx].typ}")
+                    f"got {self.before_region.block.args[idx].typ}")
 
         for idx, res in enumerate(self.res):
-            if self.after_region.blocks[0].args[idx].typ != res.typ:
+            if self.after_region.block.args[idx].typ != res.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.typ}, "
-                    f"got {self.after_region.blocks[0].args[idx].typ}")
+                    f"got {self.after_region.block.args[idx].typ}")
 
     @staticmethod
     def get(operands: List[SSAValue | Operation],
