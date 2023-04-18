@@ -623,24 +623,6 @@ class Operation(IRNode):
                                          attributes, successors, regions)
         return cast(OpT, op)
 
-    @classmethod
-    def build(
-        cls: type[OpT],
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation] | None]
-        | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]]
-        | None = None,
-        attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                          | Sequence[Region | Sequence[Operation]
-                                     | Sequence[Block]]]
-        | None = None
-    ) -> OpT:
-        """Create a new operation using builders."""
-        ...
-
     def replace_operand(self, operand: int | SSAValue,
                         new_operand: SSAValue) -> None:
         """
