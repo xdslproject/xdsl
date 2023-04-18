@@ -238,7 +238,7 @@ class PatternOp(IRDLOperation):
                       sym_name: StringAttr | None,
                       callable: Block.BlockCallback) -> PatternOp:
         block = Block.from_callable([], callable)
-        region = Region([block])
+        region = Region(block)
         return PatternOp.get(benefit, sym_name, region)
 
 
@@ -399,7 +399,7 @@ class RewriteOp(IRDLOperation):
                       external_args: Sequence[SSAValue],
                       body: Block.BlockCallback) -> RewriteOp:
         block = Block.from_callable([], body)
-        region = Region([block])
+        region = Region(block)
         return RewriteOp.get(name, root, external_args, region)
 
 
