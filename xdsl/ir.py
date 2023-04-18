@@ -591,31 +591,38 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: Sequence[SSAValue] | None = None,
-            result_types: Sequence[Attribute] | None = None,
-            attributes: dict[str, Attribute] | None = None,
-            successors: Sequence[Block] | None = None,
-            regions: Sequence[Region] | None = None) -> Operation:
+    def __init__(self,
+                 operands: Sequence[SSAValue] | None = None,
+                 result_types: Sequence[Attribute] | None = None,
+                 attributes: dict[str, Attribute] | None = None,
+                 successors: Sequence[Block] | None = None,
+                 regions: Sequence[Region] | None = None) -> None:
 
-        operation = op()
-        if operands is not None:
-            operation.operands = operands
-        if result_types:
-            operation.results = [
-                OpResult(typ, operation, idx)
-                for (idx, typ) in enumerate(result_types)
-            ]
-        if attributes:
-            operation.attributes = attributes
-        if successors:
-            operation.successors = successors
-        if regions:
-            for region in regions:
-                operation.add_region(region)
-        return operation
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+
+        # This is assumed to exist by Operation.operand setter.
+        self._operands = tuple()
+        self.operands = tuple(operands)
+
+        self.results = [
+            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+        ]
+        self.attributes = attributes
+        self.successors = list(successors)
+        self.regions = []
+        for region in regions:
+            self.add_region(region)
+
+        self.__post_init__()
 
     @classmethod
     def create(cls: type[OpT],
@@ -624,9 +631,10 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
-        op = Operation.with_result_types(cls, operands, result_types,
-                                         attributes, successors, regions)
-        return cast(OpT, op)
+        op = cls.__new__(cls)
+        Operation.__init__(op, operands, result_types, attributes, successors,
+                           regions)
+        return op
 
     def replace_operand(self, operand: int | SSAValue,
                         new_operand: SSAValue) -> None:
