@@ -53,8 +53,7 @@ class FuncOp(Operation):
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")
         }
-        op = FuncOp.build(attributes=attributes,
-                          regions=[Region.from_operation_list([])])
+        op = FuncOp.build(attributes=attributes, regions=[Region([Block()])])
         return op
 
     @staticmethod
