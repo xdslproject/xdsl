@@ -1223,7 +1223,7 @@ class Region(IRNode):
         return self.block.ops[0]
 
     @property
-    def block(self) -> Operation:
+    def block(self) -> Block:
         """
         Get the block of a single-block region.
         Returns an exception if the region is not single-block.
