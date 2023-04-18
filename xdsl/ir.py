@@ -1171,19 +1171,14 @@ class Region(IRNode):
         return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
+    @deprecated('Please use Region([Block(ops)])')
     def from_operation_list(ops: list[Operation]) -> Region:
-        block = Block(ops)
-        region = Region()
-        region.add_block(block)
-        return region
+        return Region([Block(ops)])
 
     @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
-        region = Region()
-        for block in blocks:
-            region.add_block(block)
-        return region
+        return Region(blocks)
 
     @deprecated('Please use Region(blocks) or Region([Block(ops)])')
     @staticmethod
@@ -1192,11 +1187,11 @@ class Region(IRNode):
             return arg
         if isinstance(arg, list):
             if len(arg) == 0:
-                return Region.from_operation_list([])
+                return Region([Block()])
             if isinstance(arg[0], Block):
                 return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
-                return Region.from_operation_list(cast(list[Operation], arg))
+                return Region([Block(cast(list[Operation], arg))])
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property

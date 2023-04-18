@@ -1,6 +1,7 @@
 import pytest
 
 from conftest import assert_print_op
+from xdsl.builder import Builder
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64, IntegerType
@@ -19,19 +20,23 @@ def test_func():
     c = Addi.get(a, b)
 
     # Create a region to include a, b, c
-    region = Region.from_operation_list([a, b, c])
+    @Builder.region
+    def region0(builder: Builder):
+        builder.insert(a)
+        builder.insert(b)
+        builder.insert(c)
 
     # Use this region to create a func0
-    func0 = FuncOp.from_region("func0", [], [], region)
+    func0 = FuncOp.from_region("func0", [], [], region0)
 
     # Alternative generation of func0
-    func1 = FuncOp.from_region(
-        "func1", [], [],
-        Region.from_operation_list([
-            a := Constant.from_int_and_width(1, i32),
-            b := Constant.from_int_and_width(2, i32),
-            Addi.get(a, b),
-        ]))
+    @Builder.implicit_region
+    def region1():
+        a = Constant.from_int_and_width(1, i32)
+        b = Constant.from_int_and_width(2, i32)
+        Addi.get(a, b)
+
+    func1 = FuncOp.from_region("func1", [], [], region1)
 
     assert len(func0.regions[0].ops) == 3
     assert len(func1.regions[0].ops) == 3
