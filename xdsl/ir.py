@@ -592,26 +592,31 @@ class Operation(IRNode):
                  attributes: dict[str, Attribute] | None = None,
                  successors: Sequence[Block] | None = None,
                  regions: Sequence[Region] | None = None) -> None:
-        self._operands = tuple()
-        self.results = []
-        self.successors = []
-        self.attributes = {}
         self.regions = []
 
-        if operands is not None:
-            self.operands = list(operands)
-        if result_types:
-            self.results = [
-                OpResult(typ, self, idx)
-                for (idx, typ) in enumerate(result_types)
-            ]
-        if attributes:
-            self.attributes = attributes
-        if successors:
-            self.successors = list(successors)
-        if regions:
-            for region in regions:
-                self.add_region(region)
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+
+        # This is assumed to exist by Operation.operand setter.
+        self._operands = tuple()
+        self.operands = tuple(operands)
+
+        self.results = [
+            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+        ]
+        self.attributes = attributes
+        self.successors = list(successors)
+        for region in regions:
+            self.add_region(region)
+
         self.__post_init__()
 
     @classmethod
