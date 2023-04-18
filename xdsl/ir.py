@@ -1137,7 +1137,7 @@ class Region(IRNode):
         self.parent = parent
         self.blocks = []
         if isinstance(blocks, Block):
-            blocks = [blocks]
+            blocks = (blocks, )
         for block in blocks:
             self.add_block(block)
 
