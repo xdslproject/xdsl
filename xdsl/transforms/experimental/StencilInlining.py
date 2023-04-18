@@ -18,19 +18,13 @@ from xdsl.passes import ModulePass
 @dataclass
 class StencilInliningPattern(RewritePattern):
     # Check if there is a single apply_op consumer for current producer apply_op.
-    def HasSingleConsumer(self, producer_op: ApplyOp) -> bool:
-        applyop_consumers_num = 0
-        for res in producer_op.res:
-            for use in res.uses:
-                if (isinstance(use.operation, ApplyOp)):
-                    applyop_consumers_num += 1
-                if (applyop_consumers_num > 1):
-                    break
-
-        return applyop_consumers_num == 1
+    def has_single_consumer(self, producer_op: ApplyOp) -> bool:
+        return any(
+            isinstance(use.operation, ApplyOp) for res in producer_op.res
+            for use in res.uses)
 
     # Check if inlining is possible.
-    def IsStencilInliningPossible(self, producer_op: ApplyOp) -> bool:
+    def is_stencil_inlining_possible(self, producer_op: ApplyOp) -> bool:
         # Do not inline producer ops that do not store stuff.
         for res in producer_op.res:
             for use in res.uses:
@@ -46,12 +40,9 @@ class StencilInliningPattern(RewritePattern):
         # Not adding the case for dealing with dynamic offsets since we do not support them
         # as of now.
 
-    def IsStencilReroutingPossible(self, producer_op: ApplyOp,
-                                   consumer_op: ApplyOp) -> bool:
-        return True
-
     # Get the consumer apply op for considered producer apply op.
-    def GetSingleConsumerApplyOp(self, producer_op: ApplyOp) -> ApplyOp | None:
+    def get_single_consumer_apply_op(self,
+                                     producer_op: ApplyOp) -> ApplyOp | None:
         for res in list(producer_op.res):
             for use in res.uses:
                 if (isinstance(use.operation, ApplyOp)):
@@ -135,10 +126,10 @@ def find_producer_op_result_traces(producer_op: ApplyOp,
 @dataclass
 class InliningRewrite(StencilInliningPattern):
 
-    def InlineProducer(self, producer_op: ApplyOp, rewriter: PatternRewriter,
-                       /):
+    def inline_producer(self, producer_op: ApplyOp, rewriter: PatternRewriter,
+                        /):
         # Get consumer apply op corresponding to the producer apply op.
-        consumer_op = super().GetSingleConsumerApplyOp(producer_op)
+        consumer_op = super().get_single_consumer_apply_op(producer_op)
         assert (isinstance(consumer_op, ApplyOp))
 
         # Obtain entry points for both producer_op and consumer_op.
@@ -311,9 +302,9 @@ class InliningRewrite(StencilInliningPattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if super().HasSingleConsumer(op) and super().IsStencilInliningPossible(
-                op):
-            self.InlineProducer(op, rewriter)
+        if super().has_single_consumer(
+                op) and super().is_stencil_inlining_possible(op):
+            self.inline_producer(op, rewriter)
 
 
 class StencilInlining(ModulePass):
