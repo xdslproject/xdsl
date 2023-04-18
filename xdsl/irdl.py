@@ -325,10 +325,6 @@ _OpT = TypeVar('_OpT', bound='IRDLOperation')
 
 class IRDLOperation(Operation):
 
-    @staticmethod
-    def get_def() -> OpDef:
-        ...
-
     def __init__(
         self: IRDLOperation,
         operands: Sequence[SSAValue | Operation
@@ -352,8 +348,8 @@ class IRDLOperation(Operation):
             successors = []
         if regions is None:
             regions = []
-        irdl_op_init(self, self.get_def(), operands, result_types, attributes,
-                     successors, regions)
+        irdl_op_init(self, self.irdl_definition, operands, result_types,
+                     attributes, successors, regions)
 
     @classmethod
     def build(
@@ -379,6 +375,12 @@ class IRDLOperation(Operation):
                                successors=successors,
                                regions=regions)
         return op
+
+    @classmethod
+    @property
+    def irdl_definition(cls) -> OpDef:
+        """Get the IRDL operation definition."""
+        ...
 
 
 @dataclass
@@ -1233,11 +1235,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = dict[str, Any]()
-
-    def get_def(self):
-        return op_def
-
-    new_attrs["get_def"] = get_def
 
     # Add operand access fields
     irdl_op_arg_definition(new_attrs, VarIRConstruct.OPERAND, op_def)
