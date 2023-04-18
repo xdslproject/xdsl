@@ -1131,12 +1131,13 @@ class Region(IRNode):
     """Operation containing the region."""
 
     def __init__(self,
-                 blocks: Iterable[Block] = (),
-                 *,
+                 blocks: Block | Iterable[Block] = (),
                  parent: Operation | None = None):
         super().__init__(self)
         self.parent = parent
         self.blocks = []
+        if isinstance(blocks, Block):
+            blocks = [blocks]
         for block in blocks:
             self.add_block(block)
 
@@ -1162,7 +1163,7 @@ class Region(IRNode):
     def from_block_list(blocks: list[Block]) -> Region:
         return Region(blocks)
 
-    @deprecated('Please use Region(blocks) or Region([Block(ops)])')
+    @deprecated('Please use Region(blocks) or Region(Block(ops))')
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
