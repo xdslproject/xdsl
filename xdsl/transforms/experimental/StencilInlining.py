@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, IntegerType, i64
 
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, IndexAttr,
                                                 ReturnOp, StoreOp,
-                                                StoreResultOp, TempType)
+                                                StoreResultOp)
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 
