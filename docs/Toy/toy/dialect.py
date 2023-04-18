@@ -6,13 +6,12 @@ from __future__ import annotations
 
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, Operation,
-                     OpResult)
+from xdsl.ir import (Dialect, SSAValue, Attribute, Block, Region, OpResult)
 from xdsl.dialects.builtin import (Float64Type, FunctionType, SymbolRefAttr,
                                    TensorType, UnrankedTensorType, f64,
                                    DenseIntOrFPElementsAttr, StringAttr)
 from xdsl.irdl import (OpAttr, Operand, OptOpAttr, OptOperand, VarOpResult,
-                       VarOperand, irdl_op_definition, AnyAttr)
+                       VarOperand, irdl_op_definition, AnyAttr, IRDLOperation)
 
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -23,7 +22,7 @@ AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
 
 
 @irdl_op_definition
-class ConstantOp(Operation):
+class ConstantOp(IRDLOperation):
     """
     Constant operation turns a literal into an SSA value. The data is attached
     to the operation as an attribute. For example:
@@ -65,7 +64,7 @@ class ConstantOp(Operation):
 
 
 @irdl_op_definition
-class AddOp(Operation):
+class AddOp(IRDLOperation):
     """
     The "add" operation performs element-wise addition between two tensors.
     The shapes of the tensor operands are expected to match.
@@ -99,7 +98,7 @@ class AddOp(Operation):
 
 
 @irdl_op_definition
-class FuncOp(Operation):
+class FuncOp(IRDLOperation):
     """
     The "toy.func" operation represents a user defined function. These are
     callable SSA-region operations that contain toy computations.
@@ -186,7 +185,7 @@ class FuncOp(Operation):
 
 
 @irdl_op_definition
-class GenericCallOp(Operation):
+class GenericCallOp(IRDLOperation):
     name: str = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
@@ -206,7 +205,7 @@ class GenericCallOp(Operation):
 
 
 @irdl_op_definition
-class MulOp(Operation):
+class MulOp(IRDLOperation):
     """
     The "mul" operation performs element-wise multiplication between two
     tensors. The shapes of the tensor operands are expected to match.
@@ -240,7 +239,7 @@ class MulOp(Operation):
 
 
 @irdl_op_definition
-class PrintOp(Operation):
+class PrintOp(IRDLOperation):
     """
     The "print" builtin operation prints a given input tensor, and produces
     no results.
@@ -254,7 +253,7 @@ class PrintOp(Operation):
 
 
 @irdl_op_definition
-class ReturnOp(Operation):
+class ReturnOp(IRDLOperation):
     """
     The "return" operation represents a return operation within a function.
     The operation takes an optional tensor operand and produces no results.
@@ -277,7 +276,7 @@ class ReturnOp(Operation):
 
 
 @irdl_op_definition
-class ReshapeOp(Operation):
+class ReshapeOp(IRDLOperation):
     """
     Reshape operation is transforming its input tensor into a new tensor with
     the same number of elements but different shapes. For example:
@@ -318,7 +317,7 @@ class ReshapeOp(Operation):
 
 
 @irdl_op_definition
-class TransposeOp(Operation):
+class TransposeOp(IRDLOperation):
     name: str = 'toy.transpose'
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]

@@ -320,7 +320,28 @@ def irdl_to_attr_constraint(
 #  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
 #       |_|
 
-_OpT = TypeVar('_OpT', bound=Operation)
+_OpT = TypeVar('_OpT', bound='IRDLOperation')
+
+
+class IRDLOperation(Operation):
+
+    @classmethod
+    def build(
+        cls: type[_OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> _OpT:
+        """Create a new operation using builders."""
+        ...
 
 
 @dataclass
@@ -1162,8 +1183,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
-        cls,
-        Operation), f"class {cls.__name__} should be a subclass of Operation"
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
 
     # Get all fields of the class, including the parent classes
     clsdict = dict[str, Any]()

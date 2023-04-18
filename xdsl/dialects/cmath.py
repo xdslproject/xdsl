@@ -6,7 +6,7 @@ from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Operation, Dialect,
                      OpResult, SSAValue)
 from xdsl.irdl import (irdl_op_definition, irdl_attr_definition, Operand,
                        ParameterDef, ParamAttrConstraint, AnyOf,
-                       VerifyException)
+                       VerifyException, IRDLOperation)
 
 
 @irdl_attr_definition
@@ -16,7 +16,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class Norm(Operation):
+class Norm(IRDLOperation):
     name: str = "cmath.norm"
 
     op: Annotated[
@@ -34,7 +34,7 @@ class Norm(Operation):
 
 
 @irdl_op_definition
-class Mul(Operation):
+class Mul(IRDLOperation):
     name: str = "cmath.mul"
 
     lhs: Annotated[
