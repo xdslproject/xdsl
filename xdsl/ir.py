@@ -1229,8 +1229,9 @@ class Region(IRNode):
         Returns an exception if the region is not single-block.
         """
         if len(self.blocks) != 1:
-            raise ValueError("'block' property of Region class is only available "
-                             "for single-block regions.")
+            raise ValueError(
+                "'block' property of Region class is only available "
+                "for single-block regions.")
         return self.blocks[0]
 
     def _attach_block(self, block: Block) -> None:
