@@ -63,8 +63,9 @@ class ToyFunctions(InterpreterFunctions):
         interpreter.set_values(zip(block.args, args))
         for body_op in block.ops:
             interpreter.run(body_op)
-        assert isinstance(block.ops[-1], toy.ReturnOp)
-        results = interpreter.get_values(tuple(block.ops[-1].operands))
+        last_op = block.last_op
+        assert isinstance(last_op, toy.ReturnOp)
+        results = interpreter.get_values(tuple(last_op.operands))
         interpreter.pop_scope()
         return results
 
