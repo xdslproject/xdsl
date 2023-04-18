@@ -151,8 +151,7 @@ class ParallelOp(Operation):
                 "bounds, and steps for scf.parallel. Got "
                 f"{len(self.lowerBound)}, {len(self.upperBound)} and "
                 f"{len(self.step)}.")
-        body_args = self.body.block.args if len(
-            self.body.blocks) != 0 else ()
+        body_args = self.body.block.args if len(self.body.blocks) != 0 else ()
         if len(self.lowerBound) != len(body_args) or not all(
             [isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
