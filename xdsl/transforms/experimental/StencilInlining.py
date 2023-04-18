@@ -123,12 +123,9 @@ def find_producer_op_result_traces(producer_op: ApplyOp,
                 producer_op_result_traces.append(use.operation.args[use.index])
 
 
-def get_total_num_store_result_ops(apply_op: ApplyOp) -> int:
-    num = 0
-    for op in apply_op.region.ops:
-        if (isinstance(op, StoreResultOp)):
-            num += 1
-    return num
+def replace_operand_in_uses(uses: list[Use], res: OpResult):
+    for use in uses:
+        use.operation.replace_operand(use.index, res)
 
 
 @dataclass
@@ -183,11 +180,16 @@ class InliningRewrite(StencilInliningPattern):
 
         # Start inlining ops depending on their use in consumer op.
         for op in consumer_op.region.ops:
+            # Check if current op depends on producer op and then start inlining producer
+            # op here if it depends on it.
             if isinstance(op,
                           AccessOp) and op.temp in producer_op_result_traces:
+                # Iterate through all producer op units for inlining them.
                 for i, producer_op_unit in enumerate(producer_op.region.ops):
                     if isinstance(producer_op_unit, AccessOp):
                         producer_op_unit_clone = producer_op_unit.clone()
+
+                        # Adjust access offsets in AccessOp inside producer_op.
                         new_offset = IndexAttr.add_offsets(
                             producer_op_unit_clone.offset, op.offset)
                         new_offset_integer_attr_array: list[
@@ -197,20 +199,31 @@ class InliningRewrite(StencilInliningPattern):
                             ]
                         new_offset_attr = IndexAttr(
                             [ArrayAttr(new_offset_integer_attr_array)])
+
+                        # Replace cloned op's offset value and put it inside inlined_op_block.
                         producer_op_unit_clone.offset = new_offset_attr
                         inlined_op_block.add_op(producer_op_unit_clone)
 
+                        # Replace producer_op_unit's uses with new op's result.
                         uses = list(producer_op_unit.res.uses)
                         for use in uses:
                             use.operation.replace_operand(
                                 use.index, producer_op_unit_clone.res)
+
+                    # Handle ReturnOp of producer_op separately.
                     elif not isinstance(producer_op_unit, ReturnOp):
+                        # "normal" in cloned op's name signifies that it is neither
+                        # an AcessOp nor a ReturnOp.
                         producer_op_unit_clone_normal_op = producer_op_unit.clone(
                         )
                         inlined_op_block.add_op(
                             producer_op_unit_clone_normal_op)
 
+                        # Handle StoreResultOp separately as it is the last op in the process
+                        # of value calculation inside an apply_op.
                         if isinstance(producer_op_unit, StoreResultOp):
+                            # Replace producer_op_unit_clone's uses with new op's
+                            # result.
                             uses = list(producer_op_unit.res.uses)
                             for use in uses:
                                 use.operation.replace_operand(
@@ -218,69 +231,81 @@ class InliningRewrite(StencilInliningPattern):
                                     producer_op_unit_clone_normal_op.results[0]
                                 )
                         else:
+                            # Special flag for handling cases in which there is no use
+                            # of producer_op_unit's result.
                             access_flag: bool = True
-                            use_other_than_store_or_return = 0
+
+                            # Flag for determining whether the result of producer_op_unit
+                            # is used apart from a StoreResultOp or ReturnOp.
+                            use_other_than_store_or_return: bool = False
                             for use in producer_op_unit.results[0].uses:
                                 if not isinstance(use.operation,
                                                   ReturnOp) and not isinstance(
                                                       use.operation,
                                                       StoreResultOp):
-                                    use_other_than_store_or_return = 1
+                                    use_other_than_store_or_return = True
                                     break
 
+                            # Handle the case where there is no use of the
+                            # producer_op_unit's result.
                             if not len(producer_op_unit.results[0].uses):
-                                num_store_result_op = get_total_num_store_result_ops(
-                                    producer_op)
+                                # Get total number of store result ops inside the producer_op.
+                                num_store_result_op = sum(
+                                    isinstance(op, StoreResultOp)
+                                    for op in producer_op.region.ops)
+
+                                # If producer_op's results are to be conserved, check whether
+                                # the producer_op_unit is the last op before all StoreResultOps
+                                # and ReturnOp.
                                 if len(producer_op_external_uses
                                        ) and not isinstance(
                                            producer_op.region.ops[
                                                i + 1 + num_store_result_op],
                                            ReturnOp):
                                     access_flag = False
+                                # If producer op's results can be safely removed after inlining,
+                                # check whether current producer_op_unit is the last op of the
+                                # block.
                                 elif i != len(
                                         producer_op.region.ops
                                 ) - 1 and not len(producer_op_external_uses):
                                     access_flag = False
 
+                            res_final = producer_op_unit_clone_normal_op.results[
+                                0]
+                            replace_operand_in_uses(
+                                list(producer_op_unit.results[0].uses),
+                                res_final)
+
                             if not use_other_than_store_or_return and access_flag:
-                                res_final = producer_op_unit_clone_normal_op.results[
-                                    0]
+                                replace_operand_in_uses(
+                                    list(op.results[0].uses), res_final)
 
-                                uses = list(op.results[0].uses)
-                                for use in uses:
-                                    use.operation.replace_operand(
-                                        use.index, res_final)
-
-                                uses = list(producer_op_unit.results[0].uses)
-                                for use in uses:
-                                    use.operation.replace_operand(
-                                        use.index, res_final)
-                            else:
-                                res_final = producer_op_unit_clone_normal_op.results[
-                                    0]
-
-                                uses = list(producer_op_unit.results[0].uses)
-                                for use in uses:
-                                    use.operation.replace_operand(
-                                        use.index, res_final)
                     elif isinstance(producer_op_unit, ReturnOp):
                         if not len(inlined_op_return_arguments):
+                            # Store producer_op results which are to conserved after inlining.
                             for x in list(producer_op_unit.operands):
                                 assert isinstance(x, OpResult)
                                 inlined_op_return_arguments.append(x)
+
+            # Handle ReturnOp in consumer_op separately.
             elif not isinstance(op, ReturnOp):
                 op_clone = op.clone()
                 inlined_op_block.add_op(op_clone)
 
                 for i, res in enumerate(op.results):
-                    res_uses = list(res.uses)
-                    for use in res_uses:
-                        use.operation.replace_operand(use.index,
-                                                      op_clone.results[i])
+                    replace_operand_in_uses(list(res.uses),
+                                            op_clone.results[i])
+
             else:
+                # Clone consumer_op's return op directly in inlined op if there are no
+                # producer_op results which are to be conserved after inlining.
                 if not len(inlined_op_return_arguments):
                     op_clone = op.clone()
                     inlined_op_block.add_op(op_clone)
+
+                # Combine producer_op results which are to be conserved with consumer_op
+                # results and construct a new ReturnOp for the inlined op using them.
                 else:
                     combined_list: list[SSAValue] = [
                         *inlined_op_return_arguments, *list(op.operands)
@@ -309,11 +334,9 @@ class InliningRewrite(StencilInliningPattern):
         # Replace consumer op's result with inlined op's results.
         consumer_op_res_list = list(consumer_op.res)
         for i, consumer_op_res in enumerate(consumer_op_res_list):
-            consumer_op_res_uses = list(consumer_op_res.uses)
-            for use in consumer_op_res_uses:
-                use.operation.replace_operand(
-                    use.index,
-                    InlinedOp.res[i + len(producer_op_external_uses)])
+            replace_operand_in_uses(
+                list(consumer_op_res.uses),
+                InlinedOp.res[i + len(producer_op_external_uses)])
 
         # Remove consumer op from the IR.
         consumer_op_parent = consumer_op.parent
