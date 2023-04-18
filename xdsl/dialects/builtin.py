@@ -1161,7 +1161,7 @@ class ModuleOp(Operation):
 
     @property
     def ops(self) -> List[Operation]:
-        return self.regions[0].blocks[0].ops
+        return self.regions[0].block.ops
 
     @staticmethod
     def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
