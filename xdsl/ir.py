@@ -592,7 +592,6 @@ class Operation(IRNode):
                  attributes: dict[str, Attribute] | None = None,
                  successors: Sequence[Block] | None = None,
                  regions: Sequence[Region] | None = None) -> None:
-        self.regions = []
 
         if operands is None:
             operands = []
@@ -614,6 +613,7 @@ class Operation(IRNode):
         ]
         self.attributes = attributes
         self.successors = list(successors)
+        self.regions = []
         for region in regions:
             self.add_region(region)
 
