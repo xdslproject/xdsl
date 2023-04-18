@@ -4,12 +4,12 @@ from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
                                    RewritePattern, GreedyRewritePatternApplier,
                                    op_type_rewrite_pattern)
 from xdsl.ir import MLContext, Block, OpResult, SSAValue, Use
-from xdsl.irdl import Region
+from xdsl.irdl import Region, Attribute
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, IntegerType, i64
 
 from xdsl.dialects.experimental.stencil import (AccessOp, ApplyOp, IndexAttr,
                                                 ReturnOp, StoreOp,
-                                                StoreResultOp)
+                                                StoreResultOp, TempType)
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 
@@ -29,7 +29,7 @@ class StencilInliningPattern(RewritePattern):
 
         return applyop_consumers_num == 1
 
-    # Check if inlining is possible
+    # Check if inlining is possible.
     def IsStencilInliningPossible(self, producer_op: ApplyOp) -> bool:
         # Do not inline producer ops that do not store stuff.
         for res in producer_op.res:
@@ -59,6 +59,79 @@ class StencilInliningPattern(RewritePattern):
         return None
 
 
+# Replace all block arguments by their definition and erase them from the block.
+def replace_and_erase_block_args_in_apply_op(entry_point: Block,
+                                             apply_op: ApplyOp):
+    for idx, arg in enumerate(entry_point.args):
+        arg_uses = set(arg.uses)
+        for use in arg_uses:
+            use.operation.replace_operand(use.index, apply_op.args[idx])
+        entry_point.erase_arg(arg)
+
+
+def remove_unused_store_result_op_and_return_op_from_producer_op(
+        producer_op: ApplyOp, consumer_op: ApplyOp,
+        producer_op_external_uses: list[Use],
+        inlined_op_res_list: list[Attribute], rewriter: PatternRewriter):
+    # Remove ReturnOp and StoreResultOp from producer which do not have another
+    # use apart from the consumer_op.
+    for op in producer_op.region.ops:
+        if isinstance(op, ReturnOp):
+            # Flag for signifying an external use of the producer_op result apart from
+            # inside the consumer_op.
+            external_use_flag = 0
+            # Container for storing those results of producer_op which have an external use
+            # apart from inside the consumer_op.
+            conserved_return_val: list[OpResult] = []
+            op_args = list(op.operands)
+            for i, return_val in enumerate(op_args):
+                for use in list(producer_op.results[i].uses):
+                    external_use_flag = 0
+                    if not consumer_op is use.operation and not consumer_op.region.blocks[
+                            0] is use.operation.parent:
+                        external_use_flag = 1
+                        producer_op_external_uses.append(use)
+                        break
+                if external_use_flag:
+                    assert isinstance(return_val, OpResult)
+                    conserved_return_val.append(return_val)
+                    inlined_op_res_list.append(
+                        producer_op.results[0].op.results[i].typ)
+            if not len(conserved_return_val):
+                # Erase the producer_op's return op if no result is needed to be conserved
+                # after inlining.
+                producer_op.region.blocks[0].erase_op(op)
+            else:
+                # Replace the producer_op's return op with a new return op containing results
+                # which are needed to be conserved after inlining.
+                new_return_op = ReturnOp.get(conserved_return_val)
+                assert isinstance(new_return_op, ReturnOp)
+                rewriter.replace_op(op, new_return_op)
+
+    # Remove unused StoreResult ops from inside the producer_op.
+    for op in producer_op.region.ops:
+        if isinstance(op, StoreResultOp) and not len(op.results[0].uses):
+            producer_op.region.blocks[0].erase_op(op)
+
+
+def insert_inlined_op_block_args(inlined_op_operands: list[SSAValue],
+                                 inlined_op_block: Block,
+                                 rewriter: PatternRewriter):
+    for i, operand in enumerate(inlined_op_operands):
+        rewriter.insert_block_argument(inlined_op_block, i, operand.typ)
+        uses = list(operand.uses)
+        for use in uses:
+            use.operation.replace_operand(use.index, inlined_op_block.args[i])
+
+
+def find_producer_op_result_traces(producer_op: ApplyOp,
+                                   producer_op_result_traces: list[SSAValue]):
+    for i in range(len(producer_op.res)):
+        for use in producer_op.res[i].uses:
+            if (isinstance(use.operation, ApplyOp)):
+                producer_op_result_traces.append(use.operation.args[use.index])
+
+
 @dataclass
 class InliningRewrite(StencilInliningPattern):
 
@@ -72,18 +145,8 @@ class InliningRewrite(StencilInliningPattern):
         entry_producer = producer_op.region.blocks[0]
         entry_consumer = consumer_op.region.blocks[0]
 
-        # Replace all current arguments by their definition and erase them from the block.
-        for idx, arg in enumerate(entry_producer.args):
-            arg_uses = set(arg.uses)
-            for use in arg_uses:
-                use.operation.replace_operand(use.index, producer_op.args[idx])
-            entry_producer.erase_arg(arg)
-
-        for idx, arg in enumerate(entry_consumer.args):
-            arg_uses = set(arg.uses)
-            for use in arg_uses:
-                use.operation.replace_operand(use.index, consumer_op.args[idx])
-            entry_consumer.erase_arg(arg)
+        replace_and_erase_block_args_in_apply_op(entry_producer, producer_op)
+        replace_and_erase_block_args_in_apply_op(entry_consumer, consumer_op)
 
         # Obtain operands for the final inlined op.
         inlined_op_operands = list(producer_op.operands)
@@ -100,66 +163,21 @@ class InliningRewrite(StencilInliningPattern):
 
         # A container to store uses of producer op which do not overlap with consumer op.
         producer_op_external_uses: list[Use] = []
-
-        # Remove ReturnOp and StoreResultOp from producer which do not have another
-        # use apart from the consumer_op.
-        for op in producer_op.region.ops:
-            if isinstance(op, ReturnOp):
-                # Flag for signifying an external use of the producer_op result apart from
-                # inside the consumer_op.
-                external_use_flag = 0
-                # Container for storing those results of producer_op which have an external use
-                # apart from inside the consumer_op.
-                conserved_return_val: list[OpResult] = []
-                op_args = list(op.operands)
-                for i, return_val in enumerate(op_args):
-                    for use in list(producer_op.results[i].uses):
-                        external_use_flag = 0
-                        if not consumer_op is use.operation and not consumer_op.region.blocks[
-                                0] is use.operation.parent:
-                            external_use_flag = 1
-                            producer_op_external_uses.append(use)
-                            break
-                    if external_use_flag:
-                        assert isinstance(return_val, OpResult)
-                        conserved_return_val.append(return_val)
-                        inlined_op_res_list.append(
-                            producer_op.results[0].op.results[i].typ)
-                if not len(conserved_return_val):
-                    # Erase the producer_op's return op if no result is needed to be conserved
-                    # after inlining.
-                    producer_op.region.blocks[0].erase_op(op)
-                else:
-                    # Replace the producer_op's return op with a new return op containing results
-                    # which are needed to be conserved after inlining.
-                    new_return_op = ReturnOp.get(conserved_return_val)
-                    rewriter.replace_op(op, new_return_op)
-
-        # Remove unused StoreResult ops from inside the producer_op.
-        for op in producer_op.region.ops:
-            if isinstance(op, StoreResultOp) and not len(op.results[0].uses):
-                producer_op.region.blocks[0].erase_op(op)
+        remove_unused_store_result_op_and_return_op_from_producer_op(
+            producer_op, consumer_op, producer_op_external_uses,
+            inlined_op_res_list, rewriter)
 
         # Instantiate inlined op region and corresponding block.
         inlined_op_region = Region()
         inlined_op_block = Block()
 
         # Insert inlined op block arguments in inlined op block and replace corresponding uses.
-        for i, operand in enumerate(inlined_op_operands):
-            rewriter.insert_block_argument(inlined_op_block, i, operand.typ)
-            uses = list(operand.uses)
-            for use in uses:
-                use.operation.replace_operand(use.index,
-                                              inlined_op_block.args[i])
+        insert_inlined_op_block_args(inlined_op_operands, inlined_op_block,
+                                     rewriter)
 
         # Container to store traces of use of producer_op results in other apply ops.
         producer_op_result_traces: list[SSAValue] = []
-
-        for i in range(len(producer_op.res)):
-            for use in producer_op.res[i].uses:
-                if (isinstance(use.operation, ApplyOp)):
-                    producer_op_result_traces.append(
-                        use.operation.args[use.index])
+        find_producer_op_result_traces(producer_op, producer_op_result_traces)
 
         # Container to store return values of the resultant inlined op.
         inlined_op_return_arguments: list[OpResult] = []
