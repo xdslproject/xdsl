@@ -10,7 +10,7 @@ from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
-from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand
+from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -291,7 +291,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = 'test.custom_op_with_multiple_regions'
-    region: list[Region]
+    region: VarRegion
 
 
 def test_region_index_fetch():
@@ -326,7 +326,7 @@ def test_region_index_fetch_region_unavailability():
     assert op.get_region_index(region0) == 0
     with pytest.raises(Exception) as exc_info:
         op.get_region_index(region1)
-    assert exc_info.value.args[0] == "Region is not inside the operation."
+    assert exc_info.value.args[0] == "Region is not attached to the operation."
 
 
 def test_detach_region():

@@ -662,11 +662,11 @@ class Operation(IRNode):
     def get_region_index(self, region: Region) -> int:
         """Get the region position in the operation."""
         if region.parent is not self:
-            raise Exception("Region is not inside the operation.")
+            raise Exception("Region is not attached to the operation.")
         for idx, curr_region in enumerate(self.regions):
             if curr_region is region:
                 return idx
-        assert False, "Unexpected xdsl error"
+        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
 
     def detach_region(self, region: int | Region) -> Region:
         """
