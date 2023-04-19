@@ -155,10 +155,14 @@ class Addi(BinaryOperation):
     result: Annotated[OpResult, signlessIntegerLike]
 
     def __init__(
-        self, operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
+        self,
+        operand1: Union[Operation, SSAValue],
+        operand2: Union[Operation, SSAValue],
+        result_type: Attribute | None = None,
     ):
-        operand1 = SSAValue.get(operand1)
-        super().__init__(operands=[operand1, operand2], result_types=[operand1.typ])
+        if result_type is None:
+            result_type = SSAValue.get(operand1).typ
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
 @irdl_op_definition
