@@ -1,13 +1,14 @@
 from __future__ import annotations
-from xdsl.ir import Attribute, Data, Dialect, OpResult, Operation, TypeAttribute
+from xdsl.ir import Data, Dialect, TypeAttribute
 
-from xdsl.irdl import VarOpResult, VarOperand, VarRegion, irdl_attr_definition, irdl_op_definition
+from xdsl.irdl import (VarOpResult, VarOperand, VarRegion,
+                       irdl_attr_definition, irdl_op_definition, IRDLOperation)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
 
 @irdl_op_definition
-class TestOp(Operation):
+class TestOp(IRDLOperation):
     """
     This operation can produce an arbitrary number of SSAValues with arbitrary
     types. It is used in filecheck testing to reduce to artificial dependencies
@@ -19,15 +20,6 @@ class TestOp(Operation):
     res: VarOpResult
     ops: VarOperand
     regs: VarRegion
-
-    @staticmethod
-    def from_result_types(*res: Attribute) -> TestOp:
-        return TestOp.create(result_types=res)
-
-    @staticmethod
-    def get_values(*res: Attribute) -> tuple[TestOp, tuple[OpResult, ...]]:
-        op = TestOp.from_result_types(*res)
-        return op, tuple(op.results)
 
 
 @irdl_attr_definition
