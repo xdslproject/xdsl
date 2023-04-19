@@ -1011,8 +1011,18 @@ class Block(IRNode):
         for op in ops:
             self.add_op(op)
 
+    def insert_ops_before(self, ops: Sequence[Operation],
+                          existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(ops, index)
+
+    def insert_ops_after(self, ops: Sequence[Operation],
+                         existing_op: Operation) -> None:
+        index = self.get_operation_index(existing_op)
+        self.insert_op(list(ops), index + 1)
+
     def insert_op(self,
-                  ops: Operation | list[Operation],
+                  ops: Operation | Sequence[Operation],
                   index: int,
                   name: str | None = None) -> None:
         """
@@ -1028,8 +1038,10 @@ class Block(IRNode):
             raise ValueError(
                 f"Can't insert operation in index {index} in a block with "
                 f"{len(self.ops)} operations.")
-        if not isinstance(ops, list):
+        if isinstance(ops, Operation):
             ops = [ops]
+        elif not isinstance(ops, list):
+            ops = list(ops)
         if name:
             for curr_op in ops:
                 for res in curr_op.results:
