@@ -289,6 +289,65 @@ ModuleOp(
 
 
 @irdl_op_definition
+class CustomOpWithMultipleRegions(IRDLOperation):
+    name = 'test.custom_op_with_multiple_regions'
+    region: list[Region]
+
+
+def test_region_index_fetch():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+    d = Constant.from_int_and_width(4, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+    region3 = Region([Block([d])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2, region3]])
+
+    assert op.get_region_index(region0) == 0
+    assert op.get_region_index(region1) == 1
+    assert op.get_region_index(region2) == 2
+    assert op.get_region_index(region3) == 3
+
+
+def test_region_index_fetch_region_unavailability():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+
+    op = CustomOpWithMultipleRegions.build(regions=[[region0]])
+
+    assert op.get_region_index(region0) == 0
+    with pytest.raises(Exception) as exc_info:
+        op.get_region_index(region1)
+    assert exc_info.value.args[0] == "Region is not inside the operation."
+
+
+def test_detach_region():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2]])
+
+    assert op.detach_region(1) == region1
+    assert op.detach_region(region0) == region0
+    assert len(op.regions) == 1
+    assert op.get_region_index(region2) == 0
+
+
+@irdl_op_definition
 class CustomVerify(IRDLOperation):
     name = 'test.custom_verify_op'
     val: Annotated[Operand, i64]

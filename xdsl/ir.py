@@ -659,6 +659,30 @@ class Operation(IRNode):
         self.regions.append(region)
         region.parent = self
 
+    def get_region_index(self, region: Region) -> int:
+        """Get the region position in the operation."""
+        if region.parent is not self:
+            raise Exception("Region is not inside the operation.")
+        for idx, curr_region in enumerate(self.regions):
+            if curr_region is region:
+                return idx
+        assert False, "Unexpected xdsl error"
+
+    def detach_region(self, region: int | Region) -> Region:
+        """
+        Detach a region from the operation.
+        Returns the detached region.
+        """
+        if isinstance(region, Region):
+            region_idx = self.get_region_index(region)
+        else:
+            region_idx = region
+            region = self.regions[region_idx]
+        region.parent = None
+        self.regions = self.regions[:region_idx] + self.regions[region_idx +
+                                                                1:]
+        return region
+
     def drop_all_references(self) -> None:
         """
         Drop all references to other operations.
