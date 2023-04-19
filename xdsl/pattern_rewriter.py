@@ -66,8 +66,7 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        op_idx = block.get_operation_index(self.current_operation)
-        block.insert_op(op, op_idx)
+        block.insert_ops_before(op, self.current_operation)
         self.added_operations_before += op
 
     def insert_op_after_matched_op(self, op: (Operation | list[Operation])):
@@ -80,8 +79,7 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        op_idx = block.get_operation_index(self.current_operation)
-        block.insert_op(op, op_idx + 1)
+        block.insert_ops_after(op, self.current_operation)
         self.added_operations_after += op
 
     def insert_op_at_pos(self, op: Operation | list[Operation], block: Block,
@@ -108,8 +106,7 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        target_op.parent.insert_op(op,
-                                   target_block.get_operation_index(target_op))
+        target_block.insert_ops_before(op, target_op)
 
     def insert_op_after(self, op: Operation | list[Operation],
                         target_op: Operation):
@@ -121,12 +118,10 @@ class PatternRewriter:
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
         self.has_done_action = True
-        op = op if isinstance(op, list) else [op]
-        if len(op) == 0:
+        ops = op if isinstance(op, list) else [op]
+        if len(ops) == 0:
             return
-        target_op.parent.insert_op(
-            op,
-            target_block.get_operation_index(target_op) + 1)
+        target_block.insert_ops_after(ops, target_op)
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
