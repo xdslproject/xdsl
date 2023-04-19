@@ -147,7 +147,7 @@ class Rewriter:
         if op.parent is None:
             raise Exception(
                 "Cannot insert an operation after a toplevel operation")
-        op.parent.insert_op_after(new_op, op)
+        op.parent.insert_ops_after((new_op, ), op)
 
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
@@ -155,7 +155,7 @@ class Rewriter:
         if op.parent is None:
             raise Exception(
                 "Cannot insert an operation before a toplevel operation")
-        op.parent.insert_op_before(new_op, op)
+        op.parent.insert_ops_before((new_op, ), op)
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
