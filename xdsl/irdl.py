@@ -320,7 +320,67 @@ def irdl_to_attr_constraint(
 #  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
 #       |_|
 
-_OpT = TypeVar('_OpT', bound=Operation)
+_OpT = TypeVar('_OpT', bound='IRDLOperation')
+
+
+class IRDLOperation(Operation):
+
+    def __init__(
+        self: IRDLOperation,
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None):
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+        irdl_op_init(self, self.irdl_definition, operands, result_types,
+                     attributes, successors, regions)
+
+    @classmethod
+    def build(
+        cls: type[_OpT],
+        operands: Sequence[SSAValue | Operation
+                           | Sequence[SSAValue | Operation] | None]
+        | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute]]
+        | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
+                          | Sequence[Region | Sequence[Operation]
+                                     | Sequence[Block]]]
+        | None = None
+    ) -> _OpT:
+        """Create a new operation using builders."""
+        op = cls.__new__(cls)
+        IRDLOperation.__init__(op,
+                               operands=operands,
+                               result_types=result_types,
+                               attributes=attributes,
+                               successors=successors,
+                               regions=regions)
+        return op
+
+    @classmethod
+    @property
+    def irdl_definition(cls) -> OpDef:
+        """Get the IRDL operation definition."""
+        ...
 
 
 @dataclass
@@ -912,8 +972,8 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             if construct == VarIRConstruct.OPERAND or construct == VarIRConstruct.RESULT:
                 arg_def.constr.verify(arg.typ)
             elif construct == VarIRConstruct.REGION:
-                if isinstance(arg_def,
-                              SingleBlockRegionDef) and len(arg.blocks) != 1:
+                if isinstance(arg_def, SingleBlockRegionDef) and len(
+                        arg.blocks) != 1:
                     raise VerifyException("expected a single block, but got "
                                           f"{len(arg.blocks)} blocks")
             else:
@@ -1036,11 +1096,9 @@ def irdl_build_region_arg(r: _RegionArg) -> Region:
 
     if isinstance(r[0], Operation):
         ops = cast(Sequence[Operation], r)
-        blocks = (Block(ops), )
+        return Region(Block(ops))
     else:
-        blocks = cast(Sequence[Block], r)
-
-    return Region(blocks)
+        return Region(cast(Sequence[Block], r))
 
 
 def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
@@ -1053,7 +1111,7 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         return []
     elif isinstance(r[0], Operation):
         ops = cast(Sequence[Operation], r)
-        return Region([Block(ops)])
+        return Region(Block(ops))
     elif isinstance(r[0], Block):
         blocks = cast(Sequence[Block], r)
         return Region(blocks)
@@ -1063,17 +1121,19 @@ def irdl_build_regions_arg(r: _RegionArg | Sequence[_RegionArg]
         ]
 
 
-def irdl_op_builder(
-    cls: type[_OpT], op_def: OpDef,
+def irdl_op_init(
+    self: IRDLOperation,
+    op_def: OpDef,
     operands: Sequence[SSAValue | Operation
                        | Sequence[SSAValue | Operation]
                        | None],
     res_types: Sequence[Attribute | Sequence[Attribute] | None],
-    attributes: Mapping[str, Attribute | None], successors: Sequence[Block],
+    attributes: Mapping[str, Attribute | None],
+    successors: Sequence[Block],
     regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
                       | Sequence[Region | Sequence[Operation]
-                                 | Sequence[Block]] | None]
-) -> _OpT:
+                                 | Sequence[Block]] | None],
+):
     """Builder for an irdl operation."""
 
     # We need irdl to define DenseArrayBase, but here we need
@@ -1124,11 +1184,12 @@ def irdl_op_builder(
         built_attributes[AttrSizedRegionSegments.attribute_name] =\
             DenseArrayBase.from_list(i32, region_sizes)
 
-    return cls.create(operands=built_operands,
-                      result_types=built_res_types,
-                      attributes=built_attributes,
-                      successors=successors,
-                      regions=built_regions)
+    Operation.__init__(self,
+                       operands=built_operands,
+                       result_types=built_res_types,
+                       attributes=built_attributes,
+                       successors=successors,
+                       regions=built_regions)
 
 
 def irdl_op_arg_definition(new_attrs: dict[str, Any],
@@ -1162,8 +1223,8 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
-        cls,
-        Operation), f"class {cls.__name__} should be a subclass of Operation"
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
 
     # Get all fields of the class, including the parent classes
     clsdict = dict[str, Any]()
@@ -1213,32 +1274,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
             new_attrs[attribute_name] = attribute_field(attribute_name)
 
     new_attrs["traits"] = op_def.traits
-
-    def builder(
-        cls: type[_OpT],
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation]] | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]]
-        | None = None,
-        attributes: dict[str, Attribute] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]]
-        | None = None
-    ) -> _OpT:
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
-        return irdl_op_builder(cls, op_def, operands, result_types, attributes,
-                               successors, regions)
-
-    new_attrs["build"] = classmethod(builder)
 
     @classmethod
     @property

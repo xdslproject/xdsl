@@ -4,7 +4,7 @@ builtin.module() {
 
 func.func() ["sym_name" = "vector_broadcast_type_matching", "function_type" = !fun<[!index], []>, "sym_visibility" = "private"] {
   ^0(%0 : !index):
-    %1 : !vector<[2 : !i32], !i32> = vector.broadcast(%0 : !index)
+    %1 : !vector<[2 : !i32], !i32, !int<0>> = vector.broadcast(%0 : !index)
 
     func.return()
   }

@@ -59,7 +59,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         self.file = file
 
         assert len(module.body.blocks) == 1
-        self.inserter = OpInserter(module.body.blocks[0])
+        self.inserter = OpInserter(module.body.block)
 
     def get_symbol(self, node: ast.Name) -> Attribute:
         assert self.symbol_table is not None
@@ -245,7 +245,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         # Create a function operation.
         entry_block = Block()
-        body_region = Region([entry_block])
+        body_region = Region(entry_block)
         func_op = func.FuncOp.from_region(node.name, argument_types,
                                           return_types, body_region)
 

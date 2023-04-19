@@ -5,8 +5,8 @@ from typing import Annotated
 from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
 
-from xdsl.ir import Block, Operation, OpResult, BlockArgument, SSAValue
-from xdsl.irdl import irdl_op_definition
+from xdsl.ir import Block, OpResult, BlockArgument, SSAValue
+from xdsl.irdl import irdl_op_definition, IRDLOperation
 
 
 def test_ssa():
@@ -16,7 +16,7 @@ def test_ssa():
         # hence ignore
         _ = SSAValue.get([c])  # type: ignore
 
-    b0 = Block.from_ops([c])
+    b0 = Block([c])
     with pytest.raises(TypeError):
         # test that we raise a TypeError if we give an incorrect type
         # hence ignore
@@ -24,7 +24,7 @@ def test_ssa():
 
 
 @irdl_op_definition
-class TwoResultOp(Operation):
+class TwoResultOp(IRDLOperation):
     name: str = "test.tworesults"
 
     res1: Annotated[OpResult, StringAttr]

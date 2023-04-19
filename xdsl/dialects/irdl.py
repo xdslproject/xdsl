@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-from xdsl.ir import (ParametrizedAttribute, Operation, Attribute, Dialect)
+from xdsl.ir import (ParametrizedAttribute, Attribute, Dialect)
 from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition,
-                       SingleBlockRegion, OpAttr)
+                       SingleBlockRegion, OpAttr, IRDLOperation)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
@@ -74,7 +74,7 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class DialectOp(Operation):
+class DialectOp(IRDLOperation):
     """
     Define a new dialect
     """
@@ -101,7 +101,7 @@ class DialectOp(Operation):
 
 
 @irdl_op_definition
-class ParametersOp(Operation):
+class ParametersOp(IRDLOperation):
     """
     Define the parameters of a type/attribute definition
     """
@@ -110,7 +110,7 @@ class ParametersOp(Operation):
 
 
 @irdl_op_definition
-class TypeOp(Operation):
+class TypeOp(IRDLOperation):
     """
     Defines new types belonging to previously defined dialect
     """
@@ -129,7 +129,7 @@ class TypeOp(Operation):
 
 
 @irdl_op_definition
-class ConstraintVarsOp(Operation):
+class ConstraintVarsOp(IRDLOperation):
     """
     Define constraint variables that can be used in the
     current region
@@ -139,7 +139,7 @@ class ConstraintVarsOp(Operation):
 
 
 @irdl_op_definition
-class OperandsOp(Operation):
+class OperandsOp(IRDLOperation):
     """
     Define the operands of a parent operation
     """
@@ -148,7 +148,7 @@ class OperandsOp(Operation):
 
 
 @irdl_op_definition
-class ResultsOp(Operation):
+class ResultsOp(IRDLOperation):
     """
     Define results of parent operation
     """
@@ -157,7 +157,7 @@ class ResultsOp(Operation):
 
 
 @irdl_op_definition
-class OperationOp(Operation):
+class OperationOp(IRDLOperation):
     """
     Define a new operation belonging to previously defined dialect
     """

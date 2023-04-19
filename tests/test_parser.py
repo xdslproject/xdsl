@@ -4,9 +4,8 @@ from io import StringIO
 
 from xdsl.dialects.builtin import (IntAttr, DictionaryAttr, StringAttr,
                                    ArrayAttr, Builtin, SymbolRefAttr)
-from xdsl.ir import (MLContext, Attribute, Operation, Region,
-                     ParametrizedAttribute)
-from xdsl.irdl import irdl_attr_definition, irdl_op_definition
+from xdsl.ir import (MLContext, Attribute, Region, ParametrizedAttribute)
+from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
 from xdsl.parser import BaseParser, XDSLParser, MLIRParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
@@ -88,7 +87,7 @@ def test_symref(ref: str, expected: Attribute | None):
 
 
 @irdl_op_definition
-class MultiRegionOp(Operation):
+class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
     r1: Region
     r2: Region

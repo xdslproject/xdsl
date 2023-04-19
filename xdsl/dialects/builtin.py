@@ -14,7 +14,8 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr)
+                       Generic, GenericData, AttrConstraint, AnyAttr,
+                       IRDLOperation)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -523,33 +524,53 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[AttributeCovT]
+    num_scalable_dims: ParameterDef[IntAttr]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
+    def get_num_scalable_dims(self) -> int:
+        return self.num_scalable_dims.data
+
     def get_shape(self) -> List[int]:
         return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_scalable_dims() < 0:
+            raise VerifyException(
+                f"Number of scalable dimensions {self.get_num_dims()} cannot"
+                " be negative")
+        if self.get_num_scalable_dims() > self.get_num_dims():
+            raise VerifyException(
+                f"Number of scalable dimensions {self.get_num_scalable_dims()}"
+                " cannot be larger than number of dimensions"
+                f" {self.get_num_dims()}")
 
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]]
+        shape: Sequence[int | IntegerAttr[IndexType]],
+        num_scalable_dims: int | IntAttr = 0,
     ) -> VectorType[AttributeInvT]:
-
+        if isinstance(num_scalable_dims, int):
+            num_scalable_dims = IntAttr(num_scalable_dims)
         return VectorType([
             ArrayAttr([
                 IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
                     d, int) else d for d in shape
-            ]), referenced_type
+            ]),
+            referenced_type,
+            num_scalable_dims,
         ])
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)])
+            [IntegerAttr.from_int_and_width(1, 64)]),
+        num_scalable_dims: IntAttr = IntAttr(0),
     ) -> VectorType[AttributeInvT]:
-        return VectorType([shape, referenced_type])
+        return VectorType([shape, referenced_type, num_scalable_dims])
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
@@ -1006,7 +1027,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class UnrealizedConversionCastOp(Operation):
+class UnrealizedConversionCastOp(IRDLOperation):
     name: str = "builtin.unrealized_conversion_cast"
 
     inputs: VarOperand
@@ -1021,10 +1042,10 @@ class UnrealizedConversionCastOp(Operation):
         )
 
 
-class UnregisteredOp(Operation, ABC):
+class UnregisteredOp(IRDLOperation, ABC):
     """
     An unregistered operation.
-    
+
     Each unregistered op is registered as a subclass of `UnregisteredOp`,
     and op with different names have distinct subclasses.
     """
@@ -1068,11 +1089,11 @@ class UnregisteredOp(Operation, ABC):
 class UnregisteredAttr(ParametrizedAttribute, ABC):
     """
     An unregistered attribute or type.
-    
+
     Each unregistered attribute is registered as a subclass of
-    `UnregisteredAttr`, and attribute with different names have 
+    `UnregisteredAttr`, and attribute with different names have
     distinct subclasses.
-    
+
     Since attributes do not have a generic format, unregistered
     attributes represent their original parameters as a string,
     which is exactly the content parsed from the textual
@@ -1101,7 +1122,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     def with_name_and_type(cls, name: str,
                            is_type: bool) -> type[UnregisteredAttr]:
         """
-        Return a new unregistered attribute type given a name and a 
+        Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
         This function should not be called directly. Use methods from
         `MLContext` to get an `UnregisteredAttr` type.
@@ -1134,19 +1155,19 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
 
 @irdl_op_definition
-class ModuleOp(Operation):
+class ModuleOp(IRDLOperation):
     name: str = "builtin.module"
 
     body: SingleBlockRegion
 
     @property
     def ops(self) -> List[Operation]:
-        return list(self.regions[0].blocks[0].ops)
+        return list(self.regions[0].block.ops)
 
     @staticmethod
     def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
         if isinstance(ops, list):
-            region = Region.from_operation_list(ops)
+            region = Region([Block(ops)])
         elif isinstance(ops, Region):
             region = ops
         else:

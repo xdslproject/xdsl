@@ -11,7 +11,7 @@ from xdsl.ir import (TypeAttribute, Operation, SSAValue, ParametrizedAttribute,
                      Dialect, OpResult)
 from xdsl.irdl import (irdl_attr_definition, irdl_op_definition, ParameterDef,
                        Generic, Attribute, AnyAttr, Operand, VarOperand,
-                       AttrSizedOperandSegments, OpAttr)
+                       AttrSizedOperandSegments, OpAttr, IRDLOperation)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
 
 
 @irdl_op_definition
-class Load(Operation):
+class Load(IRDLOperation):
     name = "memref.load"
     memref: Annotated[Operand, MemRefType[Attribute]]
     indices: Annotated[VarOperand, IndexType]
@@ -151,7 +151,7 @@ class Load(Operation):
 
 
 @irdl_op_definition
-class Store(Operation):
+class Store(IRDLOperation):
     name = "memref.store"
     value: Annotated[Operand, AnyAttr()]
     memref: Annotated[Operand, MemRefType[Attribute]]
@@ -177,7 +177,7 @@ class Store(Operation):
 
 
 @irdl_op_definition
-class Alloc(Operation):
+class Alloc(IRDLOperation):
     name = "memref.alloc"
 
     dynamic_sizes: Annotated[VarOperand, IndexType]
@@ -208,7 +208,7 @@ class Alloc(Operation):
 
 
 @irdl_op_definition
-class Alloca(Operation):
+class Alloca(IRDLOperation):
     name = "memref.alloca"
 
     dynamic_sizes: Annotated[VarOperand, IndexType]
@@ -244,7 +244,7 @@ class Alloca(Operation):
 
 
 @irdl_op_definition
-class Dealloc(Operation):
+class Dealloc(IRDLOperation):
     name = "memref.dealloc"
     memref: Annotated[Operand,
                       MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
@@ -255,7 +255,7 @@ class Dealloc(Operation):
 
 
 @irdl_op_definition
-class Dealloca(Operation):
+class Dealloca(IRDLOperation):
     name = "memref.dealloca"
     memref: Annotated[Operand, MemRefType[Attribute]]
 
@@ -265,7 +265,7 @@ class Dealloca(Operation):
 
 
 @irdl_op_definition
-class GetGlobal(Operation):
+class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: Annotated[OpResult, MemRefType[Attribute]]
 
@@ -287,7 +287,7 @@ class GetGlobal(Operation):
 
 
 @irdl_op_definition
-class Global(Operation):
+class Global(IRDLOperation):
     name = "memref.global"
 
     sym_name: OpAttr[StringAttr]
@@ -321,7 +321,7 @@ class Global(Operation):
 
 
 @irdl_op_definition
-class Dim(Operation):
+class Dim(IRDLOperation):
     name = "memref.dim"
 
     source: Annotated[Operand,
@@ -330,27 +330,27 @@ class Dim(Operation):
 
     result: Annotated[OpResult, IndexType]
 
-    @classmethod
-    def from_source_and_index(cls, source: SSAValue | Operation,
+    @staticmethod
+    def from_source_and_index(source: SSAValue | Operation,
                               index: SSAValue | Operation):
-        return cls.build(operands=[source, index], result_types=[IndexType()])
+        return Dim.build(operands=[source, index], result_types=[IndexType()])
 
 
 @irdl_op_definition
-class Rank(Operation):
+class Rank(IRDLOperation):
     name = "memref.rank"
 
     source: Annotated[Operand, MemRefType[Attribute]]
 
     rank: Annotated[OpResult, IndexType]
 
-    @classmethod
-    def from_memref(cls, memref: Operation | SSAValue):
-        return cls.build(operands=[memref], result_types=[IndexType()])
+    @staticmethod
+    def from_memref(memref: Operation | SSAValue):
+        return Rank.build(operands=[memref], result_types=[IndexType()])
 
 
 @irdl_op_definition
-class ExtractAlignedPointerAsIndexOp(Operation):
+class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
     source: Annotated[Operand, MemRefType]
@@ -364,7 +364,7 @@ class ExtractAlignedPointerAsIndexOp(Operation):
 
 
 @irdl_op_definition
-class Subview(Operation):
+class Subview(IRDLOperation):
     name = "memref.subview"
 
     source: Annotated[Operand, MemRefType]
@@ -421,7 +421,7 @@ class Subview(Operation):
 
 
 @irdl_op_definition
-class Cast(Operation):
+class Cast(IRDLOperation):
     name = "memref.cast"
 
     source: Annotated[Operand, MemRefType | UnrankedMemrefType]

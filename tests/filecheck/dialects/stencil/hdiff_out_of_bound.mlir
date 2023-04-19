@@ -26,6 +26,5 @@
   }) {"function_type" = (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>, !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 }) : () -> ()
 
-
-// CHECK-NEXT: The stencil computation requires a field with lower bound at least !stencil.index<[-1 : !i64, -1 : !i64, 0 : !i64]>, got !stencil.index<[0 : !i64, 0 : !i64, 0 : !i64]>
+// CHECK: The stencil computation requires a field with lower bound at least #stencil.index<[-1 : i64, -1 : i64, 0 : i64]>, got #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, min: #stencil.index<[-1 : i64, -1 : i64, 0 : i64]>
 

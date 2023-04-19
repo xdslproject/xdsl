@@ -180,11 +180,11 @@ def test_memref_matmul_verify():
                             out_i_j := memref.Load.get(out, [i, j]),
                             new_out_val := arith.Addf.get(out_i_j, mul),
                             memref.Store.get(new_out_val, out, [i, j]),
-                            scf.Yield()
+                            scf.Yield.get()
                         ])),
-                        scf.Yield()
+                        scf.Yield.get()
                     ])),
-                    scf.Yield()
+                    scf.Yield.get()
                 ])),
                 func.Return.get(out)
             ]

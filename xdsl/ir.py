@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Mapping,
-                    Protocol, Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Protocol,
+                    Sequence, TypeVar, cast, Iterator, ClassVar)
 from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
@@ -662,31 +662,38 @@ class Operation(IRNode):
         assert (self.name != "")
         assert (isinstance(self.name, str))
 
-    @staticmethod
-    def with_result_types(
-            op: Any,
-            operands: Sequence[SSAValue] | None = None,
-            result_types: Sequence[Attribute] | None = None,
-            attributes: dict[str, Attribute] | None = None,
-            successors: Sequence[Block] | None = None,
-            regions: Sequence[Region] | None = None) -> Operation:
+    def __init__(self,
+                 operands: Sequence[SSAValue] | None = None,
+                 result_types: Sequence[Attribute] | None = None,
+                 attributes: dict[str, Attribute] | None = None,
+                 successors: Sequence[Block] | None = None,
+                 regions: Sequence[Region] | None = None) -> None:
 
-        operation = op()
-        if operands is not None:
-            operation.operands = operands
-        if result_types:
-            operation.results = [
-                OpResult(typ, operation, idx)
-                for (idx, typ) in enumerate(result_types)
-            ]
-        if attributes:
-            operation.attributes = attributes
-        if successors:
-            operation.successors = successors
-        if regions:
-            for region in regions:
-                operation.add_region(region)
-        return operation
+        if operands is None:
+            operands = []
+        if result_types is None:
+            result_types = []
+        if attributes is None:
+            attributes = {}
+        if successors is None:
+            successors = []
+        if regions is None:
+            regions = []
+
+        # This is assumed to exist by Operation.operand setter.
+        self._operands = tuple()
+        self.operands = tuple(operands)
+
+        self.results = [
+            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+        ]
+        self.attributes = attributes
+        self.successors = list(successors)
+        self.regions = []
+        for region in regions:
+            self.add_region(region)
+
+        self.__post_init__()
 
     @classmethod
     def create(cls: type[OpT],
@@ -695,30 +702,27 @@ class Operation(IRNode):
                attributes: dict[str, Attribute] | None = None,
                successors: Sequence[Block] | None = None,
                regions: Sequence[Region] | None = None) -> OpT:
-        op = Operation.with_result_types(cls, operands, result_types,
-                                         attributes, successors, regions)
-        return cast(OpT, op)
+        op = cls.__new__(cls)
+        Operation.__init__(op, operands, result_types, attributes, successors,
+                           regions)
+        return op
 
-    @classmethod
-    def build(
-        cls: type[OpT],
-        operands: Sequence[SSAValue | Operation
-                           | Sequence[SSAValue | Operation] | None]
-        | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]]
-        | None = None,
-        attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]
-                          | Sequence[Region | Sequence[Operation]
-                                     | Sequence[Block]]]
-        | None = None
-    ) -> OpT:
-        """Create a new operation using builders."""
-        ...
+    def replace_operand(self, operand: int | SSAValue,
+                        new_operand: SSAValue) -> None:
+        """
+        Replace an operand with another operand.
 
-    def replace_operand(self, operand_idx: int, new_operand: SSAValue) -> None:
-        """Replace an operand with another operand."""
+        Raises ValueError if the specified operand is not an operand of this op
+        """
+        if isinstance(operand, SSAValue):
+            try:
+                operand_idx = self._operands.index(operand)
+            except ValueError as err:
+                raise ValueError("{} is not an operand of {}.".format(
+                    operand, self)) from err
+        else:
+            operand_idx = operand
+
         self.operands = list(self._operands[:operand_idx]) + [
             new_operand
         ] + list(self._operands[operand_idx + 1:])
@@ -755,9 +759,6 @@ class Operation(IRNode):
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
 
-        # Custom verifier
-        self.verify_()
-
         # Verifier generated by irdl_op_def
         op_def = type(self).irdl_definition
         if op_def is not None:
@@ -766,6 +767,9 @@ class Operation(IRNode):
         if verify_nested_ops:
             for region in self.regions:
                 region.verify()
+
+        # Custom verifier
+        self.verify_()
 
     def verify_(self) -> None:
         pass
@@ -908,10 +912,9 @@ class Operation(IRNode):
     def __str__(self) -> str:
         from xdsl.printer import Printer
         res = StringIO()
-        printer = Printer(stream=res)
+        printer = Printer(stream=res, target=Printer.Target.XDSL)
         printer.print_op(self)
-        desc = res.getvalue()
-        return desc
+        return res.getvalue()
 
     def __format__(self, __format_spec: str) -> str:
         desc = str(self)
@@ -1027,6 +1030,7 @@ class Block(IRNode):
             for index, typ in enumerate(arg_types))
         return b
 
+    @deprecated('Please use Block(ops, arg_types=arg_types)')
     @staticmethod
     def from_ops(ops: list[Operation],
                  arg_types: list[Attribute] | None = None):
@@ -1112,11 +1116,45 @@ class Block(IRNode):
             result += 1
         return result
 
+    def _op_at_index(self,
+                     index: int,
+                     message_lambda: Callable[[], str] | None = None
+                     ) -> Operation | None:
+        """
+        Returns the operation at a given index, supporting positive and negative indices.
+        If abs(index) == num_ops, return None.
+        if abs(index) > num_ops, raise ValueError, optionally with given message.
+        """
+        if index < 0:
+            # Enumerate backwards
+            op = self.last_op
+            while index < 0:
+                if op is None:
+                    break
+                op = op.prev_op
+                index += 1
+            else:
+                return op
+        else:
+            # Enumerate forwards
+            op = self.first_op
+            while index:
+                if op is None:
+                    break
+                op = op.next_op
+                index -= 1
+            else:
+                return op
+        if message_lambda is None:
+            message = f"Invalid operation index {index} for block with {self.num_ops} ops"
+        else:
+            message = message_lambda()
+        raise ValueError(message)
+
     def op_at_index(self, index: int) -> Operation:
-        it = iter(self.ops)
-        for _ in range(index):
-            next(it)
-        return next(it)
+        op = self._op_at_index(index)
+        assert op is not None
+        return op
 
     def insert_op_after(self, new_op: Operation,
                         existing_op: Operation) -> None:
@@ -1164,59 +1202,43 @@ class Block(IRNode):
         for op in ops:
             self.add_op(op)
 
-    def insert_ops_before(self, ops: list[Operation],
+    def insert_ops_before(self, ops: Sequence[Operation],
                           existing_op: Operation) -> None:
         for op in ops:
             self.insert_op_before(op, existing_op)
 
-    def insert_ops_after(self, ops: list[Operation],
+    def insert_ops_after(self, ops: Sequence[Operation],
                          existing_op: Operation) -> None:
         for op in ops:
             self.insert_op_after(op, existing_op)
 
             existing_op = op
 
-    def insert_op(self, ops: Operation | list[Operation], index: int) -> None:
+    def insert_op(self,
+                  ops: Operation | Sequence[Operation],
+                  index: int,
+                  name: str | None = None) -> None:
         """
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
         """
 
-        if index < 0 or index > self.num_ops():
-            raise ValueError(
-                f"Can't insert operation in index {index} in a block with "
-                f"{self.num_ops()} operations.")
-        if not isinstance(ops, list):
-            ops = [ops]
+        new_ops = [ops] if isinstance(ops, Operation) else ops
 
-        first_op = self.first_op
+        existing_op = self._op_at_index(
+            index,
+            lambda: f"Can't insert operation in index {index} in a block with "
+            f"{self.num_ops()} operations.")
 
-        if first_op is None:
-            if index:
-                raise ValueError(
-                    f"Can't insert operation in index {index} in a block with "
-                    f"no operations.")
-
-            self.add_ops(ops)
+        if existing_op is None:
+            if index < 0 and self.first_op is not None:
+                # Insert at beginning of block
+                existing_op = self.first_op
+            # Append
+            self.add_ops(new_ops)
             return
 
-        # Default value, above check should rule this case out
-        i = -1
-        for i, op in enumerate(self.ops):
-            if index == i:
-                self.insert_ops_before(ops, op)
-                return
-
-        len_ops = i + 1
-
-        if len_ops != index:
-            raise ValueError(
-                f"Can't insert operation in index {index} in a block with "
-                f"{len_ops} operations.")
-
-        assert self.last_op is not None
-
-        self.insert_ops_after(ops, self.last_op)
+        self.insert_ops_before(new_ops, existing_op)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
@@ -1341,12 +1363,13 @@ class Region(IRNode):
     """Operation containing the region."""
 
     def __init__(self,
-                 blocks: Iterable[Block] = (),
-                 *,
+                 blocks: Block | Iterable[Block] = (),
                  parent: Operation | None = None):
         super().__init__(self)
         self.parent = parent
         self.blocks = []
+        if isinstance(blocks, Block):
+            blocks = (blocks, )
         for block in blocks:
             self.add_block(block)
 
@@ -1363,32 +1386,27 @@ class Region(IRNode):
         return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
+    @deprecated('Please use Region([Block(ops)])')
     def from_operation_list(ops: list[Operation]) -> Region:
-        block = Block.from_ops(ops)
-        region = Region()
-        region.add_block(block)
-        return region
+        return Region([Block(ops)])
 
     @deprecated('Please use Region(blocks, parent=None)')
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
-        region = Region()
-        for block in blocks:
-            region.add_block(block)
-        return region
+        return Region(blocks)
 
-    @deprecated('Please use Region(blocks) or Region([Block(ops)])')
+    @deprecated('Please use Region(blocks) or Region(Block(ops))')
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
         if isinstance(arg, list):
             if len(arg) == 0:
-                return Region.from_operation_list([])
+                return Region([Block()])
             if isinstance(arg[0], Block):
                 return Region(cast(list[Block], arg))
             if isinstance(arg[0], Operation):
-                return Region.from_operation_list(cast(list[Operation], arg))
+                return Region([Block(cast(list[Operation], arg))])
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
@@ -1401,7 +1419,7 @@ class Region(IRNode):
             raise ValueError(
                 "'ops' property of Region class is only available "
                 "for single-block regions.")
-        return list(self.blocks[0].ops)
+        return list(self.block.ops)
 
     @property
     def op(self) -> Operation:
@@ -1417,6 +1435,18 @@ class Region(IRNode):
 
         raise ValueError("'op' property of Region class is only available "
                          "for single-operation single-block regions.")
+
+    @property
+    def block(self) -> Block:
+        """
+        Get the block of a single-block region.
+        Returns an exception if the region is not single-block.
+        """
+        if len(self.blocks) != 1:
+            raise ValueError(
+                "'block' property of Region class is only available "
+                "for single-block regions.")
+        return self.blocks[0]
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""

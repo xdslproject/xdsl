@@ -1,15 +1,16 @@
 import pytest
 
-from typing import cast
+from typing import cast, Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import Builtin, IntegerType, i32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, ModuleOp
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue
+from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
+from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -18,9 +19,9 @@ def test_ops_accessor():
     # Operation to add these constants
     c = Addi.get(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(list(region.blocks[0].ops)) == 3
@@ -42,9 +43,9 @@ def test_ops_accessor_II():
     # Operation to add these constants
     c = Addi.get(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(list(region.blocks[0].ops)) == 3
@@ -86,12 +87,12 @@ def test_ops_accessor_III():
     f = Addi.get(c, d)
 
     # Create Blocks and Regions
-    block0 = Block.from_ops([a, b, e])
-    block1 = Block.from_ops([c, d, f])
-    block2 = Block.from_ops([])
+    block0 = Block([a, b, e])
+    block1 = Block([c, d, f])
+    block2 = Block()
 
     region0 = Region([block0, block1])
-    region1 = Region([block2])
+    region1 = Region(block2)
 
     with pytest.raises(ValueError):
         region0.ops
@@ -127,8 +128,7 @@ def test_op_clone():
 def test_op_clone_with_regions():
     cond = Constant.from_int_and_width(1, 1)
     a = Constant.from_int_and_width(1, 32)
-    if_ = If.get(cond, [], Region.from_operation_list([a]),
-                 Region.from_operation_list([a.clone()]))
+    if_ = If.get(cond, [], Region([Block([a])]), Region([Block([a.clone()])]))
 
     if2 = if_.clone()
 
@@ -268,8 +268,8 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 def test_descriptions():
     a = Constant.from_int_and_width(1, 32)
 
-    assert str(a.value) == '1 : !i32'
-    assert f'{a.value}' == '1 : !i32'
+    assert str(a.value) == '1 : i32'
+    assert f'{a.value}' == '1 : i32'
 
     assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
     assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
@@ -287,3 +287,50 @@ ModuleOp(
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
 )'''
+
+
+@irdl_op_definition
+class CustomVerify(IRDLOperation):
+    name = 'test.custom_verify_op'
+    val: Annotated[Operand, i64]
+
+    @staticmethod
+    def get(val: SSAValue):
+        return CustomVerify.build(operands=[val])
+
+    def verify_(self):
+        raise Exception('Custom Verification Check')
+
+
+def test_op_custom_verify_is_called():
+    a = Constant.from_int_and_width(1, i64)
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] == 'Custom Verification Check'
+
+
+def test_op_custom_verify_is_done_last():
+    a = Constant.from_int_and_width(1, i32)
+    # CustomVerify expects a i64, not i32
+    b = CustomVerify.get(a.result)
+    with pytest.raises(Exception) as e:
+        b.verify()
+    assert e.value.args[0] != 'Custom Verification Check'
+    assert e.value.args[0] == \
+           'test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n'
+
+
+def test_replace_operand():
+    cst0 = Constant.from_int_and_width(0, 32).result
+    cst1 = Constant.from_int_and_width(1, 32).result
+    add = Addi.get(cst0, cst1)
+
+    new_cst = Constant.from_int_and_width(2, 32).result
+    add.replace_operand(cst0, new_cst)
+
+    assert new_cst in add.operands
+    assert cst0 not in add.operands
+
+    with pytest.raises(ValueError):
+        add.replace_operand(cst0, new_cst)

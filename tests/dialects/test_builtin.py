@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -69,6 +70,35 @@ def test_array_len_attr():
     assert len(arr.data) == len(arr)
 
 
+@pytest.mark.parametrize('attr, dims, num_scalable_dims', (
+    (i32, [1, 2], 0),
+    (i32, [1, 2], 1),
+    (i32, [1, 1, 3], 0),
+    (i64, [1, 1, 3], 2),
+    (i64, [], 0),
+))
+def test_vector_constructor(attr: Attribute, dims: list[int],
+                            num_scalable_dims: int):
+    vec = VectorType.from_element_type_and_shape(attr, dims, num_scalable_dims)
+
+    assert vec.get_num_dims() == len(dims)
+    assert vec.get_num_scalable_dims() == num_scalable_dims
+    assert vec.get_shape() == dims
+
+
+@pytest.mark.parametrize('dims, num_scalable_dims', (
+    ([], 1),
+    ([1, 2], 3),
+    ([1], 2),
+))
+def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
+    with pytest.raises(VerifyException):
+        VectorType.from_element_type_and_shape(i32, dims, num_scalable_dims)
+
+    with pytest.raises(VerifyException):
+        VectorType.from_element_type_and_shape(i32, dims, -1)
+
+
 def test_vector_rank_constraint_verify():
     vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
     constraint = VectorRankConstraint(2)
@@ -91,8 +121,7 @@ def test_vector_rank_constraint_attr_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
-    assert e.value.args[
-        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_constraint_verify():
@@ -108,7 +137,7 @@ def test_vector_base_type_constraint_type_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(vector_type)
-    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_constraint_attr_mismatch():
@@ -117,8 +146,7 @@ def test_vector_base_type_constraint_attr_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)
-    assert e.value.args[
-        0] == "!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."
+    assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
 def test_vector_base_type_and_rank_constraint_verify():
@@ -134,7 +162,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(vector_type)
-    assert e.value.args[0] == "Expected vector type to be !i64, got !i32."
+    assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
 def test_vector_base_type_and_rank_constraint_rank_mismatch():
@@ -151,8 +179,8 @@ def test_vector_base_type_and_rank_constraint_attr_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
     error_msg = """The following constraints were not satisfied:
-!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType.
-!memref<[1 : !index, 2 : !index], !i32> should be of type VectorType."""
+memref<1x2xi32> should be of type VectorType.
+memref<1x2xi32> should be of type VectorType."""
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(memref_type)

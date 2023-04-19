@@ -117,30 +117,30 @@ func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "maxf"] 
 
 // CHECK:   %{{.*}} : !f32 = arith.maxf(%{{.*}} : !f32, %{{.*}} : !f32)
 
-func.func() ["function_type" = !fun<[!vector<[4 : !index], !f16>, !vector<[4 : !index], !f16>], [!vector<[4 : !index], !f16>]>, "sym_name" = "maxf16_vector"] {
-^7(%21 : !vector<[4 : !index], !f16>, %22 : !vector<[4 : !index], !f16>):
-  %23 : !vector<[4 : !index], !f16> = arith.maxf(%21 : !vector<[4 : !index], !f16>, %22 : !vector<[4 : !index], !f16>)
-  func.return(%23 : !vector<[4 : !index], !f16>)
+func.func() ["function_type" = !fun<[!vector<[4 : !index], !f16, !int<0>>, !vector<[4 : !index], !f16, !int<0>>], [!vector<[4 : !index], !f16, !int<0>>]>, "sym_name" = "maxf16_vector"] {
+^7(%21 : !vector<[4 : !index], !f16, !int<0>>, %22 : !vector<[4 : !index], !f16, !int<0>>):
+  %23 : !vector<[4 : !index], !f16, !int<0>> = arith.maxf(%21 : !vector<[4 : !index], !f16, !int<0>>, %22 : !vector<[4 : !index], !f16, !int<0>>)
+  func.return(%23 : !vector<[4 : !index], !f16, !int<0>>)
 }
 
-// CHECK:   %{{.*}} : !vector<[4 : !index], !f16> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f16>, %{{.*}} : !vector<[4 : !index], !f16>)
+// CHECK:   %{{.*}} : !vector<[4 : !index], !f16, !int<0>> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f16, !int<0>>, %{{.*}} : !vector<[4 : !index], !f16, !int<0>>)
 
-func.func() ["function_type" = !fun<[!vector<[4 : !index], !f32>, !vector<[4 : !index], !f32>], [!vector<[4 : !index], !f32>]>, "sym_name" = "maxf32_vector"] {
-^7(%21 : !vector<[4 : !index], !f32>, %22 : !vector<[4 : !index], !f32>):
-  %23 : !vector<[4 : !index], !f32> = arith.maxf(%21 : !vector<[4 : !index], !f32>, %22 : !vector<[4 : !index], !f32>)
-  func.return(%23 : !vector<[4 : !index], !f32>)
+func.func() ["function_type" = !fun<[!vector<[4 : !index], !f32, !int<0>>, !vector<[4 : !index], !f32, !int<0>>], [!vector<[4 : !index], !f32, !int<0>>]>, "sym_name" = "maxf32_vector"] {
+^7(%21 : !vector<[4 : !index], !f32, !int<0>>, %22 : !vector<[4 : !index], !f32, !int<0>>):
+  %23 : !vector<[4 : !index], !f32, !int<0>> = arith.maxf(%21 : !vector<[4 : !index], !f32, !int<0>>, %22 : !vector<[4 : !index], !f32, !int<0>>)
+  func.return(%23 : !vector<[4 : !index], !f32, !int<0>>)
 }
 
-// CHECK:   %{{.*}} : !vector<[4 : !index], !f32> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f32>, %{{.*}} : !vector<[4 : !index], !f32>)
+// CHECK:   %{{.*}} : !vector<[4 : !index], !f32, !int<0>> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f32, !int<0>>, %{{.*}} : !vector<[4 : !index], !f32, !int<0>>)
 
 
-func.func() ["function_type" = !fun<[!vector<[4 : !index], !f64>, !vector<[4 : !index], !f64>], [!vector<[4 : !index], !f64>]>, "sym_name" = "maxf64_vector"] {
-^7(%21 : !vector<[4 : !index], !f64>, %22 : !vector<[4 : !index], !f64>):
-  %23 : !vector<[4 : !index], !f64> = arith.maxf(%21 : !vector<[4 : !index], !f64>, %22 : !vector<[4 : !index], !f64>)
-  func.return(%23 : !vector<[4 : !index], !f64>)
+func.func() ["function_type" = !fun<[!vector<[4 : !index], !f64, !int<0>>, !vector<[4 : !index], !f64, !int<0>>], [!vector<[4 : !index], !f64, !int<0>>]>, "sym_name" = "maxf64_vector"] {
+^7(%21 : !vector<[4 : !index], !f64, !int<0>>, %22 : !vector<[4 : !index], !f64, !int<0>>):
+  %23 : !vector<[4 : !index], !f64, !int<0>> = arith.maxf(%21 : !vector<[4 : !index], !f64, !int<0>>, %22 : !vector<[4 : !index], !f64, !int<0>>)
+  func.return(%23 : !vector<[4 : !index], !f64, !int<0>>)
 }
 
-// CHECK:   %{{.*}} : !vector<[4 : !index], !f64> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f64>, %{{.*}} : !vector<[4 : !index], !f64>)
+// CHECK:   %{{.*}} : !vector<[4 : !index], !f64, !int<0>> = arith.maxf(%{{.*}} : !vector<[4 : !index], !f64, !int<0>>, %{{.*}} : !vector<[4 : !index], !f64, !int<0>>)
 
 
 func.func() ["function_type" = !fun<[!f32, !f32], [!f32]>, "sym_name" = "minf"] {

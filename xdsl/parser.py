@@ -810,8 +810,8 @@ class BaseParser(ABC):
                 Token.Kind.MINUS) is not None
 
         # Parse the actual number
-        if (int_token := self._parse_optional_token(
-                Token.Kind.INTEGER_LIT)) is None:
+        if (int_token :=
+                self._parse_optional_token(Token.Kind.INTEGER_LIT)) is None:
             if is_negative:
                 self.raise_error("Expected integer literal after '-'")
             self._synchronize_lexer_and_tokenizer()
@@ -1127,21 +1127,27 @@ class BaseParser(ABC):
 
         return res
 
-    def _parse_shape_dimension(self) -> int:
+    def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
         """
         Parse a single shape dimension, which is a decimal literal or `?`.
         `?` is interpreted as -1. Note that if the integer literal is in
         hexadecimal form, it will be split into multiple tokens. For example,
         `0x10` will be split into `0` and `x10`.
+        Optionally allows to not parse `?` as -1.
         """
         if self._current_token.kind not in (Token.Kind.INTEGER_LIT,
                                             Token.Kind.QUESTION):
-            self.raise_error(
-                "Expected either integer literal or '?' in shape dimension, "
-                f"got {self._current_token.kind.name}!")
+            if allow_dynamic:
+                self.raise_error(
+                    "Expected either integer literal or '?' in shape dimension, "
+                    f"got {self._current_token.kind.name}!")
+            self.raise_error("Expected integer literal in shape dimension, "
+                             f"got {self._current_token.kind.name}!")
 
         if self.parse_optional_punctuation('?') is not None:
-            return -1
+            if allow_dynamic:
+                return -1
+            self.raise_error("Unexpected dynamic dimension!")
 
         # If the integer literal starts with `0x`, this is decomposed into
         # `0` and `x`.
@@ -1191,12 +1197,12 @@ class BaseParser(ABC):
     def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
         """
         Parse a ranked or unranked shape with the following format:
-        
+
         shape ::= ranked-shape | unranked-shape
         ranked-shape ::= (dimension `x`)* type
         unranked-shape ::= `*`x type
         dimension ::= `?` | decimal-literal
-          
+
         each dimension is also required to be non-negative.
         """
         self._synchronize_lexer_and_tokenizer()
@@ -1279,28 +1285,38 @@ class BaseParser(ABC):
                                   "Unexpected end of dimension parameters!")
 
     def parse_vector_attrs(self) -> AnyVectorType:
-        shape = list[int](self.try_parse_numerical_dims())
-        scaling_shape: list[int] | None = None
+        self._synchronize_lexer_and_tokenizer()
 
-        if self.tokenizer.next_token_of_pattern("[") is not None:
-            # We now need to parse the scalable dimensions
-            scaling_shape = list(self.try_parse_numerical_dims())
-            self.parse_characters(
-                "]", "Expected end of scalable vector dimensions here!")
-            self.parse_characters(
-                "x", "Expected end of scalable vector dimensions here!")
+        dims: list[int] = []
+        num_scalable_dims = 0
+        # First, parse the static dimensions
+        while self._current_token.kind == Token.Kind.INTEGER_LIT:
+            dims.append(self._parse_shape_dimension(allow_dynamic=False))
+            self._parse_shape_delimiter()
 
-        if scaling_shape is not None:
-            # TODO: handle scaling vectors!
-            self.raise_error("Warning: scaling vectors not supported!")
-            pass
+        # Then, parse the scalable dimensions, if any
+        if self.parse_optional_punctuation('[') is not None:
 
+            # Parse the scalable dimensions
+            dims.append(self._parse_shape_dimension(allow_dynamic=False))
+            num_scalable_dims += 1
+
+            while self.parse_optional_punctuation(']') is None:
+                self._parse_shape_delimiter()
+                dims.append(self._parse_shape_dimension(allow_dynamic=False))
+                num_scalable_dims += 1
+
+            # Parse the `x` between the scalable dimensions and the type
+            self._parse_shape_delimiter()
+
+        self._synchronize_lexer_and_tokenizer()
         type = self.try_parse_type()
         if type is None:
-            self.raise_error(
-                "Expected a type at the end of the vector parameters!")
+            self.raise_error("Expected the vector element types!")
 
-        return VectorType.from_element_type_and_shape(type, shape)
+        self._synchronize_lexer_and_tokenizer()
+        return VectorType.from_element_type_and_shape(type, dims,
+                                                      num_scalable_dims)
 
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self._parse_shape()
@@ -1899,7 +1915,7 @@ class BaseParser(ABC):
         def to_float(self, parser: BaseParser) -> float:
             """
             Convert the element to a float value. Raises an error if the type
-            is compatible.                    
+            is compatible.
             """
             if not isinstance(self.value, int | float):
                 parser.raise_error('Expected float value',
@@ -1913,8 +1929,8 @@ class BaseParser(ABC):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
             elif isinstance(type, IntegerType):
-                return self.to_int(parser,
-                                   type.signedness.data != Signedness.UNSIGNED,
+                return self.to_int(parser, type.signedness.data
+                                   != Signedness.UNSIGNED,
                                    type.width.data == 1)
             elif isinstance(type, IndexType):
                 return self.to_int(parser,
@@ -1960,7 +1976,7 @@ class BaseParser(ABC):
             self) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
         """
         Parse a tensor literal, and returns its flatten data and its shape.
-        
+
         For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
         the data, and [2, 3] for the shape.
         """
@@ -2351,6 +2367,12 @@ class MLIRParser(BaseParser):
         parse a builtin-type like i32, index, vector<i32> etc.
         """
         with self.backtracking("builtin type"):
+            # Check the function type separately, it is the only
+            # case of a type starting with a symbol
+            next_token = self.tokenizer.next_token(peek=True)
+            if next_token.text == '(':
+                return self.try_parse_function_type()
+
             name = self.tokenizer.next_token_of_pattern(
                 ParserCommons.builtin_type)
             if name is None:

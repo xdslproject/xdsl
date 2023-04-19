@@ -10,7 +10,7 @@ def test_for():
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
     bodyblock = Block(arg_types=[IndexType()])
-    body = Region([bodyblock])
+    body = Region(bodyblock)
     f = For.get(lb, ub, step, [carried], body)
 
     assert f.lb is lb.result

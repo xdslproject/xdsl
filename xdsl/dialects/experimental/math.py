@@ -5,11 +5,11 @@ from typing import Annotated, Union
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import IntegerType, AnyFloat
 from xdsl.ir import Operation, SSAValue, OpResult, Dialect
-from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand
+from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand, IRDLOperation
 
 
 @irdl_op_definition
-class AbsFOp(Operation):
+class AbsFOp(IRDLOperation):
     """
     The absf operation computes the absolute value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -35,7 +35,7 @@ class AbsFOp(Operation):
 
 
 @irdl_op_definition
-class AbsIOp(Operation):
+class AbsIOp(IRDLOperation):
     """
     The absi operation computes the absolute value. It takes one operand of
     integer type (i.e., scalar, tensor or vector) and returns one result of the
@@ -57,7 +57,7 @@ class AbsIOp(Operation):
 
 
 @irdl_op_definition
-class Atan2Op(Operation):
+class Atan2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.atan2` ssa-use `,` ssa-use `:` type
@@ -98,7 +98,7 @@ class Atan2Op(Operation):
 
 
 @irdl_op_definition
-class AtanOp(Operation):
+class AtanOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.atan` ssa-use `:` type
@@ -127,7 +127,7 @@ class AtanOp(Operation):
 
 
 @irdl_op_definition
-class CbrtOp(Operation):
+class CbrtOp(IRDLOperation):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -157,7 +157,7 @@ class CbrtOp(Operation):
 
 
 @irdl_op_definition
-class CeilOp(Operation):
+class CeilOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.ceil` ssa-use `:` type
@@ -186,7 +186,7 @@ class CeilOp(Operation):
 
 
 @irdl_op_definition
-class CopySignOp(Operation):
+class CopySignOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.copysign` ssa-use `,` ssa-use `:` type
@@ -221,7 +221,7 @@ class CopySignOp(Operation):
 
 
 @irdl_op_definition
-class CosOp(Operation):
+class CosOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.cos` ssa-use `:` type
@@ -252,7 +252,7 @@ class CosOp(Operation):
 
 
 @irdl_op_definition
-class CountLeadingZerosOp(Operation):
+class CountLeadingZerosOp(IRDLOperation):
     """
     The ctlz operation computes the number of leading zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -274,7 +274,7 @@ class CountLeadingZerosOp(Operation):
 
 
 @irdl_op_definition
-class CountTrailingZerosOp(Operation):
+class CountTrailingZerosOp(IRDLOperation):
     """
     The cttz operation computes the number of trailing zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -296,7 +296,7 @@ class CountTrailingZerosOp(Operation):
 
 
 @irdl_op_definition
-class CtPopOp(Operation):
+class CtPopOp(IRDLOperation):
     """
     The ctpop operation computes the number of set bits of an integer value.
     It operates on scalar, tensor or vector.
@@ -317,7 +317,7 @@ class CtPopOp(Operation):
 
 
 @irdl_op_definition
-class ErfOp(Operation):
+class ErfOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.erf` ssa-use `:` type
@@ -348,7 +348,7 @@ class ErfOp(Operation):
 
 
 @irdl_op_definition
-class Exp2Op(Operation):
+class Exp2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.exp2` ssa-use `:` type
@@ -379,7 +379,7 @@ class Exp2Op(Operation):
 
 
 @irdl_op_definition
-class ExpM1Op(Operation):
+class ExpM1Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.expm1` ssa-use `:` type
@@ -412,7 +412,7 @@ class ExpM1Op(Operation):
 
 
 @irdl_op_definition
-class ExpOp(Operation):
+class ExpOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.exp` ssa-use `:` type
@@ -443,7 +443,7 @@ class ExpOp(Operation):
 
 
 @irdl_op_definition
-class FPowIOp(Operation):
+class FPowIOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.fpowi` ssa-use `,` ssa-use `:` type
@@ -485,7 +485,7 @@ class FPowIOp(Operation):
 
 
 @irdl_op_definition
-class FloorOp(Operation):
+class FloorOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.floor` ssa-use `:` type
@@ -516,7 +516,7 @@ class FloorOp(Operation):
 
 
 @irdl_op_definition
-class FmaOp(Operation):
+class FmaOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.fma` ssa-use `,` ssa-use `,` ssa-use `:` type
@@ -558,7 +558,7 @@ class FmaOp(Operation):
 
 
 @irdl_op_definition
-class IPowIOp(Operation):
+class IPowIOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.ipowi` ssa-use `,` ssa-use `:` type
@@ -585,7 +585,7 @@ class IPowIOp(Operation):
 
 
 @irdl_op_definition
-class Log10Op(Operation):
+class Log10Op(IRDLOperation):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -613,7 +613,7 @@ class Log10Op(Operation):
 
 
 @irdl_op_definition
-class Log1pOp(Operation):
+class Log1pOp(IRDLOperation):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -643,7 +643,7 @@ class Log1pOp(Operation):
 
 
 @irdl_op_definition
-class Log2Op(Operation):
+class Log2Op(IRDLOperation):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -671,7 +671,7 @@ class Log2Op(Operation):
 
 
 @irdl_op_definition
-class LogOp(Operation):
+class LogOp(IRDLOperation):
     """
     Computes the base-e logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -699,7 +699,7 @@ class LogOp(Operation):
 
 
 @irdl_op_definition
-class PowFOp(Operation):
+class PowFOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.powf` ssa-use `,` ssa-use `:` type
@@ -733,7 +733,7 @@ class PowFOp(Operation):
 
 
 @irdl_op_definition
-class RoundEvenOp(Operation):
+class RoundEvenOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.roundeven` ssa-use `:` type
@@ -767,7 +767,7 @@ class RoundEvenOp(Operation):
 
 
 @irdl_op_definition
-class RoundOp(Operation):
+class RoundOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.round` ssa-use `:` type
@@ -801,7 +801,7 @@ class RoundOp(Operation):
 
 
 @irdl_op_definition
-class RsqrtOp(Operation):
+class RsqrtOp(IRDLOperation):
     """
     The rsqrt operation computes the reciprocal of the square root. It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -828,7 +828,7 @@ class RsqrtOp(Operation):
 
 
 @irdl_op_definition
-class SinOp(Operation):
+class SinOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.sin` ssa-use `:` type
@@ -859,7 +859,7 @@ class SinOp(Operation):
 
 
 @irdl_op_definition
-class SqrtOp(Operation):
+class SqrtOp(IRDLOperation):
     """
     The sqrt operation computes the square root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -886,7 +886,7 @@ class SqrtOp(Operation):
 
 
 @irdl_op_definition
-class TanOp(Operation):
+class TanOp(IRDLOperation):
     """
     The tan operation computes the tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -914,7 +914,7 @@ class TanOp(Operation):
 
 
 @irdl_op_definition
-class TanhOp(Operation):
+class TanhOp(IRDLOperation):
     """
     The tanh operation computes the hyperbolic tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -942,7 +942,7 @@ class TanhOp(Operation):
 
 
 @irdl_op_definition
-class TruncOp(Operation):
+class TruncOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.trunc` ssa-use `:` type

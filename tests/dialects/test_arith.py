@@ -132,7 +132,7 @@ def test_cmpf_missmatch_type():
     with pytest.raises(TypeError) as e:
         cmpf_op = Cmpf.get(a, b, 1)
     assert e.value.args[
-        0] == "Comparison operands must have same type, but provided !f32 and !f64"
+        0] == "Comparison operands must have same type, but provided f32 and f64"
 
 
 def test_cmpi_missmatch_type():
@@ -142,7 +142,7 @@ def test_cmpi_missmatch_type():
     with pytest.raises(TypeError) as e:
         cmpi_op = Cmpi.get(a, b, 1)
     assert e.value.args[
-        0] == "Comparison operands must have same type, but provided !i32 and !i64"
+        0] == "Comparison operands must have same type, but provided i32 and i64"
 
 
 def test_cmpf_incorrect_comparison():

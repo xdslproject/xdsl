@@ -405,8 +405,8 @@ def generate_mpi_calls_for(
         yield scf.If.get(
             cond_val,
             [],
-            Region.from_operation_list(list(then())),
-            Region.from_operation_list(list(else_())),
+            Region([Block(then())]),
+            Region([Block(else_())]),
         )
 
     # wait for all calls to complete
@@ -417,15 +417,17 @@ def generate_mpi_calls_for(
         yield scf.If.get(
             cond_val,
             [],
-            Region.from_operation_list(
-                list(
-                    generate_memcpy(
-                        source,
-                        ex.source_area(),
-                        buffer.memref,
-                        reverse=True,
-                    )) + [scf.Yield.get()]),
-            Region.from_operation_list([scf.Yield.get()]),
+            Region([
+                Block(
+                    list(
+                        generate_memcpy(
+                            source,
+                            ex.source_area(),
+                            buffer.memref,
+                            reverse=True,
+                        )) + [scf.Yield.get()])
+            ]),
+            Region([Block([scf.Yield.get()])]),
         )
 
 
@@ -491,7 +493,7 @@ def generate_memcpy(source: SSAValue,
                 load = memref.Load.get(source, [x, y])
                 store = memref.Store.get(load, dest, [linearized_idx])
             yield from (linearized_idx, load, store)
-        yield scf.Yield()
+        yield scf.Yield.get()
 
     def loop_body_with_for(i: SSAValue):
         """
@@ -512,7 +514,7 @@ def generate_memcpy(source: SSAValue,
                 store = memref.Store.get(load, dest, [linearized_idx])
             yield from (x, linearized_idx, load, store)
             # add an scf.yield at the end
-            yield scf.Yield()
+            yield scf.Yield.get()
 
         yield scf.For.get(
             cst0,
@@ -522,7 +524,7 @@ def generate_memcpy(source: SSAValue,
             [Block.from_callable([builtin.IndexType()], inner)]  # type: ignore
         )
 
-        yield scf.Yield()
+        yield scf.Yield.get()
 
     loop_body: Callable[[SSAValue], Iterable[
         Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
@@ -598,11 +600,11 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
                 return
             self.has_init.add(parent)
             # add a finalize() call to the end of the function
-            parent.regions[0].blocks[-1].insert_op(
-                mpi.Finalize(),
-                len(parent.regions[0].blocks[-1].ops) -
-                1,  # insert before return
-            )
+            block = parent.regions[0].blocks[-1]
+            last_op = block.last_op
+            assert last_op is not None
+            # insert before return
+            block.insert_ops_before((mpi.Finalize(), ), last_op)
 
         ops = list(collect_args_recursive(op))
         for found_ops in ops:
