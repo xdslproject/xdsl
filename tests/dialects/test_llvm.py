@@ -155,8 +155,9 @@ def test_global_op():
 
 
 def test_addressof_op():
-    address_of = llvm.AddressOfOp.get("test", builtin.i32)
+    ptr_type = llvm.LLVMPointerType.typed(builtin.i32)
+    address_of = llvm.AddressOfOp.get("test", ptr_type)
 
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
     assert address_of.global_name.root_reference.data == "test"
-    assert address_of.result.typ == builtin.i32
+    assert address_of.result.typ == ptr_type
