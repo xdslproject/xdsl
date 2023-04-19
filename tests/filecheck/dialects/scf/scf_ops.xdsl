@@ -1,47 +1,45 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 builtin.module() {
-  func.func() ["sym_name" = "if", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    %0 : !i1 = arith.constant() ["value" = true]
-    scf.if(%0 : !i1) 
-    {
-        %1 : !i32 = arith.constant() ["value" = 42 : !i32]
-        scf.yield()
-    } 
-    {
-        %2 : !i32 = arith.constant() ["value" = 24 : !i32]
-        scf.yield()
-    }
-    %5 : !i32 = scf.if(%0 : !i1) 
-    {
-        %3 : !i32 = arith.constant() ["value" = 42 : !i32]
-        scf.yield(%3 : !i32)
-    } 
-    {
-        %4 : !i32 = arith.constant() ["value" = 24 : !i32]
-        scf.yield(%4 : !i32)
-    }
-    func.return()
+
+  %0 : !i1 = test.op()
+  scf.if(%0 : !i1)
+  {
+      %1 : !i32 = test.op()
+      scf.yield()
+  }
+  {
+      %2 : !i32 = test.op()
+      scf.yield()
   }
 
-  // CHECK: func.func() ["sym_name" = "if"
-  // CHECK-NEXT:  %{{.*}} : !i1 = arith.constant() ["value" = true]
+  //      CHECK:  %{{.*}} : !i1 = test.op()
   // CHECK-NEXT:  scf.if(%{{.*}} : !i1) {
-  // CHECK-NEXT:    %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
+  // CHECK-NEXT:    %{{.*}} : !i32 = test.op()
   // CHECK-NEXT:    scf.yield()
   // CHECK-NEXT:  } {
-  // CHECK-NEXT:    %{{.*}} : !i32 = arith.constant() ["value" = 24 : !i32]
+  // CHECK-NEXT:    %{{.*}} : !i32 = test.op()
   // CHECK-NEXT:    scf.yield()
   // CHECK-NEXT:  }
-  // CHECK-NEXT:  %{{.*}} : !i32 = scf.if(%{{.*}} : !i1) {
-  // CHECK-NEXT:    %{{.*}} : !i32 = arith.constant() ["value" = 42 : !i32]
+
+
+  %5 : !i32 = scf.if(%0 : !i1)
+  {
+      %3 : !i32 = test.op()
+      scf.yield(%3 : !i32)
+  }
+  {
+      %4 : !i32 = test.op()
+      scf.yield(%4 : !i32)
+  }
+
+  //      CHECK:  %{{.*}} : !i32 = scf.if(%{{.*}} : !i1) {
+  // CHECK-NEXT:    %{{.*}} : !i32 = test.op()
   // CHECK-NEXT:    scf.yield(%{{.*}} : !i32)
   // CHECK-NEXT:  } {
-  // CHECK-NEXT:    %{{.*}} : !i32 = arith.constant() ["value" = 24 : !i32]
+  // CHECK-NEXT:    %{{.*}} : !i32 = test.op()
   // CHECK-NEXT:    scf.yield(%{{.*}} : !i32)
   // CHECK-NEXT:  }
-  // CHECK-NEXT:  func.return()
-  // CHECK-NEXT:}
 
   func.func() ["sym_name" = "while", "function_type" = !fun<[], []>, "sym_visibility" = "private"]
   {
@@ -59,7 +57,7 @@ builtin.module() {
     }
     func.return()
   }
- 
+
   // CHECK: func.func() ["sym_name" = "while"
   // CHECK-NEXT:  %{{.*}} : !i32 = arith.constant() ["value" = 0 : !i32]
   // CHECK-NEXT:  %{{.*}} : !i32 = scf.while(%{{.*}} : !i32) {
