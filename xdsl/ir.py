@@ -986,13 +986,18 @@ class Block(IRNode):
         operation.parent = self
 
     @property
+    def is_empty(self) -> bool:
+        """Returns `True` if there are no operations in this block."""
+        return not len(self.ops)
+
+    @property
     def first_op(self) -> Operation | None:
-        """The first operation in `self`"""
+        """The first operation in this block."""
         return self.ops[0] if len(self.ops) else None
 
     @property
     def last_op(self) -> Operation | None:
-        """The last operation in `self`"""
+        """The last operation in this block."""
         return self.ops[-1] if len(self.ops) else None
 
     def add_op(self, operation: Operation) -> None:
