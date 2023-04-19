@@ -972,8 +972,8 @@ def irdl_op_verify_arg_list(op: Operation, op_def: OpDef,
             if construct == VarIRConstruct.OPERAND or construct == VarIRConstruct.RESULT:
                 arg_def.constr.verify(arg.typ)
             elif construct == VarIRConstruct.REGION:
-                if isinstance(arg_def,
-                              SingleBlockRegionDef) and len(arg.blocks) != 1:
+                if isinstance(arg_def, SingleBlockRegionDef) and len(
+                        arg.blocks) != 1:
                     raise VerifyException("expected a single block, but got "
                                           f"{len(arg.blocks)} blocks")
             else:

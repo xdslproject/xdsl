@@ -129,7 +129,7 @@ def lower_positional_bound(writes: list[symref.Update],
     """
     Returns a nearest write preceeding the `read`. If there is no such write,
     `None` is returned.
-    
+
     Pre-condition: list `writes` is sorted based on operation indices.
     """
     block = read.parent_block()
@@ -242,8 +242,8 @@ class Desymrefier:
         # Find all symbol definitions in this block. If no definitions
         # found, terminate.
         while len(definitions :=
-                  [op
-                   for op in block.ops if isinstance(op, symref.Declare)]) > 0:
+                  [op for op in block.ops
+                   if isinstance(op, symref.Declare)]) > 0:
 
             # Otherwise, some definitions are still alive.
             for definition in definitions:

@@ -1,7 +1,9 @@
+from typing import cast
+
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import Region, IndexType
+from xdsl.dialects.builtin import Region, IndexType, ModuleOp
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp
+from xdsl.dialects.scf import For, ParallelOp, If, Yield
 
 
 def test_for():
@@ -52,3 +54,15 @@ def test_parallel():
     assert p.upperBound == tuple(l.result for l in upperBounds)
     assert p.step == tuple(l.result for l in steps)
     assert p.body is body
+
+
+def test_empty_else():
+    # create if without an else block:
+    m = ModuleOp.from_region_or_ops([
+        t := Constant.from_int_and_width(1, 1),
+        If.get(t, [], [
+            Yield.get(),
+        ]),
+    ])
+
+    assert len(cast(If, m.ops[1]).false_region.blocks) == 0
