@@ -31,13 +31,14 @@ from xdsl.irdl import (
     OpAttr,
     Operand,
     ParameterDef,
-    AnyAttr,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     VarOperand,
     OptOpAttr,
     IRDLOperation,
 )
+from xdsl.traits import Pure
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -633,31 +634,74 @@ class NullOp(IRDLOperation):
 
 
 @irdl_op_definition
-class LLVMExtractValue(IRDLOperation):
+class ExtractValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    """
+
     name = "llvm.extractvalue"
 
     position: OpAttr[DenseArrayBase]
-    container: Annotated[Operand, AnyAttr()]
+    container: Annotated[Operand, Attribute]
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: Annotated[OpResult, Attribute]
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[container],
+            attributes={
+                "position": position,
+            },
+            result_types=[result_type],
+        )
 
 
 @irdl_op_definition
-class LLVMInsertValue(IRDLOperation):
+class InsertValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    """
+
     name = "llvm.insertvalue"
 
     position: OpAttr[DenseArrayBase]
-    container: Annotated[Operand, AnyAttr()]
-    value: Annotated[Operand, AnyAttr()]
+    container: Annotated[Operand, Attribute]
+    value: Annotated[Operand, Attribute]
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: Annotated[OpResult, Attribute]
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[container, value],
+            attributes={
+                "position": position,
+            },
+            result_types=[container.typ],
+        )
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(IRDLOperation):
+class UndefOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    """
+
     name = "llvm.mlir.undef"
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: Annotated[OpResult, Attribute]
+
+    def __init__(self, result_type: Attribute):
+        super().__init__(result_types=[result_type])
 
 
 @irdl_op_definition
@@ -753,11 +797,146 @@ class AddressOfOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class FuncOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmfunc-mlirllvmllvmfuncop
+    """
+
+    name = "llvm.func"
+
+    body: Region
+    sym_name: OpAttr[StringAttr]
+    function_type: OpAttr[LLVMFunctionType]
+
+    def __init__(self, name: str, ftype: LLVMFunctionType, region: Region):
+        return super().__init__(
+            attributes={
+                "sym_name": StringAttr(name),
+                "function_type": ftype,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    """
+
+    name = "llvm.return"
+
+    value: OptOpAttr[Attribute]
+
+    def __init__(self, value: Attribute | None = None):
+        super().__init__(attributes={"value": value})
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "llvm.mlir.constant"
+    result: Annotated[OpResult, Attribute]
+    value: OpAttr[Attribute]
+
+    def __init__(self, value: Attribute, typ: Attribute):
+        super().__init__(attributes={"value": value}, result_types=[typ])
+
+
+@irdl_op_definition
+class CallIntrinsicOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    """
+
+    name = "llvm.call_intrinsic"
+
+    intrin: OpAttr[StringAttr]
+    args: VarOperand
+    ress: VarOpResult
+
+    def __init__(
+        self,
+        intrin: StringAttr | str,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ):
+        if isinstance(intrin, str):
+            intrin = StringAttr(intrin)
+        super().__init__(
+            operands=args,
+            result_types=(result_types,),
+            attributes={
+                "intrin": intrin,
+            },
+        )
+
+
+@irdl_op_definition
+class FAddOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmfadd-mlirllvmfaddop
+    """
+
+    name = "llvm.fadd"
+
+    lhs: Annotated[Operand, Attribute]
+    rhs: Annotated[Operand, Attribute]
+    res: Annotated[OpResult, Attribute]
+
+    traits = frozenset((Pure(),))
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+    ):
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.typ])
+
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ:
+            raise VerifyException("lhs.typ must equal rhs.typ")
+        if self.lhs.typ != self.res.typ:
+            raise VerifyException("lhs.typ must equal res.typ")
+        if self.rhs.typ != self.res.typ:
+            raise VerifyException("rhs.typ must equal res.typ")
+
+
+@irdl_op_definition
+class FMulOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmfmul-mlirllvmfmulop
+    """
+
+    name = "llvm.fmul"
+
+    lhs: Annotated[Operand, Attribute]
+    rhs: Annotated[Operand, Attribute]
+    res: Annotated[OpResult, Attribute]
+
+    traits = frozenset((Pure(),))
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+    ):
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.typ])
+
+    def verify_(self) -> None:
+        if self.lhs.typ != self.rhs.typ:
+            raise VerifyException("lhs.typ must equal rhs.typ")
+        if self.lhs.typ != self.res.typ:
+            raise VerifyException("lhs.typ must equal res.typ")
+        if self.rhs.typ != self.res.typ:
+            raise VerifyException("rhs.typ must equal res.typ")
+
+
 LLVM = Dialect(
     [
-        LLVMExtractValue,
-        LLVMInsertValue,
-        LLVMMLIRUndef,
+        ExtractValueOp,
+        InsertValueOp,
+        UndefOp,
         AllocaOp,
         GEPOp,
         IntToPtrOp,
@@ -766,6 +945,12 @@ LLVM = Dialect(
         StoreOp,
         GlobalOp,
         AddressOfOp,
+        FuncOp,
+        ReturnOp,
+        ConstantOp,
+        CallIntrinsicOp,
+        FAddOp,
+        FMulOp,
     ],
     [
         LLVMStructType,
