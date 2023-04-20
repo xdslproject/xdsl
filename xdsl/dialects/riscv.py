@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from xdsl.ir import (
     Dialect,
     Operation,
     SSAValue,
+    Attribute,
     Data,
     OpResult,
     TypeAttribute,
@@ -15,8 +16,10 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     IRDLOperation,
+    VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
+    VarOperand,
     Operand,
     OpAttr,
     OptOpAttr,
@@ -1111,9 +1114,6 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    def __init__(self):
-        super().__init__()
-
 
 # Conditional Branches
 
@@ -1585,6 +1585,82 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            }
+        )
+
+
+@irdl_op_definition
+class DirectiveOp(IRDLOperation, RISCVOp):
+    name = "riscv.directive"
+    directive: OpAttr[StringAttr]
+    value: OptOpAttr[StringAttr]
+
+    def __init__(self, directive: str | StringAttr, value: str | StringAttr | None):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if isinstance(value, str):
+            value = StringAttr(value)
+
+        super().__init__(
+            attributes={
+                "directive": directive,
+                "value": value,
+            }
+        )
+
+
+@irdl_op_definition
+class CustomEmulatorInstructionOp(IRDLOperation, RISCVOp):
+    name = "riscv.custom_emulator_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
+        )
+
+
+@irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
     name = "riscv.comment"
     comment: OpAttr[StringAttr]
@@ -1748,6 +1824,9 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        LabelOp,
+        DirectiveOp,
+        CustomEmulatorInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,
