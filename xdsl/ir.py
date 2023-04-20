@@ -549,10 +549,10 @@ class Operation(IRNode):
     """The block containing this operation."""
 
     _next_op: Operation | None = field(default=None, repr=False)
-    """Next operation in block containing `self`."""
+    """Next operation in block containing this operation."""
 
     _prev_op: Operation | None = field(default=None, repr=False)
-    """Previous operation in block containing `self`."""
+    """Previous operation in block containing this operation."""
 
     traits: ClassVar[frozenset[OpTrait]] = field(init=False)
     """
@@ -577,7 +577,7 @@ class Operation(IRNode):
     @property
     def next_op(self) -> Operation | None:
         """
-        Next operation in block containing `self`.
+        Next operation in block containing this operation.
         """
         return self._next_op
 
@@ -603,7 +603,7 @@ class Operation(IRNode):
     @property
     def prev_op(self) -> Operation | None:
         """
-        Previous operation in block containing `self`.
+        Previous operation in block containing this operation.
         """
         return self._prev_op
 
@@ -997,6 +997,7 @@ class Block(IRNode):
 
     @property
     def ops(self) -> _BlockOps:
+        """Returns a multi-pass Iterable of this block's operations."""
         return _BlockOps(self._first_op)
 
     def parent_op(self) -> Operation | None:
