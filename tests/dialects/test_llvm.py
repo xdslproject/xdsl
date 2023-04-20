@@ -1,6 +1,7 @@
 import pytest
 
 from xdsl.dialects import llvm, builtin, arith
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_llvm_pointer_ops():
@@ -125,6 +126,11 @@ def test_linkage_attr():
 
     assert isinstance(linkage.linkage, builtin.StringAttr)
     assert linkage.linkage.data == "internal"
+
+
+def test_linkage_attr_unknown_str():
+    with pytest.raises(VerifyException):
+        llvm.LinkageAttr.from_linkage("unknown")
 
 
 def test_global_op():

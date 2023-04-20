@@ -10,6 +10,7 @@ from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
 from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, Block,
                        irdl_attr_definition, irdl_op_definition, VarOperand,
                        OptOpAttr, IRDLOperation)
+from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -177,6 +178,16 @@ class LinkageAttr(ParametrizedAttribute):
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
         return LinkageAttr([linkage])
+
+    def verify(self):
+        allowed_linkage = [
+            "private", "internal", "available_externally", "linkonce", "weak",
+            "common", "appending", "extern_weak", "linkonce_odr", "weak_odr",
+            "external"
+        ]
+        if self.linkage.data not in allowed_linkage:
+            raise VerifyException(
+                f"Specified linkage '{self.linkage.data}' is unknown")
 
 
 @irdl_op_definition
@@ -437,7 +448,7 @@ class GlobalOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
 
         if isinstance(linkage, str):
-            linkage = LinkageAttr([StringAttr(linkage)])
+            linkage = LinkageAttr.from_linkage(linkage)
 
         attrs: dict[str, Attribute] = {
             'global_type': global_type,
