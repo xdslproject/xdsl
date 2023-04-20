@@ -1417,11 +1417,11 @@ class Region(IRNode):
         Returns an exception if the region is not single-operation single-block.
         """
         if len(self.blocks) == 1:
-            first_op = self.blocks[0].first_op
-            last_op = self.blocks[0].last_op
+            block = self.block
+            first_op = block.first_op
+            last_op = block.last_op
             if first_op is last_op and first_op is not None:
                 return first_op
-
         raise ValueError("'op' property of Region class is only available "
                          "for single-operation single-block regions.")
 
