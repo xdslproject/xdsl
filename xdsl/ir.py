@@ -956,6 +956,12 @@ class _BlockOps:
     def __iter__(self):
         return _BlockOpsIterator(self.first_op)
 
+    def __len__(self):
+        result = 0
+        for _ in self:
+            result += 1
+        return result
+
 
 @dataclass(init=False)
 class Block(IRNode):
@@ -1003,7 +1009,7 @@ class Block(IRNode):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"Block(_args={repr(self._args)}, num_ops={self.num_ops()})"
+        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
@@ -1098,13 +1104,6 @@ class Block(IRNode):
         """The last operation in this block."""
         return self._last_op
 
-    def num_ops(self) -> int:
-        """Returns the number of operations in `self`."""
-        result = 0
-        for _ in self.ops:
-            result += 1
-        return result
-
     def _op_at_index(self,
                      index: int,
                      message_lambda: Callable[[], str] | None = None
@@ -1135,7 +1134,7 @@ class Block(IRNode):
             else:
                 return op
         if message_lambda is None:
-            message = f"Invalid operation index {index} for block with {self.num_ops} ops"
+            message = f"Invalid operation index {index} for block with {len(self.ops)} ops"
         else:
             message = message_lambda()
         raise ValueError(message)
@@ -1217,7 +1216,7 @@ class Block(IRNode):
         existing_op = self._op_at_index(
             index,
             lambda: f"Can't insert operation in index {index} in a block with "
-            f"{self.num_ops()} operations.")
+            f"{len(self.ops)} operations.")
 
         if existing_op is None:
             if index < 0 and self.first_op is not None:
@@ -1319,7 +1318,7 @@ class Block(IRNode):
         if not isinstance(other, Block):
             return False
         if len(self.args) != len(other.args) or \
-           self.num_ops() != other.num_ops():
+           len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
