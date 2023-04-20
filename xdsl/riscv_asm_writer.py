@@ -9,8 +9,9 @@ from xdsl.dialects import riscv
 
 
 def print_riscv_module(module: ModuleOp, output: IO[str]):
-    for op in module.ops:
-        print_assembly_instruction(op, output)
+    for op in module.walk():
+        if isa(op, RISCVOp):
+            print_assembly_instruction(op, output)
 
 
 def append_comment(line: str, comment: StringAttr | None) -> str:
@@ -37,12 +38,23 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case riscv.GetRegisterOp():
             # Don't print assembly for creating a SSA value representing register
             return
+        case riscv.LabelOp():
+            desc = f"{op.label.data}:"
+            print(desc, file=output)
+            return
         case riscv.CommentOp():
             desc = f"    # {op.comment.data}"
             print(desc, file=output)
             return
         case riscv.NullaryOperation():
             components = []
+            comment = op.comment
+        case riscv.CustomEmulatorInstructionOp():
+            instruction_name = op.instruction_name.data
+            components = [*op.results, *op.operands]
+            comment = op.comment
+        case riscv.RdRsOperation():
+            components = [op.rd, op.rs]
             comment = op.comment
         case riscv.RdRsRsOperation():
             components = [op.rd, op.rs1, op.rs2]
@@ -84,6 +96,13 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case riscv.RdRsImmJumpOperation():
             components = [op.rd, op.rs1, op.immediate]
             comment = op.comment
+        case riscv.DirectiveOp():
+            if op.value is not None and op.value.data:
+                desc = f"{op.directive.data} {op.value.data}"
+            else:
+                desc = f"{op.directive.data}"
+            print(desc, file=output)
+            return
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
