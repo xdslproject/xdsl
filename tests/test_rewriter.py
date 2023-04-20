@@ -130,38 +130,6 @@ def test_replace_op_new_results():
     rewrite_and_compare(prog, expected, transformation)
 
 
-def test_inline_block_at_pos():
-    """Test the inlining of a block at a certain position."""
-    prog = """\
-"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
-}) : () -> ()
-"""
-
-    expected = """\
-"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
-  }) : (i1) -> ()
-}) : () -> ()
-"""
-
-    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        ops_iter = iter(module.ops)
-        next(ops_iter)
-        if_op = next(ops_iter)
-        module_block = module.regions[0].blocks[0]
-        if_block = if_op.regions[0].blocks[0]
-
-        rewriter.inline_block_at_pos(if_block, module_block, 1)
-
-    rewrite_and_compare(prog, expected, transformation)
-
-
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
     prog = """\

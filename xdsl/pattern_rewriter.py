@@ -225,21 +225,6 @@ class PatternRewriter:
         self.has_done_action = True
         arg.block.erase_arg(arg, safe_erase=safe_erase)
 
-    def inline_block_at_pos(self, block: Block, target_block: Block, pos: int):
-        """
-        Move the block operations to a given position in another block.
-        This block should not be a parent of the block to move to, and both blocks
-        should be child of the matched operation.
-        """
-        self.has_done_action = True
-        if not self._can_modify_block(target_block) or not self._can_modify_block(
-            block
-        ):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation."
-            )
-        Rewriter.inline_block_at_pos(block, target_block, pos)
-
     def inline_block_before_matched_op(self, block: Block):
         """
         Move the block operations before the matched operation.
