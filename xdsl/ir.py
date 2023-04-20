@@ -1268,13 +1268,11 @@ class Block(IRNode):
                 return idx
         assert False, "Unexpected xdsl error"
 
-    def detach_op(self, op: int | Operation) -> Operation:
+    def detach_op(self, op: Operation) -> Operation:
         """
         Detach an operation from the block.
         Returns the detached operation.
         """
-        if isinstance(op, int):
-            op = self.op_at_index(op)
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
@@ -1304,7 +1302,7 @@ class Block(IRNode):
 
         return op
 
-    def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
+    def erase_op(self, op: Operation, safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
