@@ -7,9 +7,22 @@ from typing import List, Annotated
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
-from xdsl.ir import Attribute, MLContext, OpResult, Operation, ParametrizedAttribute, Block
-from xdsl.irdl import (OptOpAttr, ParameterDef, irdl_attr_definition,
-                       irdl_op_definition, IRDLOperation, Operand)
+from xdsl.ir import (
+    Attribute,
+    MLContext,
+    OpResult,
+    Operation,
+    ParametrizedAttribute,
+    Block,
+)
+from xdsl.irdl import (
+    OptOpAttr,
+    ParameterDef,
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+)
 from xdsl.parser import Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
@@ -27,8 +40,7 @@ def test_simple_forgotten_op():
 
     add.verify()
 
-    expected = \
-"""
+    expected = """
 %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
 -----------------------^^^^^^^^^^----------------------------------------------------------------
 | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
@@ -52,8 +64,7 @@ def test_forgotten_op_non_fail():
     mod = ModuleOp([add, add2])
     mod.verify()
 
-    expected = \
-"""
+    expected = """
 builtin.module() {
   %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
   -----------------------^^^^^^^^^^----------------------------------------------------------------
@@ -79,8 +90,7 @@ class UnitAttrOp(IRDLOperation):
 def test_unit_attr():
     """Test that a UnitAttr can be defined and printed"""
 
-    expected = \
-"""
+    expected = """
 unit_attr_op() ["parallelize"]
 """
 
@@ -92,14 +102,12 @@ unit_attr_op() ["parallelize"]
 def test_added_unit_attr():
     """Test that a UnitAttr can be added to an op, even if its not defined as a field."""
 
-    expected = \
-"""
+    expected = """
 unit_attr_op() ["parallelize", "vectorize"]
 """
-    unitop = UnitAttrOp.build(attributes={
-        "parallelize": UnitAttr([]),
-        "vectorize": UnitAttr([])
-    })
+    unitop = UnitAttrOp.build(
+        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
+    )
 
     assert_print_op(unitop, expected, None)
 
@@ -115,14 +123,12 @@ unit_attr_op() ["parallelize", "vectorize"]
 
 def test_op_message():
     """Test that an operation message can be printed."""
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""
+    expected = """
 builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -147,14 +153,12 @@ builtin.module() {
 
 def test_two_different_op_messages():
     """Test that an operation message can be printed."""
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""builtin.module() {
+    expected = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -181,14 +185,12 @@ def test_two_different_op_messages():
 
 def test_two_same_op_messages():
     """Test that an operation message can be printed."""
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""builtin.module() {
+    expected = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   ^^^^^^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
@@ -215,14 +217,12 @@ def test_two_same_op_messages():
 
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
 ^^^^^^^^^^^^^^
 | Test
@@ -249,14 +249,12 @@ def test_op_message_with_region_and_overflow():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
 ^^^^^^^^^^^^^^-----
 | Test long message
@@ -282,8 +280,7 @@ def test_diagnostic():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
     }"""
@@ -315,14 +312,12 @@ def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %i : !i32 = arith.constant() ["value" = 42 : !i32]
     %213 : !i32 = arith.addi(%i : !i32, %i : !i32)
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
   %i : !i32 = arith.constant() ["value" = 42 : !i32]
   %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
@@ -365,15 +360,14 @@ class PlusCustomFormatOp(IRDLOperation):
     res: Annotated[OpResult, IntegerType]
 
     @classmethod
-    def parse(cls, result_types: List[Attribute],
-              parser: BaseParser) -> PlusCustomFormatOp:
-        lhs = parser.parse_operand('Expected SSA Value name here!')
-        parser.parse_characters("+",
-                                "Malformed operation format, expected `+`!")
-        rhs = parser.parse_operand('Expected SSA Value name here!')
+    def parse(
+        cls, result_types: List[Attribute], parser: BaseParser
+    ) -> PlusCustomFormatOp:
+        lhs = parser.parse_operand("Expected SSA Value name here!")
+        parser.parse_characters("+", "Malformed operation format, expected `+`!")
+        rhs = parser.parse_operand("Expected SSA Value name here!")
 
-        return PlusCustomFormatOp.create(operands=[lhs, rhs],
-                                         result_types=result_types)
+        return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=result_types)
 
     def print(self, printer: Printer):
         printer.print(" ", self.lhs, " + ", self.rhs)
@@ -383,14 +377,12 @@ def test_generic_format():
     """
     Test that we can use generic formats in operations.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = "test.add"(%0: !i32, %0: !i32)
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
@@ -411,14 +403,12 @@ def test_custom_format():
     """
     Test that we can use custom formats in operations.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 42 : !i32]
   %1 : !i32 = test.add %0 + %0
@@ -439,14 +429,12 @@ def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
     %0 : !i32 = arith.constant() ["value" = 42 : !i32]
     %1 : !i32 = test.add %0 + %0
     }"""
 
-    expected = \
-"""\
+    expected = """\
 "builtin.module"() {
   %0 : !i32 = "arith.constant"() ["value" = 42 : !i32]
   %1 : !i32 = "test.add"(%0 : !i32, %0 : !i32)
@@ -472,8 +460,7 @@ class CustomFormatAttr(ParametrizedAttribute):
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
         parser.parse_char("<")
-        value = parser.tokenizer.next_token_of_pattern(
-            re.compile('(zero|one)'))
+        value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
         if value and value.text == "zero":
             parser.parse_char(">")
             return [IntAttr(0)]
@@ -495,13 +482,11 @@ def test_custom_format_attr():
     """
     Test that we can parse and print attributes using custom formats.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
       any() ["attr" = !custom<zero>]
     }"""
 
-    expected = \
-"""\
+    expected = """\
 builtin.module() {
   any() ["attr" = !custom<zero>]
 }"""
@@ -521,13 +506,11 @@ def test_parse_generic_format_attr_II():
     """
     Test that we can parse attributes using generic formats.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
       any() ["attr" = !custom<zero>]
     }"""
 
-    expected = \
-"""\
+    expected = """\
 "builtin.module"() {
   "any"() ["attr" = !"custom"<!int<0>>]
 }"""
@@ -547,13 +530,11 @@ def test_parse_generic_format_attr_III():
     """
     Test that we can parse attributes using generic formats.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
       any() ["attr" = !custom<one>]
     }"""
 
-    expected = \
-"""\
+    expected = """\
 "builtin.module"() {
   "any"() ["attr" = !"custom"<!int<1>>]
 }"""
@@ -573,8 +554,7 @@ def test_foo_string():
     """
     Fail attribute in purpose.
     """
-    prog = \
-        """builtin.module() {
+    prog = """builtin.module() {
       any() ["attr" = !"string"<"foo">]
     }"""
 

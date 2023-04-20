@@ -15,12 +15,14 @@ class Diagnostic:
         self.op_messages.setdefault(op, []).append(message)
 
     def raise_exception(
-            self,
-            message: str,
-            ir: IRNode,
-            exception_type: type[Exception] = DiagnosticException) -> None:
+        self,
+        message: str,
+        ir: IRNode,
+        exception_type: type[Exception] = DiagnosticException,
+    ) -> None:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
+
         f = StringIO()
         p = Printer(stream=f, diagnostic=self, target=Printer.Target.XDSL)
         toplevel = ir.get_toplevel_object()

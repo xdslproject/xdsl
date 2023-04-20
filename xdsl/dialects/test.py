@@ -1,8 +1,14 @@
 from __future__ import annotations
 from xdsl.ir import Data, Dialect, TypeAttribute
 
-from xdsl.irdl import (VarOpResult, VarOperand, VarRegion,
-                       irdl_attr_definition, irdl_op_definition, IRDLOperation)
+from xdsl.irdl import (
+    VarOpResult,
+    VarOperand,
+    VarRegion,
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
@@ -15,6 +21,7 @@ class TestOp(IRDLOperation):
     on other dialects (i.e. dependencies that only come from the structure of
     the test rather than the actual dialect).
     """
+
     name: str = "test.op"
 
     res: VarOpResult
@@ -29,6 +36,7 @@ class TestType(Data[str], TypeAttribute):
     used. This allows reducing the artificial dependencies on attributes from
     other dialects.
     """
+
     name: str = "test.type"
 
     @staticmethod

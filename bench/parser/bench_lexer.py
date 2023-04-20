@@ -29,8 +29,9 @@ def run_on_files(file_names: Iterable[str]):
         try:
             contents = open(file_name, "r").read()
             input = Input(contents, file_name)
-            file_time = timeit.timeit(lambda: lex_file(input),
-                                      number=args.num_iterations)
+            file_time = timeit.timeit(
+                lambda: lex_file(input), number=args.num_iterations
+            )
             total_time += file_time / args.num_iterations
             print("Time taken: " + str(file_time))
         except Exception as e:
@@ -45,20 +46,22 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "root_directory",
         type=str,
-        help="Path to the root directory containing MLIR files.")
-    arg_parser.add_argument("--num_iterations",
-                            type=int,
-                            required=False,
-                            default=1,
-                            help="Number of times to lex each file.")
-    arg_parser.add_argument("--profile",
-                            action="store_true",
-                            help="Enable profiling metrics.")
+        help="Path to the root directory containing MLIR files.",
+    )
+    arg_parser.add_argument(
+        "--num_iterations",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of times to lex each file.",
+    )
+    arg_parser.add_argument(
+        "--profile", action="store_true", help="Enable profiling metrics."
+    )
 
     args = arg_parser.parse_args()
 
-    file_names = list(
-        glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
+    file_names = list(glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
     print("Found " + str(len(file_names)) + " files to lex.")
 
     if args.profile:

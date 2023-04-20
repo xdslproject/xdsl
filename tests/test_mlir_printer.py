@@ -1,10 +1,23 @@
 import re
 from io import StringIO
 from typing import Annotated
-from xdsl.ir import (Attribute, Data, MLContext, TypeAttribute,
-                     ParametrizedAttribute, Region)
-from xdsl.irdl import (AnyAttr, ParameterDef, VarOpResult, VarOperand,
-                       irdl_attr_definition, irdl_op_definition, IRDLOperation)
+from xdsl.ir import (
+    Attribute,
+    Data,
+    MLContext,
+    TypeAttribute,
+    ParametrizedAttribute,
+    Region,
+)
+from xdsl.irdl import (
+    AnyAttr,
+    ParameterDef,
+    VarOpResult,
+    VarOperand,
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+)
 from xdsl.parser import BaseParser, XDSLParser
 from xdsl.printer import Printer
 
@@ -12,6 +25,7 @@ from xdsl.printer import Printer
 @irdl_op_definition
 class ModuleOp(IRDLOperation):
     """Module operation. Redefined to not depend on the builtin dialect."""
+
     name = "module"
     region: Region
 
@@ -19,6 +33,7 @@ class ModuleOp(IRDLOperation):
 @irdl_op_definition
 class AnyOp(IRDLOperation):
     """Operation only used for testing."""
+
     name = "any"
     op: Annotated[VarOperand, AnyAttr()]
     res: Annotated[VarOpResult, AnyAttr()]
@@ -27,6 +42,7 @@ class AnyOp(IRDLOperation):
 @irdl_attr_definition
 class DataAttr(Data[int]):
     """Attribute only used for testing."""
+
     name = "data_attr"
 
     @staticmethod
@@ -40,6 +56,7 @@ class DataAttr(Data[int]):
 @irdl_attr_definition
 class DataType(Data[int], TypeAttribute):
     """Attribute only used for testing."""
+
     name = "data_type"
 
     @staticmethod
@@ -95,9 +112,8 @@ def print_as_mlir_and_compare(test_prog: str, expected: str):
     printer.print_op(module)
 
     # Remove all whitespace from the expected string.
-    regex = re.compile(r'[^\S]+')
-    assert (regex.sub("", res.getvalue()).strip() == \
-            regex.sub("", expected).strip())
+    regex = re.compile(r"[^\S]+")
+    assert regex.sub("", res.getvalue()).strip() == regex.sub("", expected).strip()
 
 
 def test_empty_op():

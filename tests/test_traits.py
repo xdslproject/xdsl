@@ -33,8 +33,10 @@ class LargerOperandTrait(OpTrait):
         assert isinstance(op.results[0].typ, IntegerType)
         assert isinstance(op.operands[0].typ, IntegerType)
         if op.results[0].typ.width.data >= op.operands[0].typ.width.data:
-            raise VerifyException("Operation has a result bitwidth greater "
-                                  "or equal to the operand bitwidth.")
+            raise VerifyException(
+                "Operation has a result bitwidth greater "
+                "or equal to the operand bitwidth."
+            )
 
 
 @dataclass(frozen=True)
@@ -58,8 +60,9 @@ class BitwidthSumLessThanTrait(OpTrait):
             sum_bitwidth += result.typ.width.data
 
         if sum_bitwidth >= self.max_sum:
-            raise VerifyException("Operation has a bitwidth sum "
-                                  f"greater or equal to {self.max_sum}.")
+            raise VerifyException(
+                "Operation has a bitwidth sum " f"greater or equal to {self.max_sum}."
+            )
 
 
 @irdl_op_definition
@@ -86,9 +89,7 @@ def test_get_traits_of_type():
     Test the `get_traits_of_type` `Operation` method
     on a simple operation definition.
     """
-    assert TestOp.get_traits_of_type(LargerOperandTrait) == [
-        LargerOperandTrait()
-    ]
+    assert TestOp.get_traits_of_type(LargerOperandTrait) == [LargerOperandTrait()]
     assert TestOp.get_traits_of_type(LargerResultTrait) == []
     assert TestOp.get_traits_of_type(BitwidthSumLessThanTrait) == [
         BitwidthSumLessThanTrait(64)
@@ -105,14 +106,16 @@ def test_verifier():
     op = TestOp.create(operands=[operand1], result_types=[i32])
     with pytest.raises(VerifyException) as e:
         op.verify()
-    assert e.value.args[0] == ("Operation has a result bitwidth greater"
-                               " or equal to the operand bitwidth.")
+    assert e.value.args[0] == (
+        "Operation has a result bitwidth greater" " or equal to the operand bitwidth."
+    )
 
     op = TestOp.create(operands=[operand64], result_types=[i32])
     with pytest.raises(VerifyException) as e:
         op.verify()
-    assert e.value.args[0] == ("Operation has a bitwidth sum "
-                               "greater or equal to 64.")
+    assert e.value.args[0] == (
+        "Operation has a bitwidth sum " "greater or equal to 64."
+    )
 
     op = TestOp.create(operands=[operand32], result_types=[i1])
     op.verify()
@@ -144,8 +147,8 @@ def test_trait_inheritance():
     Check that traits are correctly inherited from parent classes.
     """
     assert TestCopyOp.traits == frozenset(
-        [LargerOperandTrait(),
-         BitwidthSumLessThanTrait(64)])
+        [LargerOperandTrait(), BitwidthSumLessThanTrait(64)]
+    )
 
 
 @irdl_op_definition

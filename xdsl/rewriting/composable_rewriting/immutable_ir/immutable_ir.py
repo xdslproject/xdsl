@@ -3,7 +3,15 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import Sequence, TypeGuard, Any
 from immutabledict import immutabledict
-from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    OpResult,
+    Operation,
+    Region,
+    SSAValue,
+)
 from xdsl.utils.exceptions import InvalidIRException
 from xdsl.utils.immutable_list import IList
 
@@ -14,6 +22,7 @@ class ISSAValue(ABC):
     Represents an immutable SSA variable. An immutable SSA variable is either an operation result
     or a basic block argument.
     """
+
     typ: Attribute
     users: IList[IOperation]
 
@@ -36,6 +45,7 @@ class ISSAValue(ABC):
 @dataclass(frozen=True)
 class IOpResult(ISSAValue):
     """Represents an immutable SSA variable defined by an operation result."""
+
     op: IOperation
     index: int
 
@@ -51,6 +61,7 @@ class IOpResult(ISSAValue):
 @dataclass(frozen=True)
 class IBlockArg(ISSAValue):
     """Represents an immutable SSA variable defined by a basic block."""
+
     block: IBlock
     index: int
 
@@ -61,9 +72,7 @@ class IBlockArg(ISSAValue):
         return self is __o
 
     def __repr__(self) -> str:
-        return "BlockArg(type:" + self.typ.name + (
-            "attached"
-            if self.block is not None else "unattached") + ")"  # type: ignore
+        return "BlockArg(type:" + self.typ.name + ("attached") + ")"  # type: ignore
 
 
 @dataclass(frozen=True)
@@ -88,7 +97,8 @@ class IRegion:
         if len(self.blocks) != 1:
             raise ValueError(
                 "'block' property of IRegion class is only available "
-                "for single-block regions.")
+                "for single-block regions."
+            )
         return self.blocks[0]
 
     @property
@@ -100,7 +110,8 @@ class IRegion:
         if len(self.blocks) != 1:
             raise ValueError(
                 "'ops' property of IRegion class is only available "
-                "for single-block regions.")
+                "for single-block regions."
+            )
         return self.block.ops
 
     def __init__(self, blocks: Sequence[IBlock]):
@@ -129,7 +140,8 @@ class IRegion:
         if blocks[0].parent is None:
             raise InvalidIRException(
                 "Cannot create an IRegion from a mutable Block "
-                "that is not attached to a Region.")
+                "that is not attached to a Region."
+            )
 
         # adding dummy block mappings so that ops have a successor to reference
         # when the actual block is created all successor references will be moved
@@ -138,8 +150,7 @@ class IRegion:
             block_map[block] = IBlock([], [])
 
         immutable_blocks = [
-            IBlock.from_mutable(block, value_map, block_map)
-            for block in blocks
+            IBlock.from_mutable(block, value_map, block_map) for block in blocks
         ]
 
         region = IRegion(immutable_blocks)
@@ -153,15 +164,22 @@ class IRegion:
                         dummy_index = op.successors.index(dummy_block)
                         # replace dummy successor with actual successor
                         object.__setattr__(
-                            op, "successors",
-                            IList(op.successors[:dummy_index] + [imm_block] +
-                                  op.successors[dummy_index + 1:]))
+                            op,
+                            "successors",
+                            IList(
+                                op.successors[:dummy_index]
+                                + [imm_block]
+                                + op.successors[dummy_index + 1 :]
+                            ),
+                        )
 
         return region
 
-    def to_mutable(self,
-                   value_mapping: dict[ISSAValue, SSAValue] | None = None,
-                   block_mapping: dict[IBlock, Block] | None = None) -> Region:
+    def to_mutable(
+        self,
+        value_mapping: dict[ISSAValue, SSAValue] | None = None,
+        block_mapping: dict[IBlock, Block] | None = None,
+    ) -> Region:
         """
         Returns a mutable region that is a copy of this immutable region.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -175,19 +193,18 @@ class IRegion:
         # All mutable blocks have to be initialized first so that ops can
         # refer to them in their successor lists.
         for block in self.blocks:
-            mutable_blocks.append(mutable_block := Block(
-                arg_types=block.arg_types))
+            mutable_blocks.append(mutable_block := Block(arg_types=block.arg_types))
             block_mapping[block] = mutable_block
         for block in self.blocks:
             # This will use the already created Block and populate it
-            block.to_mutable(value_mapping=value_mapping,
-                             block_mapping=block_mapping)
+            block.to_mutable(value_mapping=value_mapping, block_mapping=block_mapping)
         return Region(mutable_blocks)
 
 
 @dataclass(frozen=True)
 class IBlock:
     """An immutable block contains a list of immutable operations. IBlocks are contained in IRegions."""
+
     args: IList[IBlockArg]
     ops: IList[IOperation]
 
@@ -197,26 +214,27 @@ class IBlock:
         return frozen_arg_types
 
     def __hash__(self) -> int:
-        return (id(self))
+        return id(self)
 
     def __eq__(self, __o: object) -> bool:
         return self is __o
 
     def __repr__(self) -> str:
-        return "block of" + str(len(
-            self.ops)) + " operations with args: " + str(self.args)
+        return (
+            "block of" + str(len(self.ops)) + " operations with args: " + str(self.args)
+        )
 
     def __post_init__(self):
         for arg in self.args:
             object.__setattr__(arg, "block", self)
 
-    def __init__(self, args: Sequence[Attribute] | Sequence[IBlockArg],
-                 ops: Sequence[IOperation]):
+    def __init__(
+        self, args: Sequence[Attribute] | Sequence[IBlockArg], ops: Sequence[IOperation]
+    ):
         """Creates a new immutable block."""
 
         # Type Guards:
-        def is_iblock_arg_seq(
-                list: Sequence[Any]) -> TypeGuard[Sequence[IBlockArg]]:
+        def is_iblock_arg_seq(list: Sequence[Any]) -> TypeGuard[Sequence[IBlockArg]]:
             return all([isinstance(elem, IBlockArg) for elem in list])
 
         def is_type_seq(list: Sequence[Any]) -> TypeGuard[Sequence[Attribute]]:
@@ -224,8 +242,7 @@ class IBlock:
 
         if is_type_seq(args):
             block_args: Sequence[IBlockArg] = [
-                IBlockArg(type, IList([]), self, idx)
-                for idx, type in enumerate(args)
+                IBlockArg(type, IList([]), self, idx) for idx, type in enumerate(args)
             ]
         elif is_iblock_arg_seq(args):
             block_args: Sequence[IBlockArg] = args
@@ -248,7 +265,7 @@ class IBlock:
         block_map: dict[Block, IBlock] | None = None,
     ) -> IBlock:
         """
-        Creates an immutable block from a mutable block. 
+        Creates an immutable block from a mutable block.
         The value_map and block_map are used to map already known correspondings
         of mutable values to immutable values and mutable blocks to immutable blocks.
         """
@@ -262,25 +279,25 @@ class IBlock:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
             immutable_arg = IBlockArg(
-                arg.typ,
-                IList([]),
-                None,  # type: ignore
-                arg.index)
+                arg.typ, IList([]), None, arg.index  # type: ignore
+            )
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
 
         immutable_ops = [
-            IOperation.from_mutable(op,
-                                    value_map=value_map,
-                                    block_map=block_map,
-                                    existing_operands=None) for op in block.ops
+            IOperation.from_mutable(
+                op, value_map=value_map, block_map=block_map, existing_operands=None
+            )
+            for op in block.ops
         ]
 
         return IBlock(args, immutable_ops)
 
-    def to_mutable(self,
-                   value_mapping: dict[ISSAValue, SSAValue] | None = None,
-                   block_mapping: dict[IBlock, Block] | None = None) -> Block:
+    def to_mutable(
+        self,
+        value_mapping: dict[ISSAValue, SSAValue] | None = None,
+        block_mapping: dict[IBlock, Block] | None = None,
+    ) -> Block:
         """
         Returns a mutable block that is a copy of this immutable block.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -302,8 +319,10 @@ class IBlock:
 
         for immutable_op in self.ops:
             mutable_block.add_op(
-                immutable_op.to_mutable(value_mapping=value_mapping,
-                                        block_mapping=block_mapping))
+                immutable_op.to_mutable(
+                    value_mapping=value_mapping, block_mapping=block_mapping
+                )
+            )
         return mutable_block
 
 
@@ -315,8 +334,7 @@ def get_immutable_copy(op: Operation) -> IOperation:
 class IOperation:
     """Represents an immutable operation."""
 
-    __match_args__ = ("op_type", "operands", "results", "successors",
-                      "regions")
+    __match_args__ = ("op_type", "operands", "results", "successors", "regions")
     name: str
     op_type: type[Operation]
     attributes: immutabledict[str, Attribute]
@@ -325,12 +343,16 @@ class IOperation:
     successors: IList[IBlock]
     regions: IList[IRegion]
 
-    def __init__(self, name: str, op_type: type[Operation],
-                 attributes: immutabledict[str, Attribute],
-                 operands: Sequence[ISSAValue],
-                 result_types: Sequence[Attribute],
-                 successors: Sequence[IBlock],
-                 regions: Sequence[IRegion]) -> None:
+    def __init__(
+        self,
+        name: str,
+        op_type: type[Operation],
+        attributes: immutabledict[str, Attribute],
+        operands: Sequence[ISSAValue],
+        result_types: Sequence[Attribute],
+        successors: Sequence[IBlock],
+        regions: Sequence[IRegion],
+    ) -> None:
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "op_type", op_type)
         object.__setattr__(self, "attributes", attributes)
@@ -338,11 +360,15 @@ class IOperation:
         for operand in operands:
             operand._add_user(self)  # type: ignore
         object.__setattr__(
-            self, "results",
-            IList([
-                IOpResult(type, IList([]), self, idx)
-                for idx, type in enumerate(result_types)
-            ]))
+            self,
+            "results",
+            IList(
+                [
+                    IOpResult(type, IList([]), self, idx)
+                    for idx, type in enumerate(result_types)
+                ]
+            ),
+        )
         object.__setattr__(self, "successors", IList(successors))
         object.__setattr__(self, "regions", IList(regions))
 
@@ -352,13 +378,19 @@ class IOperation:
         self.regions.freeze()
 
     @classmethod
-    def get(cls, name: str, op_type: type[Operation],
-            operands: Sequence[ISSAValue], result_types: Sequence[Attribute],
-            attributes: immutabledict[str,
-                                      Attribute], successors: Sequence[IBlock],
-            regions: Sequence[IRegion]) -> IOperation:
-        return cls(name, op_type, attributes, operands, result_types,
-                   successors, regions)
+    def get(
+        cls,
+        name: str,
+        op_type: type[Operation],
+        operands: Sequence[ISSAValue],
+        result_types: Sequence[Attribute],
+        attributes: immutabledict[str, Attribute],
+        successors: Sequence[IBlock],
+        regions: Sequence[IRegion],
+    ) -> IOperation:
+        return cls(
+            name, op_type, attributes, operands, result_types, successors, regions
+        )
 
     def __hash__(self) -> int:
         return hash(id(self))
@@ -375,7 +407,8 @@ class IOperation:
         if len(self.results) != 1:
             raise ValueError(
                 "'result' property of IOperation class is only available "
-                "for IOperations with exactly one result.")
+                "for IOperations with exactly one result."
+            )
         return self.results[0]
 
     @property
@@ -387,7 +420,8 @@ class IOperation:
         if len(self.regions) != 1:
             raise ValueError(
                 "'region' property of IOperation class is only available "
-                "for IOperations with exactly one region.")
+                "for IOperations with exactly one region."
+            )
         return self.regions[0]
 
     @property
@@ -395,9 +429,10 @@ class IOperation:
         return [result.typ for result in self.results]
 
     def to_mutable(
-            self,
-            value_mapping: dict[ISSAValue, SSAValue] | None = None,
-            block_mapping: dict[IBlock, Block] | None = None) -> Operation:
+        self,
+        value_mapping: dict[ISSAValue, SSAValue] | None = None,
+        block_mapping: dict[IBlock, Block] | None = None,
+    ) -> Operation:
         """
         Returns a mutable operation that is a copy of this immutable operation.
         The value_mapping and block_mapping are used to map already known correspondings
@@ -416,11 +451,7 @@ class IOperation:
                 print(f"ERROR: op {self.name} uses SSAValue before definition")
                 # Continuing to enable printing the IR including missing
                 # operands for investigation
-                mutable_operands.append(
-                    OpResult(
-                        operand.typ,
-                        None,  # type: ignore
-                        0))
+                mutable_operands.append(OpResult(operand.typ, None, 0))  # type: ignore
 
         mutable_successors: list[Block] = []
         for successor in self.successors:
@@ -428,20 +459,24 @@ class IOperation:
                 mutable_successors.append(block_mapping[successor])
             else:
                 raise InvalidIRException(
-                    "Invalid IR: Block is not defined in the current region")
+                    "Invalid IR: Block is not defined in the current region"
+                )
 
         mutable_regions: list[Region] = []
         for region in self.regions:
             mutable_regions.append(
-                region.to_mutable(value_mapping=value_mapping,
-                                  block_mapping=block_mapping))
+                region.to_mutable(
+                    value_mapping=value_mapping, block_mapping=block_mapping
+                )
+            )
 
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
             result_types=[result.typ for result in self.results],
             attributes=dict(self.attributes),
             successors=mutable_successors,
-            regions=mutable_regions)
+            regions=mutable_regions,
+        )
 
         # Add the results of this operation to the value mapping
         # so other operations can use them as operands.
@@ -453,11 +488,11 @@ class IOperation:
 
     @classmethod
     def from_mutable(
-            cls,
-            op: Operation,
-            value_map: dict[SSAValue, ISSAValue] | None = None,
-            block_map: dict[Block, IBlock] | None = None,
-            existing_operands: Sequence[ISSAValue] | None = None
+        cls,
+        op: Operation,
+        value_map: dict[SSAValue, ISSAValue] | None = None,
+        block_map: dict[Block, IBlock] | None = None,
+        existing_operands: Sequence[ISSAValue] | None = None,
     ) -> IOperation:
         """
         Returns an immutable operation that is a copy of the given mutable operation.
@@ -483,8 +518,8 @@ class IOperation:
                 elif isinstance(operand, BlockArgument):
                     if operand not in value_map:
                         raise Exception(
-                            "Block argument expected in mapping for op: " +
-                            op.name)
+                            "Block argument expected in mapping for op: " + op.name
+                        )
                     operands.append(value_map[operand])
                 else:
                     raise Exception(
@@ -493,8 +528,7 @@ class IOperation:
         else:
             operands.extend(existing_operands)
 
-        attributes: immutabledict[str,
-                                  Attribute] = immutabledict(op.attributes)
+        attributes: immutabledict[str, Attribute] = immutabledict(op.attributes)
 
         successors: list[IBlock] = []
         for successor in op.successors:
@@ -503,16 +537,22 @@ class IOperation:
             else:
                 raise Exception(
                     "Successor not defined in current region, `from_mutable`\
-                          probably has to be called on the parent operation.")
+                          probably has to be called on the parent operation."
+                )
 
         regions: list[IRegion] = []
         for region in op.regions:
-            regions.append(
-                IRegion.from_mutable(region.blocks, value_map, block_map))
+            regions.append(IRegion.from_mutable(region.blocks, value_map, block_map))
 
-        immutable_op = IOperation.get(op.name, op_type, operands,
-                                      [result.typ for result in op.results],
-                                      attributes, successors, regions)
+        immutable_op = IOperation.get(
+            op.name,
+            op_type,
+            operands,
+            [result.typ for result in op.results],
+            attributes,
+            successors,
+            regions,
+        )
 
         for idx, result in enumerate(op.results):
             value_map[result] = immutable_op.results[idx]

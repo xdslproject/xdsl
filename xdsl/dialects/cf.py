@@ -4,8 +4,14 @@ from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import SSAValue, Operation, Block, Dialect
-from xdsl.irdl import (irdl_op_definition, VarOperand, AnyAttr, Operand,
-                       AttrSizedOperandSegments, IRDLOperation)
+from xdsl.irdl import (
+    irdl_op_definition,
+    VarOperand,
+    AnyAttr,
+    Operand,
+    AttrSizedOperandSegments,
+    IRDLOperation,
+)
 
 
 @irdl_op_definition
@@ -30,11 +36,16 @@ class ConditionalBranch(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
-    def get(cond: Union[Operation, SSAValue], then_block: Block,
-            then_ops: List[Union[Operation, SSAValue]], else_block: Block,
-            else_ops: List[Union[Operation, SSAValue]]) -> ConditionalBranch:
-        return ConditionalBranch.build(operands=[cond, then_ops, else_ops],
-                                       successors=[then_block, else_block])
+    def get(
+        cond: Union[Operation, SSAValue],
+        then_block: Block,
+        then_ops: List[Union[Operation, SSAValue]],
+        else_block: Block,
+        else_ops: List[Union[Operation, SSAValue]],
+    ) -> ConditionalBranch:
+        return ConditionalBranch.build(
+            operands=[cond, then_ops, else_ops], successors=[then_block, else_block]
+        )
 
 
 Cf = Dialect([Branch, ConditionalBranch], [])

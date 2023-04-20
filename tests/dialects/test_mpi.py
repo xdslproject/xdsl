@@ -13,15 +13,12 @@ def test_mpi_baseop():
     req_vec = mpi.AllocateTypeOp.get(mpi.RequestType, dest)
     req_obj = mpi.VectorGetOp.get(req_vec, dest)
     tag = Constant.from_int_and_width(1, i32)
-    send = mpi.Isend.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag,
-                         req_obj)
+    send = mpi.Isend.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag, req_obj)
     wait = mpi.Wait.get(send.request, ignore_status=False)
-    recv = mpi.Irecv.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag,
-                         req_obj)
+    recv = mpi.Irecv.get(unwrap.ptr, unwrap.len, unwrap.typ, dest, tag, req_obj)
     test_res = mpi.Test.get(recv.request)
     assert wait.status is not None
-    source = mpi.GetStatusField.get(wait.status,
-                                    mpi.StatusTypeField.MPI_SOURCE)
+    source = mpi.GetStatusField.get(wait.status, mpi.StatusTypeField.MPI_SOURCE)
 
     assert unwrap.ref == alloc0.memref
     assert send.buffer == unwrap.ptr
