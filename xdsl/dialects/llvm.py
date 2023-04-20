@@ -158,8 +158,6 @@ class LinkageAttr(ParametrizedAttribute):
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
-        if not parser.tokenizer.starts_with('<'):
-            return [NoneAttr()]
         parser.parse_characters('<', "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
