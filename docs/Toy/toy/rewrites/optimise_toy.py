@@ -91,7 +91,7 @@ class FoldConstantReshapeOpPattern(RewritePattern):
 
 
 class OptimiseToy(ModulePass):
-    name = "dce"
+    name = "optimise-toy"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(SimplifyRedundantTranspose()).rewrite_module(op)

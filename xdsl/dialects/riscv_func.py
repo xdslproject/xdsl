@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
@@ -61,12 +61,12 @@ class CallOp(IRDLOperation):
 
     name = "riscv_func.call"
     args: VarOperand = var_operand_def(riscv.RegisterType)
-    func_name: StringAttr = attr_def(StringAttr)
+    callee: StringAttr = attr_def(StringAttr)
     ress: VarOpResult = var_result_def(riscv.RegisterType)
 
     def __init__(
         self,
-        func_name: StringAttr,
+        callee: StringAttr,
         args: Sequence[Operation | SSAValue],
         result_types: Sequence[riscv.RegisterType],
         comment: StringAttr | None = None,
@@ -75,7 +75,7 @@ class CallOp(IRDLOperation):
             operands=[args],
             result_types=result_types,
             attributes={
-                "func_name": func_name,
+                "callee": callee,
                 "comment": comment,
             },
         )
@@ -92,16 +92,25 @@ class CallOp(IRDLOperation):
             )
 
 
+class FuncOpCallableInterface(CallableOpInterface):
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        assert isinstance(op, FuncOp)
+        return op.func_body
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    func_name: StringAttr = attr_def(StringAttr)
-    func_body: Region = region_def("single_block")
+    sym_name: StringAttr = attr_def(StringAttr)
+    func_body: Region = region_def()
+
+    traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
 
     def __init__(self, name: str, region: Region):
-        attributes: dict[str, Attribute] = {"func_name": StringAttr(name)}
+        attributes: dict[str, Attribute] = {"sym_name": StringAttr(name)}
 
         super().__init__(attributes=attributes, regions=[region])
 

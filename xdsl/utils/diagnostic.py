@@ -35,7 +35,7 @@ class Diagnostic:
             p.print_block(toplevel)
         elif isinstance(toplevel, Region):
             # TOFIX: Is that ever used. Revisit the whole exception
-            p._print_region(toplevel)  # TOFIX #type: ignore
+            p.print_region(toplevel)
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
 

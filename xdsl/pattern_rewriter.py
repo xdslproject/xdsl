@@ -54,6 +54,8 @@ class PatternRewriter:
         """Check if the block and its children can be modified by this rewriter."""
         if block.parent is None:
             return True  # Toplevel operation of current_operation is always a ModuleOp
+        if block is self.current_operation.parent:
+            return True  # Can modify ops in the same block as current op
         return self._can_modify_region(block.parent)
 
     def _can_modify_region(self, region: Region) -> bool:

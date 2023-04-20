@@ -1,4 +1,12 @@
-# RUN: python -m toy %s --emit=interpret | filecheck %s
+# RUN: python -m toy %s --emit=interpret-toy | filecheck %s
+# RUN: python -m toy %s --emit=interpret-affine | filecheck %s
+# RUN: python -m toy %s --emit=interpret-scf | filecheck %s
+# RUN: python -m toy %s --emit=interpret-scf --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=interpret-cf | filecheck %s
+# RUN: python -m toy %s --emit=interpret-riscv | filecheck %s
+# RUN: python -m toy %s --emit=interpret-riscv --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=riscemu --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=riscemu | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {

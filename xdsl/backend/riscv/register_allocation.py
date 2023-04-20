@@ -1,4 +1,5 @@
 from abc import ABC
+from xdsl.dialects import riscv_cf, riscv
 from xdsl.dialects.riscv import (
     Register,
     RegisterType,
@@ -95,10 +96,54 @@ class RegisterAllocatorJRegs(RegisterAllocator):
         """
         Sets unallocated registers to an infinite set of `j` registers
         """
+        # First allocate registers for block arguments
+        for op in module.walk():
+            if isinstance(op, riscv_cf.BranchOperation):
+                for i, arg in enumerate(op.then_block.args):
+                    assert isinstance(arg.typ, RegisterType)
+                    if arg.typ.data.name is None:
+                        typ = RegisterType(Register(f"j{self.idx}"))
+                        arg.typ = typ
+                        self.idx += 1
+                        op.then_arguments[i].typ = typ
+
+                for i, arg in enumerate(op.else_block.args):
+                    assert isinstance(arg.typ, RegisterType)
+                    if arg.typ.data.name is None:
+                        typ = RegisterType(Register(f"j{self.idx}"))
+                        arg.typ = typ
+                        self.idx += 1
+                        op.else_arguments[i].typ = typ
+
+            elif isinstance(op, riscv_cf.JOp):
+                for i, arg in enumerate(op.successor.args):
+                    assert isinstance(arg.typ, RegisterType)
+                    if arg.typ.data.name is None:
+                        typ = RegisterType(Register(f"j{self.idx}"))
+                        arg.typ = typ
+                        self.idx += 1
+                        op.block_arguments[i].typ = typ
+
         for op in module.walk():
             if not isinstance(op, RISCVOp):
                 # Don't perform register allocations on non-RISCV-ops
                 continue
+
+            if (
+                isinstance(op, riscv.RdRsRsIntegerOperation)
+                and op.rd_operand is not None
+            ):
+                assert isinstance(op.rd.typ, RegisterType)
+                if op.rd.typ.data.name is None:
+                    op.rd.typ = op.rd_operand.typ
+
+            if (
+                isinstance(op, riscv.RdRsImmIntegerOperation)
+                and op.rd_operand is not None
+            ):
+                assert isinstance(op.rd.typ, RegisterType)
+                if op.rd.typ.data.name is None:
+                    op.rd.typ = op.rd_operand.typ
 
             for result in op.results:
                 if isinstance(result.typ, RegisterType):

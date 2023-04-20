@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from itertools import accumulate
 from math import prod
 import operator
@@ -45,6 +47,18 @@ class ShapedArray(Generic[_T]):
         Returns the element for a given tuple of indices
         """
         self.data[self.offset(indices)] = value
+
+    def transposed(self) -> ShapedArray[_T]:
+        if len(self.shape) != 2:
+            raise ValueError("Can only transpose 2D shaped arrays")
+
+        new_data: list[_T] = []
+
+        for col in range(self.shape[1]):
+            for row in range(self.shape[0]):
+                new_data.append(self.load((row, col)))
+
+        return type(self)(new_data, self.shape[::-1])
 
     def __format__(self, __format_spec: str) -> str:
         prod_dims: list[int] = list(accumulate(reversed(self.shape), operator.mul))

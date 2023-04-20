@@ -106,14 +106,14 @@
   %lhu = "riscv.lhu"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j2>
   // CHECK-NEXT: lhu j2, j1, 1
   %lw = "riscv.lw"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j2>
-  // CHECK-NEXT: lw j2, j1, 1
+  // CHECK-NEXT: lw j2, 1(j1)
 
   "riscv.sb"(%2, %1) {"immediate" = 1 : i32}: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
   // CHECK-NEXT: sb j2, j1, 1
   "riscv.sh"(%2, %1) {"immediate" = 1 : i32}: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
   // CHECK-NEXT: sh j2, j1, 1
   "riscv.sw"(%2, %1) {"immediate" = 1 : i32}: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
-  // CHECK-NEXT: sw j2, j1, 1
+  // CHECK-NEXT: sw j1, 1(j2)
 
   // RV32I/RV64I: Control and Status Register Instructions (Section 2.8)
   %csrrw_rw = "riscv.csrrw"(%2) {"csr" = 1024 : i32}: (!riscv.reg<j2>) -> !riscv.reg<j1>
@@ -160,9 +160,11 @@
   // CHECK-NEXT: label0:
   "riscv.label"() ({
     %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
+    "riscv.ret"() : () -> ()
   }) {"label" = #riscv.label<"label1">} : () -> ()
   // CHECK-NEXT: label1:
   // CHECK-NEXT: addi j1, j1, 1
+  // CHECK-NEXT: ret
 
 
   // Custom instruction

@@ -55,6 +55,10 @@ class ArithFunctions(InterpreterFunctions):
         match op.predicate.value.data:
             case 0:  # "eq"
                 return (args[0] == args[1],)
+            case 1:  # "ne"
+                return (args[0] != args[1],)
+            case 2:  # "slt"
+                return (args[0] < args[1],)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."

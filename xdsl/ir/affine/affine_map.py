@@ -15,6 +15,25 @@ class AffineMap:
     num_symbols: int
     results: list[AffineExpr]
 
+    def is_constant(self) -> bool:
+        return not self.num_dims and not self.num_symbols
+
+    @staticmethod
+    def from_constant(value: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value)])
+
+    @staticmethod
+    def from_constants(*values: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
+
+    @staticmethod
+    def identity(rank: int) -> AffineMap:
+        return AffineMap(rank, 0, [AffineExpr.dimension(dim) for dim in range(rank)])
+
+    @staticmethod
+    def empty() -> AffineMap:
+        return AffineMap(0, 0, [])
+
     def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims

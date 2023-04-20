@@ -99,12 +99,4 @@ class ToyFunctions(InterpreterFunctions):
         arg = cast(ShapedArray[float], arg)
         assert len(arg.shape) == 2
 
-        new_data: list[float] = []
-
-        for col in range(arg.shape[1]):
-            for row in range(arg.shape[0]):
-                new_data.append(arg.load((row, col)))
-
-        result = ShapedArray(new_data, arg.shape[::-1])
-
-        return (result,)
+        return (arg.transposed(),)

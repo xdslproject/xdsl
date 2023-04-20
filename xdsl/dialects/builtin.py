@@ -1068,6 +1068,10 @@ class AffineMapAttr(Data[AffineMap]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
+    @staticmethod
+    def from_constant(value: int) -> AffineMapAttr:
+        return AffineMapAttr(AffineMap.from_constant(value))
+
 
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
