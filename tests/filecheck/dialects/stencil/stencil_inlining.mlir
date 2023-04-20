@@ -1,6 +1,5 @@
 // RUN: xdsl-opt %s -t mlir -p stencil-inlining | filecheck %s
 
-
 "builtin.module"() ( {
   "func.func"() ( {
   ^bb0(%arg0: !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>, %arg1: !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>):

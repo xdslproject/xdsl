@@ -432,7 +432,7 @@ class ApplyOp(Operation):
 
     @staticmethod
     def get(args: Sequence[SSAValue] | Sequence[Operation],
-            body: Region | list[Block] | list[Operation],
+            body: Region,
             lb: IndexAttr | None = None,
             ub: IndexAttr | None = None,
             result_type: list[list[Attribute]] = []):
@@ -445,10 +445,7 @@ class ApplyOp(Operation):
             attributes["ub"] = ub
 
         return ApplyOp.build(operands=[list(args)],
-                             attributes={
-                                 "lb": lb,
-                                 "ub": ub
-                             },
+                             attributes=attributes,
                              regions=[body],
                              result_types=result_type)
 
