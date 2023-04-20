@@ -38,13 +38,16 @@ def test_func():
 
     func1 = FuncOp.from_region("func1", [], [], region1)
 
-    assert len(func0.regions[0].ops) == 3
-    assert len(func1.regions[0].ops) == 3
-    assert type(func0.regions[0].ops[0]) is Constant
-    assert type(func1.regions[0].ops[0]) is Constant
-    assert type(func0.regions[0].ops[1]) is Constant
-    assert type(func1.regions[0].ops[1]) is Constant
-    assert type(func0.regions[0].ops[2]) is Addi
+    ops0 = list(func0.body.ops)
+    ops1 = list(func1.body.ops)
+
+    assert len(ops0) == 3
+    assert len(ops1) == 3
+    assert type(ops0[0]) is Constant
+    assert type(ops1[0]) is Constant
+    assert type(ops0[1]) is Constant
+    assert type(ops1[1]) is Constant
+    assert type(ops0[2]) is Addi
 
 
 def test_func_II():
@@ -144,7 +147,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
-    assert f.body.ops == []
+    assert f.body.block.is_empty
 
 
 def test_call():
@@ -257,5 +260,5 @@ def test_external_func_def():
     ext = FuncOp.external("testname", [i32, i32], [i64])
 
     assert len(ext.regions) == 1
-    assert len(ext.regions[0].ops) == 0
+    assert ext.regions[0].block.is_empty
     assert ext.sym_name.data == "testname"

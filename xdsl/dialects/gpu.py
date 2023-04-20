@@ -344,7 +344,7 @@ class ModuleOp(IRDLOperation):
         return op
 
     def verify_(self):
-        if len(self.body.ops) == 0 or not isinstance(
+        if self.body.block.is_empty or not isinstance(
             self.body.block.last_op, ModuleEndOp
         ):
             raise VerifyException("gpu.module must end with gpu.module_end")

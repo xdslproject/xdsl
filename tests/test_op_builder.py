@@ -37,7 +37,7 @@ def test_build_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = list(region.ops)
 
     assert len(ops) == 2
 
@@ -66,7 +66,7 @@ def test_build_callable_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = list(region.ops)
 
     assert len(ops) == 2
 
@@ -95,7 +95,7 @@ def test_build_implicit_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = list(region.ops)
 
     assert len(ops) == 2
 
@@ -121,7 +121,7 @@ def test_build_implicit_callable_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = list(region.ops)
 
     assert len(ops) == 2
 
@@ -155,7 +155,7 @@ def test_build_nested_implicit_region():
 
     assert len(region_0.blocks) == 1
 
-    ops_0 = region_0.ops
+    ops_0 = list(region_0.ops)
 
     assert len(ops_0) == 1
 
@@ -169,7 +169,7 @@ def test_build_nested_implicit_region():
 
     region_1 = ops_0[0].regions[0]
 
-    ops_1 = region_1.ops
+    ops_1 = list(region_1.ops)
 
     assert len(ops_1) == 1
 
@@ -209,7 +209,7 @@ def test_build_implicit_region_fail():
 
     assert len(region_0.blocks) == 1
 
-    ops = region_0.ops
+    ops = list(region_0.ops)
 
     assert len(ops) == 1
 

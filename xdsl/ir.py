@@ -1468,7 +1468,7 @@ class Region(IRNode):
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
-    def ops(self) -> list[Operation]:
+    def ops(self) -> _BlockOps:
         """
         Get the operations of a single-block region.
         Returns an exception if the region is not single-block.
@@ -1478,7 +1478,7 @@ class Region(IRNode):
                 "'ops' property of Region class is only available "
                 "for single-block regions."
             )
-        return list(self.block.ops)
+        return self.block.ops
 
     @property
     def op(self) -> Operation:

@@ -1244,7 +1244,7 @@ class ModuleOp(IRDLOperation):
 
     @property
     def ops(self) -> List[Operation]:
-        return self.body.ops
+        return list(self.body.ops)
 
 
 # FloatXXType shortcuts

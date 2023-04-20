@@ -199,7 +199,7 @@ class PDLFunctions(InterpreterFunctions):
     def run_pattern(
         self, interpreter: Interpreter, op: pdl.PatternOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        ops = op.regions[0].ops
+        ops = list(op.regions[0].ops)
         if not len(ops):
             raise InterpretationError("No ops in pattern")
 
