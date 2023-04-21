@@ -116,7 +116,6 @@ class Rewriter:
             block_op.detach()
 
         op.parent.insert_ops_before(ops, op)
-        block.erase()
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
