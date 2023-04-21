@@ -340,7 +340,7 @@ def test_lower_mpi_allocate():
 
 
 def test_lower_mpi_vec_get():
-    mod = builtin.ModuleOp.from_region_or_ops([
+    mod = builtin.ModuleOp([
         count := CreateTestValsOp.get(i32),
         vec := mpi.AllocateTypeOp.get(mpi.RequestType, count),
         get := mpi.VectorGetOp.get(vec, count),

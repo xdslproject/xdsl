@@ -331,7 +331,7 @@ def test_insert_op_at_pos_negative():
     Test rewrites where operations are inserted with a negative position.
     """
 
-    prog = ModuleOp.from_region_or_ops([Constant.from_int_and_width(5, 32)])
+    prog = ModuleOp([Constant.from_int_and_width(5, 32)])
 
     to_be_inserted = Constant.from_int_and_width(42, 32)
 

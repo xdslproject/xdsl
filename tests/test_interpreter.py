@@ -17,7 +17,7 @@ def test_import_functions():
     class B(InterpreterFunctions):
         pass
 
-    i = Interpreter(ModuleOp.from_region_or_ops([]))
+    i = Interpreter(ModuleOp([]))
 
     i.register_implementations(B())
 
