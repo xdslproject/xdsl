@@ -122,7 +122,7 @@ def test_array_type():
 
 
 def test_linkage_attr():
-    linkage = llvm.LinkageAttr.from_linkage("internal")
+    linkage = llvm.LinkageAttr("internal")
 
     assert isinstance(linkage.linkage, builtin.StringAttr)
     assert linkage.linkage.data == "internal"
@@ -130,7 +130,7 @@ def test_linkage_attr():
 
 def test_linkage_attr_unknown_str():
     with pytest.raises(VerifyException):
-        llvm.LinkageAttr.from_linkage("unknown")
+        llvm.LinkageAttr("unknown")
 
 
 def test_global_op():

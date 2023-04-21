@@ -151,6 +151,11 @@ class LinkageAttr(ParametrizedAttribute):
 
     linkage: ParameterDef[StringAttr]
 
+    def __init__(self, linkage: str | StringAttr) -> None:
+        if isinstance(linkage, str):
+            linkage = StringAttr(linkage)
+        super().__init__([linkage])
+
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
         printer.print_attribute(self.linkage)
@@ -170,12 +175,6 @@ class LinkageAttr(ParametrizedAttribute):
         linkage = StringAttr(linkage_str)
         parser.parse_characters('>', "End of llvm.linkage parameter expected!")
         return [linkage]
-
-    @staticmethod
-    def from_linkage(linkage: str | StringAttr):
-        if isinstance(linkage, str):
-            linkage = StringAttr(linkage)
-        return LinkageAttr([linkage])
 
     def verify(self):
         allowed_linkage = [
@@ -446,7 +445,7 @@ class GlobalOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
 
         if isinstance(linkage, str):
-            linkage = LinkageAttr.from_linkage(linkage)
+            linkage = LinkageAttr(linkage)
 
         attrs: dict[str, Attribute] = {
             'global_type': global_type,
