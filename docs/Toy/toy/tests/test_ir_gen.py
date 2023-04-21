@@ -22,7 +22,7 @@ def test_convert_ast():
 
     generated_module_op = ir_gen.ir_gen_module(module_ast)
 
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def module_op():
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)

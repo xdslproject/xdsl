@@ -16,7 +16,7 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
                        Generic, GenericData, AttrConstraint, AnyAttr,
                        IRDLOperation)
-from xdsl.utils.deprecation import deprecated_constructor
+from xdsl.utils.deprecation import deprecated, deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -1160,10 +1160,18 @@ class ModuleOp(IRDLOperation):
 
     body: SingleBlockRegion
 
+    def __init__(self, ops: List[Operation] | Region):
+        if isinstance(ops, Region):
+            region = ops
+        else:
+            region = Region(Block(ops))
+        super().__init__(regions=[region])
+
     @property
     def ops(self) -> List[Operation]:
         return self.regions[0].block.ops
 
+    @deprecated("Please use ModuleOp(ops)")
     @staticmethod
     def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
         if isinstance(ops, list):
