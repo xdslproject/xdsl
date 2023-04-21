@@ -1160,22 +1160,16 @@ class ModuleOp(IRDLOperation):
 
     body: SingleBlockRegion
 
+    def __init__(self, ops: List[Operation] | Region):
+        if isinstance(ops, Region):
+            region = ops
+        else:
+            region = Region(Block(ops))
+        super().__init__(regions=[region])
+
     @property
     def ops(self) -> List[Operation]:
         return self.regions[0].block.ops
-
-    @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
-        if isinstance(ops, list):
-            region = Region([Block(ops)])
-        elif isinstance(ops, Region):
-            region = ops
-        else:
-            raise TypeError(
-                f"Expected region or operation list in ModuleOp.get, but got '{ops}'"
-            )
-        op = ModuleOp.create([], [], regions=[region])
-        return op
 
 
 # FloatXXType shortcuts

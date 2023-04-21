@@ -152,7 +152,7 @@ def test_memref_matmul_verify():
     memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(
         builtin.f64, [-1, -1])
 
-    module = builtin.ModuleOp.from_region_or_ops([
+    module = builtin.ModuleOp([
         func.FuncOp.from_callable(
             'matmul',
             [memref_f64_rank2, memref_f64_rank2],

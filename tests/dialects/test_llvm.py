@@ -4,7 +4,7 @@ from xdsl.dialects import llvm, builtin, arith
 
 
 def test_llvm_pointer_ops():
-    module = builtin.ModuleOp.from_region_or_ops([
+    module = builtin.ModuleOp([
         idx := arith.Constant.from_int_and_width(0, 64),
         ptr := llvm.AllocaOp.get(idx, builtin.i32),
         val := llvm.LoadOp.get(ptr),
