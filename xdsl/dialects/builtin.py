@@ -1171,20 +1171,6 @@ class ModuleOp(IRDLOperation):
     def ops(self) -> List[Operation]:
         return self.regions[0].block.ops
 
-    @deprecated("Please use ModuleOp(ops)")
-    @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
-        if isinstance(ops, list):
-            region = Region([Block(ops)])
-        elif isinstance(ops, Region):
-            region = ops
-        else:
-            raise TypeError(
-                f"Expected region or operation list in ModuleOp.get, but got '{ops}'"
-            )
-        op = ModuleOp.create([], [], regions=[region])
-        return op
-
 
 # FloatXXType shortcuts
 bf16 = BFloat16Type()
