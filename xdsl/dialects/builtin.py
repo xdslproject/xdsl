@@ -16,7 +16,7 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
                        Generic, GenericData, AttrConstraint, AnyAttr,
                        IRDLOperation)
-from xdsl.utils.deprecation import deprecated, deprecated_constructor
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
