@@ -10,7 +10,7 @@ from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
-from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand
+from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -286,6 +286,67 @@ ModuleOp(
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
 )'''
+
+
+# ToDo: Create this op without IRDL itself, since it tests fine grained
+# stuff which is supposed to be used with IRDL or PDL.
+@irdl_op_definition
+class CustomOpWithMultipleRegions(IRDLOperation):
+    name = 'test.custom_op_with_multiple_regions'
+    region: VarRegion
+
+
+def test_region_index_fetch():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+    d = Constant.from_int_and_width(4, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+    region3 = Region([Block([d])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2, region3]])
+
+    assert op.get_region_index(region0) == 0
+    assert op.get_region_index(region1) == 1
+    assert op.get_region_index(region2) == 2
+    assert op.get_region_index(region3) == 3
+
+
+def test_region_index_fetch_region_unavailability():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+
+    op = CustomOpWithMultipleRegions.build(regions=[[region0]])
+
+    assert op.get_region_index(region0) == 0
+    with pytest.raises(Exception) as exc_info:
+        op.get_region_index(region1)
+    assert exc_info.value.args[0] == "Region is not attached to the operation."
+
+
+def test_detach_region():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2]])
+
+    assert op.detach_region(1) == region1
+    assert op.detach_region(region0) == region0
+    assert len(op.regions) == 1
+    assert op.get_region_index(region2) == 0
 
 
 @irdl_op_definition
