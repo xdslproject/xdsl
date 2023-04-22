@@ -273,7 +273,7 @@ def test_descriptions():
     assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
     assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
 
-    m = ModuleOp.from_region_or_ops([a])
+    m = ModuleOp([a])
 
     assert str(m) == '''\
 builtin.module() {

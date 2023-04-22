@@ -170,7 +170,7 @@ def test_call():
     call0 = Call.get(func0.sym_name.data, [a, b], [ret0.arguments[0].typ])
 
     # Wrap all in a ModuleOp
-    mod = ModuleOp.from_region_or_ops([func0, a, b, call0])
+    mod = ModuleOp([func0, a, b, call0])
 
     expected = \
         """
@@ -218,7 +218,7 @@ def test_call_II():
     call0 = Call.get(func0.sym_name.data, [a], [ret0.arguments[0].typ])
 
     # Wrap all in a ModuleOp
-    mod = ModuleOp.from_region_or_ops([func0, a, call0])
+    mod = ModuleOp([func0, a, call0])
 
     expected = \
         """

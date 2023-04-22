@@ -58,4 +58,4 @@ def build_module() -> ModuleOp:
         private=True)
     main = td.FuncOp.from_callable('main', [], [], main_body, private=False)
 
-    return ModuleOp.from_region_or_ops([multiply_transpose, main])
+    return ModuleOp([multiply_transpose, main])
