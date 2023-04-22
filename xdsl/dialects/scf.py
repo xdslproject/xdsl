@@ -183,7 +183,7 @@ class ParallelOp(IRDLOperation):
         if num_args_provided != num_args_required:
             raise VerifyException(
                 f"Expected {num_args_provided} "
-                f"region arguments, got {num_args_required} instead")
+                f"block arguments, got {num_args_required} instead")
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index
