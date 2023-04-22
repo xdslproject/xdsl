@@ -659,6 +659,30 @@ class Operation(IRNode):
         self.regions.append(region)
         region.parent = self
 
+    def get_region_index(self, region: Region) -> int:
+        """Get the region position in the operation."""
+        if region.parent is not self:
+            raise Exception("Region is not attached to the operation.")
+        for idx, curr_region in enumerate(self.regions):
+            if curr_region is region:
+                return idx
+        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+
+    def detach_region(self, region: int | Region) -> Region:
+        """
+        Detach a region from the operation.
+        Returns the detached region.
+        """
+        if isinstance(region, Region):
+            region_idx = self.get_region_index(region)
+        else:
+            region_idx = region
+            region = self.regions[region_idx]
+        region.parent = None
+        self.regions = self.regions[:region_idx] + self.regions[region_idx +
+                                                                1:]
+        return region
+
     def drop_all_references(self) -> None:
         """
         Drop all references to other operations.
