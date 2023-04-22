@@ -388,4 +388,13 @@ class While(IRDLOperation):
         return op
 
 
-Scf = Dialect([If, For, Yield, Condition, ParallelOp, While], [])
+Scf = Dialect([
+    If,
+    For,
+    Yield,
+    Condition,
+    ParallelOp,
+    ReduceOp,
+    ReduceReturnOp,
+    While,
+], [])
