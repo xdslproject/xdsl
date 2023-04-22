@@ -1,6 +1,6 @@
 from xdsl.dialects import mpi, func, llvm, builtin
 from xdsl.ir import Operation, Attribute, OpResult
-from xdsl.irdl import irdl_op_definition, VarOpResult
+from xdsl.irdl import irdl_op_definition, VarOpResult, IRDLOperation
 from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
 from xdsl.dialects.builtin import i32
@@ -33,7 +33,7 @@ def check_emitted_function_signature(
 
 
 @irdl_op_definition
-class CreateTestValsOp(Operation):
+class CreateTestValsOp(IRDLOperation):
     name = "testing.test"
     result: VarOpResult
 
@@ -340,7 +340,7 @@ def test_lower_mpi_allocate():
 
 
 def test_lower_mpi_vec_get():
-    mod = builtin.ModuleOp.from_region_or_ops([
+    mod = builtin.ModuleOp([
         count := CreateTestValsOp.get(i32),
         vec := mpi.AllocateTypeOp.get(mpi.RequestType, count),
         get := mpi.VectorGetOp.get(vec, count),

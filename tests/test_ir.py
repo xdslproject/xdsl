@@ -10,7 +10,7 @@ from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import XDSLParser
-from xdsl.irdl import irdl_op_definition, Operand
+from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 
 
 def test_ops_accessor():
@@ -21,7 +21,7 @@ def test_ops_accessor():
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -45,7 +45,7 @@ def test_ops_accessor_II():
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
-    region = Region([block0])
+    region = Region(block0)
 
     assert len(region.ops) == 3
     assert len(region.blocks[0].ops) == 3
@@ -92,7 +92,7 @@ def test_ops_accessor_III():
     block2 = Block()
 
     region0 = Region([block0, block1])
-    region1 = Region([block2])
+    region1 = Region(block2)
 
     with pytest.raises(ValueError):
         region0.ops
@@ -128,8 +128,7 @@ def test_op_clone():
 def test_op_clone_with_regions():
     cond = Constant.from_int_and_width(1, 1)
     a = Constant.from_int_and_width(1, 32)
-    if_ = If.get(cond, [], Region.from_operation_list([a]),
-                 Region.from_operation_list([a.clone()]))
+    if_ = If.get(cond, [], Region([Block([a])]), Region([Block([a.clone()])]))
 
     if2 = if_.clone()
 
@@ -268,13 +267,13 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 def test_descriptions():
     a = Constant.from_int_and_width(1, 32)
 
-    assert str(a.value) == '1 : !i32'
-    assert f'{a.value}' == '1 : !i32'
+    assert str(a.value) == '1 : i32'
+    assert f'{a.value}' == '1 : i32'
 
     assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
     assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
 
-    m = ModuleOp.from_region_or_ops([a])
+    m = ModuleOp([a])
 
     assert str(m) == '''\
 builtin.module() {
@@ -289,8 +288,69 @@ ModuleOp(
 )'''
 
 
+# ToDo: Create this op without IRDL itself, since it tests fine grained
+# stuff which is supposed to be used with IRDL or PDL.
 @irdl_op_definition
-class CustomVerify(Operation):
+class CustomOpWithMultipleRegions(IRDLOperation):
+    name = 'test.custom_op_with_multiple_regions'
+    region: VarRegion
+
+
+def test_region_index_fetch():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+    d = Constant.from_int_and_width(4, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+    region3 = Region([Block([d])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2, region3]])
+
+    assert op.get_region_index(region0) == 0
+    assert op.get_region_index(region1) == 1
+    assert op.get_region_index(region2) == 2
+    assert op.get_region_index(region3) == 3
+
+
+def test_region_index_fetch_region_unavailability():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+
+    op = CustomOpWithMultipleRegions.build(regions=[[region0]])
+
+    assert op.get_region_index(region0) == 0
+    with pytest.raises(Exception) as exc_info:
+        op.get_region_index(region1)
+    assert exc_info.value.args[0] == "Region is not attached to the operation."
+
+
+def test_detach_region():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    region0 = Region([Block([a])])
+    region1 = Region([Block([b])])
+    region2 = Region([Block([c])])
+
+    op = CustomOpWithMultipleRegions.build(
+        regions=[[region0, region1, region2]])
+
+    assert op.detach_region(1) == region1
+    assert op.detach_region(region0) == region0
+    assert len(op.regions) == 1
+    assert op.get_region_index(region2) == 0
+
+
+@irdl_op_definition
+class CustomVerify(IRDLOperation):
     name = 'test.custom_verify_op'
     val: Annotated[Operand, i64]
 

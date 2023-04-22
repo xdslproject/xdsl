@@ -5,11 +5,11 @@ from typing import Annotated
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
 from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
-                       AnyAttr)
+                       AnyAttr, IRDLOperation)
 
 
 @irdl_op_definition
-class For(Operation):
+class For(IRDLOperation):
     name: str = "affine.for"
 
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -72,12 +72,12 @@ class For(Operation):
                       step: int | AnyIntegerAttr = 1) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
         return For.from_region(operands, lower_bound, upper_bound,
-                               Region([Block.from_callable(arg_types, body)]),
+                               Region(Block.from_callable(arg_types, body)),
                                step)
 
 
 @irdl_op_definition
-class Yield(Operation):
+class Yield(IRDLOperation):
     name: str = "affine.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 

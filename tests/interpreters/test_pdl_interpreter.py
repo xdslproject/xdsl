@@ -54,7 +54,7 @@ def test_rewrite_swap_inputs_pdl():
 
 def swap_arguments_input():
 
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
 
@@ -75,7 +75,7 @@ def swap_arguments_input():
 
 def swap_arguments_output():
 
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
 
@@ -125,7 +125,7 @@ def swap_arguments_pdl():
     pattern = pdl.PatternOp.get(IntegerAttr.from_int_and_width(2, 16), None,
                                 pattern_region)
 
-    pdl_module = ModuleOp.from_region_or_ops([pattern])
+    pdl_module = ModuleOp([pattern])
 
     return pdl_module
 
@@ -179,7 +179,7 @@ def test_rewrite_add_zero_pdl():
 
 def add_zero_input():
 
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
 
@@ -197,7 +197,7 @@ def add_zero_input():
 
 def add_zero_output():
 
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
 
@@ -248,6 +248,6 @@ def add_zero_pdl():
     pattern = pdl.PatternOp.get(IntegerAttr.from_int_and_width(2, 16), None,
                                 pattern_region)
 
-    pdl_module = ModuleOp.from_region_or_ops([pattern])
+    pdl_module = ModuleOp([pattern])
 
     return pdl_module

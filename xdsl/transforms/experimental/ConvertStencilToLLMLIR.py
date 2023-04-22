@@ -136,8 +136,8 @@ class ReturnOpToMemref(RewritePattern):
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
 
-    if ([i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data] !=
-        [i.value.data for i in cast.lb.array.data]):  # noqa
+    if ([i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data]
+            != [i.value.data for i in cast.lb.array.data]):  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
@@ -176,7 +176,7 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
-    entry = op.region.blocks[0]
+    entry = op.region.block
 
     for idx, arg in enumerate(entry.args):
         arg_uses = set(arg.uses)
@@ -197,7 +197,7 @@ class ApplyOpToParallel(RewritePattern):
         assert (op.lb is not None) and (op.ub is not None)
 
         body = prepare_apply_body(op, rewriter)
-        body.blocks[0].add_op(scf.Yield.get())
+        body.block.add_op(scf.Yield.get())
         dim = len(op.lb.array.data)
 
         # Then create the corresponding scf.parallel
@@ -221,7 +221,7 @@ class ApplyOpToParallel(RewritePattern):
                                  body=current_region)
             block = Block(ops=[for_op, scf.Yield.get()],
                           arg_types=[builtin.IndexType()])
-            current_region = Region([block])
+            current_region = Region(block)
 
         p = scf.ParallelOp.get(lowerBounds=[zero],
                                upperBounds=[upperBounds[0]],
@@ -273,7 +273,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
-        for arg in op.body.blocks[0].args:
+        for arg in op.body.block.args:
             if isa(arg.typ, FieldType[Attribute]):
                 memreftyp = GetMemRefFromField(arg.typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)

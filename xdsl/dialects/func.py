@@ -2,14 +2,14 @@ from __future__ import annotations
 from typing import Annotated, List, Union
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
-from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect
+from xdsl.ir import SSAValue, Operation, Block, Region, Attribute, Dialect, BlockArgument
 from xdsl.irdl import (VarOpResult, irdl_op_definition, VarOperand, AnyAttr,
-                       OpAttr, OptOpAttr)
+                       OpAttr, OptOpAttr, IRDLOperation)
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class FuncOp(Operation):
+class FuncOp(IRDLOperation):
     name: str = "func.func"
 
     body: Region
@@ -21,7 +21,7 @@ class FuncOp(Operation):
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
         # If this is an empty block (external function) then return
-        if len(entry_block.args) == 0 and len(entry_block.ops) == 0:
+        if len(entry_block.args) == 0 and entry_block.is_empty:
             return
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
@@ -41,7 +41,7 @@ class FuncOp(Operation):
         }
         op = FuncOp.build(
             attributes=attributes,
-            regions=[Region([Block.from_callable(input_types, func)])])
+            regions=[Region(Block.from_callable(input_types, func))])
         return op
 
     @staticmethod
@@ -53,8 +53,7 @@ class FuncOp(Operation):
             "function_type": type_attr,
             "sym_visibility": StringAttr("private")
         }
-        op = FuncOp.build(attributes=attributes,
-                          regions=[Region.from_operation_list([])])
+        op = FuncOp.build(attributes=attributes, regions=[Region([Block()])])
         return op
 
     @staticmethod
@@ -69,9 +68,75 @@ class FuncOp(Operation):
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op
 
+    def replace_argument_type(self, arg: int | BlockArgument,
+                              new_type: Attribute):
+        """
+        Replaces the type of the argument specified by arg (either the index of the arg,
+        or the BlockArgument object itself) with new_type. This also takes care of updating
+        the function_type attribute.
+        """
+        if isinstance(arg, int):
+            try:
+                arg = self.body.blocks[0].args[arg]
+            except IndexError:
+                raise IndexError("Block {} does not have argument #{}".format(
+                    self.body.blocks[0], arg))
+
+        if arg not in self.args:
+            raise ValueError(
+                "Arg {} does not belong to this function".format(arg))
+
+        arg.typ = new_type
+        self.update_function_type()
+
+    def update_function_type(self):
+        """
+        Update the function_type attribute to reflect changes in the
+        block argument types or return statement arguments.
+        """
+        # Refuse to work with external function definitions, as they don't have block args
+        assert not self.is_declaration, "update_function_type does not work with function declarations!"
+        return_op = self.get_return_op()
+        return_type: tuple[Attribute] = self.function_type.outputs.data
+
+        if return_op is not None:
+            return_type = tuple(arg.typ for arg in return_op.operands)
+
+        self.attributes['function_type'] = FunctionType.from_lists(
+            [arg.typ for arg in self.args],
+            return_type,
+        )
+
+    def get_return_op(self) -> Return | None:
+        """
+        Helper for easily retrieving the return operation of a given
+        function. Returns None if it couldn't find a return op.
+        """
+        if self.is_declaration:
+            return None
+        ret_op = self.body.blocks[-1].last_op
+        if not isinstance(ret_op, Return):
+            return None
+        return ret_op
+
+    @property
+    def args(self) -> tuple[BlockArgument, ...]:
+        """
+        A helper to quickly get access to the block arguments of the function
+        """
+        assert not self.is_declaration, "Function declarations don't have BlockArguments!"
+        return self.body.blocks[0].args
+
+    @property
+    def is_declaration(self):
+        """
+        A helper to identify functions that are external declarations (have an empty function body)
+        """
+        return len(self.body.blocks[0].ops) == 0
+
 
 @irdl_op_definition
-class Call(Operation):
+class Call(IRDLOperation):
     name: str = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
@@ -92,7 +157,7 @@ class Call(Operation):
 
 
 @irdl_op_definition
-class Return(Operation):
+class Return(IRDLOperation):
     name: str = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
 

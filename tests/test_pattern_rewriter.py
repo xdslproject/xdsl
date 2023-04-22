@@ -3,7 +3,7 @@ from conftest import assert_print_op
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import If, Scf
-from xdsl.ir import MLContext, Region, Operation
+from xdsl.ir import Block, MLContext, Region, Operation
 from xdsl.pattern_rewriter import (PatternRewriteWalker,
                                    op_type_rewrite_pattern, RewritePattern,
                                    PatternRewriter, AnonymousRewritePattern,
@@ -331,7 +331,7 @@ def test_insert_op_at_pos_negative():
     Test rewrites where operations are inserted with a negative position.
     """
 
-    prog = ModuleOp.from_region_or_ops([Constant.from_int_and_width(5, 32)])
+    prog = ModuleOp([Constant.from_int_and_width(5, 32)])
 
     to_be_inserted = Constant.from_int_and_width(42, 32)
 
@@ -687,10 +687,9 @@ scf.if(%0 : !i1) {
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
+        first_op = op.true_region.blocks[0].first_op
+        if isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
             rewriter.inline_block_at_pos(inner_if_block,
                                          op.true_region.blocks[0], 0)
 
@@ -757,12 +756,10 @@ scf.if(%0 : !i1) {
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
-            rewriter.inline_block_before(inner_if_block,
-                                         op.true_region.blocks[0].ops[0])
+        first_op = op.true_region.blocks[0].first_op
+        if isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
+            rewriter.inline_block_before(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog, expected,
@@ -830,12 +827,10 @@ def test_inline_block_after():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        if len(op.true_region.blocks[0].ops) > 0 and isinstance(
-                op.true_region.blocks[0].ops[0], If):
-            inner_if_block = op.true_region.blocks[0].ops[
-                0].true_region.blocks[0]
-            rewriter.inline_block_after(inner_if_block,
-                                        op.true_region.blocks[0].ops[0])
+        first_op = op.true_region.blocks[0].first_op
+        if first_op is not None and isinstance(first_op, If):
+            inner_if_block = first_op.true_region.blocks[0]
+            rewriter.inline_block_after(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog, expected,
@@ -871,8 +866,7 @@ def test_move_region_contents_to_new_regions():
         assert isinstance(old_if, If)
         new_region = rewriter.move_region_contents_to_new_regions(
             old_if.regions[0])
-        new_if = If.get(old_if.cond, [], new_region,
-                        Region.from_operation_list([]))
+        new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
         rewriter.insert_op_after(new_if, op.ops[1])
 
     rewrite_and_compare(

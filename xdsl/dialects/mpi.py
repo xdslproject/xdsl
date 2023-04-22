@@ -13,7 +13,7 @@ from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
                      ParametrizedAttribute, Dialect, TypeAttribute)
 from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
                        irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       OptOperand, OptOpAttr)
+                       OptOperand, OptOpAttr, IRDLOperation)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -106,7 +106,7 @@ class StatusTypeField(Enum):
     MPI_ERROR = 'MPI_ERROR'
 
 
-class MPIBaseOp(Operation, ABC):
+class MPIBaseOp(IRDLOperation, ABC):
     """
     Base class for MPI Operations
     """

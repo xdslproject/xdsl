@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.ir import OpResult, OpTrait, Operation
-from xdsl.irdl import Operand, irdl_op_definition
+from xdsl.irdl import Operand, irdl_op_definition, IRDLOperation
 from xdsl.utils.exceptions import VerifyException
 from xdsl.dialects.builtin import IntegerType, i1, i32, i64
 from xdsl.utils.test_value import TestSSAValue
@@ -63,7 +63,7 @@ class BitwidthSumLessThanTrait(OpTrait):
 
 
 @irdl_op_definition
-class TestOp(Operation):
+class TestOp(IRDLOperation):
     name = "test.test"
     traits = frozenset([LargerOperandTrait(), BitwidthSumLessThanTrait(64)])
 
@@ -128,7 +128,7 @@ def test_verifier_order():
     assert e.value.args[0] == ("Expected 1 operand, but got 0")
 
 
-class LargerOperandOp(Operation, ABC):
+class LargerOperandOp(IRDLOperation, ABC):
     traits = frozenset([LargerOperandTrait()])
 
 
@@ -149,7 +149,7 @@ def test_trait_inheritance():
 
 
 @irdl_op_definition
-class NoTraitsOp(Operation):
+class NoTraitsOp(IRDLOperation):
     name = "test.no_traits_op"
 
 
@@ -158,7 +158,7 @@ def test_traits_undefined():
     assert NoTraitsOp.traits == frozenset()
 
 
-class WrongTraitsType(Operation):
+class WrongTraitsType(IRDLOperation):
     name = "test.no_traits"
 
     traits = 1  # type: ignore

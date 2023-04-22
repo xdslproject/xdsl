@@ -810,8 +810,8 @@ class BaseParser(ABC):
                 Token.Kind.MINUS) is not None
 
         # Parse the actual number
-        if (int_token := self._parse_optional_token(
-                Token.Kind.INTEGER_LIT)) is None:
+        if (int_token :=
+                self._parse_optional_token(Token.Kind.INTEGER_LIT)) is None:
             if is_negative:
                 self.raise_error("Expected integer literal after '-'")
             self._synchronize_lexer_and_tokenizer()
@@ -1197,12 +1197,12 @@ class BaseParser(ABC):
     def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
         """
         Parse a ranked or unranked shape with the following format:
-        
+
         shape ::= ranked-shape | unranked-shape
         ranked-shape ::= (dimension `x`)* type
         unranked-shape ::= `*`x type
         dimension ::= `?` | decimal-literal
-          
+
         each dimension is also required to be non-negative.
         """
         self._synchronize_lexer_and_tokenizer()
@@ -1915,7 +1915,7 @@ class BaseParser(ABC):
         def to_float(self, parser: BaseParser) -> float:
             """
             Convert the element to a float value. Raises an error if the type
-            is compatible.                    
+            is compatible.
             """
             if not isinstance(self.value, int | float):
                 parser.raise_error('Expected float value',
@@ -1929,8 +1929,8 @@ class BaseParser(ABC):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
             elif isinstance(type, IntegerType):
-                return self.to_int(parser,
-                                   type.signedness.data != Signedness.UNSIGNED,
+                return self.to_int(parser, type.signedness.data
+                                   != Signedness.UNSIGNED,
                                    type.width.data == 1)
             elif isinstance(type, IndexType):
                 return self.to_int(parser,
@@ -1976,7 +1976,7 @@ class BaseParser(ABC):
             self) -> tuple[list[BaseParser._TensorLiteralElement], list[int]]:
         """
         Parse a tensor literal, and returns its flatten data and its shape.
-        
+
         For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
         the data, and [2, 3] for the shape.
         """

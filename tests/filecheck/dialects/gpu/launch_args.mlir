@@ -17,4 +17,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: Expected [12 x !index], got ['!index', '!index', '!index', '!index', '!index', '!index']. gpu.launch's body arguments are 12 index arguments, with 3 block indices, 3 block sizes, 3 thread indices, and 3 thread counts
+// CHECK: Expected [12 x index], got ['index', 'index', 'index', 'index', 'index', 'index']. gpu.launch's body arguments are 12 index arguments, with 3 block indices, 3 block sizes, 3 thread indices, and 3 thread counts

@@ -32,23 +32,23 @@ def build_module() -> ModuleOp:
 
     def func_body(*args: BlockArgument) -> list[Operation]:
         arg0, arg1 = args
-        f0 = td.TransposeOp.from_input(arg0)
-        f1 = td.TransposeOp.from_input(arg1)
-        f2 = td.MulOp.from_summands(f0.results[0], f1.results[0])
-        f3 = td.ReturnOp.from_input(f2.results[0])
+        f0 = td.TransposeOp(arg0)
+        f1 = td.TransposeOp(arg1)
+        f2 = td.MulOp(f0.results[0], f1.results[0])
+        f3 = td.ReturnOp(f2.results[0])
         return [f0, f1, f2, f3]
 
     def main_body(*args: BlockArgument) -> list[Operation]:
         m0 = td.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3])
         [a] = m0.results
         m1 = td.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6])
-        m2 = td.ReshapeOp.from_input(m1.results[0], [2, 3])
+        m2 = td.ReshapeOp(m1.results[0], [2, 3])
         [b] = m2.results
-        m3 = td.GenericCallOp.get('multiply_transpose', [a, b],
-                                  [unrankedf64TensorType])
+        m3 = td.GenericCallOp('multiply_transpose', [a, b],
+                              [unrankedf64TensorType])
         [c] = m3.results
-        m4 = td.PrintOp.from_input(c)
-        m5 = td.ReturnOp.from_input()
+        m4 = td.PrintOp(c)
+        m5 = td.ReturnOp()
         return [m0, m1, m2, m3, m4, m5]
 
     multiply_transpose = td.FuncOp.from_callable(
@@ -58,4 +58,4 @@ def build_module() -> ModuleOp:
         private=True)
     main = td.FuncOp.from_callable('main', [], [], main_body, private=False)
 
-    return ModuleOp.from_region_or_ops([multiply_transpose, main])
+    return ModuleOp([multiply_transpose, main])

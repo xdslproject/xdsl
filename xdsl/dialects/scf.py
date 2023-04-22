@@ -6,12 +6,12 @@ from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (AnyAttr, AttrSizedOperandSegments, Operand,
                        SingleBlockRegion, VarOperand, VarOpResult,
-                       irdl_op_definition)
+                       irdl_op_definition, IRDLOperation)
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class If(Operation):
+class If(IRDLOperation):
     name: str = "scf.if"
     output: Annotated[VarOpResult, AnyAttr()]
     cond: Annotated[Operand, IntegerType(1)]
@@ -21,9 +21,17 @@ class If(Operation):
     false_region: Region
 
     @staticmethod
-    def get(cond: SSAValue | Operation, return_types: List[Attribute],
-            true_region: Region | List[Block] | List[Operation],
-            false_region: Region | List[Block] | List[Operation]) -> If:
+    def get(
+        cond: SSAValue | Operation,
+        return_types: Sequence[Attribute],
+        true_region: Region | Sequence[Block] | Sequence[Operation],
+        false_region: Region | Sequence[Block] | Sequence[Operation]
+        | None = None
+    ) -> If:
+
+        if false_region is None:
+            false_region = Region()
+
         return If.build(
             operands=[cond],
             result_types=[return_types],
@@ -32,7 +40,7 @@ class If(Operation):
 
 
 @irdl_op_definition
-class Yield(Operation):
+class Yield(IRDLOperation):
     name: str = "scf.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -43,7 +51,7 @@ class Yield(Operation):
 
 
 @irdl_op_definition
-class Condition(Operation):
+class Condition(IRDLOperation):
     name: str = "scf.condition"
     cond: Annotated[Operand, IntegerType(1)]
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -56,7 +64,7 @@ class Condition(Operation):
 
 
 @irdl_op_definition
-class For(Operation):
+class For(IRDLOperation):
     name: str = "scf.for"
 
     lb: Annotated[Operand, IndexType]
@@ -70,26 +78,27 @@ class For(Operation):
     body: SingleBlockRegion
 
     def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.blocks[0].args):
+        if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.blocks[0].args)}. The body must have the induction "
+                f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments.")
         for idx, arg in enumerate(self.iter_args):
-            if self.body.blocks[0].args[idx + 1].typ != arg.typ:
+            if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.body.blocks[0].args[idx].typ}. Arguments after the "
+                    f"got {self.body.block.args[idx].typ}. Arguments after the "
                     f"induction variable must match the carried variables.")
         if len(self.iter_args) > 0:
             if (len(self.body.ops) == 0
-                    or not isinstance(self.body.ops[-1], Yield)):
+                    or not isinstance(self.body.block.last_op, Yield)):
                 raise VerifyException(
                     "The scf.for's body does not end with a scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body.")
-        if (len(self.body.ops) > 0 and isinstance(self.body.ops[-1], Yield)):
-            yieldop = self.body.ops[-1]
+        if (len(self.body.ops) > 0
+                and isinstance(self.body.block.last_op, Yield)):
+            yieldop = self.body.block.last_op
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
@@ -120,7 +129,7 @@ class For(Operation):
 
 
 @irdl_op_definition
-class ParallelOp(Operation):
+class ParallelOp(IRDLOperation):
     name = "scf.parallel"
     lowerBound: Annotated[VarOperand, IndexType]
     upperBound: Annotated[VarOperand, IndexType]
@@ -151,8 +160,7 @@ class ParallelOp(Operation):
                 "bounds, and steps for scf.parallel. Got "
                 f"{len(self.lowerBound)}, {len(self.upperBound)} and "
                 f"{len(self.step)}.")
-        body_args = self.body.blocks[0].args if len(
-            self.body.blocks) != 0 else ()
+        body_args = self.body.block.args if len(self.body.blocks) != 0 else ()
         if len(self.lowerBound) != len(body_args) or not all(
             [isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
@@ -166,7 +174,7 @@ class ParallelOp(Operation):
 
 
 @irdl_op_definition
-class While(Operation):
+class While(IRDLOperation):
     name: str = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -177,16 +185,16 @@ class While(Operation):
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
-            if self.before_region.blocks[0].args[idx].typ != arg.typ:
+            if self.before_region.block.args[idx].typ != arg.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.before_region.blocks[0].args[idx].typ}")
+                    f"got {self.before_region.block.args[idx].typ}")
 
         for idx, res in enumerate(self.res):
-            if self.after_region.blocks[0].args[idx].typ != res.typ:
+            if self.after_region.block.args[idx].typ != res.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.typ}, "
-                    f"got {self.after_region.blocks[0].args[idx].typ}")
+                    f"got {self.after_region.block.args[idx].typ}")
 
     @staticmethod
     def get(operands: List[SSAValue | Operation],

@@ -1,16 +1,14 @@
 import pytest
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
 
-from xdsl.ir import MLContext, TypeAttribute, ParametrizedAttribute
-from xdsl.irdl import irdl_op_definition, irdl_attr_definition, Operation
+from xdsl.ir import MLContext, TypeAttribute, ParametrizedAttribute, Operation
+from xdsl.irdl import irdl_attr_definition
 
 
-@irdl_op_definition
 class DummyOp(Operation):
     name = "dummy"
 
 
-@irdl_op_definition
 class DummyOp2(Operation):
     name = "dummy2"
 

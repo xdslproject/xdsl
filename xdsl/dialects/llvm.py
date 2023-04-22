@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING, Annotated
 from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
                                    IntAttr, NoneAttr, IntegerType, IntegerAttr,
                                    AnyIntegerAttr, IndexType, UnitAttr, i32,
-                                   i64)
+                                   i64, SymbolRefAttr)
 from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
-                     OpResult, Operation, SSAValue)
-from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
+                     OpResult, Operation, SSAValue, Region)
+from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr, Block,
                        irdl_attr_definition, irdl_op_definition, VarOperand,
-                       OptOpAttr)
+                       OptOpAttr, IRDLOperation)
+from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -144,8 +145,50 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         return LLVMArrayType([size, type])
 
 
+@irdl_attr_definition
+class LinkageAttr(ParametrizedAttribute):
+    name = "llvm.linkage"
+
+    linkage: ParameterDef[StringAttr]
+
+    def __init__(self, linkage: str | StringAttr) -> None:
+        if isinstance(linkage, str):
+            linkage = StringAttr(linkage)
+        super().__init__([linkage])
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_attribute(self.linkage)
+        printer.print_string(">")
+
+    @staticmethod
+    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+        parser.parse_characters('<', "llvm.linkage parameter expected")
+        # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
+        # however it is always output from MLIR without quotes. Therefore need to determine
+        # whether this is a string or not and slightly change how we parse based upon that
+        linkage_str = parser.try_parse_string_literal()
+        if linkage_str is not None:
+            linkage_str = linkage_str.string_contents
+        else:
+            linkage_str = parser.tokenizer.next_token().text
+        linkage = StringAttr(linkage_str)
+        parser.parse_characters('>', "End of llvm.linkage parameter expected!")
+        return [linkage]
+
+    def verify(self):
+        allowed_linkage = [
+            "private", "internal", "available_externally", "linkonce", "weak",
+            "common", "appending", "extern_weak", "linkonce_odr", "weak_odr",
+            "external"
+        ]
+        if self.linkage.data not in allowed_linkage:
+            raise VerifyException(
+                f"Specified linkage '{self.linkage.data}' is unknown")
+
+
 @irdl_op_definition
-class GEPOp(Operation):
+class GEPOp(IRDLOperation):
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
@@ -205,7 +248,7 @@ class GEPOp(Operation):
 
 
 @irdl_op_definition
-class AllocaOp(Operation):
+class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
     size: Annotated[Operand, IntegerType]
@@ -234,7 +277,7 @@ class AllocaOp(Operation):
 
 
 @irdl_op_definition
-class IntToPtrOp(Operation):
+class IntToPtrOp(IRDLOperation):
     name = "llvm.inttoptr"
 
     input: Annotated[Operand, IntegerType]
@@ -251,7 +294,7 @@ class IntToPtrOp(Operation):
 
 
 @irdl_op_definition
-class PtrToIntOp(Operation):
+class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
     input: Annotated[Operand, LLVMPointerType]
@@ -264,7 +307,7 @@ class PtrToIntOp(Operation):
 
 
 @irdl_op_definition
-class LoadOp(Operation):
+class LoadOp(IRDLOperation):
     name = "llvm.load"
 
     ptr: Annotated[Operand, LLVMPointerType]
@@ -287,7 +330,7 @@ class LoadOp(Operation):
 
 
 @irdl_op_definition
-class StoreOp(Operation):
+class StoreOp(IRDLOperation):
     name = "llvm.store"
 
     value: Operand
@@ -324,7 +367,7 @@ class StoreOp(Operation):
 
 
 @irdl_op_definition
-class NullOp(Operation):
+class NullOp(IRDLOperation):
     name = "llvm.mlir.null"
 
     nullptr: Annotated[OpResult, LLVMPointerType]
@@ -339,7 +382,7 @@ class NullOp(Operation):
 
 
 @irdl_op_definition
-class LLVMExtractValue(Operation):
+class LLVMExtractValue(IRDLOperation):
     name = "llvm.extractvalue"
 
     position: OpAttr[DenseArrayBase]
@@ -349,7 +392,7 @@ class LLVMExtractValue(Operation):
 
 
 @irdl_op_definition
-class LLVMInsertValue(Operation):
+class LLVMInsertValue(IRDLOperation):
     name = "llvm.insertvalue"
 
     position: OpAttr[DenseArrayBase]
@@ -360,10 +403,100 @@ class LLVMInsertValue(Operation):
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(Operation):
+class LLVMMLIRUndef(IRDLOperation):
     name = "llvm.mlir.undef"
 
     res: Annotated[OpResult, AnyAttr()]
+
+
+@irdl_op_definition
+class GlobalOp(IRDLOperation):
+    name = "llvm.mlir.global"
+
+    global_type: OpAttr[Attribute]
+    constant: OptOpAttr[UnitAttr]
+    sym_name: OpAttr[StringAttr]
+    linkage: OpAttr[LinkageAttr]
+    dso_local: OptOpAttr[UnitAttr]
+    thread_local_: OptOpAttr[UnitAttr]
+    value: OptOpAttr[Attribute]
+    alignment: OptOpAttr[AnyIntegerAttr]
+    addr_space: OpAttr[AnyIntegerAttr]
+    unnamed_addr: OptOpAttr[AnyIntegerAttr]
+    section: OptOpAttr[StringAttr]
+
+    # This always needs an empty region as it is in the top level module definition
+    body: Region
+
+    @staticmethod
+    def get(global_type: Attribute,
+            sym_name: str | StringAttr,
+            linkage: str | LinkageAttr,
+            addr_space: int,
+            constant: bool | None = None,
+            dso_local: bool | None = None,
+            thread_local_: bool | None = None,
+            value: Attribute | None = None,
+            alignment: int | None = None,
+            unnamed_addr: int | None = None,
+            section: str | StringAttr | None = None):
+
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+
+        if isinstance(linkage, str):
+            linkage = LinkageAttr(linkage)
+
+        attrs: dict[str, Attribute] = {
+            'global_type': global_type,
+            'sym_name': sym_name,
+            'linkage': linkage,
+            'addr_space': IntegerAttr(addr_space, 32)
+        }
+
+        if constant is not None and constant:
+            attrs['constant'] = UnitAttr()
+
+        if dso_local is not None and dso_local:
+            attrs['dso_local'] = UnitAttr()
+
+        if thread_local_ is not None and thread_local_:
+            attrs['thread_local_'] = UnitAttr()
+
+        if value is not None:
+            attrs['value'] = value
+
+        if alignment is not None:
+            attrs['alignment'] = IntegerAttr(alignment, 64)
+
+        if unnamed_addr is not None:
+            attrs['unnamed_addr'] = IntegerAttr(unnamed_addr, 64)
+
+        if section is not None:
+            if isinstance(section, str):
+                section = StringAttr(section)
+            attrs['section'] = section
+
+        return GlobalOp.build(attributes=attrs, regions=[Region([Block()])])
+
+
+@irdl_op_definition
+class AddressOfOp(IRDLOperation):
+    name = "llvm.mlir.addressof"
+
+    global_name: OpAttr[SymbolRefAttr]
+    result: Annotated[OpResult, LLVMPointerType]
+
+    @staticmethod
+    def get(global_name: str | StringAttr | SymbolRefAttr,
+            result_type: LLVMPointerType):
+        if isinstance(global_name, str):
+            global_name = StringAttr(global_name)
+        if isinstance(global_name, StringAttr):
+            global_name = SymbolRefAttr(global_name)
+
+        return AddressOfOp.build(attributes={'global_name': global_name},
+                                 result_types=[result_type])
 
 
 LLVM = Dialect([
@@ -376,4 +509,6 @@ LLVM = Dialect([
     NullOp,
     LoadOp,
     StoreOp,
-], [LLVMStructType, LLVMPointerType, LLVMArrayType])
+    GlobalOp,
+    AddressOfOp,
+], [LLVMStructType, LLVMPointerType, LLVMArrayType, LinkageAttr])

@@ -14,7 +14,8 @@ from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
                        irdl_attr_definition, attr_constr_coercion,
                        irdl_data_definition, irdl_to_attr_constraint,
                        irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr)
+                       Generic, GenericData, AttrConstraint, AnyAttr,
+                       IRDLOperation)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -1030,7 +1031,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class UnrealizedConversionCastOp(Operation):
+class UnrealizedConversionCastOp(IRDLOperation):
     name: str = "builtin.unrealized_conversion_cast"
 
     inputs: VarOperand
@@ -1045,10 +1046,10 @@ class UnrealizedConversionCastOp(Operation):
         )
 
 
-class UnregisteredOp(Operation, ABC):
+class UnregisteredOp(IRDLOperation, ABC):
     """
     An unregistered operation.
-    
+
     Each unregistered op is registered as a subclass of `UnregisteredOp`,
     and op with different names have distinct subclasses.
     """
@@ -1092,11 +1093,11 @@ class UnregisteredOp(Operation, ABC):
 class UnregisteredAttr(ParametrizedAttribute, ABC):
     """
     An unregistered attribute or type.
-    
+
     Each unregistered attribute is registered as a subclass of
-    `UnregisteredAttr`, and attribute with different names have 
+    `UnregisteredAttr`, and attribute with different names have
     distinct subclasses.
-    
+
     Since attributes do not have a generic format, unregistered
     attributes represent their original parameters as a string,
     which is exactly the content parsed from the textual
@@ -1125,7 +1126,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     def with_name_and_type(cls, name: str,
                            is_type: bool) -> type[UnregisteredAttr]:
         """
-        Return a new unregistered attribute type given a name and a 
+        Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
         This function should not be called directly. Use methods from
         `MLContext` to get an `UnregisteredAttr` type.
@@ -1158,27 +1159,21 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
 
 @irdl_op_definition
-class ModuleOp(Operation):
+class ModuleOp(IRDLOperation):
     name: str = "builtin.module"
 
     body: SingleBlockRegion
 
-    @property
-    def ops(self) -> List[Operation]:
-        return self.regions[0].blocks[0].ops
-
-    @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
-        if isinstance(ops, list):
-            region = Region.from_operation_list(ops)
-        elif isinstance(ops, Region):
+    def __init__(self, ops: List[Operation] | Region):
+        if isinstance(ops, Region):
             region = ops
         else:
-            raise TypeError(
-                f"Expected region or operation list in ModuleOp.get, but got '{ops}'"
-            )
-        op = ModuleOp.create([], [], regions=[region])
-        return op
+            region = Region(Block(ops))
+        super().__init__(regions=[region])
+
+    @property
+    def ops(self) -> List[Operation]:
+        return self.regions[0].block.ops
 
 
 # FloatXXType shortcuts

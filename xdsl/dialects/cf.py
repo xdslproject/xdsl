@@ -5,11 +5,11 @@ from typing import Annotated, List, Union
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import SSAValue, Operation, Block, Dialect
 from xdsl.irdl import (irdl_op_definition, VarOperand, AnyAttr, Operand,
-                       AttrSizedOperandSegments)
+                       AttrSizedOperandSegments, IRDLOperation)
 
 
 @irdl_op_definition
-class Branch(Operation):
+class Branch(IRDLOperation):
     name: str = "cf.br"
 
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -20,7 +20,7 @@ class Branch(Operation):
 
 
 @irdl_op_definition
-class ConditionalBranch(Operation):
+class ConditionalBranch(IRDLOperation):
     name: str = "cf.cond_br"
 
     cond: Annotated[Operand, IntegerType(1)]

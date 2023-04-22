@@ -23,6 +23,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
+from xdsl.dialects.test import Test
 
 from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
@@ -207,6 +208,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
+        self.ctx.register_dialect(Test)
 
     def register_all_frontends(self):
         """
@@ -252,7 +254,7 @@ class xDSLOptMain:
         """
 
         def _output_xdsl(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output)
+            printer = Printer(stream=output, target=Printer.Target.XDSL)
             printer.print_op(prog)
             print("\n", file=output)
 
