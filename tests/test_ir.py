@@ -287,7 +287,8 @@ ModuleOp(
 \t}
 )'''
 
-
+# ToDo: Create this op without IRDL itself, since it tests fine grained 
+# stuff which is supposed to be used with IRDL or PDL.
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = 'test.custom_op_with_multiple_regions'
