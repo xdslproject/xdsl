@@ -1,5 +1,5 @@
 import pytest
-from typing import cast
+from typing import cast, List
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Block
@@ -304,10 +304,11 @@ def test_parallel_verify_yield_types_match_result_types():
 
 
 def test_parallel_test_count_number_reduction_ops():
-    init_val = Constant.from_int_and_width(10, i32)
-    reductions = []
+    reductions: List[ReduceOp] = []
     for i in range(10):
-        reductions.append(ReduceOp.get(init_val, Block()))
+        init_val = Constant.from_int_and_width(i, i32)
+        reduce_op = ReduceOp.get(init_val, Block())
+        reductions.append(reduce_op)
 
     b = Block()
     b.add_ops(reductions)
@@ -318,10 +319,11 @@ def test_parallel_test_count_number_reduction_ops():
 def test_parallel_get_arg_type_of_nth_reduction_op():
     init_val1 = Constant.from_int_and_width(10, i32)
     init_val2 = Constant.from_int_and_width(10, i64)
-    reductions = []
+    reductions: List[ReduceOp] = []
     for i in range(10):
-        reductions.append(
-            ReduceOp.get(init_val1 if i % 2 == 0 else init_val2, Block()))
+        reduce_op = ReduceOp.get(init_val1 if i % 2 == 0 else init_val2,
+                                 Block())
+        reductions.append(reduce_op)
 
     b = Block()
     b.add_ops(reductions)

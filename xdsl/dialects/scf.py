@@ -148,7 +148,7 @@ class ParallelOp(IRDLOperation):
         steps: Sequence[SSAValue | Operation],
         body: Region | list[Block] | list[Operation],
         initVals: Sequence[SSAValue | Operation] = [],
-    ):
+    ) -> ParallelOp:
         return ParallelOp.build(
             operands=[lowerBounds, upperBounds, steps, initVals],
             regions=[body],
@@ -259,7 +259,7 @@ class ParallelOp(IRDLOperation):
         result_start_index = len(self.body.block.ops[-1].arguments)
         for reduction in range(num_reductions):
             typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            resultType = self.initVals[initValsStartIndex + reduction].typ
+            resultType = self.initVals[result_start_index + reduction].typ
             if resultType != typ:
                 raise VerifyException(
                     f"Miss match on scf.parallel result type and reduction op type number {reduction} "
@@ -272,7 +272,7 @@ class ParallelOp(IRDLOperation):
             if isinstance(op, ReduceOp): num_reduce += 1
         return num_reduce
 
-    def get_arg_type_of_nth_reduction_op(self, index):
+    def get_arg_type_of_nth_reduction_op(self, index: int):
         found = 0
         for op in self.body.block.ops:
             if isinstance(op, ReduceOp):
@@ -292,7 +292,7 @@ class ReduceOp(IRDLOperation):
     def get(
         argument: SSAValue | Operation,
         block: Block,
-    ):
+    ) -> ReduceOp:
         return ReduceOp.build(operands=[argument],
                               regions=[Region(block, parent=None)])
 
@@ -337,7 +337,7 @@ class ReduceReturnOp(IRDLOperation):
     result: Annotated[Operand, AnyAttr()]
 
     @staticmethod
-    def get(result: SSAValue | Operation, ):
+    def get(result: SSAValue | Operation, ) -> ReduceReturnOp:
         return ReduceReturnOp.build(operands=[result])
 
     def verify_(self) -> None:
