@@ -11,9 +11,9 @@ from toy import dialect as toy
 
 
 def test_convert_ast():
-    ast_toy = Path('docs/Toy/examples/ast.toy')
+    ast_toy = Path("docs/Toy/examples/ast.toy")
 
-    with open(ast_toy, 'r') as f:
+    with open(ast_toy, "r") as f:
         parser = Parser(ast_toy, f.read())
 
     module_ast = parser.parseModule()
@@ -28,8 +28,8 @@ def test_convert_ast():
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
         multiply_transpose_type = FunctionType.from_lists(
-            [unrankedf64TensorType, unrankedf64TensorType],
-            [unrankedf64TensorType])
+            [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]
+        )
 
         @Builder.implicit_region(multiply_transpose_type.inputs)
         def multiply_transpose(args: tuple[BlockArgument, ...]) -> None:
@@ -40,8 +40,9 @@ def test_convert_ast():
             toy.ReturnOp(prod)
 
         def call_multiply_transpose(a: SSAValue, b: SSAValue) -> OpResult:
-            return toy.GenericCallOp("multiply_transpose", [a, b],
-                                     [unrankedf64TensorType]).res[0]
+            return toy.GenericCallOp(
+                "multiply_transpose", [a, b], [unrankedf64TensorType]
+            ).res[0]
 
         main_type = FunctionType.from_lists([], [])
 
@@ -57,10 +58,12 @@ def test_convert_ast():
             call_multiply_transpose(a_t, c)
             toy.ReturnOp()
 
-        toy.FuncOp("multiply_transpose",
-                   multiply_transpose_type,
-                   multiply_transpose,
-                   private=True)
+        toy.FuncOp(
+            "multiply_transpose",
+            multiply_transpose_type,
+            multiply_transpose,
+            private=True,
+        )
         toy.FuncOp("main", main_type, main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)

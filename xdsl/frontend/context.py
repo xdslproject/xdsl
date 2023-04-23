@@ -3,7 +3,7 @@ import ast
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from inspect import getsource
-from sys import _getframe  #type: ignore
+from sys import _getframe  # type: ignore
 from typing import Any
 
 from xdsl.frontend.program import FrontendProgram
@@ -36,9 +36,10 @@ class CodeContext(AbstractContextManager[Any]):
 
         # Find where the program starts.
         for node in ast.walk(python_ast):
-            if isinstance(node, ast.With) and \
-               node.lineno == frame.f_lineno - frame.f_code.co_firstlineno + 1:
-
+            if (
+                isinstance(node, ast.With)
+                and node.lineno == frame.f_lineno - frame.f_code.co_firstlineno + 1
+            ):
                 # Found the program AST. Store it for later compilation or
                 # execution.
                 self.program.stmts = node.body

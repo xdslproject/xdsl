@@ -141,42 +141,35 @@ def test_op_clone_with_regions():
 
 ##################### Testing is_structurally_equal #####################
 
-program_region = \
-"""builtin.module() {
+program_region = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 }
 """
-program_region_2 = \
-"""builtin.module() {
+program_region_2 = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 2 : !i32]
 }
 """
-program_region_2_diff_name = \
-"""builtin.module() {
+program_region_2_diff_name = """builtin.module() {
   %cst : !i32 = arith.constant() ["value" = 2 : !i32]
 }
 """
-program_region_2_diff_type = \
-"""builtin.module() {
+program_region_2_diff_type = """builtin.module() {
   %0 : !i64 = arith.constant() ["value" = 2 : !i64]
 }
 """
-program_add = \
-"""builtin.module() {
+program_add = """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
 }
 """
-program_add_2 = \
-"""builtin.module() {
+program_add_2 = """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
 }
 """
-program_func = \
-"""builtin.module() {
+program_func = """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -184,8 +177,7 @@ program_func = \
   }
 }
 """
-program_successors = \
-"""
+program_successors = """
     func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     ^0:
         cf.br() (^1)
@@ -197,20 +189,23 @@ program_successors = \
 
 @pytest.mark.parametrize(
     "args, expected_result",
-    [([program_region, program_region], True),
-     ([program_region_2, program_region_2], True),
-     ([program_region_2_diff_type, program_region_2_diff_type], True),
-     ([program_region_2_diff_name, program_region_2_diff_name], True),
-     ([program_region, program_region_2], False),
-     ([program_region_2, program_region_2_diff_type], False),
-     ([program_region_2, program_region_2_diff_name], True),
-     ([program_add, program_add], True),
-     ([program_add_2, program_add_2], True),
-     ([program_add, program_add_2], False),
-     ([program_func, program_func], True),
-     ([program_successors, program_successors], True),
-     ([program_successors, program_func], False),
-     ([program_successors, program_add], False)])
+    [
+        ([program_region, program_region], True),
+        ([program_region_2, program_region_2], True),
+        ([program_region_2_diff_type, program_region_2_diff_type], True),
+        ([program_region_2_diff_name, program_region_2_diff_name], True),
+        ([program_region, program_region_2], False),
+        ([program_region_2, program_region_2_diff_type], False),
+        ([program_region_2, program_region_2_diff_name], True),
+        ([program_add, program_add], True),
+        ([program_add_2, program_add_2], True),
+        ([program_add, program_add_2], False),
+        ([program_func, program_func], True),
+        ([program_successors, program_successors], True),
+        ([program_successors, program_func], False),
+        ([program_successors, program_add], False),
+    ],
+)
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
@@ -228,8 +223,7 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
 
 
 def test_is_structurally_equivalent_incompatible_ir_nodes():
-    program_func = \
-  """builtin.module() {
+    program_func = """builtin.module() {
     func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
     ^0(%0 : !i32, %1 : !i32):
       %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -252,46 +246,51 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     assert isinstance(program, ModuleOp)
 
     assert program.is_structurally_equivalent(program.regions[0]) == False
-    assert program.is_structurally_equivalent(
-        program.regions[0].blocks[0]) == False
+    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) == False
     assert program.regions[0].is_structurally_equivalent(program) == False
-    assert program.regions[0].blocks[0].is_structurally_equivalent(
-        program) == False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(program) == False
 
     block = program.ops[0].regions[0].blocks[0]
     ops = list(block.ops)
     assert ops[0].is_structurally_equivalent(ops[1]) == False
-    assert block.is_structurally_equivalent(
-        program.ops[0].regions[0].blocks[1]) == False
+    assert (
+        block.is_structurally_equivalent(program.ops[0].regions[0].blocks[1]) == False
+    )
 
 
 def test_descriptions():
     a = Constant.from_int_and_width(1, 32)
 
-    assert str(a.value) == '1 : i32'
-    assert f'{a.value}' == '1 : i32'
+    assert str(a.value) == "1 : i32"
+    assert f"{a.value}" == "1 : i32"
 
     assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
-    assert f'{a}' == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
+    assert f"{a}" == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
 
     m = ModuleOp.from_region_or_ops([a])
 
-    assert str(m) == '''\
+    assert (
+        str(m)
+        == """\
 builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
-}'''
+}"""
+    )
 
-    assert f'{m}' == '''\
+    assert (
+        f"{m}"
+        == """\
 ModuleOp(
 \tbuiltin.module() {
 \t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 \t}
-)'''
+)"""
+    )
 
 
 @irdl_op_definition
 class CustomVerify(IRDLOperation):
-    name = 'test.custom_verify_op'
+    name = "test.custom_verify_op"
     val: Annotated[Operand, i64]
 
     @staticmethod
@@ -299,7 +298,7 @@ class CustomVerify(IRDLOperation):
         return CustomVerify.build(operands=[val])
 
     def verify_(self):
-        raise Exception('Custom Verification Check')
+        raise Exception("Custom Verification Check")
 
 
 def test_op_custom_verify_is_called():
@@ -307,7 +306,7 @@ def test_op_custom_verify_is_called():
     b = CustomVerify.get(a.result)
     with pytest.raises(Exception) as e:
         b.verify()
-    assert e.value.args[0] == 'Custom Verification Check'
+    assert e.value.args[0] == "Custom Verification Check"
 
 
 def test_op_custom_verify_is_done_last():
@@ -316,9 +315,11 @@ def test_op_custom_verify_is_done_last():
     b = CustomVerify.get(a.result)
     with pytest.raises(Exception) as e:
         b.verify()
-    assert e.value.args[0] != 'Custom Verification Check'
-    assert e.value.args[0] == \
-           'test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n'
+    assert e.value.args[0] != "Custom Verification Check"
+    assert (
+        e.value.args[0]
+        == "test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n"
+    )
 
 
 def test_replace_operand():

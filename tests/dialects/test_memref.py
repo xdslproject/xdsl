@@ -1,10 +1,29 @@
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import StridedLayoutAttr, i32, i64, IntegerType, IndexType, ArrayAttr, DenseArrayBase, IntegerAttr, IntAttr
-from xdsl.dialects.memref import (Alloc, Alloca, Dealloc, Dealloca, MemRefType,
-                                  Load, Store, UnrankedMemrefType,
-                                  ExtractAlignedPointerAsIndexOp, Subview,
-                                  Cast)
+from xdsl.dialects.builtin import (
+    StridedLayoutAttr,
+    i32,
+    i64,
+    IntegerType,
+    IndexType,
+    ArrayAttr,
+    DenseArrayBase,
+    IntegerAttr,
+    IntAttr,
+)
+from xdsl.dialects.memref import (
+    Alloc,
+    Alloca,
+    Dealloc,
+    Dealloca,
+    MemRefType,
+    Load,
+    Store,
+    UnrankedMemrefType,
+    ExtractAlignedPointerAsIndexOp,
+    Subview,
+    Cast,
+)
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -150,46 +169,90 @@ def test_memref_ExtractAlignedPointerAsIndexOp():
 
 def test_memref_matmul_verify():
     memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(
-        builtin.f64, [-1, -1])
+        builtin.f64, [-1, -1]
+    )
 
-    module = builtin.ModuleOp.from_region_or_ops([
-        func.FuncOp.from_callable(
-            'matmul',
-            [memref_f64_rank2, memref_f64_rank2],
-            [memref_f64_rank2],
-            lambda a, b: [
-                lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
-                lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
-                dim_a0 := memref.Dim.from_source_and_index(a, lit0),
-                dim_a1 := memref.Dim.from_source_and_index(a, lit1),
-                dim_b0 := memref.Dim.from_source_and_index(b, lit0),
-                dim_b1 := memref.Dim.from_source_and_index(b, lit1),
-                out := memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]),
-                # TODO: assert dim_a0 == dim_b1
-                lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
-                scf.For.get(lit0, dim_a0, lit1, [], Block.from_callable([builtin.IndexType()], lambda i: [
-                    # outer loop start, loop_var = i
-                    scf.For.get(lit0, dim_b0, lit1, [], Block.from_callable([builtin.IndexType()], lambda j: [
-                        # mid loop start, loop_var = j
-                        memref.Store.get(lit0_f, out, [i, j]),
-                        scf.For.get(lit0, dim_a1, lit1, [], Block.from_callable([builtin.IndexType()], lambda k: [
-                            # inner loop, loop_var = k
-                            elem_a_i_k := memref.Load.get(a, [i, k]),
-                            elem_b_k_j := memref.Load.get(b, [k, j]),
-                            mul := arith.Mulf.get(elem_a_i_k, elem_b_k_j),
-                            out_i_j := memref.Load.get(out, [i, j]),
-                            new_out_val := arith.Addf.get(out_i_j, mul),
-                            memref.Store.get(new_out_val, out, [i, j]),
-                            scf.Yield.get()
-                        ])),
-                        scf.Yield.get()
-                    ])),
-                    scf.Yield.get()
-                ])),
-                func.Return.get(out)
-            ]
-        )
-    ])  # yapf: disable
+    module = builtin.ModuleOp.from_region_or_ops(
+        [
+            func.FuncOp.from_callable(
+                "matmul",
+                [memref_f64_rank2, memref_f64_rank2],
+                [memref_f64_rank2],
+                lambda a, b: [
+                    lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
+                    lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+                    dim_a0 := memref.Dim.from_source_and_index(a, lit0),
+                    dim_a1 := memref.Dim.from_source_and_index(a, lit1),
+                    dim_b0 := memref.Dim.from_source_and_index(b, lit0),
+                    dim_b1 := memref.Dim.from_source_and_index(b, lit1),
+                    out := memref.Alloca.get(
+                        builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]
+                    ),
+                    # TODO: assert dim_a0 == dim_b1
+                    lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
+                    scf.For.get(
+                        lit0,
+                        dim_a0,
+                        lit1,
+                        [],
+                        Block.from_callable(
+                            [builtin.IndexType()],
+                            lambda i: [
+                                # outer loop start, loop_var = i
+                                scf.For.get(
+                                    lit0,
+                                    dim_b0,
+                                    lit1,
+                                    [],
+                                    Block.from_callable(
+                                        [builtin.IndexType()],
+                                        lambda j: [
+                                            # mid loop start, loop_var = j
+                                            memref.Store.get(lit0_f, out, [i, j]),
+                                            scf.For.get(
+                                                lit0,
+                                                dim_a1,
+                                                lit1,
+                                                [],
+                                                Block.from_callable(
+                                                    [builtin.IndexType()],
+                                                    lambda k: [
+                                                        # inner loop, loop_var = k
+                                                        elem_a_i_k := memref.Load.get(
+                                                            a, [i, k]
+                                                        ),
+                                                        elem_b_k_j := memref.Load.get(
+                                                            b, [k, j]
+                                                        ),
+                                                        mul := arith.Mulf.get(
+                                                            elem_a_i_k, elem_b_k_j
+                                                        ),
+                                                        out_i_j := memref.Load.get(
+                                                            out, [i, j]
+                                                        ),
+                                                        new_out_val := arith.Addf.get(
+                                                            out_i_j, mul
+                                                        ),
+                                                        memref.Store.get(
+                                                            new_out_val, out, [i, j]
+                                                        ),
+                                                        scf.Yield.get(),
+                                                    ],
+                                                ),
+                                            ),
+                                            scf.Yield.get(),
+                                        ],
+                                    ),
+                                ),
+                                scf.Yield.get(),
+                            ],
+                        ),
+                    ),
+                    func.Return.get(out),
+                ],
+            )
+        ]
+    )  # yapf: disable
 
     # check that it verifies correctly
     module.verify()
@@ -201,38 +264,36 @@ def test_memref_subview():
 
     res_memref_type = MemRefType.from_element_type_and_shape(i32, [1, 1])
 
-    offset_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64),
-                                     i64)
-    offset_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64),
-                                     i64)
+    offset_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64), i64)
+    offset_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64), i64)
 
     size_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
     size_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
 
-    stride_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64),
-                                     i64)
-    stride_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64),
-                                     i64)
+    stride_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
+    stride_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
 
-    operand_segment_sizes = ArrayAttr(
-        [IntAttr(1), IntAttr(2),
-         IntAttr(2), IntAttr(2)])
+    operand_segment_sizes = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(2), IntAttr(2)])
 
     static_offsets = DenseArrayBase.from_list(i64, [0, 0])
     static_sizes = DenseArrayBase.from_list(i64, [1, 1])
     static_strides = DenseArrayBase.from_list(i64, [1, 1])
 
-    subview = Subview.build(operands=[
-        memref_ssa_value, [offset_arg1, offset_arg2], [size_arg1, size_arg2],
-        [stride_arg1, stride_arg2]
-    ],
-                            attributes={
-                                "operand_segment_sizes": operand_segment_sizes,
-                                "static_offsets": static_offsets,
-                                "static_sizes": static_sizes,
-                                "static_strides": static_strides
-                            },
-                            result_types=[res_memref_type])
+    subview = Subview.build(
+        operands=[
+            memref_ssa_value,
+            [offset_arg1, offset_arg2],
+            [size_arg1, size_arg2],
+            [stride_arg1, stride_arg2],
+        ],
+        attributes={
+            "operand_segment_sizes": operand_segment_sizes,
+            "static_offsets": static_offsets,
+            "static_sizes": static_sizes,
+            "static_strides": static_strides,
+        },
+        result_types=[res_memref_type],
+    )
 
     assert subview.source is memref_ssa_value
     assert subview.offsets == (offset_arg1.result, offset_arg2.result)
@@ -249,8 +310,9 @@ def test_memref_subview_constant_parameters():
     shape: list[int] = [10, 10, 10]
     alloc = Alloc.get(element_type, 8, list(shape))
 
-    subview = Subview.from_static_parameters(alloc, element_type, shape,
-                                             [2, 2, 2], [2, 2, 2], [3, 3, 3])
+    subview = Subview.from_static_parameters(
+        alloc, element_type, shape, [2, 2, 2], [2, 2, 2], [3, 3, 3]
+    )
 
     assert isinstance(subview, Subview)
     assert isinstance(subview.result.typ, MemRefType)

@@ -50,8 +50,7 @@ def test_get_op_unregistered():
     assert issubclass(op, UnregisteredOp)
 
     assert ctx.get_op("dummy", allow_unregistered=True) == DummyOp
-    assert issubclass(ctx.get_op("dummy2", allow_unregistered=True),
-                      UnregisteredOp)
+    assert issubclass(ctx.get_op("dummy2", allow_unregistered=True), UnregisteredOp)
 
 
 def test_get_attr():
@@ -76,22 +75,29 @@ def test_get_attr_unregistered(is_type: bool):
     ctx = MLContext()
     ctx.register_attr(DummyAttr)
 
-    assert ctx.get_optional_attr(
-        "dummy_attr",
-        allow_unregistered=True,
-        create_unregistered_as_type=is_type) == DummyAttr
+    assert (
+        ctx.get_optional_attr(
+            "dummy_attr", allow_unregistered=True, create_unregistered_as_type=is_type
+        )
+        == DummyAttr
+    )
     attr = ctx.get_optional_attr("dummy_attr2", allow_unregistered=True)
     assert attr is not None
     assert issubclass(attr, UnregisteredAttr)
     if is_type:
         assert issubclass(attr, TypeAttribute)
 
-    assert ctx.get_attr("dummy_attr",
-                        allow_unregistered=True,
-                        create_unregistered_as_type=is_type) == DummyAttr
+    assert (
+        ctx.get_attr(
+            "dummy_attr", allow_unregistered=True, create_unregistered_as_type=is_type
+        )
+        == DummyAttr
+    )
     assert issubclass(
-        ctx.get_attr("dummy_attr2",
-                     allow_unregistered=True,
-                     create_unregistered_as_type=is_type), UnregisteredAttr)
+        ctx.get_attr(
+            "dummy_attr2", allow_unregistered=True, create_unregistered_as_type=is_type
+        ),
+        UnregisteredAttr,
+    )
     if is_type:
         assert issubclass(attr, TypeAttribute)

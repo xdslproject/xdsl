@@ -16,7 +16,7 @@ class Builder:
     """
     A helper class to construct IRs, by keeping track of where to insert an
     operation. Currently the insertion point is always at the end of the block.
-    In the future will closely follow the API of `OpBuilder` in MLIR, inserting 
+    In the future will closely follow the API of `OpBuilder` in MLIR, inserting
     at arbitrary locations.
 
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
@@ -36,8 +36,8 @@ class Builder:
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
-                'Cannot insert operation explicitly when an implicit '
-                'builder exists.')
+                "Cannot insert operation explicitly when an implicit " "builder exists."
+            )
 
         self.block.add_op(op)
         return op
@@ -54,7 +54,7 @@ class Builder:
 
     @staticmethod
     def _region_args(
-        input_types: Sequence[Attribute] | ArrayAttr[Attribute]
+        input_types: Sequence[Attribute] | ArrayAttr[Attribute],
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -78,7 +78,7 @@ class Builder:
     @overload
     @staticmethod
     def region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute],
     ) -> Callable[[_CallableRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -107,8 +107,7 @@ class Builder:
 
     @staticmethod
     def region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute]
-        | Callable[[Builder], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None]
     ) -> Callable[[_CallableRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._region_no_args(input)
@@ -130,7 +129,7 @@ class Builder:
 
     @staticmethod
     def _implicit_region_args(
-        input_types: Sequence[Attribute] | ArrayAttr[Attribute]
+        input_types: Sequence[Attribute] | ArrayAttr[Attribute],
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Decorator for constructing a single-block region, containing the implementation of a
@@ -155,7 +154,7 @@ class Builder:
     @overload
     @staticmethod
     def implicit_region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute]
+        input: Sequence[Attribute] | ArrayAttr[Attribute],
     ) -> Callable[[_CallableImplicitRegionFuncType], Region]:
         """
         Annotation used to construct a Region tuple from a function.
@@ -184,8 +183,7 @@ class Builder:
 
     @staticmethod
     def implicit_region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute]
-        | Callable[[], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None]
     ) -> Callable[[_CallableImplicitRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._implicit_region_no_args(input)
@@ -202,6 +200,7 @@ class _ImplicitBuilderStack(threading.local):
     Stores the stack of implicit builders for use in @Builder.implicit_region, empty by
     default. There is a stack per thread, guaranteed by inheriting from `threading.local`.
     """
+
     stack: list[Builder] = field(default_factory=list)
 
     def push(self, builder: Builder) -> None:
@@ -231,9 +230,12 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
     def __enter__(self) -> None:
         type(self)._stack.push(self.builder)
 
-    def __exit__(self, __exc_type: type[BaseException] | None,
-                 __exc_value: BaseException | None,
-                 __traceback: TracebackType | None) -> bool | None:
+    def __exit__(
+        self,
+        __exc_type: type[BaseException] | None,
+        __exc_value: BaseException | None,
+        __traceback: TracebackType | None,
+    ) -> bool | None:
         type(self)._stack.pop(self.builder)
 
     @classmethod
@@ -242,9 +244,9 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
 
 
 _CallableRegionFuncType: TypeAlias = Callable[
-    [Builder, tuple[BlockArgument, ...]], None]
-_CallableImplicitRegionFuncType: TypeAlias = Callable[
-    [tuple[BlockArgument, ...]], None]
+    [Builder, tuple[BlockArgument, ...]], None
+]
+_CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]], None]
 
 
 def _op_init_callback(op: Operation):

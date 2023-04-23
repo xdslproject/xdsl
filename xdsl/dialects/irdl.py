@@ -2,16 +2,21 @@ from __future__ import annotations
 from typing import cast
 
 from xdsl.dialects.builtin import AnyArrayAttr, ArrayAttr, StringAttr
-from xdsl.ir import (ParametrizedAttribute, Attribute, Dialect)
-from xdsl.irdl import (ParameterDef, irdl_op_definition, irdl_attr_definition,
-                       SingleBlockRegion, OpAttr, IRDLOperation)
+from xdsl.ir import ParametrizedAttribute, Attribute, Dialect
+from xdsl.irdl import (
+    ParameterDef,
+    irdl_op_definition,
+    irdl_attr_definition,
+    SingleBlockRegion,
+    OpAttr,
+    IRDLOperation,
+)
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
 
 
 @irdl_attr_definition
 class EqTypeConstraintAttr(ParametrizedAttribute):
-
     name = "irdl.equality_type_constraint"
     type: ParameterDef[Attribute]
 
@@ -69,8 +74,7 @@ class NamedTypeConstraintAttr(ParametrizedAttribute):
         return [StringAttr(type_name), params_constraints]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<\"", self.type_name.data, "\" : ",
-                      self.params_constraints, ">")
+        printer.print('<"', self.type_name.data, '" : ', self.params_constraints, ">")
 
 
 @irdl_op_definition
@@ -78,6 +82,7 @@ class DialectOp(IRDLOperation):
     """
     Define a new dialect
     """
+
     name = "irdl.dialect"
     body: SingleBlockRegion
 
@@ -105,6 +110,7 @@ class ParametersOp(IRDLOperation):
     """
     Define the parameters of a type/attribute definition
     """
+
     name = "irdl.parameters"
     params: OpAttr[AnyArrayAttr]
 
@@ -114,6 +120,7 @@ class TypeOp(IRDLOperation):
     """
     Defines new types belonging to previously defined dialect
     """
+
     name = "irdl.type"
     body: SingleBlockRegion
 
@@ -134,6 +141,7 @@ class ConstraintVarsOp(IRDLOperation):
     Define constraint variables that can be used in the
     current region
     """
+
     name = "irdl.constraint_vars"
     constraints: OpAttr[Attribute]
 
@@ -143,6 +151,7 @@ class OperandsOp(IRDLOperation):
     """
     Define the operands of a parent operation
     """
+
     name = "irdl.operands"
     params: OpAttr[Attribute]
 
@@ -152,6 +161,7 @@ class ResultsOp(IRDLOperation):
     """
     Define results of parent operation
     """
+
     name = "irdl.results"
     params: OpAttr[Attribute]
 
@@ -161,6 +171,7 @@ class OperationOp(IRDLOperation):
     """
     Define a new operation belonging to previously defined dialect
     """
+
     name = "irdl.operation"
     body: SingleBlockRegion
 
@@ -207,5 +218,6 @@ IRDL = Dialect(
         TypeParamsConstraintAttr,
         NamedTypeConstraintAttr,
         DynTypeBaseConstraintAttr,
-        DynTypeParamsConstraintAttr
-    ])
+        DynTypeParamsConstraintAttr,
+    ],
+)

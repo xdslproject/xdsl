@@ -7,8 +7,7 @@ from types import UnionType
 from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import (Operation, Region, Block, BlockArgument, Attribute,
-                     SSAValue)
+from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
 from xdsl.rewriter import Rewriter
 
 
@@ -19,18 +18,17 @@ class PatternRewriter:
     Once an operation is matched, this rewriter is used to apply
     modification to the operation and its children.
     """
+
     current_operation: Operation
     """The matched operation."""
 
     has_erased_matched_operation: bool = field(default=False, init=False)
     """Was the matched operation erased."""
 
-    added_operations_before: list[Operation] = field(default_factory=list,
-                                                     init=False)
+    added_operations_before: list[Operation] = field(default_factory=list, init=False)
     """The operations added directly before the matched operation."""
 
-    added_operations_after: list[Operation] = field(default_factory=list,
-                                                    init=False)
+    added_operations_after: list[Operation] = field(default_factory=list, init=False)
     """The operations added directly after the matched operation."""
 
     has_done_action: bool = field(default=False, init=False)
@@ -59,8 +57,7 @@ class PatternRewriter:
     def insert_op_before_matched_op(self, op: (Operation | list[Operation])):
         """Insert operations before the matched operation."""
         if self.current_operation.parent is None:
-            raise Exception(
-                "Cannot insert an operation before a toplevel operation.")
+            raise Exception("Cannot insert an operation before a toplevel operation.")
         self.has_done_action = True
         block = self.current_operation.parent
         op = op if isinstance(op, list) else [op]
@@ -72,8 +69,7 @@ class PatternRewriter:
     def insert_op_after_matched_op(self, op: (Operation | list[Operation])):
         """Insert operations after the matched operation."""
         if self.current_operation.parent is None:
-            raise Exception(
-                "Cannot insert an operation after a toplevel operation.")
+            raise Exception("Cannot insert an operation after a toplevel operation.")
         self.has_done_action = True
         block = self.current_operation.parent
         op = op if isinstance(op, list) else [op]
@@ -82,8 +78,7 @@ class PatternRewriter:
         block.insert_ops_after(op, self.current_operation)
         self.added_operations_after += op
 
-    def insert_op_at_pos(self, op: Operation | list[Operation], block: Block,
-                         pos: int):
+    def insert_op_at_pos(self, op: Operation | list[Operation], block: Block, pos: int):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
             raise Exception("Cannot insert operations in block.")
@@ -93,12 +88,10 @@ class PatternRewriter:
             return
         block.insert_op(op, pos)
 
-    def insert_op_before(self, op: Operation | list[Operation],
-                         target_op: Operation):
+    def insert_op_before(self, op: Operation | list[Operation], target_op: Operation):
         """Insert operations before an operation contained in the matched operation."""
         if target_op.parent is None:
-            raise Exception(
-                "Cannot insert operations before toplevel operation.")
+            raise Exception("Cannot insert operations before toplevel operation.")
         target_block = target_op.parent
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
@@ -108,12 +101,10 @@ class PatternRewriter:
             return
         target_block.insert_ops_before(op, target_op)
 
-    def insert_op_after(self, op: Operation | list[Operation],
-                        target_op: Operation):
+    def insert_op_after(self, op: Operation | list[Operation], target_op: Operation):
         """Insert operations after an operation contained in the matched operation."""
         if target_op.parent is None:
-            raise Exception(
-                "Cannot insert operations after toplevel operation.")
+            raise Exception("Cannot insert operations after toplevel operation.")
         target_block = target_op.parent
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
@@ -145,13 +136,16 @@ class PatternRewriter:
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only erase operations that are the matched operation"
-                ", or that are contained in the matched operation.")
+                ", or that are contained in the matched operation."
+            )
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def replace_matched_op(self,
-                           new_ops: Operation | list[Operation],
-                           new_results: list[SSAValue | None] | None = None,
-                           safe_erase: bool = True):
+    def replace_matched_op(
+        self,
+        new_ops: Operation | list[Operation],
+        new_results: list[SSAValue | None] | None = None,
+        safe_erase: bool = True,
+    ):
         """
         Replace the matched operation with new operations.
         Also, optionally specify SSA values to replace the operation results.
@@ -162,17 +156,18 @@ class PatternRewriter:
         if not isinstance(new_ops, list):
             new_ops = [new_ops]
         self.has_erased_matched_operation = True
-        Rewriter.replace_op(self.current_operation,
-                            new_ops,
-                            new_results,
-                            safe_erase=safe_erase)
+        Rewriter.replace_op(
+            self.current_operation, new_ops, new_results, safe_erase=safe_erase
+        )
         self.added_operations_before += new_ops
 
-    def replace_op(self,
-                   op: Operation,
-                   new_ops: Operation | list[Operation],
-                   new_results: list[SSAValue | None] | None = None,
-                   safe_erase: bool = True):
+    def replace_op(
+        self,
+        op: Operation,
+        new_ops: Operation | list[Operation],
+        new_results: list[SSAValue | None] | None = None,
+        safe_erase: bool = True,
+    ):
         """
         Replace an operation with new operations.
         The operation should be a child of the matched operation.
@@ -186,11 +181,11 @@ class PatternRewriter:
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only replace operations that are the matched "
-                "operation, or that are contained in the matched operation.")
+                "operation, or that are contained in the matched operation."
+            )
         Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
 
-    def modify_block_argument_type(self, arg: BlockArgument,
-                                   new_type: Attribute):
+    def modify_block_argument_type(self, arg: BlockArgument, new_type: Attribute):
         """
         Modify the type of a block argument.
         The block should be contained in the matched operation.
@@ -202,8 +197,9 @@ class PatternRewriter:
         self.has_done_action = True
         arg.typ = new_type
 
-    def insert_block_argument(self, block: Block, index: int,
-                              typ: Attribute) -> BlockArgument:
+    def insert_block_argument(
+        self, block: Block, index: int, typ: Attribute
+    ) -> BlockArgument:
         """
         Insert a new block argument.
         The block should be contained in the matched operation.
@@ -215,9 +211,7 @@ class PatternRewriter:
         self.has_done_action = True
         return block.insert_arg(typ, index)
 
-    def erase_block_argument(self,
-                             arg: BlockArgument,
-                             safe_erase: bool = True) -> None:
+    def erase_block_argument(self, arg: BlockArgument, safe_erase: bool = True) -> None:
         """
         Erase a new block argument.
         The block should be contained in the matched operation.
@@ -238,8 +232,9 @@ class PatternRewriter:
         should be child of the matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_block(
-                target_block) or not self._can_modify_block(block):
+        if not self._can_modify_block(target_block) or not self._can_modify_block(
+            block
+        ):
             raise Exception(
                 "Cannot modify blocks that are not contained in the matched operation."
             )
@@ -276,7 +271,8 @@ class PatternRewriter:
         if not self._can_modify_op(op):
             raise Exception(
                 "Cannot move block elsewhere than before the matched operation,"
-                " or before an operation child")
+                " or before an operation child"
+            )
         Rewriter.inline_block_before(block, op)
 
     def inline_block_after(self, block: Block, op: Operation):
@@ -290,7 +286,8 @@ class PatternRewriter:
         if op is self.current_operation:
             return self.inline_block_before_matched_op(block)
         if not self._can_modify_block(block) or (
-                op.parent and not self._can_modify_block(op.parent)):
+            op.parent and not self._can_modify_block(op.parent)
+        ):
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )
@@ -342,27 +339,27 @@ class AnonymousRewritePattern(RewritePattern):
     """
     A rewrite pattern encoded by an anonymous function.
     """
+
     func: Callable[[RewritePattern, Operation, PatternRewriter], None]
 
     def __init__(
         self,
         func: Callable[[RewritePattern, Operation, PatternRewriter], None]
-        | Callable[[Operation, PatternRewriter], None]):
-        params = [
-            param for param in inspect.signature(func).parameters.values()
-        ]
+        | Callable[[Operation, PatternRewriter], None],
+    ):
+        params = [param for param in inspect.signature(func).parameters.values()]
         if len(params) == 2:
 
-            def new_func(self: RewritePattern, op: Operation,
-                         rewriter: PatternRewriter):
+            def new_func(
+                self: RewritePattern, op: Operation, rewriter: PatternRewriter
+            ):
                 func(op, rewriter)  # type: ignore
 
             self.func = new_func
         else:
             self.func = func  # type: ignore
 
-    def match_and_rewrite(self, op: Operation,
-                          rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         self.func(self, op, rewriter)
 
 
@@ -384,34 +381,38 @@ def op_type_rewrite_pattern(
     if len(params) < 2:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
-            "have two non-self arguments.")
+            "have two non-self arguments."
+        )
     is_method = params[0].name == "self"
     if is_method:
         if len(params) != 3:
             raise Exception(
                 "op_type_rewrite_pattern expects the decorated method to "
-                "have two non-self arguments.")
+                "have two non-self arguments."
+            )
     else:
         if len(params) != 2:
             raise Exception(
                 "op_type_rewrite_pattern expects the decorated function to "
-                "have two arguments.")
+                "have two arguments."
+            )
     expected_type: type[_OperationT] = params[-2].annotation
 
-    expected_types = (expected_type, )
+    expected_types = (expected_type,)
     if get_origin(expected_type) in [Union, UnionType]:
         expected_types = get_args(expected_type)
     if not all(issubclass(t, Operation) for t in expected_types):
         raise Exception(
             "op_type_rewrite_pattern expects the first non-self argument "
             "type hint to be an `Operation` subclass or a union of `Operation` "
-            "subclasses.")
+            "subclasses."
+        )
 
     if not is_method:
 
         def op_type_rewrite_pattern_static_wrapper(
-                self: RewritePattern, op: Operation,
-                rewriter: PatternRewriter) -> None:
+            self: RewritePattern, op: Operation, rewriter: PatternRewriter
+        ) -> None:
             if not isinstance(op, expected_type):
                 return None
             func(op, rewriter)  # type: ignore
@@ -419,8 +420,8 @@ def op_type_rewrite_pattern(
         return op_type_rewrite_pattern_static_wrapper
 
     def op_type_rewrite_pattern_method_wrapper(
-            self: _RewritePatternT, op: Operation,
-            rewriter: PatternRewriter) -> None:
+        self: _RewritePatternT, op: Operation, rewriter: PatternRewriter
+    ) -> None:
         if not isinstance(op, expected_type):
             return None
         func(self, op, rewriter)  # type: ignore
@@ -438,8 +439,7 @@ class GreedyRewritePatternApplier(RewritePattern):
     rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
 
-    def match_and_rewrite(self, op: Operation,
-                          rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         for pattern in self.rewrite_patterns:
             pattern.match_and_rewrite(op, rewriter)
             if rewriter.has_done_action:
@@ -533,8 +533,7 @@ class PatternRewriteWalker:
         new regions.
         """
         for region in op.regions:
-            blocks = reversed(
-                region.blocks) if self.walk_reverse else region.blocks
+            blocks = reversed(region.blocks) if self.walk_reverse else region.blocks
             for block in blocks:
                 iter_op = block.last_op if self.walk_reverse else block.first_op
                 while iter_op is not None:

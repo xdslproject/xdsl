@@ -1,15 +1,40 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
-from xdsl.dialects.builtin import (StringAttr, ArrayAttr, DenseArrayBase,
-                                   IntAttr, NoneAttr, IntegerType, IntegerAttr,
-                                   AnyIntegerAttr, IndexType, UnitAttr, i32,
-                                   i64)
-from xdsl.ir import (TypeAttribute, ParametrizedAttribute, Attribute, Dialect,
-                     OpResult, Operation, SSAValue)
-from xdsl.irdl import (OpAttr, Operand, ParameterDef, AnyAttr,
-                       irdl_attr_definition, irdl_op_definition, VarOperand,
-                       OptOpAttr, IRDLOperation)
+from xdsl.dialects.builtin import (
+    StringAttr,
+    ArrayAttr,
+    DenseArrayBase,
+    IntAttr,
+    NoneAttr,
+    IntegerType,
+    IntegerAttr,
+    AnyIntegerAttr,
+    IndexType,
+    UnitAttr,
+    i32,
+    i64,
+)
+from xdsl.ir import (
+    TypeAttribute,
+    ParametrizedAttribute,
+    Attribute,
+    Dialect,
+    OpResult,
+    Operation,
+    SSAValue,
+)
+from xdsl.irdl import (
+    OpAttr,
+    Operand,
+    ParameterDef,
+    AnyAttr,
+    irdl_attr_definition,
+    irdl_op_definition,
+    VarOperand,
+    OptOpAttr,
+    IRDLOperation,
+)
 
 if TYPE_CHECKING:
     from xdsl.parser import BaseParser
@@ -50,9 +75,9 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters("<(", "LLVM Struct must start with `<(`")
         params = parser.parse_list_of(
             parser.try_parse_type,
-            "Malformed LLVM struct, expected attribute definition here!")
-        parser.parse_characters(
-            ")>", "Unexpected input, expected end of LLVM struct!")
+            "Malformed LLVM struct, expected attribute definition here!",
+        )
+        parser.parse_characters(")>", "Unexpected input, expected end of LLVM struct!")
         return [StringAttr(""), ArrayAttr(params)]
 
 
@@ -77,20 +102,18 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
-        if not parser.tokenizer.starts_with('<'):
+        if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
-        parser.parse_characters('<', "llvm.ptr parameters expected")
+        parser.parse_characters("<", "llvm.ptr parameters expected")
         type = parser.try_parse_type()
         if type is None:
-            parser.raise_error(
-                "Expected first parameter of llvm.ptr to be a type!")
-        if not parser.tokenizer.starts_with(','):
-            parser.parse_characters('>',
-                                    "End of llvm.ptr parameters expected!")
+            parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
+        if not parser.tokenizer.starts_with(","):
+            parser.parse_characters(">", "End of llvm.ptr parameters expected!")
             return [type, NoneAttr()]
-        parser.parse_characters(',', "llvm.ptr args must be separated by `,`")
+        parser.parse_characters(",", "llvm.ptr args must be separated by `,`")
         addr_space = parser.parse_int_literal()
-        parser.parse_characters('>', "End of llvm.ptr parameters expected!")
+        parser.parse_characters(">", "End of llvm.ptr parameters expected!")
         return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
     @staticmethod
@@ -121,20 +144,20 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def parse_parameters(parser: BaseParser) -> list[Attribute]:
-        if not parser.tokenizer.starts_with('<'):
+        if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
-        parser.parse_characters('<', "llvm.array parameters expected")
+        parser.parse_characters("<", "llvm.array parameters expected")
         size = IntAttr(parser.parse_int_literal())
-        if not parser.tokenizer.starts_with('x'):
-            parser.parse_characters('>', "End of llvm.array type expected!")
+        if not parser.tokenizer.starts_with("x"):
+            parser.parse_characters(">", "End of llvm.array type expected!")
             return [size, NoneAttr()]
         parser.parse_characters(
-            'x', "llvm.array size and type must be separated by `x`")
+            "x", "llvm.array size and type must be separated by `x`"
+        )
         type = parser.try_parse_type()
         if type is None:
-            parser.raise_error(
-                "Expected second parameter of llvm.array to be a type!")
-        parser.parse_characters('>', "End of llvm.array parameters expected!")
+            parser.raise_error("Expected second parameter of llvm.array to be a type!")
+        parser.parse_characters(">", "End of llvm.array parameters expected!")
         return [size, type]
 
     @staticmethod
@@ -157,16 +180,16 @@ class GEPOp(IRDLOperation):
 
     @staticmethod
     def get(
-            ptr: SSAValue | Operation,
-            result_type: LLVMPointerType = LLVMPointerType.opaque(),
-            indices: list[int] |
-        None = None,  # Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
-            ssa_indices: list[SSAValue | Operation] | None = None,
-            inbounds: bool = False,
-            pointee_type: Attribute | None = None):
-
+        ptr: SSAValue | Operation,
+        result_type: LLVMPointerType = LLVMPointerType.opaque(),
+        indices: list[int]
+        | None = None,  # Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
+        ssa_indices: list[SSAValue | Operation] | None = None,
+        inbounds: bool = False,
+        pointee_type: Attribute | None = None,
+    ):
         if indices is None:
-            raise ValueError('llvm.getelementptr must have indices passed.')
+            raise ValueError("llvm.getelementptr must have indices passed.")
 
         indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
 
@@ -179,29 +202,28 @@ class GEPOp(IRDLOperation):
         ptr_type = ptr_val.typ
 
         if not isinstance(result_type, LLVMPointerType):
-            raise ValueError('Result type must be a pointer.')
+            raise ValueError("Result type must be a pointer.")
 
         if not isinstance(ptr_type, LLVMPointerType):
-            raise ValueError('Input must be a pointer')
+            raise ValueError("Input must be a pointer")
 
         if not ptr_type.is_typed():
             if pointee_type == None:
-                raise ValueError(
-                    'Opaque types must have a pointee type passed')
+                raise ValueError("Opaque types must have a pointee type passed")
 
         attrs: dict[str, Attribute] = {
-            'rawConstantIndices': indices_attr,
+            "rawConstantIndices": indices_attr,
         }
 
         if not ptr_type.is_typed():
-            attrs['elem_type'] = result_type
+            attrs["elem_type"] = result_type
 
         if inbounds:
-            attrs['inbounds'] = UnitAttr()
+            attrs["inbounds"] = UnitAttr()
 
-        return GEPOp.build(operands=[ptr, ssa_indices],
-                           result_types=[result_type],
-                           attributes=attrs)
+        return GEPOp.build(
+            operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
+        )
 
 
 @irdl_op_definition
@@ -215,22 +237,24 @@ class AllocaOp(IRDLOperation):
     res: OpResult
 
     @staticmethod
-    def get(size: SSAValue | Operation,
-            elem_type: Attribute,
-            alignment: int = 32,
-            as_untyped_ptr: bool = False):
+    def get(
+        size: SSAValue | Operation,
+        elem_type: Attribute,
+        alignment: int = 32,
+        as_untyped_ptr: bool = False,
+    ):
         attrs: dict[str, Attribute] = {
-            'alignment': IntegerAttr.from_int_and_width(alignment, 64)
+            "alignment": IntegerAttr.from_int_and_width(alignment, 64)
         }
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.opaque()
-            attrs['elem_type'] = elem_type
+            attrs["elem_type"] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return AllocaOp.build(operands=[size],
-                              attributes=attrs,
-                              result_types=[ptr_type])
+        return AllocaOp.build(
+            operands=[size], attributes=attrs, result_types=[ptr_type]
+        )
 
 
 @irdl_op_definition
@@ -299,22 +323,24 @@ class StoreOp(IRDLOperation):
     nontemporal: OptOpAttr[UnitAttr]
 
     @staticmethod
-    def get(value: SSAValue | Operation,
-            ptr: SSAValue | Operation,
-            alignment: int | None = None,
-            ordering: int = 0,
-            volatile: bool = False,
-            nontemporal: bool = False):
+    def get(
+        value: SSAValue | Operation,
+        ptr: SSAValue | Operation,
+        alignment: int | None = None,
+        ordering: int = 0,
+        volatile: bool = False,
+        nontemporal: bool = False,
+    ):
         attrs: dict[str, Attribute] = {
-            'ordering': IntegerAttr(ordering, i64),
+            "ordering": IntegerAttr(ordering, i64),
         }
 
         if alignment is not None:
-            attrs['alignment'] = IntegerAttr[IntegerType](alignment, i64)
+            attrs["alignment"] = IntegerAttr[IntegerType](alignment, i64)
         if volatile:
-            attrs['volatile_'] = UnitAttr()
+            attrs["volatile_"] = UnitAttr()
         if nontemporal:
-            attrs['nontemporal'] = UnitAttr()
+            attrs["nontemporal"] = UnitAttr()
 
         return StoreOp.build(
             operands=[value, ptr],
@@ -366,14 +392,17 @@ class LLVMMLIRUndef(IRDLOperation):
     res: Annotated[OpResult, AnyAttr()]
 
 
-LLVM = Dialect([
-    LLVMExtractValue,
-    LLVMInsertValue,
-    LLVMMLIRUndef,
-    AllocaOp,
-    GEPOp,
-    IntToPtrOp,
-    NullOp,
-    LoadOp,
-    StoreOp,
-], [LLVMStructType, LLVMPointerType, LLVMArrayType])
+LLVM = Dialect(
+    [
+        LLVMExtractValue,
+        LLVMInsertValue,
+        LLVMMLIRUndef,
+        AllocaOp,
+        GEPOp,
+        IntToPtrOp,
+        NullOp,
+        LoadOp,
+        StoreOp,
+    ],
+    [LLVMStructType, LLVMPointerType, LLVMArrayType],
+)

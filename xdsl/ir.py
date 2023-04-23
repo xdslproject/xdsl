@@ -6,8 +6,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
-from typing import (TYPE_CHECKING, Any, Callable, Generic, Iterable, Protocol,
-                    Sequence, TypeVar, cast, Iterator, ClassVar)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    Protocol,
+    Sequence,
+    TypeVar,
+    cast,
+    Iterator,
+    ClassVar,
+)
 from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
@@ -17,18 +28,19 @@ if TYPE_CHECKING:
     from xdsl.irdl import ParamAttrDef
     from xdsl.utils.lexer import Span
 
-OpT = TypeVar('OpT', bound='Operation')
+OpT = TypeVar("OpT", bound="Operation")
 
 
 @dataclass
 class Dialect:
     """Contains the operations and attributes of a specific dialect"""
-    _operations: list[type[Operation]] = field(default_factory=list,
-                                               init=True,
-                                               repr=True)
-    _attributes: list[type[Attribute]] = field(default_factory=list,
-                                               init=True,
-                                               repr=True)
+
+    _operations: list[type[Operation]] = field(
+        default_factory=list, init=True, repr=True
+    )
+    _attributes: list[type[Attribute]] = field(
+        default_factory=list, init=True, repr=True
+    )
 
     @property
     def operations(self) -> Iterator[type[Operation]]:
@@ -42,7 +54,8 @@ class Dialect:
         print(
             "Calling a dialect in order to register it is deprecated "
             "and will soon be removed.",
-            file=sys.stderr)
+            file=sys.stderr,
+        )
         # TODO; Remove this function in a future release.
         assert isinstance(ctx, MLContext)
         ctx.register_dialect(self)
@@ -51,6 +64,7 @@ class Dialect:
 @dataclass
 class MLContext:
     """Contains structures for operations/attributes registration."""
+
     _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
 
@@ -71,14 +85,12 @@ class MLContext:
     def register_attr(self, attr: type[Attribute]) -> None:
         """Register an attribute definition. Attribute names should be unique."""
         if attr.name in self._registeredAttrs:
-            raise Exception(
-                f"Attribute {attr.name} has already been registered")
+            raise Exception(f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
     def get_optional_op(
-            self,
-            name: str,
-            allow_unregistered: bool = False) -> type[Operation] | None:
+        self, name: str, allow_unregistered: bool = False
+    ) -> type[Operation] | None:
         """
         Get an operation class from its name if it exists.
         If the operation is not registered, return None unless
@@ -88,14 +100,13 @@ class MLContext:
             return self._registeredOps[name]
         if allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
+
             op_type = UnregisteredOp.with_name(name)
             self._registeredOps[name] = op_type
             return op_type
         return None
 
-    def get_op(self,
-               name: str,
-               allow_unregistered: bool = False) -> type[Operation]:
+    def get_op(self, name: str, allow_unregistered: bool = False) -> type[Operation]:
         """
         Get an operation class from its name.
         If the operation is not registered, raise an exception unless
@@ -106,10 +117,10 @@ class MLContext:
         raise Exception(f"Operation {name} is not registered")
 
     def get_optional_attr(
-            self,
-            name: str,
-            allow_unregistered: bool = False,
-            create_unregistered_as_type: bool = False
+        self,
+        name: str,
+        allow_unregistered: bool = False,
+        create_unregistered_as_type: bool = False,
     ) -> type[Attribute] | None:
         """
         Get an attribute class from its name if it exists.
@@ -123,17 +134,21 @@ class MLContext:
             return self._registeredAttrs[name]
         if allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
+
             attr_type = UnregisteredAttr.with_name_and_type(
-                name, create_unregistered_as_type)
+                name, create_unregistered_as_type
+            )
             self._registeredAttrs[name] = attr_type
             return attr_type
 
         return None
 
-    def get_attr(self,
-                 name: str,
-                 allow_unregistered: bool = False,
-                 create_unregistered_as_type: bool = False) -> type[Attribute]:
+    def get_attr(
+        self,
+        name: str,
+        allow_unregistered: bool = False,
+        create_unregistered_as_type: bool = False,
+    ) -> type[Attribute]:
         """
         Get an attribute class from its name.
         If the attribute is not registered, raise an exception unless
@@ -142,8 +157,9 @@ class MLContext:
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if attr_type := self.get_optional_attr(name, allow_unregistered,
-                                               create_unregistered_as_type):
+        if attr_type := self.get_optional_attr(
+            name, allow_unregistered, create_unregistered_as_type
+        ):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
@@ -174,8 +190,7 @@ class SSAValue(ABC):
 
     _name: str | None = field(init=False, default=None)
 
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(
-        r'([A-Za-z_$.-][\w$.-]*)')
+    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     @abstractmethod
@@ -213,10 +228,10 @@ class SSAValue(ABC):
         if isinstance(arg, Operation):
             if len(arg.results) == 1:
                 return arg.results[0]
-            raise ValueError(
-                "SSAValue.build: expected operation with a single result.")
+            raise ValueError("SSAValue.build: expected operation with a single result.")
         raise TypeError(
-            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}")
+            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}"
+        )
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
@@ -245,7 +260,8 @@ class SSAValue(ABC):
         if safe_erase and len(self.uses) != 0:
             raise Exception(
                 "Attempting to delete SSA value that still has uses of result "
-                f"of operation:\n{self.owner}")
+                f"of operation:\n{self.owner}"
+            )
         self.replace_by(ErasedSSAValue(self.typ, self))
 
 
@@ -341,7 +357,7 @@ class TypeAttribute:
             )
 
 
-A = TypeVar('A', bound='Attribute')
+A = TypeVar("A", bound="Attribute")
 
 
 class Attribute(ABC):
@@ -350,6 +366,7 @@ class Attribute(ABC):
     Attributes are used to represent SSA variable types, and can be attached
     on operations to give extra information.
     """
+
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
 
@@ -373,6 +390,7 @@ class Attribute(ABC):
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
+
         res = StringIO()
         printer = Printer(stream=res)
         printer.print_attribute(self)
@@ -390,6 +408,7 @@ AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
+
     data: DataElement
 
     @classmethod
@@ -428,6 +447,7 @@ _PA = TypeVar("_PA", bound="ParametrizedAttribute")
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
+
     parameters: list[Attribute] = field(default_factory=list)
 
     @classmethod
@@ -472,7 +492,6 @@ class ParametrizedAttribute(Attribute):
 
 @dataclass
 class IRNode(ABC):
-
     parent: IRNode | None
 
     def is_ancestor(self, op: IRNode) -> bool:
@@ -492,7 +511,7 @@ class IRNode(ABC):
     def is_structurally_equivalent(
         self,
         other: IRNode,
-        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
         ...
@@ -507,7 +526,7 @@ class IRNode(ABC):
 
 
 @dataclass(frozen=True)
-class OpTrait():
+class OpTrait:
     """
     A trait attached to an operation definition.
     Traits can be used to define operation invariants, or to specify
@@ -626,8 +645,7 @@ class Operation(IRNode):
 
         return new_op._prev_op
 
-    def detach_prev_next_ops(
-            self) -> tuple[Operation | None, Operation | None]:
+    def detach_prev_next_ops(self) -> tuple[Operation | None, Operation | None]:
         """
         Detach `self` from linked list, by setting the `next_op` and `prev_op`
         properties of `self.prev_op` and `self.next_op` to each other. Return
@@ -659,16 +677,17 @@ class Operation(IRNode):
         self._operands = new
 
     def __post_init__(self):
-        assert (self.name != "")
-        assert (isinstance(self.name, str))
+        assert self.name != ""
+        assert isinstance(self.name, str)
 
-    def __init__(self,
-                 operands: Sequence[SSAValue] | None = None,
-                 result_types: Sequence[Attribute] | None = None,
-                 attributes: dict[str, Attribute] | None = None,
-                 successors: Sequence[Block] | None = None,
-                 regions: Sequence[Region] | None = None) -> None:
-
+    def __init__(
+        self,
+        operands: Sequence[SSAValue] | None = None,
+        result_types: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region] | None = None,
+    ) -> None:
         if operands is None:
             operands = []
         if result_types is None:
@@ -696,19 +715,19 @@ class Operation(IRNode):
         self.__post_init__()
 
     @classmethod
-    def create(cls: type[OpT],
-               operands: Sequence[SSAValue] | None = None,
-               result_types: Sequence[Attribute] | None = None,
-               attributes: dict[str, Attribute] | None = None,
-               successors: Sequence[Block] | None = None,
-               regions: Sequence[Region] | None = None) -> OpT:
+    def create(
+        cls: type[OpT],
+        operands: Sequence[SSAValue] | None = None,
+        result_types: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region] | None = None,
+    ) -> OpT:
         op = cls.__new__(cls)
-        Operation.__init__(op, operands, result_types, attributes, successors,
-                           regions)
+        Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
-    def replace_operand(self, operand: int | SSAValue,
-                        new_operand: SSAValue) -> None:
+    def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
         """
         Replace an operand with another operand.
 
@@ -718,20 +737,24 @@ class Operation(IRNode):
             try:
                 operand_idx = self._operands.index(operand)
             except ValueError as err:
-                raise ValueError("{} is not an operand of {}.".format(
-                    operand, self)) from err
+                raise ValueError(
+                    "{} is not an operand of {}.".format(operand, self)
+                ) from err
         else:
             operand_idx = operand
 
-        self.operands = list(self._operands[:operand_idx]) + [
-            new_operand
-        ] + list(self._operands[operand_idx + 1:])
+        self.operands = (
+            list(self._operands[:operand_idx])
+            + [new_operand]
+            + list(self._operands[operand_idx + 1 :])
+        )
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:
             raise Exception(
-                "Cannot add region that is already attached on an operation.")
+                "Cannot add region that is already attached on an operation."
+            )
         self.regions.append(region)
         region.parent = self
 
@@ -769,20 +792,22 @@ class Operation(IRNode):
     def verify_(self) -> None:
         pass
 
-    _OperationType = TypeVar('_OperationType', bound='Operation')
+    _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(cls: type[_OperationType], result_types: list[Attribute],
-              parser: BaseParser) -> _OperationType:
+    def parse(
+        cls: type[_OperationType], result_types: list[Attribute], parser: BaseParser
+    ) -> _OperationType:
         return parser.parse_op_with_default_format(cls, result_types)
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
 
     def clone_without_regions(
-            self: OpT,
-            value_mapper: dict[SSAValue, SSAValue] | None = None,
-            block_mapper: dict[Block, Block] | None = None) -> OpT:
+        self: OpT,
+        value_mapper: dict[SSAValue, SSAValue] | None = None,
+        block_mapper: dict[Block, Block] | None = None,
+    ) -> OpT:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
@@ -794,22 +819,27 @@ class Operation(IRNode):
         ]
         result_types = [res.typ for res in self.results]
         attributes = self.attributes.copy()
-        successors = [(block_mapper[successor]
-                       if successor in block_mapper else successor)
-                      for successor in self.successors]
+        successors = [
+            (block_mapper[successor] if successor in block_mapper else successor)
+            for successor in self.successors
+        ]
         regions = [Region() for _ in self.regions]
-        cloned_op = self.create(operands=operands,
-                                result_types=result_types,
-                                attributes=attributes,
-                                successors=successors,
-                                regions=regions)
+        cloned_op = self.create(
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
         for idx, result in enumerate(cloned_op.results):
             value_mapper[self.results[idx]] = result
         return cloned_op
 
-    def clone(self: OpT,
-              value_mapper: dict[SSAValue, SSAValue] | None = None,
-              block_mapper: dict[Block, Block] | None = None) -> OpT:
+    def clone(
+        self: OpT,
+        value_mapper: dict[SSAValue, SSAValue] | None = None,
+        block_mapper: dict[Block, Block] | None = None,
+    ) -> OpT:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
@@ -834,15 +864,14 @@ class Operation(IRNode):
         """
         return [t for t in cls.traits if isinstance(t, trait_type)]
 
-    def erase(self,
-              safe_erase: bool = True,
-              drop_references: bool = True) -> None:
+    def erase(self, safe_erase: bool = True, drop_references: bool = True) -> None:
         """
         Erase the operation, and remove all its references to other operations.
         If safe_erase is specified, check that the operation results are not used.
         """
-        assert self.parent is None, "Operation with parents should first be detached " + \
-                                    "before erasure."
+        assert self.parent is None, (
+            "Operation with parents should first be detached " + "before erasure."
+        )
         if drop_references:
             self.drop_all_references()
         for result in self.results:
@@ -857,7 +886,7 @@ class Operation(IRNode):
     def is_structurally_equivalent(
         self,
         other: IRNode,
-        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """
         Check if two operations are structurally equivalent.
@@ -871,26 +900,30 @@ class Operation(IRNode):
             return False
         if self.name != other.name:
             return False
-        if len(self.operands) != len(other.operands) or \
-           len(self.results) != len(other.results) or \
-           len(self.regions) != len(other.regions) or \
-           len(self.successors) != len(other.successors) or \
-           self.attributes != other.attributes:
+        if (
+            len(self.operands) != len(other.operands)
+            or len(self.results) != len(other.results)
+            or len(self.regions) != len(other.regions)
+            or len(self.successors) != len(other.successors)
+            or self.attributes != other.attributes
+        ):
             return False
-        if self.parent and other.parent and context.get(
-                self.parent) != other.parent:
-            return False
-        if not all(
-                context.get(operand) == other_operand for operand,
-                other_operand in zip(self.operands, other.operands)):
+        if self.parent and other.parent and context.get(self.parent) != other.parent:
             return False
         if not all(
-                context.get(successor) == other_successor for successor,
-                other_successor in zip(self.successors, other.successors)):
+            context.get(operand) == other_operand
+            for operand, other_operand in zip(self.operands, other.operands)
+        ):
             return False
         if not all(
-                region.is_structurally_equivalent(other_region, context)
-                for region, other_region in zip(self.regions, other.regions)):
+            context.get(successor) == other_successor
+            for successor, other_successor in zip(self.successors, other.successors)
+        ):
+            return False
+        if not all(
+            region.is_structurally_equivalent(other_region, context)
+            for region, other_region in zip(self.regions, other.regions)
+        ):
             return False
         # Add results of this operation to the context
         for result, other_result in zip(self.results, other.results):
@@ -906,6 +939,7 @@ class Operation(IRNode):
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
+
         res = StringIO()
         printer = Printer(stream=res, target=Printer.Target.XDSL)
         printer.print_op(self)
@@ -913,15 +947,15 @@ class Operation(IRNode):
 
     def __format__(self, __format_spec: str) -> str:
         desc = str(self)
-        if '\n' in desc:
+        if "\n" in desc:
             # Description is multi-line, indent each line
-            desc = '\n'.join('\t' + line for line in desc.splitlines())
+            desc = "\n".join("\t" + line for line in desc.splitlines())
             # Add newline before and after
-            desc = f'\n{desc}\n'
-        return f'{self.__class__.__qualname__}({desc})'
+            desc = f"\n{desc}\n"
+        return f"{self.__class__.__qualname__}({desc})"
 
 
-OperationInvT = TypeVar('OperationInvT', bound=Operation)
+OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
 @dataclass
@@ -978,17 +1012,19 @@ class Block(IRNode):
     parent: Region | None
     """Parent region containing the block."""
 
-    def __init__(self,
-                 ops: Iterable[Operation] = (),
-                 *,
-                 arg_types: Iterable[Attribute] = (),
-                 parent: Region | None = None,
-                 declared_at: Span | None = None):
+    def __init__(
+        self,
+        ops: Iterable[Operation] = (),
+        *,
+        arg_types: Iterable[Attribute] = (),
+        parent: Region | None = None,
+        declared_at: Span | None = None,
+    ):
         super().__init__(self)
         self.declared_at = declared_at
         self._args = tuple(
-            BlockArgument(typ, self, index)
-            for index, typ in enumerate(arg_types))
+            BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
+        )
         self._first_op = None
         self._last_op = None
         self.parent = parent
@@ -1017,29 +1053,27 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
-    @deprecated('Please use Block(arg_types=arg_types)')
+    @deprecated("Please use Block(arg_types=arg_types)")
     @staticmethod
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
-            BlockArgument(typ, b, index)
-            for index, typ in enumerate(arg_types))
+            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+        )
         return b
 
-    @deprecated('Please use Block(ops, arg_types=arg_types)')
+    @deprecated("Please use Block(ops, arg_types=arg_types)")
     @staticmethod
-    def from_ops(ops: list[Operation],
-                 arg_types: list[Attribute] | None = None):
+    def from_ops(ops: list[Operation], arg_types: list[Attribute] | None = None):
         b = Block()
         if arg_types:
             b._args = tuple(
-                BlockArgument(typ, b, index)
-                for index, typ in enumerate(arg_types))
+                BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+            )
         b.add_ops(ops)
         return b
 
     class BlockCallback(Protocol):
-
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
 
@@ -1059,8 +1093,7 @@ class Block(IRNode):
         new_arg = BlockArgument(typ, self, index)
         for arg in self._args[index:]:
             arg.index += 1
-        self._args = tuple(
-            chain(self._args[:index], [new_arg], self._args[index:]))
+        self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
         return new_arg
 
     def erase_arg(self, arg: BlockArgument, safe_erase: bool = True) -> None:
@@ -1070,12 +1103,10 @@ class Block(IRNode):
         If safe_erase is False, replace the block argument uses with an ErasedSSAVAlue.
         """
         if arg.block is not self:
-            raise Exception(
-                "Attempting to delete an argument of the wrong block")
-        for block_arg in self._args[arg.index + 1:]:
+            raise Exception("Attempting to delete an argument of the wrong block")
+        for block_arg in self._args[arg.index + 1 :]:
             block_arg.index -= 1
-        self._args = tuple(
-            chain(self._args[:arg.index], self._args[arg.index + 1:]))
+        self._args = tuple(chain(self._args[: arg.index], self._args[arg.index + 1 :]))
         arg.erase(safe_erase=safe_erase)
 
     def _attach_op(self, operation: Operation) -> None:
@@ -1105,10 +1136,9 @@ class Block(IRNode):
         """The last operation in this block."""
         return self._last_op
 
-    def _op_at_index(self,
-                     index: int,
-                     message_lambda: Callable[[], str] | None = None
-                     ) -> Operation | None:
+    def _op_at_index(
+        self, index: int, message_lambda: Callable[[], str] | None = None
+    ) -> Operation | None:
         """
         Returns the operation at a given index, supporting positive and negative indices.
         If abs(index) == num_ops, return None.
@@ -1135,7 +1165,9 @@ class Block(IRNode):
             else:
                 return op
         if message_lambda is None:
-            message = f"Invalid operation index {index} for block with {len(self.ops)} ops"
+            message = (
+                f"Invalid operation index {index} for block with {len(self.ops)} ops"
+            )
         else:
             message = message_lambda()
         raise ValueError(message)
@@ -1145,11 +1177,11 @@ class Block(IRNode):
         assert op is not None
         return op
 
-    def insert_op_after(self, new_op: Operation,
-                        existing_op: Operation) -> None:
+    def insert_op_after(self, new_op: Operation, existing_op: Operation) -> None:
         if existing_op.parent is not self:
             raise ValueError(
-                "Can't insert operation after operation not in current block")
+                "Can't insert operation after operation not in current block"
+            )
 
         self._attach_op(new_op)
 
@@ -1158,11 +1190,11 @@ class Block(IRNode):
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
 
-    def insert_op_before(self, new_op: Operation,
-                         existing_op: Operation) -> None:
+    def insert_op_before(self, new_op: Operation, existing_op: Operation) -> None:
         if existing_op.parent is not self:
             raise ValueError(
-                "Can't insert operation before operation not in current block")
+                "Can't insert operation before operation not in current block"
+            )
 
         self._attach_op(new_op)
 
@@ -1191,22 +1223,23 @@ class Block(IRNode):
         for op in ops:
             self.add_op(op)
 
-    def insert_ops_before(self, ops: Sequence[Operation],
-                          existing_op: Operation) -> None:
+    def insert_ops_before(
+        self, ops: Sequence[Operation], existing_op: Operation
+    ) -> None:
         for op in ops:
             self.insert_op_before(op, existing_op)
 
-    def insert_ops_after(self, ops: Sequence[Operation],
-                         existing_op: Operation) -> None:
+    def insert_ops_after(
+        self, ops: Sequence[Operation], existing_op: Operation
+    ) -> None:
         for op in ops:
             self.insert_op_after(op, existing_op)
 
             existing_op = op
 
-    def insert_op(self,
-                  ops: Operation | Sequence[Operation],
-                  index: int,
-                  name: str | None = None) -> None:
+    def insert_op(
+        self, ops: Operation | Sequence[Operation], index: int, name: str | None = None
+    ) -> None:
         """
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
@@ -1217,7 +1250,8 @@ class Block(IRNode):
         existing_op = self._op_at_index(
             index,
             lambda: f"Can't insert operation in index {index} in a block with "
-            f"{len(self.ops)} operations.")
+            f"{len(self.ops)} operations.",
+        )
 
         if existing_op is None:
             if index < 0 and self.first_op is not None:
@@ -1297,8 +1331,9 @@ class Block(IRNode):
         If safe_erase is specified, check that no operation results are used outside
         the block.
         """
-        assert self.parent is None, "Blocks with parents should first be detached " + \
-                                    "before erasure."
+        assert self.parent is None, (
+            "Blocks with parents should first be detached " + "before erasure."
+        )
         self.drop_all_references()
         for op in self.ops:
             op.erase(safe_erase=safe_erase, drop_references=False)
@@ -1306,7 +1341,7 @@ class Block(IRNode):
     def is_structurally_equivalent(
         self,
         other: IRNode,
-        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """
         Check if two blocks are structurally equivalent.
@@ -1318,8 +1353,7 @@ class Block(IRNode):
             context = {}
         if not isinstance(other, Block):
             return False
-        if len(self.args) != len(other.args) or \
-           len(self.ops) != len(other.ops):
+        if len(self.args) != len(other.args) or len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
             if arg.typ != other_arg.typ:
@@ -1328,8 +1362,9 @@ class Block(IRNode):
         # Add self to the context so Operations can check for identical parents
         context[self] = other
         if not all(
-                op.is_structurally_equivalent(other_op, context)
-                for op, other_op in zip(self.ops, other.ops)):
+            op.is_structurally_equivalent(other_op, context)
+            for op, other_op in zip(self.ops, other.ops)
+        ):
             return False
 
         return True
@@ -1351,14 +1386,14 @@ class Region(IRNode):
     parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
-    def __init__(self,
-                 blocks: Block | Iterable[Block] = (),
-                 parent: Operation | None = None):
+    def __init__(
+        self, blocks: Block | Iterable[Block] = (), parent: Operation | None = None
+    ):
         super().__init__(self)
         self.parent = parent
         self.blocks = []
         if isinstance(blocks, Block):
-            blocks = (blocks, )
+            blocks = (blocks,)
         for block in blocks:
             self.add_block(block)
 
@@ -1375,16 +1410,16 @@ class Region(IRNode):
         return f"Region(num_blocks={len(self.blocks)})"
 
     @staticmethod
-    @deprecated('Please use Region([Block(ops)])')
+    @deprecated("Please use Region([Block(ops)])")
     def from_operation_list(ops: list[Operation]) -> Region:
         return Region([Block(ops)])
 
-    @deprecated('Please use Region(blocks, parent=None)')
+    @deprecated("Please use Region(blocks, parent=None)")
     @staticmethod
     def from_block_list(blocks: list[Block]) -> Region:
         return Region(blocks)
 
-    @deprecated('Please use Region(blocks) or Region(Block(ops))')
+    @deprecated("Please use Region(blocks) or Region(Block(ops))")
     @staticmethod
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
@@ -1407,7 +1442,8 @@ class Region(IRNode):
         if len(self.blocks) != 1:
             raise ValueError(
                 "'ops' property of Region class is only available "
-                "for single-block regions.")
+                "for single-block regions."
+            )
         return list(self.block.ops)
 
     @property
@@ -1422,8 +1458,10 @@ class Region(IRNode):
             last_op = block.last_op
             if first_op is last_op and first_op is not None:
                 return first_op
-        raise ValueError("'op' property of Region class is only available "
-                         "for single-operation single-block regions.")
+        raise ValueError(
+            "'op' property of Region class is only available "
+            "for single-operation single-block regions."
+        )
 
     @property
     def block(self) -> Block:
@@ -1434,17 +1472,18 @@ class Region(IRNode):
         if len(self.blocks) != 1:
             raise ValueError(
                 "'block' property of Region class is only available "
-                "for single-block regions.")
+                "for single-block regions."
+            )
         return self.blocks[0]
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
         if block.parent:
             raise ValueError(
-                "Can't add to a region a block already attached to a region.")
+                "Can't add to a region a block already attached to a region."
+            )
         if block.is_ancestor(self):
-            raise ValueError(
-                "Can't add a block to a region contained in the block.")
+            raise ValueError("Can't add a block to a region contained in the block.")
         block.parent = self
 
     def add_block(self, block: Block) -> None:
@@ -1460,7 +1499,8 @@ class Region(IRNode):
         if index < 0 or index > len(self.blocks):
             raise ValueError(
                 f"Can't insert block in index {index} in a block with "
-                f"{len(self.blocks)} blocks.")
+                f"{len(self.blocks)} blocks."
+            )
         if not isinstance(blocks, list):
             blocks = [blocks]
         for block in blocks:
@@ -1487,7 +1527,7 @@ class Region(IRNode):
             block_idx = block
             block = self.blocks[block_idx]
         block.parent = None
-        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1:]
+        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1 :]
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
@@ -1498,11 +1538,13 @@ class Region(IRNode):
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
 
-    def clone_into(self,
-                   dest: Region,
-                   insert_index: int | None = None,
-                   value_mapper: dict[SSAValue, SSAValue] | None = None,
-                   block_mapper: dict[Block, Block] | None = None):
+    def clone_into(
+        self,
+        dest: Region,
+        insert_index: int | None = None,
+        value_mapper: dict[SSAValue, SSAValue] | None = None,
+        block_mapper: dict[Block, Block] | None = None,
+    ):
         """
         Clone all block of this region into `dest` to position `insert_index`
         """
@@ -1551,8 +1593,9 @@ class Region(IRNode):
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent, "Regions with parents should first be " + \
-                            "detached before erasure."
+        assert self.parent, (
+            "Regions with parents should first be " + "detached before erasure."
+        )
         self.drop_all_references()
 
     def move_blocks(self, region: Region) -> None:
@@ -1567,7 +1610,7 @@ class Region(IRNode):
     def is_structurally_equivalent(
         self,
         other: IRNode,
-        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None
+        context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """
         Check if two regions are structurally equivalent.
@@ -1586,7 +1629,8 @@ class Region(IRNode):
         for block, other_block in zip(self.blocks, other.blocks):
             context[block] = other_block
         if not all(
-                block.is_structurally_equivalent(other_block, context)
-                for block, other_block in zip(self.blocks, other.blocks)):
+            block.is_structurally_equivalent(other_block, context)
+            for block, other_block in zip(self.blocks, other.blocks)
+        ):
             return False
         return True

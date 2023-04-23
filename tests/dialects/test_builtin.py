@@ -2,10 +2,22 @@ from typing import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (
-    ComplexType, DenseArrayBase, DenseIntOrFPElementsAttr, NoneAttr,
-    StridedLayoutAttr, i32, f32, FloatAttr, ArrayAttr, IntAttr, FloatData,
-    SymbolRefAttr, VectorBaseTypeConstraint, VectorRankConstraint,
-    VectorBaseTypeAndRankConstraint)
+    ComplexType,
+    DenseArrayBase,
+    DenseIntOrFPElementsAttr,
+    NoneAttr,
+    StridedLayoutAttr,
+    i32,
+    f32,
+    FloatAttr,
+    ArrayAttr,
+    IntAttr,
+    FloatData,
+    SymbolRefAttr,
+    VectorBaseTypeConstraint,
+    VectorRankConstraint,
+    VectorBaseTypeAndRankConstraint,
+)
 from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
@@ -45,20 +57,25 @@ def test_DenseArrayBase_verifier_failure():
 
     with pytest.raises(VerifyException) as err:
         DenseArrayBase([f32, ArrayAttr([IntAttr(0)])])
-    assert err.value.args[0] == ("dense array of float element type "
-                                 "should only contain floats")
+    assert err.value.args[0] == (
+        "dense array of float element type " "should only contain floats"
+    )
 
     with pytest.raises(VerifyException) as err:
         DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
-    assert err.value.args[0] == ("dense array of integer element type "
-                                 "should only contain integers")
+    assert err.value.args[0] == (
+        "dense array of integer element type " "should only contain integers"
+    )
 
 
-@pytest.mark.parametrize('ref,expected', (
-    (SymbolRefAttr('test'), 'test'),
-    (SymbolRefAttr('test', ["2"]), 'test.2'),
-    (SymbolRefAttr('test', ["2", "3"]), 'test.2.3'),
-))
+@pytest.mark.parametrize(
+    "ref,expected",
+    (
+        (SymbolRefAttr("test"), "test"),
+        (SymbolRefAttr("test", ["2"]), "test.2"),
+        (SymbolRefAttr("test", ["2", "3"]), "test.2.3"),
+    ),
+)
 def test_SymbolRefAttr_string_value(ref: SymbolRefAttr, expected: str):
     assert ref.string_value() == expected
 
@@ -70,15 +87,17 @@ def test_array_len_attr():
     assert len(arr.data) == len(arr)
 
 
-@pytest.mark.parametrize('attr, dims, num_scalable_dims', (
-    (i32, [1, 2], 0),
-    (i32, [1, 2], 1),
-    (i32, [1, 1, 3], 0),
-    (i64, [1, 1, 3], 2),
-    (i64, [], 0),
-))
-def test_vector_constructor(attr: Attribute, dims: list[int],
-                            num_scalable_dims: int):
+@pytest.mark.parametrize(
+    "attr, dims, num_scalable_dims",
+    (
+        (i32, [1, 2], 0),
+        (i32, [1, 2], 1),
+        (i32, [1, 1, 3], 0),
+        (i64, [1, 1, 3], 2),
+        (i64, [], 0),
+    ),
+)
+def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):
     vec = VectorType.from_element_type_and_shape(attr, dims, num_scalable_dims)
 
     assert vec.get_num_dims() == len(dims)
@@ -86,11 +105,14 @@ def test_vector_constructor(attr: Attribute, dims: list[int],
     assert vec.get_shape() == dims
 
 
-@pytest.mark.parametrize('dims, num_scalable_dims', (
-    ([], 1),
-    ([1, 2], 3),
-    ([1], 2),
-))
+@pytest.mark.parametrize(
+    "dims, num_scalable_dims",
+    (
+        ([], 1),
+        ([1, 2], 3),
+        ([1], 2),
+    ),
+)
 def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
     with pytest.raises(VerifyException):
         VectorType.from_element_type_and_shape(i32, dims, num_scalable_dims)
@@ -194,24 +216,28 @@ def test_unrealized_conversion_cast():
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
     conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
 
-    assert (conv_op1.inputs[0].typ == i64)
-    assert (conv_op1.outputs[0].typ == f32)
+    assert conv_op1.inputs[0].typ == i64
+    assert conv_op1.outputs[0].typ == f32
 
-    assert (conv_op2.inputs[0].typ == f32)
-    assert (conv_op2.outputs[0].typ == i32)
+    assert conv_op2.inputs[0].typ == f32
+    assert conv_op2.outputs[0].typ == i32
 
 
 @pytest.mark.parametrize(
     "strides, offset, expected_strides, expected_offset",
-    [([2], None, ArrayAttr([IntAttr(2)]), NoneAttr()),
-     ([None], 2, ArrayAttr([NoneAttr()]), IntAttr(2)),
-     ([IntAttr(2)], NoneAttr(), ArrayAttr([IntAttr(2)]), NoneAttr()),
-     ([NoneAttr()], IntAttr(2), ArrayAttr([NoneAttr()]), IntAttr(2))])
-def test_strided_constructor(strides: ArrayAttr[IntAttr | NoneAttr]
-                             | Sequence[int | None | IntAttr | NoneAttr],
-                             offset: int | None | IntAttr | NoneAttr,
-                             expected_strides: ArrayAttr[IntAttr | NoneAttr],
-                             expected_offset: IntAttr | NoneAttr):
+    [
+        ([2], None, ArrayAttr([IntAttr(2)]), NoneAttr()),
+        ([None], 2, ArrayAttr([NoneAttr()]), IntAttr(2)),
+        ([IntAttr(2)], NoneAttr(), ArrayAttr([IntAttr(2)]), NoneAttr()),
+        ([NoneAttr()], IntAttr(2), ArrayAttr([NoneAttr()]), IntAttr(2)),
+    ],
+)
+def test_strided_constructor(
+    strides: ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr],
+    offset: int | None | IntAttr | NoneAttr,
+    expected_strides: ArrayAttr[IntAttr | NoneAttr],
+    expected_offset: IntAttr | NoneAttr,
+):
     strided = StridedLayoutAttr(strides, offset)
     assert strided.strides == expected_strides
     assert strided.offset == expected_offset

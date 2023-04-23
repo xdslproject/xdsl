@@ -5,7 +5,6 @@ from xdsl.irdl import Operation, Region, Block, OpResult
 
 
 class Rewriter:
-
     @staticmethod
     def erase_op(op: Operation, safe_erase: bool = True):
         """
@@ -21,11 +20,11 @@ class Rewriter:
 
     @staticmethod
     def replace_op(
-            op: Operation,
-            new_ops: Operation | List[Operation],
-            new_results: Optional[List[Optional[SSAValue]]
-                                  | List[OpResult]] = None,  # noqa
-            safe_erase: bool = True):
+        op: Operation,
+        new_ops: Operation | List[Operation],
+        new_results: Optional[List[Optional[SSAValue]] | List[OpResult]] = None,  # noqa
+        safe_erase: bool = True,
+    ):
         """
         Replace an operation with multiple new ones.
         If new_results is specified, map the results of the deleted operations with these
@@ -76,11 +75,11 @@ class Rewriter:
             raise Exception("Cannot inline a block in a child block.")
         for op in block.ops:
             for operand in op.operands:
-                if isinstance(operand,
-                              BlockArgument) and operand.block is block:
+                if isinstance(operand, BlockArgument) and operand.block is block:
                     raise Exception(
                         "Cannot inline block which has operations using "
-                        "the block arguments.")
+                        "the block arguments."
+                    )
 
         ops = list(block.ops)
         for block_op in ops:
@@ -96,8 +95,7 @@ class Rewriter:
         The block operations should not use the block arguments.
         """
         if op.parent is None:
-            raise Exception(
-                "Cannot inline a block before a toplevel operation")
+            raise Exception("Cannot inline a block before a toplevel operation")
 
         first_op = block.first_op
         last_op = block.last_op
@@ -125,8 +123,7 @@ class Rewriter:
         The block operations should not use the block arguments.
         """
         if op.parent is None:
-            raise Exception(
-                "Cannot inline a block before a toplevel operation")
+            raise Exception("Cannot inline a block before a toplevel operation")
 
         first_op = block.first_op
         last_op = block.last_op
@@ -180,17 +177,15 @@ class Rewriter:
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
         if op.parent is None:
-            raise Exception(
-                "Cannot insert an operation after a toplevel operation")
-        op.parent.insert_ops_after((new_op, ), op)
+            raise Exception("Cannot insert an operation after a toplevel operation")
+        op.parent.insert_ops_after((new_op,), op)
 
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
         if op.parent is None:
-            raise Exception(
-                "Cannot insert an operation before a toplevel operation")
-        op.parent.insert_ops_before((new_op, ), op)
+            raise Exception("Cannot insert an operation before a toplevel operation")
+        op.parent.insert_ops_before((new_op,), op)
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:

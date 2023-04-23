@@ -6,14 +6,29 @@ from typing import cast, TypeVar, Generic, Sequence
 
 from xdsl.utils.hints import isa
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import (IntegerType, Signedness, StringAttr,
-                                   AnyFloat, i32)
+from xdsl.dialects.builtin import IntegerType, Signedness, StringAttr, AnyFloat, i32
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import (Operation, Attribute, SSAValue, OpResult,
-                     ParametrizedAttribute, Dialect, TypeAttribute)
-from xdsl.irdl import (Operand, Annotated, irdl_op_definition,
-                       irdl_attr_definition, OpAttr, OptOpResult, ParameterDef,
-                       OptOperand, OptOpAttr, IRDLOperation)
+from xdsl.ir import (
+    Operation,
+    Attribute,
+    SSAValue,
+    OpResult,
+    ParametrizedAttribute,
+    Dialect,
+    TypeAttribute,
+)
+from xdsl.irdl import (
+    Operand,
+    Annotated,
+    irdl_op_definition,
+    irdl_attr_definition,
+    OpAttr,
+    OptOpResult,
+    ParameterDef,
+    OptOperand,
+    OptOpAttr,
+    IRDLOperation,
+)
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -27,7 +42,8 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     They are used by the reduction MPI functions
     """
-    name = 'mpi.operation'
+
+    name = "mpi.operation"
 
     op_str: ParameterDef[StringAttr]
 
@@ -36,6 +52,7 @@ class MpiOp:
     """
     A collection of MPI_Op types used for
     """
+
     MPI_MAX = OperationType([StringAttr("MPI_MAX")])
     MPI_MIN = OperationType([StringAttr("MPI_MIN")])
     MPI_SUM = OperationType([StringAttr("MPI_SUM")])
@@ -59,7 +76,8 @@ class RequestType(ParametrizedAttribute, TypeAttribute):
 
     They are used by the asynchronous MPI functions
     """
-    name = 'mpi.request'
+
+    name = "mpi.request"
 
 
 @irdl_attr_definition
@@ -69,7 +87,8 @@ class StatusType(ParametrizedAttribute, TypeAttribute):
 
     It's a struct containing status information for requests.
     """
-    name = 'mpi.status'
+
+    name = "mpi.status"
 
 
 @irdl_attr_definition
@@ -77,11 +96,12 @@ class DataType(ParametrizedAttribute, TypeAttribute):
     """
     This type represents MPI_Datatype
     """
-    name = 'mpi.datatype'
+
+    name = "mpi.datatype"
 
 
 VectorWrappable = RequestType | StatusType | DataType
-_VectorT = TypeVar('_VectorT', bound=VectorWrappable)
+_VectorT = TypeVar("_VectorT", bound=VectorWrappable)
 
 
 @irdl_attr_definition
@@ -89,7 +109,8 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     """
     This type holds multiple MPI types
     """
-    name = 'mpi.vector'
+
+    name = "mpi.vector"
     wrapped_type: ParameterDef[_VectorT]
 
     @staticmethod
@@ -101,15 +122,17 @@ class StatusTypeField(Enum):
     """
     This enum lists all fields in the MPI_Status struct
     """
-    MPI_SOURCE = 'MPI_SOURCE'
-    MPI_TAG = 'MPI_TAG'
-    MPI_ERROR = 'MPI_ERROR'
+
+    MPI_SOURCE = "MPI_SOURCE"
+    MPI_TAG = "MPI_TAG"
+    MPI_ERROR = "MPI_ERROR"
 
 
 class MPIBaseOp(IRDLOperation, ABC):
     """
     Base class for MPI Operations
     """
+
     pass
 
 
@@ -203,9 +226,9 @@ class Allreduce(MPIBaseOp):
         datatype: SSAValue | Operation,
         operationtype: OperationType,
     ):
-
-        operands_to_add: Sequence[SSAValue | Operation
-                                  | Sequence[SSAValue | Operation]] = []
+        operands_to_add: Sequence[
+            SSAValue | Operation | Sequence[SSAValue | Operation]
+        ] = []
         if send_buffer is None:
             operands_to_add = [recv_buffer, count, datatype, []]
         else:
@@ -285,7 +308,7 @@ class Isend(MPIBaseOp):
           to MPI_COMM_WORLD
     """
 
-    name = 'mpi.isend'
+    name = "mpi.isend"
 
     buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
@@ -333,7 +356,7 @@ class Send(MPIBaseOp):
           to MPI_COMM_WORLD
     """
 
-    name = 'mpi.send'
+    name = "mpi.send"
 
     buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
@@ -342,11 +365,16 @@ class Send(MPIBaseOp):
     tag: Annotated[Operand, i32]
 
     @staticmethod
-    def get(buffer: SSAValue | Operation, count: SSAValue | Operation,
-            datatype: SSAValue | Operation, dest: SSAValue | Operation,
-            tag: SSAValue | Operation) -> Send:
-        return Send.build(operands=[buffer, count, datatype, dest, tag],
-                          result_types=[])
+    def get(
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ) -> Send:
+        return Send.build(
+            operands=[buffer, count, datatype, dest, tag], result_types=[]
+        )
 
 
 @irdl_op_definition
@@ -434,15 +462,18 @@ class Recv(MPIBaseOp):
     status: Annotated[OptOpResult, StatusType]
 
     @staticmethod
-    def get(buffer: SSAValue | Operation,
-            count: SSAValue | Operation,
-            datatype: SSAValue | Operation,
-            source: SSAValue | Operation,
-            tag: SSAValue | Operation,
-            ignore_status: bool = True):
+    def get(
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        source: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        ignore_status: bool = True,
+    ):
         return Recv.build(
             operands=[buffer, count, datatype, source, tag],
-            result_types=[[]] if ignore_status else [[StatusType()]])
+            result_types=[[]] if ignore_status else [[StatusType()]],
+        )
 
 
 @irdl_op_definition
@@ -469,8 +500,7 @@ class Test(MPIBaseOp):
 
     @staticmethod
     def get(request: Operand):
-        return Test.build(operands=[request],
-                          result_types=[t_bool, StatusType()])
+        return Test.build(operands=[request], result_types=[t_bool, StatusType()])
 
 
 @irdl_op_definition
@@ -529,8 +559,7 @@ class Waitall(MPIBaseOp):
         if ignore_status:
             result_types = [[]]
 
-        return Waitall.build(operands=[requests, count],
-                             result_types=result_types)
+        return Waitall.build(operands=[requests, count], result_types=result_types)
 
 
 @irdl_op_definition
@@ -545,6 +574,7 @@ class GetStatusField(MPIBaseOp):
 
     All fields are of type int.
     """
+
     name = "mpi.status.get"
 
     status: Annotated[Operand, StatusType]
@@ -557,8 +587,9 @@ class GetStatusField(MPIBaseOp):
     def get(status_obj: Operand, field: StatusTypeField):
         return GetStatusField.build(
             operands=[status_obj],
-            attributes={'field': StringAttr(field.value)},
-            result_types=[i32])
+            attributes={"field": StringAttr(field.value)},
+            result_types=[i32],
+        )
 
 
 @irdl_op_definition
@@ -568,6 +599,7 @@ class CommRank(MPIBaseOp):
 
     Currently limited to COMM_WORLD
     """
+
     name = "mpi.comm.rank"
 
     rank: Annotated[OpResult, i32]
@@ -584,6 +616,7 @@ class CommSize(MPIBaseOp):
 
     Currently limited to COMM_WORLD
     """
+
     name = "mpi.comm.size"
 
     size: Annotated[OpResult, i32]
@@ -598,6 +631,7 @@ class Init(MPIBaseOp):
     """
     This represents a bare MPI_Init call with both args being nullptr
     """
+
     name = "mpi.init"
 
 
@@ -606,6 +640,7 @@ class Finalize(MPIBaseOp):
     """
     This represents an MPI_Finalize call with both args being nullptr
     """
+
     name = "mpi.finalize"
 
 
@@ -616,6 +651,7 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     It takes any MemRef as input, and returns an llvm.ptr, element count and MPI_Datatype.
     """
+
     name = "mpi.unwrap_memref"
 
     ref: Annotated[Operand, MemRefType[AnyNumericType]]
@@ -630,12 +666,10 @@ class UnwrapMemrefOp(MPIBaseOp):
         assert isinstance(ssa_val.typ, MemRefType)
         elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
 
-        return UnwrapMemrefOp.build(operands=[ref],
-                                    result_types=[
-                                        llvm.LLVMPointerType.typed(elem_typ),
-                                        i32,
-                                        DataType()
-                                    ])
+        return UnwrapMemrefOp.build(
+            operands=[ref],
+            result_types=[llvm.LLVMPointerType.typed(elem_typ), i32, DataType()],
+        )
 
 
 @irdl_op_definition
@@ -650,6 +684,7 @@ class GetDtypeOp(MPIBaseOp):
     to get the magic constant. See `_MPIToLLVMRewriteBase._translate_to_mpi_type`
     docstring for more detail on which types are supported.
     """
+
     name = "mpi.get_dtype"
 
     dtype: OpAttr[Attribute]
@@ -658,8 +693,7 @@ class GetDtypeOp(MPIBaseOp):
 
     @staticmethod
     def get(typ: Attribute):
-        return GetDtypeOp.build(result_types=[DataType()],
-                                attributes={'dtype': typ})
+        return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": typ})
 
 
 @irdl_op_definition
@@ -673,6 +707,7 @@ class AllocateTypeOp(MPIBaseOp):
     number of elements and an optional bindc_name which contains the name of the
     variable that this is allocating
     """
+
     name = "mpi.allocate"
 
     bindc_name: OptOpAttr[StringAttr]
@@ -687,12 +722,14 @@ class AllocateTypeOp(MPIBaseOp):
         count: SSAValue | Operation,
         bindc_name: StringAttr | None = None,
     ) -> AllocateTypeOp:
-        return AllocateTypeOp.build(result_types=[VectorType.of(dtype)],
-                                    attributes={
-                                        "dtype": dtype(),
-                                        "bindc_name": bindc_name,
-                                    },
-                                    operands=[count])
+        return AllocateTypeOp.build(
+            result_types=[VectorType.of(dtype)],
+            attributes={
+                "dtype": dtype(),
+                "bindc_name": bindc_name,
+            },
+            operands=[count],
+        )
 
 
 @irdl_op_definition
@@ -701,6 +738,7 @@ class VectorGetOp(MPIBaseOp):
     This op will retrieve an element of an MPI vector, it accepts the vector as
     an argument and the element index
     """
+
     name = "mpi.vector_get"
 
     vect: Annotated[Operand, VectorType]
@@ -709,13 +747,13 @@ class VectorGetOp(MPIBaseOp):
     result: Annotated[OpResult, VectorWrappable]
 
     @staticmethod
-    def get(vect: SSAValue | Operation,
-            element: SSAValue | Operation) -> VectorGetOp:
+    def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
         assert isa(ssa_val.typ, VectorType[VectorWrappable])
 
-        return VectorGetOp.build(result_types=[ssa_val.typ.wrapped_type],
-                                 operands=[vect, element])
+        return VectorGetOp.build(
+            result_types=[ssa_val.typ.wrapped_type], operands=[vect, element]
+        )
 
 
 @irdl_op_definition
@@ -727,6 +765,7 @@ class NullRequestOp(MPIBaseOp):
     Due to restrictions in the current MPI dialect, we can't return a
     new request object here. That will be fixed soon though!
     """
+
     name = "mpi.request_null"
 
     request: Annotated[Operand, RequestType]
@@ -736,28 +775,31 @@ class NullRequestOp(MPIBaseOp):
         return NullRequestOp.build(operands=[req])
 
 
-MPI = Dialect([
-    Isend,
-    Irecv,
-    Test,
-    Recv,
-    Send,
-    Reduce,
-    Allreduce,
-    Bcast,
-    Wait,
-    GetStatusField,
-    Init,
-    Finalize,
-    CommRank,
-    UnwrapMemrefOp,
-    GetDtypeOp,
-    AllocateTypeOp,
-    VectorGetOp,
-], [
-    OperationType,
-    RequestType,
-    StatusType,
-    DataType,
-    VectorType,
-])
+MPI = Dialect(
+    [
+        Isend,
+        Irecv,
+        Test,
+        Recv,
+        Send,
+        Reduce,
+        Allreduce,
+        Bcast,
+        Wait,
+        GetStatusField,
+        Init,
+        Finalize,
+        CommRank,
+        UnwrapMemrefOp,
+        GetDtypeOp,
+        AllocateTypeOp,
+        VectorGetOp,
+    ],
+    [
+        OperationType,
+        RequestType,
+        StatusType,
+        DataType,
+        VectorType,
+    ],
+)
