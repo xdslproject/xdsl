@@ -125,7 +125,7 @@ def test_parallel_verify_num_bounds_equal():
         p3.verify()
 
 
-def test_parallel_verify_num_args_correct():
+def test_parallel_verify_only_induction_in_block():
     lbi = Constant.from_int_and_width(0, IndexType())
     ubi = Constant.from_int_and_width(10, IndexType())
     si = Constant.from_int_and_width(1, IndexType())
@@ -139,8 +139,8 @@ def test_parallel_verify_num_args_correct():
 
     body = Region(b)
     p = ParallelOp.get([lbi], [ubi], [si], body, initVals)
-    # This should verify
-    p.verify()
+    with pytest.raises(VerifyException):
+        p.verify()
 
     b2 = Block(arg_types=[IndexType(), i32, i32])
     b2.add_op(Yield.get(init_val))
@@ -150,40 +150,24 @@ def test_parallel_verify_num_args_correct():
         p2.verify()
 
 
-def test_parallel_verify_omitted_induction_var_in_block():
+def test_parallel_block_arg_indextype():
     lbi = Constant.from_int_and_width(0, IndexType())
     ubi = Constant.from_int_and_width(10, IndexType())
     si = Constant.from_int_and_width(1, IndexType())
 
-    init_val = Constant.from_int_and_width(10, i32)
-
-    initVals = [init_val]
-
-    b = Block(arg_types=[i32])
-    b.add_op(Yield.get(init_val))
+    b = Block(arg_types=[IndexType()])
+    b.add_op(Yield.get())
 
     body = Region(b)
-    p = ParallelOp.get([lbi], [ubi], [si], body, initVals)
+    p = ParallelOp.get([lbi], [ubi], [si], body)
+    p.verify()
+
+    b2 = Block(arg_types=[i32])
+    b2.add_op(Yield.get())
+    body2 = Region(b2)
+    p2 = ParallelOp.get([lbi], [ubi], [si], body2)
     with pytest.raises(VerifyException):
-        p.verify()
-
-
-def test_parallel_verify_initVar_and_block_type():
-    lbi = Constant.from_int_and_width(0, IndexType())
-    ubi = Constant.from_int_and_width(10, IndexType())
-    si = Constant.from_int_and_width(1, IndexType())
-
-    init_val = Constant.from_int_and_width(10, i32)
-
-    initVals = [init_val]
-
-    b = Block(arg_types=[IndexType(), i64])
-    b.add_op(Yield.get(init_val))
-
-    body = Region(b)
-    p = ParallelOp.get([lbi], [ubi], [si], body, initVals)
-    with pytest.raises(VerifyException):
-        p.verify()
+        p2.verify()
 
 
 def test_parallel_verify_reduction_and_block_type():
@@ -263,7 +247,7 @@ def test_parallel_verify_yield_last_op():
         p3.verify()
 
 
-def test_parallel_verify_yield_num_ops():
+def test_parallel_verify_yield_zero_ops():
     lbi = Constant.from_int_and_width(0, IndexType())
     ubi = Constant.from_int_and_width(10, IndexType())
     si = Constant.from_int_and_width(1, IndexType())
@@ -277,30 +261,12 @@ def test_parallel_verify_yield_num_ops():
     with pytest.raises(VerifyException):
         p.verify()
 
-    init_val = Constant.from_int_and_width(10, i64)
-    b2 = Block(arg_types=[IndexType(), i64])
+    b2 = Block(arg_types=[IndexType()])
     b2.add_op(Yield.get())
     body2 = Region(b2)
-    p2 = ParallelOp.get([lbi], [ubi], [si], body2, [init_val])
-    with pytest.raises(VerifyException):
-        p2.verify()
-
-
-def test_parallel_verify_yield_types_match_result_types():
-    lbi = Constant.from_int_and_width(0, IndexType())
-    ubi = Constant.from_int_and_width(10, IndexType())
-    si = Constant.from_int_and_width(1, IndexType())
-
-    init_val = Constant.from_int_and_width(10, i32)
-
-    b = Block(arg_types=[IndexType(), i32])
-    ret_val = Constant.from_int_and_width(10, i64)
-    b.add_ops([ret_val, Yield.get(ret_val)])
-
-    body = Region(b)
-    p = ParallelOp.get([lbi], [ubi], [si], body, [init_val])
-    with pytest.raises(VerifyException):
-        p.verify()
+    p2 = ParallelOp.get([lbi], [ubi], [si], body2)
+    # Should verify as yield is empty
+    p2.verify()
 
 
 def test_parallel_test_count_number_reduction_ops():

@@ -157,6 +157,9 @@ class ParallelOp(IRDLOperation):
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
         # due to the restrictions on the operation and ability to mix in reduction operations
+        # All initvals must be handled by an individual reduction operation, with the block
+        # arguments just being induction variables and no arguments to the yield as that is
+        # handled by the reduction op
 
         # First check that the number of lower and upper bounds, along with the number of
         # steps is all equal
@@ -182,37 +185,30 @@ class ParallelOp(IRDLOperation):
         num_args_required = len(body_args) + self.count_number_reduction_ops()
         if num_args_provided != num_args_required:
             raise VerifyException(
-                f"Expected {num_args_provided} "
-                f"block arguments, got {num_args_required} instead")
+                f"Expected {len(body_args)} "
+                f"block arguments and {num_args_provided-len(body_args)} reductions"
+            )
+
+        # Check the number of block arguments equals the number of induction variables as all
+        # initVals must be encapsulated in a reduce operation
+        if len(self.lowerBound) != len(body_args):
+            raise VerifyException(
+                "Number of block arguments must exactly equal the number of induction variables"
+            )
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index
-        if len(body_args) < len(self.lowerBound) or not all([
-                isinstance(a.typ, IndexType)
-                for a in body_args[:len(self.lowerBound) - 1]
-        ]):
+        if not all([isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
-                f"scf.parallel's body must have an index argument "
+                f"scf.parallel's block must have an index argument"
                 " for each induction variable")
-
-        # For all other arguments to the block ensure these match what is provided to the
-        # parallel operation in initVals (some of initVals might be matches to reduction operations
-        # and these do not appear in the top level block)
-        for index, required_block_arg in enumerate(
-                body_args[len(self.lowerBound):]):
-            if self.initVals[index].typ != required_block_arg.typ:
-                raise VerifyException(
-                    f"Miss match on scf.parallel argument and block type at location {index} "
-                    f", parallel argment is of type {self.initVals[index].typ} whereas block argument is of type {required_block_arg.typ}"
-                )
 
         # Now go through each reduction operation and check that the type
         # matches the corresponding initVals type
         num_reductions = self.count_number_reduction_ops()
-        initValsStartIndex = len(body_args) - len(self.lowerBound)
         for reduction in range(num_reductions):
             typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            initValsType = self.initVals[initValsStartIndex + reduction].typ
+            initValsType = self.initVals[reduction].typ
             if initValsType != typ:
                 raise VerifyException(
                     f"Miss match on scf.parallel argument and reduction op type number {reduction} "
@@ -225,41 +221,26 @@ class ParallelOp(IRDLOperation):
             raise VerifyException(
                 "scf.parallel region must terminate with an scf.yield")
 
-        # Ensure that the number of operations in scf yield match what is expected,
-        # which is the number of arguments to the block minus the number of induction variables
+        # Ensure that the number of operations in scf yield is exactly zero
         number_yield_ops = len(self.body.block.ops[-1].arguments)
-        expected_yielded_ops = len(body_args) - len(self.lowerBound)
-        if number_yield_ops != expected_yielded_ops:
+        if number_yield_ops != 0:
             raise VerifyException(
-                f"scf.yield contains {number_yield_ops} operands but {expected_yielded_ops} expected"
+                f"scf.yield contains {number_yield_ops} operands but this must be zero"
             )
 
-        # Ensure that the number of yield operations plus the number of reductions match the
+        # Ensure that the number of reductions matches the
         # number of result types from scf.parallel
-        if number_yield_ops + num_reductions != len(self.res):
+        if num_reductions != len(self.res):
             raise VerifyException(
-                f"There are {number_yield_ops + num_reductions} operands yielded and reduced, but {len(self.res)} expected"
+                f"There are {num_reductions} reductions, but {len(self.res)} results expected"
             )
-
-        # For each yielded operation ensure that its type matches both the block argument type
-        # and also the corresponding scf.parallel result type too
-        for index, yielded_op in enumerate(self.body.block.ops[-1].arguments):
-            if yielded_op.typ != body_args[len(self.lowerBound) + index].typ:
-                raise VerifyException(
-                    f"scf.yield op {index} is of type {yielded_op.typ} whereas block type is {body_args[len(self.lowerBound)+index].typ}"
-                )
-            if yielded_op.typ != self.res[index].typ:
-                raise VerifyException(
-                    f"scf.yield op {index} is of type {yielded_op.typ} whereas scf.parallel return type is {self.res[index].typ}"
-                )
 
         # Now go through each reduction and ensure that its operand type matches the corresponding
         # scf.parallel result type (there is no result type on scf.reduce, hence we check the
         # operand type)
-        result_start_index = len(self.body.block.ops[-1].arguments)
         for reduction in range(num_reductions):
             typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            resultType = self.initVals[result_start_index + reduction].typ
+            resultType = self.res[reduction].typ
             if resultType != typ:
                 raise VerifyException(
                     f"Miss match on scf.parallel result type and reduction op type number {reduction} "
