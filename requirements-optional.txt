@@ -7,3 +7,4 @@ ipykernel
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
 pyright==1.1.304
+pre-commit==3.2.2
