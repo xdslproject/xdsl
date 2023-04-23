@@ -172,87 +172,46 @@ def test_memref_matmul_verify():
         builtin.f64, [-1, -1]
     )
 
-    module = builtin.ModuleOp.from_region_or_ops(
-        [
-            func.FuncOp.from_callable(
-                "matmul",
-                [memref_f64_rank2, memref_f64_rank2],
-                [memref_f64_rank2],
-                lambda a, b: [
-                    lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
-                    lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
-                    dim_a0 := memref.Dim.from_source_and_index(a, lit0),
-                    dim_a1 := memref.Dim.from_source_and_index(a, lit1),
-                    dim_b0 := memref.Dim.from_source_and_index(b, lit0),
-                    dim_b1 := memref.Dim.from_source_and_index(b, lit1),
-                    out := memref.Alloca.get(
-                        builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]
-                    ),
-                    # TODO: assert dim_a0 == dim_b1
-                    lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
-                    scf.For.get(
-                        lit0,
-                        dim_a0,
-                        lit1,
-                        [],
-                        Block.from_callable(
-                            [builtin.IndexType()],
-                            lambda i: [
-                                # outer loop start, loop_var = i
-                                scf.For.get(
-                                    lit0,
-                                    dim_b0,
-                                    lit1,
-                                    [],
-                                    Block.from_callable(
-                                        [builtin.IndexType()],
-                                        lambda j: [
-                                            # mid loop start, loop_var = j
-                                            memref.Store.get(lit0_f, out, [i, j]),
-                                            scf.For.get(
-                                                lit0,
-                                                dim_a1,
-                                                lit1,
-                                                [],
-                                                Block.from_callable(
-                                                    [builtin.IndexType()],
-                                                    lambda k: [
-                                                        # inner loop, loop_var = k
-                                                        elem_a_i_k := memref.Load.get(
-                                                            a, [i, k]
-                                                        ),
-                                                        elem_b_k_j := memref.Load.get(
-                                                            b, [k, j]
-                                                        ),
-                                                        mul := arith.Mulf.get(
-                                                            elem_a_i_k, elem_b_k_j
-                                                        ),
-                                                        out_i_j := memref.Load.get(
-                                                            out, [i, j]
-                                                        ),
-                                                        new_out_val := arith.Addf.get(
-                                                            out_i_j, mul
-                                                        ),
-                                                        memref.Store.get(
-                                                            new_out_val, out, [i, j]
-                                                        ),
-                                                        scf.Yield.get(),
-                                                    ],
-                                                ),
-                                            ),
-                                            scf.Yield.get(),
-                                        ],
-                                    ),
-                                ),
-                                scf.Yield.get(),
-                            ],
-                        ),
-                    ),
-                    func.Return.get(out),
-                ],
-            )
-        ]
-    )  # yapf: disable
+    # fmt: off
+    module = builtin.ModuleOp([
+        func.FuncOp.from_callable(
+            'matmul',
+            [memref_f64_rank2, memref_f64_rank2],
+            [memref_f64_rank2],
+            lambda a, b: [
+                lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
+                lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+                dim_a0 := memref.Dim.from_source_and_index(a, lit0),
+                dim_a1 := memref.Dim.from_source_and_index(a, lit1),
+                dim_b0 := memref.Dim.from_source_and_index(b, lit0),
+                dim_b1 := memref.Dim.from_source_and_index(b, lit1),
+                out := memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]),
+                # TODO: assert dim_a0 == dim_b1
+                lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
+                scf.For.get(lit0, dim_a0, lit1, [], Block.from_callable([builtin.IndexType()], lambda i: [
+                    # outer loop start, loop_var = i
+                    scf.For.get(lit0, dim_b0, lit1, [], Block.from_callable([builtin.IndexType()], lambda j: [
+                        # mid loop start, loop_var = j
+                        memref.Store.get(lit0_f, out, [i, j]),
+                        scf.For.get(lit0, dim_a1, lit1, [], Block.from_callable([builtin.IndexType()], lambda k: [
+                            # inner loop, loop_var = k
+                            elem_a_i_k := memref.Load.get(a, [i, k]),
+                            elem_b_k_j := memref.Load.get(b, [k, j]),
+                            mul := arith.Mulf.get(elem_a_i_k, elem_b_k_j),
+                            out_i_j := memref.Load.get(out, [i, j]),
+                            new_out_val := arith.Addf.get(out_i_j, mul),
+                            memref.Store.get(new_out_val, out, [i, j]),
+                            scf.Yield.get()
+                        ])),
+                        scf.Yield.get()
+                    ])),
+                    scf.Yield.get()
+                ])),
+                func.Return.get(out)
+            ]
+        )
+    ])
+    # fmt: on
 
     # check that it verifies correctly
     module.verify()

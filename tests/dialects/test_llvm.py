@@ -1,10 +1,11 @@
 import pytest
 
 from xdsl.dialects import llvm, builtin, arith
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_llvm_pointer_ops():
-    module = builtin.ModuleOp.from_region_or_ops(
+    module = builtin.ModuleOp(
         [
             idx := arith.Constant.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp.get(idx, builtin.i32),
@@ -117,3 +118,53 @@ def test_array_type():
     assert isinstance(array_type.size, builtin.IntAttr)
     assert array_type.size.data == 10
     assert array_type.type == builtin.i32
+
+
+def test_linkage_attr():
+    linkage = llvm.LinkageAttr("internal")
+
+    assert isinstance(linkage.linkage, builtin.StringAttr)
+    assert linkage.linkage.data == "internal"
+
+
+def test_linkage_attr_unknown_str():
+    with pytest.raises(VerifyException):
+        llvm.LinkageAttr("unknown")
+
+
+def test_global_op():
+    global_op = llvm.GlobalOp.get(
+        builtin.i32,
+        "testsymbol",
+        "internal",
+        10,
+        True,
+        value=builtin.IntegerAttr(76, 32),
+        alignment=8,
+        unnamed_addr=0,
+        section="test",
+    )
+
+    assert global_op.global_type == builtin.i32
+    assert isinstance(global_op.sym_name, builtin.StringAttr)
+    assert global_op.sym_name.data == "testsymbol"
+    assert isinstance(global_op.section, builtin.StringAttr)
+    assert global_op.section.data == "test"
+    assert isinstance(global_op.addr_space, builtin.IntegerAttr)
+    assert global_op.addr_space.value.data == 10
+    assert isinstance(global_op.alignment, builtin.IntegerAttr)
+    assert global_op.alignment.value.data == 8
+    assert isinstance(global_op.unnamed_addr, builtin.IntegerAttr)
+    assert global_op.unnamed_addr.value.data == 0
+    assert isinstance(global_op.linkage, llvm.LinkageAttr)
+    assert isinstance(global_op.value, builtin.IntegerAttr)
+    assert global_op.value.value.data == 76
+
+
+def test_addressof_op():
+    ptr_type = llvm.LLVMPointerType.typed(builtin.i32)
+    address_of = llvm.AddressOfOp.get("test", ptr_type)
+
+    assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
+    assert address_of.global_name.root_reference.data == "test"
+    assert address_of.result.typ == ptr_type

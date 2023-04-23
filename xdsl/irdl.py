@@ -249,7 +249,11 @@ def irdl_to_attr_constraint(
 
     # Attribute class case
     # This is a coercion for an `BaseAttr`.
-    if isclass(irdl) and issubclass(irdl, Attribute):
+    if (
+        isclass(irdl)
+        and not isinstance(irdl, GenericAlias)
+        and issubclass(irdl, Attribute)
+    ):
         return BaseAttr(irdl)
 
     # Type variable case
@@ -363,7 +367,7 @@ class IRDLOperation(Operation):
         self: IRDLOperation,
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[
@@ -399,7 +403,7 @@ class IRDLOperation(Operation):
         cls: type[_OpT],
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[

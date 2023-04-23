@@ -58,7 +58,7 @@ def test_parallel():
 
 def test_empty_else():
     # create if without an else block:
-    m = ModuleOp.from_region_or_ops(
+    m = ModuleOp(
         [
             t := Constant.from_int_and_width(1, 1),
             If.get(

@@ -258,7 +258,7 @@ class AccessOpToMemref(RewritePattern):
 
         args = collectBlockArguments(len(memref_offset), block)
 
-        off_sum_ops = [arith.Addi.get(i, x) for i, x in zip(args, off_const_ops)]
+        off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
 
         load = memref.Load.get(load, off_sum_ops)
 

@@ -189,7 +189,7 @@ def test_recursive_rewriter():
             IntegerAttr.from_int_and_width(val - 1, 64), i32
         )
         constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
-        add_op = Addi.get(constant_op, constant_one)
+        add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
@@ -231,7 +231,7 @@ def test_recursive_rewriter_reversed():
             IntegerAttr.from_int_and_width(val - 1, 64), i32
         )
         constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
-        add_op = Addi.get(constant_op, constant_one)
+        add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
@@ -338,7 +338,7 @@ def test_insert_op_at_pos_negative():
     Test rewrites where operations are inserted with a negative position.
     """
 
-    prog = ModuleOp.from_region_or_ops([Constant.from_int_and_width(5, 32)])
+    prog = ModuleOp([Constant.from_int_and_width(5, 32)])
 
     to_be_inserted = Constant.from_int_and_width(42, 32)
 

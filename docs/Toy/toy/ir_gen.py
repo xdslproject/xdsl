@@ -89,7 +89,7 @@ class IRGen:
     def __init__(self):
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
-        self.module = ModuleOp.from_region_or_ops([])
+        self.module = ModuleOp([])
         self.builder = Builder(self.module.body.blocks[0])
 
     def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:

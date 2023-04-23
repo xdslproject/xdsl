@@ -1,4 +1,4 @@
-name: Deploy JupiterLyte Page
+name: Deploy JupyterLite Page
 
 on:
   # Trigger the workflow on push or pull request,

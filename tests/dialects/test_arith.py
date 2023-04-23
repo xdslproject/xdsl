@@ -1,7 +1,9 @@
+from typing import TypeVar
 import pytest
 
 from xdsl.dialects.arith import (
     Addi,
+    BinaryOperation,
     Constant,
     DivUI,
     DivSI,
@@ -43,19 +45,21 @@ from xdsl.dialects.builtin import (
     f64,
     IndexType,
     IntegerType,
-    Float32Type,
 )
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
+
+_BinOpT = TypeVar("_BinOpT", bound=BinaryOperation)
 
 
 class Test_integer_arith_construction:
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(1, i32)
+    operand_typ = i32
+    a = Constant.from_int_and_width(1, operand_typ)
+    b = Constant.from_int_and_width(1, operand_typ)
 
     @pytest.mark.parametrize(
-        "func",
+        "OpClass",
         [
-            Addi,
             Subi,
             DivUI,
             DivSI,
@@ -76,10 +80,26 @@ class Test_integer_arith_construction:
             ShRSI,
         ],
     )
-    def test_arith_ops(self, func):
-        op = func.get(self.a, self.b)
-        assert op.operands[0].op is self.a
-        assert op.operands[1].op is self.b
+    def test_arith_ops_get(self, OpClass: type[_BinOpT]):
+        op = OpClass.get(self.a, self.b)
+
+        assert isinstance(op, OpClass)
+        assert op.lhs.op is self.a
+        assert op.rhs.op is self.b
+        assert op.result.typ == self.operand_typ
+
+    @pytest.mark.parametrize(
+        "OpClass",
+        [Addi],
+    )
+    @pytest.mark.parametrize("return_typ", [None, operand_typ])
+    def test_arith_ops_init(self, OpClass: type[_BinOpT], return_typ: Attribute):
+        op = OpClass(self.a, self.b)
+
+        assert isinstance(op, OpClass)
+        assert op.lhs.op is self.a
+        assert op.rhs.op is self.b
+        assert op.result.typ == self.operand_typ
 
     def test_Cmpi(self):
         _ = Cmpi.get(self.a, self.b, 2)

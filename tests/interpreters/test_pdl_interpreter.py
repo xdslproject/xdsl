@@ -22,7 +22,7 @@ class SwapInputs(RewritePattern):
             return
         if not isinstance(op.lhs.op, arith.Addi):
             return
-        new_op = arith.Addi.get(op.rhs, op.lhs)
+        new_op = arith.Addi(op.rhs, op.lhs)
         rewriter.replace_op(op, [new_op])
 
 
@@ -56,7 +56,7 @@ def test_rewrite_swap_inputs_pdl():
 
 
 def swap_arguments_input():
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
         @Builder.implicit_region
@@ -64,8 +64,8 @@ def swap_arguments_input():
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
-            x_y = arith.Addi.get(x, y).result
-            x_y_z = arith.Addi.get(x_y, z).result
+            x_y = arith.Addi(x, y).result
+            x_y_z = arith.Addi(x_y, z).result
             func.Return.get(x_y_z)
 
         func.FuncOp.from_region("impl", [], [], impl)
@@ -74,7 +74,7 @@ def swap_arguments_input():
 
 
 def swap_arguments_output():
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
         @Builder.implicit_region
@@ -82,8 +82,8 @@ def swap_arguments_output():
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
-            x_y = arith.Addi.get(x, y).result
-            z_x_y = arith.Addi.get(z, x_y).result
+            x_y = arith.Addi(x, y).result
+            z_x_y = arith.Addi(z, x_y).result
             func.Return.get(z_x_y)
 
         func.FuncOp.from_region("impl", [], [], impl)
@@ -122,7 +122,7 @@ def swap_arguments_pdl():
         IntegerAttr.from_int_and_width(2, 16), None, pattern_region
     )
 
-    pdl_module = ModuleOp.from_region_or_ops([pattern])
+    pdl_module = ModuleOp([pattern])
 
     return pdl_module
 
@@ -175,14 +175,14 @@ def test_rewrite_add_zero_pdl():
 
 
 def add_zero_input():
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
         @Builder.implicit_region
         def impl():
             x = arith.Constant.from_int_and_width(4, 32)
             y = arith.Constant.from_int_and_width(0, 32)
-            z = arith.Addi.get(x, y)
+            z = arith.Addi(x, y)
             func.Return.get(z)
 
         func.FuncOp.from_region("impl", [], [], impl)
@@ -191,7 +191,7 @@ def add_zero_input():
 
 
 def add_zero_output():
-    @ModuleOp.from_region_or_ops
+    @ModuleOp
     @Builder.implicit_region
     def ir_module():
         @Builder.implicit_region
@@ -243,6 +243,6 @@ def add_zero_pdl():
         IntegerAttr.from_int_and_width(2, 16), None, pattern_region
     )
 
-    pdl_module = ModuleOp.from_region_or_ops([pattern])
+    pdl_module = ModuleOp([pattern])
 
     return pdl_module

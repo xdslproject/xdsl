@@ -72,12 +72,7 @@ class IBlockArg(ISSAValue):
         return self is __o
 
     def __repr__(self) -> str:
-        return (
-            "BlockArg(type:"
-            + self.typ.name
-            + ("attached" if self.block is not None else "unattached")
-            + ")"
-        )  # type: ignore
+        return "BlockArg(type:" + self.typ.name + ("attached") + ")"  # type: ignore
 
 
 @dataclass(frozen=True)

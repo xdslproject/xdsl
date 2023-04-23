@@ -81,7 +81,7 @@ def test_replace_op_multiple_op():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
         new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi.get(new_constant, new_constant)
+        new_add = Addi(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 
@@ -336,7 +336,7 @@ def test_preserve_naming_multiple_ops():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant_op = module.ops[0]
         new_constant = Constant.from_int_and_width(1, i32)
-        new_add = Addi.get(new_constant, new_constant)
+        new_add = Addi(new_constant, new_constant)
 
         rewriter.replace_op(constant_op, [new_constant, new_add])
 

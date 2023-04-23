@@ -690,7 +690,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             idx_cast1 := arith.IndexCastOp.get(op.element, IndexType()),
             idx_cast2 := arith.IndexCastOp.get(idx_cast1, i64),
             mul := arith.Muli.get(lit1, idx_cast2),
-            add := arith.Addi.get(mul, ptr_int),
+            add := arith.Addi(mul, ptr_int),
             out_ptr := llvm.IntToPtrOp.get(add, op.vect.typ.type),
         ], [out_ptr.results[0]]
 

@@ -14,6 +14,7 @@ from typing import (
     Any,
     TypeVar,
     overload,
+    Iterator,
 )
 
 from xdsl.ir import (
@@ -85,7 +86,7 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
+class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
     name: str = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -137,6 +138,9 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
 
     def __len__(self):
         return len(self.data)
+
+    def __iter__(self) -> Iterator[AttributeCovT]:
+        return iter(self.data)
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
@@ -1231,22 +1235,16 @@ class ModuleOp(IRDLOperation):
 
     body: SingleBlockRegion
 
-    @property
-    def ops(self) -> List[Operation]:
-        return list(self.regions[0].block.ops)
-
-    @staticmethod
-    def from_region_or_ops(ops: List[Operation] | Region) -> ModuleOp:
-        if isinstance(ops, list):
-            region = Region([Block(ops)])
-        elif isinstance(ops, Region):
+    def __init__(self, ops: List[Operation] | Region):
+        if isinstance(ops, Region):
             region = ops
         else:
-            raise TypeError(
-                f"Expected region or operation list in ModuleOp.get, but got '{ops}'"
-            )
-        op = ModuleOp.create([], [], regions=[region])
-        return op
+            region = Region(Block(ops))
+        super().__init__(regions=[region])
+
+    @property
+    def ops(self) -> List[Operation]:
+        return self.body.ops
 
 
 # FloatXXType shortcuts

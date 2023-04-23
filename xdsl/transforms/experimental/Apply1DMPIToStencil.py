@@ -94,7 +94,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         rank_m1_op = arith.Subi.get(comm_rank_op, one)
 
         add_offset = arith.Muli.get(dim_zero_i64_op, eight_i64)
-        added_ptr = arith.Addi.get(index_memref_i64, add_offset)
+        added_ptr = arith.Addi(index_memref_i64, add_offset)
         send_ptr = llvm.IntToPtrOp.get(added_ptr)
 
         mpi_send_top_op = mpi.Isend.get(
@@ -144,13 +144,13 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [top_halo_exhange]
 
         # Send and recv my last row of data to rank +1
-        rank_p1_op = arith.Addi.get(comm_rank_op, one)
+        rank_p1_op = arith.Addi(comm_rank_op, one)
 
         # Need to multiple row by column -2 (for data row)
         col_row_b_send = arith.Subi.get(dim_zero_i64_op, two_i64)
         element_b_send = arith.Muli.get(col_row_b_send, dim_zero_i64_op)
         add_offset_b_send = arith.Muli.get(element_b_send, eight_i64)
-        added_ptr_b_send = arith.Addi.get(index_memref_i64, add_offset_b_send)
+        added_ptr_b_send = arith.Addi(index_memref_i64, add_offset_b_send)
         ptr_b_send = llvm.IntToPtrOp.get(added_ptr_b_send)
 
         mpi_send_bottom_op = mpi.Isend.get(
@@ -167,7 +167,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         col_row_b_recv = arith.Subi.get(dim_zero_i64_op, one_i64)
         element_b_recv = arith.Muli.get(col_row_b_recv, dim_zero_i64_op)
         add_offset_b_recv = arith.Muli.get(element_b_recv, eight_i64)
-        added_ptr_b_recv = arith.Addi.get(index_memref_i64, add_offset_b_recv)
+        added_ptr_b_recv = arith.Addi(index_memref_i64, add_offset_b_recv)
         ptr_b_recv = llvm.IntToPtrOp.get(added_ptr_b_recv)
 
         mpi_recv_bottom_op = mpi.Irecv.get(
