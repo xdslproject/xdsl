@@ -177,24 +177,20 @@ class ParallelOp(IRDLOperation):
                 "scf.parallel region must contain exactly 1 block but "
                 f"{len(self.body.blocks)} were provided")
 
-        # Check that the number of induction variables plus the number of initial values (initVals)
-        # equals the number of block arguments plus the number of reductions (as the later does
-        # not appear in the block arguments list)
         body_args = self.body.block.args
-        num_args_provided = len(self.lowerBound) + len(self.initVals)
-        num_args_required = len(body_args) + self.count_number_reduction_ops()
-        if num_args_provided != num_args_required:
-            raise VerifyException(
-                f"Expected {len(body_args)} "
-                f"block arguments and {num_args_provided-len(body_args)} reductions"
-            )
-
         # Check the number of block arguments equals the number of induction variables as all
         # initVals must be encapsulated in a reduce operation
         if len(self.lowerBound) != len(body_args):
             raise VerifyException(
                 "Number of block arguments must exactly equal the number of induction variables"
             )
+
+        # Check that the number of initial values (initVals)
+        # equals the number of reductions
+        if len(self.initVals) != self.count_number_reduction_ops():
+            raise VerifyException(
+                f"Expected {len(self.initVals)} "
+                f"reductions but {self.count_number_reduction_ops()} provided")
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index

@@ -196,8 +196,6 @@ def test_parallel_verify_reduction_and_block_type():
 
 
 def test_parallel_verify_reduction_and_block_type_fails():
-    # This also covers the return type test too, as the return type
-    # is driven by the init_val
     lbi = Constant.from_int_and_width(0, IndexType())
     ubi = Constant.from_int_and_width(10, IndexType())
     si = Constant.from_int_and_width(1, IndexType())

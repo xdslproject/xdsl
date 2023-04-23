@@ -10,4 +10,4 @@
   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: Expected 1 block arguments, got 2 instead
+// CHECK: Number of block arguments must exactly equal the number of induction variables
