@@ -17,7 +17,7 @@ def test_ops_accessor():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
@@ -41,7 +41,7 @@ def test_ops_accessor_II():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
     block0 = Block([a, b, c])
     # Create a region to include a, b, c
@@ -83,8 +83,8 @@ def test_ops_accessor_III():
     d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
-    e = Addi.get(a, b)
-    f = Addi.get(c, d)
+    e = Addi(a, b)
+    f = Addi(c, d)
 
     # Create Blocks and Regions
     block0 = Block([a, b, e])
@@ -394,7 +394,7 @@ def test_op_custom_verify_is_done_last():
 def test_replace_operand():
     cst0 = Constant.from_int_and_width(0, 32).result
     cst1 = Constant.from_int_and_width(1, 32).result
-    add = Addi.get(cst0, cst1)
+    add = Addi(cst0, cst1)
 
     new_cst = Constant.from_int_and_width(2, 32).result
     add.replace_operand(cst0, new_cst)

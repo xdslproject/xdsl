@@ -97,7 +97,7 @@ def test_all_reduce():
 
     @Builder.implicit_region
     def body():
-        sum = Operation.clone(arith.Addi.get(*body_block.args))
+        sum = Operation.clone(arith.Addi(body_block.args[0], body_block.args[1]))
         YieldOp.get([sum])
 
     all_reduce_body = AllReduceOp.from_body(body, init)

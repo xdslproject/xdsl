@@ -132,7 +132,6 @@ class Constant(IRDLOperation):
         return Constant.create(result_types=[typ], attributes={"value": val})
 
 
-@dataclass
 class BinaryOperation(IRDLOperation):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -150,16 +149,20 @@ class BinaryOperation(IRDLOperation):
 @irdl_op_definition
 class Addi(BinaryOperation):
     name: str = "arith.addi"
+
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
 
-    @staticmethod
-    def get(
-        operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
-    ) -> Addi:
-        operand1 = SSAValue.get(operand1)
-        return Addi.build(operands=[operand1, operand2], result_types=[operand1.typ])
+    def __init__(
+        self,
+        operand1: Union[Operation, SSAValue],
+        operand2: Union[Operation, SSAValue],
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).typ
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
 @irdl_op_definition

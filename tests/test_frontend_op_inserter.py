@@ -60,7 +60,7 @@ def test_inserts_ops():
     b = inserter.get_operand()
     a = inserter.get_operand()
 
-    c = Addi.get(a, b)
+    c = Addi(a, b)
     inserter.insert_op(c)
 
     assert len(inserter.stack) == 1

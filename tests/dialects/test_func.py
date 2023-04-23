@@ -17,7 +17,7 @@ def test_func():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
     # Create a region to include a, b, c
     @Builder.region
@@ -34,7 +34,7 @@ def test_func():
     def region1():
         a = Constant.from_int_and_width(1, i32)
         b = Constant.from_int_and_width(2, i32)
-        Addi.get(a, b)
+        Addi(a, b)
 
     func1 = FuncOp.from_region("func1", [], [], region1)
 
@@ -56,8 +56,8 @@ def test_func_II():
     d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
-    e = Addi.get(a, b)
-    f = Addi.get(c, d)
+    e = Addi(a, b)
+    f = Addi(c, d)
 
     # Create Blocks and Regions
     block0 = Block([a, b, e])
@@ -78,7 +78,7 @@ def test_func_II():
 
 
 def test_wrong_blockarg_types():
-    r = Region(Block.from_callable([i32], lambda *x: [Addi.get(x[0], x[0])]))
+    r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
     f = FuncOp.from_region("f", [i32, i32], [], r)
     with pytest.raises(VerifyException) as e:
         f.verify()
@@ -155,7 +155,7 @@ def test_call():
     # Create a block using the types of a, b
     block0 = Block(arg_types=[a.result.typ, b.result.typ])
     # Create a Addi operation to use the args of the block
-    c = Addi.get(block0.args[0], block0.args[1])
+    c = Addi(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])
@@ -203,7 +203,7 @@ def test_call_II():
     # Create a block using the type of a
     block0 = Block(arg_types=[a.result.typ])
     # Create a Addi operation to use the args of the block
-    c = Addi.get(block0.args[0], block0.args[0])
+    c = Addi(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])

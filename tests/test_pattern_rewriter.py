@@ -189,7 +189,7 @@ def test_recursive_rewriter():
             IntegerAttr.from_int_and_width(val - 1, 64), i32
         )
         constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
-        add_op = Addi.get(constant_op, constant_one)
+        add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
@@ -231,7 +231,7 @@ def test_recursive_rewriter_reversed():
             IntegerAttr.from_int_and_width(val - 1, 64), i32
         )
         constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
-        add_op = Addi.get(constant_op, constant_one)
+        add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
