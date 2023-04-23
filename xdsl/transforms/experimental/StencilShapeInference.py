@@ -1,17 +1,31 @@
 from typing import Iterable, TypeVar
 from xdsl.dialects import builtin
-from xdsl.dialects.experimental.stencil import AccessOp, ApplyOp, CastOp, HaloSwapOp, IndexAttr, LoadOp, StoreOp, TempType
+from xdsl.dialects.experimental.stencil import (
+    AccessOp,
+    ApplyOp,
+    CastOp,
+    HaloSwapOp,
+    IndexAttr,
+    LoadOp,
+    StoreOp,
+    TempType,
+)
 from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker, PatternRewriter, RewritePattern, op_type_rewrite_pattern
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriteWalker,
+    PatternRewriter,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import verify_load_bounds
 from xdsl.utils.hints import isa
 
-_OpT = TypeVar('_OpT', bound=Operation)
+_OpT = TypeVar("_OpT", bound=Operation)
 
 
-def all_matching_uses(op_res: Iterable[SSAValue],
-                      typ: type[_OpT]) -> Iterable[_OpT]:
+def all_matching_uses(op_res: Iterable[SSAValue], typ: type[_OpT]) -> Iterable[_OpT]:
     for res in op_res:
         for use in res.uses:
             if isinstance(use.operation, typ):
@@ -39,7 +53,6 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 
 
 class LoadOpShapeInference(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         cast = op.field.owner
@@ -59,23 +72,19 @@ class LoadOpShapeInference(RewritePattern):
 
 
 class StoreOpShapeInference(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-
         owner = op.temp.owner
 
         assert isinstance(owner, ApplyOp | LoadOp)
 
-        owner.attributes['lb'] = IndexAttr.min(op.lb, owner.lb)
-        owner.attributes['ub'] = IndexAttr.max(op.ub, owner.ub)
+        owner.attributes["lb"] = IndexAttr.min(op.lb, owner.lb)
+        owner.attributes["ub"] = IndexAttr.max(op.ub, owner.ub)
 
 
 class ApplyOpShapeInference(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-
         def access_shape_infer_walk(access: Operation) -> None:
             assert (op.lb is not None) and (op.ub is not None)
             if not isinstance(access, AccessOp):
@@ -85,10 +94,12 @@ class ApplyOpShapeInference(RewritePattern):
 
             assert isinstance(temp_owner, LoadOp | ApplyOp)
 
-            temp_owner.attributes['lb'] = IndexAttr.min(
-                op.lb + access.offset, temp_owner.lb)
-            temp_owner.attributes['ub'] = IndexAttr.max(
-                op.ub + access.offset, temp_owner.ub)
+            temp_owner.attributes["lb"] = IndexAttr.min(
+                op.lb + access.offset, temp_owner.lb
+            )
+            temp_owner.attributes["ub"] = IndexAttr.max(
+                op.ub + access.offset, temp_owner.ub
+            )
 
         op.walk(access_shape_infer_walk)
 
@@ -97,40 +108,39 @@ class ApplyOpShapeInference(RewritePattern):
         for result in op.results:
             assert isa(result.typ, TempType[Attribute])
             result.typ = TempType.from_shape(
-                IndexAttr.size_from_bounds(op.lb, op.ub),
-                result.typ.element_type)
+                IndexAttr.size_from_bounds(op.lb, op.ub), result.typ.element_type
+            )
 
 
 class HaloOpShapeInference(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
         assert isinstance(op.input_stencil.owner, LoadOp)
         load = op.input_stencil.owner
         halo_lb, halo_ub = infer_core_size(load)
-        op.attributes['core_lb'] = halo_lb
-        op.attributes['core_ub'] = halo_ub
+        op.attributes["core_lb"] = halo_lb
+        op.attributes["core_ub"] = halo_ub
         assert load.lb is not None
         assert load.ub is not None
-        op.attributes['buff_lb'] = load.lb
-        op.attributes['buff_ub'] = load.ub
+        op.attributes["buff_lb"] = load.lb
+        op.attributes["buff_ub"] = load.ub
 
 
-ShapeInference = GreedyRewritePatternApplier([
-    ApplyOpShapeInference(),
-    LoadOpShapeInference(),
-    StoreOpShapeInference(),
-    HaloOpShapeInference(),
-])
+ShapeInference = GreedyRewritePatternApplier(
+    [
+        ApplyOpShapeInference(),
+        LoadOpShapeInference(),
+        StoreOpShapeInference(),
+        HaloOpShapeInference(),
+    ]
+)
 
 
 class StencilShapeInferencePass(ModulePass):
-
-    name = 'stencil-shape-inference'
+    name = "stencil-shape-inference"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-
-        inference_walker = PatternRewriteWalker(ShapeInference,
-                                                apply_recursively=False,
-                                                walk_reverse=True)
+        inference_walker = PatternRewriteWalker(
+            ShapeInference, apply_recursively=False, walk_reverse=True
+        )
         inference_walker.rewrite_module(op)

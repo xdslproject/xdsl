@@ -7,7 +7,6 @@ from xdsl.frontend.exception import CodeGenerationException
 
 p = FrontendProgram()
 with CodeContext(p):
-
     # CHECK: arith.addi(%{{.*}} : !i32, %{{.*}} : !i32)
     def test_addi_overload(a: i32, b: i32) -> i32:
         return a + b
@@ -98,7 +97,6 @@ print(p.xdsl())
 
 try:
     with CodeContext(p):
-
         # CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
         def test_missing_floordiv_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64
@@ -111,7 +109,6 @@ except CodeGenerationException as e:
 
 try:
     with CodeContext(p):
-
         # CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
         def test_missing_contains_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64

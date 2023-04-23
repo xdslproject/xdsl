@@ -30,7 +30,8 @@ class OpInserter:
         """
         if len(self.stack) == 0:
             raise FrontendProgramException(
-                "Trying to get an operand from an empty stack.")
+                "Trying to get an operand from an empty stack."
+            )
         return self.stack.pop()
 
     def insert_op(self, op: Operation) -> None:
