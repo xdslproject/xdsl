@@ -12,4 +12,4 @@
   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: scf.parallel region must contain exactly 1 block but 2 were provided
+// CHECK: scf.parallel operation does not verify
