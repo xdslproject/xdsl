@@ -12,7 +12,7 @@ def addi(lhs: _Int, rhs: _Int) -> _Int:
 
 
 def resolve_addi() -> Callable[..., Operation]:
-    return arith.Addi.get
+    return arith.Addi
 
 
 def andi(lhs: _Int, rhs: _Int) -> _Int:
