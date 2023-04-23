@@ -64,10 +64,13 @@ class OptResultOp(IRDLOperation):
 def test_opt_result_builder():
     op1 = OptResultOp.build(result_types=[[StringAttr("")]])
     op2 = OptResultOp.build(result_types=[[]])
+    op3 = OptResultOp.build(result_types=[None])
     op1.verify()
     op2.verify()
+    op3.verify()
     assert [res.typ for res in op1.results] == [StringAttr("")]
     assert len(op2.results) == 0
+    assert len(op3.results) == 0
 
 
 def test_opt_result_builder_two_args():
