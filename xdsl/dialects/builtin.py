@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
-                    TYPE_CHECKING, Any, TypeVar, overload)
+                    TYPE_CHECKING, Any, TypeVar, overload, Iterator)
 
 from xdsl.ir import (Block, Data, TypeAttribute, ParametrizedAttribute,
                      Operation, Region, Attribute, Dialect, SSAValue,
@@ -50,7 +50,8 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
+class ArrayAttr(GenericData[tuple[AttributeCovT, ...]],
+                Iterable[AttributeCovT]):
     name: str = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -99,6 +100,9 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]]):
 
     def __len__(self):
         return len(self.data)
+
+    def __iter__(self) -> Iterator[AttributeCovT]:
+        return iter(self.data)
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
