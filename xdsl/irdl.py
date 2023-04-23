@@ -367,7 +367,7 @@ class IRDLOperation(Operation):
         self: IRDLOperation,
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[
@@ -403,7 +403,7 @@ class IRDLOperation(Operation):
         cls: type[_OpT],
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
-        result_types: Sequence[Attribute | Sequence[Attribute]] | None = None,
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] | None = None,
         regions: Sequence[
