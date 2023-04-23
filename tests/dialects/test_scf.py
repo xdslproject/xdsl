@@ -4,7 +4,7 @@ from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Block
 from xdsl.dialects.scf import For, ParallelOp, If, Yield, ReduceOp, ReduceReturnOp
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import VerifyException, DiagnosticException
 
 
 def test_for():
@@ -89,7 +89,7 @@ def test_parallel_verify_one_block():
 
     body = Region()
     p = ParallelOp.get([lbi], [ubi], [si], body)
-    with pytest.raises(VerifyException):
+    with pytest.raises(DiagnosticException):
         p.verify()
 
 
@@ -233,8 +233,7 @@ def test_parallel_verify_yield_last_op():
     # This should verify
     p.verify()
 
-    p2 = ParallelOp.get([lbi], [ubi], [si],
-                        Region(Block(arg_types=[IndexType()])))
+    p2 = ParallelOp.get([lbi], [ubi], [si], Region(Block(arg_types=[IndexType()])))
     with pytest.raises(VerifyException):
         p2.verify()
 
@@ -285,8 +284,7 @@ def test_parallel_get_arg_type_of_nth_reduction_op():
     init_val2 = Constant.from_int_and_width(10, i64)
     reductions: List[ReduceOp] = []
     for i in range(10):
-        reduce_op = ReduceOp.get(init_val1 if i % 2 == 0 else init_val2,
-                                 Block())
+        reduce_op = ReduceOp.get(init_val1 if i % 2 == 0 else init_val2, Block())
         reductions.append(reduce_op)
 
     b = Block()
@@ -294,8 +292,7 @@ def test_parallel_get_arg_type_of_nth_reduction_op():
     p = ParallelOp.get([], [], [], Region(b))
     assert p.count_number_reduction_ops() == 10
     for i in range(10):
-        assert p.get_arg_type_of_nth_reduction_op(
-            i) == i32 if i % 2 == 0 else i64
+        assert p.get_arg_type_of_nth_reduction_op(i) == i32 if i % 2 == 0 else i64
 
 
 def test_reduce_op():
@@ -307,8 +304,7 @@ def test_reduce_op():
     assert reduce_op.argument.typ is i32
     assert len(reduce_op.body.blocks) == 1
     assert len(reduce_op.body.block.args) == 2
-    assert reduce_op.body.block.args[0].typ == reduce_op.body.block.args[
-        0].typ == i32
+    assert reduce_op.body.block.args[0].typ == reduce_op.body.block.args[0].typ == i32
 
 
 def test_reduce_op_num_block_args():

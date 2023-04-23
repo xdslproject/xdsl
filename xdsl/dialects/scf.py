@@ -143,7 +143,7 @@ class ParallelOp(IRDLOperation):
     initVals: Annotated[VarOperand, AnyAttr()]
     res: Annotated[VarOpResult, AnyAttr()]
 
-    body: Region
+    body: SingleBlockRegion
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -158,7 +158,8 @@ class ParallelOp(IRDLOperation):
         return ParallelOp.build(
             operands=[lowerBounds, upperBounds, steps, initVals],
             regions=[body],
-            result_types=[[SSAValue.get(a).typ for a in initVals]])
+            result_types=[[SSAValue.get(a).typ for a in initVals]],
+        )
 
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
@@ -169,19 +170,15 @@ class ParallelOp(IRDLOperation):
 
         # First check that the number of lower and upper bounds, along with the number of
         # steps is all equal
-        if len(self.lowerBound) != len(self.upperBound) or len(
-                self.lowerBound) != len(self.step):
+        if len(self.lowerBound) != len(self.upperBound) or len(self.lowerBound) != len(
+            self.step
+        ):
             raise VerifyException(
                 "Expected the same number of lower bounds, upper "
                 "bounds, and steps for scf.parallel. Got "
                 f"{len(self.lowerBound)}, {len(self.upperBound)} and "
-                f"{len(self.step)}.")
-
-        # An scf.parallel operation must have one block only
-        if len(self.body.blocks) != 1:
-            raise VerifyException(
-                "scf.parallel region must contain exactly 1 block but "
-                f"{len(self.body.blocks)} were provided")
+                f"{len(self.step)}."
+            )
 
         body_args = self.body.block.args
         # Check the number of block arguments equals the number of induction variables as all
@@ -196,14 +193,16 @@ class ParallelOp(IRDLOperation):
         if len(self.initVals) != self.count_number_reduction_ops():
             raise VerifyException(
                 f"Expected {len(self.initVals)} "
-                f"reductions but {self.count_number_reduction_ops()} provided")
+                f"reductions but {self.count_number_reduction_ops()} provided"
+            )
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index
         if not all([isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
                 f"scf.parallel's block must have an index argument"
-                " for each induction variable")
+                " for each induction variable"
+            )
 
         # Now go through each reduction operation and check that the type
         # matches the corresponding initVals type
@@ -219,9 +218,11 @@ class ParallelOp(IRDLOperation):
 
         # Ensure that scf.yield is the last operation in the block as this is required
         if len(self.body.block.ops) == 0 or not isinstance(
-                self.body.block.ops[-1], Yield):
+            self.body.block.ops[-1], Yield
+        ):
             raise VerifyException(
-                "scf.parallel region must terminate with an scf.yield")
+                "scf.parallel region must terminate with an scf.yield"
+            )
 
         # Ensure that the number of operations in scf yield is exactly zero
         number_yield_ops = len(self.body.block.ops[-1].arguments)
@@ -252,14 +253,16 @@ class ParallelOp(IRDLOperation):
     def count_number_reduction_ops(self) -> int:
         num_reduce = 0
         for op in self.body.block.ops:
-            if isinstance(op, ReduceOp): num_reduce += 1
+            if isinstance(op, ReduceOp):
+                num_reduce += 1
         return num_reduce
 
     def get_arg_type_of_nth_reduction_op(self, index: int):
         found = 0
         for op in self.body.block.ops:
             if isinstance(op, ReduceOp):
-                if found == index: return op.argument.typ
+                if found == index:
+                    return op.argument.typ
                 found += 1
         return None
 
@@ -269,26 +272,21 @@ class ReduceOp(IRDLOperation):
     name: str = "scf.reduce"
     argument: Annotated[Operand, AnyAttr()]
 
-    body: Region
+    body: SingleBlockRegion
 
     @staticmethod
     def get(
         argument: SSAValue | Operation,
         block: Block,
     ) -> ReduceOp:
-        return ReduceOp.build(operands=[argument],
-                              regions=[Region(block, parent=None)])
+        return ReduceOp.build(operands=[argument], regions=[Region(block, parent=None)])
 
     def verify_(self) -> None:
-        if len(self.body.blocks) != 1:
-            raise VerifyException(
-                "scf.reduce region must contain exactly 1 block but "
-                f"{len(self.body.blocks)} were provided")
-
         if len(self.body.block.args) != 2:
             raise VerifyException(
                 "scf.reduce block must have exactly two arguments, but "
-                f"{len(self.body.block.args)} were provided")
+                f"{len(self.body.block.args)} were provided"
+            )
 
         if self.body.block.args[0].typ != self.body.block.args[1].typ:
             raise VerifyException(
@@ -303,15 +301,18 @@ class ReduceOp(IRDLOperation):
             )
 
         if len(self.body.block.ops) == 0 or not isinstance(
-                self.body.block.ops[-1], ReduceReturnOp):
+            self.body.block.ops[-1], ReduceReturnOp
+        ):
             raise VerifyException(
-                "scf.reduce block must terminate with an scf.reduce.return")
+                "scf.reduce block must terminate with an scf.reduce.return"
+            )
 
         if self.body.block.ops[-1].result.typ != self.argument.typ:
             raise VerifyException(
                 "Type of scf.reduce.return result at end of scf.reduce block must "
                 f" match the reduction operand type but have {self.body.block.ops[-1].result.typ} "
-                f"and {self.argument.typ}")
+                f"and {self.argument.typ}"
+            )
 
 
 @irdl_op_definition
@@ -320,7 +321,9 @@ class ReduceReturnOp(IRDLOperation):
     result: Annotated[Operand, AnyAttr()]
 
     @staticmethod
-    def get(result: SSAValue | Operation, ) -> ReduceReturnOp:
+    def get(
+        result: SSAValue | Operation,
+    ) -> ReduceReturnOp:
         return ReduceReturnOp.build(operands=[result])
 
     def verify_(self) -> None:
@@ -375,13 +378,16 @@ class While(IRDLOperation):
         return op
 
 
-Scf = Dialect([
-    If,
-    For,
-    Yield,
-    Condition,
-    ParallelOp,
-    ReduceOp,
-    ReduceReturnOp,
-    While,
-], [])
+Scf = Dialect(
+    [
+        If,
+        For,
+        Yield,
+        Condition,
+        ParallelOp,
+        ReduceOp,
+        ReduceReturnOp,
+        While,
+    ],
+    [],
+)
