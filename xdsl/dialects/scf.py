@@ -224,11 +224,11 @@ class ParallelOp(IRDLOperation):
                 "scf.parallel region must terminate with an scf.yield"
             )
 
-        # Ensure that the number of operations in scf yield is exactly zero
+        # Ensure that the number of operands in scf.yield is exactly zero
         number_yield_ops = len(self.body.block.ops[-1].arguments)
         if number_yield_ops != 0:
             raise VerifyException(
-                f"scf.yield contains {number_yield_ops} operands but this must be zero"
+                f"scf.yield contains {number_yield_ops} operands but this must be zero inside an scf.parallel"
             )
 
         # Ensure that the number of reductions matches the
