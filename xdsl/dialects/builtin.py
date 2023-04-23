@@ -3,19 +3,53 @@ from abc import ABC
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import (Iterable, TypeAlias, List, cast, Type, Sequence,
-                    TYPE_CHECKING, Any, TypeVar, overload, Iterator)
+from typing import (
+    Iterable,
+    TypeAlias,
+    List,
+    cast,
+    Type,
+    Sequence,
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+    overload,
+    Iterator,
+)
 
-from xdsl.ir import (Block, Data, TypeAttribute, ParametrizedAttribute,
-                     Operation, Region, Attribute, Dialect, SSAValue,
-                     AttributeCovT, AttributeInvT)
+from xdsl.ir import (
+    Block,
+    Data,
+    TypeAttribute,
+    ParametrizedAttribute,
+    Operation,
+    Region,
+    Attribute,
+    Dialect,
+    SSAValue,
+    AttributeCovT,
+    AttributeInvT,
+)
 
-from xdsl.irdl import (AllOf, OpAttr, VarOpResult, VarOperand, VarRegion,
-                       irdl_attr_definition, attr_constr_coercion,
-                       irdl_data_definition, irdl_to_attr_constraint,
-                       irdl_op_definition, ParameterDef, SingleBlockRegion,
-                       Generic, GenericData, AttrConstraint, AnyAttr,
-                       IRDLOperation)
+from xdsl.irdl import (
+    AllOf,
+    OpAttr,
+    VarOpResult,
+    VarOperand,
+    VarRegion,
+    irdl_attr_definition,
+    attr_constr_coercion,
+    irdl_data_definition,
+    irdl_to_attr_constraint,
+    irdl_op_definition,
+    ParameterDef,
+    SingleBlockRegion,
+    Generic,
+    GenericData,
+    AttrConstraint,
+    AnyAttr,
+    IRDLOperation,
+)
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -28,6 +62,7 @@ if TYPE_CHECKING:
 @irdl_attr_definition
 class NoneAttr(ParametrizedAttribute):
     """An attribute representing the absence of an attribute."""
+
     name: str = "none"
 
 
@@ -37,6 +72,7 @@ class ArrayOfConstraint(AttrConstraint):
     A constraint that enforces an ArrayData whose elements all satisfy
     the elem_constr.
     """
+
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
@@ -50,8 +86,7 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]],
-                Iterable[AttributeCovT]):
+class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
     name: str = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -60,8 +95,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]],
     @staticmethod
     def parse_parameter(parser: BaseParser) -> tuple[AttributeCovT]:
         parser.parse_char("[")
-        data = parser.parse_list_of(parser.try_parse_attribute,
-                                    "Expected attribute")
+        data = parser.parse_list_of(parser.try_parse_attribute, "Expected attribute")
         parser.parse_char("]")
         # the type system can't ensure that the elements are of type _ArrayAttrT
         result = cast(tuple[AttributeCovT], tuple(data))
@@ -78,20 +112,24 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]],
             return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
         if len(args) == 0:
             return ArrayOfConstraint(AnyAttr())
-        raise TypeError(f"Attribute ArrayAttr expects at most type"
-                        f" parameter, but {len(args)} were given")
+        raise TypeError(
+            f"Attribute ArrayAttr expects at most type"
+            f" parameter, but {len(args)} were given"
+        )
 
     def verify(self) -> None:
         if not isinstance(self.data, tuple):
             raise VerifyException(
                 f"Wrong type given to attribute {self.name}: got"
                 f" {type(self.data)}, but expected list of"
-                " attributes")
+                " attributes"
+            )
         for idx, val in enumerate(self.data):
             if not isinstance(val, Attribute):
                 raise VerifyException(
                     f"{self.name} data expects attribute list, but {idx} "
-                    f"element is of type {type(val)}")
+                    f"element is of type {type(val)}"
+                )
 
     @staticmethod
     @deprecated_constructor
@@ -161,13 +199,14 @@ class SymbolRefAttr(ParametrizedAttribute):
     def __init__(
         self,
         root: str | StringAttr,
-        nested: list[str] | list[StringAttr] | ArrayAttr[StringAttr] = []
+        nested: list[str] | list[StringAttr] | ArrayAttr[StringAttr] = [],
     ) -> None:
         if isinstance(root, str):
             root = StringAttr(root)
         if isinstance(nested, list):
             nested = ArrayAttr(
-                [StringAttr(x) if isinstance(x, str) else x for x in nested])
+                [StringAttr(x) if isinstance(x, str) else x for x in nested]
+            )
         super().__init__([root, nested])
 
     @staticmethod
@@ -177,14 +216,15 @@ class SymbolRefAttr(ParametrizedAttribute):
 
     @staticmethod
     @deprecated_constructor
-    def from_string_attr(root: StringAttr,
-                         nested: List[StringAttr] = []) -> SymbolRefAttr:
+    def from_string_attr(
+        root: StringAttr, nested: List[StringAttr] = []
+    ) -> SymbolRefAttr:
         return SymbolRefAttr(root, nested)
 
     def string_value(self):
         root = self.root_reference.data
         for ref in self.nested_references.data:
-            root += '.' + ref.data
+            root += "." + ref.data
         return root
 
 
@@ -198,7 +238,7 @@ class IntAttr(Data[int]):
         return data
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'{self.data}')
+        printer.print_string(f"{self.data}")
 
     @staticmethod
     @deprecated_constructor
@@ -222,8 +262,9 @@ class SignednessAttr(Data[Signedness]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Signedness:
-        value = parser.expect(parser.try_parse_bare_id,
-                              "Expected `signless`, `signed`, or `unsigned`.")
+        value = parser.expect(
+            parser.try_parse_bare_id, "Expected `signless`, `signed`, or `unsigned`."
+        )
         if value.text == "signless":
             return Signedness.SIGNLESS
         elif value.text == "signed":
@@ -256,9 +297,9 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
     signedness: ParameterDef[SignednessAttr]
 
     def __init__(
-            self,
-            data: int | IntAttr,
-            signedness: Signedness | SignednessAttr = Signedness.SIGNLESS
+        self,
+        data: int | IntAttr,
+        signedness: Signedness | SignednessAttr = Signedness.SIGNLESS,
     ) -> None:
         if isinstance(data, int):
             data = IntAttr(data)
@@ -269,8 +310,8 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
     @staticmethod
     @deprecated_constructor
     def from_width(
-            width: int,
-            signedness: Signedness = Signedness.SIGNLESS) -> IntegerType:
+        width: int, signedness: Signedness = Signedness.SIGNLESS
+    ) -> IntegerType:
         return IntegerType(width, signedness)
 
 
@@ -289,11 +330,10 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
-_IntegerAttrTyp = TypeVar("_IntegerAttrTyp",
-                          bound=IntegerType | IndexType,
-                          covariant=True)
-_IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv",
-                             bound=IntegerType | IndexType)
+_IntegerAttrTyp = TypeVar(
+    "_IntegerAttrTyp", bound=IntegerType | IndexType, covariant=True
+)
+_IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType)
 
 
 @irdl_attr_definition
@@ -303,17 +343,20 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     typ: ParameterDef[_IntegerAttrTyp]
 
     @overload
-    def __init__(self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr,
-                 typ: _IntegerAttrTyp) -> None:
+    def __init__(
+        self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr, typ: _IntegerAttrTyp
+    ) -> None:
         ...
 
     @overload
-    def __init__(self: IntegerAttr[IntegerType], value: int | IntAttr,
-                 typ: int) -> None:
+    def __init__(
+        self: IntegerAttr[IntegerType], value: int | IntAttr, typ: int
+    ) -> None:
         ...
 
-    def __init__(self, value: int | IntAttr,
-                 typ: int | IntegerType | IndexType) -> None:
+    def __init__(
+        self, value: int | IntAttr, typ: int | IntegerType | IndexType
+    ) -> None:
         if isinstance(value, int):
             value = IntAttr(value)
         if isinstance(typ, int):
@@ -368,8 +411,9 @@ class Float128Type(ParametrizedAttribute, TypeAttribute):
     name: str = "f128"
 
 
-AnyFloat: TypeAlias = (BFloat16Type | Float16Type | Float32Type | Float64Type
-                       | Float80Type | Float128Type)
+AnyFloat: TypeAlias = (
+    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+)
 
 
 @irdl_attr_definition
@@ -378,12 +422,11 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> float:
-        span = parser.expect(parser.try_parse_float_literal,
-                             "Expect float literal")
+        span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
         return float(span.text)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'{self.data}')
+        printer.print_string(f"{self.data}")
 
     @staticmethod
     @deprecated_constructor
@@ -411,8 +454,9 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
     def __init__(self, data: float | FloatData, type: int) -> None:
         ...
 
-    def __init__(self, data: float | FloatData,
-                 type: int | _FloatAttrTyp | AnyFloat) -> None:
+    def __init__(
+        self, data: float | FloatData, type: int | _FloatAttrTyp | AnyFloat
+    ) -> None:
         if isinstance(data, float):
             data = FloatData(data)
         if isinstance(type, int):
@@ -432,8 +476,7 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
 
     @staticmethod
     @deprecated_constructor
-    def from_value(value: float,
-                   type: _FloatAttrTypInv) -> FloatAttr[_FloatAttrTypInv]:
+    def from_value(value: float, type: _FloatAttrTypInv) -> FloatAttr[_FloatAttrTypInv]:
         return FloatAttr(FloatData.from_float(value), type)
 
     @staticmethod
@@ -464,8 +507,9 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("{")
-        printer.print_dictionary(self.data, printer.print_string_literal,
-                                 printer.print_attribute)
+        printer.print_dictionary(
+            self.data, printer.print_string_literal, printer.print_attribute
+        )
         printer.print_string("}")
 
     @staticmethod
@@ -477,16 +521,19 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
             raise VerifyException(
                 f"Wrong type given to attribute {self.name}: got"
                 f" {type(self.data)}, but expected dictionary of"
-                " attributes")
+                " attributes"
+            )
         for key, val in self.data.items():
             if not isinstance(key, str):
                 raise VerifyException(
                     f"{self.name} key expects str, but {key} "
-                    f"element is of type {type(key)}")
+                    f"element is of type {type(key)}"
+                )
             if not isinstance(val, Attribute):
                 raise VerifyException(
                     f"{self.name} key expects attribute, but {val} "
-                    f"element is of type {type(val)}")
+                    f"element is of type {type(val)}"
+                )
 
     @staticmethod
     @deprecated_constructor
@@ -500,7 +547,8 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
             if not isinstance(k, str):
                 raise TypeError(
                     f"DictionaryAttr.from_dict expects keys to"
-                    f" be of type str or StringAttr, but {type(k)} provided")
+                    f" be of type str or StringAttr, but {type(k)} provided"
+                )
             to_add_data[k] = v
         return DictionaryAttr(to_add_data)
 
@@ -543,12 +591,14 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
         if self.get_num_scalable_dims() < 0:
             raise VerifyException(
                 f"Number of scalable dimensions {self.get_num_dims()} cannot"
-                " be negative")
+                " be negative"
+            )
         if self.get_num_scalable_dims() > self.get_num_dims():
             raise VerifyException(
                 f"Number of scalable dimensions {self.get_num_scalable_dims()}"
                 " cannot be larger than number of dimensions"
-                f" {self.get_num_dims()}")
+                f" {self.get_num_dims()}"
+            )
 
     @staticmethod
     def from_element_type_and_shape(
@@ -558,20 +608,27 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     ) -> VectorType[AttributeInvT]:
         if isinstance(num_scalable_dims, int):
             num_scalable_dims = IntAttr(num_scalable_dims)
-        return VectorType([
-            ArrayAttr([
-                IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
-                    d, int) else d for d in shape
-            ]),
-            referenced_type,
-            num_scalable_dims,
-        ])
+        return VectorType(
+            [
+                ArrayAttr(
+                    [
+                        IntegerAttr[IntegerType].from_index_int_value(d)
+                        if isinstance(d, int)
+                        else d
+                        for d in shape
+                    ]
+                ),
+                referenced_type,
+                num_scalable_dims,
+            ]
+        )
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]),
+            [IntegerAttr.from_int_and_width(1, 64)]
+        ),
         num_scalable_dims: IntAttr = IntAttr(0),
     ) -> VectorType[AttributeInvT]:
         return VectorType([shape, referenced_type, num_scalable_dims])
@@ -598,23 +655,30 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     def from_type_and_list(
         referenced_type: AttributeInvT,
         shape: Sequence[int | IntegerAttr[IndexType]] | None = None,
-        encoding: Attribute = NoneAttr()
+        encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
-        return TensorType([
-            ArrayAttr([
-                IntegerAttr[IntegerType].from_index_int_value(d) if isinstance(
-                    d, int) else d for d in shape
-            ]), referenced_type, encoding
-        ])
+        return TensorType(
+            [
+                ArrayAttr(
+                    [
+                        IntegerAttr[IntegerType].from_index_int_value(d)
+                        if isinstance(d, int)
+                        else d
+                        for d in shape
+                    ]
+                ),
+                referenced_type,
+                encoding,
+            ]
+        )
 
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
-        shape: AnyArrayAttr = AnyArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]),
-        encoding: Attribute = NoneAttr()
+        shape: AnyArrayAttr = AnyArrayAttr([IntegerAttr.from_int_and_width(1, 64)]),
+        encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
         return TensorType([shape, referenced_type, encoding])
 
@@ -623,16 +687,13 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute,
-                         TypeAttribute):
+class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
 
     @staticmethod
-    def from_type(
-            referenced_type: AttributeInvT
-    ) -> UnrankedTensorType[AttributeInvT]:
+    def from_type(referenced_type: AttributeInvT) -> UnrankedTensorType[AttributeInvT]:
         return UnrankedTensorType([referenced_type])
 
 
@@ -642,11 +703,12 @@ AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 @dataclass(init=False)
 class ContainerOf(AttrConstraint):
     """A type constraint that can be nested once in a vector or a tensor."""
+
     elem_constr: AttrConstraint
 
     def __init__(
-            self,
-            elem_constr: Attribute | type[Attribute] | AttrConstraint) -> None:
+        self, elem_constr: Attribute | type[Attribute] | AttrConstraint
+    ) -> None:
         self.elem_constr = attr_constr_coercion(elem_constr)
 
     def verify(self, attr: Attribute) -> None:
@@ -656,12 +718,15 @@ class ContainerOf(AttrConstraint):
             self.elem_constr.verify(attr)
 
 
-VectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
-                               | TensorType[AttributeCovT]
-                               | UnrankedTensorType[AttributeCovT])
+VectorOrTensorOf: TypeAlias = (
+    VectorType[AttributeCovT]
+    | TensorType[AttributeCovT]
+    | UnrankedTensorType[AttributeCovT]
+)
 
-RankedVectorOrTensorOf: TypeAlias = (VectorType[AttributeCovT]
-                                     | TensorType[AttributeCovT])
+RankedVectorOrTensorOf: TypeAlias = (
+    VectorType[AttributeCovT] | TensorType[AttributeCovT]
+)
 
 
 @dataclass
@@ -713,19 +778,23 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """The expected vector rank."""
 
     def verify(self, attr: Attribute) -> None:
-        constraint = AllOf([
-            VectorBaseTypeConstraint(self.expected_type),
-            VectorRankConstraint(self.expected_rank)
-        ])
+        constraint = AllOf(
+            [
+                VectorBaseTypeConstraint(self.expected_type),
+                VectorRankConstraint(self.expected_rank),
+            ]
+        )
         constraint.verify(attr)
 
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     name = "dense"
-    type: ParameterDef[RankedVectorOrTensorOf[IntegerType]
-                       | RankedVectorOrTensorOf[IndexType]
-                       | RankedVectorOrTensorOf[AnyFloat]]
+    type: ParameterDef[
+        RankedVectorOrTensorOf[IntegerType]
+        | RankedVectorOrTensorOf[IndexType]
+        | RankedVectorOrTensorOf[AnyFloat]
+    ]
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
@@ -754,12 +823,11 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     def create_dense_index(
         type: RankedVectorOrTensorOf[IndexType],
-        data: Sequence[int] | Sequence[IntegerAttr[IndexType]]
+        data: Sequence[int] | Sequence[IntegerAttr[IndexType]],
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
             attr_list = [
-                IntegerAttr.from_index_int_value(d)
-                for d in cast(Sequence[int], data)
+                IntegerAttr.from_index_int_value(d) for d in cast(Sequence[int], data)
             ]
         else:
             attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
@@ -769,7 +837,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     def create_dense_int(
         type: RankedVectorOrTensorOf[IntegerType],
-        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]]
+        data: Sequence[int] | Sequence[IntegerAttr[IntegerType]],
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int):
             attr_list = [
@@ -784,7 +852,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     def create_dense_float(
         type: RankedVectorOrTensorOf[AnyFloat],
-        data: Sequence[int | float] | Sequence[AnyFloatAttr]
+        data: Sequence[int | float] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [
@@ -801,7 +869,8 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     def from_list(
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int]
-        | Sequence[IntegerAttr[IndexType]] | Sequence[IntegerAttr[IntegerType]]
+        | Sequence[IntegerAttr[IndexType]]
+        | Sequence[IntegerAttr[IntegerType]],
     ) -> DenseIntOrFPElementsAttr:
         ...
 
@@ -809,54 +878,48 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     @staticmethod
     def from_list(
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: Sequence[int | float] | Sequence[AnyFloatAttr]
+        data: Sequence[int | float] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         ...
 
     @staticmethod
     def from_list(
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: Sequence[int | float]
-        | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr]
+        data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, IntegerType):
             new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]],
-                            data)
-            return DenseIntOrFPElementsAttr.create_dense_int(
-                new_type, new_data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
         elif isinstance(type.element_type, IndexType):
             new_type = cast(RankedVectorOrTensorOf[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]],
-                            data)
-            return DenseIntOrFPElementsAttr.create_dense_index(
-                new_type, new_data)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
         elif isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
-            new_data = cast(
-                Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
-            return DenseIntOrFPElementsAttr.create_dense_float(
-                new_type, new_data)
+            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
         else:
             raise TypeError(f"Unsupported element type {type.element_type}")
 
     @staticmethod
     def vector_from_list(
-            data: List[int] | List[float],
-            typ: IntegerType | IndexType | AnyFloat
+        data: List[int] | List[float], typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
         t = VectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
-    def tensor_from_list(data: List[int] | List[float]
-                         | List[IntegerAttr[IndexType]]
-                         | List[IntegerAttr[IntegerType]]
-                         | List[AnyFloatAttr],
-                         typ: IntegerType | IndexType | AnyFloat,
-                         shape: List[int] = []) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(
-            typ, shape if len(shape) else [len(data)])
+    def tensor_from_list(
+        data: List[int]
+        | List[float]
+        | List[IntegerAttr[IndexType]]
+        | List[IntegerAttr[IntegerType]]
+        | List[AnyFloatAttr],
+        typ: IntegerType | IndexType | AnyFloat,
+        shape: List[int] = [],
+    ) -> DenseIntOrFPElementsAttr:
+        t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -870,8 +933,7 @@ class DenseResourceAttr(ParametrizedAttribute):
     type: ParameterDef[Attribute]
 
     @staticmethod
-    def from_params(handle: str | StringAttr,
-                    type: Attribute) -> DenseResourceAttr:
+    def from_params(handle: str | StringAttr, type: Attribute) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
         return DenseResourceAttr([handle, type])
@@ -890,17 +952,20 @@ class DenseArrayBase(ParametrizedAttribute):
                 if isinstance(d, FloatData):
                     raise VerifyException(
                         "dense array of integer element type "
-                        "should only contain integers")
+                        "should only contain integers"
+                    )
         else:
             for d in self.data.data:
                 if isinstance(d, IntAttr):
-                    raise VerifyException("dense array of float element type "
-                                          "should only contain floats")
+                    raise VerifyException(
+                        "dense array of float element type "
+                        "should only contain floats"
+                    )
 
     @staticmethod
     def create_dense_int_or_index(
-            typ: IntegerType | IndexType,
-            data: Sequence[int] | Sequence[IntAttr]) -> DenseArrayBase:
+        typ: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
             attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
         else:
@@ -910,12 +975,10 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_float(
-            typ: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
+        typ: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
-            attr_list = [
-                FloatData(float(d)) for d in cast(Sequence[int | float], data)
-            ]
+            attr_list = [FloatData(float(d)) for d in cast(Sequence[int | float], data)]
         else:
             attr_list = cast(Sequence[FloatData], data)
 
@@ -923,21 +986,25 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @overload
     @staticmethod
-    def from_list(type: IntegerType | IndexType, data: Sequence[int]
-                  | Sequence[IntAttr]) -> DenseArrayBase:
+    def from_list(
+        type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+    ) -> DenseArrayBase:
         ...
 
     @overload
     @staticmethod
     def from_list(
-            type: Attribute, data: Sequence[int | float]
-        | Sequence[FloatData]) -> DenseArrayBase:
+        type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
+    ) -> DenseArrayBase:
         ...
 
     @staticmethod
     def from_list(
-        type: Attribute, data: Sequence[int] | Sequence[int | float]
-        | Sequence[IntAttr] | Sequence[FloatData]
+        type: Attribute,
+        data: Sequence[int]
+        | Sequence[int | float]
+        | Sequence[IntAttr]
+        | Sequence[FloatData],
     ) -> DenseArrayBase:
         if isinstance(type, IndexType | IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
@@ -968,13 +1035,15 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
     outputs: ParameterDef[ArrayAttr[Attribute]]
 
     @staticmethod
-    def from_lists(inputs: Sequence[Attribute],
-                   outputs: Sequence[Attribute]) -> FunctionType:
+    def from_lists(
+        inputs: Sequence[Attribute], outputs: Sequence[Attribute]
+    ) -> FunctionType:
         return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
 
     @staticmethod
-    def from_attrs(inputs: ArrayAttr[Attribute],
-                   outputs: ArrayAttr[Attribute]) -> FunctionType:
+    def from_attrs(
+        inputs: ArrayAttr[Attribute], outputs: ArrayAttr[Attribute]
+    ) -> FunctionType:
         return FunctionType([inputs, outputs])
 
 
@@ -987,8 +1056,7 @@ class OpaqueAttr(ParametrizedAttribute):
     type: ParameterDef[Attribute]
 
     @staticmethod
-    def from_strings(name: str, value: str,
-                     type: Attribute = NoneAttr()) -> OpaqueAttr:
+    def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
@@ -1002,15 +1070,18 @@ class StridedLayoutAttr(ParametrizedAttribute):
     `NoneAttr`, and we do not restrict offsets and strides to 64-bits
     integers.
     """
+
     name: str = "strided"
 
     strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
     offset: ParameterDef[IntAttr | NoneAttr]
 
-    def __init__(self,
-                 strides: ArrayAttr[IntAttr | NoneAttr]
-                 | Sequence[int | None | IntAttr | NoneAttr],
-                 offset: int | None | IntAttr | NoneAttr = 0) -> None:
+    def __init__(
+        self,
+        strides: ArrayAttr[IntAttr | NoneAttr]
+        | Sequence[int | None | IntAttr | NoneAttr],
+        offset: int | None | IntAttr | NoneAttr = 0,
+    ) -> None:
         if not isinstance(strides, ArrayAttr):
             strides_values: list[IntAttr | NoneAttr] = []
             for stride in strides:
@@ -1038,8 +1109,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
     outputs: VarOpResult
 
     @staticmethod
-    def get(inputs: Sequence[SSAValue | Operation],
-            result_type: Sequence[Attribute]):
+    def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
         return UnrealizedConversionCastOp.build(
             operands=[inputs],
             result_types=[result_type],
@@ -1053,6 +1123,7 @@ class UnregisteredOp(IRDLOperation, ABC):
     Each unregistered op is registered as a subclass of `UnregisteredOp`,
     and op with different names have distinct subclasses.
     """
+
     name: str = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
@@ -1073,17 +1144,19 @@ class UnregisteredOp(IRDLOperation, ABC):
         """
 
         class UnregisteredOpWithName(UnregisteredOp):
-
             @classmethod
-            def create(cls,
-                       operands: Sequence[SSAValue] | None = None,
-                       result_types: Sequence[Attribute] | None = None,
-                       attributes: dict[str, Attribute] | None = None,
-                       successors: Sequence[Block] | None = None,
-                       regions: Sequence[Region] | None = None):
-                op = super().create(operands, result_types, attributes,
-                                    successors, regions)
-                op.attributes['op_name__'] = StringAttr(name)
+            def create(
+                cls,
+                operands: Sequence[SSAValue] | None = None,
+                result_types: Sequence[Attribute] | None = None,
+                attributes: dict[str, Attribute] | None = None,
+                successors: Sequence[Block] | None = None,
+                regions: Sequence[Region] | None = None,
+            ):
+                op = super().create(
+                    operands, result_types, attributes, successors, regions
+                )
+                op.attributes["op_name__"] = StringAttr(name)
                 return op
 
         return irdl_op_definition(UnregisteredOpWithName)
@@ -1103,6 +1176,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     which is exactly the content parsed from the textual
     representation.
     """
+
     name: str = "builtin.unregistered"
 
     attr_name: ParameterDef[StringAttr]
@@ -1112,8 +1186,12 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     This parameter is non-null is the attribute is a type, and null otherwise.
     """
 
-    def __init__(self, attr_name: str | StringAttr, is_type: bool | IntAttr,
-                 value: str | StringAttr):
+    def __init__(
+        self,
+        attr_name: str | StringAttr,
+        is_type: bool | IntAttr,
+        value: str | StringAttr,
+    ):
         if isinstance(attr_name, str):
             attr_name = StringAttr(attr_name)
         if isinstance(is_type, bool):
@@ -1123,8 +1201,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         super().__init__([attr_name, is_type, value])
 
     @classmethod
-    def with_name_and_type(cls, name: str,
-                           is_type: bool) -> type[UnregisteredAttr]:
+    def with_name_and_type(cls, name: str, is_type: bool) -> type[UnregisteredAttr]:
         """
         Return a new unregistered attribute type given a name and a
         boolean indicating if the attribute can be a type.
@@ -1133,24 +1210,18 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         """
 
         class UnregisteredAttrWithName(UnregisteredAttr):
-
             def verify(self):
                 if self.attr_name.data != name:
-                    raise VerifyException(
-                        "Unregistered attribute name mismatch")
+                    raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
-                    raise VerifyException(
-                        "Unregistered attribute is_type mismatch")
+                    raise VerifyException("Unregistered attribute is_type mismatch")
 
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
-
             def verify(self):
                 if self.attr_name.data != name:
-                    raise VerifyException(
-                        "Unregistered attribute name mismatch")
+                    raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
-                    raise VerifyException(
-                        "Unregistered attribute is_type mismatch")
+                    raise VerifyException("Unregistered attribute is_type mismatch")
 
         if is_type:
             return UnregisteredAttrWithName
@@ -1192,7 +1263,6 @@ Builtin = Dialect(
     ],
     [
         UnregisteredAttr,
-
         # Attributes
         StringAttr,
         SymbolRefAttr,
@@ -1207,7 +1277,6 @@ Builtin = Dialect(
         FloatData,
         NoneAttr,
         OpaqueAttr,
-
         # Types
         ComplexType,
         FunctionType,
@@ -1224,5 +1293,6 @@ Builtin = Dialect(
         IndexType,
         VectorType,
         TensorType,
-        UnrankedTensorType
-    ])
+        UnrankedTensorType,
+    ],
+)

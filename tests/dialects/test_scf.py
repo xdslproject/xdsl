@@ -409,11 +409,17 @@ def test_reduce_return_op_not_at_end():
 
 def test_empty_else():
     # create if without an else block:
-    m = ModuleOp([
-        t := Constant.from_int_and_width(1, 1),
-        If.get(t, [], [
-            Yield.get(),
-        ]),
-    ])
+    m = ModuleOp(
+        [
+            t := Constant.from_int_and_width(1, 1),
+            If.get(
+                t,
+                [],
+                [
+                    Yield.get(),
+                ],
+            ),
+        ]
+    )
 
     assert len(cast(If, m.ops[1]).false_region.blocks) == 0

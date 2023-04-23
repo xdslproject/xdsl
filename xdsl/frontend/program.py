@@ -33,8 +33,7 @@ class FrontendProgram:
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
-            msg = \
-                """
+            msg = """
 Cannot compile program without the code context. Try to use:
     p = FrontendProgram()
     with CodeContext(p):
@@ -52,7 +51,8 @@ Cannot compile program without the code context. Try to use:
 
         type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.stmts, self.file)
+            type_converter, self.stmts, self.file
+        )
         self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.
@@ -67,8 +67,7 @@ Cannot compile program without the code context. Try to use:
 
     def _check_can_print(self):
         if self.xdsl_program is None:
-            msg = \
-                """
+            msg = """
 Cannot print the program IR without compiling it first. Make sure to use:
     p = FrontendProgram()
     with CodeContext(p):

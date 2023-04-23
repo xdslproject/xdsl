@@ -5,15 +5,19 @@ from math import prod
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
-from xdsl.pattern_rewriter import (PatternRewriter, PatternRewriteWalker,
-                                   RewritePattern, GreedyRewritePatternApplier,
-                                   op_type_rewrite_pattern)
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    GreedyRewritePatternApplier,
+    op_type_rewrite_pattern,
+)
 from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
 from xdsl.dialects.experimental import stencil
 
-_T = TypeVar('_T', bound=Attribute)
+_T = TypeVar("_T", bound=Attribute)
 
 
 @dataclass
@@ -48,6 +52,7 @@ class HaloExchangeDef:
 
     This data will be exchanged with the node of rank (my_rank -1)
     """
+
     offset: tuple[int, ...]
     size: tuple[int, ...]
     source_offset: tuple[int, ...]
@@ -61,7 +66,7 @@ class HaloExchangeDef:
     def dim(self) -> int:
         return len(self.offset)
 
-    def source_area(self) -> 'HaloExchangeDef':
+    def source_area(self) -> "HaloExchangeDef":
         """
         Since a HaloExchangeDef by default specifies the area to receive into,
         this method returns the area that should be read from.
@@ -69,8 +74,8 @@ class HaloExchangeDef:
         # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
         return HaloExchangeDef(
             offset=tuple(
-                val + offs
-                for val, offs in zip(self.offset, self.source_offset)),
+                val + offs for val, offs in zip(self.offset, self.source_offset)
+            ),
             size=self.size,
             source_offset=tuple(0 for _ in range(len(self.source_offset))),
             neighbor=self.neighbor,
@@ -129,10 +134,18 @@ class DimsHelper:
     DIM_Z: ClassVar[int] = 2
 
     def __init__(self, op: stencil.HaloSwapOp):
-        assert op.buff_lb is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.buff_ub is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.core_lb is not None, "HaloSwapOp must be lowered after shape inference!"
-        assert op.core_ub is not None, "HaloSwapOp must be lowered after shape inference!"
+        assert (
+            op.buff_lb is not None
+        ), "HaloSwapOp must be lowered after shape inference!"
+        assert (
+            op.buff_ub is not None
+        ), "HaloSwapOp must be lowered after shape inference!"
+        assert (
+            op.core_lb is not None
+        ), "HaloSwapOp must be lowered after shape inference!"
+        assert (
+            op.core_ub is not None
+        ), "HaloSwapOp must be lowered after shape inference!"
 
         # translate everything to "memref" coordinates
         buff_lb = (op.buff_lb - op.buff_lb).as_tuple()
@@ -140,8 +153,9 @@ class DimsHelper:
         core_lb = (op.core_lb - op.buff_lb).as_tuple()
         core_ub = (op.core_ub - op.buff_lb).as_tuple()
 
-        assert len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub), \
-            "Expected all args to be of the same length!"
+        assert (
+            len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub)
+        ), "Expected all args to be of the same length!"
 
         self.dims = len(buff_lb)
         self.buff_lb = buff_lb
@@ -186,17 +200,13 @@ class DimsHelper:
 
 @dataclass
 class DomainDecompositionStrategy(ABC):
-
     @abstractmethod
     def calc_resize(self, shape: tuple[int]) -> tuple[int]:
-        raise NotImplementedError(
-            "SlicingStrategy must implement calc_resize!")
+        raise NotImplementedError("SlicingStrategy must implement calc_resize!")
 
     @abstractmethod
-    def halo_exchange_defs(self,
-                           dims: DimsHelper) -> Iterable[HaloExchangeDef]:
-        raise NotImplementedError(
-            "SlicingStrategy must implement halo_exchange_defs!")
+    def halo_exchange_defs(self, dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+        raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
 
     @abstractmethod
     def comm_count(self) -> int:
@@ -215,15 +225,14 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         # slice on the y-axis
-        assert len(shape) == 2, \
-            "HorizontalSlices2D only works on 2d fields!"
-        assert shape[1] % self.slices == 0, \
-            "HorizontalSlices2D expects second dim to be divisible by number of slices!"
+        assert len(shape) == 2, "HorizontalSlices2D only works on 2d fields!"
+        assert (
+            shape[1] % self.slices == 0
+        ), "HorizontalSlices2D expects second dim to be divisible by number of slices!"
 
         return shape[0], shape[1] // self.slices
 
-    def halo_exchange_defs(self,
-                           dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+    def halo_exchange_defs(self, dims: DimsHelper) -> Iterable[HaloExchangeDef]:
         # upper halo exchange:
         yield HaloExchangeDef(
             offset=(
@@ -263,12 +272,13 @@ class ChangeStoreOpSizes(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter,
-                          /):
-        assert all(integer_attr.value.data == 0
-                   for integer_attr in op.lb.array.data), "lb must be 0"
+    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+        assert all(
+            integer_attr.value.data == 0 for integer_attr in op.lb.array.data
+        ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            (integer_attr.value.data for integer_attr in op.ub.array.data))
+            (integer_attr.value.data for integer_attr in op.ub.array.data)
+        )
         new_shape = self.strategy.calc_resize(shape)
         op.ub = stencil.IndexAttr.get(*new_shape)
 
@@ -278,25 +288,24 @@ class AddHaloExchangeOps(RewritePattern):
     """
     This rewrite adds a `stencil.halo_exchange` before each `stencil.load` op
     """
+
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter,
-                          /):
+    def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = stencil.HaloSwapOp.get(op.res)
         rewriter.insert_op_after_matched_op(swap_op)
 
 
 class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
-
-    name = 'stencil-to-local-2d-horizontal'
+    name = "stencil-to-local-2d-horizontal"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = HorizontalSlices2D(2)
 
         gpra = GreedyRewritePatternApplier(
-            [ChangeStoreOpSizes(strategy),
-             AddHaloExchangeOps(strategy)])
+            [ChangeStoreOpSizes(strategy), AddHaloExchangeOps(strategy)]
+        )
 
         PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
 
@@ -306,8 +315,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.HaloSwapOp,
-                          rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: stencil.HaloSwapOp, rewriter: PatternRewriter, /):
         exchanges = list(self.strategy.halo_exchange_defs(DimsHelper(op)))
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
         rewriter.replace_matched_op(
@@ -317,21 +325,24 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     exchanges,
                     op.input_stencil.typ.element_type,
                     self.strategy,
-                )),
+                )
+            ),
             [],
         )
 
 
 def generate_mpi_calls_for(
-        source: SSAValue, exchanges: list[HaloExchangeDef], dtype: Attribute,
-        strat: DomainDecompositionStrategy) -> Iterable[Operation]:
+    source: SSAValue,
+    exchanges: list[HaloExchangeDef],
+    dtype: Attribute,
+    strat: DomainDecompositionStrategy,
+) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
     init = mpi.Init()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
-    req_cnt = arith.Constant.from_int_and_width(
-        len(exchanges) * 2, builtin.i32)
+    req_cnt = arith.Constant.from_int_and_width(len(exchanges) * 2, builtin.i32)
     reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
     # get comm rank
     rank = mpi.CommRank.get()
@@ -344,9 +355,8 @@ def generate_mpi_calls_for(
     recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
-        neighbor_offset = arith.Constant.from_int_and_width(
-            ex.neighbor, builtin.i32)
-        neighbor_rank = arith.Addi.get(rank, neighbor_offset)
+        neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor, builtin.i32)
+        neighbor_rank = arith.Addi(rank, neighbor_offset)
         yield from (neighbor_offset, neighbor_rank)
 
         # generate a temp buffer to store the data in
@@ -356,8 +366,9 @@ def generate_mpi_calls_for(
 
         # boundary condition:
         bound = arith.Constant.from_int_and_width(
-            0 if ex.neighbor < 0 else strat.comm_count(), builtin.i32)
-        comparison = 'slt' if ex.neighbor < 0 else 'sge'
+            0 if ex.neighbor < 0 else strat.comm_count(), builtin.i32
+        )
+        comparison = "slt" if ex.neighbor < 0 else "sge"
 
         cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
         yield from (bound, cond_val)
@@ -366,8 +377,7 @@ def generate_mpi_calls_for(
 
         # get two unique indices
         cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
-        cst_in = arith.Constant.from_int_and_width(i + len(exchanges),
-                                                   builtin.i32)
+        cst_in = arith.Constant.from_int_and_width(i + len(exchanges), builtin.i32)
         yield from (cst_i, cst_in)
         # from these indices, get request objects
         req_send = mpi.VectorGetOp.get(reqs, cst_i)
@@ -376,23 +386,34 @@ def generate_mpi_calls_for(
 
         def then():
             # copy source area to outbound buffer
-            yield from generate_memcpy(source, ex.source_area(),
-                                       alloc_outbound.memref)
+            yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
             yield unwrap_out
 
             # isend call
-            yield mpi.Isend.get(unwrap_out.ptr, unwrap_out.len, unwrap_out.typ,
-                                neighbor_rank, tag, req_send)
+            yield mpi.Isend.get(
+                unwrap_out.ptr,
+                unwrap_out.len,
+                unwrap_out.typ,
+                neighbor_rank,
+                tag,
+                req_send,
+            )
 
             # get ptr for receive buffer
             unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
             yield unwrap_in
 
             # Irecv call
-            yield mpi.Irecv.get(unwrap_in.ptr, unwrap_in.len, unwrap_in.typ,
-                                neighbor_rank, tag, req_recv)
+            yield mpi.Irecv.get(
+                unwrap_in.ptr,
+                unwrap_in.len,
+                unwrap_in.typ,
+                neighbor_rank,
+                tag,
+                req_recv,
+            )
             yield scf.Yield.get()
 
         def else_():
@@ -417,24 +438,28 @@ def generate_mpi_calls_for(
         yield scf.If.get(
             cond_val,
             [],
-            Region([
-                Block(
-                    list(
-                        generate_memcpy(
-                            source,
-                            ex.source_area(),
-                            buffer.memref,
-                            reverse=True,
-                        )) + [scf.Yield.get()])
-            ]),
+            Region(
+                [
+                    Block(
+                        list(
+                            generate_memcpy(
+                                source,
+                                ex.source_area(),
+                                buffer.memref,
+                                reverse=True,
+                            )
+                        )
+                        + [scf.Yield.get()]
+                    )
+                ]
+            ),
             Region([Block([scf.Yield.get()])]),
         )
 
 
-def generate_memcpy(source: SSAValue,
-                    ex: HaloExchangeDef,
-                    dest: SSAValue,
-                    reverse: bool = False) -> list[Operation]:
+def generate_memcpy(
+    source: SSAValue, ex: HaloExchangeDef, dest: SSAValue, reverse: bool = False
+) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
     specified by the `ex` from `source` into `dest`.
@@ -459,13 +484,13 @@ def generate_memcpy(source: SSAValue,
     unroll_inner = False
 
     # enable to get verbose information on what buffers are exchanged:
-    #print("Generating{} memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
+    # print("Generating{} memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
     #    " unrolled" if unrolled else "",
     #    ex.offset[0], ex.offset[0] + ex.size[0],
     #    ex.offset[1], ex.offset[1] + ex.size[1],
     #    '<-' if reverse else '->',
     #    0, ex.elem_count
-    #))
+    # ))
 
     # only generate indices if we actually want to unroll
     if unroll_inner:
@@ -481,11 +506,11 @@ def generate_memcpy(source: SSAValue,
         Generates last loop unrolled (not using scf.for)
         """
         dest_idx = arith.Muli.get(i, x_len)
-        y = arith.Addi.get(i, y0)
+        y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
         for x in indices:
-            linearized_idx = arith.Addi.get(dest_idx, x)
+            linearized_idx = arith.Addi(dest_idx, x)
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
                 store = memref.Store.get(load, source, [x, y])
@@ -500,12 +525,12 @@ def generate_memcpy(source: SSAValue,
         Generates last loop as scf.for
         """
         dest_idx = arith.Muli.get(i, x_len)
-        y = arith.Addi.get(i, y0)
+        y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
         def inner(j: SSAValue):
-            x = arith.Addi.get(j, x0)
-            linearized_idx = arith.Addi.get(dest_idx, j)
+            x = arith.Addi(j, x0)
+            linearized_idx = arith.Addi(dest_idx, j)
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
                 store = memref.Store.get(load, source, [x, y])
@@ -521,18 +546,19 @@ def generate_memcpy(source: SSAValue,
             x_len,
             cst1,
             [],
-            [Block.from_callable([builtin.IndexType()], inner)]  # type: ignore
+            [Block.from_callable([builtin.IndexType()], inner)],  # type: ignore
         )
 
         yield scf.Yield.get()
 
-    loop_body: Callable[[SSAValue], Iterable[
-        Operation]] = loop_body_unrolled if unroll_inner else loop_body_with_for
+    loop_body: Callable[[SSAValue], Iterable[Operation]] = (
+        loop_body_unrolled if unroll_inner else loop_body_with_for
+    )
 
     # TODO: make type annotations here aware that they can work with generators!
-    loop = scf.For.get(cst0, y_len, cst1, [],
-                       Block.from_callable([builtin.IndexType()],
-                                           loop_body))  # type: ignore
+    loop = scf.For.get(
+        cst0, y_len, cst1, [], Block.from_callable([builtin.IndexType()], loop_body)  # type: ignore
+    )
 
     return [
         x0,
@@ -552,6 +578,7 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
     and mpi.unwrap_memref ops and moves them "up" until it hits a
     func.func, and then places them *before* the op they appear in.
     """
+
     seen_ops: set[Operation]
     has_init: set[func.FuncOp]
 
@@ -560,16 +587,24 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
         self.has_init = set()
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Alloc | mpi.CommRank
-                          | mpi.AllocateTypeOp | mpi.UnwrapMemrefOp | mpi.Init,
-                          rewriter: PatternRewriter, /):
+    def match_and_rewrite(
+        self,
+        op: memref.Alloc
+        | mpi.CommRank
+        | mpi.AllocateTypeOp
+        | mpi.UnwrapMemrefOp
+        | mpi.Init,
+        rewriter: PatternRewriter,
+        /,
+    ):
         if op in self.seen_ops:
             return
         self.seen_ops.add(op)
 
         # memref unwraps can always be moved to their allocation
         if isinstance(op, mpi.UnwrapMemrefOp) and isinstance(
-                op.ref.owner, memref.Alloc):
+            op.ref.owner, memref.Alloc
+        ):
             op.detach()
             rewriter.insert_op_after(op, op.ref.owner)
             return
@@ -602,8 +637,7 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
             # add a finalize() call to the end of the function
             parent.regions[0].blocks[-1].insert_op(
                 mpi.Finalize(),
-                len(parent.regions[0].blocks[-1].ops) -
-                1,  # insert before return
+                len(parent.regions[0].blocks[-1].ops) - 1,  # insert before return
             )
 
         ops = list(collect_args_recursive(op))

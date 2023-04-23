@@ -4,9 +4,16 @@ from typing import Annotated, List, Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.irdl import (AnyAttr, AttrSizedOperandSegments, Operand,
-                       SingleBlockRegion, VarOperand, VarOpResult,
-                       irdl_op_definition, IRDLOperation)
+from xdsl.irdl import (
+    AnyAttr,
+    AttrSizedOperandSegments,
+    Operand,
+    SingleBlockRegion,
+    VarOperand,
+    VarOpResult,
+    irdl_op_definition,
+    IRDLOperation,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -25,10 +32,8 @@ class If(IRDLOperation):
         cond: SSAValue | Operation,
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
-        false_region: Region | Sequence[Block] | Sequence[Operation]
-        | None = None
+        false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
     ) -> If:
-
         if false_region is None:
             false_region = Region()
 
@@ -46,8 +51,7 @@ class Yield(IRDLOperation):
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(
-            operands=[SSAValue.get(operand) for operand in operands])
+        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 @irdl_op_definition
@@ -57,10 +61,8 @@ class Condition(IRDLOperation):
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
-    def get(cond: SSAValue | Operation,
-            *output_ops: SSAValue | Operation) -> Condition:
-        return Condition.build(
-            operands=[cond, [output for output in output_ops]])
+    def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
+        return Condition.build(operands=[cond, [output for output in output_ops]])
 
 
 @irdl_op_definition
@@ -82,27 +84,31 @@ class For(IRDLOperation):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
                 f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments.")
+                f"variable and loop-carried variables as arguments."
+            )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
                     f"Block arguments with wrong type, expected {arg.typ}, "
                     f"got {self.body.block.args[idx].typ}. Arguments after the "
-                    f"induction variable must match the carried variables.")
+                    f"induction variable must match the carried variables."
+                )
         if len(self.iter_args) > 0:
-            if (len(self.body.ops) == 0
-                    or not isinstance(self.body.block.last_op, Yield)):
+            if len(self.body.ops) == 0 or not isinstance(
+                self.body.block.last_op, Yield
+            ):
                 raise VerifyException(
                     "The scf.for's body does not end with a scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
-                    "its body.")
-        if (len(self.body.ops) > 0
-                and isinstance(self.body.block.last_op, Yield)):
+                    "its body."
+                )
+        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
             yieldop = self.body.block.last_op
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The scf.for must yield its carried variables.")
+                    f"The scf.for must yield its carried variables."
+                )
             for idx, arg in enumerate(yieldop.arguments):
                 if self.iter_args[idx].typ != arg.typ:
                     raise VerifyException(
@@ -346,22 +352,26 @@ class While(IRDLOperation):
             if self.before_region.block.args[idx].typ != arg.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.before_region.block.args[idx].typ}")
+                    f"got {self.before_region.block.args[idx].typ}"
+                )
 
         for idx, res in enumerate(self.res):
             if self.after_region.block.args[idx].typ != res.typ:
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.typ}, "
-                    f"got {self.after_region.block.args[idx].typ}")
+                    f"got {self.after_region.block.args[idx].typ}"
+                )
 
     @staticmethod
-    def get(operands: List[SSAValue | Operation],
-            result_types: List[Attribute],
-            before: Region | List[Operation] | List[Block],
-            after: Region | List[Operation] | List[Block]) -> While:
-        op = While.build(operands=operands,
-                         result_types=result_types,
-                         regions=[before, after])
+    def get(
+        operands: List[SSAValue | Operation],
+        result_types: List[Attribute],
+        before: Region | List[Operation] | List[Block],
+        after: Region | List[Operation] | List[Block],
+    ) -> While:
+        op = While.build(
+            operands=operands, result_types=result_types, regions=[before, after]
+        )
         return op
 
 

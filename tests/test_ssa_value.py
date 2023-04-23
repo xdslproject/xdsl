@@ -38,13 +38,16 @@ def test_var_mixed_builder():
         _ = SSAValue.get(op)
 
 
-@pytest.mark.parametrize("name", [
-    "test",
-    "-2",
-    "test_123",
-    "kebab-case-name",
-    None,
-])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "test",
+        "-2",
+        "test_123",
+        "kebab-case-name",
+        None,
+    ],
+)
 def test_ssa_value_name_hints(name: str | None):
     r"""
     As per the MLIR language reference, legal SSA value names must conform to
@@ -64,7 +67,7 @@ def test_ssa_value_name_hints(name: str | None):
     assert val.name == name
 
 
-@pytest.mark.parametrize("name", ['&', '#', '%2', '"', '::', '42'])
+@pytest.mark.parametrize("name", ["&", "#", "%2", '"', "::", "42"])
 def test_invalid_ssa_vals(name: str):
     """
     This test tests invalid name hints that raise an error, because

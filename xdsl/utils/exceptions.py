@@ -43,6 +43,7 @@ class InterpretationError(Exception):
     """
     An error that can be raised during interpretation, or Interpreter setup.
     """
+
     pass
 
 
@@ -52,12 +53,15 @@ class BuilderNotFoundException(Exception):
     Exception raised when no builders are found for a given attribute type
     and a given tuple of arguments.
     """
+
     attribute: type[Attribute]
     args: tuple[Any]
 
     def __str__(self) -> str:
-        return f"No builder found for attribute {self.attribute} with " \
-               f"arguments {self.args}"
+        return (
+            f"No builder found for attribute {self.attribute} with "
+            f"arguments {self.args}"
+        )
 
 
 class DeferredExceptionMessage:
@@ -107,12 +111,11 @@ class DeferredExceptionMessage:
 class ParseError(Exception):
     span: Span
     msg: str
-    history: 'BacktrackingHistory' | None
+    history: "BacktrackingHistory" | None
 
-    def __init__(self,
-                 span: Span,
-                 msg: str,
-                 history: 'BacktrackingHistory' | None = None):
+    def __init__(
+        self, span: Span, msg: str, history: "BacktrackingHistory" | None = None
+    ):
         super().__init__(DeferredExceptionMessage(lambda: repr(self)))
         self.span = span
         self.msg = msg
@@ -144,7 +147,7 @@ class MultipleSpansParseError(ParseError):
         msg: str,
         ref_text: str,
         refs: list[tuple[Span, str | None]],
-        history: 'BacktrackingHistory' | None = None,
+        history: "BacktrackingHistory" | None = None,
     ):
         super(MultipleSpansParseError, self).__init__(span, msg, history)
         self.refs = refs

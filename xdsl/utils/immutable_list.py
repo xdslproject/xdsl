@@ -1,14 +1,15 @@
 from __future__ import annotations
 from typing import TypeVar, Iterable, SupportsIndex, List
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 class IList(List[_T]):
     """
-    A list that can be frozen. Once frozen, it can not be modified. 
+    A list that can be frozen. Once frozen, it can not be modified.
     In comparison to FrozenList this supports pattern matching.
     """
+
     _frozen: bool = False
 
     def freeze(self):

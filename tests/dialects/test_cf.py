@@ -8,7 +8,7 @@ def test_branch():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
     block0 = Block([a, b, c])
     br0 = Branch.get(block0)
@@ -23,7 +23,7 @@ def test_condbranch():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
     d = Subi.get(a, b)
     e = Muli.get(a, b)
 

@@ -17,7 +17,7 @@ def test_func():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
     # Create a region to include a, b, c
     @Builder.region
@@ -34,7 +34,7 @@ def test_func():
     def region1():
         a = Constant.from_int_and_width(1, i32)
         b = Constant.from_int_and_width(2, i32)
-        Addi.get(a, b)
+        Addi(a, b)
 
     func1 = FuncOp.from_region("func1", [], [], region1)
 
@@ -56,8 +56,8 @@ def test_func_II():
     d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
-    e = Addi.get(a, b)
-    f = Addi.get(c, d)
+    e = Addi(a, b)
+    f = Addi(c, d)
 
     # Create Blocks and Regions
     block0 = Block([a, b, e])
@@ -78,14 +78,15 @@ def test_func_II():
 
 
 def test_wrong_blockarg_types():
-    r = Region(Block.from_callable([i32], lambda *x: [Addi.get(x[0], x[0])]))
+    r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
     f = FuncOp.from_region("f", [i32, i32], [], r)
     with pytest.raises(VerifyException) as e:
         f.verify()
 
     assert e.value.args[0] == (
         "Expected entry block arguments to have the same "
-        "types as the function input types")
+        "types as the function input types"
+    )
 
 
 def test_func_rewriting_helpers():
@@ -93,8 +94,9 @@ def test_func_rewriting_helpers():
     test replace_argument_type and update_function_type (implicitly)
     :return:
     """
-    func = FuncOp.from_callable('test', [i32, i32, i32], [],
-                                lambda *args: [Return.get()])
+    func = FuncOp.from_callable(
+        "test", [i32, i32, i32], [], lambda *args: [Return.get()]
+    )
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
@@ -116,7 +118,7 @@ def test_func_rewriting_helpers():
     with pytest.raises(IndexError):
         func.replace_argument_type(-4, i64)
 
-    decl = FuncOp.external('external_func', [], [])
+    decl = FuncOp.external("external_func", [], [])
     assert decl.is_declaration
 
     with pytest.raises(AssertionError):
@@ -126,10 +128,11 @@ def test_func_rewriting_helpers():
 def test_func_get_return_op():
     # pyright complains about lambda arg types unknown
     # honestly don't know how to fix
-    func_w_ret = FuncOp.from_callable('test', [i32, i32, i32], [i32],
-                                      lambda *args: [Return.get(args[1])])
+    func_w_ret = FuncOp.from_callable(
+        "test", [i32, i32, i32], [i32], lambda *args: [Return.get(args[1])]
+    )
 
-    func = FuncOp.from_callable('test', [i32, i32, i32], [], lambda *args: [])
+    func = FuncOp.from_callable("test", [i32, i32, i32], [], lambda *args: [])
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
@@ -152,7 +155,7 @@ def test_call():
     # Create a block using the types of a, b
     block0 = Block(arg_types=[a.result.typ, b.result.typ])
     # Create a Addi operation to use the args of the block
-    c = Addi.get(block0.args[0], block0.args[1])
+    c = Addi(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])
@@ -161,9 +164,9 @@ def test_call():
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
-    func0 = FuncOp.from_region("func0",
-                               [block0.args[0].typ, block0.args[1].typ],
-                               [c.result.typ], region)
+    func0 = FuncOp.from_region(
+        "func0", [block0.args[0].typ, block0.args[1].typ], [c.result.typ], region
+    )
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
@@ -172,8 +175,7 @@ def test_call():
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
 
-    expected = \
-        """
+    expected = """
 builtin.module() {
   func.func() ["sym_name" = "func0", "function_type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
@@ -201,7 +203,7 @@ def test_call_II():
     # Create a block using the type of a
     block0 = Block(arg_types=[a.result.typ])
     # Create a Addi operation to use the args of the block
-    c = Addi.get(block0.args[0], block0.args[0])
+    c = Addi(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
     ret0 = Return.get(c)
     block0.add_ops([c, ret0])
@@ -210,8 +212,7 @@ def test_call_II():
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
-    func0 = FuncOp.from_region("func1", [block0.args[0].typ], [c.result.typ],
-                               region)
+    func0 = FuncOp.from_region("func1", [block0.args[0].typ], [c.result.typ], region)
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
@@ -220,8 +221,7 @@ def test_call_II():
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
 
-    expected = \
-        """
+    expected = """
 builtin.module() {
   func.func() ["sym_name" = "func1", "function_type" = !fun<[!i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32):
