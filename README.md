@@ -83,7 +83,7 @@ lit tests/filecheck
 
 ### Formatting
 
-All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
+All python code used in xDSL uses [black](https://github.com/psf/black) to
 format the code in a uniform manner.
 
 To automate the formatting within vim, one can use
