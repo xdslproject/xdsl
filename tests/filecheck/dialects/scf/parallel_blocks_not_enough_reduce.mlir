@@ -11,4 +11,4 @@
   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, i32) -> (i64)
 }) : () -> ()
 
-// CHECK: Expected 1 block arguments and 1 reductions
+// CHECK: Expected 1 reductions but 0 provided
