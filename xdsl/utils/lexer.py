@@ -17,24 +17,24 @@ class Input:
     """
     Used to keep track of the input when parsing.
     """
+
     content: str = field(repr=False)
     name: str
     len: int = field(init=False, repr=False)
 
     def __post_init__(self):
-        object.__setattr__(self, 'len', len(self.content))
+        object.__setattr__(self, "len", len(self.content))
 
     def __len__(self):
         return self.len
 
-    def get_lines_containing(self,
-                             span: Span) -> tuple[list[str], int, int] | None:
+    def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
         start = 0
         line_no = 0
         source = self.content
         while True:
-            next_start = source.find('\n', start)
+            next_start = source.find("\n", start)
             line_no += 1
             # Handle eof
             if next_start == -1:
@@ -49,10 +49,10 @@ class Input:
             if next_start >= span.end:
                 return [source[start:next_start]], start, line_no
             while next_start < span.end:
-                next_start = source.find('\n', next_start + 1)
+                next_start = source.find("\n", next_start + 1)
                 if next_start == -1:
                     next_start = span.end
-            return source[start:next_start].split('\n'), start, line_no
+            return source[start:next_start].split("\n"), start, line_no
 
     def at(self, i: int) -> str | None:
         if i >= self.len:
@@ -93,7 +93,7 @@ class Span:
 
     @property
     def text(self):
-        return self.input.content[self.start:self.end]
+        return self.input.content[self.start : self.end]
 
     def get_line_col(self) -> tuple[int, int]:
         info = self.input.get_lines_containing(self)
@@ -116,16 +116,17 @@ class Span:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print("{}:{}:{}".format(self.input.name, line_no, offset),
-              file=capture)
+        print("{}:{}:{}".format(self.input.name, line_no, offset), file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:
                 continue
             len_on_this_line = min(remaining_len, len(line) - offset)
             remaining_len -= len_on_this_line
-            print("{}{}".format(" " * offset, "^" * max(len_on_this_line, 1)),
-                  file=capture)
+            print(
+                "{}{}".format(" " * offset, "^" * max(len_on_this_line, 1)),
+                file=capture,
+            )
             if msg is not None:
                 print("{}{}".format(" " * offset, msg), file=capture)
                 msg = None
@@ -135,13 +136,13 @@ class Span:
         return capture.getvalue()
 
     def __repr__(self):
-        return "{}[{}:{}](text='{}')".format(self.__class__.__name__,
-                                             self.start, self.end, self.text)
+        return "{}[{}:{}](text='{}')".format(
+            self.__class__.__name__, self.start, self.end, self.text
+        )
 
 
 @dataclass(frozen=True, repr=False)
 class StringLiteral(Span):
-
     def __post_init__(self):
         if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
             raise ParseError(self, "Invalid string literal!")
@@ -165,7 +166,6 @@ class StringLiteral(Span):
 
 @dataclass
 class Token:
-
     class Kind(Enum):
         # Markers
         EOF = object()
@@ -237,30 +237,48 @@ class Token:
             }
 
         def is_punctuation(self) -> bool:
-            punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict(
-            )
+            punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict()
             return self in punctuation_dict.values()
 
         @staticmethod
         def is_spelling_of_punctuation(
-                spelling: str) -> TypeGuard[Token.PunctuationSpelling]:
-            punctuation_dict = \
-                Token.Kind.get_punctuation_spelling_to_kind_dict()
+            spelling: str,
+        ) -> TypeGuard[Token.PunctuationSpelling]:
+            punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict()
             return spelling in punctuation_dict.keys()
 
         @staticmethod
         def get_punctuation_kind_from_spelling(
-                spelling: Token.PunctuationSpelling) -> Token.Kind:
-            assert Token.Kind.is_spelling_of_punctuation(spelling), \
-            "Kind.get_punctuation_kind_from_spelling: spelling is not a " \
-            "valid punctuation spelling!"
+            spelling: Token.PunctuationSpelling,
+        ) -> Token.Kind:
+            assert Token.Kind.is_spelling_of_punctuation(spelling), (
+                "Kind.get_punctuation_kind_from_spelling: spelling is not a "
+                "valid punctuation spelling!"
+            )
             return Token.Kind.get_punctuation_spelling_to_kind_dict()[spelling]
 
-    PunctuationSpelling: ClassVar[TypeAlias] = Literal["->", ":", ",", "...",
-                                                       "=", ">", "{", "(", "[",
-                                                       "<", "-", "+", "?", "}",
-                                                       ")", "]", "*", "|",
-                                                       "{-#", "#-}"]
+    PunctuationSpelling: ClassVar[TypeAlias] = Literal[
+        "->",
+        ":",
+        ",",
+        "...",
+        "=",
+        ">",
+        "{",
+        "(",
+        "[",
+        "<",
+        "-",
+        "+",
+        "?",
+        "}",
+        ")",
+        "]",
+        "*",
+        "|",
+        "{-#",
+        "#-}",
+    ]
 
     kind: Kind
 
@@ -274,19 +292,19 @@ class Token:
     def get_int_value(self):
         """
         Translate the token text into an integer value.
-        This function will raise an exception if the token is not an integer 
+        This function will raise an exception if the token is not an integer
         literal.
         """
         if self.kind != Token.Kind.INTEGER_LIT:
             raise ValueError("Token is not an integer literal!")
-        if self.text[:2] in ['0x', '0X']:
+        if self.text[:2] in ["0x", "0X"]:
             return int(self.text, 16)
         return int(self.text, 10)
 
     def get_float_value(self):
         """
         Translate the token text into a float value.
-        This function will raise an exception if the token is not a float 
+        This function will raise an exception if the token is not a float
         literal.
         """
         if self.kind != Token.Kind.FLOAT_LIT:
@@ -373,33 +391,32 @@ class Lexer:
             return self._form_token(Token.Kind.EOF, start_pos)
 
         # bare identifier
-        if current_char.isalpha() or current_char == '_':
+        if current_char.isalpha() or current_char == "_":
             return self._lex_bare_identifier(start_pos)
 
         # single-char punctuation that are not part of a multi-char token
         single_char_punctuation = {
-            ':': Token.Kind.COLON,
-            ',': Token.Kind.COMMA,
-            '(': Token.Kind.L_PAREN,
-            ')': Token.Kind.R_PAREN,
-            '}': Token.Kind.R_BRACE,
-            '[': Token.Kind.L_SQUARE,
-            ']': Token.Kind.R_SQUARE,
-            '<': Token.Kind.LESS,
-            '>': Token.Kind.GREATER,
-            '=': Token.Kind.EQUAL,
-            '+': Token.Kind.PLUS,
-            '*': Token.Kind.STAR,
-            '?': Token.Kind.QUESTION,
-            '|': Token.Kind.VERTICAL_BAR
+            ":": Token.Kind.COLON,
+            ",": Token.Kind.COMMA,
+            "(": Token.Kind.L_PAREN,
+            ")": Token.Kind.R_PAREN,
+            "}": Token.Kind.R_BRACE,
+            "[": Token.Kind.L_SQUARE,
+            "]": Token.Kind.R_SQUARE,
+            "<": Token.Kind.LESS,
+            ">": Token.Kind.GREATER,
+            "=": Token.Kind.EQUAL,
+            "+": Token.Kind.PLUS,
+            "*": Token.Kind.STAR,
+            "?": Token.Kind.QUESTION,
+            "|": Token.Kind.VERTICAL_BAR,
         }
         if current_char in single_char_punctuation:
-            return self._form_token(single_char_punctuation[current_char],
-                                    start_pos)
+            return self._form_token(single_char_punctuation[current_char], start_pos)
 
         # '...'
-        if current_char == '.':
-            if (self._get_chars(2) != '..'):
+        if current_char == ".":
+            if self._get_chars(2) != "..":
                 raise ParseError(
                     Span(start_pos, start_pos + 1, self.input),
                     "Expected three consecutive '.' for an ellipsis",
@@ -407,31 +424,30 @@ class Lexer:
             return self._form_token(Token.Kind.ELLIPSIS, start_pos)
 
         # '-' and '->'
-        if current_char == '-':
-            if self._peek_chars() == '>':
+        if current_char == "-":
+            if self._peek_chars() == ">":
                 self._consume_chars()
                 return self._form_token(Token.Kind.ARROW, start_pos)
             return self._form_token(Token.Kind.MINUS, start_pos)
 
         # '{' and '{-#'
-        if current_char == '{':
-            if (self._peek_chars(2) == '-#'):
+        if current_char == "{":
+            if self._peek_chars(2) == "-#":
                 self._consume_chars(2)
-                return self._form_token(Token.Kind.FILE_METADATA_BEGIN,
-                                        start_pos)
+                return self._form_token(Token.Kind.FILE_METADATA_BEGIN, start_pos)
             return self._form_token(Token.Kind.L_BRACE, start_pos)
 
         # '#-}'
-        if (current_char == '#' and self._peek_chars(2) == '-}'):
+        if current_char == "#" and self._peek_chars(2) == "-}":
             self._consume_chars(2)
             return self._form_token(Token.Kind.FILE_METADATA_END, start_pos)
 
         # '@' and at-identifier
-        if current_char == '@':
+        if current_char == "@":
             return self._lex_at_ident(start_pos)
 
         # '#', '!', '^', '%' identifiers
-        if current_char in ['#', '!', '^', '%']:
+        if current_char in ["#", "!", "^", "%"]:
             return self._lex_prefixed_ident(start_pos)
 
         if current_char == '"':
@@ -442,7 +458,7 @@ class Lexer:
 
         raise ParseError(
             Span(start_pos, start_pos + 1, self.input),
-            'Unexpected character: {}'.format(current_char),
+            "Unexpected character: {}".format(current_char),
         )
 
     _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
@@ -468,11 +484,13 @@ class Lexer:
         current_char = self._get_chars()
 
         if current_char is None:
-            raise ParseError(Span(start_pos, start_pos + 1, self.input),
-                             "Unexpected end of file after @.")
+            raise ParseError(
+                Span(start_pos, start_pos + 1, self.input),
+                "Unexpected end of file after @.",
+            )
 
         # bare identifier case
-        if current_char.isalpha() or current_char == '_':
+        if current_char.isalpha() or current_char == "_":
             token = self._lex_bare_identifier(start_pos)
             return self._form_token(Token.Kind.AT_IDENT, token.span.start)
 
@@ -483,7 +501,8 @@ class Lexer:
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),
-            "@ identifier expected to start with letter, '_', or '\"'.")
+            "@ identifier expected to start with letter, '_', or '\"'.",
+        )
 
     _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
@@ -496,29 +515,35 @@ class Lexer:
         caret-ident  ::= `^` suffix-id
         exclamation-ident  ::= `!` suffix-id
         ```
-        with 
+        with
         ```
         suffix-id = (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)
         ```
 
         The first character is expected to have already been parsed.
         """
-        assert self.pos != 0, "First prefixed identifier character must have been parsed"
+        assert (
+            self.pos != 0
+        ), "First prefixed identifier character must have been parsed"
         first_char = self.input.at(self.pos - 1)
-        if first_char == '#':
+        if first_char == "#":
             kind = Token.Kind.HASH_IDENT
-        elif first_char == '!':
+        elif first_char == "!":
             kind = Token.Kind.EXCLAMATION_IDENT
-        elif first_char == '^':
+        elif first_char == "^":
             kind = Token.Kind.CARET_IDENT
         else:
-            assert first_char == '%', "First prefixed identifier character must have been parsed correctly"
+            assert (
+                first_char == "%"
+            ), "First prefixed identifier character must have been parsed correctly"
             kind = Token.Kind.PERCENT_IDENT
 
         match = self._consume_regex(self._suffix_id)
         if match is None:
-            raise ParseError(Span(start_pos, self.pos, self.input),
-                             "Expected suffix identifier after {first_char}")
+            raise ParseError(
+                Span(start_pos, self.pos, self.input),
+                "Expected suffix identifier after {first_char}",
+            )
 
         return self._form_token(kind, start_pos)
 
@@ -539,22 +564,26 @@ class Lexer:
                 return self._form_token(Token.Kind.STRING_LIT, start_pos)
 
             # newline character in string literal (not allowed)
-            if current_char in ['\n', '\v', '\f']:
+            if current_char in ["\n", "\v", "\f"]:
                 raise ParseError(
                     Span(start_pos, self.pos, self.input),
-                    "Newline character not allowed in string literal.")
+                    "Newline character not allowed in string literal.",
+                )
 
             # escape character
             # TODO: handle unicode escape
-            if current_char == '\\':
+            if current_char == "\\":
                 escaped_char = self._get_chars()
-                if escaped_char not in ['"', '\\', 'n', 't']:
+                if escaped_char not in ['"', "\\", "n", "t"]:
                     raise ParseError(
                         StringLiteral(self.pos - 1, self.pos, self.input),
-                        "Unknown escape in string literal.")
+                        "Unknown escape in string literal.",
+                    )
 
-        raise ParseError(Span(start_pos, self.pos, self.input),
-                         "End of file reached before closing string literal.")
+        raise ParseError(
+            Span(start_pos, self.pos, self.input),
+            "End of file reached before closing string literal.",
+        )
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")
@@ -570,9 +599,12 @@ class Lexer:
         # Hexadecimal case, we only parse it if we see the first '0x' characters,
         # and then a first digit.
         # Otherwise, a string like '0xi32' would not be parsed correctly.
-        if (first_digit == '0' and self._peek_chars() == 'x'
-                and self._is_in_bounds(2)
-                and cast(str, self.input.at(self.pos + 1)) in hexdigits):
+        if (
+            first_digit == "0"
+            and self._peek_chars() == "x"
+            and self._is_in_bounds(2)
+            and cast(str, self.input.at(self.pos + 1)) in hexdigits
+        ):
             self._consume_chars(2)
             self._consume_regex(self._hexdigits_star_regex)
             return self._form_token(Token.Kind.INTEGER_LIT, start_pos)

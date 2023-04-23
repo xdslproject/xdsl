@@ -9,10 +9,24 @@ from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (
-    AttrSizedRegionSegments, OptOpResult, OptOperand, OptRegion,
-    OptSingleBlockRegion, Operand, SingleBlockRegion, VarOpResult, VarRegion,
-    VarSingleBlockRegion, irdl_op_definition, AttrSizedResultSegments,
-    VarOperand, AttrSizedOperandSegments, OpAttr, OptOpAttr, IRDLOperation)
+    AttrSizedRegionSegments,
+    OptOpResult,
+    OptOperand,
+    OptRegion,
+    OptSingleBlockRegion,
+    Operand,
+    SingleBlockRegion,
+    VarOpResult,
+    VarRegion,
+    VarSingleBlockRegion,
+    irdl_op_definition,
+    AttrSizedResultSegments,
+    VarOperand,
+    AttrSizedOperandSegments,
+    OpAttr,
+    OptOpAttr,
+    IRDLOperation,
+)
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -71,9 +85,7 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.typ
-            for res in op.results] == [StringAttr("0"),
-                                       StringAttr("1")]
+    assert [res.typ for res in op.results] == [StringAttr("0"), StringAttr("1")]
 
 
 @irdl_op_definition
@@ -87,36 +99,41 @@ class TwoVarResultOp(IRDLOperation):
 
 def test_two_var_result_builder():
     op = TwoVarResultOp.build(
-        result_types=[[StringAttr("0"), StringAttr("1")],
-                      [StringAttr("2"), StringAttr("3")]])
+        result_types=[
+            [StringAttr("0"), StringAttr("1")],
+            [StringAttr("2"), StringAttr("3")],
+        ]
+    )
     op.verify()
     assert [res.typ for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
-        StringAttr("3")
+        StringAttr("3"),
     ]
 
     assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [2, 2])
+        AttrSizedResultSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
 def test_two_var_result_builder2():
-    op = TwoVarResultOp.build(result_types=[[StringAttr(
-        "0")], [StringAttr("1"),
-                StringAttr("2"),
-                StringAttr("3")]])
+    op = TwoVarResultOp.build(
+        result_types=[
+            [StringAttr("0")],
+            [StringAttr("1"), StringAttr("2"), StringAttr("3")],
+        ]
+    )
     op.verify()
     assert [res.typ for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
-        StringAttr("3")
+        StringAttr("3"),
     ]
     assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [1, 3])
+        AttrSizedResultSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
 @irdl_op_definition
@@ -131,21 +148,24 @@ class MixedResultOp(IRDLOperation):
 
 def test_var_mixed_builder():
     op = MixedResultOp.build(
-        result_types=[[StringAttr("0"), StringAttr("1")],
-                      StringAttr("2"), [StringAttr("3"),
-                                        StringAttr("4")]])
+        result_types=[
+            [StringAttr("0"), StringAttr("1")],
+            StringAttr("2"),
+            [StringAttr("3"), StringAttr("4")],
+        ]
+    )
     op.verify()
     assert [res.typ for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
         StringAttr("3"),
-        StringAttr("4")
+        StringAttr("4"),
     ]
 
     assert op.attributes[
-        AttrSizedResultSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [2, 1, 2])
+        AttrSizedResultSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 1, 2])
 
 
 #   ___                                 _
@@ -168,14 +188,14 @@ def test_operand_builder_operation():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1])
     op2.verify()
-    assert op2.operands == (op1.res, )
+    assert op2.operands == (op1.res,)
 
 
 def test_operand_builder_value():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1.res])
     op2.verify()
-    assert op2.operands == (op1.res, )
+    assert op2.operands == (op1.res,)
 
 
 def test_operand_builder_exception():
@@ -235,8 +255,8 @@ def test_two_var_operand_builder():
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [2, 2])
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
 def test_two_var_operand_builder2():
@@ -245,8 +265,8 @@ def test_two_var_operand_builder2():
     op2.verify()
     assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
-        AttrSizedOperandSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [1, 3])
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
 #      _   _   _        _ _           _
@@ -270,10 +290,7 @@ def test_attr_op():
 
 
 def test_attr_new_attr_op():
-    op = AttrOp.build(attributes={
-        "attr": StringAttr("0"),
-        "new_attr": StringAttr("1")
-    })
+    op = AttrOp.build(attributes={"attr": StringAttr("0"), "new_attr": StringAttr("1")})
     op.verify()
     assert op.attr == StringAttr("0")
     assert op.attributes["new_attr"] == StringAttr("1")
@@ -436,13 +453,12 @@ def test_two_var_region_builder():
     region2 = Region()
     region3 = Region()
     region4 = Region()
-    op2 = TwoVarRegionOp.build(
-        regions=[[region1, region2], [region3, region4]])
+    op2 = TwoVarRegionOp.build(regions=[[region1, region2], [region3, region4]])
     op2.verify()
     assert op2.regions == [region1, region2, region3, region4]
     assert op2.attributes[
-        AttrSizedRegionSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [2, 2])
+        AttrSizedRegionSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
 def test_two_var_operand_builder3():
@@ -450,13 +466,12 @@ def test_two_var_operand_builder3():
     region2 = Region()
     region3 = Region()
     region4 = Region()
-    op2 = TwoVarRegionOp.build(
-        regions=[[region1], [region2, region3, region4]])
+    op2 = TwoVarRegionOp.build(regions=[[region1], [region2, region3, region4]])
     op2.verify()
     assert op2.regions == [region1, region2, region3, region4]
     assert op2.attributes[
-        AttrSizedRegionSegments.attribute_name] == DenseArrayBase.from_list(
-            i32, [1, 3])
+        AttrSizedRegionSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
 #  __  __ _

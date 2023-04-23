@@ -54,19 +54,19 @@ class EOFToken(Token):
     pass
 
 
-IDENTIFIER_CHARS = re.compile(r'[\w]|[\d]|_')
-OPERATOR_CHARS = set('+-*/')
-SPECIAL_CHARS = set('<>}{(),;=[]')
+IDENTIFIER_CHARS = re.compile(r"[\w]|[\d]|_")
+OPERATOR_CHARS = set("+-*/")
+SPECIAL_CHARS = set("<>}{(),;=[]")
 
 
 def tokenize(file: Path, program: str | None = None):
     tokens: List[Token] = []
 
     if program is None:
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             program = f.read()
 
-    text = ''
+    text = ""
     row = col = 1
 
     def flush():
@@ -83,7 +83,7 @@ def tokenize(file: Path, program: str | None = None):
         else:
             tokens.append(IdentifierToken(file, row, true_col, text))
 
-        text = ''
+        text = ""
 
     for row, line in enumerate(program.splitlines()):
         # 1-indexed
@@ -91,7 +91,7 @@ def tokenize(file: Path, program: str | None = None):
         for col, char in enumerate(line):
             # 1-indexed
             col += 1
-            if char == '#':
+            if char == "#":
                 # Comment
                 break
 
@@ -101,7 +101,7 @@ def tokenize(file: Path, program: str | None = None):
 
             flush()
 
-            if char == ' ':
+            if char == " ":
                 continue
 
             if char in OPERATOR_CHARS:
@@ -111,12 +111,11 @@ def tokenize(file: Path, program: str | None = None):
                 tokens.append(SpecialToken(file, row, col, char))
                 continue
 
-            raise AssertionError(
-                f'unhandled char {char} at ({row}, {col}) in \n{line}')
+            raise AssertionError(f"unhandled char {char} at ({row}, {col}) in \n{line}")
 
         col += 1
         flush()
 
-    tokens.append(EOFToken(file, row, col, ''))
+    tokens.append(EOFToken(file, row, col, ""))
 
     return tokens

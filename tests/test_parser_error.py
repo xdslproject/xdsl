@@ -3,7 +3,13 @@ from typing import Annotated
 from pytest import raises
 
 from xdsl.ir import MLContext
-from xdsl.irdl import AnyAttr, irdl_op_definition, IRDLOperation, VarOperand, VarOpResult
+from xdsl.irdl import (
+    AnyAttr,
+    irdl_op_definition,
+    IRDLOperation,
+    VarOperand,
+    VarOpResult,
+)
 from xdsl.parser import XDSLParser
 from xdsl.utils.exceptions import ParseError
 
@@ -33,7 +39,8 @@ def check_error(prog: str, line: int, column: int, message: str):
             break
     else:
         assert False, "'{}' not found in an error message {}!".format(
-            message, e.value.args)
+            message, e.value.args
+        )
 
 
 def test_parser_missing_equal():
@@ -41,14 +48,14 @@ def test_parser_missing_equal():
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    prog = \
-"""
+    prog = """
 unknown() {
   %0 : !i32 unknown()
 }
 """
-    check_error(prog, 3, 12,
-                "Operation definitions expect an `=` after op-result-list!")
+    check_error(
+        prog, 3, 12, "Operation definitions expect an `=` after op-result-list!"
+    )
 
 
 def test_parser_redefined_value():
@@ -56,8 +63,7 @@ def test_parser_redefined_value():
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    prog = \
-"""
+    prog = """
 unknown() {
   %val : !i32 = unknown()
   %val : !i32 = unknown()
@@ -71,8 +77,7 @@ def test_parser_missing_operation_name():
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    prog = \
-"""
+    prog = """
 unknown() {
   %val : !i32 = 
 }
@@ -85,8 +90,7 @@ def test_parser_malformed_type():
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    prog = \
-"""
+    prog = """
 unknown() {
   %val : i32 = unknown()
 }

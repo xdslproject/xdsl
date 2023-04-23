@@ -1,7 +1,14 @@
 from __future__ import annotations
 from typing import Annotated
 from xdsl.ir import Attribute, Dialect, OpResult, SSAValue
-from xdsl.irdl import Operand, irdl_op_definition, OpAttr, AnyAttr, Operation, IRDLOperation
+from xdsl.irdl import (
+    Operand,
+    irdl_op_definition,
+    OpAttr,
+    AnyAttr,
+    Operation,
+    IRDLOperation,
+)
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
 
@@ -27,8 +34,7 @@ class Fetch(IRDLOperation):
     def get(symbol: str | SymbolRefAttr, result_type: Attribute) -> Fetch:
         if isinstance(symbol, str):
             symbol = SymbolRefAttr(symbol)
-        return Fetch.build(attributes={"symbol": symbol},
-                           result_types=[result_type])
+        return Fetch.build(attributes={"symbol": symbol}, result_types=[result_type])
 
 
 @irdl_op_definition
@@ -38,8 +44,7 @@ class Update(IRDLOperation):
     symbol: OpAttr[SymbolRefAttr]
 
     @staticmethod
-    def get(symbol: str | SymbolRefAttr,
-            value: Operation | SSAValue) -> Update:
+    def get(symbol: str | SymbolRefAttr, value: Operation | SSAValue) -> Update:
         if isinstance(symbol, str):
             symbol = SymbolRefAttr(symbol)
         return Update.build(operands=[value], attributes={"symbol": symbol})

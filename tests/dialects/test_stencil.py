@@ -35,8 +35,7 @@ def test_stencil_return_multiple_ResultType():
     result_type_val2 = TestSSAValue(ResultType.from_type(f32))
     result_type_val3 = TestSSAValue(ResultType.from_type(f32))
 
-    return_op = ReturnOp.get(
-        [result_type_val1, result_type_val2, result_type_val3])
+    return_op = ReturnOp.get([result_type_val1, result_type_val2, result_type_val3])
 
     assert return_op.arg[0] is result_type_val1
     assert return_op.arg[1] is result_type_val2

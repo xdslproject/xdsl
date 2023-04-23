@@ -6,9 +6,7 @@ from xdsl.frontend.python_code_check import CheckAndInlineConstants
 
 
 def test_const_correctly_evaluated_I():
-
-    src = \
-"""
+    src = """
 a: Const[i32] = 2 ** 5
 x = a
 """
@@ -18,9 +16,7 @@ x = a
 
 
 def test_const_correctly_evaluated_II():
-
-    src = \
-"""
+    src = """
 a: Const[i32] = 4
 x: i64 = a + 2
 """
@@ -30,9 +26,7 @@ x: i64 = a + 2
 
 
 def test_const_correctly_evaluated_III():
-
-    src = \
-"""
+    src = """
 a: Const[i32] = 4
 b: Const[i32] = len([1, 2, 3, 4])
 x: Const[i32] = a + b
@@ -44,9 +38,7 @@ y = x
 
 
 def test_const_correctly_evaluated_IV():
-
-    src = \
-"""
+    src = """
 a: Const[i32] = 4
 def foo(y: i32):
     x: i32 = a + y
@@ -57,9 +49,7 @@ def foo(y: i32):
 
 
 def test_const_correctly_evaluated_V():
-
-    src = \
-"""
+    src = """
 a: Const[i32] = 4
 b: Const[i32] = 4
 def foo(y: i32):
@@ -72,8 +62,7 @@ def foo(y: i32):
 
 
 def test_raises_exception_on_assignemnt_to_const_I():
-    src = \
-"""
+    src = """
 a: Const[i32] = 2 ** 5
 a = 34
 """
@@ -84,8 +73,7 @@ a = 34
 
 
 def test_raises_exception_on_assignemnt_to_const_II():
-    src = \
-"""
+    src = """
 x: Const[i32] = 100
 def foo():
     x: i32 = 2
@@ -98,8 +86,7 @@ def foo():
 
 
 def test_raises_exception_on_assignemnt_to_const_III():
-    src = \
-"""
+    src = """
 y: Const[i32] = 100
 @block
 def bb0():
@@ -114,8 +101,7 @@ bb0()
 
 
 def test_raises_exception_on_assignemnt_to_const_IV():
-    src = \
-"""
+    src = """
 z: Const[i32] = 100
 def foo(x: i32):
     @block
@@ -126,12 +112,14 @@ def foo(x: i32):
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Constant 'z' is already defined and cannot be used as a function/block argument name."
+    assert (
+        err.value.msg
+        == "Constant 'z' is already defined and cannot be used as a function/block argument name."
+    )
 
 
 def test_raises_exception_on_duplicate_const():
-    src = \
-"""
+    src = """
 z: Const[i32] = 100
 z: Const[i32] = 2
 """
@@ -142,22 +130,26 @@ z: Const[i32] = 2
 
 
 def test_raises_exception_on_evaluation_error_I():
-    src = \
-"""
+    src = """
 z: Const[i32] = 23 / 0
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
+    assert (
+        err.value.msg
+        == "Non-constant expression cannot be assigned to constant variable 'z' or cannot be evaluated."
+    )
 
 
 def test_raises_exception_on_evaluation_error_II():
-    src = \
-"""
+    src = """
 a: Const[i32] = x + 12
 """
     stmts = ast.parse(src).body
     with pytest.raises(CodeGenerationException) as err:
         CheckAndInlineConstants.run(stmts, __file__)
-    assert err.value.msg == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
+    assert (
+        err.value.msg
+        == "Non-constant expression cannot be assigned to constant variable 'a' or cannot be evaluated."
+    )

@@ -24,7 +24,6 @@ def test_builder():
 
 
 def test_build_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
 
@@ -52,7 +51,6 @@ def test_build_region():
 
 
 def test_build_callable_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
 
@@ -87,7 +85,6 @@ def test_build_callable_region():
 
 
 def test_build_implicit_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
 
@@ -112,7 +109,6 @@ def test_build_implicit_region():
 
 
 def test_build_implicit_callable_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
 
@@ -144,7 +140,6 @@ def test_build_implicit_callable_region():
 
 
 def test_build_nested_implicit_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
 
@@ -186,7 +181,6 @@ def test_build_nested_implicit_region():
 
 
 def test_build_implicit_region_fail():
-
     one = IntAttr(1)
     two = IntAttr(2)
     three = IntAttr(3)
@@ -205,8 +199,9 @@ def test_build_implicit_region_fail():
                     b.insert(Constant.from_int_and_width(three, i32))
 
                 assert e.value.args[0] == (
-                    'Cannot insert operation explicitly when an implicit'
-                    ' builder exists.')
+                    "Cannot insert operation explicitly when an implicit"
+                    " builder exists."
+                )
 
             y.add_region(region_2)
 

@@ -5,12 +5,28 @@ import pytest
 from xdsl.dialects.builtin import IntAttr, StringAttr, i32
 
 from xdsl.ir import Attribute, OpResult, Region
-from xdsl.irdl import (AttrSizedOperandSegments, AttrSizedRegionSegments,
-                       AttrSizedResultSegments, Operand, OptOpAttr,
-                       OptOpResult, OptOperand, OptRegion, VarOpResult,
-                       VarOperand, VarRegion, irdl_op_definition, OperandDef,
-                       ResultDef, AttributeDef, AnyAttr, OpDef, RegionDef,
-                       OpAttr, IRDLOperation)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    AttrSizedRegionSegments,
+    AttrSizedResultSegments,
+    Operand,
+    OptOpAttr,
+    OptOpResult,
+    OptOperand,
+    OptRegion,
+    VarOpResult,
+    VarOperand,
+    VarRegion,
+    irdl_op_definition,
+    OperandDef,
+    ResultDef,
+    AttributeDef,
+    AnyAttr,
+    OpDef,
+    RegionDef,
+    OpAttr,
+    IRDLOperation,
+)
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
 
 ################################################################################
@@ -39,7 +55,8 @@ def test_get_definition():
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
         attributes={"attr": AttributeDef(AnyAttr())},
-        regions=[("region", RegionDef())])
+        regions=[("region", RegionDef())],
+    )
 
 
 ################################################################################
@@ -192,10 +209,9 @@ class AttributeOp(IRDLOperation):
 def test_attribute_accessors():
     """Test accessors for attributes."""
 
-    op = AttributeOp.create(attributes={
-        "attr": StringAttr("test"),
-        "opt_attr": StringAttr("opt_test")
-    })
+    op = AttributeOp.create(
+        attributes={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")}
+    )
     assert op.attr is op.attributes["attr"]
     assert op.opt_attr is op.attributes["opt_attr"]
 

@@ -5,11 +5,13 @@ from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
 
-def assert_print_op(operation: Operation,
-                    expected: str,
-                    diagnostic: Diagnostic | None,
-                    print_generic_format: bool = False,
-                    target: Printer.Target | None = None):
+def assert_print_op(
+    operation: Operation,
+    expected: str,
+    diagnostic: Diagnostic | None,
+    print_generic_format: bool = False,
+    target: Printer.Target | None = None,
+):
     """
     Utility function that helps to check the printing of an operation compared to
     some string
@@ -44,15 +46,19 @@ def assert_print_op(operation: Operation,
     if diagnostic is None:
         diagnostic = Diagnostic()
     if target is None:
-        printer = Printer(stream=file,
-                          print_generic_format=print_generic_format,
-                          diagnostic=diagnostic,
-                          target=Printer.Target.XDSL)
+        printer = Printer(
+            stream=file,
+            print_generic_format=print_generic_format,
+            diagnostic=diagnostic,
+            target=Printer.Target.XDSL,
+        )
     else:
-        printer = Printer(stream=file,
-                          print_generic_format=print_generic_format,
-                          diagnostic=diagnostic,
-                          target=target)
+        printer = Printer(
+            stream=file,
+            print_generic_format=print_generic_format,
+            diagnostic=diagnostic,
+            target=target,
+        )
 
     printer.print(operation)
     assert file.getvalue().strip() == expected.strip()

@@ -6,44 +6,39 @@ from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.cf import Cf
-from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import get_immutable_copy  # noqa
+from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (
+    get_immutable_copy,
+)  # noqa
 
-program_region = \
-"""builtin.module() {
+program_region = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 }
 """
-program_region_2 = \
-"""builtin.module() {
+program_region_2 = """builtin.module() {
   %0 : !i32 = arith.constant() ["value" = 2 : !i32]
 }
 """
-program_region_2_diff_name = \
-"""builtin.module() {
+program_region_2_diff_name = """builtin.module() {
   %cst : !i32 = arith.constant() ["value" = 2 : !i32]
 }
 """
-program_region_2_diff_type = \
-"""builtin.module() {
+program_region_2_diff_type = """builtin.module() {
   %0 : !i64 = arith.constant() ["value" = 2 : !i64]
 }
 """
-program_add = \
-"""builtin.module() {
+program_add = """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
 }
 """
-program_add_2 = \
-"""builtin.module() {
+program_add_2 = """builtin.module() {
 %0 : !i32 = arith.constant() ["value" = 1 : !i32]
 %1 : !i32 = arith.constant() ["value" = 2 : !i32]
 %2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
 }
 """
-program_func = \
-"""builtin.module() {
+program_func = """builtin.module() {
   func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
   ^0(%0 : !i32, %1 : !i32):
     %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
@@ -51,8 +46,7 @@ program_func = \
   }
 }
 """
-program_successors = \
-"""builtin.module() {
+program_successors = """builtin.module() {
     func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
     ^0:
         cf.br() (^1)
@@ -63,11 +57,19 @@ program_successors = \
 """
 
 
-@pytest.mark.parametrize("program_str", [(program_region), (program_region_2),
-                                         (program_region_2_diff_type),
-                                         (program_region_2_diff_name),
-                                         (program_add), (program_add_2),
-                                         (program_func), (program_successors)])
+@pytest.mark.parametrize(
+    "program_str",
+    [
+        (program_region),
+        (program_region_2),
+        (program_region_2_diff_type),
+        (program_region_2_diff_name),
+        (program_add),
+        (program_add_2),
+        (program_func),
+        (program_successors),
+    ],
+)
 def test_immutable_ir(program_str: str):
     ctx = MLContext()
     ctx.register_dialect(Builtin)

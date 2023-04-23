@@ -1,12 +1,50 @@
 import pytest
 
-from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
-                                 FloorDivSI, CeilDivSI, CeilDivUI, RemUI,
-                                 RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
-                                 XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
-                                 Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
-                                 SIToFPOp, ExtFOp, TruncFOp, Cmpf, Negf)
-from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.dialects.arith import (
+    Addi,
+    Constant,
+    DivUI,
+    DivSI,
+    Subi,
+    FloorDivSI,
+    CeilDivSI,
+    CeilDivUI,
+    RemUI,
+    RemSI,
+    MinUI,
+    MinSI,
+    MaxUI,
+    MaxSI,
+    AndI,
+    OrI,
+    XOrI,
+    ShLI,
+    ShRUI,
+    ShRSI,
+    Cmpi,
+    Addf,
+    Subf,
+    Mulf,
+    Divf,
+    Maxf,
+    Minf,
+    IndexCastOp,
+    FPToSIOp,
+    SIToFPOp,
+    ExtFOp,
+    TruncFOp,
+    Cmpf,
+    Negf,
+)
+from xdsl.dialects.builtin import (
+    i32,
+    i64,
+    f32,
+    f64,
+    IndexType,
+    IntegerType,
+    Float32Type,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -17,9 +55,25 @@ class Test_integer_arith_construction:
     @pytest.mark.parametrize(
         "func",
         [
-            Addi, Subi, DivUI, DivSI, FloorDivSI, CeilDivSI, CeilDivUI, RemUI,
-            RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI, XOrI, ShLI, ShRUI,
-            ShRSI
+            Addi,
+            Subi,
+            DivUI,
+            DivSI,
+            FloorDivSI,
+            CeilDivSI,
+            CeilDivUI,
+            RemUI,
+            RemSI,
+            MinUI,
+            MinSI,
+            MaxUI,
+            MaxSI,
+            AndI,
+            OrI,
+            XOrI,
+            ShLI,
+            ShRUI,
+            ShRSI,
         ],
     )
     def test_arith_ops(self, func):
@@ -39,7 +93,6 @@ class Test_integer_arith_construction:
 
 
 class Test_float_arith_construction:
-
     a = Constant.from_float_and_width(1.1, f32)
     b = Constant.from_float_and_width(2.2, f32)
 
@@ -100,8 +153,22 @@ def test_cmpf_from_mnemonic():
     a = Constant.from_float_and_width(1.0, f64)
     b = Constant.from_float_and_width(2.0, f64)
     operations = [
-        "false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord", "ueq", "ugt",
-        "uge", "ult", "ule", "une", "uno", "true"
+        "false",
+        "oeq",
+        "ogt",
+        "oge",
+        "olt",
+        "ole",
+        "one",
+        "ord",
+        "ueq",
+        "ugt",
+        "uge",
+        "ult",
+        "ule",
+        "une",
+        "uno",
+        "true",
     ]
     cmpf_ops = [None] * len(operations)
 
@@ -131,8 +198,10 @@ def test_cmpf_missmatch_type():
 
     with pytest.raises(TypeError) as e:
         cmpf_op = Cmpf.get(a, b, 1)
-    assert e.value.args[
-        0] == "Comparison operands must have same type, but provided f32 and f64"
+    assert (
+        e.value.args[0]
+        == "Comparison operands must have same type, but provided f32 and f64"
+    )
 
 
 def test_cmpi_missmatch_type():
@@ -141,8 +210,10 @@ def test_cmpi_missmatch_type():
 
     with pytest.raises(TypeError) as e:
         cmpi_op = Cmpi.get(a, b, 1)
-    assert e.value.args[
-        0] == "Comparison operands must have same type, but provided i32 and i64"
+    assert (
+        e.value.args[0]
+        == "Comparison operands must have same type, but provided i32 and i64"
+    )
 
 
 def test_cmpf_incorrect_comparison():
