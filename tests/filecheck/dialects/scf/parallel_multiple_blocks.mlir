@@ -7,7 +7,9 @@
   "scf.parallel"(%0, %1, %2) ({
   ^bb0(%i: index, %j: index):
     "scf.yield"() : () -> ()
+  ^bb1():
+    "scf.yield"() : () -> ()
   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: Number of block arguments must exactly equal the number of induction variables
+// CHECK: scf.parallel operation does not verify
