@@ -1180,6 +1180,9 @@ class Block(IRNode):
         return op
 
     def insert_op_after(self, new_op: Operation, existing_op: Operation) -> None:
+        """
+        Inserts new_op into this block, after existing_op.
+        """
         if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation after operation not in current block"
@@ -1194,6 +1197,9 @@ class Block(IRNode):
             self._last_op = new_op
 
     def insert_op_before(self, new_op: Operation, existing_op: Operation) -> None:
+        """
+        Inserts new_op into this block, before existing_op.
+        """
         if existing_op.parent is not self:
             raise ValueError(
                 "Can't insert operation before operation not in current block"
