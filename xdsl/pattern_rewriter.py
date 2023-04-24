@@ -306,12 +306,18 @@ class PatternRewriter:
         return Rewriter.move_region_contents_to_new_regions(region)
 
     def iter_affected_ops(self) -> Iterable[Operation]:
+        """
+        Iterate newly added operations, in the order that they are in the module.
+        """
         yield from self.added_operations_before
         if not self.has_erased_matched_operation:
             yield self.current_operation
         yield from self.added_operations_after
 
     def iter_affected_ops_reversed(self) -> Iterable[Operation]:
+        """
+        Iterate newly added operations, in reverse order from that in the module.
+        """
         yield from reversed(self.added_operations_after)
         if not self.has_erased_matched_operation:
             yield self.current_operation
