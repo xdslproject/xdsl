@@ -1,5 +1,6 @@
 import pytest
-from typing import cast, List
+from typing import cast
+from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Block
@@ -267,29 +268,25 @@ def test_parallel_verify_yield_zero_ops():
 
 
 def test_parallel_test_count_number_reduction_ops():
-    reductions: List[ReduceOp] = []
-    for i in range(10):
-        init_val = Constant.from_int_and_width(i, i32)
-        reduce_op = ReduceOp.get(init_val, Block())
-        reductions.append(reduce_op)
+    @Builder.implicit_region
+    def body():
+        for i in range(10):
+            init_val = Constant.from_int_and_width(i, i32)
+            ReduceOp.get(init_val, Block())
 
-    b = Block()
-    b.add_ops(reductions)
-    p = ParallelOp.get([], [], [], Region(b))
+    p = ParallelOp.get([], [], [], body)
     assert p.count_number_reduction_ops() == 10
 
 
 def test_parallel_get_arg_type_of_nth_reduction_op():
-    init_val1 = Constant.from_int_and_width(10, i32)
-    init_val2 = Constant.from_int_and_width(10, i64)
-    reductions: List[ReduceOp] = []
-    for i in range(10):
-        reduce_op = ReduceOp.get(init_val1 if i % 2 == 0 else init_val2, Block())
-        reductions.append(reduce_op)
+    @Builder.implicit_region
+    def body():
+        init_val1 = Constant.from_int_and_width(10, i32)
+        init_val2 = Constant.from_int_and_width(10, i64)
+        for i in range(10):
+            ReduceOp.get(init_val1 if i % 2 == 0 else init_val2, Block())
 
-    b = Block()
-    b.add_ops(reductions)
-    p = ParallelOp.get([], [], [], Region(b))
+    p = ParallelOp.get([], [], [], body)
     assert p.count_number_reduction_ops() == 10
     for i in range(10):
         assert p.get_arg_type_of_nth_reduction_op(i) == i32 if i % 2 == 0 else i64
