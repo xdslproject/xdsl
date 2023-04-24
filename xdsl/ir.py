@@ -600,7 +600,7 @@ class Operation(IRNode):
         """
         return self._next_op
 
-    def set_next_op(self, new_op: Operation) -> None:
+    def _set_next_op(self, new_op: Operation) -> None:
         """
         Sets `next_op` on `self`, and `prev_op` on `self.next_op`.
         """
@@ -623,7 +623,7 @@ class Operation(IRNode):
         """
         return self._prev_op
 
-    def set_prev_op(self, new_op: Operation) -> None:
+    def _set_prev_op(self, new_op: Operation) -> None:
         """
         Sets `prev_op` on `self`, and `next_op` on `self.prev_op`.
         """
@@ -1188,7 +1188,7 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         next_op = existing_op.next_op
-        existing_op.set_next_op(new_op)
+        existing_op._set_next_op(new_op)  # pyright: ignore[reportPrivateUsage]
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
@@ -1202,7 +1202,7 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         prev_op = existing_op.prev_op
-        existing_op.set_prev_op(new_op)
+        existing_op._set_prev_op(new_op)  # pyright: ignore[reportPrivateUsage]
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
             self._first_op = new_op
