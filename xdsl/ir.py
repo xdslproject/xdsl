@@ -974,10 +974,10 @@ class _BlockOpsIterator:
 
     def __next__(self):
         next_op = self.next_op
-        if next_op is not None:
-            self.next_op = next_op.next_op
-            return next_op
-        raise StopIteration
+        if next_op is None:
+            raise StopIteration
+        self.next_op = next_op.next_op
+        return next_op
 
 
 @dataclass
