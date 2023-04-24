@@ -600,10 +600,9 @@ class Operation(IRNode):
         """
         return self._next_op
 
-    def set_next_op(self, new_op: Operation) -> Operation | None:
+    def set_next_op(self, new_op: Operation) -> None:
         """
         Sets `next_op` on `self`, and `prev_op` on `self.next_op`.
-        Returns previous `self.next_op`.
         """
 
         if self._next_op is not None:
@@ -617,8 +616,6 @@ class Operation(IRNode):
         # update self
         self._next_op = new_op
 
-        return new_op._next_op
-
     @property
     def prev_op(self) -> Operation | None:
         """
@@ -626,10 +623,9 @@ class Operation(IRNode):
         """
         return self._prev_op
 
-    def set_prev_op(self, new_op: Operation) -> Operation | None:
+    def set_prev_op(self, new_op: Operation) -> None:
         """
         Sets `prev_op` on `self`, and `next_op` on `self.prev_op`.
-        Returns previous `self.prev_op`.
         """
 
         if self._prev_op is not None:
@@ -643,13 +639,10 @@ class Operation(IRNode):
         # update self
         self._prev_op = new_op
 
-        return new_op._prev_op
-
-    def detach_prev_next_ops(self) -> tuple[Operation | None, Operation | None]:
+    def detach_prev_next_ops(self) -> None:
         """
         Detach `self` from linked list, by setting the `next_op` and `prev_op`
-        properties of `self.prev_op` and `self.next_op` to each other. Return
-        `(self.prev_op, self.next_op)`.
+        properties of `self.prev_op` and `self.next_op` to each other.
         """
         prev_op = self._prev_op
         next_op = self._next_op
@@ -659,8 +652,6 @@ class Operation(IRNode):
 
         if next_op is not None:
             next_op._prev_op = prev_op
-
-        return prev_op, next_op
 
     @property
     def operands(self) -> tuple[SSAValue, ...]:
@@ -1210,7 +1201,8 @@ class Block(IRNode):
 
         self._attach_op(new_op)
 
-        next_op = existing_op.set_next_op(new_op)
+        next_op = existing_op.next_op
+        existing_op.set_next_op(new_op)
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
@@ -1223,7 +1215,8 @@ class Block(IRNode):
 
         self._attach_op(new_op)
 
-        prev_op = existing_op.set_prev_op(new_op)
+        prev_op = existing_op.prev_op
+        existing_op.set_prev_op(new_op)
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
             self._first_op = new_op
@@ -1308,7 +1301,8 @@ class Block(IRNode):
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
 
-        prev_op, next_op = op.detach_prev_next_ops()
+        prev_op, next_op = op.prev_op, op.next_op
+        op.detach_prev_next_ops()
         if prev_op is None:
             assert self._first_op is op
             self._first_op = next_op
