@@ -4,6 +4,6 @@ pytest-cov
 coverage<8.0.0
 ipykernel
 # pyright has to be the last line and fixed with `==`. The CI parses this file
-# in `.github/parse_pyright_version` and installs the according version for
+# in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
 pyright==1.1.304
