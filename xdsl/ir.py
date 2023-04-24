@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-import sys
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -49,16 +48,6 @@ class Dialect:
     @property
     def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
-
-    def __call__(self, ctx: MLContext) -> None:
-        print(
-            "Calling a dialect in order to register it is deprecated "
-            "and will soon be removed.",
-            file=sys.stderr,
-        )
-        # TODO; Remove this function in a future release.
-        assert isinstance(ctx, MLContext)
-        ctx.register_dialect(self)
 
 
 @dataclass
