@@ -639,20 +639,6 @@ class Operation(IRNode):
         # update self
         self._prev_op = new_op
 
-    def detach_prev_next_ops(self) -> None:
-        """
-        Detach `self` from linked list, by setting the `next_op` and `prev_op`
-        properties of `self.prev_op` and `self.next_op` to each other.
-        """
-        prev_op = self._prev_op
-        next_op = self._next_op
-
-        if prev_op is not None:
-            prev_op._next_op = next_op
-
-        if next_op is not None:
-            next_op._prev_op = prev_op
-
     @property
     def operands(self) -> tuple[SSAValue, ...]:
         return self._operands
@@ -1301,8 +1287,15 @@ class Block(IRNode):
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
 
-        prev_op, next_op = op.prev_op, op.next_op
-        op.detach_prev_next_ops()
+        prev_op = op.prev_op
+        next_op = op.next_op
+
+        if prev_op is not None:
+            prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+
+        if next_op is not None:
+            next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+
         if prev_op is None:
             assert self._first_op is op
             self._first_op = next_op
