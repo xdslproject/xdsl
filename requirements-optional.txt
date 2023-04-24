@@ -3,5 +3,7 @@ toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
-# Remember to update the CI pyright versions when updating this line
+# pyright has to be the last line and fixed with `==`. The CI parses this file
+# in `.github/parse_pyright_version.py` and installs the according version for
+# typechecking.
 pyright==1.1.304
