@@ -36,8 +36,8 @@ jobs:
         run: pip install -e .[extras]
       - name: retrieve pyright version
         run: |
-          python3 parse_and_set_pyright_version.py
-          VER=$(cat pyright-version.txt)
+          python3 .github/parse_pyright_version.py
+          VER=$(cat .github/pyright-version.txt)
           echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jordemort/action-pyright@v1.8.0
