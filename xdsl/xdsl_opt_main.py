@@ -19,7 +19,6 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.vector import Vector
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
@@ -39,7 +38,6 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
 )
 
-from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
 from typing import IO, Dict, Callable, List, Sequence, Type
@@ -213,7 +211,6 @@ class xDSLOptMain:
         self.ctx.register_dialect(Cf)
         self.ctx.register_dialect(CMath)
         self.ctx.register_dialect(Math)
-        self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
@@ -282,12 +279,7 @@ class xDSLOptMain:
             printer.print_op(prog)
             print("\n", file=output)
 
-        def _output_irdl(prog: ModuleOp, output: IO[str]):
-            irdl_to_mlir = IRDLPrinter(stream=output)
-            irdl_to_mlir.print_module(prog)
-
         self.available_targets["xdsl"] = _output_xdsl
-        self.available_targets["irdl"] = _output_irdl
         self.available_targets["mlir"] = _output_mlir
 
     def setup_pipeline(self):
