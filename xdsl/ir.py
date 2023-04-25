@@ -1299,21 +1299,24 @@ class Block(IRNode):
         next_op = op.next_op
 
         if prev_op is not None:
+            # detach op from linked list
             prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
-
-        if next_op is not None:
-            next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
-
-        if prev_op is None:
+            # detach linked list from op
+            op._prev_op = None  # pyright: ignore[reportPrivateUsage]
+        else:
+            # reattach linked list if op is first op this block
             assert self._first_op is op
             self._first_op = next_op
 
-        if next_op is None:
+        if next_op is not None:
+            # detach op from linked list
+            next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+            # detach linked list from op
+            op._next_op = None  # pyright: ignore[reportPrivateUsage]
+        else:
+            # reattach linked list if op is last op in this block
             assert self._last_op is op
-            self._last_op = op.prev_op
-
-        op._prev_op = None  # pyright: ignore[reportPrivateUsage]
-        op._next_op = None  # pyright: ignore[reportPrivateUsage]
+            self._last_op = prev_op
 
         return op
 
