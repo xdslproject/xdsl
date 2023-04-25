@@ -1308,10 +1308,12 @@ class Block(IRNode):
             assert self._first_op is op
             self._first_op = next_op
 
-        next_op = op.next_op
         if next_op is None:
             assert self._last_op is op
             self._last_op = op.prev_op
+
+        op._prev_op = None  # pyright: ignore[reportPrivateUsage]
+        op._next_op = None  # pyright: ignore[reportPrivateUsage]
 
         return op
 
