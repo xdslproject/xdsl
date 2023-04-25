@@ -1,9 +1,0 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
-
-builtin.module() {
-  func.func() ["sym_name" = "arg_rec", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    ^0():
-     cf.cond_br() (^0) ["operand_segment_sizes" = array<!i32: 0, 0, 0>]
-     //CHECK: non-variadic operand cond is expected to be of size 1 in operand_segment_sizes, but got 0
-  }
-}
