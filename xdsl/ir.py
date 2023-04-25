@@ -1149,7 +1149,7 @@ class Block(IRNode):
         if index < 0:
             # Enumerate backwards
             op = self.last_op
-            while index < 0:
+            while index < -1:
                 if op is None:
                     break
                 op = op.prev_op
@@ -1265,15 +1265,24 @@ class Block(IRNode):
             f"{len(self.ops)} operations.",
         )
 
-        if existing_op is None:
-            if index < 0 and self.first_op is not None:
-                # Insert at beginning of block
-                existing_op = self.first_op
-            # Append
-            self.add_ops(new_ops)
-            return
-
-        self.insert_ops_before(new_ops, existing_op)
+        if index < 0:
+            # If index is negative, we have to insert after the found operation,
+            # except if the operation was not found, meaning insert before start of block.
+            if existing_op is None:
+                if self.first_op is None:
+                    # Empty block, append
+                    self.add_ops(new_ops)
+                else:
+                    self.insert_ops_before(new_ops, self.first_op)
+            else:
+                self.insert_ops_after(new_ops, existing_op)
+        else:
+            # Else, we have to insert before the found operation,
+            # except if the operation was not found, meaning append to end of block.
+            if existing_op is None:
+                self.add_ops(new_ops)
+            else:
+                self.insert_ops_before(new_ops, existing_op)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
