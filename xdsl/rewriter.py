@@ -96,18 +96,6 @@ class Rewriter:
         if op.parent is None:
             raise Exception("Cannot inline a block before a toplevel operation")
 
-        first_op = block.first_op
-        last_op = block.last_op
-
-        if first_op is None:
-            return
-
-        if first_op is last_op:
-            # block has only one operation
-            block.detach_op(first_op)
-            op.parent.insert_op_before(first_op, op)
-            return
-
         ops = list(block.ops)
         for block_op in ops:
             block_op.detach()
@@ -123,18 +111,6 @@ class Rewriter:
         """
         if op.parent is None:
             raise Exception("Cannot inline a block before a toplevel operation")
-
-        first_op = block.first_op
-        last_op = block.last_op
-
-        if first_op is None:
-            return
-
-        if first_op is last_op:
-            # block has only one operation
-            block.detach_op(first_op)
-            op.parent.insert_op_after(first_op, op)
-            return
 
         ops = list(block.ops)
         for block_op in ops:
