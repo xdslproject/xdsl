@@ -275,6 +275,20 @@ class PatternRewriter:
             )
         Rewriter.inline_block_before(block, op)
 
+    def inline_block_after_matched_op(self, block: Block):
+        """
+        Move the block operations after the matched operation.
+        The block should not be a parent of the operation, and should be a child of the
+        matched operation.
+        """
+        self.has_done_action = True
+        if not self._can_modify_block(block):
+            raise Exception(
+                "Cannot move blocks that are not contained in the matched operation."
+            )
+        self.added_operations_after += block.ops
+        Rewriter.inline_block_after(block, self.current_operation)
+
     def inline_block_after(self, block: Block, op: Operation):
         """
         Move the block operations after the given operation.
@@ -284,7 +298,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         if op is self.current_operation:
-            return self.inline_block_before_matched_op(block)
+            return self.inline_block_after_matched_op(block)
         if not self._can_modify_block(block) or (
             op.parent and not self._can_modify_block(op.parent)
         ):

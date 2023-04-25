@@ -848,6 +848,47 @@ def test_inline_block_after():
     )
 
 
+def test_inline_block_after_matched():
+    """Test the inlining of a block after an operation."""
+
+    prog = """builtin.module() {
+  %0 : !i1 = arith.constant() ["value" = true]
+  scf.if(%0 : !i1) {
+    scf.if(%0 : !i1) {
+      %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+    } {
+    }
+  } {
+  }
+}"""
+
+    expected = """builtin.module() {
+  %0 : !i1 = arith.constant() ["value" = true]
+  scf.if(%0 : !i1) {
+    scf.if(%0 : !i1) {
+    } {
+    }
+  } {
+  }
+  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
+}"""
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(op: If, rewriter: PatternRewriter):
+        first_op = op.true_region.block.first_op
+        if first_op is not None and isinstance(first_op, If):
+            inner_if_block = first_op.true_region.block
+            rewriter.inline_block_after(inner_if_block, op)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
+        ),
+    )
+
+
 def test_move_region_contents_to_new_regions():
     """Test moving a region outside of a region."""
 
