@@ -1186,7 +1186,7 @@ class Block(IRNode):
         """
         if existing_op.parent is not self:
             raise ValueError(
-                "Can't insert operation after operation not in current block"
+                "Can't insert operation after operation not in this block."
             )
 
         self._attach_op(new_op)
