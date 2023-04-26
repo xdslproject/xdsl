@@ -218,14 +218,14 @@ class ParallelOp(IRDLOperation):
 
         # Ensure that scf.yield is the last operation in the block as this is required
         if len(self.body.block.ops) == 0 or not isinstance(
-            self.body.block.ops[-1], Yield
+            self.body.block.last_op, Yield
         ):
             raise VerifyException(
                 "scf.parallel region must terminate with an scf.yield"
             )
 
         # Ensure that the number of operands in scf.yield is exactly zero
-        number_yield_ops = len(self.body.block.ops[-1].arguments)
+        number_yield_ops = len(self.body.block.last_op.arguments)
         if number_yield_ops != 0:
             raise VerifyException(
                 f"scf.yield contains {number_yield_ops} operands but this must be zero inside an scf.parallel"
@@ -301,16 +301,16 @@ class ReduceOp(IRDLOperation):
             )
 
         if len(self.body.block.ops) == 0 or not isinstance(
-            self.body.block.ops[-1], ReduceReturnOp
+            self.body.block.last_op, ReduceReturnOp
         ):
             raise VerifyException(
                 "scf.reduce block must terminate with an scf.reduce.return"
             )
 
-        if self.body.block.ops[-1].result.typ != self.argument.typ:
+        if self.body.block.last_op.result.typ != self.argument.typ:
             raise VerifyException(
                 "Type of scf.reduce.return result at end of scf.reduce block must "
-                f" match the reduction operand type but have {self.body.block.ops[-1].result.typ} "
+                f" match the reduction operand type but have {self.body.block.last_op.result.typ} "
                 f"and {self.argument.typ}"
             )
 
