@@ -981,7 +981,7 @@ class _BlockOpsIterator:
 
 
 @dataclass
-class _BlockOps:
+class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1034,9 +1034,9 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
-    def ops(self) -> _BlockOps:
+    def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
-        return _BlockOps(self._first_op)
+        return BlockOps(self._first_op)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1468,7 +1468,7 @@ class Region(IRNode):
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
-    def ops(self) -> _BlockOps:
+    def ops(self) -> BlockOps:
         """
         Get the operations of a single-block region.
         Returns an exception if the region is not single-block.
