@@ -16,11 +16,12 @@ def test_builder():
     b.insert(x)
     b.insert(y)
 
-    ops = block.ops
+    ops = iter(block.ops)
 
-    assert len(ops) == 2
-    assert ops[0] is x
-    assert ops[1] is y
+    assert next(ops) is x
+    assert next(ops) is y
+
+    assert next(ops, None) is None
 
 
 def test_build_region():
@@ -37,17 +38,19 @@ def test_build_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = iter(region.ops)
 
-    assert len(ops) == 2
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is two
 
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    assert next(ops, None) is None
 
 
 def test_build_callable_region():
@@ -66,22 +69,24 @@ def test_build_callable_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = iter(region.ops)
 
-    assert len(ops) == 2
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is two
 
     args = region.blocks[0].args
 
     assert len(args) == 1
     assert args[0].typ == i32
+
+    assert next(ops, None) is None
 
 
 def test_build_implicit_region():
@@ -95,17 +100,19 @@ def test_build_implicit_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = iter(region.ops)
 
-    assert len(ops) == 2
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is two
 
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    assert next(ops, None) is None
 
 
 def test_build_implicit_callable_region():
@@ -121,22 +128,24 @@ def test_build_implicit_callable_region():
 
     assert len(region.blocks) == 1
 
-    ops = region.ops
+    ops = iter(region.ops)
 
-    assert len(ops) == 2
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is two
 
     args = region.blocks[0].args
 
     assert len(args) == 1
     assert args[0].typ == i32
+
+    assert next(ops, None) is None
 
 
 def test_build_nested_implicit_region():
@@ -155,29 +164,31 @@ def test_build_nested_implicit_region():
 
     assert len(region_0.blocks) == 1
 
-    ops_0 = region_0.ops
+    ops_0 = iter(region_0.ops)
 
-    assert len(ops_0) == 1
+    op = next(ops_0)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops_0[0], Constant)
-    assert isinstance(ops_0[0].value, IntegerAttr)
-    assert ops_0[0].value.value is one
-
-    assert len(ops_0[0].regions) == 1
+    assert len(op.regions) == 1
 
     assert len(region_0.blocks) == 1
 
-    region_1 = ops_0[0].regions[0]
+    region_1 = op.regions[0]
 
-    ops_1 = region_1.ops
+    assert next(ops_0, None) is None
 
-    assert len(ops_1) == 1
+    ops_1 = iter(region_1.ops)
 
-    assert isinstance(ops_1[0], Constant)
-    assert isinstance(ops_1[0].value, IntegerAttr)
-    assert ops_1[0].value.value is two
+    op = next(ops_1)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is two
 
-    assert len(ops_1[0].regions) == 0
+    assert len(op.regions) == 0
+
+    assert next(ops_1, None) is None
 
 
 def test_build_implicit_region_fail():
@@ -209,12 +220,13 @@ def test_build_implicit_region_fail():
 
     assert len(region_0.blocks) == 1
 
-    ops = region_0.ops
+    ops = iter(region_0.ops)
 
-    assert len(ops) == 1
+    op = next(ops)
+    assert isinstance(op, Constant)
+    assert isinstance(op.value, IntegerAttr)
+    assert op.value.value is one
 
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
+    assert len(op.regions) == 1
 
-    assert len(ops[0].regions) == 1
+    assert next(ops, None) is None
