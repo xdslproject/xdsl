@@ -19,4 +19,3 @@
 // CHECK-NEXT:      }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 1>} : (!pdl.operation, !pdl.value) -> ()
 // CHECK-NEXT:    }) {"benefit" = 1 : i16, "sym_name" = "rewrite_with_args"} : () -> ()
 // CHECK-NEXT:  }) : () -> ()
-

@@ -176,62 +176,62 @@
 
   // CHECK: tensor<?xi32, "encoding">
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2xf32>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<2xf32>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2x?xf32>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<2x?xf32>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2xf32, strided<[]>>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<2xf32, strided<[]>>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2xf32, strided<[]>, 2>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<2xf32, strided<[]>, 2 : i64>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2xf32, 2>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<2xf32, 2 : i64>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<*xf32>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<*xf32>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<*xf32, 4>,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: memref<*xf32, 4 : i64>
 
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       dense_resource = dense_resource<resource_1> : tensor<1xi32>,
                       sym_name = "dense_resource"} : () -> ()
 
   // CHECK: dense_resource<resource_1> : tensor<1xi32>
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       type_attr = index,
                       sym_name = "memref"} : () -> ()
 
   // CHECK: "type_attr" = index
 
-  "func.func"() ({}) {function_type = () -> (), 
+  "func.func"() ({}) {function_type = () -> (),
                       type_attr = !index,
                       sym_name = "memref"} : () -> ()
 

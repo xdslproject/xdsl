@@ -7,7 +7,7 @@
                   // CHECK: #arith.fastmath<reassoc>
                   #arith.fastmath<nnan>,
                   // CHECK-SAME: #arith.fastmath<nnan>
-                  #arith.fastmath<ninf>, 
+                  #arith.fastmath<ninf>,
                   // CHECK-SAME: #arith.fastmath<ninf>
                   #arith.fastmath<nsz>,
                   // CHECK-SAME: #arith.fastmath<nsz>

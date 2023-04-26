@@ -26,7 +26,7 @@
   // CHECK-NEXT:  ^{{.*}}(%{{.*}} : i32):
   // CHECK-NEXT:    "cf.br"(%{{.*}}) [^{{.*}}] : (i32) -> ()
   // CHECK-NEXT:}) {"sym_name" = "br", "function_type" = (i32) -> (), "sym_visibility" = "private"} : () -> ()
-  
+
 
   "func.func"() ({
   ^4(%2 : i1, %3 : i32):
