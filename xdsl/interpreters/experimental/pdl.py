@@ -199,23 +199,28 @@ class PDLFunctions(InterpreterFunctions):
     def run_pattern(
         self, interpreter: Interpreter, op: pdl.PatternOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        ops = op.regions[0].ops
-        if not len(ops):
+        block = op.body.block
+
+        if block.is_empty:
             raise InterpretationError("No ops in pattern")
 
-        if not isinstance(ops[-1], pdl.RewriteOp):
+        last_op = block.last_op
+
+        if not isinstance(last_op, pdl.RewriteOp):
             raise InterpretationError(
                 "Expected pdl.pattern to be terminated by pdl.rewrite"
             )
 
-        for r_op in ops[:-1]:
+        for r_op in block.ops:
+            if r_op is last_op:
+                break
             # in forward pass, the Python value is the SSA value itself
             if len(r_op.results) != 1:
                 raise InterpretationError("PDL ops must have one result")
             result = r_op.results[0]
             interpreter.set_values(((result, r_op),))
 
-        interpreter.run(ops[-1])
+        interpreter.run(last_op)
 
         return ()
 
