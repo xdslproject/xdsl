@@ -28,5 +28,3 @@
 // CHECK-NEXT: %7 = "vector.create_mask"(%2) : (index) -> vector<2xi1>
 // CHECK-NEXT: "func.return"() : () -> ()
 // CHECK-NEXT: }) {"sym_name" = "vector_test", "function_type" = (memref<4x4xindex>, vector<1xi1>, index) -> (), "sym_visibility" = "private"} : () -> ()
-
-

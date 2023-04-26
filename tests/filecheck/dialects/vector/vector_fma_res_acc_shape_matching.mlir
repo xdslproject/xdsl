@@ -8,4 +8,3 @@
   // CHECK: Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector.
 
 }) : () -> ()
-

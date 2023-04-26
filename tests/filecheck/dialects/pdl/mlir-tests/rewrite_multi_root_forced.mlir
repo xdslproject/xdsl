@@ -33,4 +33,3 @@
 // CHECK-NEXT:      }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 1>} : (!pdl.operation, !pdl.operation) -> ()
 // CHECK-NEXT:    }) {"benefit" = 2 : i16, "sym_name" = "rewrite_multi_root_forced"} : () -> ()
 // CHECK-NEXT:  }) : () -> ()
-

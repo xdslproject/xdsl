@@ -8,4 +8,3 @@
   // CHECK: Expected an index for each memref dimension.
 
 }) : () -> ()
-

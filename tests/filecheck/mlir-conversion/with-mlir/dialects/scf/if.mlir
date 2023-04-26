@@ -14,5 +14,3 @@
 // CHECK-NEXT:   }, {
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) : (i1) -> ()
-
-

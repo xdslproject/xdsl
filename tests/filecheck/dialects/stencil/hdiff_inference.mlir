@@ -53,5 +53,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"function_type" = (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>, !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-
-

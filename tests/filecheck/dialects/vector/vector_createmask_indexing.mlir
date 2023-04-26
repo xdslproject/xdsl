@@ -8,4 +8,3 @@
   // CHECK: Expected an operand value for each dimension of resultant mask.
 
 }) : () -> ()
-

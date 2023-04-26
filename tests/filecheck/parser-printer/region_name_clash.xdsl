@@ -20,7 +20,7 @@ builtin.module() {
 
   func.func() ["sym_name" = "id2", "function_type" = !fun<[!i64], [!i64]>, "sym_visibility" = "private"] {
     ^0(%0 : !i64):
-      
+
       func.return(%0 : !i64)
   }
 

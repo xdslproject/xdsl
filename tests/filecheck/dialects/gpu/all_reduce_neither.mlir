@@ -9,4 +9,3 @@
 }) {} : () -> ()
 
 // CHECK: gpu.all_reduce need either a non empty body or an op attribute.
-

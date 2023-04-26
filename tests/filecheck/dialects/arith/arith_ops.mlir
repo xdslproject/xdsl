@@ -7,8 +7,8 @@
   %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
   %lhsf64, %rhsf64 = "test.op"() : () -> (f64, f64)
   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
- 
- 
+
+
   %divsi = "arith.divsi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
   %divsi_index = "arith.divsi"(%lhsindex, %rhsindex) : (index, index) -> index
 

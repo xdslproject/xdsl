@@ -62,9 +62,9 @@
                 %num_tx : index, %num_ty : index, %num_tz : index):
                 %sum = "gpu.all_reduce"(%tx) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
-                %final = "arith.muli"(%sum, %one) : (index, index) -> index    
+                %final = "arith.muli"(%sum, %one) : (index, index) -> index
                 "gpu.terminator"() : () -> ()
-            }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
+            }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
 
             "func.return"() : () -> ()
         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
@@ -134,9 +134,9 @@
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
 // CHECK-NEXT:             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
-// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index    
+// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
-// CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> () 
+// CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()

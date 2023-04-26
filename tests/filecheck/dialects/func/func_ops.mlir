@@ -38,5 +38,3 @@
    // CHECK-NEXT: }) {"sym_name" = "external_fn", "function_type" = (i32) -> i32, "sym_visibility" = "private"} : () -> ()
 
 }) : () -> ()
-
-
