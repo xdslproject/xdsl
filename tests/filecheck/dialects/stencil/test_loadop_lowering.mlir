@@ -17,4 +17,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-

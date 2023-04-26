@@ -79,7 +79,7 @@ def test_parser_missing_operation_name():
 
     prog = """
 unknown() {
-  %val : !i32 = 
+  %val : !i32 =
 }
 """
     check_error(prog, 4, 0, "Expected an operation name here")

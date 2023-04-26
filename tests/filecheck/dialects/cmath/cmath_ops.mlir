@@ -32,5 +32,3 @@
    // CHECK-NEXT:   "func.return"(%conorm) : (f32) -> ()
    // CHECK-NEXT: }) {"sym_name" = "conorm2", "function_type" = (!cmath.complex<f32>, !cmath.complex<f32>) -> f32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
-
-

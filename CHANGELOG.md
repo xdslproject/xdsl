@@ -1,4 +1,4 @@
-# Changelog 
+# Changelog
 
 All changes should be documented in this file.
 
