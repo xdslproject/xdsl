@@ -44,7 +44,7 @@ def test_empty_program():
         (["tests/xdsl_opt/empty_program.wrong"], "Unrecognized file extension 'wrong'"),
     ],
 )
-def test_error_on_run(args: list[str], expected_error: str):
+def test_error_on_run(args, expected_error):
     opt = xDSLOptMain(args=args)
 
     with pytest.raises(Exception) as e:
@@ -62,9 +62,9 @@ def test_error_on_run(args: list[str], expected_error: str):
         )
     ],
 )
-def test_error_on_construction(args: list[str], expected_error: str):
+def test_error_on_construction(args, expected_error):
     with pytest.raises(Exception) as e:
-        _opt = xDSLOptMain(args=args)
+        opt = xDSLOptMain(args=args)
 
     assert e.value.args[0] == expected_error
 

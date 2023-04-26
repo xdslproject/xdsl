@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Dict, List, Set
+from typing import Dict, Set, Sequence
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import is_constant
 from xdsl.frontend.exception import CodeGenerationException
@@ -9,7 +9,7 @@ from xdsl.frontend.exception import CodeGenerationException
 @dataclass
 class PythonCodeCheck:
     @staticmethod
-    def run(stmts: List[ast.stmt], file: str | None) -> None:
+    def run(stmts: Sequence[ast.stmt], file: str | None) -> None:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
         cases, an exception is raised. Particularly, the check is used for
@@ -55,7 +55,7 @@ class PythonCodeCheck:
 class CheckStructure:
     @staticmethod
     def run_with_scope(
-        single_scope: bool, stmts: List[ast.stmt], file: str | None
+        single_scope: bool, stmts: Sequence[ast.stmt], file: str | None
     ) -> None:
         if single_scope:
             visitor = SingleScopeVisitor(file)
@@ -195,12 +195,12 @@ class CheckAndInlineConstants:
     """
 
     @staticmethod
-    def run(stmts: List[ast.stmt], file: str | None) -> None:
+    def run(stmts: Sequence[ast.stmt], file: str | None) -> None:
         CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
     def run_with_variables(
-        stmts: List[ast.stmt], defined_variables: Set[str], file: str | None
+        stmts: Sequence[ast.stmt], defined_variables: Set[str], file: str | None
     ) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
