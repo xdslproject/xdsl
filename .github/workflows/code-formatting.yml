@@ -11,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  pre-commit:
+  code-formatting:
 
     runs-on: ubuntu-latest
     strategy:
