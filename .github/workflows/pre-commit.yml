@@ -1,4 +1,9 @@
-name: pre-commit
+# This workflow check the format all files in the repository
+# * It checks that all nonempty files have a newline at the end
+# * It checks that there are no whitespaces at the end of lines
+# * It checks that Python files are formatted with black
+
+name: Code Formatting
 
 on:
   pull_request:
@@ -25,5 +30,5 @@ jobs:
       run: |
         pip install --upgrade pip
 
-    - name: Run pre-commit hook
+    - name: Run code formatting checks with pre-commit
       uses: pre-commit/action@v3.0.0
