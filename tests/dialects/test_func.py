@@ -141,7 +141,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
-    assert f.body.ops == []
+    assert f.body.block.is_empty
 
 
 def test_call():
@@ -254,5 +254,5 @@ def test_external_func_def():
     ext = FuncOp.external("testname", [i32, i32], [i64])
 
     assert len(ext.regions) == 1
-    assert len(ext.regions[0].ops) == 0
+    assert ext.regions[0].block.is_empty
     assert ext.sym_name.data == "testname"
