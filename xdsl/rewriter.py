@@ -81,9 +81,9 @@ class Rewriter:
                     )
 
         ops = list(block.ops)
-        for block_op in ops:
-            block_op.detach()
 
+        for op in ops:
+            op.detach()
         target_block.insert_op(ops, pos)
 
     @staticmethod

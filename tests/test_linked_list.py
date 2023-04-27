@@ -10,13 +10,19 @@ def test_block_insert():
 
     block = Block()
 
+    assert block.is_empty
+    
     assert block.first_op is None
     assert block.last_op is None
+
+    assert list(block.ops) == []
 
     block.add_op(a)
 
     assert block.first_op is a
     assert block.last_op is a
+
+    assert list(block.ops) == [a]
 
     block.add_op(c)
 
@@ -25,6 +31,8 @@ def test_block_insert():
 
     assert a.next_op is c
     assert c.prev_op is a
+
+    assert list(block.ops) == [a, c]
 
     block.insert_op_after(b, a)
 
@@ -36,3 +44,5 @@ def test_block_insert():
 
     assert b.next_op is c
     assert c.prev_op is b
+
+    assert list(block.ops) == [a, b, c]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-import sys
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -49,16 +48,6 @@ class Dialect:
     @property
     def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
-
-    def __call__(self, ctx: MLContext) -> None:
-        print(
-            "Calling a dialect in order to register it is deprecated "
-            "and will soon be removed.",
-            file=sys.stderr,
-        )
-        # TODO; Remove this function in a future release.
-        assert isinstance(ctx, MLContext)
-        ctx.register_dialect(self)
 
 
 @dataclass
@@ -981,22 +970,43 @@ class _BlockOpsIterator:
 
 
 @dataclass
-class _BlockOps:
+class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
     each operation.
     """
 
-    first_op: Operation | None
+    block: Block
 
     def __iter__(self):
-        return _BlockOpsIterator(self.first_op)
+        return _BlockOpsIterator(self.first)
 
     def __len__(self):
         result = 0
         for _ in self:
             result += 1
         return result
+
+    @property
+    def first(self) -> Operation | None:
+        """
+        First operation in the block, None if block is empty.
+        """
+        return self.block.first_op
+
+    @property
+    def last(self) -> Operation | None:
+        """
+        Last operation in the block, None if block is empty.
+        """
+        return self.block.last_op
+
+    @property
+    def is_empty(self) -> bool:
+        """
+        True if block is empty.
+        """
+        return self.block.is_empty
 
 
 @dataclass(init=False)
@@ -1034,9 +1044,9 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
-    def ops(self) -> _BlockOps:
+    def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
-        return _BlockOps(self._first_op)
+        return BlockOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1468,7 +1478,7 @@ class Region(IRNode):
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
-    def ops(self) -> list[Operation]:
+    def ops(self) -> BlockOps:
         """
         Get the operations of a single-block region.
         Returns an exception if the region is not single-block.
@@ -1478,7 +1488,7 @@ class Region(IRNode):
                 "'ops' property of Region class is only available "
                 "for single-block regions."
             )
-        return list(self.block.ops)
+        return self.block.ops
 
     @property
     def op(self) -> Operation:

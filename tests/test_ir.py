@@ -250,10 +250,13 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     assert program.regions[0].is_structurally_equivalent(program) == False
     assert program.regions[0].blocks[0].is_structurally_equivalent(program) == False
 
-    block = program.ops[0].regions[0].blocks[0]
+    func_op = program.ops.first
+    assert func_op is not None
+
+    block = func_op.regions[0].blocks[0]
     ops = list(block.ops)
     assert not ops[0].is_structurally_equivalent(ops[1])
-    assert not block.is_structurally_equivalent(program.ops[0].regions[0].blocks[1])
+    assert not block.is_structurally_equivalent(func_op.regions[0].blocks[1])
 
 
 def test_descriptions():

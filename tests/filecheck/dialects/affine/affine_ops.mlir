@@ -3,7 +3,7 @@
 "builtin.module"() ({
 
     // For without value being passed during iterations
-    
+
     "affine.for"() ({
     ^0(%i : index):
       "affine.yield"() : () -> ()

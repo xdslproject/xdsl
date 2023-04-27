@@ -619,6 +619,9 @@ OpAttr: TypeAlias = Annotated[_OpAttrT, IRDLAnnotations.AttributeDefAnnot]
 OptOpAttr: TypeAlias = Annotated[_OpAttrT | None, IRDLAnnotations.OptAttributeDefAnnot]
 
 
+operation_fields = get_type_hints(Operation).keys()
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -679,9 +682,8 @@ class OpDef:
             )
 
         op_def = OpDef(clsdict["name"])
-
         for field_name, field_type in type_hints.items():
-            if field_name in get_type_hints(Operation).keys():
+            if field_name in operation_fields:
                 continue
 
             # If the field type is an Annotated, separate the origin

@@ -11,4 +11,3 @@ def main() {
 # CHECK-NEXT:    toy.print %1 : tensor<2x2xf64>
 # CHECK-NEXT:    toy.return
 # CHECK-NEXT:  }
-

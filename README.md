@@ -86,9 +86,20 @@ lit tests/filecheck
 All python code used in xDSL uses [black](https://github.com/psf/black) to
 format the code in a uniform manner.
 
-To automate the formatting within vim, one can use
-https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
-save.
+To automate the formatting, we use pre-commit hooks from the
+[pre-commit](https://pypi.org/project/pre-commit/) package.
+
+```bash
+# Install pre-commit version in the optional requirement files
+pip install --requirement requirement-optional.txt
+
+# Install the pre-commit on your `.git` folder
+# Be sure to run this in your virtual environment
+pre-commit install
+
+# Optionally test the hook by running it on all files
+pre-commit run --all-files
+```
 
 ### Discussion
 

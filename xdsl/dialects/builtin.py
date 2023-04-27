@@ -19,6 +19,7 @@ from typing import (
 
 from xdsl.ir import (
     Block,
+    BlockOps,
     Data,
     TypeAttribute,
     ParametrizedAttribute,
@@ -1243,7 +1244,7 @@ class ModuleOp(IRDLOperation):
         super().__init__(regions=[region])
 
     @property
-    def ops(self) -> List[Operation]:
+    def ops(self) -> BlockOps:
         return self.body.ops
 
 

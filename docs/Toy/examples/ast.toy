@@ -73,4 +73,3 @@ def main() {
 # CHECK-NEXT:             ]
 # CHECK-NEXT:             var: c @{{.*}}ast.toy:28:44
 # CHECK-NEXT:           ]
-
