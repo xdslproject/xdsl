@@ -11,7 +11,7 @@ def test_block_insert():
     block = Block()
 
     assert block.is_empty
-    
+
     assert block.first_op is None
     assert block.last_op is None
 
