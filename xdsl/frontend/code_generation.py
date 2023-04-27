@@ -4,7 +4,7 @@ import xdsl.dialects.func as func
 import xdsl.frontend.symref as symref
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
@@ -16,7 +16,7 @@ from xdsl.ir import Attribute, Block, Region
 class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
-        type_converter: TypeConverter, stmts: List[ast.stmt], file: str | None
+        type_converter: TypeConverter, stmts: Sequence[ast.stmt], file: str | None
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
