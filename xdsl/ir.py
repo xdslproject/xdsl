@@ -917,14 +917,23 @@ class BlockOps:
 
     @property
     def first(self) -> Operation | None:
+        """
+        First operation in the block, None if block is empty.
+        """
         return self.block.first_op
 
     @property
     def last(self) -> Operation | None:
+        """
+        Last operation in the block, None if block is empty.
+        """
         return self.block.last_op
 
     @property
     def is_empty(self) -> bool:
+        """
+        True if block is empty.
+        """
         return self.block.is_empty
 
 
