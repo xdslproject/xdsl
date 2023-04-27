@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.ir import BlockArgument, Block, Region
-from xdsl.dialects.builtin import IntAttr, i32, IntegerAttr
+from xdsl.dialects.builtin import IntAttr, i32
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.scf import If
 
