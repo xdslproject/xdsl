@@ -106,7 +106,8 @@ def test_operation_deletion():
 
                 def apply(self, ctx: MLContext, op: builtin.ModuleOp):
                     if isinstance(op, builtin.ModuleOp):
-                        op.ops[0].detach()
+                        if op.ops.first is not None:
+                            op.ops.first.detach()
 
             self.register_pass(RemoveConstantPass)
 

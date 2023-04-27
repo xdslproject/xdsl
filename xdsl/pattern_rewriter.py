@@ -536,10 +536,14 @@ class PatternRewriteWalker:
                 for block in region.blocks:
                     idx = 0
                     while idx < len(block.ops):
-                        idx += self._rewrite_op(block.ops[idx])
+                        idx += self._rewrite_op(
+                            block._ops[idx]  # pyright: ignore[reportPrivateUsage]
+                        )
         else:
             for region in op.regions:
                 for block in reversed(region.blocks):
                     idx = len(block.ops) - 1
                     while idx >= 0:
-                        idx += self._rewrite_op(block.ops[idx])
+                        idx += self._rewrite_op(
+                            block._ops[idx]  # pyright: ignore[reportPrivateUsage]
+                        )
