@@ -22,11 +22,48 @@ with CodeContext(p):
     # CHECK-NEXT: } {
     # CHECK-NEXT:   scf.yield()
     # CHECK-NEXT: }
-    def test_if(cond: i1):
+    def test_if_I(cond: i1):
         if cond:
             pass
         else:
             pass
+
+    # CHECK:       %{{.*}} : !i1 = symref.fetch() ["symbol" = @a]
+    # CHECK-NEXT:  scf.if(%{{.*}} : !i1) {
+    # CHECK-NEXT:   scf.yield()
+    # CHECK-NEXT: } {
+    # CHECK-NEXT:   %{{.*}} : !i1 = symref.fetch() ["symbol" = @b]
+    # CHECK-NEXT:   scf.if(%{{.*}} : !i1) {
+    # CHECK-NEXT:     scf.yield()
+    # CHECK-NEXT:   } {
+    # CHECK-NEXT:     %{{.*}} : !i1 = symref.fetch() ["symbol" = @c]
+    # CHECK-NEXT:     scf.if(%{{.*}} : !i1) {
+    # CHECK-NEXT:       scf.yield()
+    # CHECK-NEXT:     } {
+    # CHECK-NEXT:       scf.yield()
+    # CHECK-NEXT:     }
+    # CHECK-NEXT:     scf.yield()
+    # CHECK-NEXT:   }
+    # CHECK-NEXT:   scf.yield()
+    # CHECK-NEXT: }
+    def test_if_II(a: i1, b: i1, c: i1):
+        if a:
+            pass
+        elif b:
+            pass
+        elif c:
+            pass
+
+    # CHECK:      %{{.*}} : !i1 = symref.fetch() ["symbol" = @cond]
+    # CHECK-NEXT: scf.if(%{{.*}} : !i1) {
+    # CHECK-NEXT:   scf.yield()
+    # CHECK-NEXT: } {
+    # CHECK-NEXT:   scf.yield()
+    # CHECK-NEXT: }
+    def test_if_III(cond: i1):
+        if cond:
+            pass
+        return
 
 
 p.compile(desymref=False)
