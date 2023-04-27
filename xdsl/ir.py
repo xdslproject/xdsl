@@ -897,6 +897,46 @@ class Operation(IRNode):
 OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
+@dataclass
+class BlockOps:
+    """
+    Multi-pass iterable of the operations in a block. Follows the next_op for
+    each operation.
+    """
+
+    block: Block
+
+    def __iter__(self):
+        return iter(self.block._ops)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self):
+        result = 0
+        for _ in self:
+            result += 1
+        return result
+
+    @property
+    def first(self) -> Operation | None:
+        """
+        First operation in the block, None if block is empty.
+        """
+        return self.block.first_op
+
+    @property
+    def last(self) -> Operation | None:
+        """
+        Last operation in the block, None if block is empty.
+        """
+        return self.block.last_op
+
+    @property
+    def is_empty(self) -> bool:
+        """
+        True if block is empty.
+        """
+        return self.block.is_empty
+
+
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -906,7 +946,7 @@ class Block(IRNode):
     _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    ops: list[Operation]
+    _ops: list[Operation]
     """Ordered operations contained in the block."""
 
     parent: Region | None
@@ -925,10 +965,15 @@ class Block(IRNode):
         self._args = tuple(
             BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
         )
-        self.ops = []
+        self._ops = []
         self.parent = parent
 
         self.add_ops(ops)
+
+    @property
+    def ops(self) -> BlockOps:
+        """Returns a multi-pass Iterable of this block's operations."""
+        return BlockOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1023,12 +1068,12 @@ class Block(IRNode):
     @property
     def first_op(self) -> Operation | None:
         """The first operation in this block."""
-        return self.ops[0] if len(self.ops) else None
+        return self._ops[0] if len(self.ops) else None
 
     @property
     def last_op(self) -> Operation | None:
         """The last operation in this block."""
-        return self.ops[-1] if len(self.ops) else None
+        return self._ops[-1] if len(self.ops) else None
 
     def add_op(self, operation: Operation) -> None:
         """
@@ -1036,7 +1081,7 @@ class Block(IRNode):
         The operation should not be attached to another block already.
         """
         self._attach_op(operation)
-        self.ops.append(operation)
+        self._ops.append(operation)
 
     def add_ops(self, ops: Iterable[Operation]) -> None:
         """
@@ -1085,7 +1130,7 @@ class Block(IRNode):
                     res.name = name
         for op in ops:
             self._attach_op(op)
-        self.ops = self.ops[:index] + ops + self.ops[index:]
+        self._ops = self._ops[:index] + ops + self._ops[index:]
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
@@ -1105,11 +1150,11 @@ class Block(IRNode):
             op_idx = self.get_operation_index(op)
         else:
             op_idx = op
-            op = self.ops[op_idx]
+            op = self._ops[op_idx]
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
-        self.ops = self.ops[:op_idx] + self.ops[op_idx + 1 :]
+        self._ops = self._ops[:op_idx] + self._ops[op_idx + 1 :]
         return op
 
     def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
@@ -1251,7 +1296,7 @@ class Region(IRNode):
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
-    def ops(self) -> list[Operation]:
+    def ops(self) -> BlockOps:
         """
         Get the operations of a single-block region.
         Returns an exception if the region is not single-block.

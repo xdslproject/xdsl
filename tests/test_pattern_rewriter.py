@@ -351,7 +351,7 @@ def test_insert_op_at_pos_negative():
     ).rewrite_module(prog)
 
     assert to_be_inserted in prog.ops
-    assert prog.ops.index(to_be_inserted) == 1
+    assert prog.body.block.get_operation_index(to_be_inserted) == 1
 
 
 def test_insert_op_before():
@@ -369,7 +369,9 @@ def test_insert_op_before():
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_before(new_cst, mod.ops[0])
+        first_op = mod.ops.first
+        assert first_op is not None
+        rewriter.insert_op_before(new_cst, first_op)
 
     rewrite_and_compare(
         prog,
@@ -395,7 +397,9 @@ def test_insert_op_after():
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_after(new_cst, mod.ops[0])
+        first_op = mod.ops.first
+        assert first_op is not None
+        rewriter.insert_op_after(new_cst, first_op)
 
     rewrite_and_compare(
         prog,
@@ -546,7 +550,9 @@ def test_delete_inner_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        rewriter.erase_op(op.ops[0])
+        first_op = op.ops.first
+        assert first_op is not None
+        rewriter.erase_op(first_op)
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
@@ -566,7 +572,9 @@ def test_replace_inner_op():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        rewriter.replace_op(op.ops[0], [Constant.from_int_and_width(42, i32)])
+        first_op = op.ops.first
+        assert first_op is not None
+        rewriter.replace_op(first_op, [Constant.from_int_and_width(42, i32)])
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
@@ -911,11 +919,13 @@ def test_move_region_contents_to_new_regions():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        old_if = op.ops[1]
+        ops_iter = iter(op.ops)
+        _first_op = next(ops_iter)
+        old_if = next(ops_iter)
         assert isinstance(old_if, If)
         new_region = rewriter.move_region_contents_to_new_regions(old_if.regions[0])
         new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
-        rewriter.insert_op_after(new_if, op.ops[1])
+        rewriter.insert_op_after(new_if, old_if)
 
     rewrite_and_compare(
         prog,
