@@ -384,7 +384,7 @@ def generate_mpi_calls_for(
         req_recv = mpi.VectorGetOp.get(reqs, cst_in)
         yield from (req_send, req_recv)
 
-        def then():
+        def then() -> Iterable[Operation]:
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
@@ -416,7 +416,7 @@ def generate_mpi_calls_for(
             )
             yield scf.Yield.get()
 
-        def else_():
+        def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
             yield mpi.NullRequestOp.get(req_send)
@@ -501,7 +501,7 @@ def generate_memcpy(
     else:
         indices = []
 
-    def loop_body_unrolled(i: SSAValue):
+    def loop_body_unrolled(i: SSAValue) -> Iterable[Operation]:
         """
         Generates last loop unrolled (not using scf.for)
         """
@@ -520,7 +520,7 @@ def generate_memcpy(
             yield from (linearized_idx, load, store)
         yield scf.Yield.get()
 
-    def loop_body_with_for(i: SSAValue):
+    def loop_body_with_for(i: SSAValue) -> Iterable[Operation]:
         """
         Generates last loop as scf.for
         """
@@ -528,7 +528,7 @@ def generate_memcpy(
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
-        def inner(j: SSAValue):
+        def inner(j: SSAValue) -> Iterable[Operation]:
             x = arith.Addi(j, x0)
             linearized_idx = arith.Addi(dest_idx, j)
             if reverse:
