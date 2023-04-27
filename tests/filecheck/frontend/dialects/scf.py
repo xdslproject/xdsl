@@ -7,7 +7,6 @@ from xdsl.frontend.dialects.builtin import i1, i32, f32
 
 p = FrontendProgram()
 with CodeContext(p):
-
     # CHECK:      %{{.*}} : !i32 = scf.if(%{{.*}} : !i1) {
     # CHECK-NEXT:   %{{.*}} : !i32 = symref.fetch() ["symbol" = @x]
     # CHECK-NEXT:   scf.yield(%{{.*}} : !i32)

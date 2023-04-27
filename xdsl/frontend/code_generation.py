@@ -253,7 +253,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         cond = self.inserter.get_operand()
         cond_block = self.inserter.insertion_point
 
-        def visit_region(stmts: list[ast.stmt]) -> Region: 
+        def visit_region(stmts: list[ast.stmt]) -> Region:
             region = Region([Block()])
             self.inserter.set_insertion_point_from_region(region)
             for stmt in stmts:
@@ -263,10 +263,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # Generate code for both branches.
         true_region = visit_region(node.body)
         false_region = visit_region(node.orelse)
-        
+
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
-        # ensure SSA-form of IR and that values are yielded correctly. 
+        # ensure SSA-form of IR and that values are yielded correctly.
         true_region.blocks[-1].add_op(scf.Yield.get())
         false_region.blocks[-1].add_op(scf.Yield.get())
         op = scf.If.get(cond, [], true_region, false_region)
@@ -274,13 +274,13 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         # Reset insertion point and insert a new operation.
         self.inserter.set_insertion_point_from_block(cond_block)
         self.inserter.insert_op(op)
-    
+
     def visit_IfExp(self, node: ast.IfExp) -> Any:
         self.visit(node.test)
         cond = self.inserter.get_operand()
         cond_block = self.inserter.insertion_point
 
-        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]: 
+        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]:
             region = Region([Block()])
             self.inserter.set_insertion_point_from_region(region)
             self.visit(expr)
