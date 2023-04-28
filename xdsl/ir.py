@@ -556,6 +556,12 @@ class Operation(IRNode):
     parent: Block | None = field(default=None, repr=False)
     """The block containing this operation."""
 
+    _next_op: Operation | None = field(default=None, repr=False)
+    """Next operation in block containing this operation."""
+
+    _prev_op: Operation | None = field(default=None, repr=False)
+    """Previous operation in block containing this operation."""
+
     traits: ClassVar[frozenset[OpTrait]] = field(init=False)
     """
     Traits attached to an operation definition.
@@ -575,6 +581,52 @@ class Operation(IRNode):
 
     def parent_block(self) -> Block | None:
         return self.parent
+
+    @property
+    def next_op(self) -> Operation | None:
+        """
+        Next operation in block containing this operation.
+        """
+        return self._next_op
+
+    def _insert_next_op(self, new_op: Operation) -> None:
+        """
+        Sets `next_op` on `self`, and `prev_op` on `self.next_op`.
+        """
+
+        if self._next_op is not None:
+            # update next node
+            self._next_op._prev_op = new_op
+
+        # set next and previous on new node
+        new_op._prev_op = self
+        new_op._next_op = self._next_op
+
+        # update self
+        self._next_op = new_op
+
+    @property
+    def prev_op(self) -> Operation | None:
+        """
+        Previous operation in block containing this operation.
+        """
+        return self._prev_op
+
+    def _insert_prev_op(self, new_op: Operation) -> None:
+        """
+        Sets `prev_op` on `self`, and `next_op` on `self.prev_op`.
+        """
+
+        if self._prev_op is not None:
+            # update prev node
+            self._prev_op._next_op = new_op
+
+        # set next and previous on new node
+        new_op._prev_op = self._prev_op
+        new_op._next_op = self
+
+        # update self
+        self._prev_op = new_op
 
     @property
     def operands(self) -> tuple[SSAValue, ...]:
@@ -898,6 +950,26 @@ OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
 @dataclass
+class _BlockOpsIterator:
+    """
+    Single-pass iterable of the operations in a block. Follows the next_op for
+    each operation.
+    """
+
+    next_op: Operation | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_op = self.next_op
+        if next_op is None:
+            raise StopIteration
+        self.next_op = next_op.next_op
+        return next_op
+
+
+@dataclass
 class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
@@ -907,7 +979,7 @@ class BlockOps:
     block: Block
 
     def __iter__(self):
-        return iter(self.block._ops)  # pyright: ignore[reportPrivateUsage]
+        return _BlockOpsIterator(self.first)
 
     def __len__(self):
         result = 0
@@ -946,8 +1018,8 @@ class Block(IRNode):
     _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
-    _ops: list[Operation]
-    """Ordered operations contained in the block."""
+    _first_op: Operation | None = field(repr=False)
+    _last_op: Operation | None = field(repr=False)
 
     parent: Region | None
     """Parent region containing the block."""
@@ -965,7 +1037,8 @@ class Block(IRNode):
         self._args = tuple(
             BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
         )
-        self._ops = []
+        self._first_op = None
+        self._last_op = None
         self.parent = parent
 
         self.add_ops(ops)
@@ -1063,25 +1136,106 @@ class Block(IRNode):
     @property
     def is_empty(self) -> bool:
         """Returns `True` if there are no operations in this block."""
-        return not len(self.ops)
+        return self._first_op is None
 
     @property
     def first_op(self) -> Operation | None:
         """The first operation in this block."""
-        return self._ops[0] if len(self.ops) else None
+        return self._first_op
 
     @property
     def last_op(self) -> Operation | None:
         """The last operation in this block."""
-        return self._ops[-1] if len(self.ops) else None
+        return self._last_op
+
+    def _op_at_index(
+        self, index: int, message_lambda: Callable[[], str] | None = None
+    ) -> Operation | None:
+        """
+        Returns the operation at a given index, supporting positive and negative indices.
+        If abs(index) == num_ops, return None.
+        if abs(index) > num_ops, raise ValueError, optionally with given message.
+        """
+        if index < 0:
+            # Enumerate backwards
+            op = self.last_op
+            while index < -1:
+                if op is None:
+                    break
+                op = op.prev_op
+                index += 1
+            else:
+                return op
+        else:
+            # Enumerate forwards
+            op = self.first_op
+            while index:
+                if op is None:
+                    break
+                op = op.next_op
+                index -= 1
+            else:
+                return op
+        if message_lambda is None:
+            message = (
+                f"Invalid operation index {index} for block with {len(self.ops)} ops"
+            )
+        else:
+            message = message_lambda()
+        raise ValueError(message)
+
+    def op_at_index(self, index: int) -> Operation:
+        op = self._op_at_index(index)
+        assert op is not None
+        return op
+
+    def insert_op_after(self, new_op: Operation, existing_op: Operation) -> None:
+        """
+        Inserts `new_op` into this block, after `existing_op`.
+        `new_op` should not be attached to a block.
+        """
+        if existing_op.parent is not self:
+            raise ValueError(
+                "Can't insert operation after operation not in this block."
+            )
+
+        self._attach_op(new_op)
+
+        next_op = existing_op.next_op
+        existing_op._insert_next_op(new_op)  # pyright: ignore[reportPrivateUsage]
+        if next_op is None:
+            # No `next_op`, means `prev_op` is the last op in the block.
+            self._last_op = new_op
+
+    def insert_op_before(self, new_op: Operation, existing_op: Operation) -> None:
+        """
+        Inserts `new_op` into this block, before `existing_op`.
+        `new_op` should not be attached to a block.
+        """
+        if existing_op.parent is not self:
+            raise ValueError(
+                "Can't insert operation before operation not in current block"
+            )
+
+        self._attach_op(new_op)
+
+        prev_op = existing_op.prev_op
+        existing_op._insert_prev_op(new_op)  # pyright: ignore[reportPrivateUsage]
+        if prev_op is None:
+            # No `prev_op`, means `next_op` is the first op in the block.
+            self._first_op = new_op
 
     def add_op(self, operation: Operation) -> None:
         """
         Add an operation at the end of the block.
         The operation should not be attached to another block already.
         """
-        self._attach_op(operation)
-        self._ops.append(operation)
+        if self._last_op is None:
+            self._attach_op(operation)
+            self._first_op = operation
+            self._last_op = operation
+        else:
+            self.insert_op_after(operation, self._last_op)
 
     def add_ops(self, ops: Iterable[Operation]) -> None:
         """
@@ -1094,14 +1248,16 @@ class Block(IRNode):
     def insert_ops_before(
         self, ops: Sequence[Operation], existing_op: Operation
     ) -> None:
-        index = self.get_operation_index(existing_op)
-        self.insert_op(ops, index)
+        for op in ops:
+            self.insert_op_before(op, existing_op)
 
     def insert_ops_after(
         self, ops: Sequence[Operation], existing_op: Operation
     ) -> None:
-        index = self.get_operation_index(existing_op)
-        self.insert_op(list(ops), index + 1)
+        for op in ops:
+            self.insert_op_after(op, existing_op)
+
+            existing_op = op
 
     def insert_op(
         self, ops: Operation | Sequence[Operation], index: int, name: str | None = None
@@ -1110,27 +1266,33 @@ class Block(IRNode):
         Insert one or multiple operations at a given index in the block.
         The operations should not be attached to another block.
         """
-        # allow negative indices to specify a position from the back of the array
-        # -1 inserts in the last position
-        if index < 0:
-            index = len(self.ops) + index + 1
 
-        if index > len(self.ops):
-            raise ValueError(
-                f"Can't insert operation in index {index} in a block with "
-                f"{len(self.ops)} operations."
-            )
-        if isinstance(ops, Operation):
-            ops = [ops]
-        elif not isinstance(ops, list):
-            ops = list(ops)
-        if name:
-            for curr_op in ops:
-                for res in curr_op.results:
-                    res.name = name
-        for op in ops:
-            self._attach_op(op)
-        self._ops = self._ops[:index] + ops + self._ops[index:]
+        new_ops = [ops] if isinstance(ops, Operation) else ops
+
+        existing_op = self._op_at_index(
+            index,
+            lambda: f"Can't insert operation in index {index} in a block with "
+            f"{len(self.ops)} operations.",
+        )
+
+        if index < 0:
+            # If index is negative, we have to insert after the found operation,
+            # except if the operation was not found, meaning insert before start of block.
+            if existing_op is None:
+                if self.first_op is None:
+                    # Empty block, append
+                    self.add_ops(new_ops)
+                else:
+                    self.insert_ops_before(new_ops, self.first_op)
+            else:
+                self.insert_ops_after(new_ops, existing_op)
+        else:
+            # Else, we have to insert before the found operation,
+            # except if the operation was not found, meaning append to end of block.
+            if existing_op is None:
+                self.add_ops(new_ops)
+            else:
+                self.insert_ops_before(new_ops, existing_op)
 
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
@@ -1146,15 +1308,35 @@ class Block(IRNode):
         Detach an operation from the block.
         Returns the detached operation.
         """
-        if isinstance(op, Operation):
-            op_idx = self.get_operation_index(op)
-        else:
-            op_idx = op
-            op = self._ops[op_idx]
+        if isinstance(op, int):
+            op = self.op_at_index(op)
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
-        self._ops = self._ops[:op_idx] + self._ops[op_idx + 1 :]
+
+        prev_op = op.prev_op
+        next_op = op.next_op
+
+        if prev_op is not None:
+            # detach op from linked list
+            prev_op._next_op = next_op  # pyright: ignore[reportPrivateUsage]
+            # detach linked list from op
+            op._prev_op = None  # pyright: ignore[reportPrivateUsage]
+        else:
+            # reattach linked list if op is first op this block
+            assert self._first_op is op
+            self._first_op = next_op
+
+        if next_op is not None:
+            # detach op from linked list
+            next_op._prev_op = prev_op  # pyright: ignore[reportPrivateUsage]
+            # detach linked list from op
+            op._next_op = None  # pyright: ignore[reportPrivateUsage]
+        else:
+            # reattach linked list if op is last op in this block
+            assert self._last_op is op
+            self._last_op = prev_op
+
         return op
 
     def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
