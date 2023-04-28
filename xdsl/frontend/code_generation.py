@@ -1,6 +1,5 @@
 import ast
 import xdsl.dialects.builtin as builtin
-import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.frontend.symref as symref
 
@@ -87,25 +86,6 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         # TODO: Implement assignemnt in the next patch.
         pass
-
-    def visit_Assert(self, node: ast.Assert):
-        self.visit(node.test)
-        if node.msg is None:
-            msg = ""
-        else:
-            if not isinstance(node.msg, ast.Constant) or not isinstance(
-                node.msg.value, str
-            ):
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    "Expected a string constant for assertion message, found "
-                    f"'ast.{type(node.msg).__name__}'",
-                )
-            msg = str(node.msg.value)
-        op = cf.Assert.get(self.inserter.get_operand(), msg)
-        self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         # TODO: Implement assignemnt in the next patch.

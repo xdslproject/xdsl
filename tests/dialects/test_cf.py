@@ -1,7 +1,19 @@
 from xdsl.ir import Block
 from xdsl.dialects.arith import Addi, Subi, Muli, Constant
-from xdsl.dialects.builtin import i32
-from xdsl.dialects.cf import Branch, ConditionalBranch
+from xdsl.dialects.builtin import StringAttr, i1, i32
+from xdsl.dialects.cf import Assert, Branch, ConditionalBranch
+
+
+def test_assert():
+    a = Constant.from_int_and_width(1, i1)
+    b = Constant.from_int_and_width(1, i1)
+    c = Assert.get(a, "a")
+    d = Assert.get(b, StringAttr("b"))
+
+    assert c.arg is a.result
+    assert d.arg is b.result
+    assert c.attributes["msg"] == StringAttr("a")
+    assert d.attributes["msg"] == StringAttr("b")
 
 
 def test_branch():
