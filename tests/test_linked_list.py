@@ -7,6 +7,8 @@ def test_block_insert():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     c = Constant.from_int_and_width(3, i32)
+    d = Constant.from_int_and_width(4, i32)
+    e = Constant.from_int_and_width(5, i32)
 
     block = Block()
 
@@ -48,3 +50,26 @@ def test_block_insert():
     assert c.prev_op is b
 
     assert list(block.ops) == [a, b, c]
+
+    block.add_op(e)
+
+    assert block.first_op is a
+    assert block.last_op is e
+
+    assert c.next_op is e
+    assert e.prev_op is c
+
+    assert list(block.ops) == [a, b, c, e]
+
+    block.insert_op_before(d, e)
+
+    assert block.first_op is a
+    assert block.last_op is e
+
+    assert c.next_op is d
+    assert d.prev_op is c
+
+    assert d.next_op is e
+    assert e.prev_op is d
+
+    assert list(block.ops) == [a, b, c, d, e]
