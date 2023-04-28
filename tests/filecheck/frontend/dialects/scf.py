@@ -27,6 +27,7 @@ with CodeContext(p):
             pass
         else:
             pass
+        return
 
     # CHECK:       %{{.*}} : !i1 = symref.fetch() ["symbol" = @a]
     # CHECK-NEXT:  scf.if(%{{.*}} : !i1) {
@@ -53,6 +54,7 @@ with CodeContext(p):
             pass
         elif c:
             pass
+        return
 
     # CHECK:      %{{.*}} : !i1 = symref.fetch() ["symbol" = @cond]
     # CHECK-NEXT: scf.if(%{{.*}} : !i1) {
