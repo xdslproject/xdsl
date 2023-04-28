@@ -19,6 +19,8 @@ def test_block_insert():
 
     block.add_op(a)
 
+    assert not block.is_empty
+
     assert block.first_op is a
     assert block.last_op is a
 
