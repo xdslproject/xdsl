@@ -158,7 +158,7 @@ class FuncOp(IRDLOperation):
         return self.body.blocks[0].args
 
     @property
-    def is_declaration(self):
+    def is_declaration(self) -> bool:
         """
         A helper to identify functions that are external declarations (have an empty function body)
         """

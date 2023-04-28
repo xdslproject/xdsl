@@ -54,12 +54,14 @@ class Rewriter:
             else:
                 old_result.replace_by(new_result)
 
-        op_idx = block.get_operation_index(op)
-        block.erase_op(op_idx, safe_erase=safe_erase)
-        if len(op.results) == 0:
-            block.insert_op(new_ops, op_idx)
-            return
-        block.insert_op(new_ops, op_idx, op.results[0].name)
+        block.insert_ops_after(new_ops, op)
+
+        if len(op.results):
+            for new_op in new_ops:
+                for res in new_op.results:
+                    res.name = op.results[0].name
+
+        block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
     def inline_block_at_pos(block: Block, target_block: Block, pos: int):
@@ -77,7 +79,9 @@ class Rewriter:
                         "Cannot inline block which has operations using "
                         "the block arguments."
                     )
-        ops = block.ops.copy()
+
+        ops = list(block.ops)
+
         for op in ops:
             op.detach()
         target_block.insert_op(ops, pos)
@@ -91,9 +95,12 @@ class Rewriter:
         """
         if op.parent is None:
             raise Exception("Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos)
+
+        ops = list(block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_before(ops, op)
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
@@ -104,9 +111,12 @@ class Rewriter:
         """
         if op.parent is None:
             raise Exception("Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
+
+        ops = list(block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_after(ops, op)
 
     @staticmethod
     def insert_block_after(block: Block | List[Block], target: Block):

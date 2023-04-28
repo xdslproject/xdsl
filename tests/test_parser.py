@@ -41,7 +41,7 @@ def test_int_list_parser(input: str, expected: list[int]):
             b=IntAttr(2),
             c=ArrayAttr([IntAttr(2), StringAttr("world")]),
         ),
-        dict(),
+        {},
     ],
 )
 def test_dictionary_attr(data: dict[str, Attribute]):

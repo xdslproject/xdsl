@@ -1,10 +1,11 @@
 import ast
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.func as func
+import xdsl.dialects.scf as scf
 import xdsl.frontend.symref as symref
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
@@ -16,7 +17,7 @@ from xdsl.ir import Attribute, Block, Region
 class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
-        type_converter: TypeConverter, stmts: List[ast.stmt], file: str | None
+        type_converter: TypeConverter, stmts: Sequence[ast.stmt], file: str | None
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
@@ -244,6 +245,66 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             mnemonic = python_AST_cmpop_to_mnemonic[op_name]
             op = op(lhs, rhs, mnemonic)
 
+        self.inserter.insert_op(op)
+
+    def visit_If(self, node: ast.If):
+        # Get the condition.
+        self.visit(node.test)
+        cond = self.inserter.get_operand()
+        cond_block = self.inserter.insertion_point
+
+        def visit_region(stmts: list[ast.stmt]) -> Region:
+            region = Region([Block()])
+            self.inserter.set_insertion_point_from_region(region)
+            for stmt in stmts:
+                self.visit(stmt)
+            return region
+
+        # Generate code for both branches.
+        true_region = visit_region(node.body)
+        false_region = visit_region(node.orelse)
+
+        # In our case, if statement never returns a value and therefore we can
+        # simply yield nothing. It is the responsibility of subsequent passes to
+        # ensure SSA-form of IR and that values are yielded correctly.
+        true_region.blocks[-1].add_op(scf.Yield.get())
+        false_region.blocks[-1].add_op(scf.Yield.get())
+        op = scf.If.get(cond, [], true_region, false_region)
+
+        # Reset insertion point and insert a new operation.
+        self.inserter.set_insertion_point_from_block(cond_block)
+        self.inserter.insert_op(op)
+
+    def visit_IfExp(self, node: ast.IfExp) -> Any:
+        self.visit(node.test)
+        cond = self.inserter.get_operand()
+        cond_block = self.inserter.insertion_point
+
+        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]:
+            region = Region([Block()])
+            self.inserter.set_insertion_point_from_region(region)
+            self.visit(expr)
+            result = self.inserter.get_operand()
+            self.inserter.insert_op(scf.Yield.get(result))
+            return result.typ, region
+
+        # Generate code for both branches.
+        true_type, true_region = visit_expr(node.body)
+        false_type, false_region = visit_expr(node.orelse)
+
+        # Check types are the same for this to be a valid if statement.
+        if true_type != false_type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Expected the same types for if expression,"
+                f" but got {true_type} and {false_type}.",
+            )
+        op = scf.If.get(cond, [true_type], true_region, false_region)
+
+        # Reset insertion point to add scf.if.
+        self.inserter.set_insertion_point_from_block(cond_block)
         self.inserter.insert_op(op)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:

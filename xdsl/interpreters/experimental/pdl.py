@@ -327,6 +327,7 @@ class PDLFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         ops = op.ops
-        if len(ops) != 1 or not isinstance(ops[0], pdl.PatternOp):
+        first_op = ops.first
+        if first_op is None or not isinstance(first_op, pdl.PatternOp):
             raise InterpretationError("Expected single pattern op in pdl module")
-        return self.run_pattern(interpreter, ops[0], args)
+        return self.run_pattern(interpreter, first_op, args)
