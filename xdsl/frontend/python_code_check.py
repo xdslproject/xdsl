@@ -1,15 +1,21 @@
 import ast
+
 from dataclasses import dataclass, field
-from typing import Dict, Set, Sequence
 from xdsl.frontend.block import is_block
-from xdsl.frontend.const import is_constant
+from xdsl.frontend.const import is_constant, is_constant_stmt
 from xdsl.frontend.exception import CodeGenerationException
+
+
+# Type aliases for simplicity.
+BlockMap = dict[str, ast.FunctionDef]
+FunctionData = tuple[ast.FunctionDef, BlockMap]
+FunctionMap = dict[str, FunctionData]
 
 
 @dataclass
 class PythonCodeCheck:
     @staticmethod
-    def run(stmts: Sequence[ast.stmt], file: str | None) -> None:
+    def run(stmts: list[ast.stmt], file: str | None) -> FunctionMap:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
         cases, an exception is raised. Particularly, the check is used for
@@ -18,159 +24,288 @@ class PythonCodeCheck:
         functions, place variables in arbitrary locations and do many other
         weird things which xDSL/MLIR would not like.
         """
-
-        # Any code written within code context can be organized either as a
-        # sequence of instructions (interpreted one by one), for example:
-        # ```
-        # with CodeContext(p):
-        #   a: i32 = 45
-        #   b: i32 = 23
-        #   result: i32 = a + b
-        # ```
-        # Alternatively, the code can be viewed as a sequence of functions
-        # (possibly with a dedicated entry point), for example:
-        # ```
-        # with CodeContext(p):
-        #  def foo(x: i32) -> i32:
-        #    return x
-        #  def main():
-        #    y: i32 = foo(100)
-        # ```
-        # First, find out which of the two modes is used.
-        single_scope: bool = True
-        for stmt in stmts:
-            if isinstance(stmt, ast.FunctionDef) and not is_block(stmt):
-                single_scope = False
-                break
-
         # Check Python code is correctly structured.
-        CheckStructure.run_with_scope(single_scope, stmts, file)
+        checker = CheckStructure(file)
+        checker.run(stmts)
 
-        # Check constant/global variables are correctly defined. Should be
-        # called only after the structure is checked.
+        # Check constant expressions are correctly defined. Should be called
+        # only after the structure is checked.
         CheckAndInlineConstants.run(stmts, file)
+
+        # Return well-structured functions and blocks to the caller.
+        return checker.functions_and_blocks
 
 
 @dataclass
 class CheckStructure:
-    @staticmethod
-    def run_with_scope(
-        single_scope: bool, stmts: Sequence[ast.stmt], file: str | None
-    ) -> None:
-        if single_scope:
-            visitor = SingleScopeVisitor(file)
-        else:
-            visitor = MultipleScopeVisitor(file)
-        for stmt in stmts:
-            visitor.visit(stmt)
+    """
+    Ensures that the front-end program can be lowered to xDSL.
 
+    Any code written within `CodeContext` must be organized as a sequence of
+    functions (possibly with a dedicated entry point), for example:
 
-@dataclass
-class SingleScopeVisitor(ast.NodeVisitor):
+    ```
+    with CodeContext(p):
+        def foo(x: i32) -> i32:
+            return x
+        def bar():
+            y: i32 = foo(100)
+            return
+
+        def main():
+            bar()
+            return
+    ```
+
+    For each function, it holds that:
+
+        1) Any function does not contain inner functions.
+        2) Any function has an explicit terminator: a `return` statement.
+
+    Additionally, any function can contain explicitly defined blocks, for
+    example:
+
+    ```
+    with CodeContext(p):
+        def foo(x: i32) -> i32:
+            @block
+            def bb0(y: i32) -> i32:
+                # unconditional branch to another block
+                return bb1(y)
+
+            @block
+            def bb1(y: i32) -> i32:
+                # terminator for the function
+                return y
+
+        # specifies the entry block
+        return bb0(x)
+    ```
+
+    For each block, it holds that:
+
+        1) No block has inner functions or nested blocks.
+        2) Any block is an explicit terminator: a `return` statement. The
+           terminator can either transfer control flow to a next block, or
+           terminate the enclosing function.
+        3) It is up to a user to ensure that the control flow is transfered
+           correctly, e.g. to avoid infinite cycles.
+    """
+
     file: str | None = field(default=None)
-    """File path for error reporting."""
+    """File for error reporting."""
 
-    block_names: Set[str] = field(default_factory=set)
-    """Tracks duplicate block labels."""
+    functions_and_blocks: FunctionMap = field(default_factory=dict)
+    """Contains all information about functions and blocks."""
 
-    def visit(self, node: ast.AST) -> None:
-        super().visit(node)
+    def run(self, stmts: list[ast.stmt]) -> None:
+        for stmt in stmts:
+            # Allow constant statements or pass.
+            if is_constant_stmt(stmt) or isinstance(stmt, ast.Pass):
+                continue
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        assert is_block(node)
+            # TODO: Right now we want all code to be placed in functions to make
+            # code generation easier. This is limiting but can be fixed easily by
+            # placing the AST into a dummy function.
+            if isinstance(stmt, ast.FunctionDef):
+                # Function should be a top-level operation.
+                if is_block(stmt):
+                    raise CodeGenerationException(
+                        self.file,
+                        stmt.lineno,
+                        stmt.col_offset,
+                        f"Expected a function, but found a block '{stmt.name}'."
+                        " Only functions can be declared in the CodeContext",
+                    )
 
-        if node.name in self.block_names:
+                # Record this function.
+                if stmt.name in self.functions_and_blocks:
+                    line = self.functions_and_blocks[stmt.name][0].lineno
+                    col = self.functions_and_blocks[stmt.name][0].col_offset
+                    raise CodeGenerationException(
+                        self.file,
+                        stmt.lineno,
+                        stmt.col_offset,
+                        f"Function '{stmt.name}' is already defined at line "
+                        f"{line} column {col}.",
+                    )
+                self.functions_and_blocks[stmt.name] = (stmt, dict())
+
+                # Every function must have an explicit terminator, i.e. a return
+                # statement. Using pass is not allowed. This design makes code
+                # generation easier and can be relaxed in the future.
+                if len(stmt.body) == 0:
+                    raise CodeGenerationException(
+                        self.file,
+                        stmt.lineno,
+                        stmt.col_offset,
+                        f"Function '{stmt.name}' must have an explicit terminator."
+                        " Have you tried adding a return statement?",
+                    )
+                if not isinstance(stmt.body[-1], ast.Return):
+                    raise CodeGenerationException(
+                        self.file,
+                        stmt.lineno,
+                        stmt.col_offset,
+                        f"Function '{stmt.name}' must have an explicit return"
+                        " in the end.",
+                    )
+
+                # Lastly, record basic block information that we can check
+                # afterwards.
+                for inner_stmt in stmt.body:
+                    if isinstance(inner_stmt, ast.FunctionDef) and is_block(inner_stmt):
+                        if inner_stmt.name in self.functions_and_blocks[stmt.name][1]:
+                            line = self.functions_and_blocks[stmt.name][1][
+                                inner_stmt.name
+                            ].lineno
+                            col = self.functions_and_blocks[stmt.name][1][
+                                inner_stmt.name
+                            ].col_offset
+                            raise CodeGenerationException(
+                                self.file,
+                                stmt.lineno,
+                                stmt.col_offset,
+                                f"Block '{inner_stmt.name}' is already defined at line "
+                                f"{line} column {col}.",
+                            )
+                        self.functions_and_blocks[stmt.name][1][
+                            inner_stmt.name
+                        ] = inner_stmt
+                continue
+
+            # Otherwise, not a function nor constant expression. Abort.
             raise CodeGenerationException(
                 self.file,
-                node.lineno,
-                node.col_offset,
-                f"Block '{node.name}' is already defined.",
+                stmt.lineno,
+                stmt.col_offset,
+                "Frontend program must consist of functions or constant "
+                "expressions.",
             )
-        self.block_names.add(node.name)
 
+        # Check structure of all functions and if necessary populate the map
+        # with block information.
+        for function_data in self.functions_and_blocks.values():
+            self._check_function_structure(function_data[0])
+
+    def _is_branch(self, function_name: str, node: ast.expr | None) -> bool:
+        return (
+            node is not None
+            and isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in self.functions_and_blocks[function_name][1]
+        )
+
+    def _is_cond_branch(self, function_name: str, node: ast.expr | None) -> bool:
+        return (
+            node is not None
+            and isinstance(node, ast.IfExp)
+            and isinstance(node.body, ast.Call)
+            and isinstance(node.body.func, ast.Name)
+            and node.body.func.id in self.functions_and_blocks[function_name][1]
+            and isinstance(node.orelse, ast.Call)
+            and isinstance(node.orelse.func, ast.Name)
+            and node.orelse.func.id in self.functions_and_blocks[function_name][1]
+        )
+
+    def _check_block_structure(self, function_name: str, node: ast.FunctionDef) -> bool:
+        # Check that the basic block is well-formed.
         for stmt in node.body:
+            # No inner functions or nested blocks.
             if isinstance(stmt, ast.FunctionDef):
                 if is_block(stmt):
                     raise CodeGenerationException(
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Cannot have a nested block '{stmt.name}' inside the "
-                        f"block '{node.name}'.",
+                        f"Cannot have a nested block '{stmt.name}'"
+                        f" inside the block '{node.name}'.",
                     )
                 else:
                     raise CodeGenerationException(
                         self.file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"Cannot have an inner function '{stmt.name}' inside "
-                        f"the block '{node.name}'.",
+                        f"Cannot have a nested function '{stmt.name}'"
+                        f" inside the block '{node.name}'.",
                     )
 
-
-@dataclass
-class MultipleScopeVisitor(ast.NodeVisitor):
-    file: str | None = field(default=None)
-
-    function_and_block_names: Dict[str, Set[str]] = field(default_factory=dict)
-    """Tracks duplicate function names and duplicate block labels."""
-
-    def visit(self, node: ast.AST) -> None:
-        super().visit(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        assert not is_block(node)
-
-        if node.name in self.function_and_block_names:
+        # Check blocks have an explicit terminator.
+        if len(node.body) == 0 or not isinstance(node.body[-1], ast.Return):
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Function '{node.name}' is already defined.",
+                f"Block '{node.name}' must have an explicit terminator."
+                " Have you tried adding a return statement?",
             )
-        self.function_and_block_names[node.name] = set()
 
+        # Check if the terminator of the block is well-formed. It can
+        # terminate function, branch unconditionally to another block, or be
+        # a conditional branch.
+        assert isinstance(node.body[-1], ast.Return)
+        terminator = node.body[-1].value
+        return self._is_branch(function_name, terminator) or self._is_cond_branch(
+            function_name, terminator
+        )
+
+    def _check_function_structure(self, node: ast.FunctionDef):
         # Functions cannot have inner functions but can have blocks inside
         # which we still have to check.
-        for stmt in node.body:
-            if isinstance(stmt, ast.FunctionDef):
-                if not is_block(stmt):
-                    raise CodeGenerationException(
-                        self.file,
-                        stmt.lineno,
-                        stmt.col_offset,
-                        f"Cannot have an inner function '{stmt.name}' inside "
-                        f"the function '{node.name}'.",
-                    )
-                else:
-                    if stmt.name in self.function_and_block_names[node.name]:
-                        raise CodeGenerationException(
-                            self.file,
-                            stmt.lineno,
-                            stmt.col_offset,
-                            f"Block '{stmt.name}' is already defined in "
-                            f"function '{node.name}'.",
-                        )
-                    self.function_and_block_names[node.name].add(stmt.name)
+        blocks_with_branches = 0
+        for stmt in node.body[:-1]:
+            if is_constant_stmt(stmt):
+                continue
 
-                    for inner in stmt.body:
-                        if isinstance(inner, ast.FunctionDef):
-                            if is_block(inner):
-                                raise CodeGenerationException(
-                                    self.file,
-                                    inner.lineno,
-                                    inner.col_offset,
-                                    f"Cannot have a nested block '{inner.name}'"
-                                    f" inside the block '{stmt.name}'.",
-                                )
-                            else:
-                                raise CodeGenerationException(
-                                    self.file,
-                                    inner.lineno,
-                                    inner.col_offset,
-                                    f"Cannot have an inner function '{inner.name}'"
-                                    f" inside the block '{stmt.name}'.",
-                                )
+            # If there are explicit blocks, no operations are allowed outside of them.
+            if len(self.functions_and_blocks[node.name][1]) > 0 and not isinstance(stmt, ast.FunctionDef):
+                raise CodeGenerationException(
+                    self.file,
+                    stmt.lineno,
+                    stmt.col_offset,
+                    f"Function '{node.name}' cannot contain operations outside"
+                    " of blocks apart from explicit entry point or constant "
+                    "expressions.",
+                )
+            
+            if not isinstance(stmt, ast.FunctionDef):
+                continue
+
+            if not is_block(stmt):
+                raise CodeGenerationException(
+                    self.file,
+                    stmt.lineno,
+                    stmt.col_offset,
+                    f"Cannot have an inner function '{stmt.name}' inside "
+                    f"the function '{node.name}'.",
+                )
+
+            # Check the block and record if its terminator is a branch or not.
+            if self._check_block_structure(node.name, stmt):
+                blocks_with_branches += 1
+
+        # Last check: we must have exactly one terminating block if blocks are
+        # explicitly defined.
+        if blocks_with_branches > 1 and blocks_with_branches == len(
+            self.functions_and_blocks[node.name][1]
+        ):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{node.name}' does not have a terminating block.",
+            )
+        terminating_blocks = (
+            len(self.functions_and_blocks[node.name][1]) - blocks_with_branches
+        )
+        if terminating_blocks > 1:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{node.name}' expected one terminating block, got"
+                f" {terminating_blocks}.",
+            )
 
 
 @dataclass
@@ -189,18 +324,15 @@ class CheckAndInlineConstants:
     b: Const[i32] = a * a
     # here b = 25
     ```
-
-    Note that the algorithm does not remove constant definitions from the AST,
-    but this functionality can be added later.
     """
 
     @staticmethod
-    def run(stmts: Sequence[ast.stmt], file: str | None) -> None:
+    def run(stmts: list[ast.stmt], file: str | None) -> None:
         CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
     def run_with_variables(
-        stmts: Sequence[ast.stmt], defined_variables: Set[str], file: str | None
+        stmts: list[ast.stmt], defined_variables: set[str], file: str | None
     ) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
@@ -267,9 +399,6 @@ class CheckAndInlineConstants:
                 inliner = ConstantInliner(name, new_node, file)
                 for candidate in stmts[(i + 1) :]:
                     inliner.visit(candidate)
-
-                # Ideally, we can prune this AST node now, but it is easier just
-                # to avoid it during code generation phase.
                 continue
 
             # In case of a function/block definition, we must ensure we process

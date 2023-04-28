@@ -38,3 +38,8 @@ def is_constant(node: ast.expr) -> bool:
         and isinstance(node.value, ast.Name)
         and node.value.id == Const.__name__
     )
+
+
+def is_constant_stmt(node: ast.stmt) -> bool:
+    """Returns `True` if the AST statement is a Const expression."""
+    return isinstance(node, ast.AnnAssign) and is_constant(node.annotation)

@@ -12,7 +12,7 @@ with CodeContext(p):
     # CHECK-NEXT:   symref.update(%{{.*}} : !i32) ["symbol" = @{{.*}}]
     # CHECK-NEXT:   func.return()
     def f1(x: i32):
-        pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "f2", "function_type" = !fun<[], []>
     # CHECK-NEXT:   func.return()
