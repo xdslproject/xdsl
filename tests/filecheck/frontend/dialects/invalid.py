@@ -2,7 +2,7 @@
 
 from xdsl.frontend.block import block
 from xdsl.frontend.const import Const
-from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.builtin import i1, i32, i64
@@ -62,4 +62,54 @@ try:
     p.compile(desymref=False)
     print(p.xdsl())
 except FrontendProgramException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Else clause in for loops is not supported.
+        def test_not_supported_loop_I():
+            for i in range(10):
+                pass
+            else:
+                pass
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Only range-based loops are supported.
+        def test_not_supported_loop_II():
+            for i, j in enumerate(range(10, 0, -1)):
+                pass
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Range-based loop expected between 1 and 3 arguments, but got 4.
+        def test_not_supported_loop_III():
+            for i in range(0, 1, 2, 3):
+                pass
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
+    print(e.msg)
+
+try:
+    with CodeContext(p):
+        # CHECK: Range-based loop must take a single target variable, e.g. `for i in range(10)`.
+        def test_not_supported_loop_IV():
+            for i, j in range(100):
+                pass
+
+    p.compile(desymref=False)
+    print(p.xdsl())
+except CodeGenerationException as e:
     print(e.msg)
