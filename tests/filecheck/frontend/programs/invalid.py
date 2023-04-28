@@ -73,6 +73,7 @@ try:
                 # CHECK-NEXT: Cannot have a nested function 'foo' inside the block 'bb1'.
                 def foo():
                     return
+
                 return
 
             return bb1()
@@ -124,6 +125,7 @@ except FrontendProgramException as e:
 
 try:
     with CodeContext(p):
+
         def test():
             a: Const[i32] = 23
             # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
@@ -138,6 +140,7 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         a: Const[i32] = 23
+
         # CHECK-NEXT: Constant 'a' is already defined.
         def test():
             a: i32 = 3

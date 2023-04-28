@@ -258,7 +258,9 @@ class CheckStructure:
                 continue
 
             # If there are explicit blocks, no operations are allowed outside of them.
-            if len(self.functions_and_blocks[node.name][1]) > 0 and not isinstance(stmt, ast.FunctionDef):
+            if len(self.functions_and_blocks[node.name][1]) > 0 and not isinstance(
+                stmt, ast.FunctionDef
+            ):
                 raise CodeGenerationException(
                     self.file,
                     stmt.lineno,
@@ -267,7 +269,7 @@ class CheckStructure:
                     " of blocks apart from explicit entry point or constant "
                     "expressions.",
                 )
-            
+
             if not isinstance(stmt, ast.FunctionDef):
                 continue
 
