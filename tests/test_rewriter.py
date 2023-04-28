@@ -39,7 +39,8 @@ def test_operation_deletion():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
+        constant_op = module.ops.first
+        assert constant_op is not None
         rewriter.erase_op(constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
@@ -58,7 +59,8 @@ def test_replace_op_one_op():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
+        constant_op = module.ops.first
+        assert constant_op is not None
         new_constant_op = Constant.from_int_and_width(43, i32)
         rewriter.replace_op(constant_op, new_constant_op)
 
@@ -79,7 +81,8 @@ def test_replace_op_multiple_op():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
+        constant_op = module.ops.first
+        assert constant_op is not None
         new_constant = Constant.from_int_and_width(1, i32)
         new_add = Addi(new_constant, new_constant)
 
@@ -102,7 +105,9 @@ def test_replace_op_new_results():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        add_op = module.ops[1]
+        ops_iter = iter(module.ops)
+        next(ops_iter)
+        add_op = next(ops_iter)
         assert isinstance(add_op, Addi)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
@@ -127,7 +132,9 @@ scf.if(%0 : !i1) {
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        if_op = module.ops[1]
+        ops_iter = iter(module.ops)
+        next(ops_iter)
+        if_op = next(ops_iter)
         module_block = module.regions[0].blocks[0]
         if_block = if_op.regions[0].blocks[0]
 
@@ -153,7 +160,9 @@ scf.if(%0 : !i1) {
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        if_op = module.ops[1]
+        ops_iter = iter(module.ops)
+        next(ops_iter)
+        if_op = next(ops_iter)
         if_block = if_op.regions[0].blocks[0]
 
         rewriter.inline_block_before(if_block, if_op)
@@ -178,8 +187,9 @@ scf.if(%0 : !i1) {
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        if_op = module.ops[1]
-        constant_op = module.ops[0]
+        ops_iter = iter(module.ops)
+        constant_op = next(ops_iter)
+        if_op = next(ops_iter)
         if_block = if_op.regions[0].blocks[0]
 
         rewriter.inline_block_after(if_block, constant_op)
@@ -312,7 +322,8 @@ def test_preserve_naming_single_op():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
+        constant_op = module.ops.first
+        assert constant_op is not None
         new_constant = Constant.from_int_and_width(1, i32)
 
         rewriter.replace_op(constant_op, [new_constant])
@@ -334,7 +345,8 @@ def test_preserve_naming_multiple_ops():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        constant_op = module.ops[0]
+        constant_op = module.ops.first
+        assert constant_op is not None
         new_constant = Constant.from_int_and_width(1, i32)
         new_add = Addi(new_constant, new_constant)
 
@@ -354,7 +366,8 @@ def test_no_result_rewriter():
 }"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
-        return_op = module.ops[0]
+        return_op = module.ops.first
+        assert return_op is not None
         new_op = Yield.get()
 
         rewriter.replace_op(return_op, [new_op])

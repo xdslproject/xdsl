@@ -334,7 +334,7 @@ class Printer:
         self.print(")")
 
     def print_paramattr_parameters(
-        self, params: list[Attribute], always_print_brackets: bool = False
+        self, params: Sequence[Attribute], always_print_brackets: bool = False
     ) -> None:
         if len(params) == 0 and not always_print_brackets:
             return

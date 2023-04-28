@@ -12,11 +12,12 @@ def test_branch():
 
     block0 = Block([a, b, c])
     br0 = Branch.get(block0)
+    ops = list(br0.successors[0].ops)
 
     assert br0.successors[0] is block0
-    assert br0.successors[0].ops[0] is a
-    assert br0.successors[0].ops[1] is b
-    assert br0.successors[0].ops[2] is c
+    assert ops[0] is a
+    assert ops[1] is b
+    assert ops[2] is c
 
 
 def test_condbranch():

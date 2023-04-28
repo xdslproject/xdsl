@@ -21,8 +21,8 @@ def test_main():
 
     module.verify()
     assert isinstance(module, ModuleOp)
-    constant_op = module.ops[0]
-    andi_op = module.ops[1]
+
+    constant_op, andi_op = list(module.ops)
     assert constant_op.results[0].uses == {Use(andi_op, 0), Use(andi_op, 1)}
     assert andi_op.results[0].uses == set()
 

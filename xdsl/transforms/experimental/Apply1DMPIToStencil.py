@@ -1,5 +1,5 @@
 from typing import List
-from xdsl.ir import Operation, MLContext, Block, TypeAttribute
+from xdsl.ir import Operation, MLContext, TypeAttribute
 from xdsl.irdl import Operand
 from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
@@ -217,11 +217,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.Waitall.get(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        parent_op = op.parent
-        assert isa(parent_op, Block)
-        parent_ops: List[Operation] = parent_op.ops
-        idx = parent_ops.index(op)
-        parent_op.insert_op(mpi_operations, idx + 1)
+        assert op.parent is not None
+        idx = op.parent.get_operation_index(op)
+        op.parent.insert_op(mpi_operations, idx + 1)
 
 
 def Apply1DMpi(ctx: MLContext, module: builtin.ModuleOp):
