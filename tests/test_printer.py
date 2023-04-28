@@ -146,7 +146,9 @@ builtin.module() {
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
-    diagnostic.add_message(module.ops[0], "Test message")
+    first_op = module.ops.first
+    assert first_op is not None
+    diagnostic.add_message(first_op, "Test message")
 
     assert_print_op(module, expected, diagnostic)
 
@@ -177,8 +179,9 @@ def test_two_different_op_messages():
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
-    diagnostic.add_message(module.ops[0], "Test message 1")
-    diagnostic.add_message(module.ops[1], "Test message 2")
+    first_op, second_op = list(module.ops)
+    diagnostic.add_message(first_op, "Test message 1")
+    diagnostic.add_message(second_op, "Test message 2")
 
     assert_print_op(module, expected, diagnostic)
 
@@ -209,8 +212,10 @@ def test_two_same_op_messages():
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
-    diagnostic.add_message(module.ops[0], "Test message 1")
-    diagnostic.add_message(module.ops[0], "Test message 2")
+    first_op, _second_op = list(module.ops)
+
+    diagnostic.add_message(first_op, "Test message 1")
+    diagnostic.add_message(first_op, "Test message 2")
 
     assert_print_op(module, expected, diagnostic)
 
