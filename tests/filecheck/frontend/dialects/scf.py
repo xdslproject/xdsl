@@ -19,6 +19,7 @@ with CodeContext(p):
     def test_for_I(end: index):
         for _ in range(end):  # type: ignore
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_for_II"
     #      CHECK: %{{.*}} : !index = symref.fetch() ["symbol" = @start]
@@ -31,6 +32,7 @@ with CodeContext(p):
     def test_for_II(start: index, end: index):
         for _ in range(start, end):  # type: ignore
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_for_III"
     #      CHECK: %{{.*}} : !index = symref.fetch() ["symbol" = @start]
@@ -43,6 +45,7 @@ with CodeContext(p):
     def test_for_III(start: index, end: index, step: index):
         for _ in range(start, end, step):  # type: ignore
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_for_IV"
     #      CHECK: %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
@@ -71,6 +74,7 @@ with CodeContext(p):
             for _ in range(b):  # type: ignore
                 for _ in range(c):  # type: ignore
                     pass
+        return
 
 
 p.compile(desymref=False)
@@ -83,6 +87,7 @@ try:
         def test_not_supported_loop_I(end: i32):
             for _ in range(end):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -95,6 +100,7 @@ try:
         def test_not_supported_loop_II(start: f32, end: index):
             for _ in range(start, end):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -107,6 +113,7 @@ try:
         def test_not_supported_loop_III(start: index, end: index, step: f32):
             for _ in range(start, end, step):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())

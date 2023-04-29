@@ -15,6 +15,7 @@ with CodeContext(p):
     def test_affine_for_I():
         for _ in range(100):
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_affine_for_II"
     # CHECK-NEXT: affine.for() ["lower_bound" = 10 : !index, "upper_bound" = 30 : !index, "step" = 1 : !index] {
@@ -24,6 +25,7 @@ with CodeContext(p):
     def test_affine_for_II():
         for _ in range(10, 30):
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_affine_for_III"
     # CHECK-NEXT: affine.for() ["lower_bound" = 1 : !index, "upper_bound" = 20 : !index, "step" = 5 : !index] {
@@ -33,6 +35,7 @@ with CodeContext(p):
     def test_affine_for_III():
         for _ in range(1, 20, 5):
             pass
+        return
 
     #      CHECK: func.func() ["sym_name" = "test_affine_for_IV"
     # CHECK-NEXT: affine.for() ["lower_bound" = 0 : !index, "upper_bound" = 10 : !index, "step" = 1 : !index] {
@@ -52,6 +55,7 @@ with CodeContext(p):
             for _ in range(20):
                 for _ in range(30):
                     pass
+        return
 
 
 p.compile(desymref=False)
@@ -64,6 +68,7 @@ try:
         def test_not_supported_affine_loop_I():
             for _ in range(12.0):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -76,6 +81,7 @@ try:
         def test_not_supported_affine_loop_II():
             for _ in range("boom", 100):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -88,6 +94,7 @@ try:
         def test_not_supported_affine_loop_III():
             for _ in range(0, 100, 1.0):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())

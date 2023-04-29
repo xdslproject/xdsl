@@ -72,6 +72,7 @@ try:
                 pass
             else:
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -84,6 +85,7 @@ try:
         def test_not_supported_loop_II():
             for i, j in enumerate(range(10, 0, -1)):
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -96,6 +98,7 @@ try:
         def test_not_supported_loop_III():
             for i in range(0, 1, 2, 3):
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
@@ -108,6 +111,7 @@ try:
         def test_not_supported_loop_IV():
             for i, j in range(100):
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
