@@ -90,6 +90,19 @@ class Rewriter:
         extended_block.add_ops(ops)
 
     @staticmethod
+    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the start of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        first_op_of_extended_block = extended_block.first_op
+        if first_op_of_extended_block is None:
+            Rewriter.inline_block_at_end(inlined_block, extended_block)
+        else:
+            Rewriter.inline_block_before(inlined_block, first_op_of_extended_block)
+
+    @staticmethod
     def inline_block_before(block: Block, op: Operation):
         """
         Move the block operations before another operation.

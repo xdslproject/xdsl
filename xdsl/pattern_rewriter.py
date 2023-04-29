@@ -228,8 +228,7 @@ class PatternRewriter:
     def inline_block_at_end(self, block: Block, target_block: Block):
         """
         Move the block operations to a given position in another block.
-        This block should not be a parent of the block to move to, and both blocks
-        should be child of the matched operation.
+        This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
         if not self._can_modify_block(target_block) or not self._can_modify_block(
@@ -239,6 +238,20 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation."
             )
         Rewriter.inline_block_at_end(block, target_block)
+
+    def inline_block_at_start(self, block: Block, target_block: Block):
+        """
+        Move the block operations to a given position in another block.
+        This block should not be a parent of the block to move to.
+        """
+        self.has_done_action = True
+        if not self._can_modify_block(target_block) or not self._can_modify_block(
+            block
+        ):
+            raise Exception(
+                "Cannot modify blocks that are not contained in the matched operation."
+            )
+        Rewriter.inline_block_at_start(block, target_block)
 
     def inline_block_before_matched_op(self, block: Block):
         """
