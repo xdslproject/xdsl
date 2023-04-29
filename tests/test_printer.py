@@ -23,7 +23,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
 )
-from xdsl.parser import MLIRParser, Parser, BaseParser, XDSLParser
+from xdsl.parser import MLIRParser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
