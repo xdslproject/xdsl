@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated, List, Union
 
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
 from xdsl.irdl import (
+    OpAttr,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
@@ -12,6 +13,19 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
 )
+
+
+@irdl_op_definition
+class Assert(IRDLOperation):
+    name: str = "cf.assert"
+    arg: Annotated[Operand, IntegerType(1)]
+    msg: OpAttr[StringAttr]
+
+    @staticmethod
+    def get(arg: Operation | SSAValue, msg: str | StringAttr) -> Assert:
+        if isinstance(msg, str):
+            msg = StringAttr(msg)
+        return Assert.build(operands=[arg], attributes={"msg": msg})
 
 
 @irdl_op_definition
@@ -48,4 +62,4 @@ class ConditionalBranch(IRDLOperation):
         )
 
 
-Cf = Dialect([Branch, ConditionalBranch], [])
+Cf = Dialect([Assert, Branch, ConditionalBranch], [])
