@@ -64,6 +64,32 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
+    def inline_block_at_end(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the end of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        if inlined_block.is_ancestor(extended_block):
+            raise Exception("Cannot inline a block in a child block.")
+        for op in inlined_block.ops:
+            for operand in op.operands:
+                if (
+                    isinstance(operand, BlockArgument)
+                    and operand.block is extended_block
+                ):
+                    raise Exception(
+                        "Cannot inline block which has operations using "
+                        "the block arguments."
+                    )
+
+        ops = list(inlined_block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        extended_block.add_ops(ops)
+
+    @staticmethod
     def inline_block_before(block: Block, op: Operation):
         """
         Move the block operations before another operation.
