@@ -27,7 +27,7 @@ class CodeGeneration:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
 
-        visitor = CodegGenerationVisitor(type_converter, module, file)
+        visitor = CodeGenerationVisitor(type_converter, module, file)
         for function_def, _ in functions_and_blocks.values():
             visitor.visit(function_def)
         return module

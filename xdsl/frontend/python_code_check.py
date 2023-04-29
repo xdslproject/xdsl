@@ -18,11 +18,16 @@ class PythonCodeCheck:
     def run(stmts: list[ast.stmt], file: str | None) -> FunctionMap:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
-        cases, an exception is raised. Particularly, the check is used for
-        scoping because Python (as an interpreted language) does not have a
-        notion of constants, global variables, etc. Hence, one can redefine
-        functions, place variables in arbitrary locations and do many other
-        weird things which xDSL/MLIR would not like.
+        cases, an exception is raised.
+
+        Performed checks and transformations:
+
+            1. Checks structure of code inside `CodeContext`. For example, no
+               inner functions are allowed, etc. For more information see the
+               docstring of `CheckStructure`.
+
+            2. Checks the placement of constant expressions and inlines them
+               into the AST.
         """
         # Check Python code is correctly structured.
         checker = CheckStructure(file)
@@ -58,7 +63,6 @@ class CheckStructure:
     ```
 
     For each function, it holds that:
-
         1) Any function does not contain inner functions.
         2) Any function has an explicit terminator: a `return` statement.
 
@@ -83,9 +87,8 @@ class CheckStructure:
     ```
 
     For each block, it holds that:
-
         1) No block has inner functions or nested blocks.
-        2) Any block is an explicit terminator: a `return` statement. The
+        2) Any block has an explicit terminator: a `return` statement. The
            terminator can either transfer control flow to a next block, or
            terminate the enclosing function.
         3) It is up to a user to ensure that the control flow is transfered
@@ -96,17 +99,22 @@ class CheckStructure:
     """File for error reporting."""
 
     functions_and_blocks: FunctionMap = field(default_factory=dict)
-    """Contains all information about functions and blocks."""
+    """
+    Contains all information about functions and blocks. Populated during the
+    structure check.
+    """
 
     def run(self, stmts: list[ast.stmt]) -> None:
         for stmt in stmts:
-            # Allow constant statements or pass.
+            # Allow constant expression statements or pass.
             if is_constant_stmt(stmt) or isinstance(stmt, ast.Pass):
                 continue
 
             # TODO: Right now we want all code to be placed in functions to make
             # code generation easier. This is limiting but can be fixed easily by
-            # placing the AST into a dummy function.
+            # placing the whole AST into a dummy function, and performing code
+            # generation on it. The only challenge is to make error messages
+            # consistent.
             if isinstance(stmt, ast.FunctionDef):
                 # Function should be a top-level operation.
                 if is_block(stmt):
@@ -174,7 +182,7 @@ class CheckStructure:
                         ] = inner_stmt
                 continue
 
-            # Otherwise, not a function nor constant expression. Abort.
+            # Otherwise, not a function, pass nor constant expression. Abort.
             raise CodeGenerationException(
                 self.file,
                 stmt.lineno,
@@ -189,6 +197,7 @@ class CheckStructure:
             self._check_function_structure(function_data[0])
 
     def _is_branch(self, function_name: str, node: ast.expr | None) -> bool:
+        """Returns true if the terminator node is an unconditional branch."""
         return (
             node is not None
             and isinstance(node, ast.Call)
@@ -197,6 +206,7 @@ class CheckStructure:
         )
 
     def _is_cond_branch(self, function_name: str, node: ast.expr | None) -> bool:
+        """Returns true if the terminator node is a conditional branch."""
         return (
             node is not None
             and isinstance(node, ast.IfExp)
@@ -252,15 +262,17 @@ class CheckStructure:
     def _check_function_structure(self, node: ast.FunctionDef):
         # Functions cannot have inner functions but can have blocks inside
         # which we still have to check.
-        blocks_with_branches = 0
+        num_explicit_blocks = len(self.functions_and_blocks[node.name][1])
+        num_explicit_blocks_with_branches = 0
+
         for stmt in node.body[:-1]:
+            # Constant expressions can be placed inside the function.
             if is_constant_stmt(stmt):
                 continue
 
-            # If there are explicit blocks, no operations are allowed outside of them.
-            if len(self.functions_and_blocks[node.name][1]) > 0 and not isinstance(
-                stmt, ast.FunctionDef
-            ):
+            # If there are explicit blocks, no operations are allowed outside of
+            # them.
+            if num_explicit_blocks > 0 and not isinstance(stmt, ast.FunctionDef):
                 raise CodeGenerationException(
                     self.file,
                     stmt.lineno,
@@ -270,9 +282,12 @@ class CheckStructure:
                     "expressions.",
                 )
 
+            # Otherwise we allow anything, and only have to carefully look at
+            # inner functions.
             if not isinstance(stmt, ast.FunctionDef):
                 continue
 
+            # Only blocks are alloed
             if not is_block(stmt):
                 raise CodeGenerationException(
                     self.file,
@@ -284,12 +299,13 @@ class CheckStructure:
 
             # Check the block and record if its terminator is a branch or not.
             if self._check_block_structure(node.name, stmt):
-                blocks_with_branches += 1
+                num_explicit_blocks_with_branches += 1
 
         # Last check: we must have exactly one terminating block if blocks are
         # explicitly defined.
-        if blocks_with_branches > 1 and blocks_with_branches == len(
-            self.functions_and_blocks[node.name][1]
+        if (
+            num_explicit_blocks > 1
+            and num_explicit_blocks == num_explicit_blocks_with_branches
         ):
             raise CodeGenerationException(
                 self.file,
@@ -297,16 +313,16 @@ class CheckStructure:
                 node.col_offset,
                 f"Function '{node.name}' does not have a terminating block.",
             )
-        terminating_blocks = (
-            len(self.functions_and_blocks[node.name][1]) - blocks_with_branches
+        num_explicit_terminating_blocks = (
+            num_explicit_blocks - num_explicit_blocks_with_branches
         )
-        if terminating_blocks > 1:
+        if num_explicit_terminating_blocks > 1:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Function '{node.name}' expected one terminating block, got"
-                f" {terminating_blocks}.",
+                f" {num_explicit_terminating_blocks}.",
             )
 
 
