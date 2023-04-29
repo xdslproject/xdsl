@@ -227,7 +227,7 @@ class PatternRewriter:
 
     def inline_block_at_end(self, block: Block, target_block: Block):
         """
-        Move the block operations to a given position in another block.
+        Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
@@ -241,7 +241,7 @@ class PatternRewriter:
 
     def inline_block_at_start(self, block: Block, target_block: Block):
         """
-        Move the block operations to a given position in another block.
+        Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
