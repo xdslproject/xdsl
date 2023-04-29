@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     AnonymousRewritePattern,
     GreedyRewritePatternApplier,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, Source
 from xdsl.utils.hints import isa
 
 
@@ -22,7 +22,7 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
 
-    parser = Parser(ctx, prog, allow_unregistered_dialect=True)
+    parser = Parser(ctx, prog, allow_unregistered_dialect=True, source=Source.MLIR)
     module = parser.parse_module()
 
     walker.rewrite_module(module)
@@ -33,15 +33,15 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
 def test_non_recursive_rewrite():
     """Test a simple non-recursive rewrite"""
 
-    prog = """builtin.module() {
-%0 : !i32 = arith.constant() ["value" = 42 : !i32]
-%1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -57,15 +57,15 @@ def test_non_recursive_rewrite():
 def test_non_recursive_rewrite_reversed():
     """Test a simple non-recursive rewrite with reverse walk order."""
 
-    prog = """builtin.module() {
-%0 : !i32 = arith.constant() ["value" = 42 : !i32]
-%1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -85,15 +85,15 @@ def test_non_recursive_rewrite_reversed():
 def test_op_type_rewrite_pattern_method_decorator():
     """Test op_type_rewrite_pattern decorator on methods."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
@@ -108,15 +108,15 @@ def test_op_type_rewrite_pattern_method_decorator():
 def test_op_type_rewrite_pattern_static_decorator():
     """Test op_type_rewrite_pattern decorator on static functions."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -134,17 +134,17 @@ def test_op_type_rewrite_pattern_static_decorator():
 def test_op_type_rewrite_pattern_union_type():
     """Test op_type_rewrite_pattern decorator on static functions."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 0 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %2 = "test"(%0, %1) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %2 : !i32 = "test"(%0 : !i32, %1 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %2 = "test"(%0, %1) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant | Addi, rewriter: PatternRewriter):
@@ -162,21 +162,21 @@ def test_op_type_rewrite_pattern_union_type():
 def test_recursive_rewriter():
     """Test recursive walks on operations created by rewrites."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %1 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-  %3 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
-  %5 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %6 : !i32 = arith.addi(%4 : !i32, %5 : !i32)
-  %7 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %8 : !i32 = arith.addi(%6 : !i32, %7 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %5 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %7 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -186,9 +186,9 @@ def test_recursive_rewriter():
         if val == 0 or val == 1:
             return None
         constant_op = Constant.from_attr(
-            IntegerAttr.from_int_and_width(val - 1, 64), i32
+            IntegerAttr.from_int_and_width(val - 1, 32), i32
         )
-        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
+        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
         add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
@@ -204,21 +204,21 @@ def test_recursive_rewriter():
 def test_recursive_rewriter_reversed():
     """Test recursive walks on operations created by rewrites, in reverse walk order."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %1 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-  %3 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %4 : !i32 = arith.addi(%2 : !i32, %3 : !i32)
-  %5 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %6 : !i32 = arith.addi(%4 : !i32, %5 : !i32)
-  %7 : !i32 = arith.constant() ["value" = 1 : !i64]
-  %8 : !i32 = arith.addi(%6 : !i32, %7 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %4 = "arith.addi"(%2, %3) : (i32, i32) -> i32
+  %5 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %6 = "arith.addi"(%4, %5) : (i32, i32) -> i32
+  %7 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -228,9 +228,9 @@ def test_recursive_rewriter_reversed():
         if val == 0 or val == 1:
             return None
         constant_op = Constant.from_attr(
-            IntegerAttr.from_int_and_width(val - 1, 64), i32
+            IntegerAttr.from_int_and_width(val - 1, 32), i32
         )
-        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i32)
+        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
         add_op = Addi(constant_op, constant_one)
         rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
@@ -248,15 +248,15 @@ def test_recursive_rewriter_reversed():
 def test_greedy_rewrite_pattern_applier():
     """Test GreedyRewritePatternApplier."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 43 : !i32]
-  %1 : !i32 = arith.muli(%0 : !i32, %0 : !i32)
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def constant_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -284,14 +284,14 @@ def test_greedy_rewrite_pattern_applier():
 def test_insert_op_before_matched_op():
     """Test rewrites where operations are inserted before the matched operation."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
@@ -310,14 +310,14 @@ def test_insert_op_before_matched_op():
 def test_insert_op_at_pos():
     """Test rewrites where operations are inserted with a given position."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
@@ -357,14 +357,14 @@ def test_insert_op_at_pos_negative():
 def test_insert_op_before():
     """Test rewrites where operations are inserted before a given operation."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
@@ -385,14 +385,14 @@ def test_insert_op_before():
 def test_insert_op_after():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
@@ -413,14 +413,14 @@ def test_insert_op_after():
 def test_insert_op_after_matched_op():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
@@ -439,14 +439,14 @@ def test_insert_op_after_matched_op():
 def test_insert_op_after_matched_op_reversed():
     """Test rewrites where operations are inserted after a given operation."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-  %1 : !i32 = arith.constant() ["value" = 42 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
@@ -467,12 +467,12 @@ def test_insert_op_after_matched_op_reversed():
 def test_operation_deletion():
     """Test rewrites where SSA values are deleted."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-}"""
+    expected = """"builtin.module"() ({
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
@@ -489,13 +489,13 @@ def test_operation_deletion_reversed():
     They have to be deleted in order for the rewrite to not fail.
     """
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-}"""
+    expected = """"builtin.module"() ({
+}) : () -> ()"""
 
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
         if not isinstance(op, ModuleOp):
@@ -517,16 +517,16 @@ def test_operation_deletion_failure():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
         rewriter.erase_matched_op()
 
-    parser = Parser(ctx, prog)
+    parser = Parser(ctx, prog, source=Source.MLIR)
     module = parser.parse_module()
     walker = PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
 
@@ -541,12 +541,12 @@ def test_operation_deletion_failure():
 def test_delete_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-}"""
+    expected = """"builtin.module"() ({
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
@@ -562,13 +562,13 @@ def test_delete_inner_op():
 def test_replace_inner_op():
     """Test rewrites where an operation inside a region of the matched op is deleted."""
 
-    prog = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
@@ -584,22 +584,22 @@ def test_replace_inner_op():
 def test_block_argument_type_change():
     """Test the modification of a block argument type."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-^0(%1 : !i32):
-  %2 : !i32 = arith.addi(%1 : !i32, %1 : !i32)
-} {}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  ^0(%1 : i32):
+    %2 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  }, {}) : (i1) -> ()
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-  ^0(%1 : !i64):
-    %2 : !i32 = arith.addi(%1 : !i64, %1 : !i64)
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  ^0(%1 : i64):
+    %2 = "arith.addi"(%1, %1) : (i64, i64) -> i32
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -617,19 +617,20 @@ scf.if(%0 : !i1) {
 def test_block_argument_erasure():
     """Test the erasure of a block argument."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-^0(%1 : !i32):
-} {}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  ^0(%1 : i32):
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -647,20 +648,20 @@ scf.if(%0 : !i1) {
 def test_block_argument_insertion():
     """Test the insertion of a block argument."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-} {
-}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-  ^0(%1 : !i32):
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  ^0(%1 : i32):
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -678,27 +679,27 @@ scf.if(%0 : !i1) {
 def test_inline_block_at_pos():
     """Test the inlining of a block at a certain position."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {
-  }
-} {
-}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {
-    } {
-    }
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    "scf.if"(%0) ({
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -715,20 +716,21 @@ scf.if(%0 : !i1) {
 def test_inline_block_before_matched_op():
     """Test the inlining of a block before the matched operation."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-} {}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  "scf.if"(%0) ({
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -746,26 +748,29 @@ scf.if(%0 : !i1) {
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {}
-} {
-}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    scf.if(%0 : !i1) {
-    } {
-    }
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    "scf.if"(%0) ({
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -786,21 +791,23 @@ scf.if(%0 : !i1) {
 def test_inline_block_at_before_when_op_is_matched_op():
     """Test the inlining of a block before an operation, being the matched one."""
 
-    prog = """builtin.module() {
-%0 : !i1 = arith.constant() ["value" = true]
-scf.if(%0 : !i1) {
-  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-} {
-}
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  scf.if(%0 : !i1) {
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  "scf.if"(%0) ({
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -818,27 +825,29 @@ scf.if(%0 : !i1) {
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
 
-    prog = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {
-      %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    } {
-    }
-  } {
-  }
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {
-    } {
-    }
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+    }, {
+    }) : (i1) -> ()
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -859,27 +868,29 @@ def test_inline_block_after():
 def test_inline_block_after_matched():
     """Test the inlining of a block after an operation."""
 
-    prog = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {
-      %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-    } {
-    }
-  } {
-  }
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    scf.if(%0 : !i1) {
-    } {
-    }
-  } {
-  }
-  %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    "scf.if"(%0) ({
+    }, {
+    }) : (i1) -> ()
+  }, {
+  }) : (i1) -> ()
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+}) : () -> ()
+"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: If, rewriter: PatternRewriter):
@@ -900,22 +911,24 @@ def test_inline_block_after_matched():
 def test_move_region_contents_to_new_regions():
     """Test moving a region outside of a region."""
 
-    prog = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  }
-}"""
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
-    expected = """builtin.module() {
-  %0 : !i1 = arith.constant() ["value" = true]
-  scf.if(%0 : !i1) {
-  }
-  scf.if(%0 : !i1) {
-    %1 : !i32 = arith.constant() ["value" = 2 : !i32]
-  } {
-  }
-}"""
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = true} : () -> i1
+  "scf.if"(%0) ({
+  }) : (i1) -> ()
+  "scf.if"(%0) ({
+    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }, {
+  }) : (i1) -> ()
+}) : () -> ()
+"""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
