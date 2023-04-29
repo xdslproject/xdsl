@@ -23,7 +23,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
 )
-from xdsl.parser import Parser, BaseParser, XDSLParser
+from xdsl.parser import MLIRParser, Parser, BaseParser, XDSLParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
@@ -41,11 +41,11 @@ def test_simple_forgotten_op():
     add.verify()
 
     expected = """
-%0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
------------------------^^^^^^^^^^----------------------------------------------------------------
+%0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
+------------------^^^^^^^^^^---------------------------------------------------------------------
 | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
 -------------------------------------------------------------------------------------------------
-------------------------------------------^^^^^^^^^^---------------------------------------------
+------------------------------^^^^^^^^^^---------------------------------------------------------
 | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
 -------------------------------------------------------------------------------------------------
 """
@@ -65,17 +65,16 @@ def test_forgotten_op_non_fail():
     mod.verify()
 
     expected = """
-builtin.module() {
-  %0 : !i32 = arith.addi(%<UNKNOWN> : !i32, %<UNKNOWN> : !i32)
-  -----------------------^^^^^^^^^^----------------------------------------------------------------
+"builtin.module"() ({
+  %0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
+  ------------------^^^^^^^^^^---------------------------------------------------------------------
   | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
   -------------------------------------------------------------------------------------------------
-  ------------------------------------------^^^^^^^^^^---------------------------------------------
+  ------------------------------^^^^^^^^^^---------------------------------------------------------
   | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
   -------------------------------------------------------------------------------------------------
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}
-"""
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     assert_print_op(mod, expected, None)
 
@@ -91,7 +90,7 @@ def test_unit_attr():
     """Test that a UnitAttr can be defined and printed"""
 
     expected = """
-unit_attr_op() ["parallelize"]
+"unit_attr_op"() {"parallelize"} : () -> ()
 """
 
     unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
@@ -103,7 +102,7 @@ def test_added_unit_attr():
     """Test that a UnitAttr can be added to an op, even if its not defined as a field."""
 
     expected = """
-unit_attr_op() ["parallelize", "vectorize"]
+"unit_attr_op"() {"parallelize", "vectorize"} : () -> ()
 """
     unitop = UnitAttrOp.build(
         attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
@@ -123,26 +122,28 @@ unit_attr_op() ["parallelize", "vectorize"]
 
 def test_op_message():
     """Test that an operation message can be printed."""
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()
+"""
 
-    expected = """
-builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  ^^^^^^^^^^^^^^^^^^^^^
   | Test message
-  --------------------------
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}
+  ---------------------
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()
 """
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -155,27 +156,29 @@ builtin.module() {
 
 def test_two_different_op_messages():
     """Test that an operation message can be printed."""
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
-  --------------------------
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-  ^^^^^^^^^^^^^^^^^^^^^^
+  ---------------------
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  ^^^^^^^^^^^^^^^^^
   | Test message 2
-  ----------------------
-}"""
+  -----------------
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -188,27 +191,29 @@ def test_two_different_op_messages():
 
 def test_two_same_op_messages():
     """Test that an operation message can be printed."""
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
-    expected = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
-  --------------------------
-  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ---------------------
+  ^^^^^^^^^^^^^^^^^^^^^
   | Test message 2
-  --------------------------
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+  ---------------------
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -222,25 +227,26 @@ def test_two_same_op_messages():
 
 def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     expected = """\
-builtin.module() {
-^^^^^^^^^^^^^^
+"builtin.module"() ({
+^^^^^^^^^^^^^^^^
 | Test
---------------
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+----------------
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -254,25 +260,26 @@ def test_op_message_with_region_and_overflow():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     expected = """\
-builtin.module() {
-^^^^^^^^^^^^^^-----
+"builtin.module"() ({
+^^^^^^^^^^^^^^^^---
 | Test long message
 -------------------
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-}"""
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -285,16 +292,17 @@ def test_diagnostic():
     Test that an operation message can be printed on an operation with a region,
     where the message is bigger than the operation.
     """
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = arith.addi(%0 : !i32, %0 : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_op()
 
     diag = Diagnostic()
@@ -317,22 +325,25 @@ def test_print_custom_name():
     """
     Test that an SSAValue, that is a name and not a number, reserves that name
     """
-    prog = """builtin.module() {
-    %i : !i32 = arith.constant() ["value" = 42 : !i32]
-    %213 : !i32 = arith.addi(%i : !i32, %i : !i32)
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %213 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+}) : () -> ()
+"""
 
     expected = """\
-builtin.module() {
-  %i : !i32 = arith.constant() ["value" = 42 : !i32]
-  %0 : !i32 = arith.addi(%i : !i32, %i : !i32)
-}"""
+"builtin.module"() ({
+  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
+}) : () -> ()
+"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
@@ -401,7 +412,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected, None, False, Printer.Target.XDSL)
 
 
 def test_custom_format():
@@ -427,7 +438,7 @@ builtin.module() {
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None)
+    assert_print_op(module, expected, None, False, Printer.Target.XDSL)
 
 
 def test_custom_format_II():
@@ -453,7 +464,9 @@ def test_custom_format_II():
     parser = XDSLParser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, print_generic_format=True)
+    assert_print_op(
+        module, expected, None, print_generic_format=True, target=Printer.Target.XDSL
+    )
 
 
 @irdl_attr_definition
@@ -487,107 +500,40 @@ def test_custom_format_attr():
     """
     Test that we can parse and print attributes using custom formats.
     """
-    prog = """builtin.module() {
-      any() ["attr" = !custom<zero>]
-    }"""
+    prog = """\
+"builtin.module"() ({
+  "any"() {"attr" = #custom<zero>} : () -> ()
+}) : () -> ()
+"""
 
     expected = """\
-builtin.module() {
-  any() ["attr" = !custom<zero>]
-}"""
+"builtin.module"() ({
+  "any"() {"attr" = #custom<zero>} : () -> ()
+}) : () -> ()"""
 
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
-
-
-def test_parse_generic_format_attr_II():
-    """
-    Test that we can parse attributes using generic formats.
-    """
-    prog = """builtin.module() {
-      any() ["attr" = !custom<zero>]
-    }"""
-
-    expected = """\
-"builtin.module"() {
-  "any"() ["attr" = !"custom"<!int<0>>]
-}"""
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
-
-    parser = XDSLParser(ctx, prog)
-    module = parser.parse_op()
-
-    assert_print_op(module, expected, None, print_generic_format=True)
-
-
-def test_parse_generic_format_attr_III():
-    """
-    Test that we can parse attributes using generic formats.
-    """
-    prog = """builtin.module() {
-      any() ["attr" = !custom<one>]
-    }"""
-
-    expected = """\
-"builtin.module"() {
-  "any"() ["attr" = !"custom"<!int<1>>]
-}"""
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
-
-    parser = Parser(ctx, prog)
-    module = parser.parse_op()
-
-    assert_print_op(module, expected, None, print_generic_format=True)
-
-
-def test_foo_string():
-    """
-    Fail attribute in purpose.
-    """
-    prog = """builtin.module() {
-      any() ["attr" = !"string"<"foo">]
-    }"""
-
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
-
-    parser = XDSLParser(ctx, prog)
-    try:
-        parser.parse_op()
-        assert False
-    except:
-        pass
 
 
 def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-    func.func() ["sym_name" = "test", "function_type" = !i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : !i64}]
+"func.func"() {"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
     """
 
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
 
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)
