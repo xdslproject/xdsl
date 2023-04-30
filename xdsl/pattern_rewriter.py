@@ -78,7 +78,7 @@ class PatternRewriter:
         block.insert_ops_after(op, self.current_operation)
         self.added_operations_after += op
 
-    def insert_op_at_pos(self, op: Operation | list[Operation], block: Block, pos: int):
+    def insert_op_at_end(self, op: Operation | list[Operation], block: Block):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
             raise Exception("Cannot insert operations in block.")
@@ -86,7 +86,17 @@ class PatternRewriter:
         op = op if isinstance(op, list) else [op]
         if len(op) == 0:
             return
-        block.insert_op(op, pos)
+        block.add_ops(op)
+
+    def insert_op_at_start(self, op: Operation | list[Operation], block: Block):
+        """Insert operations in a block contained in the matched operation."""
+        if not self._can_modify_block(block):
+            raise Exception("Cannot insert operations in block.")
+        first_op = block.first_op
+        if first_op is None:
+            self.insert_op_at_end(op, block)
+        else:
+            self.insert_op_before(op, first_op)
 
     def insert_op_before(self, op: Operation | list[Operation], target_op: Operation):
         """Insert operations before an operation contained in the matched operation."""
