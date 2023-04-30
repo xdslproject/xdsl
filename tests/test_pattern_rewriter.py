@@ -676,43 +676,6 @@ def test_block_argument_insertion():
     )
 
 
-def test_inline_block_at_pos():
-    """Test the inlining of a block at a certain position."""
-
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
-      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    }, {
-    }) : (i1) -> ()
-  }, {
-  }) : (i1) -> ()
-}) : () -> ()"""
-
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    "scf.if"(%0) ({
-    }, {
-    }) : (i1) -> ()
-  }, {
-  }) : (i1) -> ()
-}) : () -> ()"""
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        first_op = op.true_region.blocks[0].first_op
-        if isinstance(first_op, If):
-            inner_if_block = first_op.true_region.blocks[0]
-            rewriter.inline_block_at_pos(inner_if_block, op.true_region.blocks[0], 0)
-
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
-    )
-
-
 def test_inline_block_before_matched_op():
     """Test the inlining of a block before the matched operation."""
 

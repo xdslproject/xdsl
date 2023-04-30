@@ -130,8 +130,8 @@ def test_replace_op_new_results():
     rewrite_and_compare(prog, expected, transformation)
 
 
-def test_inline_block_at_pos():
-    """Test the inlining of a block at a certain position."""
+def test_inline_block_at_end():
+    """Test the inlining of a block at end."""
     prog = """\
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = true} : () -> i1
@@ -144,9 +144,9 @@ def test_inline_block_at_pos():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   "scf.if"(%0) ({
   }) : (i1) -> ()
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
 }) : () -> ()
 """
 
@@ -157,7 +157,7 @@ def test_inline_block_at_pos():
         module_block = module.regions[0].blocks[0]
         if_block = if_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_pos(if_block, module_block, 1)
+        rewriter.inline_block_at_end(if_block, module_block)
 
     rewrite_and_compare(prog, expected, transformation)
 
