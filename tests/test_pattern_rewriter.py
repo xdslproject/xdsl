@@ -307,7 +307,7 @@ def test_insert_op_before_matched_op():
     )
 
 
-def test_insert_op_at_pos():
+def test_insert_op_at_start():
     """Test rewrites where operations are inserted with a given position."""
 
     prog = """"builtin.module"() ({
@@ -322,7 +322,7 @@ def test_insert_op_at_pos():
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
+        rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
 
     rewrite_and_compare(
         prog,
@@ -333,7 +333,7 @@ def test_insert_op_at_pos():
     )
 
 
-def test_insert_op_at_pos_negative():
+def test_insert_op_at_end():
     """
     Test rewrites where operations are inserted with a negative position.
     """
@@ -344,7 +344,7 @@ def test_insert_op_at_pos_negative():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        rewriter.insert_op_at_pos(to_be_inserted, mod.regions[0].blocks[0], -1)
+        rewriter.insert_op_at_end(to_be_inserted, mod.regions[0].blocks[0])
 
     PatternRewriteWalker(
         AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
