@@ -217,7 +217,6 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.Waitall.get(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        assert op.parent is not None
         rewriter.insert_op_after_matched_op(mpi_operations)
 
 
