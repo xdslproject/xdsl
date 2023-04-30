@@ -1,3 +1,0 @@
-builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 5 : !i32]
-}

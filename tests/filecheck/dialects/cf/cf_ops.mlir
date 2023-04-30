@@ -2,6 +2,17 @@
 
 "builtin.module"() ({
   "func.func"() ({
+    %cond = "arith.constant"() {"value" = true} : () -> i1
+    "cf.assert"(%cond) {"msg" = "some message"} : (i1) -> ()
+    "func.return"() : () -> ()
+  }) {"sym_name" = "assert", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  // CHECK: "func.func"() ({
+  // CHECK-NEXT:    %{{.*}} = "arith.constant"() {"value" = true} : () -> i1
+  // CHECK-NEXT:    "cf.assert"(%cond) {"msg" = "some message"} : (i1) -> ()
+  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT: }) {"sym_name" = "assert", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+
+  "func.func"() ({
   ^0:
     "cf.br"() [^1] : () -> ()
   ^1:

@@ -64,27 +64,43 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_pos(block: Block, target_block: Block, pos: int):
+    def inline_block_at_end(inlined_block: Block, extended_block: Block):
         """
-        Move the block operations to a given position in another block.
+        Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        if block.is_ancestor(target_block):
+        if inlined_block.is_ancestor(extended_block):
             raise Exception("Cannot inline a block in a child block.")
-        for op in block.ops:
+        for op in inlined_block.ops:
             for operand in op.operands:
-                if isinstance(operand, BlockArgument) and operand.block is block:
+                if (
+                    isinstance(operand, BlockArgument)
+                    and operand.block is extended_block
+                ):
                     raise Exception(
                         "Cannot inline block which has operations using "
                         "the block arguments."
                     )
 
-        ops = list(block.ops)
+        ops = list(inlined_block.ops)
+        for block_op in ops:
+            block_op.detach()
 
-        for op in ops:
-            op.detach()
-        target_block.insert_op(ops, pos)
+        extended_block.add_ops(ops)
+
+    @staticmethod
+    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the start of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        first_op_of_extended_block = extended_block.first_op
+        if first_op_of_extended_block is None:
+            Rewriter.inline_block_at_end(inlined_block, extended_block)
+        else:
+            Rewriter.inline_block_before(inlined_block, first_op_of_extended_block)
 
     @staticmethod
     def inline_block_before(block: Block, op: Operation):

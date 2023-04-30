@@ -307,7 +307,7 @@ def test_insert_op_before_matched_op():
     )
 
 
-def test_insert_op_at_pos():
+def test_insert_op_at_start():
     """Test rewrites where operations are inserted with a given position."""
 
     prog = """"builtin.module"() ({
@@ -322,7 +322,7 @@ def test_insert_op_at_pos():
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
         new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_at_pos(new_cst, mod.regions[0].blocks[0], 0)
+        rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
 
     rewrite_and_compare(
         prog,
@@ -333,7 +333,7 @@ def test_insert_op_at_pos():
     )
 
 
-def test_insert_op_at_pos_negative():
+def test_insert_op_at_end():
     """
     Test rewrites where operations are inserted with a negative position.
     """
@@ -344,7 +344,7 @@ def test_insert_op_at_pos_negative():
 
     @op_type_rewrite_pattern
     def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        rewriter.insert_op_at_pos(to_be_inserted, mod.regions[0].blocks[0], -1)
+        rewriter.insert_op_at_end(to_be_inserted, mod.regions[0].blocks[0])
 
     PatternRewriteWalker(
         AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
@@ -673,43 +673,6 @@ def test_block_argument_insertion():
         PatternRewriteWalker(
             AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
         ),
-    )
-
-
-def test_inline_block_at_pos():
-    """Test the inlining of a block at a certain position."""
-
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
-      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    }, {
-    }) : (i1) -> ()
-  }, {
-  }) : (i1) -> ()
-}) : () -> ()"""
-
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    "scf.if"(%0) ({
-    }, {
-    }) : (i1) -> ()
-  }, {
-  }) : (i1) -> ()
-}) : () -> ()"""
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        first_op = op.true_region.blocks[0].first_op
-        if isinstance(first_op, If):
-            inner_if_block = first_op.true_region.blocks[0]
-            rewriter.inline_block_at_pos(inner_if_block, op.true_region.blocks[0], 0)
-
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
     )
 
 

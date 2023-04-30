@@ -772,10 +772,8 @@ class MpiAddExternalFuncDefs(RewritePattern):
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
             arg, res = types
-            rewriter.insert_op_at_pos(
-                func.FuncOp.external(name, arg, res),
-                module.body.block,
-                len(module.body.block.ops),
+            rewriter.insert_op_at_end(
+                func.FuncOp.external(name, arg, res), module.body.block
             )
 
 
