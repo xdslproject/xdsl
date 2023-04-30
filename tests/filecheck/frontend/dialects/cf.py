@@ -10,10 +10,12 @@ with CodeContext(p):
     # CHECK: cf.assert(%{{.*}} : !i1) ["msg" = ""]
     def test_assert_I(cond: i1):
         assert cond
+        return
 
     # CHECK: cf.assert(%{{.*}} : !i1) ["msg" = "some message"]
     def test_assert_II(cond: i1):
         assert cond, "some message"
+        return
 
 
 p.compile(desymref=False)
@@ -24,6 +26,7 @@ try:
         # CHECK: Expected a string constant for assertion message, found 'ast.Name'
         def test_assert_message_type(cond: i1, a: i32):
             assert cond, a
+            return
 
     p.compile(desymref=False)
     print(p.xdsl())
