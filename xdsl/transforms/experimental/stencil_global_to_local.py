@@ -635,10 +635,10 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
                 return
             self.has_init.add(parent)
             # add a finalize() call to the end of the function
-            parent.regions[0].blocks[-1].insert_op(
-                mpi.Finalize(),
-                len(parent.regions[0].blocks[-1].ops) - 1,  # insert before return
-            )
+            block = parent.regions[0].blocks[-1]
+            return_op = block.last_op
+            assert return_op is not None
+            rewriter.insert_op_before(mpi.Finalize(), return_op)
 
         ops = list(collect_args_recursive(op))
         for found_ops in ops:
