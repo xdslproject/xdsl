@@ -10,7 +10,6 @@ def assert_print_op(
     expected: str,
     diagnostic: Diagnostic | None,
     print_generic_format: bool = False,
-    target: Printer.Target = Printer.Target.MLIR,
 ):
     """
     Utility function that helps to check the printing of an operation compared to
@@ -49,7 +48,6 @@ def assert_print_op(
         stream=file,
         print_generic_format=print_generic_format,
         diagnostic=diagnostic,
-        target=target,
     )
 
     printer.print(operation)
