@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
   %lhs = "test.op"() : () -> !riscv.reg<>
   %rhs = "test.op"() : () -> !riscv.reg<>
