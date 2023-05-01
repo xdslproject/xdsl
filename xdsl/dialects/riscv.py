@@ -238,6 +238,20 @@ class OriOp(RdRsImmOperation):
 
 
 @irdl_op_definition
+class AndiOp(RdRsImmOperation):
+    """
+    Performs bitwise AND on register rs1 and the sign-extended 12-bit
+    immediate and place the result in rd.
+
+    x[rd] = x[rs1] & sext(immediate)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi
+    """
+
+    name = "riscv.andi"
+
+
+@irdl_op_definition
 class XorOp(RdRsRsOperation):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
@@ -261,6 +275,7 @@ RISCV = Dialect(
         SltiuOp,
         XoriOp,
         OriOp,
+        AndiOp,
     ],
     [RegisterType],
 )
