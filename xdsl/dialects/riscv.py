@@ -47,7 +47,7 @@ class RegisterType(Data[Register], TypeAttribute):
         pass
 
 
-class DSSOp(IRDLOperation, ABC):
+class RdRsRsOp(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -71,7 +71,7 @@ class DSSOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class AddOp(DSSOp):
+class AddOp(RdRsRsOp):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
