@@ -194,6 +194,18 @@ class SltiOp(RdRsImmOperation):
 
     name = "riscv.slti"
 
+@irdl_op_definition
+class SltiuOp(RdRsImmOperation):
+    """
+    Place the value 1 in register rd if register rs1 is less than the immediate when
+    both are treated as unsigned numbers, else 0 is written to rd.
+
+    x[rd] = x[rs1] <u sext(immediate)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu
+    """
+
+    name = "riscv.sltiu"
 
 # Logical
 
@@ -219,6 +231,7 @@ RISCV = Dialect(
         XorOp,
         AddiOp,
         SltiOp,
+        SltiuOp,
     ],
     [RegisterType],
 )
