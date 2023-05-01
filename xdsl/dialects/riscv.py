@@ -30,8 +30,6 @@ class Register:
     A riscv register.
     """
 
-    pass
-
 
 @irdl_attr_definition
 class RegisterType(Data[Register], TypeAttribute):
