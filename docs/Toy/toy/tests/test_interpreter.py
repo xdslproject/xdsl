@@ -4,7 +4,7 @@ from xdsl.ir import BlockArgument, Operation
 from xdsl.dialects.builtin import f64, ModuleOp
 from xdsl.interpreter import Interpreter
 
-from .. import dialect as td
+from ..dialects import toy as td
 from ..interpreter import Tensor, ToyFunctions
 
 

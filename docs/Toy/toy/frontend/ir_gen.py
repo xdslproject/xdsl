@@ -7,8 +7,8 @@ from xdsl.ir import SSAValue, Block, Region
 from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
 from xdsl.builder import Builder
 
-from toy.location import Location
-from toy.toy_ast import (
+from .location import Location
+from .toy_ast import (
     LiteralExprAST,
     ModuleAST,
     NumberExprAST,
@@ -23,7 +23,7 @@ from toy.toy_ast import (
     BinaryExprAST,
 )
 
-from .dialect import (
+from ..dialects.toy import (
     TensorTypeF64,
     UnrankedTensorTypeF64,
     AddOp,
