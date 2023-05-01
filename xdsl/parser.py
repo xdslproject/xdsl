@@ -1531,12 +1531,7 @@ class BaseParser(ABC):
         # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
-            assert isinstance(
-                self, XDSLParser
-            ), "Only xDSL format currently supports custom op parsing"
-            op_type = self._get_op_by_name(op_name)
-            ret_types = cast(list[Attribute], ret_types)
-            op = op_type.parse(ret_types, self)
+            self.raise_error("Custom op parsing not yet implemented.")
         else:
             # Check for basic op format
             op_name = self.try_parse_string_literal()
@@ -2395,36 +2390,6 @@ class BaseParser(ABC):
     @abstractmethod
     def _parse_op_args_list(self) -> list[SSAValue]:
         raise NotImplementedError()
-
-    # HERE STARTS A SOMEWHAT CURSED COMPATIBILITY LAYER:
-    # Since we don't want to rewrite all dialects currently, the new parser needs
-    # to expose the same Interface to the dialect definitions (to some extent).
-    # Here we implement that interface.
-
-    _OperationType = TypeVar("_OperationType", bound=Operation)
-
-    def parse_op_with_default_format(
-        self,
-        op_type: type[_OperationType],
-        result_types: list[Attribute],
-    ) -> _OperationType:
-        """
-        Compatibility wrapper so the new parser can be passed instead of the old one.
-        Parses everything after the operation name.
-
-        This implicitly assumes XDSL format, and will fail on MLIR style operations
-        """
-        # TODO: remove this function and restructure custom op / irdl parsing
-        assert isinstance(self, XDSLParser)
-        args, successors, attributes, regions, _ = self.parse_operation_details()
-
-        return op_type.create(
-            operands=args,
-            result_types=result_types,
-            attributes=attributes,
-            successors=[self._get_block_from_name(span) for span in successors],
-            regions=regions,
-        )
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
