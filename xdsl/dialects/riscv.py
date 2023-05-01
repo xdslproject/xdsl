@@ -144,7 +144,7 @@ class LiOp(RdImmOperation):
 
 
 @irdl_op_definition
-class XOrOp(RdRsRsOperation):
+class XorOp(RdRsRsOperation):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
 
@@ -161,7 +161,7 @@ RISCV = Dialect(
         AddOp,
         SubOp,
         LiOp,
-        XOrOp,
+        XorOp,
     ],
     [RegisterType],
 )
