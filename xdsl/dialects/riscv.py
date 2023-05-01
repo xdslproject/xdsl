@@ -29,64 +29,12 @@ from xdsl.printer import Printer
 class Register:
     """
     A riscv register.
-    RISC-V registers have an index between 0 and 31. A value of `None` means that the
-    register has not yet been allocated.
     """
 
-    index: int | None = field(default=None)
-    """The register index. Can be between 0 and 31, or None."""
-
-    ABI_NAMES = [
-        "zero",
-        "ra",
-        "sp",
-        "gp",
-        "tp",
-        "t0",
-        "t1",
-        "t2",
-        "fp",
-        "s0",
-        "s1",
-        "a0",
-        "a1",
-        "a2",
-        "a3",
-        "a4",
-        "a5",
-        "a6",
-        "a7",
-        "s2",
-        "s3",
-        "s4",
-        "s5",
-        "s6",
-        "s7",
-        "s8",
-        "s9",
-        "s10",
-        "s11",
-        "t3",
-        "t4",
-        "t5",
-        "t6",
-    ]
-
-    ABI_INDEX_BY_NAME = {name: index for index, name in enumerate(ABI_NAMES)}
-
-    @staticmethod
-    def from_name(name: str) -> Register:
-        try:
-            index = Register.ABI_INDEX_BY_NAME[name]
-            return Register(index)
-        except KeyError:
-            raise ValueError(f"Unknown register name: {name}")
-
-    @property
-    def abi_name(self) -> str | None:
-        if self.index is None:
-            return None
-        return Register.ABI_NAMES[self.index]
+    index: None = field(default=None)
+    """
+    The register index. Currently always None.
+    """
 
 
 @irdl_attr_definition
@@ -113,10 +61,7 @@ class RegisterType(Data[Register]):
         assert False
 
     def print_parameter(self, printer: Printer) -> None:
-        name = self.data.abi_name
-        if name is None:
-            name = "x?"
-        printer.print_string(name)
+        assert False
 
 
 class Riscv1Rd2RsOperation(IRDLOperation):
@@ -130,13 +75,11 @@ class Riscv1Rd2RsOperation(IRDLOperation):
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register.from_name(rd))
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
