@@ -72,11 +72,8 @@ class Riscv1Rd2RsOperation(IRDLOperation):
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        *,
-        rd: RegisterType | None = None,
     ):
-        if rd is None:
-            rd = RegisterType(Register())
+        rd = RegisterType(Register())
 
         super().__init__(
             operands=[rs1, rs2],
