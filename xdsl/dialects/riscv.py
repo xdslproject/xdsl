@@ -123,6 +123,32 @@ class RdRsImmOperation(IRDLOperation, ABC):
         )
 
 
+class RsRsOffOperation(IRDLOperation, ABC):
+    """
+    ￼   A base class for RISC-V operations that have one source register and a destination
+    ￼   register, and an offset.
+
+        This is called B-Type in the RISC-V specification.
+    ￼"""
+
+    rs1: Annotated[Operand, RegisterType]
+    rs2: Annotated[Operand, RegisterType]
+    offset: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        offset: AnyIntegerAttr,
+    ):
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "offset": offset,
+            },
+        )
+
+
 # RV32I/RV64I: Integer Computational Instructions (Section 2.4)
 
 ## Integer Register-Immediate Instructions
@@ -327,6 +353,87 @@ class XorOp(RdRsRsOperation):
     name = "riscv.xor"
 
 
+# Conditional Branches
+
+
+@irdl_op_definition
+class BeqOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 and rs2 are equal.
+
+    if (x[rs1] == x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq
+    """
+
+    name = "riscv.beq"
+
+
+@irdl_op_definition
+class BneOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 and rs2 are not equal.
+
+    if (x[rs1] != x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne
+    """
+
+    name = "riscv.bne"
+
+
+@irdl_op_definition
+class BltOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 is less than rs2, using signed comparison.
+
+    if (x[rs1] <s x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt
+    """
+
+    name = "riscv.blt"
+
+
+@irdl_op_definition
+class BgeOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 is greater than or equal to rs2, using signed comparison.
+
+    if (x[rs1] >=s x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge
+    """
+
+    name = "riscv.bge"
+
+
+@irdl_op_definition
+class BltuOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 is less than rs2, using unsigned comparison.
+
+    if (x[rs1] <u x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu
+    """
+
+    name = "riscv.bltu"
+
+
+@irdl_op_definition
+class BgeuOp(RsRsOffOperation):
+    """
+    Take the branch if registers rs1 is greater than or equal to rs2, using unsigned comparison.
+
+    if (x[rs1] >=u x[rs2]) pc += sext(offset)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu
+    """
+
+    name = "riscv.bgeu"
+
+
 ## Assembler pseudo-insgtructions
 ## https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
@@ -360,6 +467,12 @@ RISCV = Dialect(
         AddOp,
         SubOp,
         XorOp,
+        BeqOp,
+        BneOp,
+        BltOp,
+        BgeOp,
+        BltuOp,
+        BgeuOp,
         LiOp,
     ],
     [RegisterType],
