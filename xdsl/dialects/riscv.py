@@ -119,18 +119,6 @@ class RegisterType(Data[Register]):
         printer.print_string(name)
 
 
-@irdl_attr_definition
-class LabelAttr(Data[str]):
-    name = "riscv.label"
-
-    @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
-        assert False
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data)
-
-
 class Riscv1Rd2RsOperation(IRDLOperation):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
