@@ -9,7 +9,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
-from xdsl.parser import XDSLParser
+from xdsl.parser import MLIRParser
 from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 
 
@@ -141,49 +141,65 @@ def test_op_clone_with_regions():
 
 ##################### Testing is_structurally_equal #####################
 
-program_region = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
-}
+program_region = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+}) : () -> ()
 """
-program_region_2 = """builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+
+program_region_2 = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+}) : () -> ()
 """
-program_region_2_diff_name = """builtin.module() {
-  %cst : !i32 = arith.constant() ["value" = 2 : !i32]
-}
+
+program_region_2_diff_name = """
+"builtin.module"() ({
+  %cst = "arith.constant"() {"value" = 2 : i32} : () -> i32
+}) : () -> ()
 """
-program_region_2_diff_type = """builtin.module() {
-  %0 : !i64 = arith.constant() ["value" = 2 : !i64]
-}
+
+program_region_2_diff_type = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 2 : i64} : () -> i64
+}) : () -> ()
 """
-program_add = """builtin.module() {
-%0 : !i32 = arith.constant() ["value" = 1 : !i32]
-%1 : !i32 = arith.constant() ["value" = 2 : !i32]
-%2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-}
+
+program_add = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+}) : () -> ()
 """
-program_add_2 = """builtin.module() {
-%0 : !i32 = arith.constant() ["value" = 1 : !i32]
-%1 : !i32 = arith.constant() ["value" = 2 : !i32]
-%2 : !i32 = arith.addi(%1 : !i32, %0 : !i32)
-}
+
+program_add_2 = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %2 = "arith.addi"(%1, %0) : (i32, i32) -> i32
+}) : () -> ()
 """
-program_func = """builtin.module() {
-  func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
-  ^0(%0 : !i32, %1 : !i32):
-    %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-    func.return(%2 : !i32)
-  }
-}
+
+program_func = """
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%0 : i32, %1 : i32):
+    %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+    "func.return"(%2) : (i32) -> ()
+  }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+}) : () -> ()
 """
+
 program_successors = """
-    func.func() ["sym_name" = "unconditional_br", "function_type" = !fun<[], []>, "sym_visibility" = "private"] {
-    ^0:
-        cf.br() (^1)
-    ^1:
-        cf.br() (^0)
-    }
+"builtin.module"() ({
+  "func.func"() ({
+  ^0:
+    "cf.br"() [^1] : () -> ()
+  ^1:
+    "cf.br"() [^0] : () -> ()
+  }) {"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+}) : () -> ()
 """
 
 
@@ -213,34 +229,35 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = XDSLParser(ctx, args[0])
+    parser = MLIRParser(ctx, args[0])
     lhs: Operation = parser.parse_op()
 
-    parser = XDSLParser(ctx, args[1])
+    parser = MLIRParser(ctx, args[1])
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
 
 
 def test_is_structurally_equivalent_incompatible_ir_nodes():
-    program_func = """builtin.module() {
-    func.func() ["sym_name" = "test", "type" = !fun<[!i32, !i32], [!i32]>, "sym_visibility" = "private"] {
-    ^0(%0 : !i32, %1 : !i32):
-      %2 : !i32 = arith.addi(%0 : !i32, %1 : !i32)
-      %3 : !i32 = arith.constant() ["value" = 2 : !i32]
-      func.return(%3 : !i32)
-    ^1(%4 : !i32, %5 : !i32):
-      func.return(%4 : !i32)
-    }
-  }
-  """
+    program_func = """
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%0 : i32, %1 : i32):
+    %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+    %3 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    "func.return"(%3) : (i32) -> ()
+  ^1(%4 : i32, %5 : i32):
+    "func.return"(%4) : (i32) -> ()
+  }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+}) : () -> ()
+"""
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = XDSLParser(ctx, program_func)
+    parser = MLIRParser(ctx, program_func)
     program = parser.parse_operation()
 
     assert isinstance(program, ModuleOp)
