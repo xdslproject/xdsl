@@ -77,11 +77,7 @@ class RdRsRsOp(IRDLOperation, ABC):
 class RdImmOp(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
-    immediate operand.
-
-    This is an assembler pseudo-instruction.
-
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
+    immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
     rd: Annotated[OpResult, RegisterType]
@@ -132,6 +128,8 @@ class SubOp(RdRsRsOp):
 class LiOp(RdImmOp):
     """
     Loads an immediate into rd.
+
+    This is an assembler pseudo-instruction.
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
     """
