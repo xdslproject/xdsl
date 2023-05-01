@@ -278,6 +278,19 @@ class SrliOp(RdRsImmOperation):
 
     name = "riscv.srli"
 
+@irdl_op_definition
+class SraiOp(RdRsImmOperation):
+    """
+    Performs arithmetic right shift on the value in register rs1 by the shift amount
+    held in the lower 5 bits of the immediate
+
+    x[rd] = x[rs1] >>s shamt
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai
+    """
+
+    name = "riscv.srai"
+
 
 @irdl_op_definition
 class XorOp(RdRsRsOperation):
@@ -306,6 +319,7 @@ RISCV = Dialect(
         AndiOp,
         SlliOp,
         SrliOp,
+        SraiOp,
     ],
     [RegisterType],
 )
