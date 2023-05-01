@@ -194,6 +194,7 @@ class SltiOp(RdRsImmOperation):
 
     name = "riscv.slti"
 
+
 @irdl_op_definition
 class SltiuOp(RdRsImmOperation):
     """
@@ -207,7 +208,19 @@ class SltiuOp(RdRsImmOperation):
 
     name = "riscv.sltiu"
 
-# Logical
+
+@irdl_op_definition
+class XoriOp(RdRsImmOperation):
+    """
+    Performs bitwise XOR on register rs1 and the sign-extended 12-bit immediate and place
+    the result in rd.
+
+    x[rd] = x[rs1] ^ sext(immediate)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori
+    """
+
+    name = "riscv.xori"
 
 
 @irdl_op_definition
@@ -232,6 +245,7 @@ RISCV = Dialect(
         AddiOp,
         SltiOp,
         SltiuOp,
+        XoriOp,
     ],
     [RegisterType],
 )
