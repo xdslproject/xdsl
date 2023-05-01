@@ -308,6 +308,21 @@ class LuiOp(RdImmOperation):
 
 
 @irdl_op_definition
+class AuipcOp(RdImmOperation):
+    """
+    Build pc-relative addresses and uses the U-type format. AUIPC forms a 32-bit offset
+    from the 20-bit U-immediate, filling in the lowest 12 bits with zeros, adds this
+    offset to the pc, then places the result in register rd.
+
+    x[rd] = pc + sext(immediate[31:12] << 12)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc
+    """
+
+    name = "riscv.auipc"
+
+
+@irdl_op_definition
 class XorOp(RdRsRsOperation):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
@@ -336,6 +351,7 @@ RISCV = Dialect(
         SrliOp,
         SraiOp,
         LuiOp,
+        AuipcOp,
     ],
     [RegisterType],
 )

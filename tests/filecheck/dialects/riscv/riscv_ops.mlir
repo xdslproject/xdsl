@@ -30,4 +30,6 @@
   // CHECK-NEXT: %{{.*}} = "riscv.srai"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
   %lui = "riscv.lui"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.lui"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  %auipc = "riscv.auipc"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.auipc"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 }) : () -> ()
