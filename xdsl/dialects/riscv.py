@@ -96,6 +96,33 @@ class RdImmOperation(IRDLOperation, ABC):
         )
 
 
+class RdRsImmOperation(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    This is called I-Type in the RISC-V specification.
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    rs1: Annotated[Operand, RegisterType]
+    immediate: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: AnyIntegerAttr,
+    ):
+        rd = RegisterType(Register())
+        super().__init__(
+            operands=[rs1],
+            attributes={
+                "immediate": immediate,
+            },
+            result_types=[rd],
+        )
+
+
 # Arithmetic
 
 
@@ -140,6 +167,20 @@ class LiOp(RdImmOperation):
     name = "riscv.li"
 
 
+@irdl_op_definition
+class AddiOp(RdRsImmOperation):
+    """
+    Adds the sign-extended 12-bit immediate to register rs1.
+    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
+
+    x[rd] = x[rs1] + sext(immediate)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi
+    """
+
+    name = "riscv.addi"
+
+
 # Logical
 
 
@@ -162,6 +203,7 @@ RISCV = Dialect(
         SubOp,
         LiOp,
         XorOp,
+        AddiOp,
     ],
     [RegisterType],
 )
