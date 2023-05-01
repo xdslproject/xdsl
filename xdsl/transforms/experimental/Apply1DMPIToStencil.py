@@ -217,9 +217,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.Waitall.get(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        assert op.parent is not None
-        idx = op.parent.get_operation_index(op)
-        op.parent.insert_op(mpi_operations, idx + 1)
+        rewriter.insert_op_after_matched_op(mpi_operations)
 
 
 def Apply1DMpi(ctx: MLContext, module: builtin.ModuleOp):
