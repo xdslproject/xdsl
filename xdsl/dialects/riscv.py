@@ -10,6 +10,7 @@ from xdsl.ir import (
     SSAValue,
     Data,
     OpResult,
+    TypeAttribute,
 )
 
 from xdsl.irdl import (
@@ -38,7 +39,7 @@ class Register:
 
 
 @irdl_attr_definition
-class RegisterType(Data[Register]):
+class RegisterType(Data[Register], TypeAttribute):
     name = "riscv.reg"
 
     @classmethod
@@ -58,10 +59,10 @@ class RegisterType(Data[Register]):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Register:
-        assert False
+        return Register(None)
 
     def print_parameter(self, printer: Printer) -> None:
-        assert False
+        pass
 
 
 class Riscv1Rd2RsOperation(IRDLOperation):
