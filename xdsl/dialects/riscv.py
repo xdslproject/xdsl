@@ -125,11 +125,11 @@ class RdRsImmOperation(IRDLOperation, ABC):
 
 class RsRsOffOperation(IRDLOperation, ABC):
     """
-    ￼   A base class for RISC-V operations that have one source register and a destination
-    ￼   register, and an offset.
+    A base class for RISC-V operations that have one source register and a destination
+    register, and an offset.
 
-        This is called B-Type in the RISC-V specification.
-    ￼"""
+    This is called B-Type in the RISC-V specification.
+    """
 
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
