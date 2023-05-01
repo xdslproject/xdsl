@@ -4,10 +4,10 @@ from xdsl.ir import OpResult, BlockArgument, SSAValue
 from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder
 
-from ..parser import Parser
-from ..ir_gen import IRGen
+from ..frontend.parser import Parser
+from ..frontend.ir_gen import IRGen
 
-from toy import dialect as toy
+from ..dialects import toy
 
 
 def test_convert_ast():
