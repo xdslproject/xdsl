@@ -789,7 +789,7 @@ class Operation(IRNode):
     def parse(
         cls: type[_OperationType], result_types: list[Attribute], parser: BaseParser
     ) -> _OperationType:
-        return parser.parse_op_with_default_format(cls, result_types)
+        parser.raise_error(f"Parsing not implemented for operation {cls.name}")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
