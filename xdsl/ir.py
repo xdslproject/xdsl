@@ -1148,47 +1148,6 @@ class Block(IRNode):
         """The last operation in this block."""
         return self._last_op
 
-    def _op_at_index(
-        self, index: int, message_lambda: Callable[[], str] | None = None
-    ) -> Operation | None:
-        """
-        Returns the operation at a given index, supporting positive and negative indices.
-        If abs(index) == num_ops, return None.
-        if abs(index) > num_ops, raise ValueError, optionally with given message.
-        """
-        if index < 0:
-            # Enumerate backwards
-            op = self.last_op
-            while index < -1:
-                if op is None:
-                    break
-                op = op.prev_op
-                index += 1
-            else:
-                return op
-        else:
-            # Enumerate forwards
-            op = self.first_op
-            while index:
-                if op is None:
-                    break
-                op = op.next_op
-                index -= 1
-            else:
-                return op
-        if message_lambda is None:
-            message = (
-                f"Invalid operation index {index} for block with {len(self.ops)} ops"
-            )
-        else:
-            message = message_lambda()
-        raise ValueError(message)
-
-    def op_at_index(self, index: int) -> Operation:
-        op = self._op_at_index(index)
-        assert op is not None
-        return op
-
     def insert_op_after(self, new_op: Operation, existing_op: Operation) -> None:
         """
         Inserts `new_op` into this block, after `existing_op`.
@@ -1268,13 +1227,11 @@ class Block(IRNode):
                 return idx
         assert False, "Unexpected xdsl error"
 
-    def detach_op(self, op: int | Operation) -> Operation:
+    def detach_op(self, op: Operation) -> Operation:
         """
         Detach an operation from the block.
         Returns the detached operation.
         """
-        if isinstance(op, int):
-            op = self.op_at_index(op)
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
@@ -1304,7 +1261,7 @@ class Block(IRNode):
 
         return op
 
-    def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
+    def erase_op(self, op: Operation, safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
