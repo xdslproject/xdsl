@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p convert-stencil-to-ll-mlir | filecheck %s
+// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p lower-mpi | mlir-opt --convert-func-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts | filecheck %s
+// RUN: xdsl-opt %s -p lower-mpi | mlir-opt --convert-func-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

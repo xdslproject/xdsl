@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir --allow-unregistered-dialect --parsing-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --allow-unregistered-dialect --parsing-diagnostics | filecheck %s
 
 "builtin.module"() ({
 
