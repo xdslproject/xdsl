@@ -123,48 +123,9 @@ class RdRsImmOperation(IRDLOperation, ABC):
         )
 
 
-# Arithmetic
+# RV32I/RV64I: Integer Computational Instructions (Section 2.4)
 
-
-@irdl_op_definition
-class AddOp(RdRsRsOperation):
-    """
-    Adds the registers rs1 and rs2 and stores the result in rd.
-    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
-
-    x[rd] = x[rs1] + x[rs2]
-
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
-    """
-
-    name = "riscv.add"
-
-
-@irdl_op_definition
-class SubOp(RdRsRsOperation):
-    """
-    Subtracts the registers rs1 and rs2 and stores the result in rd.
-    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
-
-    x[rd] = x[rs1] - x[rs2]
-
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
-    """
-
-    name = "riscv.sub"
-
-
-@irdl_op_definition
-class LiOp(RdImmOperation):
-    """
-    Loads an immediate into rd.
-
-    This is an assembler pseudo-instruction.
-
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
-    """
-
-    name = "riscv.li"
+## Integer Register-Immediate Instructions
 
 
 @irdl_op_definition
@@ -210,17 +171,17 @@ class SltiuOp(RdRsImmOperation):
 
 
 @irdl_op_definition
-class XoriOp(RdRsImmOperation):
+class AndiOp(RdRsImmOperation):
     """
-    Performs bitwise XOR on register rs1 and the sign-extended 12-bit immediate and place
-    the result in rd.
+    Performs bitwise AND on register rs1 and the sign-extended 12-bit
+    immediate and place the result in rd.
 
-    x[rd] = x[rs1] ^ sext(immediate)
+    x[rd] = x[rs1] & sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi
     """
 
-    name = "riscv.xori"
+    name = "riscv.andi"
 
 
 @irdl_op_definition
@@ -238,17 +199,17 @@ class OriOp(RdRsImmOperation):
 
 
 @irdl_op_definition
-class AndiOp(RdRsImmOperation):
+class XoriOp(RdRsImmOperation):
     """
-    Performs bitwise AND on register rs1 and the sign-extended 12-bit
-    immediate and place the result in rd.
+    Performs bitwise XOR on register rs1 and the sign-extended 12-bit immediate and place
+    the result in rd.
 
-    x[rd] = x[rs1] & sext(immediate)
+    x[rd] = x[rs1] ^ sext(immediate)
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#andi
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xori
     """
 
-    name = "riscv.andi"
+    name = "riscv.xori"
 
 
 @irdl_op_definition
@@ -322,6 +283,37 @@ class AuipcOp(RdImmOperation):
     name = "riscv.auipc"
 
 
+## Integer Register-Register Operations
+
+
+@irdl_op_definition
+class AddOp(RdRsRsOperation):
+    """
+    Adds the registers rs1 and rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
+
+    x[rd] = x[rs1] + x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    """
+
+    name = "riscv.add"
+
+
+@irdl_op_definition
+class SubOp(RdRsRsOperation):
+    """
+    Subtracts the registers rs1 and rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
+
+    x[rd] = x[rs1] - x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    """
+
+    name = "riscv.sub"
+
+
 @irdl_op_definition
 class XorOp(RdRsRsOperation):
     """
@@ -335,23 +327,40 @@ class XorOp(RdRsRsOperation):
     name = "riscv.xor"
 
 
+## Assembler pseudo-insgtructions
+## https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
+
+
+@irdl_op_definition
+class LiOp(RdImmOperation):
+    """
+    Loads an immediate into rd.
+
+    This is an assembler pseudo-instruction.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
+    """
+
+    name = "riscv.li"
+
+
 RISCV = Dialect(
     [
-        AddOp,
-        SubOp,
-        LiOp,
-        XorOp,
         AddiOp,
         SltiOp,
         SltiuOp,
-        XoriOp,
-        OriOp,
         AndiOp,
+        OriOp,
+        XoriOp,
         SlliOp,
         SrliOp,
         SraiOp,
         LuiOp,
         AuipcOp,
+        AddOp,
+        SubOp,
+        XorOp,
+        LiOp,
     ],
     [RegisterType],
 )
