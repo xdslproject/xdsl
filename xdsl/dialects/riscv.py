@@ -1,8 +1,8 @@
 from __future__ import annotations
-from abc import ABC
+
 
 from dataclasses import dataclass, field
-from typing import Annotated, Iterable
+from typing import Annotated
 
 from xdsl.ir import (
     Dialect,
@@ -131,83 +131,7 @@ class LabelAttr(Data[str]):
         printer.print_string(self.data)
 
 
-class _RegisterAllocation:
-    register_by_value: dict[SSAValue, str] = {}
-    idx = 0
-
-    def __init__(self) -> None:
-        self.register_by_value = dict()
-        self.idx = 0
-
-    def register_for_value(self, reg: SSAValue):
-        if reg in self.register_by_value:
-            name = self.register_by_value[reg]
-        else:
-            typ = reg.typ
-            if not isinstance(typ, RegisterType):
-                raise ValueError(f"Expected RegisterType, got {typ}")
-            name = typ.data.abi_name
-            if name is None:
-                name = f"%{self.idx}"
-                self.idx += 1
-            self.register_by_value[reg] = name
-        return name
-
-
-class _RISCVOp(Operation, ABC):
-    def assembly_instruction(
-        self, register_allocation: _RegisterAllocation
-    ) -> str | None:
-        assert self.name.startswith("riscv.")
-        comment: StringAttr | None
-        match self:
-            case Riscv1Rd2RsOperation():
-                instruction_name = self.name[6:]
-                comment = self.comment
-            case _:
-                assert False, f"Unknown operation type {type(self)}"
-
-        components: list[str] = []
-
-        reg = register_allocation.register_for_value
-
-        for result in self.results:
-            components.append(reg(result))
-
-        for operand in self.operands:
-            components.append(reg(operand))
-
-        code = f"    {instruction_name} {', '.join(components)}"
-        return _RISCVOp.append_comment(code, comment)
-
-    @staticmethod
-    def append_comment(line: str, comment: StringAttr | None) -> str:
-        if comment is None:
-            return line
-
-        padding = " " * max(0, 48 - len(line))
-
-        return f"{line}{padding} # {comment.data}"
-
-
-def riscv_code(ops: Iterable[Operation]) -> str:
-    code = ""
-
-    reg = _RegisterAllocation()
-
-    for op in ops:
-        if not isinstance(op, _RISCVOp):
-            raise ValueError("All ops in module must inherit from RISCVOp")
-        instruction = op.assembly_instruction(reg)
-        if instruction is None:
-            continue
-
-        code += f"{instruction}\n"
-
-    return code
-
-
-class Riscv1Rd2RsOperation(IRDLOperation, _RISCVOp):
+class Riscv1Rd2RsOperation(IRDLOperation):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
