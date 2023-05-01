@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
-from xdsl.parser import Parser, Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token

@@ -20,7 +20,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
 )
-from xdsl.parser import Parser, Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
