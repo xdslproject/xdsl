@@ -282,26 +282,26 @@ def test_descriptions():
     assert str(a.value) == "1 : i32"
     assert f"{a.value}" == "1 : i32"
 
-    assert str(a) == '%0 : !i32 = arith.constant() ["value" = 1 : !i32]'
-    assert f"{a}" == 'Constant(%0 : !i32 = arith.constant() ["value" = 1 : !i32])'
+    assert str(a) == '%0 = "arith.constant"() {"value" = 1 : i32} : () -> i32'
+    assert f"{a}" == 'Constant(%0 = "arith.constant"() {"value" = 1 : i32} : () -> i32)'
 
     m = ModuleOp([a])
 
     assert (
         str(m)
         == """\
-builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
-}"""
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+}) : () -> ()"""
     )
 
     assert (
         f"{m}"
         == """\
 ModuleOp(
-\tbuiltin.module() {
-\t  %0 : !i32 = arith.constant() ["value" = 1 : !i32]
-\t}
+\t"builtin.module"() ({
+\t  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+\t}) : () -> ()
 )"""
     )
 
@@ -397,7 +397,7 @@ def test_op_custom_verify_is_done_last():
     assert e.value.args[0] != "Custom Verification Check"
     assert (
         e.value.args[0]
-        == "test.custom_verify_op operation does not verify\n\ntest.custom_verify_op(%<UNKNOWN> : !i32)\n\n"
+        == 'test.custom_verify_op operation does not verify\n\n"test.custom_verify_op"(%<UNKNOWN>) : (i32) -> ()\n\n'
     )
 
 

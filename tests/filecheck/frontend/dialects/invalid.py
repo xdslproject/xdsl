@@ -16,7 +16,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -27,7 +27,7 @@ try:
             return b
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -38,7 +38,7 @@ try:
             return a
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -49,7 +49,7 @@ try:
             return a + b
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -60,7 +60,7 @@ try:
             return a < b
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -74,7 +74,7 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -86,7 +86,7 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -98,7 +98,7 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -110,6 +110,6 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)

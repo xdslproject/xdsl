@@ -75,17 +75,11 @@ Cannot print the program IR without compiling it first. Make sure to use:
     p.compile()"""
             raise FrontendProgramException(msg)
 
-    def _print(self, target: Printer.Target) -> str:
+    def textual_format(self) -> str:
         self._check_can_print()
         assert self.xdsl_program is not None
 
         file = StringIO("")
-        printer = Printer(stream=file, target=target)
+        printer = Printer(stream=file)
         printer.print_op(self.xdsl_program)
         return file.getvalue().strip()
-
-    def mlir(self) -> str:
-        return self._print(Printer.Target.MLIR)
-
-    def xdsl(self) -> str:
-        return self._print(Printer.Target.XDSL)

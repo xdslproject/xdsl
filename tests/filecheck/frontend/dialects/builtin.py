@@ -19,36 +19,36 @@ from xdsl.frontend.dialects.builtin import (
 
 p = FrontendProgram()
 with CodeContext(p):
-    #      CHECK: func.func() ["sym_name" = "bool"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !i1)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : i1)
     def bool(x: i1):
         pass
 
-    #      CHECK: func.func() ["sym_name" = "signless"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !i32, %{{.*}} : !i64)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : i32, %{{.*}} : i64)
     def signless(x: i32, y: i64):
         pass
 
-    #      CHECK: func.func() ["sym_name" = "unsigned"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !ui32, %{{.*}} : !ui64)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : ui32, %{{.*}} : ui64)
     def unsigned(x: ui32, y: ui64):
         pass
 
-    #      CHECK: func.func() ["sym_name" = "signed"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !si32, %{{.*}} : !si64)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : si32, %{{.*}} : si64)
     def signed(x: si32, y: si64):
         pass
 
-    #      CHECK: func.func() ["sym_name" = "indexed"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index)
     def indexed(x: index):
         pass
 
-    #      CHECK: func.func() ["sym_name" = "fp"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !f16, %{{.*}} : !f32, %{{.*}} : !f64)
+    #      CHECK: "func.func"()
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)
     def fp(x: f16, y: f32, z: f64):
         pass
 
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())

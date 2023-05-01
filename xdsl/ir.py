@@ -932,7 +932,7 @@ class Operation(IRNode):
         from xdsl.printer import Printer
 
         res = StringIO()
-        printer = Printer(stream=res, target=Printer.Target.XDSL)
+        printer = Printer(stream=res)
         printer.print_op(self)
         return res.getvalue()
 
