@@ -146,7 +146,7 @@ class LiOp(RdImmOperation):
 @irdl_op_definition
 class XOrOp(RdRsRsOperation):
     """
-    Performs bitwise XOR on registers rs1 and rs2 and place the result in rd
+    Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
 
     x[rd] = x[rs1] ^ x[rs2]
 
