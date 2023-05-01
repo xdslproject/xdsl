@@ -149,6 +149,14 @@ class RsRsOffOperation(IRDLOperation, ABC):
         )
 
 
+class NullaryOperation(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations that have neither sources nor destinations.
+    """
+
+    pass
+
+
 # RV32I/RV64I: Integer Computational Instructions (Section 2.4)
 
 ## Integer Register-Immediate Instructions
@@ -327,6 +335,101 @@ class AddOp(RdRsRsOperation):
 
 
 @irdl_op_definition
+class SltOp(RdRsRsOperation):
+    """
+    Place the value 1 in register rd if register rs1 is less than register rs2 when both
+    are treated as signed numbers, else 0 is written to rd.
+
+    x[rd] = x[rs1] <s x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt
+    """
+
+    name = "riscv.slt"
+
+
+@irdl_op_definition
+class SltuOp(RdRsRsOperation):
+    """
+    Place the value 1 in register rd if register rs1 is less than register rs2 when both
+    are treated as unsigned numbers, else 0 is written to rd.
+
+    x[rd] = x[rs1] <u x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu
+    """
+
+    name = "riscv.sltu"
+
+
+@irdl_op_definition
+class AndOp(RdRsRsOperation):
+    """
+    Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
+
+    x[rd] = x[rs1] & x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and
+    """
+
+    name = "riscv.and"
+
+
+@irdl_op_definition
+class OrOp(RdRsRsOperation):
+    """
+    Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
+
+    x[rd] = x[rs1] | x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or
+    """
+
+    name = "riscv.or"
+
+
+@irdl_op_definition
+class XorOp(RdRsRsOperation):
+    """
+    Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
+
+    x[rd] = x[rs1] ^ x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor
+    """
+
+    name = "riscv.xor"
+
+
+@irdl_op_definition
+class SllOp(RdRsRsOperation):
+    """
+    Performs logical left shift on the value in register rs1 by the shift amount
+    held in the lower 5 bits of register rs2.
+
+    x[rd] = x[rs1] << x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll
+    """
+
+    name = "riscv.sll"
+
+
+@irdl_op_definition
+class SrlOp(RdRsRsOperation):
+    """
+    Logical right shift on the value in register rs1 by the shift amount held
+    in the lower 5 bits of register rs2.
+
+    x[rd] = x[rs1] >>u x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl
+    """
+
+    name = "riscv.srl"
+
+
+@irdl_op_definition
 class SubOp(RdRsRsOperation):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
@@ -341,16 +444,27 @@ class SubOp(RdRsRsOperation):
 
 
 @irdl_op_definition
-class XorOp(RdRsRsOperation):
+class SraOp(RdRsRsOperation):
     """
-    Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
+    Performs arithmetic right shift on the value in register rs1 by the shift amount held
+    in the lower 5 bits of register rs2.
 
-    x[rd] = x[rs1] ^ x[rs2]
+    x[rd] = x[rs1] >>s x[rs2]
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
     """
 
-    name = "riscv.xor"
+    name = "riscv.sra"
+
+
+@irdl_op_definition
+class NopOp(NullaryOperation):
+    """
+    Does not change any user-visible state, except for advancing the pc register.
+    Canonical nop is encoded as addi x0, x0, 0.
+    """
+
+    name = "riscv.nop"
 
 
 # Conditional Branches
@@ -434,7 +548,7 @@ class BgeuOp(RsRsOffOperation):
     name = "riscv.bgeu"
 
 
-## Assembler pseudo-insgtructions
+## Assembler pseudo-instructions
 ## https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
 
@@ -465,8 +579,16 @@ RISCV = Dialect(
         LuiOp,
         AuipcOp,
         AddOp,
-        SubOp,
+        SltOp,
+        SltuOp,
+        AndOp,
+        OrOp,
         XorOp,
+        SllOp,
+        SrlOp,
+        SubOp,
+        SraOp,
+        NopOp,
         BeqOp,
         BneOp,
         BltOp,
