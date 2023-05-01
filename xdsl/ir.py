@@ -1090,7 +1090,7 @@ class Block(IRNode):
             ...
 
     @staticmethod
-    def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
+    def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
         b = Block(arg_types=block_arg_types)
         b.add_ops(f(*b.args))
         return b

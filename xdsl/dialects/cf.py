@@ -1,6 +1,7 @@
 from __future__ import annotations
+from collections.abc import Sequence
 
-from typing import Annotated, List, Union
+from typing import Annotated, Union, Sequence
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
@@ -53,9 +54,9 @@ class ConditionalBranch(IRDLOperation):
     def get(
         cond: Union[Operation, SSAValue],
         then_block: Block,
-        then_ops: List[Union[Operation, SSAValue]],
+        then_ops: Sequence[Union[Operation, SSAValue]],
         else_block: Block,
-        else_ops: List[Union[Operation, SSAValue]],
+        else_ops: Sequence[Union[Operation, SSAValue]],
     ) -> ConditionalBranch:
         return ConditionalBranch.build(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]

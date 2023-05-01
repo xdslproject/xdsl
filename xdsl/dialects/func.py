@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, List, Union
+from typing import Annotated, Union, Sequence
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import (
@@ -48,8 +48,8 @@ class FuncOp(IRDLOperation):
     @staticmethod
     def from_callable(
         name: str,
-        input_types: List[Attribute],
-        return_types: List[Attribute],
+        input_types: Sequence[Attribute],
+        return_types: Sequence[Attribute],
         func: Block.BlockCallback,
     ) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
@@ -66,7 +66,7 @@ class FuncOp(IRDLOperation):
 
     @staticmethod
     def external(
-        name: str, input_types: List[Attribute], return_types: List[Attribute]
+        name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
     ) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes: dict[str, Attribute] = {
@@ -80,8 +80,8 @@ class FuncOp(IRDLOperation):
     @staticmethod
     def from_region(
         name: str,
-        input_types: List[Attribute],
-        return_types: List[Attribute],
+        input_types: Sequence[Attribute],
+        return_types: Sequence[Attribute],
         region: Region,
     ) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
@@ -178,8 +178,8 @@ class Call(IRDLOperation):
     @staticmethod
     def get(
         callee: Union[str, SymbolRefAttr],
-        ops: List[Union[SSAValue, Operation]],
-        return_types: List[Attribute],
+        ops: Sequence[Union[SSAValue, Operation]],
+        return_types: Sequence[Attribute],
     ) -> Call:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)

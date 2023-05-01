@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, List
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -36,7 +36,7 @@ class Load(IRDLOperation):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
-    def get(ref: SSAValue | Operation, indices: List[SSAValue | Operation]) -> Load:
+    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ref = SSAValue.get(ref)
         assert assert_isa(ref.typ, MemRefType[Attribute])
 
@@ -71,7 +71,7 @@ class Store(IRDLOperation):
     def get(
         vector: Operation | SSAValue,
         ref: Operation | SSAValue,
-        indices: List[Operation | SSAValue],
+        indices: Sequence[Operation | SSAValue],
     ) -> Store:
         return Store.build(operands=[vector, ref, indices])
 
@@ -199,7 +199,7 @@ class Maskedload(IRDLOperation):
     @staticmethod
     def get(
         memref: SSAValue | Operation,
-        indices: List[SSAValue | Operation],
+        indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         passthrough: SSAValue | Operation,
     ) -> Maskedload:
@@ -249,7 +249,7 @@ class Maskedstore(IRDLOperation):
     @staticmethod
     def get(
         memref: SSAValue | Operation,
-        indices: List[SSAValue | Operation],
+        indices: Sequence[SSAValue | Operation],
         mask: SSAValue | Operation,
         value_to_store: SSAValue | Operation,
     ) -> Maskedstore:

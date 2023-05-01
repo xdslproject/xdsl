@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Sequence
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -65,7 +65,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     #  bitmask = ParameterDef(StringAttr)
 
     @staticmethod
-    def from_type_list(types: list[Attribute]) -> LLVMStructType:
+    def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
         return LLVMStructType([StringAttr(""), ArrayAttr(types)])
 
     def print_parameters(self, printer: Printer) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Iterable,
     Sequence,
     TypeVar,
     Optional,
@@ -73,7 +74,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribu
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
-        shape: Sequence[int | AnyIntegerAttr],
+        shape: Iterable[int | AnyIntegerAttr],
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
@@ -233,7 +234,7 @@ class Alloc(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int,
-        shape: Optional[List[int | AnyIntegerAttr]] = None,
+        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
     ) -> Alloc:
         if shape is None:
             shape = [1]
@@ -262,8 +263,8 @@ class Alloca(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int,
-        shape: Optional[List[int | AnyIntegerAttr]] = None,
-        dynamic_sizes: list[SSAValue | Operation] | None = None,
+        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
         if shape is None:
             shape = [1]
