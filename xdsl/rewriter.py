@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import Sequence
 
 from xdsl.ir import SSAValue, BlockArgument
-from xdsl.irdl import Operation, Region, Block, OpResult
+from xdsl.irdl import Operation, Region, Block
 
 
 class Rewriter:
@@ -21,8 +21,8 @@ class Rewriter:
     @staticmethod
     def replace_op(
         op: Operation,
-        new_ops: Operation | List[Operation],
-        new_results: Optional[List[Optional[SSAValue]] | List[OpResult]] = None,  # noqa
+        new_ops: Operation | list[Operation],
+        new_results: Sequence[SSAValue | None] | None = None,  # noqa
         safe_erase: bool = True,
     ):
         """
@@ -135,7 +135,7 @@ class Rewriter:
         op.parent.insert_ops_after(ops, op)
 
     @staticmethod
-    def insert_block_after(block: Block | List[Block], target: Block):
+    def insert_block_after(block: Block | list[Block], target: Block):
         """
         Insert one or multiple blocks after another block.
         The blocks to insert should be detached from any region.
@@ -151,7 +151,7 @@ class Rewriter:
         region.insert_block(block_list, pos + 1)
 
     @staticmethod
-    def insert_block_before(block: Block | List[Block], target: Block):
+    def insert_block_before(block: Block | list[Block], target: Block):
         """
         Insert one or multiple block before another block.
         The blocks to insert should be detached from any region.

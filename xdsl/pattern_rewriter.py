@@ -4,7 +4,7 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable
+from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable, Sequence
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
@@ -153,7 +153,7 @@ class PatternRewriter:
     def replace_matched_op(
         self,
         new_ops: Operation | list[Operation],
-        new_results: list[SSAValue | None] | None = None,
+        new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
     ):
         """
