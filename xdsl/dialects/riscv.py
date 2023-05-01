@@ -47,7 +47,7 @@ class RegisterType(Data[Register], TypeAttribute):
         pass
 
 
-class Riscv1Rd2RsOperation(IRDLOperation):
+class Riscv1Rd2RsOperation(IRDLOperation, ABC):
     """
     A common structure of RISCV operations, takes `rs1` and `rs2` and stores the result in
     `rd`.
