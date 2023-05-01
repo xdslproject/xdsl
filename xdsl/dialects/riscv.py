@@ -181,6 +181,20 @@ class AddiOp(RdRsImmOperation):
     name = "riscv.addi"
 
 
+@irdl_op_definition
+class SltiOp(RdRsImmOperation):
+    """
+    Place the value 1 in register rd if register rs1 is less than the sign-extended
+    immediate when both are treated as signed numbers, else 0 is written to rd.
+
+    x[rd] = x[rs1] <s sext(immediate)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti
+    """
+
+    name = "riscv.slti"
+
+
 # Logical
 
 
@@ -204,6 +218,7 @@ RISCV = Dialect(
         LiOp,
         XorOp,
         AddiOp,
+        SltiOp,
     ],
     [RegisterType],
 )
