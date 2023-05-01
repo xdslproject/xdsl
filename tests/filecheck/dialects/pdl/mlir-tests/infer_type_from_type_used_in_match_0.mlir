@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"() ({
   "pdl.pattern"() ({

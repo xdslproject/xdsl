@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir | xdsl-opt -f mlir -t mlir | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 "builtin.module"() ({
   %lhsi1, %rhsi1 = "test.op"() : () -> (i1, i1)

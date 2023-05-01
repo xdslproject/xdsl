@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics -t mlir | filecheck %s
+// RUN: xdsl-opt %s --parsing-diagnostics | filecheck %s
 
 "builtin.module" () {"test" = array<!fun<[],[]>: 2, 5, 2>} ({
 })

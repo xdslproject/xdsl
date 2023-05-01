@@ -2807,7 +2807,7 @@ class Source(Enum):
 def Parser(
     ctx: MLContext,
     prog: str,
-    source: Source = Source.XDSL,
+    source: Source = Source.MLIR,
     filename: str = "<unknown>",
     allow_unregistered_dialect: bool = False,
 ) -> BaseParser:
