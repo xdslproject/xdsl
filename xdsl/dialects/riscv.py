@@ -37,21 +37,6 @@ class Register:
 class RegisterType(Data[Register], TypeAttribute):
     name = "riscv.reg"
 
-    @classmethod
-    def new(cls, params: Register | None = None):
-        # Create the new attribute object, without calling its __init__.
-        # We do this to allow users to redefine their own __init__.
-        attr = cls.__new__(cls)
-
-        if params is None:
-            register = Register()
-        elif isinstance(params, Register):
-            register = params
-
-        # Call the __init__ of Data, which will set the parameters field.
-        Data[Register].__init__(attr, register)
-        return attr
-
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Register:
         return Register()
