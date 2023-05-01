@@ -86,9 +86,24 @@ class AddOp(RdRsRsOp):
     name = "riscv.add"
 
 
+@irdl_op_definition
+class SubOp(RdRsRsOp):
+    """
+    Subtracts the registers rs1 and rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
+
+    x[rd] = x[rs1] - x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub
+    """
+
+    name = "riscv.sub"
+
+
 RISCV = Dialect(
     [
         AddOp,
+        SubOp,
     ],
     [RegisterType],
 )
