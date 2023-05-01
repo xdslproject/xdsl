@@ -25,7 +25,7 @@ def test_opt():
 
 def test_empty_program():
     filename = "tests/xdsl_opt/empty_program.mlir"
-    opt = xDSLOptMain(args=[filename, "-t", "mlir"])
+    opt = xDSLOptMain(args=[filename])
 
     f = StringIO("")
     with redirect_stdout(f):
@@ -84,7 +84,7 @@ def test_print_to_file():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
     filename_out = "tests/xdsl_opt/empty_program.out"
 
-    opt = xDSLOptMain(args=[filename_in, "-o", filename_out, "-t", "mlir"])
+    opt = xDSLOptMain(args=[filename_in, "-o", filename_out])
     opt.run()
 
     with open(filename_in, "r") as file:
@@ -111,7 +111,7 @@ def test_operation_deletion():
 
             self.register_pass(RemoveConstantPass)
 
-    opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant", "-t", "mlir"])
+    opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant"])
 
     f = StringIO("")
     with redirect_stdout(f):

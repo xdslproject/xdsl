@@ -136,7 +136,7 @@ class xDSLOptMain:
             required=False,
             choices=targets,
             help="target",
-            default="xdsl",
+            default="mlir",
         )
 
         frontends = [name for name in self.available_frontends]
@@ -304,7 +304,7 @@ class xDSLOptMain:
         """
         if self.args.input_file is None:
             f = sys.stdin
-            file_extension = "xdsl"
+            file_extension = "mlir"
         else:
             f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
