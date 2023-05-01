@@ -51,6 +51,8 @@ class RdRsRsOp(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
+
+    This is called R-Type in the RISC-V specification.
     """
 
     rd: Annotated[OpResult, RegisterType]
