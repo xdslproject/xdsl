@@ -17,10 +17,8 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     irdl_attr_definition,
-    OptOpAttr,
     Operand,
 )
-from xdsl.dialects.builtin import StringAttr
 
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
@@ -69,7 +67,6 @@ class Riscv1Rd2RsOperation(IRDLOperation):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -77,18 +74,12 @@ class Riscv1Rd2RsOperation(IRDLOperation):
         rs2: Operation | SSAValue,
         *,
         rd: RegisterType | None = None,
-        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
 
         super().__init__(
             operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
             result_types=[rd],
         )
 
