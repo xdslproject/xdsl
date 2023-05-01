@@ -1,7 +1,7 @@
 from xdsl.dialects.test import Test
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.ir import MLContext, Use
-from xdsl.parser import Parser, Source
+from xdsl.parser import Parser
 
 test_prog = """
 "builtin.module"() ({
@@ -16,7 +16,7 @@ def test_main():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Test)
 
-    parser = Parser(ctx, test_prog, source=Source.MLIR)
+    parser = Parser(ctx, test_prog)
     module = parser.parse_op()
 
     module.verify()

@@ -20,7 +20,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
 )
-from xdsl.parser import MLIRParser, BaseParser
+from xdsl.parser import Parser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
@@ -140,7 +140,7 @@ def test_op_message():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -175,7 +175,7 @@ def test_two_different_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -210,7 +210,7 @@ def test_two_same_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -243,7 +243,7 @@ def test_op_message_with_region():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -276,7 +276,7 @@ def test_op_message_with_region_and_overflow():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -299,7 +299,7 @@ def test_diagnostic():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diag = Diagnostic()
@@ -340,7 +340,7 @@ def test_print_custom_name():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
@@ -372,7 +372,7 @@ class CustomFormatAttr(ParametrizedAttribute):
     attr: ParameterDef[IntAttr]
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_char("<")
         value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
         if value and value.text == "zero":
@@ -412,7 +412,7 @@ def test_custom_format_attr():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
@@ -429,7 +429,7 @@ def test_dictionary_attr():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)

@@ -22,7 +22,7 @@ from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser
+    from xdsl.parser import Parser
     from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
     from xdsl.utils.lexer import Span
@@ -422,7 +422,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: BaseParser) -> DataElement:
+    def parse_parameter(parser: Parser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -458,7 +458,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -787,7 +787,7 @@ class Operation(IRNode):
 
     @classmethod
     def parse(
-        cls: type[_OperationType], result_types: list[Attribute], parser: BaseParser
+        cls: type[_OperationType], result_types: list[Attribute], parser: Parser
     ) -> _OperationType:
         parser.raise_error(f"Parsing not implemented for operation {cls.name}")
 

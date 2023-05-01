@@ -10,7 +10,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
 )
-from xdsl.parser import MLIRParser
+from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError
 
 
@@ -25,7 +25,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     with raises(ParseError) as e:
         parser.parse_operation()
 

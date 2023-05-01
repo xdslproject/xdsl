@@ -16,14 +16,14 @@ import timeit
 from typing import Iterable
 from xdsl.ir import MLContext
 
-from xdsl.parser import MLIRParser
+from xdsl.parser import Parser
 
 
 def parse_file(file: str, ctx: MLContext):
     """
     Parse the given file.
     """
-    parser = MLIRParser(ctx, file, allow_unregistered_dialect=True)
+    parser = Parser(ctx, file, allow_unregistered_dialect=True)
     parser.parse_op()
 
 
