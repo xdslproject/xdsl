@@ -278,11 +278,12 @@ class SrliOp(RdRsImmOperation):
 
     name = "riscv.srli"
 
+
 @irdl_op_definition
 class SraiOp(RdRsImmOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate
+    held in the lower 5 bits of the immediate.
 
     x[rd] = x[rs1] >>s shamt
 
@@ -290,6 +291,20 @@ class SraiOp(RdRsImmOperation):
     """
 
     name = "riscv.srai"
+
+
+@irdl_op_definition
+class LuiOp(RdImmOperation):
+    """
+    Build 32-bit constants and uses the U-type format. LUI places the U-immediate value
+    in the top 20 bits of the destination register rd, filling in the lowest 12 bits with zeros.
+
+    x[rd] = sext(immediate[31:12] << 12)
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui
+    """
+
+    name = "riscv.lui"
 
 
 @irdl_op_definition
@@ -320,6 +335,7 @@ RISCV = Dialect(
         SlliOp,
         SrliOp,
         SraiOp,
+        LuiOp,
     ],
     [RegisterType],
 )
