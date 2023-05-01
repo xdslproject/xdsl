@@ -1,5 +1,4 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
-
 "builtin.module"() ({
   %0 = "test.op"() : () -> !riscv.reg<>
   %1 = "test.op"() : () -> !riscv.reg<>
