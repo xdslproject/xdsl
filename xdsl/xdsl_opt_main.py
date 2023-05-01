@@ -271,17 +271,11 @@ class xDSLOptMain:
         Add other/additional targets by overloading this function.
         """
 
-        def _output_xdsl(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output, target=Printer.Target.XDSL)
-            printer.print_op(prog)
-            print("\n", file=output)
-
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output, target=Printer.Target.MLIR)
+            printer = Printer(stream=output)
             printer.print_op(prog)
             print("\n", file=output)
 
-        self.available_targets["xdsl"] = _output_xdsl
         self.available_targets["mlir"] = _output_mlir
 
     def setup_pipeline(self):

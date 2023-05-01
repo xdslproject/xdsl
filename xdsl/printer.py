@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
@@ -673,10 +672,8 @@ class Printer:
         self._print_results(op)
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
-        elif self.print_generic_format:
-            self.print(f'"{op.name}"')
         else:
-            self.print(op.name)
+            self.print(f'"{op.name}"')
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
             for message in self.diagnostic.op_messages[op]:
@@ -686,7 +683,5 @@ class Printer:
             del op.attributes["op_name__"]
             self.print_op_with_default_format(op)
             op.attributes["op_name__"] = op_name
-        elif self.print_generic_format:
-            self.print_op_with_default_format(op)
         else:
-            op.print(self)
+            self.print_op_with_default_format(op)
