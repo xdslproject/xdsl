@@ -79,7 +79,9 @@ class RdImmOp(IRDLOperation, ABC):
     A base class for RISC-V operations that have one destination register, and one
     immediate operand.
 
-    This is called R-Type in the RISC-V specification.
+    This is an assembler pseudo-instruction.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
     """
 
     rd: Annotated[OpResult, RegisterType]
@@ -124,6 +126,7 @@ class SubOp(RdRsRsOp):
     """
 
     name = "riscv.sub"
+
 
 @irdl_op_definition
 class LiOp(RdImmOp):
