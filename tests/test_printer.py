@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import re
 from io import StringIO
-from typing import List, Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     MLContext,
-    OpResult,
     Operation,
     ParametrizedAttribute,
     Block,
@@ -21,9 +19,8 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
-    Operand,
 )
-from xdsl.parser import MLIRParser, BaseParser, XDSLParser
+from xdsl.parser import MLIRParser, BaseParser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
