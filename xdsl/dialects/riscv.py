@@ -27,12 +27,16 @@ from xdsl.printer import Printer
 @dataclass(frozen=True)
 class Register:
     """
-    A riscv register.
+    A RISC-V register.
     """
 
 
 @irdl_attr_definition
 class RegisterType(Data[Register], TypeAttribute):
+    """
+    A RISC-V register type.
+    """
+
     name = "riscv.reg"
 
     @staticmethod
@@ -44,6 +48,11 @@ class RegisterType(Data[Register], TypeAttribute):
 
 
 class Riscv1Rd2RsOperation(IRDLOperation):
+    """
+    A common structure of RISCV operations, takes `rs1` and `rs2` and stores the result in
+    `rd`.
+    """
+
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
@@ -63,6 +72,15 @@ class Riscv1Rd2RsOperation(IRDLOperation):
 
 @irdl_op_definition
 class AddOp(Riscv1Rd2RsOperation):
+    """
+    Adds the registers rs1 and rs2 and stores the result in rd.
+    Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
+
+    x[rd] = x[rs1] + x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    """
+
     name = "riscv.add"
 
 
