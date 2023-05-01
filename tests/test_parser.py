@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
-from xdsl.parser import BaseParser, XDSLParser, MLIRParser
+from xdsl.parser import BaseParser, MLIRParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
@@ -26,7 +26,7 @@ from xdsl.utils.lexer import Token
 )
 def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
-    parser = XDSLParser(ctx, input)
+    parser = MLIRParser(ctx, input)
 
     int_list = parser.parse_list_of(parser.try_parse_integer_literal, "")
     assert [int(span.text) for span in int_list] == expected
@@ -54,7 +54,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = XDSLParser(ctx, text).parse_attribute()
+    attr = MLIRParser(ctx, text).parse_attribute()
     assert isinstance(attr, DictionaryAttr)
 
     assert attr.data == data
@@ -74,7 +74,7 @@ def test_parsing():
     ctx.register_attr(DummyAttr)
 
     prog = '#dummy.attr "foo"'
-    parser = XDSLParser(ctx, prog)
+    parser = MLIRParser(ctx, prog)
 
     r = parser.parse_attribute()
     assert r == DummyAttr()
@@ -95,7 +95,7 @@ def test_symref(ref: str, expected: Attribute | None):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, ref)
+    parser = MLIRParser(ctx, ref)
     parsed_ref = parser.try_parse_ref_attr()
 
     assert parsed_ref == expected
@@ -125,30 +125,13 @@ def test_parse_multi_region_mlir():
     assert len(op.regions) == 2
 
 
-def test_parse_multi_region_xdsl():
-    ctx = MLContext()
-    ctx.register_op(MultiRegionOp)
-
-    op_str = """
-    "test.multi_region" () {
-    } {
-    }
-    """
-
-    parser = XDSLParser(ctx, op_str)
-
-    op = parser.parse_op()
-
-    assert len(op.regions) == 2
-
-
 def test_parse_block_name():
     block_str = """
-    ^bb0(%name: !i32, %100: !i32):
+    ^bb0(%name: i32, %100: i32):
     """
 
     ctx = MLContext()
-    parser = XDSLParser(ctx, block_str)
+    parser = MLIRParser(ctx, block_str)
     block = parser.parse_block()
 
     assert block.args[0].name == "name"
@@ -169,7 +152,7 @@ def test_parse_comma_separated_list(
     delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
-    parser = XDSLParser(MLContext(), input)
+    parser = MLIRParser(MLContext(), input)
     res = parser.parse_comma_separated_list(
         delimiter, parser.parse_int_literal, " in test"
     )
@@ -189,7 +172,7 @@ def test_parse_comma_separated_list_empty(
     delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + close_bracket
-    parser = XDSLParser(MLContext(), input)
+    parser = MLIRParser(MLContext(), input)
     res = parser.parse_comma_separated_list(
         delimiter, parser.parse_int_literal, " in test"
     )
@@ -197,7 +180,7 @@ def test_parse_comma_separated_list_empty(
 
 
 def test_parse_comma_separated_list_none_delimiter_empty():
-    parser = XDSLParser(MLContext(), "o")
+    parser = MLIRParser(MLContext(), "o")
     with pytest.raises(ParseError):
         parser.parse_comma_separated_list(
             BaseParser.Delimiter.NONE, parser.parse_int_literal, " in test"
@@ -217,7 +200,7 @@ def test_parse_comma_separated_list_error_element(
     delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "o" + close_bracket
-    parser = XDSLParser(MLContext(), input)
+    parser = MLIRParser(MLContext(), input)
     with pytest.raises(ParseError) as e:
         parser.parse_comma_separated_list(
             delimiter, parser.parse_int_literal, " in test"
@@ -239,7 +222,7 @@ def test_parse_comma_separated_list_error_delimiters(
     delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4 5"
-    parser = XDSLParser(MLContext(), input)
+    parser = MLIRParser(MLContext(), input)
     with pytest.raises(ParseError) as e:
         parser.parse_comma_separated_list(
             delimiter, parser.parse_int_literal, " in test"
@@ -287,7 +270,7 @@ def test_get_punctuation_kind(punctuation: Token.Kind):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), punctuation)
+    parser = MLIRParser(MLContext(), punctuation)
 
     parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_punctuation(punctuation)
@@ -300,7 +283,7 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), "e +")
+    parser = MLIRParser(MLContext(), "e +")
     parser._synchronize_lexer_and_tokenizer()
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
@@ -312,7 +295,7 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), punctuation)
+    parser = MLIRParser(MLContext(), punctuation)
     parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
@@ -324,7 +307,7 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), "e +")
+    parser = MLIRParser(MLContext(), "e +")
     parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
 
