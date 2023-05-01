@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.ir import (
@@ -30,10 +30,7 @@ class Register:
     A riscv register.
     """
 
-    index: None = field(default=None)
-    """
-    The register index. Currently always None.
-    """
+    pass
 
 
 @irdl_attr_definition
@@ -47,7 +44,7 @@ class RegisterType(Data[Register], TypeAttribute):
         attr = cls.__new__(cls)
 
         if params is None:
-            register = Register(None)
+            register = Register()
         elif isinstance(params, Register):
             register = params
 
@@ -57,7 +54,7 @@ class RegisterType(Data[Register], TypeAttribute):
 
     @staticmethod
     def parse_parameter(parser: BaseParser) -> Register:
-        return Register(None)
+        return Register()
 
     def print_parameter(self, printer: Printer) -> None:
         pass
