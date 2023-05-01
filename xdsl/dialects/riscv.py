@@ -49,7 +49,7 @@ class RegisterType(Data[Register], TypeAttribute):
         pass
 
 
-class RdRsRsOp(IRDLOperation, ABC):
+class RdRsRsOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -74,7 +74,7 @@ class RdRsRsOp(IRDLOperation, ABC):
         )
 
 
-class RdImmOp(IRDLOperation, ABC):
+class RdImmOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -96,8 +96,11 @@ class RdImmOp(IRDLOperation, ABC):
         )
 
 
+# Arithmetic
+
+
 @irdl_op_definition
-class AddOp(RdRsRsOp):
+class AddOp(RdRsRsOperation):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -111,7 +114,7 @@ class AddOp(RdRsRsOp):
 
 
 @irdl_op_definition
-class SubOp(RdRsRsOp):
+class SubOp(RdRsRsOperation):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -125,7 +128,7 @@ class SubOp(RdRsRsOp):
 
 
 @irdl_op_definition
-class LiOp(RdImmOp):
+class LiOp(RdImmOperation):
     """
     Loads an immediate into rd.
 
@@ -137,11 +140,28 @@ class LiOp(RdImmOp):
     name = "riscv.li"
 
 
+# Logical
+
+
+@irdl_op_definition
+class XOrOp(RdRsRsOperation):
+    """
+    Performs bitwise XOR on registers rs1 and rs2 and place the result in rd
+
+    x[rd] = x[rs1] ^ x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor
+    """
+
+    name = "riscv.xor"
+
+
 RISCV = Dialect(
     [
         AddOp,
         SubOp,
         LiOp,
+        XOrOp,
     ],
     [RegisterType],
 )
