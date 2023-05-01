@@ -18,10 +18,12 @@ from xdsl.irdl import (
     irdl_op_definition,
     irdl_attr_definition,
     Operand,
+    OpAttr,
 )
 
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
+from xdsl.dialects.builtin import AnyIntegerAttr
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,28 @@ class RdRsRsOp(IRDLOperation, ABC):
         )
 
 
+class RdImmOp(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, and one
+    immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    immediate: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        immediate: AnyIntegerAttr,
+    ):
+        rd = RegisterType(Register())
+        super().__init__(
+            attributes={
+                "immediate": immediate,
+            },
+            result_types=[rd],
+        )
+
+
 @irdl_op_definition
 class AddOp(RdRsRsOp):
     """
@@ -100,10 +124,24 @@ class SubOp(RdRsRsOp):
     name = "riscv.sub"
 
 
+@irdl_op_definition
+class LiOp(RdImmOp):
+    """
+    Loads an immediate into rd.
+
+    This is an assembler pseudo-instruction.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate
+    """
+
+    name = "riscv.li"
+
+
 RISCV = Dialect(
     [
         AddOp,
         SubOp,
+        LiOp,
     ],
     [RegisterType],
 )
