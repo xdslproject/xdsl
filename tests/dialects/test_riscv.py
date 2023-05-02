@@ -3,8 +3,8 @@ from xdsl.dialects import riscv
 
 
 def test_add_op():
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Register.from_name("a1")))
-    a2 = TestSSAValue(riscv.RegisterType(riscv.Register.from_name("a2")))
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Register("a1")))
+    a2 = TestSSAValue(riscv.RegisterType(riscv.Register("a2")))
     add_op = riscv.AddOp(a1, a2, rd="a0")
     a0 = add_op.rd
 
@@ -13,6 +13,6 @@ def test_add_op():
     assert isinstance(a0.typ, riscv.RegisterType)
     assert isinstance(a1.typ, riscv.RegisterType)
     assert isinstance(a2.typ, riscv.RegisterType)
-    assert a0.typ.data.abi_name == "a0"
-    assert a1.typ.data.abi_name == "a1"
-    assert a2.typ.data.abi_name == "a2"
+    assert a0.typ.data.name == "a0"
+    assert a1.typ.data.name == "a1"
+    assert a2.typ.data.name == "a2"

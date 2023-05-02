@@ -32,60 +32,48 @@ class Register:
     A RISC-V register.
     """
 
-    index: int | None = field(default=None)
-    """The register index. Can be between 0 and 31."""
+    name: str | None = field(default=None)
+    """The register name. Should be one of `ABI_NAMES` or `None`"""
 
-    ABI_NAMES = [
-        "zero",
-        "ra",
-        "sp",
-        "gp",
-        "tp",
-        "t0",
-        "t1",
-        "t2",
-        "fp",
-        "s0",
-        "s1",
-        "a0",
-        "a1",
-        "a2",
-        "a3",
-        "a4",
-        "a5",
-        "a6",
-        "a7",
-        "s2",
-        "s3",
-        "s4",
-        "s5",
-        "s6",
-        "s7",
-        "s8",
-        "s9",
-        "s10",
-        "s11",
-        "t3",
-        "t4",
-        "t5",
-        "t6",
-    ]
+    ABI_INDEX_BY_NAME = {
+        "zero": 0,
+        "ra": 1,
+        "sp": 2,
+        "gp": 3,
+        "tp": 4,
+        "t0": 5,
+        "t1": 6,
+        "t2": 7,
+        "fp": 8,
+        "s0": 8,
+        "s1": 9,
+        "a0": 10,
+        "a1": 11,
+        "a2": 12,
+        "a3": 13,
+        "a4": 14,
+        "a5": 15,
+        "a6": 16,
+        "a7": 17,
+        "s2": 18,
+        "s3": 19,
+        "s4": 20,
+        "s5": 21,
+        "s6": 22,
+        "s7": 23,
+        "s8": 24,
+        "s9": 25,
+        "s10": 26,
+        "s11": 27,
+        "t3": 28,
+        "t4": 29,
+        "t5": 30,
+        "t6": 31,
+    }
 
-    ABI_INDEX_BY_NAME = {name: index for index, name in enumerate(ABI_NAMES)}
-
-    @staticmethod
-    def from_name(name: str) -> Register:
-        try:
-            index = Register.ABI_INDEX_BY_NAME[name]
-            return Register(index)
-        except KeyError:
-            raise ValueError(f"Unknown register name: {name}")
-
-    @property
-    def abi_name(self) -> str | None:
-        if self.index is None:
-            return None
-        return Register.ABI_NAMES[self.index]
+    def __post_init__(self):
+        if self.name not in Register.ABI_INDEX_BY_NAME:
+            raise ValueError(f"Unknown register name {self.name}")
 
 
 @irdl_attr_definition
@@ -102,10 +90,10 @@ class RegisterType(Data[Register], TypeAttribute):
         if name is None:
             return Register()
         text = name.text
-        return Register.from_name(text)
+        return Register(text)
 
     def print_parameter(self, printer: Printer) -> None:
-        name = self.data.abi_name
+        name = self.data.name
         if name is None:
             return
         printer.print_string(name)
@@ -133,7 +121,7 @@ class RdRsRsOperation(IRDLOperation, ABC):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
-            rd = RegisterType(Register.from_name(rd))
+            rd = RegisterType(Register(rd))
 
         super().__init__(
             operands=[rs1, rs2],
@@ -159,7 +147,7 @@ class RdImmOperation(IRDLOperation, ABC):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
-            rd = RegisterType(Register.from_name(rd))
+            rd = RegisterType(Register(rd))
         super().__init__(
             attributes={
                 "immediate": immediate,
@@ -190,7 +178,7 @@ class RdRsImmOperation(IRDLOperation, ABC):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
-            rd = RegisterType(Register.from_name(rd))
+            rd = RegisterType(Register(rd))
         super().__init__(
             operands=[rs1],
             attributes={
