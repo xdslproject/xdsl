@@ -84,6 +84,14 @@
   // CHECK-NEXT: %{{.*}} = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly" = 0 : i32} : (!riscv.reg<>) -> !riscv.reg<>
   %csrrw_w = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %csrrs_rw = "riscv.csrrs"(%0) {"csr" = 1024 : i32, "readonly" = 0 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrs"(%0) {"csr" = 1024 : i32, "readonly" = 0 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %csrrs_r = "riscv.csrrs"(%0) {"csr" = 1024 : i32, "readonly" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrs"(%0) {"csr" = 1024 : i32, "readonly" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %csrrc_rw = "riscv.csrrc"(%0) {"csr" = 1024 : i32, "readonly" = 0 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrc"(%0) {"csr" = 1024 : i32, "readonly" = 0 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %csrrc_r = "riscv.csrrc"(%0) {"csr" = 1024 : i32, "readonly" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrc"(%0) {"csr" = 1024 : i32, "readonly" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
   // Assembler pseudo-insgtructions
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>

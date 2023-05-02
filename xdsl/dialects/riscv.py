@@ -282,6 +282,41 @@ class CsrSwapOperation(IRDLOperation, ABC):
         )
 
 
+class CsrReadAndBitwiseOperation(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations performing a masked bitwise operation on the
+    CSR while returning the original value.
+
+    The 'readonly' attribute controls the actual behaviour of the operation:
+    * when True, the operation is guaranteed to have no side effects that can
+      be potentially related to writing to a CSR; in this case rs *must be
+      allocated to x0*
+    * when False, the bitwise operations is performed and any side effect related
+      to writing to a CSR takes place even if the mask in rs has no actual bits set.
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    rs1: Annotated[Operand, RegisterType]
+    csr: OpAttr[AnyIntegerAttr]
+    readonly: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        csr: AnyIntegerAttr,
+        readonly: AnyIntegerAttr,
+    ):
+        rd = RegisterType(Register())
+        super().__init__(
+            operands=[rs1],
+            attributes={
+                "csr": csr,
+                "readonly": readonly,
+            },
+            result_types=[rd],
+        )
+
+
 # RV32I/RV64I: Integer Computational Instructions (Section 2.4)
 
 ## Integer Register-Immediate Instructions
@@ -807,6 +842,56 @@ class CsrrwOp(CsrSwapOperation):
     name = "riscv.csrrw"
 
 
+@irdl_op_definition
+class CsrrsOp(CsrReadAndBitwiseOperation):
+    """
+    Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
+    it to integer register rd. The initial value in integer register rs1 is treated
+    as a bit mask that specifies bit positions to be set in the CSR.
+    Any bit that is high in rs1 will cause the corresponding bit to be set in the CSR,
+    if that CSR bit is writable. Other bits in the CSR are unaffected (though CSRs might
+    have side effects when written).
+
+    If the 'readonly' attribute evaluates to True, then the instruction will not write
+    to the CSR at all, and so shall not cause any of the side effects that might otherwise
+    occur on a CSR write, such as raising illegal instruction exceptions on accesses to
+    read-only CSRs. Note that if rs1 specifies a register holding a zero value other than x0,
+    the instruction will still attempt to write the unmodified value back to the CSR and will
+    cause any attendant side effects.
+
+    t = CSRs[csr]; CSRs[csr] = t | x[rs1]; x[rd] = t
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs
+    """
+
+    name = "riscv.csrrs"
+
+
+@irdl_op_definition
+class CsrrcOp(CsrReadAndBitwiseOperation):
+    """
+    Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
+    it to integer register rd. The initial value in integer register rs1 is treated
+    as a bit mask that specifies bit positions to be cleared in the CSR.
+    Any bit that is high in rs1 will cause the corresponding bit to be cleared in the CSR,
+    if that CSR bit is writable. Other bits in the CSR are unaffected (though CSRs might
+    have side effects when written).
+
+    If the 'readonly' attribute evaluates to True, then the instruction will not write
+    to the CSR at all, and so shall not cause any of the side effects that might otherwise
+    occur on a CSR write, such as raising illegal instruction exceptions on accesses to
+    read-only CSRs. Note that if rs1 specifies a register holding a zero value other than x0,
+    the instruction will still attempt to write the unmodified value back to the CSR and will
+    cause any attendant side effects.
+
+    t = CSRs[csr]; CSRs[csr] = t &∼x[rs1]; x[rd] = t
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc
+    """
+
+    name = "riscv.csrrc"
+
+
 ## Assembler pseudo-instructions
 ## https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
@@ -878,6 +963,8 @@ RISCV = Dialect(
         ShOp,
         SwOp,
         CsrrwOp,
+        CsrrsOp,
+        CsrrcOp,
         LiOp,
         EcallOp,
     ],
