@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated
 
 from xdsl.ir import (
@@ -32,6 +32,49 @@ class Register:
     A RISC-V register.
     """
 
+    name: str | None = field(default=None)
+    """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
+
+    ABI_INDEX_BY_NAME = {
+        "zero": 0,
+        "ra": 1,
+        "sp": 2,
+        "gp": 3,
+        "tp": 4,
+        "t0": 5,
+        "t1": 6,
+        "t2": 7,
+        "fp": 8,
+        "s0": 8,
+        "s1": 9,
+        "a0": 10,
+        "a1": 11,
+        "a2": 12,
+        "a3": 13,
+        "a4": 14,
+        "a5": 15,
+        "a6": 16,
+        "a7": 17,
+        "s2": 18,
+        "s3": 19,
+        "s4": 20,
+        "s5": 21,
+        "s6": 22,
+        "s7": 23,
+        "s8": 24,
+        "s9": 25,
+        "s10": 26,
+        "s11": 27,
+        "t3": 28,
+        "t4": 29,
+        "t5": 30,
+        "t6": 31,
+    }
+
+    def __post_init__(self):
+        if self.name is not None and self.name not in Register.ABI_INDEX_BY_NAME:
+            raise ValueError(f"Unknown register name {self.name}")
+
 
 @irdl_attr_definition
 class RegisterType(Data[Register], TypeAttribute):
@@ -43,10 +86,17 @@ class RegisterType(Data[Register], TypeAttribute):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Register:
-        return Register()
+        name = parser.try_parse_bare_id()
+        if name is None:
+            return Register()
+        text = name.text
+        return Register(text)
 
     def print_parameter(self, printer: Printer) -> None:
-        pass
+        name = self.data.name
+        if name is None:
+            return
+        printer.print_string(name)
 
 
 class RdRsRsOperation(IRDLOperation, ABC):
@@ -65,8 +115,13 @@ class RdRsRsOperation(IRDLOperation, ABC):
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
 
         super().__init__(
             operands=[rs1, rs2],
@@ -86,8 +141,13 @@ class RdImmOperation(IRDLOperation, ABC):
     def __init__(
         self,
         immediate: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             attributes={
                 "immediate": immediate,
@@ -112,8 +172,13 @@ class RdRsImmOperation(IRDLOperation, ABC):
         self,
         rs1: Operation | SSAValue,
         immediate: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             operands=[rs1],
             attributes={
