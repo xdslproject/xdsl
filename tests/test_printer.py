@@ -352,7 +352,7 @@ def test_print_custom_block_arg_name():
     block.args[1].name = "test"
 
     io = StringIO()
-    p = Printer(target=Printer.Target.MLIR, stream=io)
+    p = Printer(stream=io)
     p.print_block(block)
     assert io.getvalue() == """\n^0(%test : i32, %0 : i32):"""
 

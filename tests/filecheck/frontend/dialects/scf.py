@@ -8,64 +8,74 @@ from xdsl.frontend.dialects.builtin import index, i1, i32, f32
 
 p = FrontendProgram()
 with CodeContext(p):
-    #      CHECK: func.func() ["sym_name" = "test_for_I"
-    #      CHECK: %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
-    # CHECK-NEXT: %{{.*}} : !index = symref.fetch() ["symbol" = @end]
-    # CHECK-NEXT: %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
-    # CHECK-NEXT: scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      "func.func"() ({
+    # CHECK-NEXT: ^0(%{{.*}} : index):
+    # CHECK:        %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:   ^1(%{{.*}} : index):
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT: }) {"sym_name" = "test_for_I", "function_type" = (index) -> (), "sym_visibility" = "private"} : () -> ()
+
     def test_for_I(end: index):
         for _ in range(end):  # type: ignore
             pass
 
-    #      CHECK: func.func() ["sym_name" = "test_for_II"
-    #      CHECK: %{{.*}} : !index = symref.fetch() ["symbol" = @start]
-    # CHECK-NEXT: %{{.*}} : !index = symref.fetch() ["symbol" = @end]
-    # CHECK-NEXT: %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
-    # CHECK-NEXT: scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      "func.func"() ({
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
+    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:   ^3(%{{.*}} : index):
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT: }) {"sym_name" = "test_for_II", "function_type" = (index, index) -> (), "sym_visibility" = "private"} : () -> ()
     def test_for_II(start: index, end: index):
         for _ in range(start, end):  # type: ignore
             pass
 
-    #      CHECK: func.func() ["sym_name" = "test_for_III"
-    #      CHECK: %{{.*}} : !index = symref.fetch() ["symbol" = @start]
-    # CHECK-NEXT: %{{.*}} : !index = symref.fetch() ["symbol" = @end]
-    # CHECK-NEXT: %{{.*}} : !index = symref.fetch() ["symbol" = @step]
-    # CHECK-NEXT: scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      "func.func"() ({
+    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @step} : () -> index
+    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:   ^5(%{{.*}} : index):
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT: }) {"sym_name" = "test_for_III", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
     def test_for_III(start: index, end: index, step: index):
         for _ in range(start, end, step):  # type: ignore
             pass
 
-    #      CHECK: func.func() ["sym_name" = "test_for_IV"
-    #      CHECK: %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
-    # CHECK-NEXT: %{{.*}} : !index = symref.fetch() ["symbol" = @a]
-    # CHECK-NEXT: %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
-    # CHECK-NEXT: scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:   %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
-    # CHECK-NEXT:   %{{.*}} : !index = symref.fetch() ["symbol" = @b]
-    # CHECK-NEXT:   %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
-    # CHECK-NEXT:   scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT:   ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:     %{{.*}} : !index = arith.constant() ["value" = 0 : !index]
-    # CHECK-NEXT:     %{{.*}} : !index = symref.fetch() ["symbol" = @c]
-    # CHECK-NEXT:     %{{.*}} : !index = arith.constant() ["value" = 1 : !index]
-    # CHECK-NEXT:     scf.for(%{{.*}} : !index, %{{.*}} : !index, %{{.*}} : !index) {
-    # CHECK-NEXT:     ^{{.*}}(%{{.*}} : !index):
-    # CHECK-NEXT:       scf.yield()
-    # CHECK-NEXT:     }
-    # CHECK-NEXT:     scf.yield()
-    # CHECK-NEXT:   }
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:        "func.func"() ({
+    # CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+    # CHECK:          %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> index
+    # CHECK-NEXT:     %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:     "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:     ^{{.*}}(%{{.*}} : index):
+    # CHECK-NEXT:       %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:       %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> index
+    # CHECK-NEXT:       %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:       "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:       ^{{.*}}(%{{.*}} : index):
+    # CHECK-NEXT:         %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:         %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> index
+    # CHECK-NEXT:         %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:         "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:         ^{{.*}}(%{{.*}} : index):
+    # CHECK-NEXT:           "scf.yield"() : () -> ()
+    # CHECK-NEXT:         }) : (index, index, index) -> ()
+    # CHECK-NEXT:         "scf.yield"() : () -> ()
+    # CHECK-NEXT:       }) : (index, index, index) -> ()
+    # CHECK-NEXT:       "scf.yield"() : () -> ()
+    # CHECK-NEXT:     }) : (index, index, index) -> ()
+    # CHECK-NEXT:   }) {"sym_name" = "test_for_IV", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
+    # CHECK-NEXT: }) : () -> ()
     def test_for_IV(a: index, b: index, c: index):
         for _ in range(a):  # type: ignore
             for _ in range(b):  # type: ignore
@@ -74,7 +84,7 @@ with CodeContext(p):
 
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())
 
 
 try:
@@ -85,7 +95,7 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -97,7 +107,7 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
@@ -109,51 +119,51 @@ try:
                 pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK:      %{{.*}} : !i32 = scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:   %{{.*}} : !i32 = symref.fetch() ["symbol" = @x]
-    # CHECK-NEXT:   scf.yield(%{{.*}} : !i32)
-    # CHECK-NEXT: } {
-    # CHECK-NEXT:   %{{.*}} : !i32 = symref.fetch() ["symbol" = @y]
-    # CHECK-NEXT:   scf.yield(%{{.*}} : !i32)
-    # CHECK-NEXT: }
+    # CHECK:      %{{.*}} = "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @x} : () -> i32
+    # CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+    # CHECK-NEXT: }, {
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @y} : () -> i32
+    # CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+    # CHECK-NEXT: }) : (i1) -> i32
     def test_if_expr(cond: i1, x: i32, y: i32) -> i32:
         return x if cond else y
 
-    # CHECK:      scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: } {
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }, {
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }) : (i1) -> ()
     def test_if_I(cond: i1):
         if cond:
             pass
         else:
             pass
 
-    # CHECK:       %{{.*}} : !i1 = symref.fetch() ["symbol" = @a]
-    # CHECK-NEXT:  scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: } {
-    # CHECK-NEXT:   %{{.*}} : !i1 = symref.fetch() ["symbol" = @b]
-    # CHECK-NEXT:   scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:     scf.yield()
-    # CHECK-NEXT:   } {
-    # CHECK-NEXT:     %{{.*}} : !i1 = symref.fetch() ["symbol" = @c]
-    # CHECK-NEXT:     scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:       scf.yield()
-    # CHECK-NEXT:     } {
-    # CHECK-NEXT:       scf.yield()
-    # CHECK-NEXT:     }
-    # CHECK-NEXT:     scf.yield()
-    # CHECK-NEXT:   }
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> i1
+    # CHECK-NEXT: "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }, {
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> i1
+    # CHECK-NEXT:   "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }, {
+    # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> i1
+    # CHECK-NEXT:     "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:       "scf.yield"() : () -> ()
+    # CHECK-NEXT:     }, {
+    # CHECK-NEXT:       "scf.yield"() : () -> ()
+    # CHECK-NEXT:     }) : (i1) -> ()
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }) : (i1) -> ()
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }) : (i1) -> ()
     def test_if_II(a: i1, b: i1, c: i1):
         if a:
             pass
@@ -162,12 +172,12 @@ with CodeContext(p):
         elif c:
             pass
 
-    # CHECK:      %{{.*}} : !i1 = symref.fetch() ["symbol" = @cond]
-    # CHECK-NEXT: scf.if(%{{.*}} : !i1) {
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: } {
-    # CHECK-NEXT:   scf.yield()
-    # CHECK-NEXT: }
+    # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @cond} : () -> i1
+    # CHECK-NEXT: "scf.if"(%{{.*}}) ({
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }, {
+    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT: }) : (i1) -> ()
     def test_if_III(cond: i1):
         if cond:
             pass
@@ -175,7 +185,7 @@ with CodeContext(p):
 
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())
 
 
 try:
@@ -185,6 +195,6 @@ try:
             return x if cond else y  # type: ignore
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)
