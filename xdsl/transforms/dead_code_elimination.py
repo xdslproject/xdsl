@@ -15,7 +15,7 @@ class RemoveUnusedOperations(RewritePattern):
         if not op.has_trait(Pure()):
             return
 
-        # Look through the input of the current transpose.
+        # Check whether any of the results are used
         results = op.results
         for result in results:
             if len(result.uses):
