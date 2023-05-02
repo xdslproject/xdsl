@@ -72,7 +72,7 @@ class Register:
     }
 
     def __post_init__(self):
-        if self.name not in Register.ABI_INDEX_BY_NAME:
+        if self.name is not None and self.name not in Register.ABI_INDEX_BY_NAME:
             raise ValueError(f"Unknown register name {self.name}")
 
 
