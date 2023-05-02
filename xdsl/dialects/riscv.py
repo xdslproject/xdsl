@@ -719,7 +719,6 @@ class EcallOp(NullaryOperation):
     name = "riscv.ecall"
 
 
-
 RISCV = Dialect(
     [
         AddiOp,
