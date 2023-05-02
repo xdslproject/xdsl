@@ -174,27 +174,6 @@ class RsRsImmOperation(IRDLOperation, ABC):
             },
         )
 
-class RdRsOperation(IRDLOperation, ABC):
-    """
-    A base class for RISC-V operations that have a destination register and
-    a source register, but no immediate
-
-    This is called S-Type in the RISC-V specification.
-    """
-
-    rd: Annotated[OpResult, RegisterType]
-    rs: Annotated[Operand, RegisterType]
-
-    def __init__(
-        self,
-        rs: Operation | SSAValue,
-    ):
-        super().__init__(
-            operands=[rd, rs],
-            result_types=[rd],
-        )
-
-
 
 class NullaryOperation(IRDLOperation, ABC):
     """
@@ -726,7 +705,7 @@ class LiOp(RdImmOperation):
 
 
 @irdl_op_definition
-class EcallOp(RdRsOperation):
+class EcallOp(NullaryOperation):
     """
     The ECALL instruction is used to make a request to the supporting execution
     environment, which is usually an operating system.

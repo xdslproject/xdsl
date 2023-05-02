@@ -83,6 +83,6 @@
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   // Environment Call and Breakpoints
-  %ecall = "riscv.ecall"(%0) {}: (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT: %{{.*}} = "riscv.ecall"(%0) : (!riscv.reg<>) -> !riscv.reg<>
+  "riscv.ecall"() : () -> ()
+  // CHECK-NEXT: "riscv.ecall"() : () -> ()
 }) : () -> ()
