@@ -282,7 +282,7 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
         )
 
 
-class CsrReadAndBitwiseOperation(IRDLOperation, ABC):
+class CsrBitwiseOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -907,7 +907,7 @@ class CsrrwOp(CsrReadWriteOperation):
 
 
 @irdl_op_definition
-class CsrrsOp(CsrReadAndBitwiseOperation):
+class CsrrsOp(CsrBitwiseOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
     it to integer register rd. The initial value in integer register rs1 is treated
@@ -932,7 +932,7 @@ class CsrrsOp(CsrReadAndBitwiseOperation):
 
 
 @irdl_op_definition
-class CsrrcOp(CsrReadAndBitwiseOperation):
+class CsrrcOp(CsrBitwiseOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
     it to integer register rd. The initial value in integer register rs1 is treated
