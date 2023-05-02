@@ -62,6 +62,23 @@
   // CHECK-NEXT: "riscv.bltu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.bgeu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: "riscv.bgeu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // RV32I/RV64I: Load and Store Instructions (Section 2.6)
+  %lb = "riscv.lb"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.lb"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %lbu = "riscv.lbu"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.lbu"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %lh = "riscv.lh"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.lh"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %lhu = "riscv.lhu"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.lhu"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %lw = "riscv.lw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.lw"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  "riscv.sb"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: "riscv.sb"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+  "riscv.sh"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: "riscv.sh"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+  "riscv.sw"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: "riscv.sw"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   // Assembler pseudo-insgtructions
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
