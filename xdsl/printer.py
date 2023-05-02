@@ -673,6 +673,8 @@ class Printer:
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
+        # If we print with the generic format, or the operation does not have a custom
+        # format
         elif self.print_generic_format or Operation.print is type(op).print:
             self.print(f'"{op.name}"')
         else:
