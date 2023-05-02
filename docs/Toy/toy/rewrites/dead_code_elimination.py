@@ -1,10 +1,7 @@
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import OpTrait, Operation
+from xdsl.ir import Operation
 from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, PatternRewriteWalker
-
-
-class Pure(OpTrait):
-    """A trait that signals that an operation has no side effects."""
+from xdsl.traits import Pure
 
 
 class RemoveUnusedOperations(RewritePattern):
