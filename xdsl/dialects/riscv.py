@@ -249,7 +249,7 @@ class NullaryOperation(IRDLOperation, ABC):
         super().__init__()
 
 
-class CsrSwapOperation(IRDLOperation, ABC):
+class CsrReadWriteOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -889,7 +889,7 @@ class SwOp(RsRsImmOperation):
 
 
 @irdl_op_definition
-class CsrrwOp(CsrSwapOperation):
+class CsrrwOp(CsrReadWriteOperation):
     """
     Atomically swaps values in the CSRs and integer registers.
     CSRRW reads the old value of the CSR, zero-extends the value to XLEN bits,
