@@ -149,6 +149,32 @@ class RsRsOffOperation(IRDLOperation, ABC):
         )
 
 
+class RsRsImmOperation(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations that have two source registers and an
+    immediate.
+
+    This is called S-Type in the RISC-V specification.
+    """
+
+    rs1: Annotated[Operand, RegisterType]
+    rs2: Annotated[Operand, RegisterType]
+    immediate: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        immediate: AnyIntegerAttr,
+    ):
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "immediate": immediate,
+            },
+        )
+
+
 class NullaryOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
@@ -548,6 +574,119 @@ class BgeuOp(RsRsOffOperation):
     name = "riscv.bgeu"
 
 
+# RV32I/RV64I: 2.6 Load and Store Instructions
+
+
+@irdl_op_definition
+class LbOp(RdRsImmOperation):
+    """
+    Loads a 8-bit value from memory and sign-extends this to XLEN bits before
+    storing it in register rd.
+
+    x[rd] = sext(M[x[rs1] + sext(offset)][7:0])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb
+    """
+
+    name = "riscv.lb"
+
+
+@irdl_op_definition
+class LbuOp(RdRsImmOperation):
+    """
+    Loads a 8-bit value from memory and zero-extends this to XLEN bits before
+    storing it in register rd.
+
+    x[rd] = M[x[rs1] + sext(offset)][7:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu
+    """
+
+    name = "riscv.lbu"
+
+
+@irdl_op_definition
+class LhOp(RdRsImmOperation):
+    """
+    Loads a 16-bit value from memory and sign-extends this to XLEN bits before
+    storing it in register rd.
+
+    x[rd] = sext(M[x[rs1] + sext(offset)][15:0])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh
+    """
+
+    name = "riscv.lh"
+
+
+@irdl_op_definition
+class LhuOp(RdRsImmOperation):
+    """
+    Loads a 16-bit value from memory and zero-extends this to XLEN bits before
+    storing it in register rd.
+
+    x[rd] = M[x[rs1] + sext(offset)][15:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu
+    """
+
+    name = "riscv.lhu"
+
+
+@irdl_op_definition
+class LwOp(RdRsImmOperation):
+    """
+    Loads a 32-bit value from memory and sign-extends this to XLEN bits before
+    storing it in register rd.
+
+    x[rd] = sext(M[x[rs1] + sext(offset)][31:0])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw
+    """
+
+    name = "riscv.lw"
+
+
+@irdl_op_definition
+class SbOp(RsRsImmOperation):
+    """
+    Store 8-bit, values from the low bits of register rs2 to memory.
+
+    M[x[rs1] + sext(offset)] = x[rs2][7:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb
+    """
+
+    name = "riscv.sb"
+
+
+@irdl_op_definition
+class ShOp(RsRsImmOperation):
+    """
+    Store 16-bit, values from the low bits of register rs2 to memory.
+
+    M[x[rs1] + sext(offset)] = x[rs2][15:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sh
+
+    """
+
+    name = "riscv.sh"
+
+
+@irdl_op_definition
+class SwOp(RsRsImmOperation):
+    """
+    Store 32-bit, values from the low bits of register rs2 to memory.
+
+    M[x[rs1] + sext(offset)] = x[rs2][31:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw
+    """
+
+    name = "riscv.sw"
+
+
 ## Assembler pseudo-instructions
 ## https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
@@ -595,6 +734,14 @@ RISCV = Dialect(
         BgeOp,
         BltuOp,
         BgeuOp,
+        LbOp,
+        LbuOp,
+        LhOp,
+        LhuOp,
+        LwOp,
+        SbOp,
+        ShOp,
+        SwOp,
         LiOp,
     ],
     [RegisterType],
