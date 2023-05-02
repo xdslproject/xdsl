@@ -670,10 +670,14 @@ class Printer:
             raise TypeError("Expected an Operation; got %s" % type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
+        use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
-        else:
+        elif self.print_generic_format or Operation.print is type(op).print:
             self.print(f'"{op.name}"')
+        else:
+            self.print(f"{op.name}")
+            use_custom_format = True
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
             for message in self.diagnostic.op_messages[op]:
@@ -683,5 +687,7 @@ class Printer:
             del op.attributes["op_name__"]
             self.print_op_with_default_format(op)
             op.attributes["op_name__"] = op_name
+        elif use_custom_format:
+            op.print(self)
         else:
             self.print_op_with_default_format(op)

@@ -786,10 +786,8 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(
-        cls: type[_OperationType], result_types: list[Attribute], parser: Parser
-    ) -> _OperationType:
-        parser.raise_error(f"Parsing not implemented for operation {cls.name}")
+    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+        parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
