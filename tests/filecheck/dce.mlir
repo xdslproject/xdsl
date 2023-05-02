@@ -14,5 +14,6 @@
 
   // CHECK:       %0 = "test.op"() : () -> i32
   // CHECK-NEXT:  %1 = "test.op"() : () -> i32
+  // CHECK-NOT: addi
   // CHECK-NEXT:  "test.op"(%0) : (i32) -> ()
 }) : () -> ()
