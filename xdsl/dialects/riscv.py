@@ -769,6 +769,21 @@ class LiOp(RdImmOperation):
     name = "riscv.li"
 
 
+@irdl_op_definition
+class EcallOp(NullaryOperation):
+    """
+    The ECALL instruction is used to make a request to the supporting execution
+    environment, which is usually an operating system.
+    The ABI for the system will define how parameters for the environment
+    request are passed, but usually these will be in defined locations in the
+    integer register file.
+
+    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    """
+
+    name = "riscv.ecall"
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -808,6 +823,7 @@ RISCV = Dialect(
         ShOp,
         SwOp,
         LiOp,
+        EcallOp,
     ],
     [RegisterType],
 )
