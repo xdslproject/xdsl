@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, List, Sequence
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -121,8 +121,8 @@ class For(IRDLOperation):
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
         step: SSAValue | Operation,
-        iter_args: List[SSAValue | Operation],
-        body: Region | List[Operation] | List[Block] | Block,
+        iter_args: Sequence[SSAValue | Operation],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block,
     ) -> For:
         if isinstance(body, Block):
             body = [body]
@@ -152,7 +152,7 @@ class ParallelOp(IRDLOperation):
         lowerBounds: Sequence[SSAValue | Operation],
         upperBounds: Sequence[SSAValue | Operation],
         steps: Sequence[SSAValue | Operation],
-        body: Region | list[Block] | list[Operation],
+        body: Region | Sequence[Block] | Sequence[Operation],
         initVals: Sequence[SSAValue | Operation] = [],
     ) -> ParallelOp:
         return ParallelOp.build(
@@ -367,10 +367,10 @@ class While(IRDLOperation):
 
     @staticmethod
     def get(
-        operands: List[SSAValue | Operation],
-        result_types: List[Attribute],
-        before: Region | List[Operation] | List[Block],
-        after: Region | List[Operation] | List[Block],
+        operands: Sequence[SSAValue | Operation],
+        result_types: Sequence[Attribute],
+        before: Region | Sequence[Operation] | Sequence[Block],
+        after: Region | Sequence[Operation] | Sequence[Block],
     ) -> While:
         op = While.build(
             operands=operands, result_types=result_types, regions=[before, after]

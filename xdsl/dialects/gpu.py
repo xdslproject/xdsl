@@ -339,7 +339,7 @@ class ModuleOp(IRDLOperation):
     sym_name: OpAttr[StringAttr]
 
     @staticmethod
-    def get(name: SymbolRefAttr, ops: list[Operation]) -> ModuleOp:
+    def get(name: SymbolRefAttr, ops: Sequence[Operation]) -> ModuleOp:
         op = ModuleOp.build(attributes={"sym_name": name}, regions=[ops])
         return op
 
@@ -557,7 +557,7 @@ class YieldOp(IRDLOperation):
     values: Annotated[VarOperand, Attribute]
 
     @staticmethod
-    def get(operands: list[SSAValue | Operation]) -> YieldOp:
+    def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:
         return YieldOp.build([operands])
 
     def verify_(self) -> None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
@@ -49,7 +49,7 @@ class For(IRDLOperation):
 
     @staticmethod
     def from_region(
-        operands: list[Operation | SSAValue],
+        operands: Sequence[Operation | SSAValue],
         lower_bound: int | AnyIntegerAttr,
         upper_bound: int | AnyIntegerAttr,
         region: Region,
@@ -76,7 +76,7 @@ class For(IRDLOperation):
 
     @staticmethod
     def from_callable(
-        operands: list[Operation | SSAValue],
+        operands: Sequence[Operation | SSAValue],
         lower_bound: int | AnyIntegerAttr,
         upper_bound: int | AnyIntegerAttr,
         body: Block.BlockCallback,

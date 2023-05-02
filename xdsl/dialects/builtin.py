@@ -604,7 +604,7 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]],
+        shape: Iterable[int | IntegerAttr[IndexType]],
         num_scalable_dims: int | IntAttr = 0,
     ) -> VectorType[AttributeInvT]:
         if isinstance(num_scalable_dims, int):
@@ -655,7 +655,7 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]] | None = None,
+        shape: Iterable[int | IntegerAttr[IndexType]] | None = None,
         encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
         if shape is None:
@@ -905,20 +905,20 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def vector_from_list(
-        data: List[int] | List[float], typ: IntegerType | IndexType | AnyFloat
+        data: Sequence[int] | Sequence[float], typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
         t = VectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
     def tensor_from_list(
-        data: List[int]
-        | List[float]
-        | List[IntegerAttr[IndexType]]
-        | List[IntegerAttr[IntegerType]]
-        | List[AnyFloatAttr],
+        data: Sequence[int]
+        | Sequence[float]
+        | Sequence[IntegerAttr[IndexType]]
+        | Sequence[IntegerAttr[IntegerType]]
+        | Sequence[AnyFloatAttr],
         typ: IntegerType | IndexType | AnyFloat,
-        shape: List[int] = [],
+        shape: Sequence[int] = [],
     ) -> DenseIntOrFPElementsAttr:
         t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
