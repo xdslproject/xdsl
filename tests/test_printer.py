@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import pytest
 from io import StringIO
 from typing import Annotated
 
@@ -19,6 +20,8 @@ from xdsl.irdl import (
     Operand,
     OptOpAttr,
     ParameterDef,
+    VarOpResult,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
@@ -28,6 +31,7 @@ from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
 from conftest import assert_print_op
+from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
@@ -473,6 +477,35 @@ def test_custom_format_II():
     module = parser.parse_op()
 
     assert_print_op(module, expected, None, print_generic_format=True)
+
+
+@irdl_op_definition
+class NoCustomFormatOp(IRDLOperation):
+    name = "test.no_custom_format"
+
+    ops: VarOperand
+    res: VarOpResult
+
+
+def test_missing_custom_format():
+    """
+    Test that we can print using generic formats.
+    """
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.no_custom_format(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError):
+        parser.parse_op()
 
 
 @irdl_attr_definition
