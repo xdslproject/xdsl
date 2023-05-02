@@ -317,6 +317,38 @@ class CsrReadAndBitwiseOperation(IRDLOperation, ABC):
         )
 
 
+class CsrReadWriteImmOperation(IRDLOperation, ABC):
+    """
+    A base class for RISC-V operations performing a swap to/from a CSR.
+
+    The 'writeonly' attribute controls the actual behaviour of the operation:
+    * when True, the operation writes the rs value to the CSR but never reads it and
+      in this case rd *must* be allocated to x0
+    * when False, a proper atomic swap is performed and the previous CSR value is
+      returned in rd
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    csr: OpAttr[AnyIntegerAttr]
+    writeonly: OpAttr[AnyIntegerAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        csr: AnyIntegerAttr,
+        writeonly: AnyIntegerAttr,
+    ):
+        rd = RegisterType(Register())
+        super().__init__(
+            operands=[rs1],
+            attributes={
+                "csr": csr,
+                "writeonly": writeonly,
+            },
+            result_types=[rd],
+        )
+
+
 class CsrReadAndBitwiseImmOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
@@ -925,6 +957,23 @@ class CsrrcOp(CsrReadAndBitwiseOperation):
 
 
 @irdl_op_definition
+class CsrrwiOp(CsrReadWriteImmOperation):
+    """
+    Update the CSR using an XLEN-bit value obtained by zero-extending the
+    'immediate' attribute.
+    If the 'writeonly' attribute evaluates to False, then the
+    instruction shall not read the CSR and shall not cause any of the side effects
+    that might occur on a CSR read; in this case rd *must be allocated to x0*.
+
+    x[rd] = CSRs[csr]; CSRs[csr] = zimm
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi
+    """
+
+    name = "riscv.csrrwi"
+
+
+@irdl_op_definition
 class CsrrsiOp(CsrReadAndBitwiseImmOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
@@ -1043,6 +1092,7 @@ RISCV = Dialect(
         CsrrwOp,
         CsrrsOp,
         CsrrcOp,
+        CsrrwiOp,
         CsrrsiOp,
         CsrrciOp,
         LiOp,

@@ -100,6 +100,10 @@
   // CHECK-NEXT: %{{.*}} = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
   %csrrci_r = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
+  %csrrwi_rw = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly" = 0 : i32, "immediate" = 1 : i32}: () -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly" = 0 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
+  %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly" = 1 : i32, "immediate" = 1 : i32}: () -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly" = 1 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
   // Assembler pseudo-insgtructions
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
