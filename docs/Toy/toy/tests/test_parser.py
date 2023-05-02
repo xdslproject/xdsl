@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from ..parser import Parser, ParseError
-from ..toy_ast import (
+from ..frontend.parser import Parser, ParseError
+from ..frontend.toy_ast import (
     ModuleAST,
     FunctionAST,
     PrototypeAST,
@@ -16,7 +16,7 @@ from ..toy_ast import (
     LiteralExprAST,
     NumberExprAST,
 )
-from ..location import Location
+from ..frontend.location import Location
 
 
 def test_parse_ast():
