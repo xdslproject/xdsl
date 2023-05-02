@@ -32,7 +32,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from ..rewrites.dead_code_elimination import Pure
+from xdsl.traits import Pure
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
