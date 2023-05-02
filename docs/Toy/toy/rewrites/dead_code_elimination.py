@@ -1,5 +1,6 @@
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OpTrait, Operation
-from xdsl.pattern_rewriter import RewritePattern, PatternRewriter
+from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, PatternRewriteWalker
 
 
 class Pure(OpTrait):
@@ -7,10 +8,11 @@ class Pure(OpTrait):
 
 
 class RemoveUnusedOperations(RewritePattern):
+    """
+    Removes operations annotated with the `Pure` trait, where results have no uses.
+    """
+
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        """
-        Removes operations whose result is not used, and that don't have side effects
-        """
         # Check that operation is side-effect-free
         if not op.has_trait(Pure()):
             return
@@ -23,3 +25,13 @@ class RemoveUnusedOperations(RewritePattern):
                 return
 
         rewriter.erase_op(op)
+
+
+def dce(module: ModuleOp):
+    """
+    Rewrites the module in-place to remove trivially unused operations.
+    """
+    PatternRewriteWalker(
+        RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
+    ).rewrite_module(module)
+    pass
