@@ -33,7 +33,7 @@ class Register:
     """
 
     name: str | None = field(default=None)
-    """The register name. Should be one of `ABI_NAMES` or `None`"""
+    """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
     ABI_INDEX_BY_NAME = {
         "zero": 0,
