@@ -20,6 +20,7 @@ def test_opt():
         "stencil-shape-inference",
         "stencil-to-local-2d-horizontal",
         "frontend-desymrefy",
+        "dce",
     ]
 
 

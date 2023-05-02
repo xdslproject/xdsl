@@ -32,6 +32,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import BaseParser
 from xdsl.printer import Printer
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -153,6 +154,8 @@ class Addi(BinaryOperation):
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self,

@@ -29,6 +29,7 @@ from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToGPUPass,
@@ -263,6 +264,7 @@ class xDSLOptMain:
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
+        self.register_pass(DeadCodeElimination)
 
     def register_all_targets(self):
         """
