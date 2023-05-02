@@ -9,7 +9,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
 )
-from xdsl.parser import BaseParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 
@@ -40,7 +40,7 @@ class TestType(Data[str], TypeAttribute):
     name: str = "test.type"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
+    def parse_parameter(parser: Parser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

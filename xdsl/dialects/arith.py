@@ -30,7 +30,7 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
-from xdsl.parser import BaseParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
@@ -62,7 +62,7 @@ class FastMathFlags:
         return item in self.flags
 
     @staticmethod
-    def try_parse(parser: BaseParser) -> Optional[FastMathFlags]:
+    def try_parse(parser: Parser) -> Optional[FastMathFlags]:
         if parser.try_parse_characters("none") is not None:
             return FastMathFlags(set())
         if parser.try_parse_characters("fast") is not None:
@@ -80,7 +80,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
     name: str = "arith.fastmath"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> FastMathFlags:
+    def parse_parameter(parser: Parser) -> FastMathFlags:
         flags = parser.parse_list_of(
             lambda: FastMathFlags.try_parse(parser), "Expected fast math flags"
         )

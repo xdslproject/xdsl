@@ -21,7 +21,7 @@ from xdsl.irdl import (
     OpAttr,
 )
 
-from xdsl.parser import BaseParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import AnyIntegerAttr
 
@@ -42,7 +42,7 @@ class RegisterType(Data[Register], TypeAttribute):
     name = "riscv.reg"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> Register:
+    def parse_parameter(parser: Parser) -> Register:
         return Register()
 
     def print_parameter(self, printer: Printer) -> None:

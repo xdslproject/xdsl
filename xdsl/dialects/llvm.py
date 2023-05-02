@@ -41,7 +41,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser
+    from xdsl.parser import Parser
     from xdsl.printer import Printer
 
 GEP_USE_SSA_VAL = -2147483648
@@ -75,7 +75,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print(")>")
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<(", "LLVM Struct must start with `<(`")
         params = parser.parse_list_of(
             parser.try_parse_type,
@@ -105,7 +105,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters("<", "llvm.ptr parameters expected")
@@ -147,7 +147,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters("<", "llvm.array parameters expected")
@@ -188,7 +188,7 @@ class LinkageAttr(ParametrizedAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<", "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine

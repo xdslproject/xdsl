@@ -7,7 +7,7 @@ from xdsl.dialects.riscv import RISCV
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
-from xdsl.parser import XDSLParser, MLIRParser, ParseError
+from xdsl.parser import Parser, ParseError
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
@@ -229,23 +229,14 @@ class xDSLOptMain:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_xdsl(io: IO[str]):
-            return XDSLParser(
-                self.ctx,
-                io.read(),
-                self.get_input_name(),
-                self.args.allow_unregistered_dialect,
-            ).parse_module()
-
         def parse_mlir(io: IO[str]):
-            return MLIRParser(
+            return Parser(
                 self.ctx,
                 io.read(),
                 self.get_input_name(),
                 self.args.allow_unregistered_dialect,
             ).parse_module()
 
-        self.available_frontends["xdsl"] = parse_xdsl
         self.available_frontends["mlir"] = parse_mlir
 
     def register_pass(self, opPass: Type[ModulePass]):

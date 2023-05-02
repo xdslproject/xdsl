@@ -55,7 +55,7 @@ from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser
+    from xdsl.parser import Parser
     from utils.exceptions import ParseError
     from xdsl.printer import Printer
 
@@ -94,7 +94,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> tuple[AttributeCovT]:
+    def parse_parameter(parser: Parser) -> tuple[AttributeCovT]:
         parser.parse_char("[")
         data = parser.parse_list_of(parser.try_parse_attribute, "Expected attribute")
         parser.parse_char("]")
@@ -152,7 +152,7 @@ class StringAttr(Data[str]):
     name: str = "string"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
+    def parse_parameter(parser: Parser) -> str:
         data = parser.parse_str_literal()
         return data
 
@@ -234,7 +234,7 @@ class IntAttr(Data[int]):
     name: str = "int"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> int:
+    def parse_parameter(parser: Parser) -> int:
         data = parser.parse_int_literal()
         return data
 
@@ -262,7 +262,7 @@ class SignednessAttr(Data[Signedness]):
     name: str = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> Signedness:
+    def parse_parameter(parser: Parser) -> Signedness:
         value = parser.expect(
             parser.try_parse_bare_id, "Expected `signless`, `signed`, or `unsigned`."
         )
@@ -422,7 +422,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> float:
+    def parse_parameter(parser: Parser) -> float:
         span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
         return float(span.text)
 
@@ -503,7 +503,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name: str = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
+    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:

@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import ModuleOp, Builtin, i32, i64
 from xdsl.dialects.scf import Scf, Yield
 from xdsl.dialects.func import Func
 from xdsl.ir import MLContext, Block
-from xdsl.parser import Parser, Source
+from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
 
 
@@ -19,7 +19,7 @@ def rewrite_and_compare(
     ctx.register_dialect(Scf)
     ctx.register_dialect(Func)
 
-    parser = Parser(ctx, prog, source=Source.MLIR)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     rewriter = Rewriter()

@@ -9,7 +9,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
-from xdsl.parser import MLIRParser
+from xdsl.parser import Parser
 from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 
 
@@ -229,10 +229,10 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = MLIRParser(ctx, args[0])
+    parser = Parser(ctx, args[0])
     lhs: Operation = parser.parse_op()
 
-    parser = MLIRParser(ctx, args[1])
+    parser = Parser(ctx, args[1])
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
@@ -257,7 +257,7 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = MLIRParser(ctx, program_func)
+    parser = Parser(ctx, program_func)
     program = parser.parse_operation()
 
     assert isinstance(program, ModuleOp)

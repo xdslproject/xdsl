@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.ir import MLContext, Operation
-from xdsl.parser import MLIRParser
+from xdsl.parser import Parser
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.func import Func
 from xdsl.dialects.arith import Arith
@@ -92,7 +92,7 @@ def test_immutable_ir(program_str: str):
     ctx.register_dialect(Arith)
     ctx.register_dialect(Cf)
 
-    parser = MLIRParser(ctx, program_str)
+    parser = Parser(ctx, program_str)
     program: Operation = parser.parse_op()
     immutable_program = get_immutable_copy(program)
     mutable_program = immutable_program.to_mutable()

@@ -27,7 +27,7 @@ from xdsl.irdl import (
 )
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
-from xdsl.parser import BaseParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
@@ -67,7 +67,7 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
     value: ParameterDef[T]
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             f"Expected <. gpu attributes currently have the #gpu<name value> syntax.",

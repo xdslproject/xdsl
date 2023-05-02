@@ -11,7 +11,7 @@ from xdsl.xdsl_opt_main import xDSLOptMain
 
 def test_opt():
     opt = xDSLOptMain(args=[])
-    assert list(opt.available_frontends.keys()) == ["xdsl", "mlir"]
+    assert list(opt.available_frontends.keys()) == ["mlir"]
     assert list(opt.available_targets.keys()) == ["mlir"]
     assert list(opt.available_passes.keys()) == [
         "lower-mpi",
