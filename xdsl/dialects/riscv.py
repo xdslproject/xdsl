@@ -349,7 +349,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         )
 
 
-class CsrReadAndBitwiseImmOperation(IRDLOperation, ABC):
+class CsrBitwiseImmOperation(IRDLOperation, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -974,7 +974,7 @@ class CsrrwiOp(CsrReadWriteImmOperation):
 
 
 @irdl_op_definition
-class CsrrsiOp(CsrReadAndBitwiseImmOperation):
+class CsrrsiOp(CsrBitwiseImmOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
     it to integer register rd. The value in the 'immediate' attribute is treated
@@ -997,7 +997,7 @@ class CsrrsiOp(CsrReadAndBitwiseImmOperation):
 
 
 @irdl_op_definition
-class CsrrciOp(CsrReadAndBitwiseImmOperation):
+class CsrrciOp(CsrBitwiseImmOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
     it to integer register rd.  The value in the 'immediate' attribute is treated
