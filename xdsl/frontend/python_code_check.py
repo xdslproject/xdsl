@@ -287,7 +287,7 @@ class CheckStructure:
             if not isinstance(stmt, ast.FunctionDef):
                 continue
 
-            # Only blocks are alloed
+            # Only blocks are allowed
             if not is_block(stmt):
                 raise CodeGenerationException(
                     self.file,
