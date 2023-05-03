@@ -245,7 +245,8 @@ class NullaryOperation(IRDLOperation, ABC):
     A base class for RISC-V operations that have neither sources nor destinations.
     """
 
-    pass
+    def __init__(self):
+        super().__init__()
 
 
 # RV32I/RV64I: Integer Computational Instructions (Section 2.4)
