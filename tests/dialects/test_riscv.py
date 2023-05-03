@@ -9,9 +9,9 @@ import pytest
 
 
 def test_add_op():
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Register("a1")))
-    a2 = TestSSAValue(riscv.RegisterType(riscv.Register("a2")))
-    add_op = riscv.AddOp(a1, a2, rd="a0")
+    a1 = TestSSAValue(riscv.RegisterType(riscv.A1))
+    a2 = TestSSAValue(riscv.RegisterType(riscv.A2))
+    add_op = riscv.AddOp(a1, a2, rd=riscv.A0)
     a0 = add_op.rd
 
     assert a1.typ is add_op.rs1.typ
@@ -25,36 +25,36 @@ def test_add_op():
 
 
 def test_csr_op():
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Register("a1")))
-    zero = TestSSAValue(riscv.RegisterType(riscv.Register("zero")))
+    a1 = TestSSAValue(riscv.RegisterType(riscv.A1))
+    zero = TestSSAValue(riscv.RegisterType(riscv.ZERO))
     csr = IntegerAttr(16, i32)
     # CsrrwOp
-    riscv.CsrrwOp(rs1=a1, csr=csr, rd="a2").verify()
-    riscv.CsrrwOp(rs1=a1, csr=csr, rd="zero").verify()
-    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd="zero").verify()
+    riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.ZERO).verify()
+    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd=riscv.ZERO).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd="a2").verify()
+        riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=True, rd=riscv.A2).verify()
     # CsrrsOp
-    riscv.CsrrsOp(rs1=a1, csr=csr, rd="a2").verify()
-    riscv.CsrrsOp(rs1=zero, csr=csr, rd="a2").verify()
-    riscv.CsrrsOp(rs1=zero, csr=csr, readonly=True, rd="a2").verify()
+    riscv.CsrrsOp(rs1=a1, csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrsOp(rs1=zero, csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrsOp(rs1=zero, csr=csr, readonly=True, rd=riscv.A2).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrsOp(rs1=a1, csr=csr, readonly=True, rd="a2").verify()
+        riscv.CsrrsOp(rs1=a1, csr=csr, readonly=True, rd=riscv.A2).verify()
     # CsrrcOp
-    riscv.CsrrcOp(rs1=a1, csr=csr, rd="a2").verify()
-    riscv.CsrrcOp(rs1=zero, csr=csr, rd="a2").verify()
-    riscv.CsrrcOp(rs1=zero, csr=csr, readonly=True, rd="a2").verify()
+    riscv.CsrrcOp(rs1=a1, csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrcOp(rs1=zero, csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrcOp(rs1=zero, csr=csr, readonly=True, rd=riscv.A2).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd="a2").verify()
+        riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.A2).verify()
     # CsrrwiOp
-    riscv.CsrrwiOp(csr=csr, rd="a2").verify()
-    riscv.CsrrwiOp(csr=csr, rd="zero").verify()
-    riscv.CsrrwiOp(csr=csr, writeonly=True, rd="zero").verify()
+    riscv.CsrrwiOp(csr=csr, rd=riscv.A2).verify()
+    riscv.CsrrwiOp(csr=csr, rd=riscv.ZERO).verify()
+    riscv.CsrrwiOp(csr=csr, writeonly=True, rd=riscv.ZERO).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrwiOp(csr=csr, writeonly=True, rd="a2").verify()
+        riscv.CsrrwiOp(csr=csr, writeonly=True, rd=riscv.A2).verify()
     # CsrrsiOp
-    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(0, i32), rd="a2").verify()
-    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd="a2").verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.A2).verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.A2).verify()
     # CsrrciOp
-    riscv.CsrrciOp(csr=csr, immediate=IntegerAttr(0, i32), rd="a2").verify()
-    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd="a2").verify()
+    riscv.CsrrciOp(csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.A2).verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.A2).verify()
