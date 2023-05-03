@@ -315,7 +315,7 @@ class xDSLOptMain:
 
         chunks = [f]
         if self.args.split_input_file:
-            chunks = list(map(StringIO, f.read().split("// -----")))
+            chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
         if self.args.frontend:
             file_extension = self.args.frontend
 
