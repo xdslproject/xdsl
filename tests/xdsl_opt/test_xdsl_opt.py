@@ -131,12 +131,7 @@ def test_split_input():
     opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
     opt.run()
     with open(filename_in, "r") as file:
-        inp: str = ""
-        for line in file:
-            if "//-----" not in line:
-                inp += line
-            else:
-                inp += "\n"
+        inp = file.read()
     with open(filename_out, "r") as file:
         expected = file.read()
     assert inp.strip() == expected.strip()

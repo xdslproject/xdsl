@@ -99,7 +99,7 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        contents: str = ""
+        snippet_list: List[str] = []
         if not self.args.parsing_diagnostics:
             modules = self.parse_input()
         else:
@@ -118,7 +118,8 @@ class xDSLOptMain:
                 except DiagnosticException as e:
                     print(e)
                     exit(0)
-            contents += self.output_resulting_program(module)
+            snippet_list.append(self.output_resulting_program(module))
+        contents = "// -----\n".join(snippet_list)
 
         self.print_to_output_stream(contents)
 
@@ -311,7 +312,7 @@ class xDSLOptMain:
         if self.args.split_input_file:
             split_snippet = ""
             for line in f:
-                if "//-----" in line:
+                if "// -----" in line:
                     split_file_list.append(split_snippet)
                     split_snippet = ""
                 else:
