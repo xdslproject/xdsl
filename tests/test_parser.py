@@ -74,6 +74,34 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
 
 
+@pytest.mark.parametrize(
+    "text, reserved_names",
+    [("{a = 1}", ["a"]), ("{a = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["a"])],
+)
+def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    with pytest.raises(ParseError):
+        Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+            reserved_names
+        )
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [("{b = 1}", ["a"]), ("{c = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["c"])],
+)
+def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+        expected
+    )
+    assert isinstance(res, DictionaryAttr)
+
+
 @irdl_attr_definition
 class DummyAttr(ParametrizedAttribute):
     name = "dummy.attr"

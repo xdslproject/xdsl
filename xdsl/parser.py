@@ -2377,17 +2377,28 @@ class Parser(ABC):
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
 
-    def parse_optional_attr_dict_with_keyword(self) -> DictionaryAttr | None:
+    def parse_optional_attr_dict_with_keyword(
+        self, reserved_attr_names: Iterable[str] = ()
+    ) -> DictionaryAttr | None:
         """
         Parse a dictionary attribute, preceeded with `attributes` keyword, if the
         keyword is present.
         This is intended to be used in operation custom assembly format.
         """
         self._synchronize_lexer_and_tokenizer()
-        if self.parse_optional_keyword("attributes") is not None:
-            self._synchronize_lexer_and_tokenizer()
-            return self.parse_builtin_dict_attr()
-        return None
+        begin_pos = self.lexer.pos
+        if self.parse_optional_keyword("attributes") is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
+        attr = self.parse_builtin_dict_attr()
+        for reserved_name in reserved_attr_names:
+            if reserved_name in attr.data:
+                self.raise_error(
+                    f"Attribute dictionary entry '{reserved_name}' is already passed "
+                    "through the operation custom assembly format.",
+                    Span(begin_pos, begin_pos, self.lexer.input),
+                )
+        return attr
 
     def parse_optional_punctuation(
         self, punctuation: Token.PunctuationSpelling
