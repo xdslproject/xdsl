@@ -32,6 +32,8 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+from xdsl.traits import Pure
+
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
@@ -52,6 +54,8 @@ class ConstantOp(IRDLOperation):
     name: str = "toy.constant"
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
         super().__init__(result_types=[value.type], attributes={"value": value})
@@ -90,6 +94,8 @@ class AddOp(IRDLOperation):
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
@@ -240,6 +246,8 @@ class MulOp(IRDLOperation):
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
+    traits = frozenset([Pure()])
+
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
             result_typ = lhs.typ
@@ -316,6 +324,8 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
 
+    traits = frozenset([Pure()])
+
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
@@ -345,6 +355,8 @@ class TransposeOp(IRDLOperation):
     name: str = "toy.transpose"
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, input: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64

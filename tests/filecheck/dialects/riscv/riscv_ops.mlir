@@ -82,4 +82,7 @@
   // Assembler pseudo-insgtructions
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  // Environment Call and Breakpoints
+  "riscv.ecall"() : () -> ()
+  // CHECK-NEXT: "riscv.ecall"() : () -> ()
 }) : () -> ()
