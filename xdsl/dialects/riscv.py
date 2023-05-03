@@ -19,11 +19,12 @@ from xdsl.irdl import (
     irdl_attr_definition,
     Operand,
     OpAttr,
+    OptOpAttr,
 )
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import AnyIntegerAttr
+from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -268,31 +269,31 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
-    writeonly: OpAttr[AnyIntegerAttr]
+    writeonly: OptOpAttr[UnitAttr]
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
-        writeonly: AnyIntegerAttr,
         *,
+        writeonly: bool = False,
         rd: RegisterType | str | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
+        attributes = {"csr": csr}
+        if writeonly:
+            attributes["writeonly"] = UnitAttr()
         super().__init__(
             operands=[rs1],
-            attributes={
-                "csr": csr,
-                "writeonly": writeonly,
-            },
+            attributes=attributes,
             result_types=[rd],
         )
 
     def verify_(self) -> None:
-        if not bool(self.writeonly.value.data):
+        if not self.writeonly:
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
@@ -319,31 +320,31 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
-    readonly: OpAttr[AnyIntegerAttr]
+    readonly: OptOpAttr[UnitAttr]
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
-        readonly: AnyIntegerAttr,
         *,
+        readonly: bool = False,
         rd: RegisterType | str | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
+        attributes = {"csr": csr}
+        if readonly:
+            attributes["readonly"] = UnitAttr()
         super().__init__(
             operands=[rs1],
-            attributes={
-                "csr": csr,
-                "readonly": readonly,
-            },
+            attributes=attributes,
             result_types=[rd],
         )
 
     def verify_(self) -> None:
-        if not bool(self.readonly.value.data):
+        if not self.readonly:
             return
         if not isinstance(self.rs1.typ, RegisterType):
             return
@@ -356,7 +357,7 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
 
 class CsrReadWriteImmOperation(IRDLOperation, ABC):
     """
-    A base class for RISC-V operations performing a swap to/from a CSR.
+    A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
     The 'writeonly' attribute controls the actual behaviour of the operation:
     * when True, the operation writes the rs value to the CSR but never reads it and
@@ -367,29 +368,29 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
 
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
-    writeonly: OpAttr[AnyIntegerAttr]
+    writeonly: OptOpAttr[UnitAttr]
 
     def __init__(
         self,
         csr: AnyIntegerAttr,
-        writeonly: AnyIntegerAttr,
         *,
+        writeonly: bool = False,
         rd: RegisterType | str | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
+        attributes = {"csr": csr}
+        if writeonly:
+            attributes["writeonly"] = UnitAttr()
         super().__init__(
-            attributes={
-                "csr": csr,
-                "writeonly": writeonly,
-            },
+            attributes=attributes,
             result_types=[rd],
         )
 
     def verify_(self) -> None:
-        if not bool(self.writeonly.value.data):
+        if not self.writeonly:
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
