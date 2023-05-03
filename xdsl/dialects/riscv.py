@@ -117,13 +117,6 @@ class RegisterType(Data[Register], TypeAttribute):
 
     name = "riscv.reg"
 
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if self.data.name is None:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.data.name
-
     @staticmethod
     def parse_parameter(parser: Parser) -> Register:
         name = parser.try_parse_bare_id()
@@ -137,6 +130,10 @@ class RegisterType(Data[Register], TypeAttribute):
         if name is None:
             return
         printer.print_string(name)
+
+    @property
+    def abi_name(self):
+        return self.data.name
 
 
 class RdRsRsOperation(IRDLOperation, ABC):
@@ -331,11 +328,10 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
-        register_name = self.rd.typ.data.name
-        if register_name is not None and register_name != "zero":
+        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{register_name}'"
+                f"not '{self.rd.typ.abi_name}'"
             )
 
 
@@ -383,11 +379,10 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             return
         if not isinstance(self.rs1.typ, RegisterType):
             return
-        register_name = self.rs1.typ.data.name
-        if register_name is not None and register_name != "zero":
+        if self.rs1.typ.abi_name is not None and self.rs1.typ.abi_name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{register_name}'"
+                f"not '{self.rs1.typ.abi_name}'"
             )
 
 
@@ -430,11 +425,10 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
-        register_name = self.rd.typ.data.name
-        if register_name is not None and register_name != "zero":
+        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{register_name}'"
+                f"not '{self.rd.typ.abi_name}'"
             )
 
 
