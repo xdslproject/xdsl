@@ -12,7 +12,7 @@ class RemoveUnusedOperations(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         # Check that operation is side-effect-free
-        if not op.has_trait(Pure()):
+        if not op.has_trait(Pure):
             return
 
         # Check whether any of the results are used

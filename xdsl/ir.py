@@ -518,14 +518,21 @@ class IRNode(ABC):
 class OpTrait:
     """
     A trait attached to an operation definition.
-    Traits can be used to define operation invariants, or to specify
-    additional semantic information.
-    Some traits may define parameters.
+    Traits can be used to define operation invariants, additional semantic information,
+    or to group operations that have similar properties.
+    Traits have parameters, which by default is just the `None` value. Parameters should
+    always be comparable and hashable.
+    Note that traits are the merge of traits and interfaces in MLIR.
     """
+
+    parameters: Any = field(default=None)
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
+
+
+OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
 @dataclass
@@ -840,14 +847,26 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: OpTrait) -> bool:
+    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
         """
-        return trait in cls.traits
+        return cls.get_trait(trait, parameters) is not None
 
     @classmethod
-    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+    def get_trait(
+        cls, trait: type[OpTraitInvT], parameters: Any = None
+    ) -> OpTraitInvT | None:
+        """
+        Return a trait with the given type and parameters, if it exists.
+        """
+        for t in cls.traits:
+            if isinstance(t, trait) and t.parameters == parameters:
+                return t
+        return None
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTraitInvT]) -> list[OpTraitInvT]:
         """
         Get all the traits of the given type satisfied by this operation.
         """
