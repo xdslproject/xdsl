@@ -24,6 +24,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import AnyIntegerAttr
+from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,10 @@ class RegisterType(Data[Register], TypeAttribute):
         if name is None:
             return
         printer.print_string(name)
+
+    @property
+    def abi_name(self):
+        return self.data.name
 
 
 class RdRsRsOperation(IRDLOperation, ABC):
@@ -281,6 +286,17 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             result_types=[rd],
         )
 
+    def verify_(self) -> None:
+        if not bool(self.writeonly.value.data):
+            return
+        if not isinstance(self.rd.typ, RegisterType):
+            return
+        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
+            raise VerifyException(
+                "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
+                f"not '{self.rd.typ.abi_name}'"
+            )
+
 
 class CsrBitwiseOperation(IRDLOperation, ABC):
     """
@@ -316,6 +332,17 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             result_types=[rd],
         )
 
+    def verify_(self) -> None:
+        if not bool(self.readonly.value.data):
+            return
+        if not isinstance(self.rs1.typ, RegisterType):
+            return
+        if self.rs1.typ.abi_name is not None and self.rs1.typ.abi_name != "zero":
+            raise VerifyException(
+                "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
+                f"not '{self.rs1.typ.abi_name}'"
+            )
+
 
 class CsrReadWriteImmOperation(IRDLOperation, ABC):
     """
@@ -347,6 +374,17 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             },
             result_types=[rd],
         )
+
+    def verify_(self) -> None:
+        if not bool(self.writeonly.value.data):
+            return
+        if not isinstance(self.rd.typ, RegisterType):
+            return
+        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
+            raise VerifyException(
+                "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
+                f"not '{self.rd.typ.abi_name}'"
+            )
 
 
 class CsrBitwiseImmOperation(IRDLOperation, ABC):
