@@ -11,7 +11,6 @@ from xdsl.ir import (
     Data,
     OpResult,
     TypeAttribute,
-    Attribute,
 )
 
 from xdsl.irdl import (
