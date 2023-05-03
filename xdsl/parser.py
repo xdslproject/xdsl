@@ -1697,7 +1697,7 @@ class Parser(ABC):
         elif next_token.text == "@":
             return self.try_parse_ref_attr()
         elif next_token.text == "{":
-            return self.try_parse_builtin_dict_attr()
+            return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
@@ -2368,9 +2368,26 @@ class Parser(ABC):
             ).text
         )
 
-    def try_parse_builtin_dict_attr(self):
+    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute, with the following syntax:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
+
+    def parse_optional_attr_dict_with_keyword(self) -> DictionaryAttr | None:
+        """
+        Parse a dictionary attribute, preceeded with `attributes` keyword, if the
+        keyword is present.
+        This is intended to be used in operation custom assembly format.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self.parse_optional_keyword("attributes") is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return self.parse_builtin_dict_attr()
+        return None
 
     def parse_optional_punctuation(
         self, punctuation: Token.PunctuationSpelling

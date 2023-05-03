@@ -54,10 +54,24 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = Parser(ctx, text).parse_attribute()
-    assert isinstance(attr, DictionaryAttr)
+    attr1 = Parser(ctx, text).parse_attribute()
+    attr2 = Parser(ctx, text).parse_builtin_dict_attr()
+    attr3 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    assert isinstance(attr1, DictionaryAttr)
+    assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
-    assert attr.data == data
+    assert attr1.data == data
+    assert attr2.data == data
+    assert attr3.data == data
+
+
+@pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
+def test_dictionary_attr_with_keyword_missing(text: str):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
 
 
 @irdl_attr_definition
