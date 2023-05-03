@@ -371,7 +371,6 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
         writeonly: AnyIntegerAttr,
         *,
@@ -382,7 +381,6 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
         super().__init__(
-            operands=[rs1],
             attributes={
                 "csr": csr,
                 "writeonly": writeonly,
