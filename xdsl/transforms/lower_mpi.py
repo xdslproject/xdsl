@@ -825,6 +825,7 @@ class LowerMPIPass(ModulePass):
                     LowerMpiUnwrapMemrefOp(lib_info),
                     LowerMpiGetDtype(lib_info),
                     LowerMpiAllocateType(lib_info),
+                    LowerNullRequestOp(lib_info),
                     LowerMpiVectorGet(lib_info),
                 ]
             ),
