@@ -134,4 +134,5 @@ def test_split_input():
         inp = file.read()
     with open(filename_out, "r") as file:
         expected = file.read()
+
     assert inp.strip() == expected.strip()

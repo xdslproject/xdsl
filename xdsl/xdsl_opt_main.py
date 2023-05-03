@@ -99,7 +99,6 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        snippet_list: List[str] = []
         if not self.args.parsing_diagnostics:
             modules = self.parse_input()
         else:
@@ -109,6 +108,7 @@ class xDSLOptMain:
                 print(e)
                 exit(0)
 
+        output_list: List[str] = []
         for module in modules:
             if not self.args.verify_diagnostics:
                 self.apply_passes(module)
@@ -118,8 +118,8 @@ class xDSLOptMain:
                 except DiagnosticException as e:
                     print(e)
                     exit(0)
-            snippet_list.append(self.output_resulting_program(module))
-        contents = "// -----\n".join(snippet_list)
+            output_list.append(self.output_resulting_program(module))
+        contents = "// -----\n".join(output_list)
 
         self.print_to_output_stream(contents)
 
@@ -301,7 +301,7 @@ class xDSLOptMain:
         is used.
         """
 
-        split_file_list: List[str] = []
+        chunk: List[IO[str]] = []
         if self.args.input_file is None:
             f = sys.stdin
             file_extension = "mlir"
@@ -309,31 +309,18 @@ class xDSLOptMain:
             f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
+
+        chunk = [f]
         if self.args.split_input_file:
-            split_snippet = ""
-            for line in f:
-                if "// -----" in line:
-                    split_file_list.append(split_snippet)
-                    split_snippet = ""
-                else:
-                    split_snippet += line
-            split_file_list.append(split_snippet)
+            chunk = list(map(StringIO, f.read().split("// -----")))
         if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
             f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
-
         try:
-            module: List[ModuleOp] = []
-            if not split_file_list:
-                module = [self.available_frontends[file_extension](f)]
-            else:
-                for snippet in split_file_list:
-                    module += [
-                        self.available_frontends[file_extension](StringIO(snippet))
-                    ]
+            module = [self.available_frontends[file_extension](s) for s in chunk]
         finally:
             f.close()
         return module
