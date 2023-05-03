@@ -182,7 +182,7 @@ class GetNumResultsTrait(OpTrait):
     It provides a method to get the number of results of an operation.
     """
 
-    # This is the default implementation of an trait (interface) method.
+    # This is the default implementation of a trait (interface) method.
     @staticmethod
     def get_num_results(op: Operation):
         """
@@ -210,7 +210,7 @@ class OpWithInterface(IRDLOperation):
 
 def test_interface():
     """
-    Test the features of an trait with methods (An MLIR interface).
+    Test the features of a trait with methods (An MLIR interface).
     """
     op = OpWithInterface.create(result_types=(i32,))
     trait = OpWithInterface.get_trait(GetNumResultsTrait)
