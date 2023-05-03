@@ -284,12 +284,12 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes: dict[str, Attribute] = {"csr": csr}
-        if writeonly:
-            attributes["writeonly"] = UnitAttr()
         super().__init__(
             operands=[rs1],
-            attributes=attributes,
+            attributes={
+                "csr": csr,
+                "writeonly": UnitAttr() if writeonly else None,
+            },
             result_types=[rd],
         )
 
@@ -335,12 +335,12 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes: dict[str, Attribute] = {"csr": csr}
-        if readonly:
-            attributes["readonly"] = UnitAttr()
         super().__init__(
             operands=[rs1],
-            attributes=attributes,
+            attributes={
+                "csr": csr,
+                "readonly": UnitAttr() if readonly else None,
+            },
             result_types=[rd],
         )
 
@@ -382,11 +382,11 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes: dict[str, Attribute] = {"csr": csr}
-        if writeonly:
-            attributes["writeonly"] = UnitAttr()
         super().__init__(
-            attributes=attributes,
+            attributes={
+                "csr": csr,
+                "writeonly": UnitAttr() if writeonly else None,
+            },
             result_types=[rd],
         )
 
