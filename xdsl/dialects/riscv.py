@@ -785,6 +785,18 @@ class EcallOp(NullaryOperation):
     name = "riscv.ecall"
 
 
+@irdl_op_definition
+class EbreakOp(NullaryOperation):
+    """
+    The EBREAK instruction is used by debuggers to cause control to be
+    transferred back to a debugging environment.
+
+    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    """
+
+    name = "riscv.ebreak"
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -825,6 +837,7 @@ RISCV = Dialect(
         SwOp,
         LiOp,
         EcallOp,
+        EbreakOp,
     ],
     [RegisterType],
 )

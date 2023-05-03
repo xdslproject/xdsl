@@ -85,4 +85,7 @@
   // Environment Call and Breakpoints
   "riscv.ecall"() : () -> ()
   // CHECK-NEXT: "riscv.ecall"() : () -> ()
+  "riscv.ebreak"() : () -> ()
+  // CHECK-NEXT: "riscv.ebreak"() : () -> ()
+
 }) : () -> ()
