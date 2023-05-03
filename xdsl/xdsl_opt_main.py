@@ -322,10 +322,12 @@ class xDSLOptMain:
         if file_extension not in self.available_frontends:
             f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
+
         try:
             module = [self.available_frontends[file_extension](s) for s in chunks]
         finally:
             f.close()
+
         return module
 
     def apply_passes(self, prog: ModuleOp):
