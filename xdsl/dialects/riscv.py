@@ -275,8 +275,13 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
         rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
         writeonly: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             operands=[rs1],
             attributes={
@@ -321,8 +326,13 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
         rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
         readonly: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             operands=[rs1],
             attributes={
@@ -364,8 +374,13 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         rs1: Operation | SSAValue,
         csr: AnyIntegerAttr,
         writeonly: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             operands=[rs1],
             attributes={
@@ -408,8 +423,13 @@ class CsrBitwiseImmOperation(IRDLOperation, ABC):
         self,
         csr: AnyIntegerAttr,
         immediate: AnyIntegerAttr,
+        *,
+        rd: RegisterType | str | None = None,
     ):
-        rd = RegisterType(Register())
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, str):
+            rd = RegisterType(Register(rd))
         super().__init__(
             attributes={
                 "csr": csr,
