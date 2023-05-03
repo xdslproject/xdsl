@@ -99,25 +99,27 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
+        contents: str = ""
         if not self.args.parsing_diagnostics:
-            module = self.parse_input()
+            modules = self.parse_input()
         else:
             try:
-                module = self.parse_input()
+                modules = self.parse_input()
             except ParseError as e:
                 print(e)
                 exit(0)
 
-        if not self.args.verify_diagnostics:
-            self.apply_passes(module)
-        else:
-            try:
+        for module in modules:
+            if not self.args.verify_diagnostics:
                 self.apply_passes(module)
-            except DiagnosticException as e:
-                print(e)
-                exit(0)
+            else:
+                try:
+                    self.apply_passes(module)
+                except DiagnosticException as e:
+                    print(e)
+                    exit(0)
+            contents += self.output_resulting_program(module)
 
-        contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
@@ -196,6 +198,12 @@ class xDSLOptMain:
             default=False,
             action="store_true",
             help="Allow the parsing of unregistered dialects.",
+        )
+        arg_parser.add_argument(
+            "-split-input-file",
+            default=False,
+            action="store_true",
+            help="Split the input file into pieces and process each chunk independently",
         )
 
     def register_all_dialects(self):
@@ -285,12 +293,14 @@ class xDSLOptMain:
 
         self.pipeline = [self.available_passes[p]() for p in pipeline]
 
-    def parse_input(self) -> ModuleOp:
+    def parse_input(self) -> List[ModuleOp]:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
         is used.
         """
+
+        split_file_list: List[str] = []
         if self.args.input_file is None:
             f = sys.stdin
             file_extension = "mlir"
@@ -298,7 +308,15 @@ class xDSLOptMain:
             f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
-
+        if self.args.split_input_file:
+            split_snippet = ""
+            for line in f:
+                if "//-----" in line:
+                    split_file_list.append(split_snippet)
+                    split_snippet = ""
+                else:
+                    split_snippet += line
+            split_file_list.append(split_snippet)
         if self.args.frontend:
             file_extension = self.args.frontend
 
@@ -307,10 +325,16 @@ class xDSLOptMain:
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
         try:
-            module = self.available_frontends[file_extension](f)
+            module: List[ModuleOp] = []
+            if not split_file_list:
+                module = [self.available_frontends[file_extension](f)]
+            else:
+                for snippet in split_file_list:
+                    module += [
+                        self.available_frontends[file_extension](StringIO(snippet))
+                    ]
         finally:
             f.close()
-
         return module
 
     def apply_passes(self, prog: ModuleOp):
