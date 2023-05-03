@@ -14,11 +14,15 @@ categories:
   - title: 'Examples/Tutorials'
     label: 'examples'
   - title: '🗎 Documentation'
-    label: 'docs'
+    labels:
+      - 'documentation'
+      - 'tests'
   - title: '🐛 Bug Fixes'
     label: 'bug'
   - title: 'Testing'
-    label: 'tests'
+    labels:
+      - 'testing'
+      - 'tests'
   - title: 'Continuous Integration'
     label: 'CI'
   - title: 'Installation'
