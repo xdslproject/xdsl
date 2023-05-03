@@ -24,8 +24,15 @@ from xdsl.irdl import (
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    UnitAttr,
+    ModuleOp,
+    StringAttr,
+    IntegerAttr,
+)
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
@@ -73,6 +80,7 @@ class Register:
         "t6": 31,
     }
 
+<<<<<<< HEAD
 
 class Registers(ABC):
     """Namespace for named register constants."""
@@ -110,6 +118,11 @@ class Registers(ABC):
     T4 = Register("t4")
     T5 = Register("t5")
     T6 = Register("t6")
+=======
+    # def __post_init__(self):
+    #    if self.name is not None and self.name not in Register.ABI_INDEX_BY_NAME:
+    #        raise ValueError(f"Unknown register name {self.name}")
+>>>>>>> e1a0afc (Add assembly generation with infinite register allocation)
 
 
 @irdl_attr_definition
@@ -139,7 +152,94 @@ class RegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
 
-class RdRsRsOperation(IRDLOperation, ABC):
+@irdl_attr_definition
+class LabelAttr(Data[str]):
+    name = "riscv.label"
+
+
+class _RISCVOp(Operation, ABC):
+    def assembly_instruction(self) -> str | None:
+        # default assembly code generator
+        assert self.name.startswith("riscv.")
+        instruction_name = self.name[6:]
+        components: list[str] = []
+
+        for result in self.results:
+            assert isinstance(result.typ, RegisterType)
+            assert result.typ.data.name != None
+            components.append(result.typ.data.name)
+
+        for operand in self.operands:
+            assert isinstance(operand.typ, RegisterType)
+            assert operand.typ.data.name != None
+            components.append(operand.typ.data.name)
+
+        if "offset" in self.attributes:
+            label_attr = getattr(self, "offset")
+            assert isinstance(label_attr, StringAttr)
+            components.append(label_attr.data)
+
+        if "immediate" in self.attributes:
+            immediate_attr = getattr(self, "immediate")
+            assert isinstance(immediate_attr, LabelAttr | IntegerAttr)
+            if isinstance(immediate_attr, LabelAttr):
+                components.append(immediate_attr.data)
+            elif isa(immediate_attr, AnyIntegerAttr):
+                components.append(str(immediate_attr.value.data))
+
+        if "comment" in self.attributes:
+            comment = getattr(self, "comment")
+            assert isinstance(comment, StringAttr)
+        else:
+            comment = None
+
+        code = f"    {instruction_name} {', '.join(components)}"
+        return _RISCVOp.append_comment(code, comment)
+
+    @staticmethod
+    def append_comment(line: str, comment: StringAttr | None) -> str:
+        if comment is None:
+            return line
+
+        padding = " " * max(0, 48 - len(line))
+
+        return f"{line}{padding} # {comment.data}"
+
+
+def allocate_registers(module: ModuleOp):
+    # NOTE: For now allocating infinite registers, denoting them as j
+    idx = 0
+
+    for op in module.ops:
+        if not isinstance(op, _RISCVOp):
+            raise ValueError(
+                f"Cannot allocate registers for {op.name} not in riscv dialect"
+            )
+        for result in op.results:
+            assert isinstance(result.typ, RegisterType)
+            if result.typ.data.name is None:
+                result.typ = RegisterType(Register(f"j{idx}"))
+                idx += 1
+
+
+def riscv_code(module: ModuleOp) -> str:
+    allocate_registers(module)
+
+    code = ""
+
+    for op in module.ops:
+        if not isinstance(op, _RISCVOp):
+            raise ValueError("All ops in module must inherit from _RISCVOp")
+        instruction = op.assembly_instruction()
+        if instruction is None:
+            continue
+
+        code += f"{instruction}\n"
+
+    return code
+
+
+class RdRsRsOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -169,7 +269,7 @@ class RdRsRsOperation(IRDLOperation, ABC):
         )
 
 
-class RdImmOperation(IRDLOperation, ABC):
+class RdImmOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -180,10 +280,12 @@ class RdImmOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        immediate: AnyIntegerAttr,
+        immediate: int | AnyIntegerAttr,
         *,
         rd: RegisterType | Register | None = None,
     ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr.from_int_and_width(immediate, 32)
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
@@ -196,7 +298,7 @@ class RdImmOperation(IRDLOperation, ABC):
         )
 
 
-class RdRsImmOperation(IRDLOperation, ABC):
+class RdRsImmOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -228,7 +330,7 @@ class RdRsImmOperation(IRDLOperation, ABC):
         )
 
 
-class RsRsOffOperation(IRDLOperation, ABC):
+class RsRsOffOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -254,7 +356,7 @@ class RsRsOffOperation(IRDLOperation, ABC):
         )
 
 
-class RsRsImmOperation(IRDLOperation, ABC):
+class RsRsImmOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -280,7 +382,7 @@ class RsRsImmOperation(IRDLOperation, ABC):
         )
 
 
-class NullaryOperation(IRDLOperation, ABC):
+class NullaryOperation(IRDLOperation, _RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
