@@ -391,7 +391,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         )
 
     def verify_(self) -> None:
-        if not self.writeonly:
+        if self.writeonly is None:
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
