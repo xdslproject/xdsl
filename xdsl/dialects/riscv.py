@@ -11,6 +11,7 @@ from xdsl.ir import (
     Data,
     OpResult,
     TypeAttribute,
+    Attribute,
 )
 
 from xdsl.irdl import (
@@ -283,7 +284,7 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes = {"csr": csr}
+        attributes: dict[str, Attribute] = {"csr": csr}
         if writeonly:
             attributes["writeonly"] = UnitAttr()
         super().__init__(
@@ -334,7 +335,7 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes = {"csr": csr}
+        attributes: dict[str, Attribute] = {"csr": csr}
         if readonly:
             attributes["readonly"] = UnitAttr()
         super().__init__(
@@ -381,7 +382,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, str):
             rd = RegisterType(Register(rd))
-        attributes = {"csr": csr}
+        attributes: dict[str, Attribute] = {"csr": csr}
         if writeonly:
             attributes["writeonly"] = UnitAttr()
         super().__init__(
