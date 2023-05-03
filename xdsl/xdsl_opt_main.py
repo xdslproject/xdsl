@@ -301,7 +301,10 @@ class xDSLOptMain:
         is used.
         """
 
-        chunk: List[IO[str]] = []
+        # when using the split input flag, program is split into multiple chunks
+        # it's used for split input file
+
+        chunks: List[IO[str]] = []
         if self.args.input_file is None:
             f = sys.stdin
             file_extension = "mlir"
@@ -310,9 +313,9 @@ class xDSLOptMain:
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
-        chunk = [f]
+        chunks = [f]
         if self.args.split_input_file:
-            chunk = list(map(StringIO, f.read().split("// -----")))
+            chunks = list(map(StringIO, f.read().split("// -----")))
         if self.args.frontend:
             file_extension = self.args.frontend
 
@@ -320,7 +323,7 @@ class xDSLOptMain:
             f.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
         try:
-            module = [self.available_frontends[file_extension](s) for s in chunk]
+            module = [self.available_frontends[file_extension](s) for s in chunks]
         finally:
             f.close()
         return module
