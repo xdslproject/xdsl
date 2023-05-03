@@ -26,13 +26,35 @@ def test_add_op():
 
 def test_csr_op():
     a1 = TestSSAValue(riscv.RegisterType(riscv.Register("a1")))
+    zero = TestSSAValue(riscv.RegisterType(riscv.Register("zero")))
     csr = IntegerAttr(16, i32)
-    op0 = riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(0, i32), rd="a2")
-    op0.verify()
-    op1 = riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(0, i32), rd="zero")
-    op1.verify()
-    op2 = riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(1, i32), rd="zero")
-    op2.verify()
-    op3 = riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(1, i32), rd="a2")
+    # CsrrwOp
+    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(0, i32), rd="zero").verify()
+    riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(1, i32), rd="zero").verify()
     with pytest.raises(VerifyException):
-        op3.verify()
+        riscv.CsrrwOp(rs1=a1, csr=csr, writeonly=IntegerAttr(1, i32), rd="a2").verify()
+    # CsrrsOp
+    riscv.CsrrsOp(rs1=a1, csr=csr, readonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrsOp(rs1=zero, csr=csr, readonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrsOp(rs1=zero, csr=csr, readonly=IntegerAttr(1, i32), rd="a2").verify()
+    with pytest.raises(VerifyException):
+        riscv.CsrrsOp(rs1=a1, csr=csr, readonly=IntegerAttr(1, i32), rd="a2").verify()
+    # CsrrcOp
+    riscv.CsrrcOp(rs1=a1, csr=csr, readonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrcOp(rs1=zero, csr=csr, readonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrcOp(rs1=zero, csr=csr, readonly=IntegerAttr(1, i32), rd="a2").verify()
+    with pytest.raises(VerifyException):
+        riscv.CsrrcOp(rs1=a1, csr=csr, readonly=IntegerAttr(1, i32), rd="a2").verify()
+    # CsrrwiOp
+    riscv.CsrrwiOp(csr=csr, writeonly=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrwiOp(csr=csr, writeonly=IntegerAttr(0, i32), rd="zero").verify()
+    riscv.CsrrwiOp(csr=csr, writeonly=IntegerAttr(1, i32), rd="zero").verify()
+    with pytest.raises(VerifyException):
+        riscv.CsrrwiOp(csr=csr, writeonly=IntegerAttr(1, i32), rd="a2").verify()
+    # CsrrsiOp
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd="a2").verify()
+    # CsrrciOp
+    riscv.CsrrciOp(csr=csr, immediate=IntegerAttr(0, i32), rd="a2").verify()
+    riscv.CsrrsiOp(csr=csr, immediate=IntegerAttr(1, i32), rd="a2").verify()
