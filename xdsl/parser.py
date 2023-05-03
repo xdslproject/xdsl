@@ -1520,7 +1520,8 @@ class Parser(ABC):
         # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
-            self.raise_error("Custom op parsing not yet implemented.")
+            op_type = self._get_op_by_name(op_name)
+            return op_type.parse(self)
         else:
             # Check for basic op format
             op_name = self.try_parse_string_literal()
