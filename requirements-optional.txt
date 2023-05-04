@@ -7,4 +7,4 @@ pre-commit==3.3.1
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
-pyright==1.1.305
+pyright==1.1.306
