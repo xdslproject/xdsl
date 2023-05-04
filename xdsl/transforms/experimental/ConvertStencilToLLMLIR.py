@@ -330,9 +330,9 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
 def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, list[CastOp | memref.Subview | None]] = {}
 
-    def map_returns(op: Operation) -> None:
+    for op in module.walk():
         if not isinstance(op, ReturnOp):
-            return
+            continue
 
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
@@ -347,15 +347,13 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             if len(store) > 1:
                 warn("Each stencil result should be stored only once.")
-                return
+                continue
 
             cast = None if len(store) == 0 else store[0].field.owner
 
             assert isinstance(cast, CastOp | None)
 
             return_targets[op].append(cast)
-
-    module.walk(map_returns)
 
     return return_targets
 
