@@ -920,7 +920,7 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         typ: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int] = [],
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
+        t = AnyTensorType.from_type_and_list(typ, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 

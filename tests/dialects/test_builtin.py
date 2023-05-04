@@ -2,6 +2,7 @@ from typing import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (
+    AnyTensorType,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -50,6 +51,13 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     assert value3 == 4.0
     assert type(value4) == float
     assert value4 == 5.0
+
+
+def test_DenseIntOrFPElementsAttr_from_list():
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
+
+    assert attr.data == ArrayAttr.from_list([FloatAttr.from_float_and_width(5.5, 32)])
+    assert attr.type == AnyTensorType.from_type_and_list(f32, [])
 
 
 def test_DenseArrayBase_verifier_failure():
