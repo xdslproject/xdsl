@@ -1,8 +1,11 @@
+from io import StringIO
 from pathlib import Path
 
-from xdsl.ir import OpResult, BlockArgument, SSAValue
-from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
+from xdsl.ir import MLContext, OpResult, BlockArgument, SSAValue
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, FunctionType, f64, ModuleOp
 from xdsl.builder import Builder
+from xdsl.printer import Printer
+from xdsl.parser import Parser as Parser_
 
 from ..frontend.parser import Parser
 from ..frontend.ir_gen import IRGen
@@ -67,3 +70,49 @@ def test_convert_ast():
         toy.FuncOp("main", main_type, main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)
+
+
+def test_convert_scalar():
+    scalar_toy = Path("docs/Toy/examples/scalar.toy")
+
+    with open(scalar_toy, "r") as f:
+        parser = Parser(scalar_toy, f.read())
+
+    module_ast = parser.parseModule()
+
+    ir_gen = IRGen()
+
+    generated_module_op = ir_gen.ir_gen_module(module_ast)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def module_op():
+        @Builder.implicit_region
+        def main() -> None:
+            a_0 = toy.ConstantOp.from_value(5.5).res
+            a = toy.ReshapeOp(a_0, [2, 2]).res
+            toy.PrintOp(a)
+            toy.ReturnOp()
+
+        toy.FuncOp("main", FunctionType.from_lists([], []), main)
+
+    assert module_op.is_structurally_equivalent(generated_module_op)
+
+
+def test_bla():
+    ctx = MLContext()
+
+    parser = Parser_(ctx, "dense<5.5> : tensor<f64>")
+    bla = parser.parse_attribute()
+
+    stream = StringIO()
+    printer = Printer(stream=stream)
+
+    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f64, [])
+
+    assert bla == attr
+
+    printer.print_attribute(attr)
+    desc = stream.getvalue()
+
+    assert desc == "dense<5.5> : tensor<f64>"
