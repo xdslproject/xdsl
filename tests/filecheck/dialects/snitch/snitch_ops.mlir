@@ -12,7 +12,7 @@
   %stride = "riscv.li"() {"immediate" = 4 : i32} : () -> !riscv.reg<>
   // repetition: number of times each element will be repeated, minus one
   %rep = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<>
-  
+  // Usual SSR setup sequence:
   "snitch.ssr_setup_shape"(%s0, %bound, %stride) {"dimension" = 0 : i32} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK: "snitch.ssr_setup_shape"(%s0, %bound, %stride) {"dimension" = 0 : i32} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
   "snitch.ssr_setup_repetition"(%s0, %rep) : (!riscv.reg<>, !riscv.reg<>) -> ()
