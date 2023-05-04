@@ -1,11 +1,8 @@
-from io import StringIO
 from pathlib import Path
 
-from xdsl.ir import MLContext, OpResult, BlockArgument, SSAValue
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, FunctionType, f64, ModuleOp
+from xdsl.ir import OpResult, BlockArgument, SSAValue
+from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder
-from xdsl.printer import Printer
-from xdsl.parser import Parser as Parser_
 
 from ..frontend.parser import Parser
 from ..frontend.ir_gen import IRGen
@@ -97,22 +94,3 @@ def test_convert_scalar():
         toy.FuncOp("main", FunctionType.from_lists([], []), main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)
-
-
-def test_bla():
-    ctx = MLContext()
-
-    parser = Parser_(ctx, "dense<5.5> : tensor<f64>")
-    bla = parser.parse_attribute()
-
-    stream = StringIO()
-    printer = Printer(stream=stream)
-
-    attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f64, [])
-
-    assert bla == attr
-
-    printer.print_attribute(attr)
-    desc = stream.getvalue()
-
-    assert desc == "dense<5.5> : tensor<f64>"
