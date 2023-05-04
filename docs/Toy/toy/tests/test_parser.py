@@ -6,7 +6,6 @@ from ..frontend.parser import Parser, ParseError
 from ..frontend.toy_ast import (
     ModuleAST,
     FunctionAST,
-    PrintExprAST,
     PrototypeAST,
     VariableExprAST,
     ReturnExprAST,

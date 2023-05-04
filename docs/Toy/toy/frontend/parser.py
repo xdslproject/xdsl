@@ -175,15 +175,12 @@ class Parser:
         numberToken = self.pop_token(NumberToken)
         return NumberExprAST(numberToken.loc, numberToken.value)
 
-    def parseTensorLiteralExpr(self) -> LiteralExprAST | NumberExprAST:
+    def parseTensorLiteralExpr(self):
         """
         Parse a literal array expression.
         tensorLiteral ::= [ literalList ] | number
         literalList ::= tensorLiteral | tensorLiteral, literalList
         """
-        if self.check(NumberToken):
-            return self.parseNumberExpr()
-
         openBracket = self.pop_pattern("[")
 
         # Hold the list of values at this nesting level.
