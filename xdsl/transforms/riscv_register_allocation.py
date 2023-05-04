@@ -4,34 +4,30 @@ from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 
 
-class _RegisterIndex:
+class RegisterAllocator:
     idx: int
 
-    def __init__(self, idx: int):
-        self.idx = idx
+    def __init__(self) -> None:
+        self.idx = 0
 
+    def _allocate_registers(self, op: Operation) -> None:
+        if not isinstance(op, RISCVOp):
+            # Don't perform register allocations on non-RISCV-ops
+            return
 
-def _allocate_registers(op: Operation, idx: _RegisterIndex) -> None:
-    if not isinstance(op, RISCVOp):
-        # Don't perform register allocations on non-RISCV-ops
-        return
+        for result in op.results:
+            assert isinstance(result.typ, RegisterType)
+            if result.typ.data.name is None:
+                result.typ = RegisterType(Register(f"j{self.idx}"))
+                self.idx += 1
 
-    for result in op.results:
-        assert isinstance(result.typ, RegisterType)
-        if result.typ.data.name is None:
-            result.typ = RegisterType(Register(f"j{idx.idx}"))
-            idx.idx += 1
+    def allocate_registers(self, module: ModuleOp) -> None:
+        """
+        Allocates unallocated registers in the module. Currently sets them to an infinite set
+        of `j` registers.
+        """
 
-
-def allocate_registers(op: ModuleOp) -> None:
-    """
-    Allocates unallocated registers in the module. Currently sets them to an infinite set
-    of `j` registers.
-    """
-
-    idx = _RegisterIndex(0)
-
-    op.walk(lambda op: _allocate_registers(op, idx))
+        module.walk(self._allocate_registers)
 
 
 class RISCVRegisterAllocation(ModulePass):
@@ -43,4 +39,5 @@ class RISCVRegisterAllocation(ModulePass):
     name = "riscv-allocate-registers"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        allocate_registers(op)
+        allocator = RegisterAllocator()
+        allocator.allocate_registers(op)
