@@ -235,7 +235,7 @@ class IntAttr(Data[int]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> int:
-        data = parser.parse_int_literal()
+        data = parser.parse_integer()
         return data
 
     def print_parameter(self, printer: Printer) -> None:

@@ -2370,13 +2370,6 @@ class Parser(ABC):
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_int_literal(self) -> int:
-        return int(
-            self.expect(
-                self.try_parse_integer_literal, "Expected integer literal here"
-            ).text
-        )
-
     def parse_builtin_dict_attr(self) -> DictionaryAttr:
         """
         Parse a dictionary attribute, with the following syntax:
