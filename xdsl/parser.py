@@ -2384,7 +2384,7 @@ class Parser(ABC):
         Parse a dictionary attribute, preceeded with `attributes` keyword, if the
         keyword is present.
         This is intended to be used in operation custom assembly format.
-        `reserved_attr_names` contains names that should not present in the attribute
+        `reserved_attr_names` contains names that should not be present in the attribute
         dictionary, and usually correspond to the names of the attributes that are
         already passed through the operation custom assembly format.
         """
