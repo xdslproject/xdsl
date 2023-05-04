@@ -54,10 +54,52 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = Parser(ctx, text).parse_attribute()
-    assert isinstance(attr, DictionaryAttr)
+    attr1 = Parser(ctx, text).parse_attribute()
+    attr2 = Parser(ctx, text).parse_builtin_dict_attr()
+    attr3 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    assert isinstance(attr1, DictionaryAttr)
+    assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
-    assert attr.data == data
+    assert attr1.data == data
+    assert attr2.data == data
+    assert attr3.data == data
+
+
+@pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
+def test_dictionary_attr_with_keyword_missing(text: str):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+
+
+@pytest.mark.parametrize(
+    "text, reserved_names",
+    [("{a = 1}", ["a"]), ("{a = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["a"])],
+)
+def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    with pytest.raises(ParseError):
+        Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+            reserved_names
+        )
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [("{b = 1}", ["a"]), ("{c = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["c"])],
+)
+def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+        expected
+    )
+    assert isinstance(res, DictionaryAttr)
 
 
 @irdl_attr_definition

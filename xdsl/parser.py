@@ -1697,7 +1697,7 @@ class Parser(ABC):
         elif next_token.text == "@":
             return self.try_parse_ref_attr()
         elif next_token.text == "{":
-            return self.try_parse_builtin_dict_attr()
+            return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
@@ -2368,9 +2368,40 @@ class Parser(ABC):
             ).text
         )
 
-    def try_parse_builtin_dict_attr(self):
+    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute, with the following syntax:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
+
+    def parse_optional_attr_dict_with_keyword(
+        self, reserved_attr_names: Iterable[str] = ()
+    ) -> DictionaryAttr | None:
+        """
+        Parse a dictionary attribute, preceeded with `attributes` keyword, if the
+        keyword is present.
+        This is intended to be used in operation custom assembly format.
+        `reserved_attr_names` contains names that should not be present in the attribute
+        dictionary, and usually correspond to the names of the attributes that are
+        already passed through the operation custom assembly format.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        begin_pos = self.lexer.pos
+        if self.parse_optional_keyword("attributes") is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
+        attr = self.parse_builtin_dict_attr()
+        for reserved_name in reserved_attr_names:
+            if reserved_name in attr.data:
+                self.raise_error(
+                    f"Attribute dictionary entry '{reserved_name}' is already passed "
+                    "through the operation custom assembly format.",
+                    Span(begin_pos, begin_pos, self.lexer.input),
+                )
+        return attr
 
     def parse_optional_punctuation(
         self, punctuation: Token.PunctuationSpelling
