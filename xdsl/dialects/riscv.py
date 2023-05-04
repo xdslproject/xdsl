@@ -73,9 +73,43 @@ class Register:
         "t6": 31,
     }
 
-    def __post_init__(self):
-        if self.name is not None and self.name not in Register.ABI_INDEX_BY_NAME:
-            raise ValueError(f"Unknown register name {self.name}")
+
+class Registers(ABC):
+    """Namespace for named register constants."""
+
+    ZERO = Register("zero")
+    RA = Register("ra")
+    SP = Register("sp")
+    GP = Register("gp")
+    TP = Register("tp")
+    T0 = Register("t0")
+    T1 = Register("t1")
+    T2 = Register("t2")
+    FP = Register("fp")
+    S0 = Register("s0")
+    S1 = Register("s1")
+    A0 = Register("a0")
+    A1 = Register("a1")
+    A2 = Register("a2")
+    A3 = Register("a3")
+    A4 = Register("a4")
+    A5 = Register("a5")
+    A6 = Register("a6")
+    A7 = Register("a7")
+    S2 = Register("s2")
+    S3 = Register("s3")
+    S4 = Register("s4")
+    S5 = Register("s5")
+    S6 = Register("s6")
+    S7 = Register("s7")
+    S8 = Register("s8")
+    S9 = Register("s9")
+    S10 = Register("s10")
+    S11 = Register("s11")
+    T3 = Register("t3")
+    T4 = Register("t4")
+    T5 = Register("t5")
+    T6 = Register("t6")
 
 
 @irdl_attr_definition
@@ -122,12 +156,12 @@ class RdRsRsOperation(IRDLOperation, ABC):
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
 
         super().__init__(
             operands=[rs1, rs2],
@@ -148,12 +182,12 @@ class RdImmOperation(IRDLOperation, ABC):
         self,
         immediate: AnyIntegerAttr,
         *,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             attributes={
                 "immediate": immediate,
@@ -179,12 +213,12 @@ class RdRsImmOperation(IRDLOperation, ABC):
         rs1: Operation | SSAValue,
         immediate: AnyIntegerAttr,
         *,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             operands=[rs1],
             attributes={
@@ -277,12 +311,12 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
         csr: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             operands=[rs1],
             attributes={
@@ -328,12 +362,12 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
         csr: AnyIntegerAttr,
         *,
         readonly: bool = False,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             operands=[rs1],
             attributes={
@@ -375,12 +409,12 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         csr: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             attributes={
                 "csr": csr,
@@ -423,12 +457,12 @@ class CsrBitwiseImmOperation(IRDLOperation, ABC):
         csr: AnyIntegerAttr,
         immediate: AnyIntegerAttr,
         *,
-        rd: RegisterType | str | None = None,
+        rd: RegisterType | Register | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
-        elif isinstance(rd, str):
-            rd = RegisterType(Register(rd))
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
         super().__init__(
             attributes={
                 "csr": csr,
