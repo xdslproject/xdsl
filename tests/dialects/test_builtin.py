@@ -56,7 +56,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
 def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
-    assert attr.data == ArrayAttr.from_list([FloatAttr.from_float_and_width(5.5, 32)])
+    assert attr.data == ArrayAttr.from_list([FloatAttr(5.5, f32)])
     assert attr.type == AnyTensorType.from_type_and_list(f32, [])
 
 
