@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p stencil-shape-inference,convert-stencil-to-gpu | filecheck %s
+// RUN: xdsl-opt %s -p stencil-shape-inference,convert-stencil-to-gpu | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

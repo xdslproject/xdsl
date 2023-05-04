@@ -1,34 +1,37 @@
 import ast
+import xdsl.dialects.affine as affine
+import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
+import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
+import xdsl.dialects.scf as scf
 import xdsl.frontend.symref as symref
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
 from xdsl.frontend.type_conversion import TypeConverter
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
 @dataclass
 class CodeGeneration:
-
     @staticmethod
-    def run_with_type_converter(type_converter: TypeConverter,
-                                stmts: List[ast.stmt],
-                                file: str | None) -> builtin.ModuleOp:
+    def run_with_type_converter(
+        type_converter: TypeConverter, stmts: Sequence[ast.stmt], file: str | None
+    ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
-        module = builtin.ModuleOp.from_region_or_ops([])
-        visitor = CodegGenerationVisitor(type_converter, module, file)
+        module = builtin.ModuleOp([])
+        visitor = CodeGenerationVisitor(type_converter, module, file)
         for stmt in stmts:
             visitor.visit(stmt)
         return module
 
 
 @dataclass(init=False)
-class CodegGenerationVisitor(ast.NodeVisitor):
+class CodeGenerationVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the Python AST."""
 
     type_converter: TypeConverter
@@ -52,21 +55,25 @@ class CodegGenerationVisitor(ast.NodeVisitor):
     file: str | None
     """Path of the file containing the program being processed."""
 
-    def __init__(self, type_converter: TypeConverter, module: builtin.ModuleOp,
-                 file: str | None) -> None:
+    def __init__(
+        self, type_converter: TypeConverter, module: builtin.ModuleOp, file: str | None
+    ) -> None:
         self.type_converter = type_converter
         self.globals = type_converter.globals
         self.file = file
 
         assert len(module.body.blocks) == 1
-        self.inserter = OpInserter(module.body.blocks[0])
+        self.inserter = OpInserter(module.body.block)
 
     def get_symbol(self, node: ast.Name) -> Attribute:
         assert self.symbol_table is not None
         if node.id not in self.symbol_table:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                f"Symbol '{node.id}' is not defined.")
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Symbol '{node.id}' is not defined.",
+            )
         return self.symbol_table[node.id]
 
     def visit(self, node: ast.AST) -> None:
@@ -74,12 +81,34 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
-            self.file, node.lineno, node.col_offset,
-            f"Unsupported Python AST node {str(node)}")
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Unsupported Python AST node {str(node)}",
+        )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         # TODO: Implement assignemnt in the next patch.
         pass
+
+    def visit_Assert(self, node: ast.Assert):
+        self.visit(node.test)
+        if node.msg is None:
+            msg = ""
+        else:
+            if not isinstance(node.msg, ast.Constant) or not isinstance(
+                node.msg.value, str
+            ):
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Expected a string constant for assertion message, found "
+                    f"'ast.{type(node.msg).__name__}'",
+                )
+            msg = str(node.msg.value)
+        op = cf.Assert.get(self.inserter.get_operand(), msg)
+        self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         # TODO: Implement assignemnt in the next patch.
@@ -102,13 +131,16 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "BitOr": "__or__",
             "BitXor": "__xor__",
             "BitAnd": "__and__",
-            "MatMult": "__matmul__"
+            "MatMult": "__matmul__",
         }
 
         if op_name not in python_AST_operator_to_python_overload:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                f"Unexpected binary operation {op_name}.")
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Unexpected binary operation {op_name}.",
+            )
 
         # Check that the types of the operands are the same.
         # This is a (temporary?) restriction over Python for implementation simplicity.
@@ -120,34 +152,40 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.typ != rhs.typ:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
+                self.file,
+                node.lineno,
+                node.col_offset,
                 f"Expected the same types for binary operation '{op_name}', "
-                f"but got {lhs.typ} and {rhs.typ}.")
+                f"but got {lhs.typ} and {rhs.typ}.",
+            )
 
         # Look-up what is the frontend type we deal with to resolve the binary
         # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.typ.__class__]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
 
         overload_name = python_AST_operator_to_python_overload[op_name]
         try:
-            op = OpResolver.resolve_op_overload(overload_name,
-                                                frontend_type)(lhs, rhs)
+            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
             self.inserter.insert_op(op)
         except FrontendProgramException:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
+                self.file,
+                node.lineno,
+                node.col_offset,
                 f"Binary operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
-                f"which does not overload '{overload_name}'.")
+                f"which does not overload '{overload_name}'.",
+            )
 
     def visit_Compare(self, node: ast.Compare):
         # Allow a single comparison only.
         if len(node.comparators) != 1 or len(node.ops) != 1:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                "Expected a single comparator, but found "
-                f"{len(node.comparators)}.")
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Expected a single comparator, but found " f"{len(node.comparators)}.",
+            )
         comp = node.comparators[0]
         op_name: str = node.ops[0].__class__.__name__
 
@@ -160,7 +198,7 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             "LtE": "__le__",
             "NotEq": "__ne__",
             "In": "__contains__",
-            "NotIn": "__contains__"
+            "NotIn": "__contains__",
         }
 
         # Table with currently unsupported Python AST cmpops.
@@ -173,8 +211,11 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         if op_name in unsupported_python_AST_cmpop:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
-                f"Unsupported comparison operation '{op_name}'.")
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Unsupported comparison operation '{op_name}'.",
+            )
 
         # Check that the types of the operands are the same.
         # This is a (temporary?) restriction over Python for implementation simplicity.
@@ -186,23 +227,28 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         lhs = self.inserter.get_operand()
         if lhs.typ != rhs.typ:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
+                self.file,
+                node.lineno,
+                node.col_offset,
                 f"Expected the same types for comparison operator '{op_name}',"
-                f" but got {lhs.typ} and {rhs.typ}.")
+                f" but got {lhs.typ} and {rhs.typ}.",
+            )
 
         # Resolve the comparison operation to an xdsl operation class
         python_op = python_AST_cmpop_to_python_overload[op_name]
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
-            lhs.typ.__class__]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
 
         try:
             op = OpResolver.resolve_op_overload(python_op, frontend_type)
         except FrontendProgramException:
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
+                self.file,
+                node.lineno,
+                node.col_offset,
                 f"Comparison operation '{op_name}' "
                 f"is not supported by type '{frontend_type.__name__}' "
-                f"which does not overload '{python_op}'.")
+                f"which does not overload '{python_op}'.",
+            )
 
         # Create the comparison operation (including any potential negations)
         if op_name == "In":
@@ -216,15 +262,201 @@ class CodegGenerationVisitor(ast.NodeVisitor):
                 "GtE": "sge",
                 "Lt": "slt",
                 "LtE": "sle",
-                "NotEq": "ne"
+                "NotEq": "ne",
             }
             mnemonic = python_AST_cmpop_to_mnemonic[op_name]
             op = op(lhs, rhs, mnemonic)
 
         self.inserter.insert_op(op)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+    def _generate_affine_loop_bounds(
+        self, args: list[ast.expr]
+    ) -> tuple[int, int, int]:
+        # Process loop start.
+        if len(args) <= 1:
+            start = 0
+        else:
+            assert isinstance(args[0], ast.Constant)
+            if not isinstance(args[0].value, int):
+                raise CodeGenerationException(
+                    self.file,
+                    args[0].lineno,
+                    args[0].col_offset,
+                    f"Expected integer constant for loop start, got '{type(args[0].value).__name__}'.",
+                )
+            start = int(args[0].value)
 
+        # Process loop end.
+        if len(args) <= 1:
+            arg = args[0]
+        else:
+            arg = args[1]
+        assert isinstance(arg, ast.Constant)
+        if not isinstance(arg.value, int):
+            raise CodeGenerationException(
+                self.file,
+                arg.lineno,
+                arg.col_offset,
+                f"Expected integer constant for loop end, got '{type(arg.value).__name__}'.",
+            )
+        end = int(arg.value)
+
+        # Process loop step.
+        if len(args) == 3:
+            assert isinstance(args[2], ast.Constant)
+            if not isinstance(args[2].value, int):
+                raise CodeGenerationException(
+                    self.file,
+                    args[2].lineno,
+                    args[2].col_offset,
+                    f"Expected integer constant for loop step, got '{type(args[2].value).__name__}'.",
+                )
+            step = int(args[2].value)
+        else:
+            step = 1
+
+        return start, end, step
+
+    def _generate_loop_bounds(
+        self, args: list[ast.expr]
+    ) -> tuple[SSAValue, SSAValue, SSAValue]:
+        # Process loop start.
+        if len(args) <= 1:
+            start = arith.Constant.from_int_and_width(0, builtin.IndexType())
+            self.inserter.insert_op(start)
+        else:
+            self.visit(args[0])
+        start = self.inserter.get_operand()
+        if not isinstance(start.typ, builtin.IndexType):
+            raise CodeGenerationException(
+                self.file,
+                args[0].lineno,
+                args[0].col_offset,
+                f"Expected 'index' type for loop start, got '{start.typ}'.",
+            )
+
+        # Process loop end.
+        if len(args) <= 1:
+            arg = args[0]
+        else:
+            arg = args[1]
+        self.visit(arg)
+        end = self.inserter.get_operand()
+        if not isinstance(end.typ, builtin.IndexType):
+            raise CodeGenerationException(
+                self.file,
+                arg.lineno,
+                arg.col_offset,
+                f"Expected 'index' type for loop end, got '{end.typ}'.",
+            )
+
+        # Process loop step.
+        if len(args) == 3:
+            self.visit(args[2])
+        else:
+            step = arith.Constant.from_int_and_width(1, builtin.IndexType())
+            self.inserter.insert_op(step)
+        step = self.inserter.get_operand()
+        if not isinstance(step.typ, builtin.IndexType):
+            raise CodeGenerationException(
+                self.file,
+                args[2].lineno,
+                args[2].col_offset,
+                f"Expected 'index' type for loop step, got '{step.typ}'.",
+            )
+
+        return start, end, step
+
+    def visit_For(self, node: ast.For):
+        # Let's not support weird Python syntax right now.
+        if len(node.orelse) > 0:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Else clause in for loops is not supported.",
+            )
+
+        # Loops in Python can iterate over multiple variables, using enumerate,
+        # zip, range, and other builtin features. Since we cannot support
+        # everything immediately, the general idea is to support basic
+        # range-based loops only.
+        if not (
+            isinstance(node.iter, ast.Call)
+            and isinstance(node.iter.func, ast.Name)
+            and node.iter.func.id == "range"
+        ):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only range-based loops are supported.",
+            )
+
+        if len(node.iter.args) < 1 or 3 < len(node.iter.args):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Range-based loop expected between 1 and 3 arguments, but got "
+                f"{len(node.iter.args)}.",
+            )
+        if not isinstance(node.target, ast.Name):
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Range-based loop must take a single target variable, e.g. `for"
+                " i in range(10)`.",
+            )
+
+        # Now that all checks passed, we can proceed with code generation.
+
+        # If iteration space is constant, generate affine for loop. Note that
+        # there are corner cases, e.g. step = -1 which this check will treat as
+        # non-affine due to minus being a unary operator.
+        assert isinstance(node.iter, ast.Call)
+        is_affine = all([isinstance(arg, ast.Constant) for arg in node.iter.args])
+
+        # Add target vaariable as an entry block argument.
+        assert isinstance(node.target, ast.Name)
+        body = Region([Block()])
+        body.blocks[0].insert_arg(builtin.IndexType(), 0)
+
+        # Process loop bounds.
+        if is_affine:
+            start, end, step = self._generate_affine_loop_bounds(node.iter.args)
+        else:
+            start, end, step = self._generate_loop_bounds(node.iter.args)
+
+        # Generate loop body and make sure we have a terminator. It is the
+        # responsibility of the subsequent passes of the front-end to perform
+        # SSA-construction and yield appropriate operands.
+        curr_block = self.inserter.insertion_point
+        self.inserter.set_insertion_point_from_region(body)
+        for stmt in node.body:
+            self.visit(stmt)
+        if is_affine:
+            self.inserter.insert_op(affine.Yield.get())
+            assert (
+                isinstance(start, int)
+                and isinstance(end, int)
+                and isinstance(step, int)
+            )
+            op = affine.For.from_region([], start, end, body, step)
+        else:
+            self.inserter.insert_op(scf.Yield.get())
+            assert (
+                isinstance(start, SSAValue)
+                and isinstance(end, SSAValue)
+                and isinstance(step, SSAValue)
+            )
+            op = scf.For.get(start, end, step, [], body)
+
+        self.inserter.set_insertion_point_from_block(curr_block)
+        self.inserter.insert_op(op)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # Set the symbol table.
         assert self.symbol_table is None
         self.symbol_table = dict()
@@ -233,8 +465,9 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         argument_types: List[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
-                raise CodeGenerationException(self.file, arg.lineno,
-                                              arg.col_offset, f"")
+                raise CodeGenerationException(
+                    self.file, arg.lineno, arg.col_offset, f""
+                )
             xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
@@ -245,9 +478,10 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
         # Create a function operation.
         entry_block = Block()
-        body_region = Region([entry_block])
-        func_op = func.FuncOp.from_region(node.name, argument_types,
-                                          return_types, body_region)
+        body_region = Region(entry_block)
+        func_op = func.FuncOp.from_region(
+            node.name, argument_types, return_types, body_region
+        )
 
         self.inserter.insert_op(func_op)
         self.inserter.set_insertion_point_from_block(entry_block)
@@ -271,6 +505,66 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         assert parent_op is not None
         self.inserter.set_insertion_point_from_op(parent_op)
 
+    def visit_If(self, node: ast.If):
+        # Get the condition.
+        self.visit(node.test)
+        cond = self.inserter.get_operand()
+        cond_block = self.inserter.insertion_point
+
+        def visit_region(stmts: list[ast.stmt]) -> Region:
+            region = Region([Block()])
+            self.inserter.set_insertion_point_from_region(region)
+            for stmt in stmts:
+                self.visit(stmt)
+            return region
+
+        # Generate code for both branches.
+        true_region = visit_region(node.body)
+        false_region = visit_region(node.orelse)
+
+        # In our case, if statement never returns a value and therefore we can
+        # simply yield nothing. It is the responsibility of subsequent passes to
+        # ensure SSA-form of IR and that values are yielded correctly.
+        true_region.blocks[-1].add_op(scf.Yield.get())
+        false_region.blocks[-1].add_op(scf.Yield.get())
+        op = scf.If.get(cond, [], true_region, false_region)
+
+        # Reset insertion point and insert a new operation.
+        self.inserter.set_insertion_point_from_block(cond_block)
+        self.inserter.insert_op(op)
+
+    def visit_IfExp(self, node: ast.IfExp) -> Any:
+        self.visit(node.test)
+        cond = self.inserter.get_operand()
+        cond_block = self.inserter.insertion_point
+
+        def visit_expr(expr: ast.expr) -> tuple[Attribute, Region]:
+            region = Region([Block()])
+            self.inserter.set_insertion_point_from_region(region)
+            self.visit(expr)
+            result = self.inserter.get_operand()
+            self.inserter.insert_op(scf.Yield.get(result))
+            return result.typ, region
+
+        # Generate code for both branches.
+        true_type, true_region = visit_expr(node.body)
+        false_type, false_region = visit_expr(node.orelse)
+
+        # Check types are the same for this to be a valid if statement.
+        if true_type != false_type:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Expected the same types for if expression,"
+                f" but got {true_type} and {false_type}.",
+            )
+        op = scf.If.get(cond, [true_type], true_region, false_region)
+
+        # Reset insertion point to add scf.if.
+        self.inserter.set_insertion_point_from_block(cond_block)
+        self.inserter.insert_op(op)
+
     def visit_Name(self, node: ast.Name):
         fetch_op = symref.Fetch.get(node.id, self.get_symbol(node))
         self.inserter.insert_op(fetch_op)
@@ -286,8 +580,11 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             if len(return_types) != 0:
                 function_name = parent_op.sym_name.data
                 raise CodeGenerationException(
-                    self.file, node.lineno, node.col_offset,
-                    f"Expected '{function_name}' to return a type.")
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    f"Expected '{function_name}' to return a type.",
+                )
             self.inserter.insert_op(func.Return.get())
 
     def visit_Return(self, node: ast.Return) -> None:
@@ -304,9 +601,12 @@ class CodegGenerationVisitor(ast.NodeVisitor):
         parent_op = self.inserter.insertion_point.parent_op()
         if not isinstance(parent_op, func.FuncOp):
             raise CodeGenerationException(
-                self.file, node.lineno, node.col_offset,
+                self.file,
+                node.lineno,
+                node.col_offset,
                 "Return statement should be placed only at the end of the "
-                "function body.")
+                "function body.",
+            )
 
         func_name = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
@@ -315,9 +615,12 @@ class CodegGenerationVisitor(ast.NodeVisitor):
             # Return nothing, check function signature matches.
             if len(func_return_types) != 0:
                 raise CodeGenerationException(
-                    self.file, node.lineno, node.col_offset,
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
                     f"Expected non-zero number of return types in function "
-                    f"'{func_name}', but got 0.")
+                    f"'{func_name}', but got 0.",
+                )
             self.inserter.insert_op(func.Return.get())
         else:
             # Return some type, check function signature matches as well.
@@ -327,15 +630,21 @@ class CodegGenerationVisitor(ast.NodeVisitor):
 
             if len(func_return_types) == 0:
                 raise CodeGenerationException(
-                    self.file, node.lineno, node.col_offset,
-                    f"Expected no return types in function '{func_name}'.")
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    f"Expected no return types in function '{func_name}'.",
+                )
 
             for i in range(len(operands)):
                 if func_return_types[i] != operands[i].typ:
                     raise CodeGenerationException(
-                        self.file, node.lineno, node.col_offset,
+                        self.file,
+                        node.lineno,
+                        node.col_offset,
                         f"Type signature and the type of the return value do "
                         f"not match at position {i}: expected {func_return_types[i]},"
-                        f" got {operands[i].typ}.")
+                        f" got {operands[i].typ}.",
+                    )
 
             self.inserter.insert_op(func.Return.get(*operands))

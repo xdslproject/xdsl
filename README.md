@@ -62,6 +62,7 @@ To contribute to the development of xDSL follow the subsequent steps.
 
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
+cd xdsl
 pip install --editable .
 # Optional installation of extra requirements
 pip install --requirement requirements-optional.txt
@@ -82,12 +83,23 @@ lit tests/filecheck
 
 ### Formatting
 
-All python code used in xDSL uses [yapf](https://github.com/google/yapf) to
+All python code used in xDSL uses [black](https://github.com/psf/black) to
 format the code in a uniform manner.
 
-To automate the formatting within vim, one can use
-https://github.com/vim-autoformat/vim-autoformat and trigger a `:Autoformat` on
-save.
+To automate the formatting, we use pre-commit hooks from the
+[pre-commit](https://pypi.org/project/pre-commit/) package.
+
+```bash
+# Install pre-commit version in the optional requirement files
+pip install --requirement requirement-optional.txt
+
+# Install the pre-commit on your `.git` folder
+# Be sure to run this in your virtual environment
+pre-commit install
+
+# Optionally test the hook by running it on all files
+pre-commit run --all-files
+```
 
 ### Discussion
 

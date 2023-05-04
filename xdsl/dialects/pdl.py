@@ -2,13 +2,31 @@ from __future__ import annotations
 
 from typing import Annotated, Generic, Sequence, TypeVar
 
-from xdsl.dialects.builtin import (ArrayAttr, IntegerAttr, IntegerType,
-                                   StringAttr)
-from xdsl.ir import (Attribute, Block, Dialect, TypeAttribute, OpResult,
-                     Operation, ParametrizedAttribute, Region, SSAValue)
-from xdsl.irdl import (AttrSizedOperandSegments, OpAttr, Operand, OptOpAttr,
-                       OptOperand, OptRegion, ParameterDef, VarOpResult,
-                       VarOperand, irdl_attr_definition, irdl_op_definition)
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, IntegerType, StringAttr
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    TypeAttribute,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    OpAttr,
+    Operand,
+    OptOpAttr,
+    OptOperand,
+    OptRegion,
+    ParameterDef,
+    VarOpResult,
+    VarOperand,
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -35,9 +53,11 @@ class ValueType(ParametrizedAttribute, TypeAttribute):
 
 AnyPDLType = AttributeType | OperationType | TypeType | ValueType
 
-_RangeT = TypeVar("_RangeT",
-                  bound=AttributeType | OperationType | TypeType | ValueType,
-                  covariant=True)
+_RangeT = TypeVar(
+    "_RangeT",
+    bound=AttributeType | OperationType | TypeType | ValueType,
+    covariant=True,
+)
 
 
 @irdl_attr_definition
@@ -47,37 +67,36 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class ApplyNativeConstraintOp(Operation):
+class ApplyNativeConstraintOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop
     """
+
     name: str = "pdl.apply_native_constraint"
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
 
     def verify_(self) -> None:
-        if 'name' not in self.attributes:
-            raise VerifyException(
-                "ApplyNativeConstraintOp requires a 'name' attribute")
+        if "name" not in self.attributes:
+            raise VerifyException("ApplyNativeConstraintOp requires a 'name' attribute")
 
-        if not isinstance(self.attributes['name'], StringAttr):
-            raise VerifyException(
-                "expected 'name' attribute to be a StringAttr")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise VerifyException("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
     def get(name: str, args: Sequence[SSAValue]) -> ApplyNativeConstraintOp:
         return ApplyNativeConstraintOp.build(
-            result_types=[],
-            operands=[args],
-            attributes={"name": StringAttr(name)})
+            result_types=[], operands=[args], attributes={"name": StringAttr(name)}
+        )
 
 
 @irdl_op_definition
-class ApplyNativeRewriteOp(Operation):
+class ApplyNativeRewriteOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop
     """
+
     name: str = "pdl.apply_native_rewrite"
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
@@ -85,56 +104,58 @@ class ApplyNativeRewriteOp(Operation):
     res: Annotated[VarOpResult, AnyPDLType]
 
     def verify_(self) -> None:
-        if 'name' not in self.attributes:
-            raise VerifyException(
-                "ApplyNativeRewriteOp requires a 'name' attribute")
+        if "name" not in self.attributes:
+            raise VerifyException("ApplyNativeRewriteOp requires a 'name' attribute")
 
-        if not isinstance(self.attributes['name'], StringAttr):
-            raise VerifyException(
-                "expected 'name' attribute to be a StringAttr")
+        if not isinstance(self.attributes["name"], StringAttr):
+            raise VerifyException("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: str, args: Sequence[SSAValue],
-            result_types: Sequence[Attribute]) -> ApplyNativeRewriteOp:
-
+    def get(
+        name: str, args: Sequence[SSAValue], result_types: Sequence[Attribute]
+    ) -> ApplyNativeRewriteOp:
         return ApplyNativeRewriteOp.build(
             result_types=[result_types],
             operands=[args],
-            attributes={"name": StringAttr(name)})
+            attributes={"name": StringAttr(name)},
+        )
 
 
 @irdl_op_definition
-class AttributeOp(Operation):
+class AttributeOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop
     """
+
     name: str = "pdl.attribute"
     value: OptOpAttr[Attribute]
     valueType: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, AttributeType]
 
     @staticmethod
-    def get(value: Attribute | None = None,
-            valueType: SSAValue | None = None) -> AttributeOp:
+    def get(
+        value: Attribute | None = None, valueType: SSAValue | None = None
+    ) -> AttributeOp:
         attributes: dict[str, Attribute] = {}
         if value is not None:
-            attributes['value'] = value
+            attributes["value"] = value
 
         if valueType is None:
             value_type = []
         else:
             value_type = [valueType]
 
-        return AttributeOp.build(operands=[value_type],
-                                 attributes=attributes,
-                                 result_types=[AttributeType()])
+        return AttributeOp.build(
+            operands=[value_type], attributes=attributes, result_types=[AttributeType()]
+        )
 
 
 @irdl_op_definition
-class EraseOp(Operation):
+class EraseOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop
     """
+
     name: str = "pdl.erase"
     opValue: Annotated[Operand, OperationType]
 
@@ -144,10 +165,11 @@ class EraseOp(Operation):
 
 
 @irdl_op_definition
-class OperandOp(Operation):
+class OperandOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop
     """
+
     name: str = "pdl.operand"
     valueType: Annotated[OptOperand, TypeType]
     value: Annotated[OpResult, ValueType]
@@ -158,25 +180,26 @@ class OperandOp(Operation):
             value_type = []
         else:
             value_type = [valueType]
-        return OperandOp.build(operands=[value_type],
-                               result_types=[ValueType()])
+        return OperandOp.build(operands=[value_type], result_types=[ValueType()])
 
 
 @irdl_op_definition
-class OperandsOp(Operation):
+class OperandsOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop
     """
+
     name: str = "pdl.operands"
     valueType: Annotated[Operand, RangeType[TypeType]]
     value: Annotated[OpResult, RangeType[ValueType]]
 
 
 @irdl_op_definition
-class OperationOp(Operation):
+class OperationOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop
     """
+
     name: str = "pdl.operation"
     opName: OptOpAttr[StringAttr]
     attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
@@ -189,11 +212,13 @@ class OperationOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
-    def get(opName: StringAttr | None,
-            attributeValueNames: ArrayAttr[StringAttr] | None = None,
-            operandValues: Sequence[SSAValue] | None = None,
-            attributeValues: Sequence[SSAValue] | None = None,
-            typeValues: Sequence[SSAValue] | None = None):
+    def get(
+        opName: StringAttr | None,
+        attributeValueNames: ArrayAttr[StringAttr] | None = None,
+        operandValues: Sequence[SSAValue] | None = None,
+        attributeValues: Sequence[SSAValue] | None = None,
+        typeValues: Sequence[SSAValue] | None = None,
+    ):
         if attributeValueNames is None:
             attributeValueNames = ArrayAttr([])
         if operandValues is None:
@@ -206,52 +231,56 @@ class OperationOp(Operation):
         return OperationOp.build(
             operands=[operandValues, attributeValues, typeValues],
             result_types=[OperationType()],
-            attributes={
-                "attributeValueNames": attributeValueNames,
-                "opName": opName
-            })
+            attributes={"attributeValueNames": attributeValueNames, "opName": opName},
+        )
 
 
 @irdl_op_definition
-class PatternOp(Operation):
+class PatternOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop
     """
+
     name: str = "pdl.pattern"
     benefit: OpAttr[IntegerAttr[IntegerType]]
     sym_name: OptOpAttr[StringAttr]
     body: Region
 
     @staticmethod
-    def get(benefit: IntegerAttr[IntegerType], sym_name: StringAttr | None,
-            body: Region) -> PatternOp:
-        return PatternOp.build(attributes={
-            "benefit": benefit,
-            "sym_name": sym_name,
-        },
-                               regions=[body],
-                               result_types=[])
+    def get(
+        benefit: IntegerAttr[IntegerType], sym_name: StringAttr | None, body: Region
+    ) -> PatternOp:
+        return PatternOp.build(
+            attributes={
+                "benefit": benefit,
+                "sym_name": sym_name,
+            },
+            regions=[body],
+            result_types=[],
+        )
 
     @staticmethod
-    def from_callable(benefit: IntegerAttr[IntegerType],
-                      sym_name: StringAttr | None,
-                      callable: Block.BlockCallback) -> PatternOp:
+    def from_callable(
+        benefit: IntegerAttr[IntegerType],
+        sym_name: StringAttr | None,
+        callable: Block.BlockCallback,
+    ) -> PatternOp:
         block = Block.from_callable([], callable)
-        region = Region([block])
+        region = Region(block)
         return PatternOp.get(benefit, sym_name, region)
 
 
 @irdl_op_definition
-class RangeOp(Operation):
+class RangeOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop
     """
+
     name: str = "pdl.range"
     arguments: Annotated[VarOperand, AnyPDLType | RangeType[AnyPDLType]]
     result: Annotated[OpResult, RangeType[AnyPDLType]]
 
     def verify_(self) -> None:
-
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
             if isa(arg.typ, RangeType[AnyPDLType]):
                 return arg.typ.elementType
@@ -266,11 +295,12 @@ class RangeOp(Operation):
                     raise VerifyException(
                         f"All arguments must have the same type or be an array  \
                           of the corresponding element type. First element type:\
-                          {elem_type}, current element type: {cur_elem_type}")
+                          {elem_type}, current element type: {cur_elem_type}"
+                    )
 
 
 @irdl_op_definition
-class ReplaceOp(Operation):
+class ReplaceOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
 
@@ -283,6 +313,7 @@ class ReplaceOp(Operation):
     * a set of `Value`s (`replValues` should be populated)
       - The operation will be replaced with these values.
     """
+
     name: str = "pdl.replace"
     opValue: Annotated[Operand, OperationType]
     replOperation: Annotated[OptOperand, OperationType]
@@ -291,9 +322,11 @@ class ReplaceOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
-    def get(opValue: SSAValue,
-            replOperation: SSAValue | None = None,
-            replValues: Sequence[SSAValue] | None = None) -> ReplaceOp:
+    def get(
+        opValue: SSAValue,
+        replOperation: SSAValue | None = None,
+        replValues: Sequence[SSAValue] | None = None,
+    ) -> ReplaceOp:
         operands: list[SSAValue | Sequence[SSAValue]] = [opValue]
         if replOperation is None:
             operands.append([])
@@ -307,20 +340,24 @@ class ReplaceOp(Operation):
     def verify_(self) -> None:
         if self.replOperation is None:
             if not len(self.replValues):
-                raise VerifyException("Exactly one of `replOperation` or "
-                                      "`replValues` must be set in `ReplaceOp`"
-                                      ", both are empty")
+                raise VerifyException(
+                    "Exactly one of `replOperation` or "
+                    "`replValues` must be set in `ReplaceOp`"
+                    ", both are empty"
+                )
         elif len(self.replValues):
             raise VerifyException(
                 "Exactly one of `replOperation` or `replValues` must be set in "
-                "`ReplaceOp`, both are set")
+                "`ReplaceOp`, both are set"
+            )
 
 
 @irdl_op_definition
-class ResultOp(Operation):
+class ResultOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop
     """
+
     name: str = "pdl.result"
     index: OpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
@@ -328,16 +365,17 @@ class ResultOp(Operation):
 
     @staticmethod
     def get(index: IntegerAttr[IntegerType], parent: SSAValue) -> ResultOp:
-        return ResultOp.build(operands=[parent],
-                              attributes={'index': index},
-                              result_types=[ValueType()])
+        return ResultOp.build(
+            operands=[parent], attributes={"index": index}, result_types=[ValueType()]
+        )
 
 
 @irdl_op_definition
-class ResultsOp(Operation):
+class ResultsOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop
     """
+
     name: str = "pdl.results"
     index: OpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
@@ -345,10 +383,11 @@ class ResultsOp(Operation):
 
 
 @irdl_op_definition
-class RewriteOp(Operation):
+class RewriteOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop
     """
+
     name: str = "pdl.rewrite"
     root: Annotated[OptOperand, OperationType]
     # name of external rewriter function
@@ -362,15 +401,17 @@ class RewriteOp(Operation):
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
-        if 'name' in self.attributes:
-            if not isinstance(self.attributes['name'], StringAttr):
+        if "name" in self.attributes:
+            if not isinstance(self.attributes["name"], StringAttr):
                 raise Exception("expected 'name' attribute to be a StringAttr")
 
     @staticmethod
-    def get(name: StringAttr | None, root: SSAValue | None,
-            external_args: Sequence[SSAValue],
-            body: Region | None) -> RewriteOp:
-
+    def get(
+        name: StringAttr | None,
+        root: SSAValue | None,
+        external_args: Sequence[SSAValue],
+        body: Region | None,
+    ) -> RewriteOp:
         operands: list[SSAValue | Sequence[SSAValue]] = []
         if root is not None:
             operands.append([root])
@@ -386,67 +427,75 @@ class RewriteOp(Operation):
 
         attributes: dict[str, Attribute] = {}
         if name is not None:
-            attributes['name'] = name
+            attributes["name"] = name
 
-        return RewriteOp.build(result_types=[],
-                               operands=operands,
-                               attributes=attributes,
-                               regions=regions)
+        return RewriteOp.build(
+            result_types=[], operands=operands, attributes=attributes, regions=regions
+        )
 
     @staticmethod
-    def from_callable(name: StringAttr | None, root: SSAValue | None,
-                      external_args: Sequence[SSAValue],
-                      body: Block.BlockCallback) -> RewriteOp:
+    def from_callable(
+        name: StringAttr | None,
+        root: SSAValue | None,
+        external_args: Sequence[SSAValue],
+        body: Block.BlockCallback,
+    ) -> RewriteOp:
         block = Block.from_callable([], body)
-        region = Region([block])
+        region = Region(block)
         return RewriteOp.get(name, root, external_args, region)
 
 
 @irdl_op_definition
-class TypeOp(Operation):
+class TypeOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
     """
+
     name: str = "pdl.type"
     constantType: OptOpAttr[Attribute]
     result: Annotated[OpResult, TypeType]
 
     @staticmethod
     def get(constantType: TypeType | None = None) -> TypeOp:
-        return TypeOp.build(attributes={"constantType": constantType},
-                            result_types=[TypeType()])
+        return TypeOp.build(
+            attributes={"constantType": constantType}, result_types=[TypeType()]
+        )
 
 
 @irdl_op_definition
-class TypesOp(Operation):
+class TypesOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop
     """
+
     name: str = "pdl.types"
     constantTypes: Annotated[OptOperand, ArrayAttr[TypeType]]
     result: Annotated[OpResult, RangeType[TypeType]]
 
 
-PDL = Dialect([
-    ApplyNativeConstraintOp,
-    ApplyNativeRewriteOp,
-    AttributeOp,
-    OperandOp,
-    EraseOp,
-    OperandsOp,
-    OperationOp,
-    PatternOp,
-    RangeOp,
-    ReplaceOp,
-    ResultOp,
-    ResultsOp,
-    RewriteOp,
-    TypeOp,
-    TypesOp,
-], [
-    AttributeType,
-    OperationType,
-    TypeType,
-    ValueType,
-    RangeType,
-])
+PDL = Dialect(
+    [
+        ApplyNativeConstraintOp,
+        ApplyNativeRewriteOp,
+        AttributeOp,
+        OperandOp,
+        EraseOp,
+        OperandsOp,
+        OperationOp,
+        PatternOp,
+        RangeOp,
+        ReplaceOp,
+        ResultOp,
+        ResultsOp,
+        RewriteOp,
+        TypeOp,
+        TypesOp,
+    ],
+    [
+        AttributeType,
+        OperationType,
+        TypeType,
+        ValueType,
+        RangeType,
+    ],
+)

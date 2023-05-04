@@ -16,14 +16,14 @@ import timeit
 from typing import Iterable
 from xdsl.ir import MLContext
 
-from xdsl.parser import MLIRParser
+from xdsl.parser import Parser
 
 
 def parse_file(file: str, ctx: MLContext):
     """
     Parse the given file.
     """
-    parser = MLIRParser(ctx, file, allow_unregistered_dialect=True)
+    parser = Parser(ctx, file, allow_unregistered_dialect=True)
     parser.parse_op()
 
 
@@ -54,19 +54,20 @@ def run_on_files(file_names: Iterable[str], mlir_path: str, ctx: MLContext):
 
         # Parse each sub-file separately.
         for sub_contents in splitted_contents:
-
             # First, parse the file with MLIR to check that it is valid, and
             # print it back in generic form.
-            res = subprocess.run([
-                mlir_path,
-                "--allow-unregistered-dialect",
-                "-mlir-print-op-generic",
-                "-mlir-print-local-scope",
-            ],
-                                 input=sub_contents,
-                                 text=True,
-                                 capture_output=True,
-                                 timeout=60)
+            res = subprocess.run(
+                [
+                    mlir_path,
+                    "--allow-unregistered-dialect",
+                    "-mlir-print-op-generic",
+                    "-mlir-print-local-scope",
+                ],
+                input=sub_contents,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
             if res.returncode != 0:
                 continue
             n_total_files += 1
@@ -78,7 +79,8 @@ def run_on_files(file_names: Iterable[str], mlir_path: str, ctx: MLContext):
             try:
                 file_time = timeit.timeit(
                     lambda: parse_file(generic_sub_contents, ctx),
-                    number=args.num_iterations)
+                    number=args.num_iterations,
+                )
                 total_time += file_time / args.num_iterations
                 print("Time taken: " + str(file_time))
                 n_parsed_files += 1
@@ -96,27 +98,30 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "root_directory",
         type=str,
-        help="Path to the root directory containing MLIR files.")
+        help="Path to the root directory containing MLIR files.",
+    )
     arg_parser.add_argument("--mlir-path", type=str, help="Path to mlir-opt.")
-    arg_parser.add_argument("--num_iterations",
-                            type=int,
-                            required=False,
-                            default=1,
-                            help="Number of times to parse each file.")
-    arg_parser.add_argument("--profile",
-                            action="store_true",
-                            help="Enable profiling metrics.")
+    arg_parser.add_argument(
+        "--num_iterations",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of times to parse each file.",
+    )
+    arg_parser.add_argument(
+        "--profile", action="store_true", help="Enable profiling metrics."
+    )
     arg_parser.add_argument(
         "--timeout",
         type=int,
         required=False,
         default=60,
-        help="Timeout for processing each sub-program with MLIR. (in seconds)")
+        help="Timeout for processing each sub-program with MLIR. (in seconds)",
+    )
 
     args = arg_parser.parse_args()
 
-    file_names = list(
-        glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
+    file_names = list(glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
     print("Found " + str(len(file_names)) + " files to parse.")
 
     ctx = MLContext()

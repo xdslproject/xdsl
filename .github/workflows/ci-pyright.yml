@@ -20,6 +20,9 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11"]
 
+    env:
+      PYRIGHT_VERSION: 1.0
+
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -31,10 +34,15 @@ jobs:
           pip install --upgrade pip
       - name: Install the package locally
         run: pip install -e .[extras]
+      - name: retrieve pyright version
+        run: |
+          python3 .github/parse_pyright_version.py
+          VER=$(cat .github/pyright-version.txt)
+          echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jordemort/action-pyright@v1.8.0
         with:
-          version: 1.1.302
+          pyright_version: ${{ env.PYRIGHT_VERSION }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review # Change reporter.
           lib: true

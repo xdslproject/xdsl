@@ -1,12 +1,20 @@
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.ir import BlockArgument, Block
-from xdsl.dialects.builtin import IntAttr, i32, IntegerAttr
+from xdsl.ir import BlockArgument, Block, Region
+from xdsl.dialects.builtin import IntAttr, i32
 from xdsl.dialects.arith import Constant
+from xdsl.dialects.scf import If
 
 
 def test_builder():
+    target = Block(
+        [
+            Constant.from_int_and_width(1, 1),
+            Constant.from_int_and_width(2, 1),
+        ]
+    )
+
     block = Block()
     b = Builder(block)
 
@@ -16,17 +24,21 @@ def test_builder():
     b.insert(x)
     b.insert(y)
 
-    ops = block.ops
-
-    assert len(ops) == 2
-    assert ops[0] is x
-    assert ops[1] is y
+    assert target.is_structurally_equivalent(block)
 
 
 def test_build_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
+
+    target = Region(
+        Block(
+            [
+                Constant.from_int_and_width(one, i32),
+                Constant.from_int_and_width(two, i32),
+            ]
+        )
+    )
 
     @Builder.region
     def region(b: Builder):
@@ -36,25 +48,22 @@ def test_build_region():
         b.insert(x)
         b.insert(y)
 
-    assert len(region.blocks) == 1
-
-    ops = region.ops
-
-    assert len(ops) == 2
-
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    assert target.is_structurally_equivalent(region)
 
 
 def test_build_callable_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
+
+    target = Region(
+        Block(
+            [
+                Constant.from_int_and_width(one, i32),
+                Constant.from_int_and_width(two, i32),
+            ],
+            arg_types=(i32,),
+        )
+    )
 
     @Builder.region([i32])
     def region(b: Builder, args: tuple[BlockArgument, ...]):
@@ -66,55 +75,43 @@ def test_build_callable_region():
         b.insert(x)
         b.insert(y)
 
-    assert len(region.blocks) == 1
-
-    ops = region.ops
-
-    assert len(ops) == 2
-
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
-
-    args = region.blocks[0].args
-
-    assert len(args) == 1
-    assert args[0].typ == i32
+    assert target.is_structurally_equivalent(region)
 
 
 def test_build_implicit_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
+
+    target = Region(
+        Block(
+            [
+                Constant.from_int_and_width(one, i32),
+                Constant.from_int_and_width(two, i32),
+            ]
+        )
+    )
 
     @Builder.implicit_region
     def region():
         Constant.from_int_and_width(one, i32)
         Constant.from_int_and_width(two, i32)
 
-    assert len(region.blocks) == 1
-
-    ops = region.ops
-
-    assert len(ops) == 2
-
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
+    assert target.is_structurally_equivalent(region)
 
 
 def test_build_implicit_callable_region():
-
     one = IntAttr(1)
     two = IntAttr(2)
+
+    target = Region(
+        Block(
+            [
+                Constant.from_int_and_width(one, i32),
+                Constant.from_int_and_width(two, i32),
+            ],
+            arg_types=(i32,),
+        )
+    )
 
     @Builder.implicit_region([i32])
     def region(args: tuple[BlockArgument, ...]):
@@ -123,103 +120,67 @@ def test_build_implicit_callable_region():
         Constant.from_int_and_width(one, i32)
         Constant.from_int_and_width(two, i32)
 
-    assert len(region.blocks) == 1
-
-    ops = region.ops
-
-    assert len(ops) == 2
-
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert isinstance(ops[1], Constant)
-    assert isinstance(ops[1].value, IntegerAttr)
-    assert ops[1].value.value is two
-
-    args = region.blocks[0].args
-
-    assert len(args) == 1
-    assert args[0].typ == i32
+    assert target.is_structurally_equivalent(region)
 
 
 def test_build_nested_implicit_region():
-
-    one = IntAttr(1)
-    two = IntAttr(2)
+    target = Region(
+        Block(
+            [
+                cond := Constant.from_int_and_width(1, 1),
+                If.get(
+                    cond,
+                    (),
+                    Region(
+                        Block(
+                            [
+                                Constant.from_int_and_width(2, i32),
+                            ]
+                        )
+                    ),
+                ),
+            ]
+        )
+    )
 
     @Builder.implicit_region
-    def region_0():
-        x = Constant.from_int_and_width(one, i32)
+    def region():
+        cond = Constant.from_int_and_width(1, 1).result
 
         @Builder.implicit_region
-        def region_1():
-            _y = Constant.from_int_and_width(two, i32)
+        def then():
+            _y = Constant.from_int_and_width(2, i32)
 
-        x.add_region(region_1)
+        If.get(cond, (), then)
 
-    assert len(region_0.blocks) == 1
-
-    ops_0 = region_0.ops
-
-    assert len(ops_0) == 1
-
-    assert isinstance(ops_0[0], Constant)
-    assert isinstance(ops_0[0].value, IntegerAttr)
-    assert ops_0[0].value.value is one
-
-    assert len(ops_0[0].regions) == 1
-
-    assert len(region_0.blocks) == 1
-
-    region_1 = ops_0[0].regions[0]
-
-    ops_1 = region_1.ops
-
-    assert len(ops_1) == 1
-
-    assert isinstance(ops_1[0], Constant)
-    assert isinstance(ops_1[0].value, IntegerAttr)
-    assert ops_1[0].value.value is two
-
-    assert len(ops_1[0].regions) == 0
+    assert target.is_structurally_equivalent(region)
 
 
 def test_build_implicit_region_fail():
-
-    one = IntAttr(1)
-    two = IntAttr(2)
-    three = IntAttr(3)
-
-    @Builder.implicit_region
-    def region_0():
-        x = Constant.from_int_and_width(one, i32)
+    with pytest.raises(ValueError) as e:
+        one = IntAttr(1)
+        two = IntAttr(2)
+        three = IntAttr(3)
 
         @Builder.implicit_region
-        def region_1():
-            y = Constant.from_int_and_width(two, i32)
+        def region():
+            cond = Constant.from_int_and_width(1, 1).result
 
-            @Builder.region
-            def region_2(b: Builder):
-                with pytest.raises(ValueError) as e:
+            _x = Constant.from_int_and_width(one, i32)
+
+            @Builder.implicit_region
+            def then_0():
+                _y = Constant.from_int_and_width(two, i32)
+
+                @Builder.region
+                def then_1(b: Builder):
                     b.insert(Constant.from_int_and_width(three, i32))
 
-                assert e.value.args[0] == (
-                    'Cannot insert operation explicitly when an implicit'
-                    ' builder exists.')
+                If.get(cond, (), then_1)
 
-            y.add_region(region_2)
+            If.get(cond, (), then_0)
 
-        x.add_region(region_1)
-
-    assert len(region_0.blocks) == 1
-
-    ops = region_0.ops
-
-    assert len(ops) == 1
-
-    assert isinstance(ops[0], Constant)
-    assert isinstance(ops[0].value, IntegerAttr)
-    assert ops[0].value.value is one
-
-    assert len(ops[0].regions) == 1
+        _ = region
+    assert e.value.args[0] == (
+        "Cannot insert operation explicitly when an implicit" " builder exists."
+    )

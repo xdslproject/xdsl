@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
-from xdsl.irdl import (OpAttr, VarOpResult, irdl_op_definition, VarOperand,
-                       AnyAttr)
+from xdsl.irdl import (
+    OpAttr,
+    VarOpResult,
+    irdl_op_definition,
+    VarOperand,
+    AnyAttr,
+    IRDLOperation,
+)
 
 
 @irdl_op_definition
-class For(Operation):
+class For(IRDLOperation):
     name: str = "affine.for"
 
     arguments: Annotated[VarOperand, AnyAttr()]
@@ -28,7 +34,7 @@ class For(Operation):
             raise Exception("Expected the same amount of operands and results")
 
         operand_types = [SSAValue.get(op).typ for op in self.operands]
-        if (operand_types != [res.typ for res in self.results]):
+        if operand_types != [res.typ for res in self.results]:
             raise Exception(
                 "Expected all operands and result pairs to have matching types"
             )
@@ -42,11 +48,13 @@ class For(Operation):
             )
 
     @staticmethod
-    def from_region(operands: list[Operation | SSAValue],
-                    lower_bound: int | AnyIntegerAttr,
-                    upper_bound: int | AnyIntegerAttr,
-                    region: Region,
-                    step: int | AnyIntegerAttr = 1) -> For:
+    def from_region(
+        operands: Sequence[Operation | SSAValue],
+        lower_bound: int | AnyIntegerAttr,
+        upper_bound: int | AnyIntegerAttr,
+        region: Region,
+        step: int | AnyIntegerAttr = 1,
+    ) -> For:
         if isinstance(lower_bound, int):
             lower_bound = IntegerAttr.from_index_int_value(lower_bound)
         if isinstance(upper_bound, int):
@@ -59,32 +67,39 @@ class For(Operation):
             "upper_bound": upper_bound,
             "step": step,
         }
-        return For.build(operands=[[operand for operand in operands]],
-                         result_types=[result_types],
-                         attributes=attributes,
-                         regions=[region])
+        return For.build(
+            operands=[[operand for operand in operands]],
+            result_types=[result_types],
+            attributes=attributes,
+            regions=[region],
+        )
 
     @staticmethod
-    def from_callable(operands: list[Operation | SSAValue],
-                      lower_bound: int | AnyIntegerAttr,
-                      upper_bound: int | AnyIntegerAttr,
-                      body: Block.BlockCallback,
-                      step: int | AnyIntegerAttr = 1) -> For:
+    def from_callable(
+        operands: Sequence[Operation | SSAValue],
+        lower_bound: int | AnyIntegerAttr,
+        upper_bound: int | AnyIntegerAttr,
+        body: Block.BlockCallback,
+        step: int | AnyIntegerAttr = 1,
+    ) -> For:
         arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
-        return For.from_region(operands, lower_bound, upper_bound,
-                               Region([Block.from_callable(arg_types, body)]),
-                               step)
+        return For.from_region(
+            operands,
+            lower_bound,
+            upper_bound,
+            Region(Block.from_callable(arg_types, body)),
+            step,
+        )
 
 
 @irdl_op_definition
-class Yield(Operation):
+class Yield(IRDLOperation):
     name: str = "affine.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(
-            operands=[SSAValue.get(operand) for operand in operands])
+        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Affine = Dialect([For, Yield], [])

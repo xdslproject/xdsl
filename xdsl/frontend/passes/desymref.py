@@ -124,12 +124,13 @@ def get_symbols(block: Block) -> set[str]:
     return symbols
 
 
-def lower_positional_bound(writes: list[symref.Update],
-                           read: symref.Fetch) -> Operation | None:
+def lower_positional_bound(
+    writes: list[symref.Update], read: symref.Fetch
+) -> Operation | None:
     """
     Returns a nearest write preceeding the `read`. If there is no such write,
     `None` is returned.
-    
+
     Pre-condition: list `writes` is sorted based on operation indices.
     """
     block = read.parent_block()
@@ -210,7 +211,8 @@ class Desymrefier:
             # 2. Insertion of entry/exit blocks to ensure dominance.
             raise FrontendProgramException(
                 f"Running desymrefier on region with {num_blocks} > 1 blocks is "
-                "not supported.")
+                "not supported."
+            )
 
     def prepare_block(self, block: Block):
         """Prepares a block for promotion."""
@@ -226,37 +228,48 @@ class Desymrefier:
         symbols = get_symbols(block)
         for symbol in symbols:
             num_reads = sum(
-                isinstance(op, symref.Fetch) for op in block.ops
-                if get_symbol(op) == symbol)
+                isinstance(op, symref.Fetch)
+                for op in block.ops
+                if get_symbol(op) == symbol
+            )
             num_writes = sum(
-                isinstance(op, symref.Update) for op in block.ops
-                if get_symbol(op) == symbol)
+                isinstance(op, symref.Update)
+                for op in block.ops
+                if get_symbol(op) == symbol
+            )
             if num_reads > 1 or num_writes > 1:
                 raise FrontendProgramException(
                     f"Block {block} not ready for promotion: found {num_reads}"
-                    f" reads and {num_writes} writes.")
+                    f" reads and {num_writes} writes."
+                )
 
     def prune_definitions(self, block: Block):
         """Removes all symbol definitions and their uses from the block."""
 
         # Find all symbol definitions in this block. If no definitions
         # found, terminate.
-        while len(definitions :=
-                  [op
-                   for op in block.ops if isinstance(op, symref.Declare)]) > 0:
-
+        while (
+            len(
+                definitions := [
+                    op for op in block.ops if isinstance(op, symref.Declare)
+                ]
+            )
+            > 0
+        ):
             # Otherwise, some definitions are still alive.
             for definition in definitions:
                 symbol = get_symbol(definition)
 
                 # Find all reads and writes for this symbol.
                 reads = [
-                    op for op in block.ops if isinstance(op, symref.Fetch)
-                    and get_symbol(op) == symbol
+                    op
+                    for op in block.ops
+                    if isinstance(op, symref.Fetch) and get_symbol(op) == symbol
                 ]
                 writes = [
-                    op for op in block.ops if isinstance(op, symref.Update)
-                    and get_symbol(op) == symbol
+                    op
+                    for op in block.ops
+                    if isinstance(op, symref.Update) and get_symbol(op) == symbol
                 ]
 
                 # Symbol is never read, so remove its definition and any writes.
@@ -284,8 +297,9 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
-        is_unused_read: Callable[[Operation], bool] = lambda op: isinstance(
-            op, symref.Fetch) and len(op.results[0].uses) == 0
+        is_unused_read: Callable[[Operation], bool] = (
+            lambda op: isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
+        )
         unused_reads = [op for op in block.ops if is_unused_read(op)]
         for read in unused_reads:
             Rewriter.erase_op(read)
@@ -298,20 +312,24 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = set(symbol
-                                            for symbol in get_symbols(block)
-                                            if symbol not in prepared_symbols)
+            symbol_worklist: set[str] = set(
+                symbol
+                for symbol in get_symbols(block)
+                if symbol not in prepared_symbols
+            )
             if len(symbol_worklist) == 0:
                 return
 
             for symbol in symbol_worklist:
                 reads = [
-                    op for op in block.ops if isinstance(op, symref.Fetch)
-                    and get_symbol(op) == symbol
+                    op
+                    for op in block.ops
+                    if isinstance(op, symref.Fetch) and get_symbol(op) == symbol
                 ]
                 writes = [
-                    op for op in block.ops if isinstance(op, symref.Update)
-                    and get_symbol(op) == symbol
+                    op
+                    for op in block.ops
+                    if isinstance(op, symref.Update) and get_symbol(op) == symbol
                 ]
                 assert len(reads) > 0 or len(writes) > 0
 
@@ -350,8 +368,7 @@ class Desymrefier:
 
 
 class DesymrefyPass(ModulePass):
-
-    name = 'frontend-desymrefy'
+    name = "frontend-desymrefy"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp):
         Desymrefier().desymrefy(op)

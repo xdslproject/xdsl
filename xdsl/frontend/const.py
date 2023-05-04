@@ -27,10 +27,14 @@ class Const(Generic[_T]):
         e: Const[i16] = b + 2       # i16 constant, equal to 5
     ```
     """
+
     pass
 
 
 def is_constant(node: ast.expr) -> bool:
     """Returns `True` if the AST node is a Const type."""
-    return isinstance(node, ast.Subscript) and isinstance(
-        node.value, ast.Name) and node.value.id == Const.__name__
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == Const.__name__
+    )

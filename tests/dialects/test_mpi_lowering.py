@@ -1,6 +1,6 @@
 from xdsl.dialects import mpi, func, llvm, builtin
 from xdsl.ir import Operation, Attribute, OpResult
-from xdsl.irdl import irdl_op_definition, VarOpResult
+from xdsl.irdl import irdl_op_definition, VarOpResult, IRDLOperation
 from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
 from xdsl.dialects.builtin import i32
@@ -8,11 +8,9 @@ from xdsl.dialects.builtin import i32
 info = lower_mpi.MpiLibraryInfo()
 
 
-def extract_func_call(ops: list[Operation],
-                      name: str = 'MPI_') -> func.Call | None:
+def extract_func_call(ops: list[Operation], name: str = "MPI_") -> func.Call | None:
     for op in ops:
-        if (isinstance(op, func.Call)
-                and op.callee.string_value().startswith(name)):
+        if isinstance(op, func.Call) and op.callee.string_value().startswith(name):
             return op
 
 
@@ -33,7 +31,7 @@ def check_emitted_function_signature(
 
 
 @irdl_op_definition
-class CreateTestValsOp(Operation):
+class CreateTestValsOp(IRDLOperation):
     name = "testing.test"
     result: VarOpResult
 
@@ -52,7 +50,7 @@ def test_lower_mpi_init():
 
     assert isinstance(call, func.Call)
     assert isinstance(nullop, llvm.NullOp)
-    assert call.callee.string_value() == 'MPI_Init'
+    assert call.callee.string_value() == "MPI_Init"
     assert len(call.arguments) == 2
     assert all(arg == nullop.nullptr for arg in call.arguments)
 
@@ -63,37 +61,38 @@ def test_lower_mpi_finalize():
     assert len(result) == 0
     assert len(ops) == 1
 
-    call, = ops
+    (call,) = ops
 
     assert isinstance(call, func.Call)
-    assert call.callee.string_value() == 'MPI_Finalize'
+    assert call.callee.string_value() == "MPI_Finalize"
     assert len(call.arguments) == 0
 
 
 def test_lower_mpi_wait_no_status():
-    request, = CreateTestValsOp.get(mpi.RequestType()).results
+    (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
     ops, result = lower_mpi.LowerMpiWait(info).lower(mpi.Wait.get(request))
 
     assert len(result) == 0
     call = extract_func_call(ops)
     assert call is not None
-    assert call.callee.string_value() == 'MPI_Wait'
+    assert call.callee.string_value() == "MPI_Wait"
     assert len(call.arguments) == 2
 
 
 def test_lower_mpi_wait_with_status():
-    request, = CreateTestValsOp.get(mpi.RequestType()).results
+    (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
     ops, result = lower_mpi.LowerMpiWait(info).lower(
-        mpi.Wait.get(request, ignore_status=False))
+        mpi.Wait.get(request, ignore_status=False)
+    )
 
     assert len(result) == 1
     assert result[0] is not None
     assert isinstance(result[0].typ, llvm.LLVMPointerType)
     call = extract_func_call(ops)
     assert call is not None
-    assert call.callee.string_value() == 'MPI_Wait'
+    assert call.callee.string_value() == "MPI_Wait"
     assert len(call.arguments) == 2
     assert isinstance(call.arguments[1], OpResult)
     assert isinstance(call.arguments[1].op, llvm.AllocaOp)
@@ -110,7 +109,7 @@ def test_lower_mpi_comm_rank():
     # int MPI_Comm_rank(MPI_Comm comm, int *rank)
     check_emitted_function_signature(
         ops,
-        'MPI_Comm_rank',
+        "MPI_Comm_rank",
         (None, llvm.LLVMPointerType),
     )
 
@@ -126,17 +125,19 @@ def test_lower_mpi_comm_size():
     # int MPI_Comm_size(MPI_Comm comm, int *size)
     check_emitted_function_signature(
         ops,
-        'MPI_Comm_size',
+        "MPI_Comm_size",
         (None, llvm.LLVMPointerType),
     )
 
 
 def test_lower_mpi_send():
     buff, size, dtype, dest, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
+        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32
+    ).results
 
     ops, result = lower_mpi.LowerMpiSend(info).lower(
-        mpi.Send.get(buff, size, dtype, dest, tag))
+        mpi.Send.get(buff, size, dtype, dest, tag)
+    )
     """
     Check for function with signature like:
     int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -148,18 +149,19 @@ def test_lower_mpi_send():
 
     check_emitted_function_signature(
         ops,
-        'MPI_Send',
+        "MPI_Send",
         (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None),
     )
 
 
 def test_lower_mpi_isend():
     ptr, count, dtype, dest, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32,
-        mpi.RequestType()).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
+    ).results
 
     ops, result = lower_mpi.LowerMpiIsend(info).lower(
-        mpi.Isend.get(ptr, count, dtype, dest, tag, req))
+        mpi.Isend.get(ptr, count, dtype, dest, tag, req)
+    )
     """
     Check for function with signature like:
     int MPI_Isend(const void *buf, int count, MPI_Datatype datatype, int dest,
@@ -171,94 +173,129 @@ def test_lower_mpi_isend():
 
     check_emitted_function_signature(
         ops,
-        'MPI_Isend',
-        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         mpi.RequestType),
+        "MPI_Isend",
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            type(i32),
+            None,
+            mpi.RequestType,
+        ),
     )
 
 
 def test_lower_mpi_recv_no_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
+        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32
+    ).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=True))
+        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=True)
+    )
 
     assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
-        'MPI_Recv',
-        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         llvm.LLVMPointerType),
+        "MPI_Recv",
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            type(i32),
+            None,
+            llvm.LLVMPointerType,
+        ),
     )
 
 
 def test_lower_mpi_recv_with_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32).results
+        llvm.LLVMPointerType.typed(i32), i32, mpi.DataType(), i32, i32
+    ).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
              MPI_Comm comm, MPI_Status *status)
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=False))
+        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=False)
+    )
 
     assert len(result) == 1
 
     check_emitted_function_signature(
         ops,
-        'MPI_Recv',
-        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         llvm.LLVMPointerType),
+        "MPI_Recv",
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            type(i32),
+            None,
+            llvm.LLVMPointerType,
+        ),
     )
 
 
 def test_lower_mpi_irecv():
     ptr, count, dtype, source, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32,
-        mpi.RequestType()).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
+    ).results
     """
     int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
             int source, int tag, MPI_Comm comm, MPI_Request *request)
     """
 
     ops, result = lower_mpi.LowerMpiIrecv(info).lower(
-        mpi.Irecv.get(ptr, count, dtype, source, tag, req))
+        mpi.Irecv.get(ptr, count, dtype, source, tag, req)
+    )
 
     # recv has no results
     assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
-        'MPI_Irecv',
-        (llvm.LLVMPointerType, type(i32), None, type(i32), type(i32), None,
-         mpi.RequestType),
+        "MPI_Irecv",
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            type(i32),
+            None,
+            mpi.RequestType,
+        ),
     )
 
 
 def test_lower_mpi_reduce():
     ptr, count, dtype, root = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+    ).results
     """
     int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
                MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
     """
 
     ops, result = lower_mpi.LowerMpiReduce(info).lower(
-        mpi.Reduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root))
+        mpi.Reduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root)
+    )
 
     # reduce has no results
     assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
-        'MPI_Reduce',
+        "MPI_Reduce",
         (
             llvm.LLVMPointerType,
             llvm.LLVMPointerType,
@@ -272,22 +309,24 @@ def test_lower_mpi_reduce():
 
 
 def test_lower_mpi_all_reduce():
-    ptr, count, dtype = CreateTestValsOp.get(llvm.LLVMPointerType.opaque(),
-                                             i32, mpi.DataType()).results
+    ptr, count, dtype = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
+    ).results
     """
     int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
                   MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
     """
 
     ops, result = lower_mpi.LowerMpiAllreduce(info).lower(
-        mpi.Allreduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM))
+        mpi.Allreduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
+    )
 
     # allreduce has no results
     assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
-        'MPI_Allreduce',
+        "MPI_Allreduce",
         (
             llvm.LLVMPointerType,
             llvm.LLVMPointerType,
@@ -301,21 +340,23 @@ def test_lower_mpi_all_reduce():
 
 def test_lower_mpi_bcast():
     ptr, count, dtype, root = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32).results
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+    ).results
     """
     int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
               MPI_Comm comm)
     """
 
     ops, result = lower_mpi.LowerMpiBcast(info).lower(
-        mpi.Bcast.get(ptr, count, dtype, root))
+        mpi.Bcast.get(ptr, count, dtype, root)
+    )
 
     # bcast has no results
     assert len(result) == 0
 
     check_emitted_function_signature(
         ops,
-        'MPI_Bcast',
+        "MPI_Bcast",
         (
             llvm.LLVMPointerType,
             type(i32),
@@ -327,7 +368,7 @@ def test_lower_mpi_bcast():
 
 
 def test_lower_mpi_allocate():
-    count, = CreateTestValsOp.get(i32).results
+    (count,) = CreateTestValsOp.get(i32).results
     op = mpi.AllocateTypeOp.get(mpi.RequestType, count)
 
     ops, res = lower_mpi.LowerMpiAllocateType(info).lower(op)
@@ -340,15 +381,16 @@ def test_lower_mpi_allocate():
 
 
 def test_lower_mpi_vec_get():
-    mod = builtin.ModuleOp.from_region_or_ops([
-        count := CreateTestValsOp.get(i32),
-        vec := mpi.AllocateTypeOp.get(mpi.RequestType, count),
-        get := mpi.VectorGetOp.get(vec, count),
-    ])
+    mod = builtin.ModuleOp(
+        [
+            count := CreateTestValsOp.get(i32),
+            vec := mpi.AllocateTypeOp.get(mpi.RequestType, count),
+            get := mpi.VectorGetOp.get(vec, count),
+        ]
+    )
     # we have to apply this rewrite to that the argument type of the `get`
     # becomes an llvm.ptr
-    PatternRewriteWalker(
-        lower_mpi.LowerMpiAllocateType(info)).rewrite_module(mod)
+    PatternRewriteWalker(lower_mpi.LowerMpiAllocateType(info)).rewrite_module(mod)
 
     ops, res = lower_mpi.LowerMpiVectorGet(info).lower(get)
 
@@ -376,6 +418,7 @@ def test_mpi_type_conversion():
     lowering = lower_mpi.LowerMpiRecv(info)
 
     from xdsl.dialects.builtin import f64, f32, IntegerType, i32, i64, Signedness
+
     u64 = IntegerType(64, Signedness.UNSIGNED)
     u32 = IntegerType(32, Signedness.UNSIGNED)
 
@@ -389,12 +432,11 @@ def test_mpi_type_conversion():
     ]
 
     for width in (8, 16):
-        for sign in (Signedness.UNSIGNED, Signedness.SIGNLESS,
-                     Signedness.SIGNED):
-            sign_str = 'UNSIGNED_' if sign == Signedness.UNSIGNED else ''
-            name = 'CHAR' if width == 8 else 'SHORT'
+        for sign in (Signedness.UNSIGNED, Signedness.SIGNLESS, Signedness.SIGNED):
+            sign_str = "UNSIGNED_" if sign == Signedness.UNSIGNED else ""
+            name = "CHAR" if width == 8 else "SHORT"
             typ = IntegerType(width, sign)
-            checks.append((typ, getattr(info, f'MPI_{sign_str}{name}')))
+            checks.append((typ, getattr(info, f"MPI_{sign_str}{name}")))
 
     for type, target in checks:
         # we test a private member function here, so we need to tell pyright that that's okay

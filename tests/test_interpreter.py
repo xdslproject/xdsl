@@ -7,7 +7,6 @@ from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls
 
 
 def test_import_functions():
-
     @dataclass
     class A(InterpreterFunctions):
         pass
@@ -17,11 +16,11 @@ def test_import_functions():
     class B(InterpreterFunctions):
         pass
 
-    i = Interpreter(ModuleOp.from_region_or_ops([]))
+    i = Interpreter(ModuleOp([]))
 
     i.register_implementations(B())
 
     with pytest.raises(ValueError) as e:
         i.register_implementations(A())
 
-    assert e.value.args[0] == 'Use `@register_impls` on class A'
+    assert e.value.args[0] == "Use `@register_impls` on class A"

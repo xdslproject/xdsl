@@ -2,27 +2,42 @@ import pytest
 
 from typing import List
 
-from xdsl.dialects.builtin import IntegerAttr, i1, i32, i64, IntegerType, IndexType, VectorType
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    i1,
+    i32,
+    i64,
+    IntegerType,
+    IndexType,
+    VectorType,
+)
 from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
-from xdsl.dialects.vector import Broadcast, Load, Maskedload, Maskedstore, Store, FMA, Print, Createmask
+from xdsl.dialects.vector import (
+    Broadcast,
+    Load,
+    Maskedload,
+    Maskedstore,
+    Store,
+    FMA,
+    Print,
+    Createmask,
+)
 from xdsl.ir import OpResult
 from xdsl.irdl import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
 
 def get_MemRef_SSAVal_from_element_type_and_shape(
-        referenced_type: Attribute,
-        shape: List[int | AnyIntegerAttr]) -> TestSSAValue:
-    memref_type = MemRefType.from_element_type_and_shape(
-        referenced_type, shape)
+    referenced_type: Attribute, shape: List[int | AnyIntegerAttr]
+) -> TestSSAValue:
+    memref_type = MemRefType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(memref_type)
 
 
 def get_Vector_SSAVal_from_element_type_and_shape(
-        referenced_type: Attribute,
-        shape: List[int | IntegerAttr[IndexType]]) -> TestSSAValue:
-    vector_type = VectorType.from_element_type_and_shape(
-        referenced_type, shape)
+    referenced_type: Attribute, shape: List[int | IntegerAttr[IndexType]]
+) -> TestSSAValue:
+    vector_type = VectorType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(vector_type)
 
 
@@ -61,8 +76,7 @@ def test_vector_load_i32():
 
 
 def test_vector_load_i32_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [2, 3])
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
     load = Load.get(memref_ssa_value, [index1, index2])
@@ -76,21 +90,20 @@ def test_vector_load_i32_with_dimensions():
 def test_vector_load_verify_type_matching():
     res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
-    load = Load.build(operands=[memref_ssa_value, []],
-                      result_types=[res_vector_type])
+    load = Load.build(operands=[memref_ssa_value, []], result_types=[res_vector_type])
 
     with pytest.raises(Exception) as exc_info:
         load.verify()
-    assert exc_info.value.args[
-        0] == "MemRef element type should match the Vector element type."
+    assert (
+        exc_info.value.args[0]
+        == "MemRef element type should match the Vector element type."
+    )
 
 
 def test_vector_load_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [2, 3])
 
     load = Load.get(memref_ssa_value, [])
 
@@ -111,10 +124,8 @@ def test_vector_store_i32():
 
 
 def test_vector_store_i32_with_dimensions():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
@@ -127,24 +138,22 @@ def test_vector_store_i32_with_dimensions():
 
 
 def test_vector_store_verify_type_matching():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
     with pytest.raises(Exception) as exc_info:
         store.verify()
-    assert exc_info.value.args[
-        0] == "MemRef element type should match the Vector element type."
+    assert (
+        exc_info.value.args[0]
+        == "MemRef element type should match the Vector element type."
+    )
 
 
 def test_vector_store_verify_indexing_exception():
-    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     store = Store.get(vector_ssa_value, memref_ssa_value, [])
 
@@ -166,13 +175,14 @@ def test_vector_broadcast_verify_type_matching():
     index1 = TestSSAValue(IndexType())
     res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    broadcast = Broadcast.build(operands=[index1],
-                                result_types=[res_vector_type])
+    broadcast = Broadcast.build(operands=[index1], result_types=[res_vector_type])
 
     with pytest.raises(Exception) as exc_info:
         broadcast.verify()
-    assert exc_info.value.args[
-        0] == "Source operand and result vector must have the same element type."
+    assert (
+        exc_info.value.args[0]
+        == "Source operand and result vector must have the same element type."
+    )
 
 
 def test_vector_fma():
@@ -182,8 +192,7 @@ def test_vector_fma():
     rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
     acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
-                  acc_vector_ssa_value)
+    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
@@ -199,8 +208,7 @@ def test_vector_fma_with_dimensions():
     rhs_vector_ssa_value = TestSSAValue(i32_vector_type)
     acc_vector_ssa_value = TestSSAValue(i32_vector_type)
 
-    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value,
-                  acc_vector_ssa_value)
+    fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
     assert type(fma.results[0].typ) is VectorType
@@ -212,123 +220,127 @@ def test_vector_fma_with_dimensions():
 def test_vector_fma_verify_res_lhs_type_matching():
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [1])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [1])
 
-    fma = FMA.build(operands=[
-        i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value
-    ],
-                    result_types=[i64_vector_type])
+    fma = FMA.build(
+        operands=[i32_vector_ssa_value, i64_vector_ssa_value, i64_vector_ssa_value],
+        result_types=[i64_vector_type],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+    )
 
 
 def test_vector_fma_verify_res_rhs_type_matching():
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [1])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [1])
 
-    fma = FMA.build(operands=[
-        i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value
-    ],
-                    result_types=[i64_vector_type])
+    fma = FMA.build(
+        operands=[i64_vector_ssa_value, i32_vector_ssa_value, i64_vector_ssa_value],
+        result_types=[i64_vector_type],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+    )
 
 
 def test_vector_fma_verify_res_acc_type_matching():
     i64_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
-    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [1])
+    i32_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i32, [1])
+    i64_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i64, [1])
 
-    fma = FMA.build(operands=[
-        i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value
-    ],
-                    result_types=[i64_vector_type])
+    fma = FMA.build(
+        operands=[i64_vector_ssa_value, i64_vector_ssa_value, i32_vector_ssa_value],
+        result_types=[i64_vector_type],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+    )
 
 
 def test_vector_fma_verify_res_lhs_shape_matching():
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value1, vector_ssa_value2, vector_ssa_value2],
-        result_types=[i32_vector_type2])
+        result_types=[i32_vector_type2],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+    )
 
 
 def test_vector_fma_verify_res_rhs_shape_matching():
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value2, vector_ssa_value1, vector_ssa_value2],
-        result_types=[i32_vector_type2])
+        result_types=[i32_vector_type2],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+    )
 
 
 def test_vector_fma_verify_res_acc_shape_matching():
     i32_vector_type2 = VectorType.from_element_type_and_shape(i32, [4, 5])
 
-    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [2, 3])
-    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
+    vector_ssa_value1 = get_Vector_SSAVal_from_element_type_and_shape(i32, [2, 3])
+    vector_ssa_value2 = get_Vector_SSAVal_from_element_type_and_shape(i32, [4, 5])
 
     fma = FMA.build(
         operands=[vector_ssa_value2, vector_ssa_value2, vector_ssa_value1],
-        result_types=[i32_vector_type2])
+        result_types=[i32_vector_type2],
+    )
 
     with pytest.raises(Exception) as exc_info:
         fma.verify()
-    assert exc_info.value.args[
-        0] == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
+    assert (
+        exc_info.value.args[0]
+        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
+    )
 
 
 def test_vector_masked_load():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
-    maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                passthrough_vector_ssa_value)
+    maskedload = Maskedload.get(
+        memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
+    )
 
     assert type(maskedload.results[0]) is OpResult
     assert type(maskedload.results[0].typ) is VectorType
@@ -336,19 +348,21 @@ def test_vector_masked_load():
 
 
 def test_vector_masked_load_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedload = Maskedload.get(memref_ssa_value, [index1, index2],
-                                mask_vector_ssa_value,
-                                passthrough_vector_ssa_value)
+    maskedload = Maskedload.get(
+        memref_ssa_value,
+        [index1, index2],
+        mask_vector_ssa_value,
+        passthrough_vector_ssa_value,
+    )
 
     assert type(maskedload.results[0]) is OpResult
     assert type(maskedload.results[0].typ) is VectorType
@@ -358,72 +372,84 @@ def test_vector_masked_load_with_dimensions():
 
 def test_vector_masked_load_verify_memref_res_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
     i64_res_vector_type = VectorType.from_element_type_and_shape(i64, [1])
 
-    maskedload = Maskedload.build(operands=[
-        memref_ssa_value, [], mask_vector_ssa_value,
-        passthrough_vector_ssa_value
-    ],
-                                  result_types=[i64_res_vector_type])
+    maskedload = Maskedload.build(
+        operands=[
+            memref_ssa_value,
+            [],
+            mask_vector_ssa_value,
+            passthrough_vector_ssa_value,
+        ],
+        result_types=[i64_res_vector_type],
+    )
 
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
-    assert exc_info.value.args[
-        0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+    assert (
+        exc_info.value.args[0]
+        == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+    )
 
 
 def test_vector_masked_load_verify_memref_passthrough_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [1])
+        i64, [1]
+    )
 
     i64_res_vector_type = VectorType.from_element_type_and_shape(i32, [1])
 
-    maskedload = Maskedload.build(operands=[
-        memref_ssa_value, [], mask_vector_ssa_value,
-        passthrough_vector_ssa_value
-    ],
-                                  result_types=[i64_res_vector_type])
+    maskedload = Maskedload.build(
+        operands=[
+            memref_ssa_value,
+            [],
+            mask_vector_ssa_value,
+            passthrough_vector_ssa_value,
+        ],
+        result_types=[i64_res_vector_type],
+    )
 
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
-    assert exc_info.value.args[
-        0] == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
+    assert (
+        exc_info.value.args[0]
+        == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
+    )
 
 
 def test_vector_masked_load_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [2])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2])
     passthrough_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
-    maskedload = Maskedload.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                passthrough_vector_ssa_value)
+    maskedload = Maskedload.get(
+        memref_ssa_value, [], mask_vector_ssa_value, passthrough_vector_ssa_value
+    )
 
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
-    assert exc_info.value.args[
-        0] == "Expected an index for each memref dimension."
+    assert exc_info.value.args[0] == "Expected an index for each memref dimension."
 
 
 def test_vector_masked_store():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
-    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                  value_to_store_vector_ssa_value)
+    maskedstore = Maskedstore.get(
+        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
+    )
 
     assert maskedstore.memref is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
@@ -432,19 +458,21 @@ def test_vector_masked_store():
 
 
 def test_vector_masked_store_with_dimensions():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
 
-    maskedstore = Maskedstore.get(memref_ssa_value, [index1, index2],
-                                  mask_vector_ssa_value,
-                                  value_to_store_vector_ssa_value)
+    maskedstore = Maskedstore.get(
+        memref_ssa_value,
+        [index1, index2],
+        mask_vector_ssa_value,
+        value_to_store_vector_ssa_value,
+    )
 
     assert maskedstore.memref is memref_ssa_value
     assert maskedstore.mask is mask_vector_ssa_value
@@ -455,36 +483,37 @@ def test_vector_masked_store_with_dimensions():
 
 def test_vector_masked_store_verify_memref_value_to_store_type_matching():
     memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [1])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [1])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [1])
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i64, [1])
+        i64, [1]
+    )
 
-    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                  value_to_store_vector_ssa_value)
+    maskedstore = Maskedstore.get(
+        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
+    )
 
     with pytest.raises(Exception) as exc_info:
         maskedstore.verify()
     assert exc_info.value.args[0] == (
         "MemRef element type should match the stored vector type. "
-        "Obtained types were !i32 and !i64.")
+        "Obtained types were i32 and i64."
+    )
 
 
 def test_vector_masked_store_verify_indexing_exception():
-    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(
-        i32, [4, 5])
-    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i1, [2])
+    memref_ssa_value = get_MemRef_SSAVal_from_element_type_and_shape(i32, [4, 5])
+    mask_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(i1, [2])
     value_to_store_vector_ssa_value = get_Vector_SSAVal_from_element_type_and_shape(
-        i32, [1])
+        i32, [1]
+    )
 
-    maskedstore = Maskedstore.get(memref_ssa_value, [], mask_vector_ssa_value,
-                                  value_to_store_vector_ssa_value)
+    maskedstore = Maskedstore.get(
+        memref_ssa_value, [], mask_vector_ssa_value, value_to_store_vector_ssa_value
+    )
 
     with pytest.raises(Exception) as exc_info:
         maskedstore.verify()
-    assert exc_info.value.args[
-        0] == "Expected an index for each memref dimension."
+    assert exc_info.value.args[0] == "Expected an index for each memref dimension."
 
 
 def test_vector_print():
@@ -518,10 +547,11 @@ def test_vector_create_mask_with_dimensions():
 def test_vector_create_mask_verify_indexing_exception():
     mask_vector_type = VectorType.from_element_type_and_shape(i1, [2, 3])
 
-    create_mask = Createmask.build(operands=[[]],
-                                   result_types=[mask_vector_type])
+    create_mask = Createmask.build(operands=[[]], result_types=[mask_vector_type])
 
     with pytest.raises(Exception) as exc_info:
         create_mask.verify()
-    assert exc_info.value.args[
-        0] == "Expected an operand value for each dimension of resultant mask."
+    assert (
+        exc_info.value.args[0]
+        == "Expected an operand value for each dimension of resultant mask."
+    )

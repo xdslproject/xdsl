@@ -25,15 +25,14 @@ class TypeConverter:
     annotation without explicitly constructing it.
     """
 
-    name_to_xdsl_type_map: Dict[TypeName,
-                                Attribute] = field(default_factory=dict)
+    name_to_xdsl_type_map: Dict[TypeName, Attribute] = field(default_factory=dict)
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: Dict[Type[Attribute],
-                                    Type[_FrontendType]] = field(
-                                        default_factory=dict)
+    xdsl_to_frontend_type_map: Dict[Type[Attribute], Type[_FrontendType]] = field(
+        default_factory=dict
+    )
     """
     Map to lookup frontend types based on xDSL type. Useful if we want to see
     what overloaded Python operations does this xDSL type support.
@@ -47,8 +46,12 @@ class TypeConverter:
         index = frontend_builtin._Index  # type: ignore
         self._cache_type(index, xdsl_builtin.IndexType(), "index")
 
-    def _cache_type(self, frontend_type: Type[_FrontendType],
-                    xdsl_type: Attribute, type_name: TypeName) -> None:
+    def _cache_type(
+        self,
+        frontend_type: Type[_FrontendType],
+        xdsl_type: Attribute,
+        type_name: TypeName,
+    ) -> None:
         """Records frontend and corresponding xDSL types in cache."""
         if type_name not in self.name_to_xdsl_type_map:
             self.name_to_xdsl_type_map[type_name] = xdsl_type
@@ -64,9 +67,12 @@ class TypeConverter:
         # Otherwise, it must be some frontend type, and we can look up its class
         # using the imports.
         if type_name not in self.globals:
-            raise CodeGenerationException(self.file, type_hint.lineno,
-                                          type_hint.col_offset,
-                                          f"Unknown type hint '{type_name}'.")
+            raise CodeGenerationException(
+                self.file,
+                type_hint.lineno,
+                type_hint.col_offset,
+                f"Unknown type hint '{type_name}'.",
+            )
         type_class = self.globals[type_name]
 
         # First, type can be generic, e.g. `class _Integer(Generic[_W, _S])`.
@@ -74,13 +80,14 @@ class TypeConverter:
             generic_type_arguments = type_class.__args__
             arguments_for_constructor: list[Any] = []
             for type_argument in generic_type_arguments:
-
                 # Convert Literal[...] to concrete values.
                 materialized_arguments = type_argument.__args__
                 if len(materialized_arguments) != 1:
                     raise CodeGenerationException(
-                        self.file, type_hint.lineno, type_hint.col_offset,
-                        f"Expected 1 type argument for generic type '{type_name}', got {len(materialized_arguments)} type arguments instead."
+                        self.file,
+                        type_hint.lineno,
+                        type_hint.col_offset,
+                        f"Expected 1 type argument for generic type '{type_name}', got {len(materialized_arguments)} type arguments instead.",
                     )
                 arguments_for_constructor.append(materialized_arguments[0])
                 continue
@@ -93,8 +100,11 @@ class TypeConverter:
 
             # If this is not a subclass of FrontendType, then abort.
             raise CodeGenerationException(
-                self.file, type_hint.lineno, type_hint.col_offset,
-                f"'{type_name}' is not a frontend type.")
+                self.file,
+                type_hint.lineno,
+                type_hint.col_offset,
+                f"'{type_name}' is not a frontend type.",
+            )
 
         # Otherwise, type can be a simple non-generic frontend type, e.g. `class
         # _Index(FrontendType)`.
@@ -104,8 +114,10 @@ class TypeConverter:
             return xdsl_type
 
         raise CodeGenerationException(
-            self.file, type_hint.lineno, type_hint.col_offset,
-            f"Unknown type hint for type '{type_name}' inside 'ast.Name' expression."
+            self.file,
+            type_hint.lineno,
+            type_hint.col_offset,
+            f"Unknown type hint for type '{type_name}' inside 'ast.Name' expression.",
         )
 
     def convert_type_hint(self, type_hint: ast.expr) -> Attribute:
@@ -118,8 +130,11 @@ class TypeConverter:
         # `Foo[Literal[2]]``. Support this in the future patches.
         if isinstance(type_hint, ast.Subscript):
             raise CodeGenerationException(
-                self.file, type_hint.lineno, type_hint.col_offset,
-                f"Converting subscript type hints is not supported.")
+                self.file,
+                type_hint.lineno,
+                type_hint.col_offset,
+                f"Converting subscript type hints is not supported.",
+            )
 
         # Type hint can also be a TypeAlias. For example, one can define
         # `foo = Foo[Literal[2]]`. This case also handles standard Python types, like
@@ -128,5 +143,8 @@ class TypeConverter:
             return self._convert_name(type_hint)
 
         raise CodeGenerationException(
-            self.file, type_hint.lineno, type_hint.col_offset,
-            f"Unknown type hint AST node '{type_hint}'.")
+            self.file,
+            type_hint.lineno,
+            type_hint.col_offset,
+            f"Unknown type hint AST node '{type_hint}'.",
+        )

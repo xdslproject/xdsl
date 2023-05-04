@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"()({
     "gpu.module"()({
@@ -9,4 +9,3 @@
 }) {} : () -> ()
 
 // CHECK: gpu.all_reduce need either a non empty body or an op attribute.
-

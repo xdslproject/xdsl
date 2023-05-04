@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"()({
     "gpu.module"()({
@@ -9,4 +9,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: Type mismatch: result type is !f32, operand type is !index. They must be the same type for gpu.all_reduce
+// CHECK: Type mismatch: result type is f32, operand type is index. They must be the same type for gpu.all_reduce

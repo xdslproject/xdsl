@@ -1,11 +1,10 @@
-from typing import List, Optional
+from typing import Sequence
 
 from xdsl.ir import SSAValue, BlockArgument
-from xdsl.irdl import Operation, Region, Block, OpResult
+from xdsl.irdl import Operation, Region, Block
 
 
 class Rewriter:
-
     @staticmethod
     def erase_op(op: Operation, safe_erase: bool = True):
         """
@@ -21,11 +20,11 @@ class Rewriter:
 
     @staticmethod
     def replace_op(
-            op: Operation,
-            new_ops: Operation | List[Operation],
-            new_results: Optional[List[Optional[SSAValue]]
-                                  | List[OpResult]] = None,  # noqa
-            safe_erase: bool = True):
+        op: Operation,
+        new_ops: Operation | list[Operation],
+        new_results: Sequence[SSAValue | None] | None = None,  # noqa
+        safe_erase: bool = True,
+    ):
         """
         Replace an operation with multiple new ones.
         If new_results is specified, map the results of the deleted operations with these
@@ -55,33 +54,53 @@ class Rewriter:
             else:
                 old_result.replace_by(new_result)
 
-        op_idx = block.get_operation_index(op)
-        block.erase_op(op_idx, safe_erase=safe_erase)
-        if len(op.results) == 0:
-            block.insert_op(new_ops, op_idx)
-            return
-        block.insert_op(new_ops, op_idx, op.results[0].name)
+        block.insert_ops_after(new_ops, op)
+
+        if len(op.results):
+            for new_op in new_ops:
+                for res in new_op.results:
+                    res.name = op.results[0].name
+
+        block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_pos(block: Block, target_block: Block, pos: int):
+    def inline_block_at_end(inlined_block: Block, extended_block: Block):
         """
-        Move the block operations to a given position in another block.
+        Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        if block.is_ancestor(target_block):
+        if inlined_block.is_ancestor(extended_block):
             raise Exception("Cannot inline a block in a child block.")
-        for op in block.ops:
+        for op in inlined_block.ops:
             for operand in op.operands:
-                if isinstance(operand,
-                              BlockArgument) and operand.block is block:
+                if (
+                    isinstance(operand, BlockArgument)
+                    and operand.block is extended_block
+                ):
                     raise Exception(
                         "Cannot inline block which has operations using "
-                        "the block arguments.")
-        ops = block.ops.copy()
-        for op in ops:
-            op.detach()
-        target_block.insert_op(ops, pos)
+                        "the block arguments."
+                    )
+
+        ops = list(inlined_block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        extended_block.add_ops(ops)
+
+    @staticmethod
+    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the start of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        first_op_of_extended_block = extended_block.first_op
+        if first_op_of_extended_block is None:
+            Rewriter.inline_block_at_end(inlined_block, extended_block)
+        else:
+            Rewriter.inline_block_before(inlined_block, first_op_of_extended_block)
 
     @staticmethod
     def inline_block_before(block: Block, op: Operation):
@@ -91,11 +110,13 @@ class Rewriter:
         The block operations should not use the block arguments.
         """
         if op.parent is None:
-            raise Exception(
-                "Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos)
+            raise Exception("Cannot inline a block before a toplevel operation")
+
+        ops = list(block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_before(ops, op)
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
@@ -105,14 +126,16 @@ class Rewriter:
         The block operations should not use the block arguments.
         """
         if op.parent is None:
-            raise Exception(
-                "Cannot inline a block before a toplevel operation")
-        op_block = op.parent
-        op_pos = op_block.get_operation_index(op)
-        Rewriter.inline_block_at_pos(block, op_block, op_pos + 1)
+            raise Exception("Cannot inline a block before a toplevel operation")
+
+        ops = list(block.ops)
+        for block_op in ops:
+            block_op.detach()
+
+        op.parent.insert_ops_after(ops, op)
 
     @staticmethod
-    def insert_block_after(block: Block | List[Block], target: Block):
+    def insert_block_after(block: Block | list[Block], target: Block):
         """
         Insert one or multiple blocks after another block.
         The blocks to insert should be detached from any region.
@@ -128,7 +151,7 @@ class Rewriter:
         region.insert_block(block_list, pos + 1)
 
     @staticmethod
-    def insert_block_before(block: Block | List[Block], target: Block):
+    def insert_block_before(block: Block | list[Block], target: Block):
         """
         Insert one or multiple block before another block.
         The blocks to insert should be detached from any region.
@@ -145,19 +168,15 @@ class Rewriter:
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
         if op.parent is None:
-            raise Exception(
-                "Cannot insert an operation after a toplevel operation")
-        op_idx = op.parent.get_operation_index(op)
-        op.parent.insert_op(new_op, op_idx + 1)
+            raise Exception("Cannot insert an operation after a toplevel operation")
+        op.parent.insert_ops_after((new_op,), op)
 
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
         if op.parent is None:
-            raise Exception(
-                "Cannot insert an operation before a toplevel operation")
-        op_idx = op.parent.get_operation_index(op)
-        op.parent.insert_op(new_op, op_idx)
+            raise Exception("Cannot insert an operation before a toplevel operation")
+        op.parent.insert_ops_before((new_op,), op)
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:

@@ -5,11 +5,11 @@ from typing import Annotated, Union
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import IntegerType, AnyFloat
 from xdsl.ir import Operation, SSAValue, OpResult, Dialect
-from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand
+from xdsl.irdl import irdl_op_definition, OptOpAttr, Operand, IRDLOperation
 
 
 @irdl_op_definition
-class AbsFOp(Operation):
+class AbsFOp(IRDLOperation):
     """
     The absf operation computes the absolute value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -20,22 +20,26 @@ class AbsFOp(Operation):
     // Scalar absolute value.
     %a = math.absf %b : f64
     """
+
     name: str = "math.absf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> AbsFOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> AbsFOp:
         operand = SSAValue.get(operand)
-        return AbsFOp.build(attributes={"fastmath": fastmath},
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return AbsFOp.build(
+            attributes={"fastmath": fastmath},
+            operands=[operand],
+            result_types=[operand.typ],
+        )
 
 
 @irdl_op_definition
-class AbsIOp(Operation):
+class AbsIOp(IRDLOperation):
     """
     The absi operation computes the absolute value. It takes one operand of
     integer type (i.e., scalar, tensor or vector) and returns one result of the
@@ -46,6 +50,7 @@ class AbsIOp(Operation):
     // Scalar absolute value.
     %a = math.absi %b : i64
     """
+
     name: str = "math.absi"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -57,7 +62,7 @@ class AbsIOp(Operation):
 
 
 @irdl_op_definition
-class Atan2Op(Operation):
+class Atan2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.atan2` ssa-use `,` ssa-use `:` type
@@ -78,6 +83,7 @@ class Atan2Op(Operation):
     // Scalar variant.
     %a = math.atan2 %b, %c : f32
     """
+
     name: str = "math.atan2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
@@ -85,20 +91,22 @@ class Atan2Op(Operation):
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(lhs: Union[Operation, SSAValue],
-            rhs: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> Atan2Op:
+    def get(
+        lhs: Union[Operation, SSAValue],
+        rhs: Union[Operation, SSAValue],
+        fastmath: FastMathFlagsAttr | None = None,
+    ) -> Atan2Op:
         attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return Atan2Op.build(attributes=attributes,
-                             operands=[lhs, rhs],
-                             result_types=[lhs.typ])
+        return Atan2Op.build(
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+        )
 
 
 @irdl_op_definition
-class AtanOp(Operation):
+class AtanOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.atan` ssa-use `:` type
@@ -112,22 +120,26 @@ class AtanOp(Operation):
     // Arcus tangent of scalar value.
     %a = math.atan %b : f64
     """
+
     name: str = "math.atan"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> AtanOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> AtanOp:
         operand = SSAValue.get(operand)
-        return AtanOp.build(attributes={"fastmath": fastmath},
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return AtanOp.build(
+            attributes={"fastmath": fastmath},
+            operands=[operand],
+            result_types=[operand.typ],
+        )
 
 
 @irdl_op_definition
-class CbrtOp(Operation):
+class CbrtOp(IRDLOperation):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -140,24 +152,26 @@ class CbrtOp(Operation):
 
     Note: This op is not equivalent to powf(..., 1/3.0).
     """
+
     name: str = "math.cbrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> CbrtOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> CbrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return CbrtOp.build(attributes=attributes,
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return CbrtOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class CeilOp(Operation):
+class CeilOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.ceil` ssa-use `:` type
@@ -171,22 +185,26 @@ class CeilOp(Operation):
     // Scalar ceiling value.
     %a = math.ceil %b : f64
     """
+
     name: str = "math.ceil"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> CeilOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> CeilOp:
         operand = SSAValue.get(operand)
-        return CeilOp.build(attributes={"fastmath": fastmath},
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return CeilOp.build(
+            attributes={"fastmath": fastmath},
+            operands=[operand],
+            result_types=[operand.typ],
+        )
 
 
 @irdl_op_definition
-class CopySignOp(Operation):
+class CopySignOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.copysign` ssa-use `,` ssa-use `:` type
@@ -201,6 +219,7 @@ class CopySignOp(Operation):
     // Scalar copysign value.
     %a = math.copysign %b, %c : f64
     """
+
     name: str = "math.copysign"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
@@ -208,20 +227,22 @@ class CopySignOp(Operation):
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(lhs: Union[Operation, SSAValue],
-            rhs: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> CopySignOp:
+    def get(
+        lhs: Union[Operation, SSAValue],
+        rhs: Union[Operation, SSAValue],
+        fastmath: FastMathFlagsAttr | None = None,
+    ) -> CopySignOp:
         attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return CopySignOp.build(attributes=attributes,
-                                operands=[lhs, rhs],
-                                result_types=[lhs.typ])
+        return CopySignOp.build(
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+        )
 
 
 @irdl_op_definition
-class CosOp(Operation):
+class CosOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.cos` ssa-use `:` type
@@ -235,24 +256,26 @@ class CosOp(Operation):
     // Scalar cosine value.
     %a = math.cos %b : f64
     """
+
     name: str = "math.cos"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> CosOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> CosOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return CosOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return CosOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class CountLeadingZerosOp(Operation):
+class CountLeadingZerosOp(IRDLOperation):
     """
     The ctlz operation computes the number of leading zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -262,6 +285,7 @@ class CountLeadingZerosOp(Operation):
     // Scalar ctlz function value.
     %a = math.ctlz %b : i32
     """
+
     name: str = "math.ctlz"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -269,12 +293,11 @@ class CountLeadingZerosOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue]) -> CountLeadingZerosOp:
         operand = SSAValue.get(operand)
-        return CountLeadingZerosOp.build(operands=[operand],
-                                         result_types=[operand.typ])
+        return CountLeadingZerosOp.build(operands=[operand], result_types=[operand.typ])
 
 
 @irdl_op_definition
-class CountTrailingZerosOp(Operation):
+class CountTrailingZerosOp(IRDLOperation):
     """
     The cttz operation computes the number of trailing zeros of an integer value.
     It operates on scalar, tensor or vector.
@@ -284,6 +307,7 @@ class CountTrailingZerosOp(Operation):
     // Scalar cttz function value.
     %a = math.cttz %b : i32
     """
+
     name: str = "math.cttz"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -291,12 +315,13 @@ class CountTrailingZerosOp(Operation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue]) -> CountTrailingZerosOp:
         operand = SSAValue.get(operand)
-        return CountTrailingZerosOp.build(operands=[operand],
-                                          result_types=[operand.typ])
+        return CountTrailingZerosOp.build(
+            operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class CtPopOp(Operation):
+class CtPopOp(IRDLOperation):
     """
     The ctpop operation computes the number of set bits of an integer value.
     It operates on scalar, tensor or vector.
@@ -306,6 +331,7 @@ class CtPopOp(Operation):
     // Scalar ctpop function value.
     %a = math.ctpop %b : i32
     """
+
     name: str = "math.ctpop"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -317,7 +343,7 @@ class CtPopOp(Operation):
 
 
 @irdl_op_definition
-class ErfOp(Operation):
+class ErfOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.erf` ssa-use `:` type
@@ -331,24 +357,26 @@ class ErfOp(Operation):
     // Scalar error function value.
     %a = math.erf %b : f64
     """
+
     name: str = "math.erf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> ErfOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> ErfOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ErfOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return ErfOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class Exp2Op(Operation):
+class Exp2Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.exp2` ssa-use `:` type
@@ -362,24 +390,26 @@ class Exp2Op(Operation):
     // Scalar natural exponential.
     %a = math.exp2 %b : f64
     """
+
     name: str = "math.exp2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> Exp2Op:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> Exp2Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Exp2Op.build(attributes=attributes,
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return Exp2Op.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class ExpM1Op(Operation):
+class ExpM1Op(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.expm1` ssa-use `:` type
@@ -395,24 +425,26 @@ class ExpM1Op(Operation):
     // Scalar natural exponential minus 1.
     %a = math.expm1 %b : f64
     """
+
     name: str = "math.expm1"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> ExpM1Op:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> ExpM1Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ExpM1Op.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return ExpM1Op.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class ExpOp(Operation):
+class ExpOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.exp` ssa-use `:` type
@@ -426,24 +458,26 @@ class ExpOp(Operation):
     // Scalar natural exponential.
     %a = math.exp %b : f64
     """
+
     name: str = "math.exp"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> ExpOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> ExpOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ExpOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return ExpOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class FPowIOp(Operation):
+class FPowIOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.fpowi` ssa-use `,` ssa-use `:` type
@@ -465,6 +499,7 @@ class FPowIOp(Operation):
     // Scalar exponentiation.
     %a = math.fpowi %base, %power : f64, i32
     """
+
     name: str = "math.fpowi"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
@@ -472,20 +507,22 @@ class FPowIOp(Operation):
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(lhs: Union[Operation, SSAValue],
-            rhs: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> FPowIOp:
+    def get(
+        lhs: Union[Operation, SSAValue],
+        rhs: Union[Operation, SSAValue],
+        fastmath: FastMathFlagsAttr | None = None,
+    ) -> FPowIOp:
         attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return FPowIOp.build(attributes=attributes,
-                             operands=[lhs, rhs],
-                             result_types=[lhs.typ])
+        return FPowIOp.build(
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+        )
 
 
 @irdl_op_definition
-class FloorOp(Operation):
+class FloorOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.floor` ssa-use `:` type
@@ -499,24 +536,26 @@ class FloorOp(Operation):
     // Scalar floor value.
     %a = math.floor %b : f64
     """
+
     name: str = "math.floor"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> FloorOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> FloorOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return FloorOp.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return FloorOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class FmaOp(Operation):
+class FmaOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.fma` ssa-use `,` ssa-use `,` ssa-use `:` type
@@ -535,6 +574,7 @@ class FmaOp(Operation):
     particular case of lowering to LLVM, this is guaranteed to lower
     to the `llvm.fma.*` intrinsic.
     """
+
     name: str = "math.fma"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     a: Annotated[Operand, AnyFloat]
@@ -543,22 +583,24 @@ class FmaOp(Operation):
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(a: Union[Operation, SSAValue],
-            b: Union[Operation, SSAValue],
-            c: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> FmaOp:
+    def get(
+        a: Union[Operation, SSAValue],
+        b: Union[Operation, SSAValue],
+        c: Union[Operation, SSAValue],
+        fastmath: FastMathFlagsAttr | None = None,
+    ) -> FmaOp:
         attributes = {"fastmath": fastmath}
 
         a = SSAValue.get(a)
         b = SSAValue.get(b)
         c = SSAValue.get(c)
-        return FmaOp.build(attributes=attributes,
-                           operands=[a, b, c],
-                           result_types=[a.typ])
+        return FmaOp.build(
+            attributes=attributes, operands=[a, b, c], result_types=[a.typ]
+        )
 
 
 @irdl_op_definition
-class IPowIOp(Operation):
+class IPowIOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.ipowi` ssa-use `,` ssa-use `:` type
@@ -571,21 +613,23 @@ class IPowIOp(Operation):
     // Scalar signed integer exponentiation.
     %a = math.ipowi %b, %c : i32
     """
+
     name: str = "math.ipowi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
 
     @staticmethod
-    def get(lhs: Union[Operation, SSAValue], rhs: Union[Operation,
-                                                        SSAValue]) -> IPowIOp:
+    def get(
+        lhs: Union[Operation, SSAValue], rhs: Union[Operation, SSAValue]
+    ) -> IPowIOp:
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.typ])
 
 
 @irdl_op_definition
-class Log10Op(Operation):
+class Log10Op(IRDLOperation):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -596,24 +640,26 @@ class Log10Op(Operation):
     // Scalar log10 operation.
     %y = math.log10 %x : f64
     """
+
     name: str = "math.log10"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> Log10Op:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> Log10Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log10Op.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return Log10Op.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class Log1pOp(Operation):
+class Log1pOp(IRDLOperation):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -626,24 +672,26 @@ class Log1pOp(Operation):
     // Scalar log1p operation.
     %y = math.log1p %x : f64
     """
+
     name: str = "math.log1p"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> Log1pOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> Log1pOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log1pOp.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return Log1pOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class Log2Op(Operation):
+class Log2Op(IRDLOperation):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -654,24 +702,26 @@ class Log2Op(Operation):
     // Scalar log2 operation.
     %y = math.log2 %x : f64
     """
+
     name: str = "math.log2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> Log2Op:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> Log2Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log2Op.build(attributes=attributes,
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return Log2Op.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class LogOp(Operation):
+class LogOp(IRDLOperation):
     """
     Computes the base-e logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -682,24 +732,26 @@ class LogOp(Operation):
     // Scalar log operation.
     %y = math.log %x : f64
     """
+
     name: str = "math.log"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> LogOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> LogOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return LogOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return LogOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class PowFOp(Operation):
+class PowFOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.powf` ssa-use `,` ssa-use `:` type
@@ -713,6 +765,7 @@ class PowFOp(Operation):
     // Scalar exponentiation.
     %a = math.powf %b, %c : f64
     """
+
     name: str = "math.powf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
@@ -720,20 +773,22 @@ class PowFOp(Operation):
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(lhs: Union[Operation, SSAValue],
-            rhs: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> PowFOp:
+    def get(
+        lhs: Union[Operation, SSAValue],
+        rhs: Union[Operation, SSAValue],
+        fastmath: FastMathFlagsAttr | None = None,
+    ) -> PowFOp:
         attributes = {"fastmath": fastmath}
 
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return PowFOp.build(attributes=attributes,
-                            operands=[lhs, rhs],
-                            result_types=[lhs.typ])
+        return PowFOp.build(
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+        )
 
 
 @irdl_op_definition
-class RoundEvenOp(Operation):
+class RoundEvenOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.roundeven` ssa-use `:` type
@@ -750,24 +805,26 @@ class RoundEvenOp(Operation):
     // Scalar round operation.
     %a = math.roundeven %b : f64
     """
+
     name: str = "math.roundeven"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> RoundEvenOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> RoundEvenOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RoundEvenOp.build(attributes=attributes,
-                                 operands=[operand],
-                                 result_types=[operand.typ])
+        return RoundEvenOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class RoundOp(Operation):
+class RoundOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.round` ssa-use `:` type
@@ -784,24 +841,26 @@ class RoundOp(Operation):
     // Scalar round operation.
     %a = math.round %b : f64
     """
+
     name: str = "math.round"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> RoundOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> RoundOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RoundOp.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return RoundOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class RsqrtOp(Operation):
+class RsqrtOp(IRDLOperation):
     """
     The rsqrt operation computes the reciprocal of the square root. It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -811,24 +870,26 @@ class RsqrtOp(Operation):
     // Scalar reciprocal square root value.
     %a = math.rsqrt %b : f64
     """
+
     name: str = "math.rsqrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> RsqrtOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> RsqrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RsqrtOp.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return RsqrtOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class SinOp(Operation):
+class SinOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.sin` ssa-use `:` type
@@ -842,24 +903,26 @@ class SinOp(Operation):
     // Scalar sine value.
     %a = math.sin %b : f64
     """
+
     name: str = "math.sin"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> SinOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> SinOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return SinOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return SinOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class SqrtOp(Operation):
+class SqrtOp(IRDLOperation):
     """
     The sqrt operation computes the square root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -869,24 +932,26 @@ class SqrtOp(Operation):
     // Scalar square root value.
     %a = math.sqrt %b : f64
     """
+
     name: str = "math.sqrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> SqrtOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> SqrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return SqrtOp.build(attributes=attributes,
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return SqrtOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class TanOp(Operation):
+class TanOp(IRDLOperation):
     """
     The tan operation computes the tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -897,24 +962,26 @@ class TanOp(Operation):
     // Scalar tangent value.
     %a = math.tan %b : f64
     """
+
     name: str = "math.tan"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> TanOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> TanOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TanOp.build(attributes=attributes,
-                           operands=[operand],
-                           result_types=[operand.typ])
+        return TanOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class TanhOp(Operation):
+class TanhOp(IRDLOperation):
     """
     The tanh operation computes the hyperbolic tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -925,24 +992,26 @@ class TanhOp(Operation):
     // Scalar hyperbolic tangent value.
     %a = math.tanh %b : f64
     """
+
     name: str = "math.tanh"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> TanhOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> TanhOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TanhOp.build(attributes=attributes,
-                            operands=[operand],
-                            result_types=[operand.typ])
+        return TanhOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
 @irdl_op_definition
-class TruncOp(Operation):
+class TruncOp(IRDLOperation):
     """
     Syntax:
     operation ::= ssa-id `=` `math.trunc` ssa-use `:` type
@@ -958,53 +1027,57 @@ class TruncOp(Operation):
     // Scalar trunc operation.
     %a = math.trunc %b : f64
     """
+
     name: str = "math.trunc"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue],
-            fastmath: FastMathFlagsAttr | None = None) -> TruncOp:
+    def get(
+        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+    ) -> TruncOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TruncOp.build(attributes=attributes,
-                             operands=[operand],
-                             result_types=[operand.typ])
+        return TruncOp.build(
+            attributes=attributes, operands=[operand], result_types=[operand.typ]
+        )
 
 
-Math = Dialect([
-    AbsFOp,
-    AbsIOp,
-    Atan2Op,
-    AtanOp,
-    CbrtOp,
-    CeilOp,
-    CopySignOp,
-    CosOp,
-    CountLeadingZerosOp,
-    CountTrailingZerosOp,
-    CtPopOp,
-    ErfOp,
-    Exp2Op,
-    ExpM1Op,
-    ExpOp,
-    FPowIOp,
-    FloorOp,
-    FmaOp,
-    IPowIOp,
-    Log10Op,
-    Log1pOp,
-    Log2Op,
-    LogOp,
-    PowFOp,
-    RoundEvenOp,
-    RoundOp,
-    RsqrtOp,
-    SinOp,
-    SqrtOp,
-    TanOp,
-    TanhOp,
-    TruncOp,
-])
+Math = Dialect(
+    [
+        AbsFOp,
+        AbsIOp,
+        Atan2Op,
+        AtanOp,
+        CbrtOp,
+        CeilOp,
+        CopySignOp,
+        CosOp,
+        CountLeadingZerosOp,
+        CountTrailingZerosOp,
+        CtPopOp,
+        ErfOp,
+        Exp2Op,
+        ExpM1Op,
+        ExpOp,
+        FPowIOp,
+        FloorOp,
+        FmaOp,
+        IPowIOp,
+        Log10Op,
+        Log1pOp,
+        Log2Op,
+        LogOp,
+        PowFOp,
+        RoundEvenOp,
+        RoundOp,
+        RsqrtOp,
+        SinOp,
+        SqrtOp,
+        TanOp,
+        TanhOp,
+        TruncOp,
+    ]
+)

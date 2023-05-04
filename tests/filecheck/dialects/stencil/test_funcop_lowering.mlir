@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p convert-stencil-to-ll-mlir | filecheck %s
+// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
@@ -13,4 +13,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "test_funcop_lowering", "function_type" = (memref<?x?x?xf64>, memref<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-

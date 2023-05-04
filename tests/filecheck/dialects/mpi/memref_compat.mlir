@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir -p lower-mpi %s
+// RUN: xdsl-opt -p lower-mpi %s
 "builtin.module"() ({
     %ref = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)

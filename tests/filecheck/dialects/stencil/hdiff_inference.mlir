@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir -p stencil-shape-inference | filecheck %s
+// RUN: xdsl-opt %s -p stencil-shape-inference | filecheck %s
 
 
 "builtin.module"() ({
@@ -53,5 +53,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"function_type" = (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>, !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-
-

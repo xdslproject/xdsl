@@ -1,31 +1,105 @@
+from typing import TypeVar
 import pytest
 
-from xdsl.dialects.arith import (Addi, Constant, DivUI, DivSI, Subi,
-                                 FloorDivSI, CeilDivSI, CeilDivUI, RemUI,
-                                 RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI,
-                                 XOrI, ShLI, ShRUI, ShRSI, Cmpi, Addf, Subf,
-                                 Mulf, Divf, Maxf, Minf, IndexCastOp, FPToSIOp,
-                                 SIToFPOp, ExtFOp, TruncFOp, Cmpf, Negf)
-from xdsl.dialects.builtin import i32, i64, f32, f64, IndexType, IntegerType, Float32Type
+from xdsl.dialects.arith import (
+    Addi,
+    BinaryOperation,
+    Constant,
+    DivUI,
+    DivSI,
+    Subi,
+    FloorDivSI,
+    CeilDivSI,
+    CeilDivUI,
+    RemUI,
+    RemSI,
+    MinUI,
+    MinSI,
+    MaxUI,
+    MaxSI,
+    AndI,
+    OrI,
+    XOrI,
+    ShLI,
+    ShRUI,
+    ShRSI,
+    Cmpi,
+    Addf,
+    Subf,
+    Mulf,
+    Divf,
+    Maxf,
+    Minf,
+    IndexCastOp,
+    FPToSIOp,
+    SIToFPOp,
+    ExtFOp,
+    TruncFOp,
+    Cmpf,
+    Negf,
+)
+from xdsl.dialects.builtin import (
+    i32,
+    i64,
+    f32,
+    f64,
+    IndexType,
+    IntegerType,
+)
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
+
+_BinOpT = TypeVar("_BinOpT", bound=BinaryOperation)
 
 
 class Test_integer_arith_construction:
-    a = Constant.from_int_and_width(1, i32)
-    b = Constant.from_int_and_width(1, i32)
+    operand_typ = i32
+    a = Constant.from_int_and_width(1, operand_typ)
+    b = Constant.from_int_and_width(1, operand_typ)
 
     @pytest.mark.parametrize(
-        "func",
+        "OpClass",
         [
-            Addi, Subi, DivUI, DivSI, FloorDivSI, CeilDivSI, CeilDivUI, RemUI,
-            RemSI, MinUI, MinSI, MaxUI, MaxSI, AndI, OrI, XOrI, ShLI, ShRUI,
-            ShRSI
+            Subi,
+            DivUI,
+            DivSI,
+            FloorDivSI,
+            CeilDivSI,
+            CeilDivUI,
+            RemUI,
+            RemSI,
+            MinUI,
+            MinSI,
+            MaxUI,
+            MaxSI,
+            AndI,
+            OrI,
+            XOrI,
+            ShLI,
+            ShRUI,
+            ShRSI,
         ],
     )
-    def test_arith_ops(self, func):
-        op = func.get(self.a, self.b)
-        assert op.operands[0].op is self.a
-        assert op.operands[1].op is self.b
+    def test_arith_ops_get(self, OpClass: type[_BinOpT]):
+        op = OpClass.get(self.a, self.b)
+
+        assert isinstance(op, OpClass)
+        assert op.lhs.op is self.a
+        assert op.rhs.op is self.b
+        assert op.result.typ == self.operand_typ
+
+    @pytest.mark.parametrize(
+        "OpClass",
+        [Addi],
+    )
+    @pytest.mark.parametrize("return_typ", [None, operand_typ])
+    def test_arith_ops_init(self, OpClass: type[_BinOpT], return_typ: Attribute):
+        op = OpClass(self.a, self.b)
+
+        assert isinstance(op, OpClass)
+        assert op.lhs.op is self.a
+        assert op.rhs.op is self.b
+        assert op.result.typ == self.operand_typ
 
     def test_Cmpi(self):
         _ = Cmpi.get(self.a, self.b, 2)
@@ -39,7 +113,6 @@ class Test_integer_arith_construction:
 
 
 class Test_float_arith_construction:
-
     a = Constant.from_float_and_width(1.1, f32)
     b = Constant.from_float_and_width(2.2, f32)
 
@@ -100,8 +173,22 @@ def test_cmpf_from_mnemonic():
     a = Constant.from_float_and_width(1.0, f64)
     b = Constant.from_float_and_width(2.0, f64)
     operations = [
-        "false", "oeq", "ogt", "oge", "olt", "ole", "one", "ord", "ueq", "ugt",
-        "uge", "ult", "ule", "une", "uno", "true"
+        "false",
+        "oeq",
+        "ogt",
+        "oge",
+        "olt",
+        "ole",
+        "one",
+        "ord",
+        "ueq",
+        "ugt",
+        "uge",
+        "ult",
+        "ule",
+        "une",
+        "uno",
+        "true",
     ]
     cmpf_ops = [None] * len(operations)
 
@@ -131,8 +218,10 @@ def test_cmpf_missmatch_type():
 
     with pytest.raises(TypeError) as e:
         cmpf_op = Cmpf.get(a, b, 1)
-    assert e.value.args[
-        0] == "Comparison operands must have same type, but provided !f32 and !f64"
+    assert (
+        e.value.args[0]
+        == "Comparison operands must have same type, but provided f32 and f64"
+    )
 
 
 def test_cmpi_missmatch_type():
@@ -141,8 +230,10 @@ def test_cmpi_missmatch_type():
 
     with pytest.raises(TypeError) as e:
         cmpi_op = Cmpi.get(a, b, 1)
-    assert e.value.args[
-        0] == "Comparison operands must have same type, but provided !i32 and !i64"
+    assert (
+        e.value.args[0]
+        == "Comparison operands must have same type, but provided i32 and i64"
+    )
 
 
 def test_cmpf_incorrect_comparison():

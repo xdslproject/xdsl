@@ -3,10 +3,11 @@ import sys
 import os
 
 from io import StringIO
+from xdsl.dialects.riscv import RISCV
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
-from xdsl.parser import XDSLParser, MLIRParser, ParseError
+from xdsl.parser import Parser, ParseError
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.dialects.func import Func
@@ -19,20 +20,26 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.vector import Vector
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
+from xdsl.dialects.test import Test
 
 from xdsl.dialects.experimental.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import ConvertStencilToGPUPass, ConvertStencilToLLMLIRPass, StencilShapeInferencePass
-from xdsl.transforms.experimental.stencil_global_to_local import GlobalStencilToLocalStencil2DHorizontal
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
+    ConvertStencilToGPUPass,
+    ConvertStencilToLLMLIRPass,
+)
+from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
+from xdsl.transforms.experimental.stencil_global_to_local import (
+    GlobalStencilToLocalStencil2DHorizontal,
+)
 
-from xdsl.irdl_mlir_printer import IRDLPrinter
 from xdsl.utils.exceptions import DiagnosticException
 
 from typing import IO, Dict, Callable, List, Sequence, Type
@@ -66,9 +73,11 @@ class xDSLOptMain:
     pipeline: List[ModulePass]
     """ The pass-pipeline to be applied. """
 
-    def __init__(self,
-                 description: str = 'xDSL modular optimizer driver',
-                 args: Sequence[str] | None = None):
+    def __init__(
+        self,
+        description: str = "xDSL modular optimizer driver",
+        args: Sequence[str] | None = None,
+    ):
         self.available_frontends = {}
         self.available_passes = {}
         self.available_targets = {}
@@ -117,19 +126,20 @@ class xDSLOptMain:
 
         Add other/additional arguments by overloading this function.
         """
-        arg_parser.add_argument("input_file",
-                                type=str,
-                                nargs="?",
-                                help="path to input file")
+        arg_parser.add_argument(
+            "input_file", type=str, nargs="?", help="path to input file"
+        )
 
         targets = [name for name in self.available_targets]
-        arg_parser.add_argument("-t",
-                                "--target",
-                                type=str,
-                                required=False,
-                                choices=targets,
-                                help="target",
-                                default="xdsl")
+        arg_parser.add_argument(
+            "-t",
+            "--target",
+            type=str,
+            required=False,
+            choices=targets,
+            help="target",
+            default="mlir",
+        )
 
         frontends = [name for name in self.available_frontends]
         arg_parser.add_argument(
@@ -140,48 +150,53 @@ class xDSLOptMain:
             choices=frontends,
             help="Frontend to be used for the input. If not set, "
             "the xdsl frontend or the one for the file extension "
-            "is used.")
+            "is used.",
+        )
 
-        arg_parser.add_argument("--disable-verify",
-                                default=False,
-                                action='store_true')
-        arg_parser.add_argument("-o",
-                                "--output-file",
-                                type=str,
-                                required=False,
-                                help="path to output file")
+        arg_parser.add_argument("--disable-verify", default=False, action="store_true")
+        arg_parser.add_argument(
+            "-o", "--output-file", type=str, required=False, help="path to output file"
+        )
 
         pass_names = ",".join([name for name in self.available_passes])
-        arg_parser.add_argument("-p",
-                                "--passes",
-                                required=False,
-                                help="Delimited list of passes."
-                                f" Available passes are: {pass_names}",
-                                type=str,
-                                default="")
+        arg_parser.add_argument(
+            "-p",
+            "--passes",
+            required=False,
+            help="Delimited list of passes." f" Available passes are: {pass_names}",
+            type=str,
+            default="",
+        )
 
-        arg_parser.add_argument("--print-between-passes",
-                                default=False,
-                                action='store_true',
-                                help="Print the IR between each pass")
+        arg_parser.add_argument(
+            "--print-between-passes",
+            default=False,
+            action="store_true",
+            help="Print the IR between each pass",
+        )
 
-        arg_parser.add_argument("--verify-diagnostics",
-                                default=False,
-                                action='store_true',
-                                help="Prints the content of a triggered "
-                                "verifier exception and exits with code 0")
+        arg_parser.add_argument(
+            "--verify-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "verifier exception and exits with code 0",
+        )
 
-        arg_parser.add_argument("--parsing-diagnostics",
-                                default=False,
-                                action='store_true',
-                                help="Prints the content of a triggered "
-                                "parsing exception and exits with code 0")
+        arg_parser.add_argument(
+            "--parsing-diagnostics",
+            default=False,
+            action="store_true",
+            help="Prints the content of a triggered "
+            "parsing exception and exits with code 0",
+        )
 
         arg_parser.add_argument(
             "--allow-unregistered-dialect",
             default=False,
-            action='store_true',
-            help="Allow the parsing of unregistered dialects.")
+            action="store_true",
+            help="Allow the parsing of unregistered dialects.",
+        )
 
     def register_all_dialects(self):
         """
@@ -198,7 +213,6 @@ class xDSLOptMain:
         self.ctx.register_dialect(Cf)
         self.ctx.register_dialect(CMath)
         self.ctx.register_dialect(Math)
-        self.ctx.register_dialect(IRDL)
         self.ctx.register_dialect(LLVM)
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
@@ -206,6 +220,8 @@ class xDSLOptMain:
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
+        self.ctx.register_dialect(Test)
+        self.ctx.register_dialect(RISCV)
 
     def register_all_frontends(self):
         """
@@ -214,18 +230,15 @@ class xDSLOptMain:
         Add other/additional frontends by overloading this function.
         """
 
-        def parse_xdsl(io: IO[str]):
-            return XDSLParser(
-                self.ctx, io.read(), self.get_input_name(),
-                self.args.allow_unregistered_dialect).parse_module()
-
         def parse_mlir(io: IO[str]):
-            return MLIRParser(
-                self.ctx, io.read(), self.get_input_name(),
-                self.args.allow_unregistered_dialect).parse_module()
+            return Parser(
+                self.ctx,
+                io.read(),
+                self.get_input_name(),
+                self.args.allow_unregistered_dialect,
+            ).parse_module()
 
-        self.available_frontends['xdsl'] = parse_xdsl
-        self.available_frontends['mlir'] = parse_mlir
+        self.available_frontends["mlir"] = parse_mlir
 
     def register_pass(self, opPass: Type[ModulePass]):
         self.available_passes[opPass.name] = opPass
@@ -242,6 +255,7 @@ class xDSLOptMain:
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
+        self.register_pass(DeadCodeElimination)
 
     def register_all_targets(self):
         """
@@ -250,23 +264,12 @@ class xDSLOptMain:
         Add other/additional targets by overloading this function.
         """
 
-        def _output_xdsl(prog: ModuleOp, output: IO[str]):
+        def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(stream=output)
             printer.print_op(prog)
             print("\n", file=output)
 
-        def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output, target=Printer.Target.MLIR)
-            printer.print_op(prog)
-            print("\n", file=output)
-
-        def _output_irdl(prog: ModuleOp, output: IO[str]):
-            irdl_to_mlir = IRDLPrinter(stream=output)
-            irdl_to_mlir.print_module(prog)
-
-        self.available_targets['xdsl'] = _output_xdsl
-        self.available_targets['irdl'] = _output_irdl
-        self.available_targets['mlir'] = _output_mlir
+        self.available_targets["mlir"] = _output_mlir
 
     def setup_pipeline(self):
         """
@@ -274,9 +277,7 @@ class xDSLOptMain:
 
         Failes, if not all passes are registered.
         """
-        pipeline = [
-            str(item) for item in self.args.passes.split(',') if len(item) > 0
-        ]
+        pipeline = [str(item) for item in self.args.passes.split(",") if len(item) > 0]
 
         for p in pipeline:
             if p not in self.available_passes:
@@ -292,7 +293,7 @@ class xDSLOptMain:
         """
         if self.args.input_file is None:
             f = sys.stdin
-            file_extension = 'xdsl'
+            file_extension = "mlir"
         else:
             f = open(self.args.input_file)
             _, file_extension = os.path.splitext(self.args.input_file)
@@ -342,8 +343,8 @@ class xDSLOptMain:
         if self.args.output_file is None:
             print(contents)
         else:
-            with open(self.args.output_file, 'w') as output_stream:
+            with open(self.args.output_file, "w") as output_stream:
                 output_stream.write(contents)
 
     def get_input_name(self):
-        return self.args.input_file or 'stdin'
+        return self.args.input_file or "stdin"

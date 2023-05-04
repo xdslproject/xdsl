@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"() ({
   "pdl.pattern"() ({
@@ -25,4 +25,3 @@
 // CHECK-NEXT:       }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
 // CHECK-NEXT:     }) {"benefit" = 1 : i16, "sym_name" = "operations"} : () -> ()
 // CHECK-NEXT:   }) : () -> ()
-

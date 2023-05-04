@@ -1,19 +1,23 @@
 from __future__ import annotations
-from typing import Annotated, List
+from typing import Annotated, Sequence
 
-from xdsl.dialects.builtin import (IndexType, VectorType, i1,
-                                   VectorRankConstraint,
-                                   VectorBaseTypeConstraint,
-                                   VectorBaseTypeAndRankConstraint)
+from xdsl.dialects.builtin import (
+    IndexType,
+    VectorType,
+    i1,
+    VectorRankConstraint,
+    VectorBaseTypeConstraint,
+    VectorBaseTypeAndRankConstraint,
+)
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand
+from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand, IRDLOperation
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
 
 @irdl_op_definition
-class Load(Operation):
+class Load(IRDLOperation):
     name = "vector.load"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -25,26 +29,27 @@ class Load(Operation):
 
         if self.memref.typ.element_type != self.res.typ.element_type:
             raise VerifyException(
-                "MemRef element type should match the Vector element type.")
+                "MemRef element type should match the Vector element type."
+            )
 
         if self.memref.typ.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
-    def get(ref: SSAValue | Operation,
-            indices: List[SSAValue | Operation]) -> Load:
+    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ref = SSAValue.get(ref)
         assert assert_isa(ref.typ, MemRefType[Attribute])
 
-        return Load.build(operands=[ref, indices],
-                          result_types=[
-                              VectorType.from_element_type_and_shape(
-                                  ref.typ.element_type, [1])
-                          ])
+        return Load.build(
+            operands=[ref, indices],
+            result_types=[
+                VectorType.from_element_type_and_shape(ref.typ.element_type, [1])
+            ],
+        )
 
 
 @irdl_op_definition
-class Store(Operation):
+class Store(IRDLOperation):
     name = "vector.store"
     vector: Annotated[Operand, VectorType]
     memref: Annotated[Operand, MemRefType]
@@ -56,19 +61,23 @@ class Store(Operation):
 
         if self.memref.typ.element_type != self.vector.typ.element_type:
             raise VerifyException(
-                "MemRef element type should match the Vector element type.")
+                "MemRef element type should match the Vector element type."
+            )
 
         if self.memref.typ.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
-    def get(vector: Operation | SSAValue, ref: Operation | SSAValue,
-            indices: List[Operation | SSAValue]) -> Store:
+    def get(
+        vector: Operation | SSAValue,
+        ref: Operation | SSAValue,
+        indices: Sequence[Operation | SSAValue],
+    ) -> Store:
         return Store.build(operands=[vector, ref, indices])
 
 
 @irdl_op_definition
-class Broadcast(Operation):
+class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source: Annotated[Operand, AnyAttr()]
     vector: Annotated[OpResult, VectorType]
@@ -83,15 +92,16 @@ class Broadcast(Operation):
 
     @staticmethod
     def get(source: Operation | SSAValue) -> Broadcast:
-        return Broadcast.build(operands=[source],
-                               result_types=[
-                                   VectorType.from_element_type_and_shape(
-                                       SSAValue.get(source).typ, [1])
-                               ])
+        return Broadcast.build(
+            operands=[source],
+            result_types=[
+                VectorType.from_element_type_and_shape(SSAValue.get(source).typ, [1])
+            ],
+        )
 
 
 @irdl_op_definition
-class FMA(Operation):
+class FMA(IRDLOperation):
     name = "vector.fma"
     lhs: Annotated[Operand, VectorType]
     rhs: Annotated[Operand, VectorType]
@@ -136,20 +146,22 @@ class FMA(Operation):
             )
 
     @staticmethod
-    def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue,
-            acc: Operation | SSAValue) -> FMA:
+    def get(
+        lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
+    ) -> FMA:
         lhs = SSAValue.get(lhs)
         assert assert_isa(lhs.typ, VectorType[Attribute])
 
-        return FMA.build(operands=[lhs, rhs, acc],
-                         result_types=[
-                             VectorType.from_element_type_and_shape(
-                                 lhs.typ.element_type, [1])
-                         ])
+        return FMA.build(
+            operands=[lhs, rhs, acc],
+            result_types=[
+                VectorType.from_element_type_and_shape(lhs.typ.element_type, [1])
+            ],
+        )
 
 
 @irdl_op_definition
-class Maskedload(Operation):
+class Maskedload(IRDLOperation):
     name = "vector.maskedload"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -182,25 +194,28 @@ class Maskedload(Operation):
             )
 
         if memref_typ.get_num_dims() != len(self.indices):
-            raise VerifyException(
-                "Expected an index for each memref dimension.")
+            raise VerifyException("Expected an index for each memref dimension.")
 
     @staticmethod
-    def get(memref: SSAValue | Operation, indices: List[SSAValue | Operation],
-            mask: SSAValue | Operation,
-            passthrough: SSAValue | Operation) -> Maskedload:
+    def get(
+        memref: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        mask: SSAValue | Operation,
+        passthrough: SSAValue | Operation,
+    ) -> Maskedload:
         memref = SSAValue.get(memref)
         assert assert_isa(memref.typ, MemRefType[Attribute])
 
-        return Maskedload.build(operands=[memref, indices, mask, passthrough],
-                                result_types=[
-                                    VectorType.from_element_type_and_shape(
-                                        memref.typ.element_type, [1])
-                                ])
+        return Maskedload.build(
+            operands=[memref, indices, mask, passthrough],
+            result_types=[
+                VectorType.from_element_type_and_shape(memref.typ.element_type, [1])
+            ],
+        )
 
 
 @irdl_op_definition
-class Maskedstore(Operation):
+class Maskedstore(IRDLOperation):
     name = "vector.maskedstore"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
@@ -221,23 +236,28 @@ class Maskedstore(Operation):
         if memref_element_type != value_to_store_typ.element_type:
             raise VerifyException(
                 "MemRef element type should match the stored vector type. "
-                "Obtained types were " + str(memref_element_type) + " and " +
-                str(value_to_store_typ.element_type) + ".")
+                "Obtained types were "
+                + str(memref_element_type)
+                + " and "
+                + str(value_to_store_typ.element_type)
+                + "."
+            )
 
         if memref_typ.get_num_dims() != len(self.indices):
-            raise VerifyException(
-                "Expected an index for each memref dimension.")
+            raise VerifyException("Expected an index for each memref dimension.")
 
     @staticmethod
-    def get(memref: SSAValue | Operation, indices: List[SSAValue | Operation],
-            mask: SSAValue | Operation,
-            value_to_store: SSAValue | Operation) -> Maskedstore:
-        return Maskedstore.build(
-            operands=[memref, indices, mask, value_to_store])
+    def get(
+        memref: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
+        mask: SSAValue | Operation,
+        value_to_store: SSAValue | Operation,
+    ) -> Maskedstore:
+        return Maskedstore.build(operands=[memref, indices, mask, value_to_store])
 
 
 @irdl_op_definition
-class Print(Operation):
+class Print(IRDLOperation):
     name = "vector.print"
     source: Annotated[Operand, AnyAttr()]
 
@@ -247,7 +267,7 @@ class Print(Operation):
 
 
 @irdl_op_definition
-class Createmask(Operation):
+class Createmask(IRDLOperation):
     name = "vector.create_mask"
     mask_operands: Annotated[VarOperand, IndexType]
     mask_vector: Annotated[OpResult, VectorBaseTypeConstraint(i1)]
@@ -263,9 +283,10 @@ class Createmask(Operation):
     def get(mask_operands: list[Operation | SSAValue]) -> Createmask:
         return Createmask.build(
             operands=[mask_operands],
-            result_types=[VectorType.from_element_type_and_shape(i1, [1])])
+            result_types=[VectorType.from_element_type_and_shape(i1, [1])],
+        )
 
 
 Vector = Dialect(
-    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask],
-    [])
+    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask], []
+)

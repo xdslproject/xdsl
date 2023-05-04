@@ -30,7 +30,7 @@ with CodeContext(p):
 
 
 try:
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -45,7 +45,7 @@ try:
             pass
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -53,7 +53,6 @@ try:
     with CodeContext(p):
 
         def foo():
-
             # CHECK-NEXT: Cannot have an inner function 'bar' inside the function 'foo'.
             def bar():
                 return
@@ -61,7 +60,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -69,7 +68,6 @@ try:
     with CodeContext(p):
 
         def foo():
-
             @block
             def bb1():
                 # CHECK-NEXT: Cannot have an inner function 'foo' inside the block 'bb1'.
@@ -79,7 +77,7 @@ try:
             bb1()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -87,10 +85,8 @@ try:
     with CodeContext(p):
 
         def foo():
-
             @block
             def bb0():
-
                 # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
                 @block
                 def bb1():
@@ -101,7 +97,7 @@ try:
             bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -109,7 +105,6 @@ try:
     with CodeContext(p):
 
         def foo():
-
             @block
             def bb0():
                 bb0()
@@ -122,7 +117,7 @@ try:
             bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -141,7 +136,7 @@ try:
         bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -157,7 +152,7 @@ try:
         bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -176,7 +171,7 @@ try:
         bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -187,7 +182,7 @@ try:
         a = 3
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -198,7 +193,7 @@ try:
         a: i32 = 3
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -215,7 +210,7 @@ try:
         bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -232,13 +227,12 @@ try:
         bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
 try:
     with CodeContext(p):
-
         c: Const[i32] = 23
 
         def foo():
@@ -247,13 +241,12 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
 try:
     with CodeContext(p):
-
         c: Const[i32] = 23
 
         def foo():
@@ -262,13 +255,12 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
 try:
     with CodeContext(p):
-
         c: Const[i32] = 23
 
         # CHECK-NEXT: Constant 'c' is already defined and cannot be used as a function/block argument name.
@@ -276,17 +268,15 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
 try:
     with CodeContext(p):
-
         e: Const[i32] = 23
 
         def foo():
-
             @block
             def bb0():
                 # CHECK-NEXT: Constant 'e' is already defined and cannot be assigned to.
@@ -297,7 +287,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -309,6 +299,6 @@ with CodeContext(p):
 
 try:
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)

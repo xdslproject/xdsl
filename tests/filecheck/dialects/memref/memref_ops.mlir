@@ -1,7 +1,7 @@
-// RUN: xdsl-opt %s | xdsl-opt -t mlir | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 "builtin.module"() ({
-  "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<[0]> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
+  "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
   "func.func"() ({
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
     %1 = "arith.constant"() {"value" = 0 : index} : () -> index
@@ -20,7 +20,7 @@
 }) : () -> ()
 
 // CHECK-NEXT: "builtin.module"() ({
-// CHECK-NEXT:   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<[0]> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
+// CHECK-NEXT:   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
 // CHECK-NEXT:   "func.func"() ({
 // CHECK-NEXT:     %{{.*}} = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
@@ -37,4 +37,3 @@
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }) {"sym_name" = "memref_test", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
-

@@ -1,29 +1,42 @@
 from xdsl.ir import Block
 from xdsl.dialects.arith import Addi, Subi, Muli, Constant
-from xdsl.dialects.builtin import i32
-from xdsl.dialects.cf import Branch, ConditionalBranch
+from xdsl.dialects.builtin import StringAttr, i1, i32
+from xdsl.dialects.cf import Assert, Branch, ConditionalBranch
+
+
+def test_assert():
+    a = Constant.from_int_and_width(1, i1)
+    b = Constant.from_int_and_width(1, i1)
+    c = Assert.get(a, "a")
+    d = Assert.get(b, StringAttr("b"))
+
+    assert c.arg is a.result
+    assert d.arg is b.result
+    assert c.attributes["msg"] == StringAttr("a")
+    assert d.attributes["msg"] == StringAttr("b")
 
 
 def test_branch():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
 
-    block0 = Block.from_ops([a, b, c])
+    block0 = Block([a, b, c])
     br0 = Branch.get(block0)
+    ops = list(br0.successors[0].ops)
 
     assert br0.successors[0] is block0
-    assert br0.successors[0].ops[0] is a
-    assert br0.successors[0].ops[1] is b
-    assert br0.successors[0].ops[2] is c
+    assert ops[0] is a
+    assert ops[1] is b
+    assert ops[2] is c
 
 
 def test_condbranch():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
-    c = Addi.get(a, b)
+    c = Addi(a, b)
     d = Subi.get(a, b)
     e = Muli.get(a, b)
 

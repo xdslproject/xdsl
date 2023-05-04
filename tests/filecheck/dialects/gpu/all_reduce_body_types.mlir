@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t mlir %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"()({
     "gpu.module"()({
@@ -13,4 +13,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: Expected ['!index', '!index'], got ['!index']. A gpu.all_reduce's body must have two arguments matching the result type.
+// CHECK: Expected ['index', 'index'], got ['index']. A gpu.all_reduce's body must have two arguments matching the result type.
