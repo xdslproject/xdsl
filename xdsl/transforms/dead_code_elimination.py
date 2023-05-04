@@ -28,7 +28,7 @@ class RemoveUnusedOperations(RewritePattern):
 def dce(op: ModuleOp):
     """
     Removes operations annotated with the `Pure` trait, where results have no uses.
-    Modifies input module in-place
+    Modifies input module in-place.
     """
     walker = PatternRewriteWalker(
         RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
