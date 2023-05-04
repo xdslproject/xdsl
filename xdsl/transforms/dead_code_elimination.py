@@ -25,11 +25,19 @@ class RemoveUnusedOperations(RewritePattern):
         rewriter.erase_op(op)
 
 
+def dce(op: ModuleOp):
+    """
+    Removes operations annotated with the `Pure` trait, where results have no uses.
+    Modifies input module in-place
+    """
+    walker = PatternRewriteWalker(
+        RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
+    )
+    walker.rewrite_module(op)
+
+
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        walker = PatternRewriteWalker(
-            RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
-        )
-        walker.rewrite_module(op)
+        dce(op)
