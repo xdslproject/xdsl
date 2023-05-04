@@ -11,6 +11,4 @@ def test_simple():
         five = riscv.LiOp(5).rd
         riscv.AddOp(six, five).rd
 
-    riscv_code = riscv.riscv_code(module)
     print(module)
-    print(riscv_code)
