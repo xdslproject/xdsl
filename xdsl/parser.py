@@ -15,7 +15,7 @@ from io import StringIO
 from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, Sequence
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
+from xdsl.utils.lexer import Input, Lexer, Position, Span, StringLiteral, Token
 from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -96,7 +96,7 @@ class BacktrackingHistory:
     error: ParseError
     parent: BacktrackingHistory | None
     region_name: str | None
-    pos: int
+    pos: Position
 
     def print_unroll(self, file: IO[str] = sys.stderr):
         if self.parent:
@@ -114,7 +114,7 @@ class BacktrackingHistory:
         self.error.print_pretty(file=file)
 
     @functools.cache
-    def get_farthest_point(self) -> int:
+    def get_farthest_point(self) -> Position:
         """
         Find the farthest this history managed to parse
         """
@@ -131,7 +131,7 @@ class BacktrackingHistory:
         return id(self)
 
 
-save_t = int
+save_t = Position
 
 
 @dataclass
@@ -164,7 +164,7 @@ class Tokenizer:
 
     input: Input
 
-    pos: int = field(init=False, default=0)
+    pos: Position = field(init=False, default=0)
     """
     The position in the input. Points to the first unconsumed character.
     """
@@ -225,7 +225,7 @@ class Tokenizer:
         self.pos = save
 
     def _history_entry_from_exception(
-        self, ex: Exception, region: str | None, pos: int
+        self, ex: Exception, region: str | None, pos: Position
     ) -> BacktrackingHistory:
         """
         Given an exception generated inside a backtracking attempt,
@@ -331,7 +331,7 @@ class Tokenizer:
             raise ParseError(peeked_span, "This is not the peeked span!")
         self.pos = peeked_span.end
 
-    def _find_token_end(self, start: int | None = None) -> int:
+    def _find_token_end(self, start: Position | None = None) -> Position:
         """
         Find the point (optionally starting from start) where the token ends
         """
@@ -351,7 +351,7 @@ class Tokenizer:
         break_pos.append(self.input.len)
         return min(break_pos)
 
-    def next_pos(self, i: int | None = None) -> int:
+    def next_pos(self, i: Position | None = None) -> Position:
         """
         Find the next starting position (optionally starting from i)
 
@@ -501,7 +501,7 @@ class Parser(ABC):
         self.forward_block_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
 
-    def resume_from(self, pos: int):
+    def resume_from(self, pos: Position):
         """
         Resume parsing from a given position.
         """
@@ -1144,7 +1144,7 @@ class Parser(ABC):
             return ""
 
         start_pos = start_token.span.start
-        end_pos: int = start_pos
+        end_pos: Position = start_pos
 
         symbols_stack = [Token.Kind.LESS]
         parentheses = {
