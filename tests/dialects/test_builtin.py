@@ -27,7 +27,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
-    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32)
+    check1 = DenseIntOrFPElementsAttr.tensor_from_list([4, 5], f32, [])
 
     value1 = check1.data.data[0].value.data
     value2 = check1.data.data[1].value.data
@@ -41,7 +41,7 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     t1 = FloatAttr(4.0, f32)
     t2 = FloatAttr(5.0, f32)
 
-    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32)
+    check2 = DenseIntOrFPElementsAttr.tensor_from_list([t1, t2], f32, [])
 
     value3 = check2.data.data[0].value.data
     value4 = check2.data.data[1].value.data
