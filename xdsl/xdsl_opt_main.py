@@ -44,6 +44,7 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
 from xdsl.utils.exceptions import DiagnosticException
 
 from typing import IO, Dict, Callable, List, Sequence, Type
+from xdsl.riscv_asm_writer import print_riscv_module
 
 
 class xDSLOptMain:
@@ -271,7 +272,12 @@ class xDSLOptMain:
             printer.print_op(prog)
             print("\n", file=output)
 
+        def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
+            print_riscv_module(prog, output)
+            print("\n", file=output)
+
         self.available_targets["mlir"] = _output_mlir
+        self.available_targets["riscv-asm"] = _output_riscv_asm
 
     def setup_pipeline(self):
         """
