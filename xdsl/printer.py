@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
+from typing import (
+    Iterable,
+    Sequence,
+    TypeVar,
+    Any,
+    Dict,
+    Optional,
+    List,
+    cast,
+    Callable,
+)
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
@@ -10,7 +20,6 @@ from xdsl.ir import (
     TypeAttribute,
     SSAValue,
     Block,
-    Callable,
     Attribute,
     Region,
     Operation,

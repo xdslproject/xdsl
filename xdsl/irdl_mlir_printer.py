@@ -34,7 +34,8 @@ class IRDLPrinter:
         print(s, file=self.stream, end=end)
 
     def print_module(self, module: ModuleOp):
-        module.walk(lambda op: self.ensure_op_is_irdl_op(op))
+        for op in module.walk():
+            self.ensure_op_is_irdl_op(op)
         self._print("module {")
         module.walk(
             lambda di: IRDLPrinter.print_dialect_definition(self, di)

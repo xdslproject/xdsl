@@ -284,8 +284,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data)
         )
 
-        stores: list[StoreOp] = []
-        op.walk(lambda o: stores.append(o) if isinstance(o, StoreOp) else None)
+        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
 
         for store in stores:
             cast = store.field.owner
