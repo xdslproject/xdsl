@@ -143,11 +143,6 @@ class RegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
 
-@irdl_attr_definition
-class LabelAttr(Data[str]):
-    name = "riscv.label"
-
-
 class RISCVOp(Operation, ABC):
     pass
 

@@ -7,11 +7,8 @@ from xdsl.passes import ModulePass
 class RISCVRegisterAllocation(ModulePass):
     name = "riscv-allocate-registers"
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.idx: int = 0
-
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        idx: int = 0
         for operation in op.ops:
             # Don't perform register allocations on non-RISCV-ops
             if not isinstance(operation, RISCVOp):
@@ -20,5 +17,5 @@ class RISCVRegisterAllocation(ModulePass):
                 for result in operation.results:
                     assert isinstance(result.typ, RegisterType)
                     if result.typ.data.name is None:
-                        result.typ = RegisterType(Register(f"j{self.idx}"))
-                self.idx += 1
+                        result.typ = RegisterType(Register(f"j{idx}"))
+                idx += 1
