@@ -12,7 +12,17 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, Sequence
+from typing import (
+    Any,
+    NoReturn,
+    TypeVar,
+    Iterable,
+    IO,
+    cast,
+    Literal,
+    Sequence,
+    Callable,
+)
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Position, Span, StringLiteral, Token
@@ -59,7 +69,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     SSAValue,
     Block,
-    Callable,
     Attribute,
     Operation,
     Region,

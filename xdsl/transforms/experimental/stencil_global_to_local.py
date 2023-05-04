@@ -699,7 +699,9 @@ class MpiLoopInvariantCodeMotion:
             | mpi.UnwrapMemrefOp
             | mpi.Init
         ] = list()
-        op.walk(self.get_matcher(worklist))
+        matcher = self.get_matcher(worklist)
+        for o in op.walk():
+            matcher(o)
 
         # rewrite ops
         rewriter = Rewriter()

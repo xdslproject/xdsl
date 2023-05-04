@@ -757,17 +757,15 @@ class MpiAddExternalFuncDefs(RewritePattern):
         # collect all func calls to MPI functions
         funcs_to_emit: dict[str, tuple[list[Attribute], list[Attribute]]] = dict()
 
-        def walker(op: Operation):
+        for op in module.walk():
             if not isinstance(op, func.Call):
-                return
+                continue
             if op.callee.string_value() not in self.mpi_func_call_names:
-                return
+                continue
             funcs_to_emit[op.callee.string_value()] = (
                 [arg.typ for arg in op.arguments],
                 [res.typ for res in op.results],
             )
-
-        module.walk(walker)
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():

@@ -8,7 +8,6 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Iterable,
     Protocol,
@@ -767,13 +766,13 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """
         Call a function on all operations contained in the operation (including this one)
         """
-        fun(self)
+        yield self
         for region in self.regions:
-            region.walk(fun)
+            yield from region.walk()
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
@@ -1286,10 +1285,10 @@ class Block(IRNode):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterable[Operation]:
         """Call a function on all operations contained in the block."""
         for op in self.ops:
-            op.walk(fun)
+            yield from op.walk()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1550,10 +1549,10 @@ class Region(IRNode):
             dest.insert_block(new_block, insert_index)
             insert_index += 1
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
-            block.walk(fun)
+            yield from block.walk()
 
     def verify(self) -> None:
         for block in self.blocks:
