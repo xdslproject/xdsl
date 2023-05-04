@@ -2,23 +2,26 @@ from typing import Annotated
 
 from xdsl.dialects.riscv import RegisterType
 
+from xdsl.dialects.builtin import AnyIntegerAttr
+
 from xdsl.ir import Dialect
 
-from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand
+from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr
 
 
 @irdl_op_definition
-class SsrSetupBoundStride1d(IRDLOperation):
+class SsrSetupShape(IRDLOperation):
     """
-    Setup bound and stride for the first dimension handled by a
+    Setup the shape (bound and stride) for an arbitrary dimension handled by a
     specific data mover.
     """
 
-    name: str = "snitch.ssr_setup_bound_stride_1d"
+    name: str = "snitch.ssr_setup_shape"
 
     datamover: Annotated[Operand, RegisterType]
     bound: Annotated[Operand, RegisterType]
     stride: Annotated[Operand, RegisterType]
+    dimension: OpAttr[AnyIntegerAttr]
 
 
 @irdl_op_definition
@@ -43,8 +46,8 @@ class SsrRead(IRDLOperation):
     name: str = "snitch.ssr_read"
 
     datamover: Annotated[Operand, RegisterType]
-    dimension: Annotated[Operand, RegisterType]
     address: Annotated[Operand, RegisterType]
+    dimension: OpAttr[AnyIntegerAttr]
 
 
 @irdl_op_definition
@@ -57,8 +60,8 @@ class SsrWrite(IRDLOperation):
     name: str = "snitch.ssr_write"
 
     datamover: Annotated[Operand, RegisterType]
-    dimension: Annotated[Operand, RegisterType]
     address: Annotated[Operand, RegisterType]
+    dimension: OpAttr[AnyIntegerAttr]
 
 
 @irdl_op_definition
@@ -81,7 +84,7 @@ class SsrDisable(IRDLOperation):
 
 Snitch = Dialect(
     [
-        SsrSetupBoundStride1d,
+        SsrSetupShape,
         SsrSetupRepetition,
         SsrRead,
         SsrWrite,
