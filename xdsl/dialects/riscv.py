@@ -24,7 +24,11 @@ from xdsl.irdl import (
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    UnitAttr,
+    IntegerAttr,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -139,7 +143,11 @@ class RegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
 
-class RdRsRsOperation(IRDLOperation, ABC):
+class RISCVOp(Operation, ABC):
+    pass
+
+
+class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -169,7 +177,7 @@ class RdRsRsOperation(IRDLOperation, ABC):
         )
 
 
-class RdImmOperation(IRDLOperation, ABC):
+class RdImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -180,10 +188,12 @@ class RdImmOperation(IRDLOperation, ABC):
 
     def __init__(
         self,
-        immediate: AnyIntegerAttr,
+        immediate: int | AnyIntegerAttr,
         *,
         rd: RegisterType | Register | None = None,
     ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr.from_int_and_width(immediate, 32)
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
@@ -196,7 +206,7 @@ class RdImmOperation(IRDLOperation, ABC):
         )
 
 
-class RdRsImmOperation(IRDLOperation, ABC):
+class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -228,7 +238,7 @@ class RdRsImmOperation(IRDLOperation, ABC):
         )
 
 
-class RsRsOffOperation(IRDLOperation, ABC):
+class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -254,7 +264,7 @@ class RsRsOffOperation(IRDLOperation, ABC):
         )
 
 
-class RsRsImmOperation(IRDLOperation, ABC):
+class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -280,7 +290,7 @@ class RsRsImmOperation(IRDLOperation, ABC):
         )
 
 
-class NullaryOperation(IRDLOperation, ABC):
+class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
