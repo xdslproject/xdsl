@@ -1,12 +1,5 @@
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import (
-    Register,
-    RegisterType,
-    RdRsImmOperation,
-    RdRsRsOperation,
-    RdImmOperation,
-    NullaryOperation,
-)
+from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -18,16 +11,14 @@ from xdsl.pattern_rewriter import (
 
 
 class AllocateRegisters(RewritePattern):
-    idx: int
-
     def __init__(self) -> None:
         super().__init__()
-        self.idx = 0
+        self.idx: int = 0
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: NullaryOperation | RdRsImmOperation | RdRsRsOperation | RdImmOperation,
+        op: RISCVOp,
         rewriter: PatternRewriter,
     ):
         for result in op.results:
@@ -38,7 +29,7 @@ class AllocateRegisters(RewritePattern):
 
 
 class RISCVRegisterAllocation(ModulePass):
-    name = "riscv-regalloc"
+    name = "riscv-allocate-registers"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(

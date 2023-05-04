@@ -148,11 +148,11 @@ class LabelAttr(Data[str]):
     name = "riscv.label"
 
 
-class _RISCVOp(Operation, ABC):
+class RISCVOp(Operation, ABC):
     pass
 
 
-class RdRsRsOperation(IRDLOperation, _RISCVOp, ABC):
+class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -182,7 +182,7 @@ class RdRsRsOperation(IRDLOperation, _RISCVOp, ABC):
         )
 
 
-class RdImmOperation(IRDLOperation, _RISCVOp, ABC):
+class RdImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -211,7 +211,7 @@ class RdImmOperation(IRDLOperation, _RISCVOp, ABC):
         )
 
 
-class RdRsImmOperation(IRDLOperation, _RISCVOp, ABC):
+class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -243,7 +243,7 @@ class RdRsImmOperation(IRDLOperation, _RISCVOp, ABC):
         )
 
 
-class RsRsOffOperation(IRDLOperation, _RISCVOp, ABC):
+class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -269,7 +269,7 @@ class RsRsOffOperation(IRDLOperation, _RISCVOp, ABC):
         )
 
 
-class RsRsImmOperation(IRDLOperation, _RISCVOp, ABC):
+class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -295,7 +295,7 @@ class RsRsImmOperation(IRDLOperation, _RISCVOp, ABC):
         )
 
 
-class NullaryOperation(IRDLOperation, _RISCVOp, ABC):
+class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
