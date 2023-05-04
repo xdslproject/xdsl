@@ -414,7 +414,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
-                    MpiLoopInvariantCodeMotion(),
                 ]
             )
         ).rewrite_module(op)
+        MpiLoopInvariantCodeMotion().rewrite_module(op)

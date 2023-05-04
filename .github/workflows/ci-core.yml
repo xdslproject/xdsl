@@ -44,3 +44,4 @@ jobs:
       run: |
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/
+        lit -v docs/Toy/examples/
