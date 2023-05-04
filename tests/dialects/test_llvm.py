@@ -88,7 +88,7 @@ def test_llvm_getelementptr_op_invalid_construction():
         llvm.GEPOp.get(
             ptr,
             indices=[1],
-            result_type=builtin.i32,  # type: ignore
+            result_type=builtin.i32,  # type: ignore[reportGeneralTypeIssues]
         )
 
 
