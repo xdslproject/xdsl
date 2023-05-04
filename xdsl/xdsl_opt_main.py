@@ -4,6 +4,7 @@ import os
 
 from io import StringIO
 from xdsl.dialects.riscv import RISCV
+from xdsl.dialects.snitch import Snitch
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -223,6 +224,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Symref)
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
+        self.ctx.register_dialect(Snitch)
 
     def register_all_frontends(self):
         """
