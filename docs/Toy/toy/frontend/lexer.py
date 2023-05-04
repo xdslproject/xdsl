@@ -99,6 +99,13 @@ def tokenize(file: Path, program: str | None = None):
                 text += char
                 continue
 
+            if char == ".":
+                # parse floating point
+                if not text or (text[0].isnumeric() and "." not in text):
+                    # allow `.5` and `5.5` but not `5.5.5`
+                    text += char
+                    continue
+
             flush()
 
             if char == " ":
