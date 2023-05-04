@@ -65,6 +65,10 @@ class ConstantOp(IRDLOperation):
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
         return ConstantOp(value)
 
+    @staticmethod
+    def from_value(value: float) -> ConstantOp:
+        return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
+
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:
             raise VerifyException(
