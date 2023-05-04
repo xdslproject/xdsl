@@ -20,10 +20,13 @@ found in `xdsl/dialects` (arith, builtin, cf, func, llvm, memref, and scf), run:
 ./xdsl/tools/xdsl-opt -t mlir -o tmp.mlir `input.xdsl`
 # For example: ./xdsl/tools/xdsl-opt -t mlir -o tmp.mlir tests/filecheck/scf_ops.xdsl
 
-mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm --convert-arith-to-llvm --convert-memref-to-llvm --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
+mlir-opt --convert-scf-to-cf --convert-cf-to-llvm --convert-func-to-llvm \
+         --convert-arith-to-llvm --expand-strided-metadata --normalize-memrefs \
+         --memref-expand --fold-memref-alias-ops --finalize-memref-to-llvm \
+         --reconcile-unrealized-casts tmp.mlir | mlir-translate --mlir-to-llvmir > tmp.ll
 ```
 
 The generated `tmp.ll` file contains LLVM IR, so it can be directly passed to
 the clang compiler. Notice that a `main` function is required for clang to
 build. The functionality is tested with the MLIR git commit hash:
-89996621de073e43de7bed552037b10d2a0fdf80
+04fc02e583b06b846315904a55af9c273c8b20b9
