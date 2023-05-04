@@ -227,17 +227,17 @@ class GEPOp(IRDLOperation):
     llvm.getelementptr is an instruction to do pointer arithmetic by
     adding/subtracting offsets from a pointer.
 
-    The llvm.getelementptr is documented online in various places online:
+    The llvm.getelementptr is documented in various places online:
 
     LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
     A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
     MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
 
     Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
-    Their semantics are the same, but the structure used by MLIR is not well
-    documented (yet) and their syntax is a bit different.
+    The semantics are the same, but the structure used by MLIR is not well
+    documented (yet) and the syntax is a bit different.
 
-    This text will mainly focus on MLIRs GEP operation here, with the syntax being
+    This text will mainly focus on MLIRs GEP operation here:
 
     %res = llvm.getelementptr %ptr  [1, 2, %val]
                               ^^^^   ^^^^^^^^^^
@@ -271,7 +271,7 @@ class GEPOp(IRDLOperation):
                 llvm.ptr<i32>
 
     [1,0]    -> The first member of the *second* struct pointed to by ptr
-                (can result in oob access if the ptr only points to a single struct)
+                (can result in out-of-bounds access if the ptr only points to a single struct)
                 llvm.ptr<i32>
 
     [0,2]    -> The third member of the first struct.
