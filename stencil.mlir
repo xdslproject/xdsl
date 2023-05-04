@@ -26,22 +26,22 @@
       %4 = "arith.constant"() {"value" = 1 : i64} : () -> i64
       %5 = "arith.addi"(%time_1, %4) : (i64, i64) -> i64
       %t1 = "arith.remsi"(%5, %1) : (i64, i64) -> i64
+      %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
       %t0_w_size = "arith.index_cast"(%t0) : (i64) -> index
       %t0_w_size_1 = "memref.load"(%data, %t0_w_size) : (memref<2xmemref<?x?xf32>>, index) -> memref<?x?xf32>
-      %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64], f32>
-      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<[-2 : i64, -2 : i64]>, "ub" = #stencil.index<[2002 : i64, 2002 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64], f32>) -> !stencil.field<[2000 : i64, 2000 : i64], f32>
-      %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?xf32>>, index) -> memref<?x?xf32>
+      %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64], f32>
       %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64], f32>
-      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<[-2 : i64, -2 : i64]>, "ub" = #stencil.index<[2002 : i64, 2002 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64], f32>) -> !stencil.field<[2000 : i64, 2000 : i64], f32>
+      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<[-2 : i64, -2 : i64]>, "ub" = #stencil.index<[2002 : i64, 2002 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64], f32>) -> !stencil.field<[2004 : i64, 2004 : i64], f32>
+      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<[-2 : i64, -2 : i64]>, "ub" = #stencil.index<[2002 : i64, 2002 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64], f32>) -> !stencil.field<[2004 : i64, 2004 : i64], f32>
       %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<[2000 : i64, 2000 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64], f32>
       %7 = "stencil.apply"(%6) ({
-      ^2(%t0_buff : !stencil.temp<[-1 : i64], f32>):
-        %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %9 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[-1 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %10 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[1 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %11 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, -1 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %12 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, 1 : i64]>} : (!stencil.temp<[-1 : i64], f32>) -> f32
+      ^2(%t0_buff : !stencil.temp<[-1 : i64, -1 : i64], f32>):
+        %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64], f32>) -> f32
+        %9 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[-1 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64], f32>) -> f32
+        %10 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[1 : i64, 0 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64], f32>) -> f32
+        %11 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, -1 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64], f32>) -> f32
+        %12 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<[0 : i64, 1 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64], f32>) -> f32
         %13 = "arith.constant"() {"value" = 0.01 : f32} : () -> f32
         %dt = "arith.constant"() {"value" = 5.005003752501563e-07 : f32} : () -> f32
         %14 = "arith.constant"() {"value" = -1 : i64} : () -> i64
