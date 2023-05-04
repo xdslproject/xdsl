@@ -12,9 +12,9 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
     UnitAttr,
-SymbolRefAttr,
+    SymbolRefAttr,
     i32,
-    i64
+    i64,
 )
 from xdsl.ir import (
     Block,
@@ -25,7 +25,7 @@ from xdsl.ir import (
     OpResult,
     Operation,
     SSAValue,
-Region,
+    Region,
 )
 from xdsl.irdl import (
     OpAttr,
@@ -331,6 +331,7 @@ class GEPOp(IRDLOperation):
     Here the necessary dereferencing is very visible, as %elm0_3_addr is only
     accessible through an `llvm.load` on %elm0_addr.
     """
+
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
@@ -426,7 +427,6 @@ class GEPOp(IRDLOperation):
             inbounds=inbounds,
             pointee_type=pointee_type,
         )
-
 
 
 @irdl_op_definition
@@ -700,5 +700,10 @@ LLVM = Dialect(
         LoadOp,
         StoreOp,
     ],
-    [LLVMStructType, LLVMPointerType, LLVMArrayType, LinkageAttr,]
+    [
+        LLVMStructType,
+        LLVMPointerType,
+        LLVMArrayType,
+        LinkageAttr,
+    ],
 )

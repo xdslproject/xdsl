@@ -6,7 +6,6 @@ from xdsl.utils.exceptions import VerifyException
 
 def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
-
         [
             idx := arith.Constant.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp.get(idx, builtin.i32),
