@@ -699,6 +699,8 @@ LLVM = Dialect(
         NullOp,
         LoadOp,
         StoreOp,
+        GlobalOp,
+        AddressOfOp,
     ],
     [
         LLVMStructType,
