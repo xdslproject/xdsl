@@ -324,7 +324,7 @@ class IndexOp(IRDLOperation):
     """
 
     name: str = "stencil.index"
-    dim: OpAttr[IntegerAttr]
+    dim: OpAttr[AnyIntegerAttr]
     offset: OpAttr[IndexAttr]
     idx: Annotated[OpResult, builtin.IndexType]
 
@@ -481,7 +481,7 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
-        result_type,
+        result_type: AnyFloat,
         result_rank: int,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,

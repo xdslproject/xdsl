@@ -1,7 +1,7 @@
 import pytest
 from xdsl.dialects.builtin import FloatAttr, f32
-from xdsl.dialects.experimental.stencil import ReturnOp, ResultType, ApplyOp
-
+from xdsl.dialects.experimental.stencil import ReturnOp, ResultType, ApplyOp, TempType
+from xdsl.ir import Block
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -46,24 +46,24 @@ def test_stencil_return_multiple_ResultType():
 def test_stencil_apply():
     result_type_val1 = TestSSAValue(ResultType.from_type(f32))
 
-    apply_op = ApplyOp.get([result_type_val1], [], f32, 2)
+    apply_op = ApplyOp.get([result_type_val1], Block([]), f32, 2)
 
     assert len(apply_op.args) == 1
     assert len(apply_op.res) == 1
-    assert apply_op.res[0].typ.element_type == f32
+    assert isinstance(apply_op.res[0].typ, TempType)
     assert len(apply_op.res[0].typ.shape) == 2
 
 
 def test_stencil_apply_no_args():
-    apply_op = ApplyOp.get([], [], f32, 1, result_count=2)
+    apply_op = ApplyOp.get([], Block([]), f32, 1, result_count=2)
 
     assert len(apply_op.args) == 0
     assert len(apply_op.res) == 2
-    assert apply_op.res[0].typ.element_type == f32
+    assert isinstance(apply_op.res[0].typ, TempType)
     assert len(apply_op.res[0].typ.shape) == 1
 
 
 def test_stencil_apply_no_results():
     # Should error if there are no results expected
     with pytest.raises(AssertionError):
-        apply_op = ApplyOp.get([], [], f32, 0)
+        ApplyOp.get([], Block([]), f32, 0)
