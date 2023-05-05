@@ -239,6 +239,9 @@ class IndexAttr(ParametrizedAttribute):
     def as_tuple(self) -> tuple[int, ...]:
         return tuple(e.value.data for e in self.array.data)
 
+    def __len__(self):
+        return len(self.array)
+
 
 @dataclass(frozen=True)
 class LoopAttr(ParametrizedAttribute):
@@ -274,6 +277,53 @@ class CastOp(IRDLOperation):
             attributes={"lb": lb, "ub": ub},
             result_types=[res_type],
         )
+
+    def verify_(self) -> None:
+        # this should be fine, verify() already checks them:
+        assert isa(self.field.typ, FieldType[Attribute])
+        assert isa(self.result.typ, FieldType[Attribute])
+
+        if self.field.typ.element_type != self.result.typ.element_type:
+            raise VerifyException(
+                "Input and output fields have different element types!"
+            )
+
+        if not len(self.lb) == len(self.ub):
+            raise VerifyException("lb and ub must have the same dimensions!")
+
+        if not len(self.field.typ.shape) == len(self.lb):
+            raise VerifyException(
+                "Input type has different dimensionality than bounds!"
+            )
+
+        if not len(self.result.typ.shape) == len(self.ub):
+            raise VerifyException(
+                "Result type has different dimensionality than bounds!"
+            )
+
+        for i, (in_attr, lb, ub, out_attr) in enumerate(
+            zip(
+                self.field.typ.shape,
+                self.lb.as_tuple(),
+                self.ub.as_tuple(),
+                self.result.typ.shape,
+            )
+        ):
+            in_: int = in_attr.value.data
+            out: int = out_attr.value.data
+
+            if ub - lb != out:
+                raise VerifyException(
+                    "Bound math doesn't check out in dimensions {}! {} - {} != {}".format(
+                        i, ub, lb, out
+                    )
+                )
+
+            if in_ != -1 and in_ != out:
+                # TODO: find out if this is too strict
+                raise VerifyException(
+                    "If input shape is known, it must match return shape!"
+                )
 
 
 # Operations
@@ -415,6 +465,11 @@ class LoadOp(IRDLOperation):
             ],
         )
 
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, StoreOp):
+                raise VerifyException("Cannot Load and Store the same field!")
+
 
 @irdl_op_definition
 class BufferOp(IRDLOperation):
@@ -455,6 +510,11 @@ class StoreOp(IRDLOperation):
         ub: IndexAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"lb": lb, "ub": ub})
+
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, LoadOp):
+                raise VerifyException("Cannot Load and Store the same field!")
 
 
 from typing import TypeVar, Generic
