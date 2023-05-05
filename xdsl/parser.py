@@ -600,6 +600,11 @@ class Parser(ABC):
         if self._current_token.span.start > self.tokenizer.pos:
             self.tokenizer.pos = self._current_token.span.start
 
+    @property
+    def pos(self) -> Position:
+        """Get the position of the next token."""
+        return self._current_token.span.start
+
     def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
         """
         Advance the lexer to the next token.
