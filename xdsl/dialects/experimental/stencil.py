@@ -303,7 +303,7 @@ class IndexOp(IRDLOperation):
     """
 
     name: str = "stencil.index"
-    dim: OpAttr[IntegerType]
+    dim: OpAttr[AnyIntegerAttr]
     offset: OpAttr[IndexAttr]
     idx: Annotated[OpResult, builtin.IndexType]
 
@@ -446,6 +446,9 @@ class StoreOp(IRDLOperation):
                 raise VerifyException("Cannot Load and Store the same field!")
 
 
+from typing import TypeVar, Generic
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -470,16 +473,11 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
+        result_types: Sequence[TempType[_FieldTypeElement]],
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
-        result_count: int = 1,
     ):
-        assert len(args) > 0
-        field_t = SSAValue.get(args[0]).typ
-        assert isinstance(field_t, TempType)
-        field_t = cast(FieldType[Attribute], field_t)
-
-        result_rank = len(field_t.shape.data)
+        assert len(result_types) > 0
 
         attributes = {}
         if lb is not None:
@@ -491,12 +489,7 @@ class ApplyOp(IRDLOperation):
             operands=[list(args)],
             attributes=attributes,
             regions=[Region(body)],
-            result_types=[
-                [
-                    TempType.from_shape([-1] * result_rank, field_t.element_type)
-                    for _ in range(result_count)
-                ]
-            ],
+            result_types=[result_types],
         )
 
 

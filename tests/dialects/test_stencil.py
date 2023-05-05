@@ -1,15 +1,15 @@
 import pytest
 
-from xdsl.dialects.stencil import CastOp
-from xdsl.utils.exceptions import VerifyException
-from xdsl.dialects.builtin import FloatAttr, f32, f64
+from xdsl.dialects.builtin import FloatAttr, f32
+from xdsl.dialects.builtin import f64
 from xdsl.dialects.experimental.stencil import (
-    ReturnOp,
-    ResultType,
     FieldType,
     IndexAttr,
 )
-
+from xdsl.dialects.experimental.stencil import ReturnOp, ResultType, ApplyOp, TempType
+from xdsl.dialects.stencil import CastOp
+from xdsl.ir import Block
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -156,3 +156,31 @@ def test_cast_op_constructor():
     )
 
     assert cast.result.typ == FieldType.from_shape((102, 103, 4), f32)
+
+
+def test_stencil_apply():
+    result_type_val1 = TestSSAValue(ResultType.from_type(f32))
+
+    stencil_temptype = TempType.from_shape([-1] * 2, f32)
+    apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
+
+    assert len(apply_op.args) == 1
+    assert len(apply_op.res) == 1
+    assert isinstance(apply_op.res[0].typ, TempType)
+    assert len(apply_op.res[0].typ.shape) == 2
+
+
+def test_stencil_apply_no_args():
+    stencil_temptype = TempType.from_shape([-1] * 1, f32)
+    apply_op = ApplyOp.get([], Block([]), [stencil_temptype, stencil_temptype])
+
+    assert len(apply_op.args) == 0
+    assert len(apply_op.res) == 2
+    assert isinstance(apply_op.res[0].typ, TempType)
+    assert len(apply_op.res[0].typ.shape) == 1
+
+
+def test_stencil_apply_no_results():
+    # Should error if there are no results expected
+    with pytest.raises(AssertionError):
+        ApplyOp.get([], Block([]), [])
