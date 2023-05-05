@@ -40,6 +40,10 @@ just install [xDSL via pip](https://pypi.org/project/xdsl/):
 pip install xdsl
 ```
 
+*Note:* This version of xDSL is validated against a specific MLIR version,
+interoperability with other versions may result in problems. The supported
+MLIR version is commit `04fc02e583b06b846315904a55af9c273c8b20b9`.
+
 ## Getting Started
 
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
