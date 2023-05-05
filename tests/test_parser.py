@@ -195,9 +195,7 @@ def test_parse_comma_separated_list(
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
     parser = Parser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == [2, 4, 5]
 
 
@@ -215,9 +213,7 @@ def test_parse_comma_separated_list_empty(
 ):
     input = open_bracket + close_bracket
     parser = Parser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == []
 
 
@@ -225,7 +221,7 @@ def test_parse_comma_separated_list_none_delimiter_empty():
     parser = Parser(MLContext(), "o")
     with pytest.raises(ParseError):
         parser.parse_comma_separated_list(
-            Parser.Delimiter.NONE, parser.parse_int_literal, " in test"
+            Parser.Delimiter.NONE, parser.parse_integer, " in test"
         )
 
 
@@ -244,11 +240,9 @@ def test_parse_comma_separated_list_error_element(
     input = open_bracket + "o" + close_bracket
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "o"
-    assert e.value.msg == "Expected integer literal here"
+    assert e.value.msg == "Expected integer literal"
 
 
 @pytest.mark.parametrize(
@@ -266,9 +260,7 @@ def test_parse_comma_separated_list_error_delimiters(
     input = open_bracket + "2, 4 5"
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "5"
     assert e.value.msg == "Expected '" + close_bracket + "' in test"
 

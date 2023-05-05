@@ -116,7 +116,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(">", "End of llvm.ptr parameters expected!")
             return [type, NoneAttr()]
         parser.parse_characters(",", "llvm.ptr args must be separated by `,`")
-        addr_space = parser.parse_int_literal()
+        addr_space = parser.parse_integer()
         parser.parse_characters(">", "End of llvm.ptr parameters expected!")
         return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
@@ -151,7 +151,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters("<", "llvm.array parameters expected")
-        size = IntAttr(parser.parse_int_literal())
+        size = IntAttr(parser.parse_integer())
         if not parser.tokenizer.starts_with("x"):
             parser.parse_characters(">", "End of llvm.array type expected!")
             return [size, NoneAttr()]

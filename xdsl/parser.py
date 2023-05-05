@@ -600,6 +600,11 @@ class Parser(ABC):
         if self._current_token.span.start > self.tokenizer.pos:
             self.tokenizer.pos = self._current_token.span.start
 
+    @property
+    def pos(self) -> Position:
+        """Get the position of the next token."""
+        return self._current_token.span.start
+
     def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
         """
         Advance the lexer to the next token.
@@ -2369,13 +2374,6 @@ class Parser(ABC):
 
     def parse_op(self) -> Operation:
         return self.parse_operation()
-
-    def parse_int_literal(self) -> int:
-        return int(
-            self.expect(
-                self.try_parse_integer_literal, "Expected integer literal here"
-            ).text
-        )
 
     def parse_builtin_dict_attr(self) -> DictionaryAttr:
         """
