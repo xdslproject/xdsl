@@ -39,9 +39,7 @@ def test_build_anr():
 
 
 def test_build_rewrite():
-    r = pdl.RewriteOp(
-        StringAttr("r"), root=None, external_args=[type_val, attr_val], body=None
-    )
+    r = pdl.RewriteOp("r", root=None, external_args=[type_val, attr_val], body=None)
 
     assert r.attributes["name"] == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
@@ -50,7 +48,7 @@ def test_build_rewrite():
 
 def test_build_operation_replace():
     operation = pdl.OperationOp(
-        op_name=StringAttr("operation"),
+        op_name="operation",
         attribute_value_names=ArrayAttr([StringAttr("name")]),
         operand_values=[val_val],
         attribute_values=[attr_val],
