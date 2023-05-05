@@ -324,7 +324,7 @@ class IndexOp(IRDLOperation):
     """
 
     name: str = "stencil.index"
-    dim: OpAttr[IntegerType]
+    dim: OpAttr[IntegerAttr]
     offset: OpAttr[IndexAttr]
     idx: Annotated[OpResult, builtin.IndexType]
 
@@ -481,16 +481,13 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
+        result_type,
+        result_rank: int,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
         result_count: int = 1,
     ):
-        assert len(args) > 0
-        field_t = SSAValue.get(args[0]).typ
-        assert isinstance(field_t, TempType)
-        field_t = cast(FieldType[Attribute], field_t)
-
-        result_rank = len(field_t.shape.data)
+        assert result_rank > 0
 
         attributes = {}
         if lb is not None:
@@ -504,7 +501,7 @@ class ApplyOp(IRDLOperation):
             regions=[Region(body)],
             result_types=[
                 [
-                    TempType.from_shape([-1] * result_rank, field_t.element_type)
+                    TempType.from_shape([-1] * result_rank, result_type)
                     for _ in range(result_count)
                 ]
             ],

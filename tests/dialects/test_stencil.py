@@ -1,5 +1,6 @@
+import pytest
 from xdsl.dialects.builtin import FloatAttr, f32
-from xdsl.dialects.experimental.stencil import ReturnOp, ResultType
+from xdsl.dialects.experimental.stencil import ReturnOp, ResultType, ApplyOp
 
 from xdsl.utils.test_value import TestSSAValue
 
@@ -40,3 +41,29 @@ def test_stencil_return_multiple_ResultType():
     assert return_op.arg[0] is result_type_val1
     assert return_op.arg[1] is result_type_val2
     assert return_op.arg[2] is result_type_val3
+
+
+def test_stencil_apply():
+    result_type_val1 = TestSSAValue(ResultType.from_type(f32))
+
+    apply_op = ApplyOp.get([result_type_val1], [], f32, 2)
+
+    assert len(apply_op.args) == 1
+    assert len(apply_op.res) == 1
+    assert apply_op.res[0].typ.element_type == f32
+    assert len(apply_op.res[0].typ.shape) == 2
+
+
+def test_stencil_apply_no_args():
+    apply_op = ApplyOp.get([], [], f32, 1, result_count=2)
+
+    assert len(apply_op.args) == 0
+    assert len(apply_op.res) == 2
+    assert apply_op.res[0].typ.element_type == f32
+    assert len(apply_op.res[0].typ.shape) == 1
+
+
+def test_stencil_apply_no_results():
+    # Should error if there are no results expected
+    with pytest.raises(AssertionError):
+        apply_op = ApplyOp.get([], [], f32, 0)
