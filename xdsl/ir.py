@@ -358,11 +358,6 @@ class Attribute(ABC):
     name: str = field(default="", init=False)
     """The attribute name should be a static field in the attribute classes."""
 
-    @classmethod
-    def build(cls: type[A], *args: Any) -> A:
-        """Create a new attribute using one of the builder defined in IRDL."""
-        assert False
-
     def __post_init__(self):
         self._verify()
 
