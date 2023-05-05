@@ -55,20 +55,18 @@ class CastOp(IRDLOperation):
 
         if self.field.typ.element_type != self.result.typ.element_type:
             raise VerifyException(
-                "Input and output fields have different element types!"
+                "Input and output fields have different element types"
             )
 
         if not len(self.lb) == len(self.ub):
-            raise VerifyException("lb and ub must have the same dimensions!")
+            raise VerifyException("lb and ub must have the same dimensions")
 
         if not len(self.field.typ.shape) == len(self.lb):
-            raise VerifyException(
-                "Input type has different dimensionality than bounds!"
-            )
+            raise VerifyException("Input type and bounds must have the same dimensions")
 
         if not len(self.result.typ.shape) == len(self.ub):
             raise VerifyException(
-                "Result type has different dimensionality than bounds!"
+                "Result type and bounds must have the same dimensions"
             )
 
         for i, (in_attr, lb, ub, out_attr) in enumerate(
@@ -91,7 +89,7 @@ class CastOp(IRDLOperation):
 
             if in_ != -1:
                 # TODO: find out if this is too strict
-                raise VerifyException("Input must be dynamically shaped!")
+                raise VerifyException("Input must be dynamically shaped")
 
 
 Stencil = Dialect([CastOp], [])

@@ -64,7 +64,7 @@ def test_stencil_cast_op_verifier():
     cast.verify()
 
     # check that math is correct
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex1:
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -72,9 +72,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((100, 100, 100), f32),
         )
         cast.verify()
+    assert "math" in ex1.value.args[0]
 
     # check that output has same dims as input and lb, ub
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex2:
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -82,9 +83,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102), f32),
         )
         cast.verify()
+    assert "same dimensions" in ex2.value.args[0]
 
     # check that input has same shape as lb, ub, output
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex3:
         dyn_field_wrong_shape = TestSSAValue(FieldType.from_shape((-1, -1), f32))
         cast = CastOp.get(
             dyn_field_wrong_shape,
@@ -93,9 +95,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102, 102), f32),
         )
         cast.verify()
+    assert "same dimensions" in ex3.value.args[0]
 
     # check that input and output have same element type
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex4:
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -103,9 +106,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102, 102), f64),
         )
         cast.verify()
+    assert "element type" in ex4.value.args[0]
 
     # check that len(lb) == len(ub)
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex5:
         cast = CastOp.get(
             field,
             IndexAttr.get(
@@ -116,9 +120,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102, 102), f32),
         )
         cast.verify()
+    assert "same dimensions" in ex5.value.args[0]
 
     # check that len(lb) == len(ub)
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex6:
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -126,9 +131,10 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102, 102), f32),
         )
         cast.verify()
+    assert "same dimensions" in ex6.value.args[0]
 
     # check that input must be dynamic
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException) as ex7:
         non_dyn_field = TestSSAValue(FieldType.from_shape((102, 102, 102), f32))
         cast = CastOp.get(
             non_dyn_field,
@@ -137,6 +143,7 @@ def test_stencil_cast_op_verifier():
             FieldType.from_shape((102, 102, 102), f32),
         )
         cast.verify()
+    assert "dynamic" in ex7.value.args[0]
 
 
 def test_cast_op_constructor():
