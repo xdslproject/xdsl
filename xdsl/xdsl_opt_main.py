@@ -24,9 +24,9 @@ from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
+from xdsl.dialects.stencil import Stencil
 
 from xdsl.dialects.experimental.stencil import StencilExp
-from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
