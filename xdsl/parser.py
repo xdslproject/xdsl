@@ -22,6 +22,7 @@ from typing import (
     Literal,
     Sequence,
     Callable,
+    overload,
 )
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
@@ -1495,15 +1496,43 @@ class Parser(ABC):
             self.raise_error(error_message)
         return res
 
-    def raise_error(self, msg: str, at_position: Span | None = None) -> NoReturn:
+    @overload
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Position,
+        end_position: Position,
+    ) -> NoReturn:
+        ...
+
+    @overload
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Position | Span | None = None,
+    ) -> NoReturn:
+        ...
+
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Span | Position | None = None,
+        end_position: Position | None = None,
+    ) -> NoReturn:
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
+        If no position is provided, the error will be displayed at the next token.
         This will, for example, include backtracking errors, if any occurred previously.
         """
         self._synchronize_lexer_and_tokenizer()
+        if end_position is not None:
+            assert isinstance(at_position, Position)
+            at_position = Span(at_position, end_position, self.lexer.input)
         if at_position is None:
-            at_position = self.tokenizer.next_token(peek=True)
+            at_position = self._current_token.span
+        elif isinstance(at_position, Position):
+            at_position = Span(at_position, at_position, self.lexer.input)
 
         raise ParseError(at_position, msg, self.tokenizer.history)
 
@@ -1535,7 +1564,7 @@ class Parser(ABC):
         op_name = self.try_parse_bare_id()
         if op_name is not None:
             op_type = self._get_op_by_name(op_name)
-            return op_type.parse(self)
+            op = op_type.parse(self)
         else:
             # Check for basic op format
             op_name = self.try_parse_string_literal()

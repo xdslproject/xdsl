@@ -34,8 +34,42 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
+    """
+    Parse a list of operands with types of the following format:
+    `operand1, operand2 : type1, type2`
+    At least one operand is expected.
+    """
+    pos = parser.pos
+    operands = parser.parse_comma_separated_list(
+        Parser.Delimiter.NONE, parser.parse_operand
+    )
+    parser.parse_punctuation(":")
+    types = parser.parse_comma_separated_list(
+        Parser.Delimiter.NONE, parser.parse_attribute
+    )
+    end_pos = parser.pos
+    if len(operands) != len(types):
+        parser.raise_error(
+            "Mismatched between the numbers of operands and types", pos, end_pos
+        )
+    for operand, type in zip(operands, types):
+        if operand.typ != type:
+            raise Exception("Mismatched between operands and their types", pos, end_pos)
+
+    return operands
+
+
+def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
+    printer.print_list(operands, printer.print)
+    printer.print(" : ")
+    printer.print_list([operand.typ for operand in operands], printer.print)
 
 
 @irdl_attr_definition
@@ -112,6 +146,20 @@ class ApplyNativeConstraintOp(IRDLOperation):
             name = StringAttr(name)
         super().__init__(operands=[args], attributes={"name": name})
 
+    @classmethod
+    def parse(cls, parser: Parser) -> ApplyNativeConstraintOp:
+        name = parser.parse_str_literal()
+        parser.parse_punctuation("(")
+        operands = parse_operands_with_types(parser)
+        parser.parse_punctuation(")")
+        return ApplyNativeConstraintOp(name, operands)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string_literal(self.constraint_name.data)
+        printer.print("(")
+        print_operands_with_types(printer, self.operands)
+        printer.print(")")
+
 
 @irdl_op_definition
 class ApplyNativeRewriteOp(IRDLOperation):
@@ -152,6 +200,29 @@ class ApplyNativeRewriteOp(IRDLOperation):
             attributes={"name": name},
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> ApplyNativeRewriteOp:
+        name = parser.parse_str_literal()
+        parser.parse_punctuation("(")
+        operands = parse_operands_with_types(parser)
+        parser.parse_punctuation(")")
+        result_types = []
+        if parser.parse_optional_punctuation(":") is not None:
+            result_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_attribute
+            )
+        return ApplyNativeRewriteOp(name, operands, result_types)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print_string_literal(self.constraint_name.data)
+        printer.print("(")
+        print_operands_with_types(printer, self.operands)
+        printer.print(")")
+        if len(self.results) != 0:
+            printer.print(" : ")
+            printer.print_list(self.results, printer.print)
+
 
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
@@ -187,6 +258,22 @@ class AttributeOp(IRDLOperation):
             operands=operands, attributes=attributes, result_types=[AttributeType()]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> AttributeOp:
+        value: Operand | Attribute | None = None
+        if parser.parse_optional_punctuation(":"):
+            value = parser.parse_operand()
+        elif parser.parse_optional_punctuation("="):
+            value = parser.parse_attribute()
+
+        return AttributeOp(value)
+
+    def print(self, printer: Printer) -> None:
+        if self.value is not None:
+            printer.print(" = ", self.value)
+        elif self.value_type is not None:
+            printer.print(" : ", self.value_type)
+
 
 @irdl_op_definition
 class EraseOp(IRDLOperation):
@@ -199,6 +286,14 @@ class EraseOp(IRDLOperation):
 
     def __init__(self, op_value: SSAValue) -> None:
         super().__init__(operands=[op_value])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> EraseOp:
+        op_value = parser.parse_operand()
+        return EraseOp(op_value)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.op_value)
 
 
 @irdl_op_definition
@@ -214,6 +309,18 @@ class OperandOp(IRDLOperation):
     def __init__(self, value_type: SSAValue | None = None) -> None:
         super().__init__(operands=[value_type], result_types=[ValueType()])
 
+    @classmethod
+    def parse(cls, parser: Parser) -> OperandOp:
+        value = None
+        if parser.parse_optional_punctuation(":") is not None:
+            value = parser.parse_operand()
+
+        return OperandOp(value)
+
+    def print(self, printer: Printer) -> None:
+        if self.value_type is not None:
+            printer.print(" : ", self.value_type)
+
 
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
@@ -227,6 +334,18 @@ class OperandsOp(IRDLOperation):
 
     def __init__(self, value_type: SSAValue | None) -> None:
         super().__init__(operands=[value_type], result_types=[RangeType(ValueType())])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> OperandsOp:
+        value_type = None
+        if parser.parse_optional_punctuation(":") is not None:
+            value_type = parser.parse_operand()
+
+        return OperandsOp(value_type)
+
+    def print(self, printer: Printer) -> None:
+        if self.value_type is not None:
+            printer.print(" : ", self.value_type)
 
 
 @irdl_op_definition
@@ -249,15 +368,18 @@ class OperationOp(IRDLOperation):
     def __init__(
         self,
         op_name: str | StringAttr | None,
-        attribute_value_names: ArrayAttr[StringAttr] | None = None,
+        attribute_value_names: Iterable[StringAttr] | None = None,
         operand_values: Sequence[SSAValue] | None = None,
         attribute_values: Sequence[SSAValue] | None = None,
         type_values: Sequence[SSAValue] | None = None,
     ):
         if isinstance(op_name, str):
             op_name = StringAttr(op_name)
+        if attribute_value_names is not None:
+            attribute_value_names = ArrayAttr(attribute_value_names)
         if attribute_value_names is None:
             attribute_value_names = ArrayAttr([])
+
         if operand_values is None:
             operand_values = []
         if attribute_values is None:
@@ -273,6 +395,64 @@ class OperationOp(IRDLOperation):
                 "opName": op_name,
             },
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> OperationOp:
+        name = parser.try_parse_string_literal()
+        if name is not None:
+            name = name.string_contents
+        operands = []
+        if parser.parse_optional_punctuation("(") is not None:
+            operands = parse_operands_with_types(parser)
+            parser.parse_punctuation(")")
+
+        def parse_pattribute_entry() -> tuple[str, SSAValue]:
+            name = parser.parse_str_literal()
+            parser.parse_punctuation("=")
+            type = parser.parse_operand()
+            return (name, type)
+
+        attributes = []
+        if parser.parse_optional_punctuation("{"):
+            attributes = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parse_pattribute_entry
+            )
+            parser.parse_punctuation("}")
+        attribute_names = [StringAttr(attr[0]) for attr in attributes]
+        attribute_values = [attr[1] for attr in attributes]
+
+        results = []
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            results = parse_operands_with_types(parser)
+            parser.parse_punctuation(")")
+
+        return OperationOp(name, attribute_names, operands, attribute_values, results)
+
+    def print(self, printer: Printer) -> None:
+        if self.opName is not None:
+            printer.print(" ", self.opName)
+
+        if len(self.operand_values) != 0:
+            printer.print(" (")
+            print_operands_with_types(printer, self.operand_values)
+            printer.print(")")
+
+        def print_attribute_entry(entry: tuple[StringAttr, SSAValue]):
+            printer.print(entry[0], " = ", entry[1])
+
+        if len(self.attributeValueNames) != 0:
+            printer.print(" {")
+            printer.print_list(
+                zip(self.attributeValueNames, self.attribute_values),
+                print_attribute_entry,
+            )
+            printer.print("}")
+
+        if len(self.type_values) != 0:
+            printer.print(" -> (")
+            print_operands_with_types(printer, self.type_values)
+            printer.print(")")
 
 
 @irdl_op_definition
@@ -307,6 +487,24 @@ class PatternOp(IRDLOperation):
             result_types=[],
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> PatternOp:
+        name = parser.try_parse_single_reference()
+        if name is not None:
+            name = name.text
+        parser.parse_punctuation(":")
+        parser.parse_keyword("benefit")
+        parser.parse_punctuation("(")
+        benefit = parser.parse_integer()
+        parser.parse_punctuation(")")
+        body = parser.parse_region()
+        return PatternOp(benefit, name, body)
+
+    def print(self, printer: Printer) -> None:
+        if self.sym_name is not None:
+            printer.print(" @", self.sym_name.data)
+        printer.print(" : benefit(", self.benefit.value.data, ") ", self.body)
+
 
 @irdl_op_definition
 class RangeOp(IRDLOperation):
@@ -339,7 +537,7 @@ class RangeOp(IRDLOperation):
     def __init__(
         self,
         arguments: Sequence[SSAValue],
-        result_type: RangeType[AnyPDLType] | None = None,
+        result_type: Attribute | None = None,
     ) -> None:
         if result_type is None:
             if len(arguments) == 0:
@@ -355,6 +553,21 @@ class RangeOp(IRDLOperation):
                 )
 
         super().__init__(operands=arguments, result_types=[result_type])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> RangeOp:
+        if parser.parse_optional_punctuation(":") is not None:
+            return RangeOp([], parser.parse_attribute())
+
+        arguments = parse_operands_with_types(parser)
+        return RangeOp(arguments)
+
+    def print(self, printer: Printer) -> None:
+        if len(self.arguments) == 0:
+            printer.print(" : ", self.result.typ)
+            return
+
+        print_operands_with_types(printer, self.arguments)
 
 
 @irdl_op_definition
@@ -409,6 +622,27 @@ class ReplaceOp(IRDLOperation):
                 "`ReplaceOp`, both are set"
             )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> ReplaceOp:
+        root = parser.parse_operand()
+        parser.parse_keyword("with")
+        if (repl_op := parser.parse_optional_operand()) is not None:
+            return ReplaceOp(root, repl_op)
+
+        parser.parse_punctuation("(")
+        repl_values = parse_operands_with_types(parser)
+        parser.parse_punctuation(")")
+        return ReplaceOp(root, repl_values=repl_values)
+
+    def printer(self, printer: Printer) -> None:
+        printer.print(self.op_value, " with ")
+        if self.repl_operation is not None:
+            printer.print(self.repl_operation)
+            return
+        printer.print("(")
+        print_operands_with_types(printer, self.repl_values)
+        printer.print(")")
+
 
 @irdl_op_definition
 class ResultOp(IRDLOperation):
@@ -428,6 +662,16 @@ class ResultOp(IRDLOperation):
             operands=[parent], attributes={"index": index}, result_types=[ValueType()]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> ResultOp:
+        index = parser.parse_integer()
+        parser.parse_keyword("of")
+        parent = parser.parse_operand()
+        return ResultOp(index, parent)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.index.value.data, " of ", self.parent_)
+
 
 @irdl_op_definition
 class ResultsOp(IRDLOperation):
@@ -436,20 +680,40 @@ class ResultsOp(IRDLOperation):
     """
 
     name: str = "pdl.results"
-    index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    index: OptOpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
-    val: Annotated[OpResult, ValueType | ArrayAttr[ValueType]]
+    val: Annotated[OpResult, ValueType | RangeType[ValueType]]
 
     def __init__(
         self,
-        index: int | IntegerAttr[IntegerType],
         parent: SSAValue,
-        result_type: ValueType | ArrayAttr[ValueType],
+        result_type: Attribute = RangeType(ValueType()),
+        index: int | IntegerAttr[IntegerType] | None = None,
     ) -> None:
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
         super().__init__(
             operands=[parent], result_types=[result_type], attributes={"index": index}
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ResultsOp:
+        if parser.parse_optional_keyword("of") is not None:
+            parent = parser.parse_operand()
+            return ResultsOp(parent)
+        index = parser.parse_integer()
+        parser.parse_keyword("of")
+        parent = parser.parse_operand()
+        parser.parse_punctuation("->")
+        result_type = parser.parse_attribute()
+        return ResultsOp(parent, result_type, index)
+
+    def print(self, printer: Printer) -> None:
+        if self.index is None:
+            printer.print(" of ", self.parent_)
+            return
+        printer.print(
+            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.typ
         )
 
 
@@ -478,10 +742,10 @@ class RewriteOp(IRDLOperation):
 
     def __init__(
         self,
-        name: str | StringAttr | None,
         root: SSAValue | None,
-        external_args: Sequence[SSAValue],
-        body: Region | Block.BlockCallback | None,
+        body: Region | Block.BlockCallback | None = None,
+        name: str | StringAttr | None = None,
+        external_args: Sequence[SSAValue] = (),
     ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
@@ -512,6 +776,36 @@ class RewriteOp(IRDLOperation):
             regions=regions,
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> RewriteOp:
+        root = parser.parse_optional_operand()
+
+        if parser.parse_optional_keyword("with") is None:
+            body = parser.parse_region()
+            return RewriteOp(root, body)
+
+        name = parser.parse_str_literal()
+        external_args = []
+        if parser.parse_optional_punctuation("(") is not None:
+            external_args = parse_operands_with_types(parser)
+            parser.parse_punctuation(")")
+
+        return RewriteOp(root, None, name, external_args)
+
+    def print(self, printer: Printer) -> None:
+        if self.root is not None:
+            printer.print(" ", self.root)
+
+        if self.body is not None:
+            printer.print(" ", self.body)
+            return
+
+        printer.print(" with ", self.name)
+        if len(self.external_args) != 0:
+            printer.print("(")
+            print_operands_with_types(printer, self.external_args)
+            printer.print(")")
+
 
 @irdl_op_definition
 class TypeOp(IRDLOperation):
@@ -523,10 +817,21 @@ class TypeOp(IRDLOperation):
     constantType: OptOpAttr[Attribute]
     result: Annotated[OpResult, TypeType]
 
-    def __init__(self, constant_type: TypeType | None = None) -> None:
+    def __init__(self, constant_type: Attribute | None = None) -> None:
         super().__init__(
             attributes={"constantType": constant_type}, result_types=[TypeType()]
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TypeOp:
+        if parser.parse_optional_punctuation(":") is None:
+            return TypeOp()
+        constant_type = parser.parse_attribute()
+        return TypeOp(constant_type)
+
+    def print(self, printer: Printer) -> None:
+        if self.constantType is not None:
+            printer.print(" : ", self.constantType)
 
 
 @irdl_op_definition
@@ -539,11 +844,25 @@ class TypesOp(IRDLOperation):
     constantTypes: OptOpAttr[AnyArrayAttr]
     result: Annotated[OpResult, RangeType[TypeType]]
 
-    def __init__(self, constant_types: Iterable[TypeType] = ()) -> None:
+    def __init__(self, constant_types: Iterable[Attribute] = ()) -> None:
         super().__init__(
-            attributes={"constantType": ArrayAttr(constant_types)},
+            attributes={"constantTypes": ArrayAttr(constant_types)},
             result_types=[RangeType(TypeType())],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TypesOp:
+        if parser.parse_optional_punctuation(":") is None:
+            return TypesOp()
+        begin_attr_pos = parser.pos
+        constant_types = parser.parse_attribute()
+        if not isa(constant_types, AnyArrayAttr):
+            parser.raise_error("Array attribute expected", begin_attr_pos, parser.pos)
+        return TypesOp(constant_types)
+
+    def print(self, printer: Printer) -> None:
+        if self.constantTypes is not None:
+            printer.print(" : ", self.constantTypes)
 
 
 PDL = Dialect(

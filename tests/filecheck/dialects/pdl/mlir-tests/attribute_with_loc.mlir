@@ -1,20 +1,21 @@
 // RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"() ({
-  "pdl.pattern"() ({
-    %0 = "pdl.attribute"() : () -> !pdl.attribute
-    %1 = "pdl.operation"(%0) {attributeValueNames = ["attribute"], operand_segment_sizes = array<i32: 0, 1, 0>} : (!pdl.attribute) -> !pdl.operation
-    "pdl.rewrite"(%1) ({
-    }) {name = "rewriter", operand_segment_sizes = array<i32: 1, 0>} : (!pdl.operation) -> ()
-  }) {benefit = 1 : i16, sym_name = "attribute_with_loc"} : () -> ()
+  pdl.pattern @attribute_with_loc : benefit(1) {
+    %0 = pdl.attribute
+    %1 = pdl.operation {"attribute" = %0}
+    pdl.rewrite %1 {
+    }
+  }
 }) : () -> ()
 
 
-// CHECK:       "builtin.module"() ({
-// CHECK-NEXT:    "pdl.pattern"() ({
-// CHECK-NEXT:      %0 = "pdl.attribute"() : () -> !pdl.attribute
-// CHECK-NEXT:      %1 = "pdl.operation"(%0) {"attributeValueNames" = ["attribute"], "operand_segment_sizes" = array<i32: 0, 1, 0>} : (!pdl.attribute) -> !pdl.operation
-// CHECK-NEXT:      "pdl.rewrite"(%1) ({
-// CHECK-NEXT:      }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
-// CHECK-NEXT:    }) {"benefit" = 1 : i16, "sym_name" = "attribute_with_loc"} : () -> ()
-// CHECK-NEXT:  }) : () -> ()
+
+// CHECK:      "builtin.module"() ({
+// CHECK-NEXT:   pdl.pattern @attribute_with_loc : benefit(1) {
+// CHECK-NEXT:     %0 = pdl.attribute
+// CHECK-NEXT:     %1 = pdl.operation {"attribute" = %0}
+// CHECK-NEXT:     pdl.rewrite %1 {
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }) : () -> ()

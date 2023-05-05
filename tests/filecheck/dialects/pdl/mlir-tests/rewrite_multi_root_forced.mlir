@@ -1,35 +1,34 @@
 // RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
 
 "builtin.module"() ({
-  "pdl.pattern"() ({
-    %0 = "pdl.operand"() : () -> !pdl.value
-    %1 = "pdl.operand"() : () -> !pdl.value
-    %2 = "pdl.type"() : () -> !pdl.type
-    %3 = "pdl.operation"(%0, %2) {attributeValueNames = [], operand_segment_sizes = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
-    %4 = "pdl.result"(%3) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
-    %5 = "pdl.operation"(%4) {attributeValueNames = [], operand_segment_sizes = array<i32: 1, 0, 0>} : (!pdl.value) -> !pdl.operation
-    %6 = "pdl.operation"(%1, %2) {attributeValueNames = [], operand_segment_sizes = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
-    %7 = "pdl.result"(%6) {index = 0 : i32} : (!pdl.operation) -> !pdl.value
-    %8 = "pdl.operation"(%4, %7) {attributeValueNames = [], operand_segment_sizes = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-    "pdl.rewrite"(%5, %8) ({
-    }) {name = "rewriter", operand_segment_sizes = array<i32: 1, 1>} : (!pdl.operation, !pdl.operation) -> ()
-  }) {benefit = 2 : i16, sym_name = "rewrite_multi_root_forced"} : () -> ()
+  pdl.pattern @rewrite_multi_root_forced : benefit(2) {
+    %0 = pdl.operand
+    %1 = pdl.operand
+    %2 = pdl.type
+    %3 = pdl.operation (%0 : !pdl.value) -> (%2 : !pdl.type)
+    %4 = pdl.result 0 of %3
+    %5 = pdl.operation (%4 : !pdl.value)
+    %6 = pdl.operation (%1 : !pdl.value) -> (%2 : !pdl.type)
+    %7 = pdl.result 0 of %6
+    %8 = pdl.operation (%4, %7 : !pdl.value, !pdl.value)
+    pdl.rewrite %5 {
+    }
+  }
 }) : () -> ()
 
 
-
-// CHECK:       "builtin.module"() ({
-// CHECK-NEXT:    "pdl.pattern"() ({
-// CHECK-NEXT:      %0 = "pdl.operand"() : () -> !pdl.value
-// CHECK-NEXT:      %1 = "pdl.operand"() : () -> !pdl.value
-// CHECK-NEXT:      %2 = "pdl.type"() : () -> !pdl.type
-// CHECK-NEXT:      %3 = "pdl.operation"(%0, %2) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
-// CHECK-NEXT:      %4 = "pdl.result"(%3) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
-// CHECK-NEXT:      %5 = "pdl.operation"(%4) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 1, 0, 0>} : (!pdl.value) -> !pdl.operation
-// CHECK-NEXT:      %6 = "pdl.operation"(%1, %2) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 1, 0, 1>} : (!pdl.value, !pdl.type) -> !pdl.operation
-// CHECK-NEXT:      %7 = "pdl.result"(%6) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
-// CHECK-NEXT:      %8 = "pdl.operation"(%4, %7) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 2, 0, 0>} : (!pdl.value, !pdl.value) -> !pdl.operation
-// CHECK-NEXT:      "pdl.rewrite"(%5, %8) ({
-// CHECK-NEXT:      }) {"name" = "rewriter", "operand_segment_sizes" = array<i32: 1, 1>} : (!pdl.operation, !pdl.operation) -> ()
-// CHECK-NEXT:    }) {"benefit" = 2 : i16, "sym_name" = "rewrite_multi_root_forced"} : () -> ()
-// CHECK-NEXT:  }) : () -> ()
+// CHECK:      "builtin.module"() ({
+// CHECK-NEXT:   pdl.pattern @rewrite_multi_root_forced : benefit(2) {
+// CHECK-NEXT:     %0 = pdl.operand
+// CHECK-NEXT:     %1 = pdl.operand
+// CHECK-NEXT:     %2 = pdl.type
+// CHECK-NEXT:     %3 = pdl.operation (%0 : !pdl.value) -> (%2 : !pdl.type)
+// CHECK-NEXT:     %4 = pdl.result 0 of %3
+// CHECK-NEXT:     %5 = pdl.operation (%4 : !pdl.value)
+// CHECK-NEXT:     %6 = pdl.operation (%1 : !pdl.value) -> (%2 : !pdl.type)
+// CHECK-NEXT:     %7 = pdl.result 0 of %6
+// CHECK-NEXT:     %8 = pdl.operation (%4, %7 : !pdl.value, !pdl.value)
+// CHECK-NEXT:     pdl.rewrite %5 {
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }) : () -> ()
