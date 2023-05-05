@@ -237,7 +237,7 @@ class GEPOp(IRDLOperation):
     The semantics are the same, but the structure used by MLIR is not well
     documented (yet) and the syntax is a bit different.
 
-    This text will mainly focus on MLIRs GEP operation here:
+    Here we focus on MLIRs GEP operation:
 
     %res = llvm.getelementptr %ptr  [1, 2, %val]
                               ^^^^   ^^^^^^^^^^
