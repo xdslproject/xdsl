@@ -872,6 +872,20 @@ class JalrOp(RdRsImmOperation):
     name = "riscv.jalr"
 
 
+@irdl_op_definition
+class ReturnOp(NullaryOperation):
+    """
+    Pseudo-op for returning from subroutine.
+
+    Equivalent to `jalr x0, x1, 0`
+    """
+
+    name = "riscv.ret"
+
+    def __init__(self):
+        super().__init__()
+
+
 # Conditional Branches
 
 
@@ -1292,6 +1306,7 @@ RISCV = Dialect(
         JalOp,
         JOp,
         JalrOp,
+        ReturnOp,
         BeqOp,
         BneOp,
         BltOp,

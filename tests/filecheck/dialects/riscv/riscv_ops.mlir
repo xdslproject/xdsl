@@ -70,6 +70,9 @@
   %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> !riscv.reg<>
 
+  "riscv.ret"() : () -> ()
+  // CHECK-NEXT: "riscv.ret"() : () -> ()
+
 
   // Conditional Branch Instructions
   "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>

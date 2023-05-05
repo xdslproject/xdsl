@@ -124,4 +124,6 @@
   // CHECK-NEXT: ecall
   "riscv.ebreak"() : () -> ()
   // CHECK-NEXT: ebreak
+  "riscv.ret"() : () -> ()
+  // CHECK-NEXT: ret
 }) : () -> ()
