@@ -20,7 +20,6 @@ from xdsl.dialects import memref, arith, scf, builtin, gpu
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    CastOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -30,6 +29,7 @@ from xdsl.dialects.experimental.stencil import (
     ExternalLoadOp,
     ExternalStoreOp,
 )
+from xdsl.dialects.stencil import CastOp
 from xdsl.passes import ModulePass
 
 from xdsl.utils.exceptions import VerifyException

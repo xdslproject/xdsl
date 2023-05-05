@@ -25,7 +25,8 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 
-from xdsl.dialects.experimental.stencil import Stencil
+from xdsl.dialects.experimental.stencil import StencilExp
+from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
@@ -218,6 +219,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(StencilExp)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)

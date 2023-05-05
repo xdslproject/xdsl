@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast
+from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -162,7 +162,7 @@ class ElementType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexAttr(ParametrizedAttribute):
+class IndexAttr(ParametrizedAttribute, Iterable[int]):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
@@ -242,6 +242,9 @@ class IndexAttr(ParametrizedAttribute):
     def __len__(self):
         return len(self.array)
 
+    def __iter__(self) -> Iterator[int]:
+        return (e.value.data for e in self.array.data)
+
 
 @dataclass(frozen=True)
 class LoopAttr(ParametrizedAttribute):
@@ -250,80 +253,6 @@ class LoopAttr(ParametrizedAttribute):
 
 
 # Operations
-@irdl_op_definition
-class CastOp(IRDLOperation):
-    """
-    This operation casts dynamically shaped input fields to statically shaped fields.
-
-    Example:
-        %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64> # noqa
-    """
-
-    name: str = "stencil.cast"
-    field: Annotated[Operand, FieldType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
-    result: Annotated[OpResult, FieldType]
-
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        lb: IndexAttr,
-        ub: IndexAttr,
-        res_type: FieldType[_FieldTypeElement],
-    ) -> CastOp:
-        return CastOp.build(
-            operands=[field],
-            attributes={"lb": lb, "ub": ub},
-            result_types=[res_type],
-        )
-
-    def verify_(self) -> None:
-        # this should be fine, verify() already checks them:
-        assert isa(self.field.typ, FieldType[Attribute])
-        assert isa(self.result.typ, FieldType[Attribute])
-
-        if self.field.typ.element_type != self.result.typ.element_type:
-            raise VerifyException(
-                "Input and output fields have different element types!"
-            )
-
-        if not len(self.lb) == len(self.ub):
-            raise VerifyException("lb and ub must have the same dimensions!")
-
-        if not len(self.field.typ.shape) == len(self.lb):
-            raise VerifyException(
-                "Input type has different dimensionality than bounds!"
-            )
-
-        if not len(self.result.typ.shape) == len(self.ub):
-            raise VerifyException(
-                "Result type has different dimensionality than bounds!"
-            )
-
-        for i, (in_attr, lb, ub, out_attr) in enumerate(
-            zip(
-                self.field.typ.shape,
-                self.lb.as_tuple(),
-                self.ub.as_tuple(),
-                self.result.typ.shape,
-            )
-        ):
-            in_: int = in_attr.value.data
-            out: int = out_attr.value.data
-
-            if ub - lb != out:
-                raise VerifyException(
-                    "Bound math doesn't check out in dimensions {}! {} - {} != {}".format(
-                        i, ub, lb, out
-                    )
-                )
-
-            if in_ != -1 and in_ != out:
-                # TODO: find out if this is too strict
-                raise VerifyException(
-                    "If input shape is known, it must match return shape!"
-                )
 
 
 # Operations
@@ -658,9 +587,8 @@ class HaloSwapOp(IRDLOperation):
         return HaloSwapOp.build(operands=[input_stencil])
 
 
-Stencil = Dialect(
+StencilExp = Dialect(
     [
-        CastOp,
         ExternalLoadOp,
         ExternalStoreOp,
         IndexOp,
