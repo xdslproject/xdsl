@@ -457,6 +457,9 @@ class StoreOp(IRDLOperation):
         return StoreOp.build(operands=[temp, field], attributes={"lb": lb, "ub": ub})
 
 
+from typing import TypeVar, Generic
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -481,13 +484,11 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
-        result_type: AnyFloat,
-        result_rank: int,
+        result_types: Sequence[TempType[_FieldTypeElement]],
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
-        result_count: int = 1,
     ):
-        assert result_rank > 0
+        assert len(result_types) > 0
 
         attributes = {}
         if lb is not None:
@@ -499,12 +500,7 @@ class ApplyOp(IRDLOperation):
             operands=[list(args)],
             attributes=attributes,
             regions=[Region(body)],
-            result_types=[
-                [
-                    TempType.from_shape([-1] * result_rank, result_type)
-                    for _ in range(result_count)
-                ]
-            ],
+            result_types=[result_types],
         )
 
 

@@ -46,7 +46,8 @@ def test_stencil_return_multiple_ResultType():
 def test_stencil_apply():
     result_type_val1 = TestSSAValue(ResultType.from_type(f32))
 
-    apply_op = ApplyOp.get([result_type_val1], Block([]), f32, 2)
+    stencil_temptype = TempType.from_shape([-1] * 2, f32)
+    apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
 
     assert len(apply_op.args) == 1
     assert len(apply_op.res) == 1
@@ -55,7 +56,8 @@ def test_stencil_apply():
 
 
 def test_stencil_apply_no_args():
-    apply_op = ApplyOp.get([], Block([]), f32, 1, result_count=2)
+    stencil_temptype = TempType.from_shape([-1] * 1, f32)
+    apply_op = ApplyOp.get([], Block([]), [stencil_temptype, stencil_temptype])
 
     assert len(apply_op.args) == 0
     assert len(apply_op.res) == 2
@@ -66,4 +68,4 @@ def test_stencil_apply_no_args():
 def test_stencil_apply_no_results():
     # Should error if there are no results expected
     with pytest.raises(AssertionError):
-        ApplyOp.get([], Block([]), f32, 0)
+        ApplyOp.get([], Block([]), [])
