@@ -12,6 +12,7 @@ from typing import (
     cast,
 )
 
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     DenseIntOrFPElementsAttr,
@@ -25,6 +26,8 @@ from xdsl.dialects.builtin import (
     i64,
     StringAttr,
     UnitAttr,
+    i32,
+    IntegerType,
 )
 from xdsl.ir import (
     TypeAttribute,
@@ -472,6 +475,78 @@ class Cast(IRDLOperation):
         return Cast.build(operands=[source], result_types=[type])
 
 
+@irdl_op_definition
+class DmaStartOp(IRDLOperation):
+    name = "memref.dma_start"
+
+    src: Annotated[Operand, MemRefType]
+    src_indices: Annotated[VarOperand, IndexType]
+
+    dest: Annotated[Operand, MemRefType]
+    dest_indices: Annotated[VarOperand, IndexType]
+
+    num_elements: Annotated[Operand, IndexType]
+
+    tag: Annotated[Operand, MemRefType[IntegerType]]
+    tag_indices: Annotated[VarOperand, IndexType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(
+        src: SSAValue | Operation,
+        src_indices: Sequence[SSAValue | Operation],
+        dest: SSAValue | Operation,
+        dest_indices: Sequence[SSAValue | Operation],
+        num_elements: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        tag_indices: Sequence[SSAValue | Operation],
+    ):
+        return DmaStartOp.build(
+            operands=[
+                src,
+                src_indices,
+                dest,
+                dest_indices,
+                num_elements,
+                tag,
+                tag_indices,
+            ]
+        )
+
+    def verify_(self) -> None:
+        assert isa(self.src.typ, MemRefType[Attribute])
+        assert isa(self.dest.typ, MemRefType[Attribute])
+        assert isa(self.tag.typ, MemRefType[IntegerType])
+
+        if len(self.src.typ.shape) != len(self.src_indices):
+            raise VerifyException(
+                "Expected {} source indices (because of shape of src memref)".format(
+                    len(self.src.typ.shape)
+                )
+            )
+
+        if len(self.dest.typ.shape) != len(self.dest_indices):
+            raise VerifyException(
+                "Expected {} dest indices (because of shape of src memref)".format(
+                    len(self.dest.typ.shape)
+                )
+            )
+
+        if len(self.tag.typ.shape) != len(self.tag_indices):
+            raise VerifyException(
+                "Expected {} tag indices (because of shape of src memref)".format(
+                    len(self.tag.typ.shape)
+                )
+            )
+
+        if self.tag.typ.element_type != i32:
+            raise VerifyException("Expected tag to be a memref of i32")
+
+        if self.dest.typ.memory_space == self.src.typ.memory_space:
+            raise VerifyException("Source and dest must have different memory spaces!")
+
+
 MemRef = Dialect(
     [
         Load,
@@ -485,6 +560,7 @@ MemRef = Dialect(
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
+        DmaStartOp,
     ],
     [MemRefType, UnrankedMemrefType],
 )

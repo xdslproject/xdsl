@@ -1,3 +1,6 @@
+import pytest
+
+from xdsl.utils.exceptions import VerifyException
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -23,6 +26,7 @@ from xdsl.dialects.memref import (
     ExtractAlignedPointerAsIndexOp,
     Subview,
     Cast,
+    DmaStartOp,
 )
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.utils.hints import isa
@@ -293,3 +297,61 @@ def test_memref_cast():
 
     assert cast.source is memref_ssa_value
     assert cast.dest.typ is res_type
+
+
+def test_dma_start():
+    src_type = MemRefType.from_element_type_and_shape(i64, [4, 512], memory_space=1)
+    dest_type = MemRefType.from_element_type_and_shape(i64, [4 * 512], memory_space=2)
+
+    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+
+    src = TestSSAValue(src_type)
+    dest = TestSSAValue(dest_type)
+    tag = TestSSAValue(tag_type)
+
+    index = TestSSAValue(IndexType())
+    num_elements = TestSSAValue(IndexType())
+
+    dma_start = DmaStartOp.get(
+        src, [index, index], dest, [index], num_elements, tag, [index]
+    )
+
+    dma_start.verify()
+
+    # check that src index count is verified
+    with pytest.raises(VerifyException):
+        DmaStartOp.get(
+            src, [index, index, index], dest, [index], num_elements, tag, [index]
+        ).verify()
+
+    # check that dest index count is verified
+    with pytest.raises(VerifyException):
+        DmaStartOp.get(
+            src, [index, index], dest, [], num_elements, tag, [index]
+        ).verify()
+
+    # check that tag index count is verified
+    with pytest.raises(VerifyException):
+        DmaStartOp.get(
+            src, [index, index], dest, [index], num_elements, tag, [index, index]
+        ).verify()
+
+    # check that tag index count is verified
+    with pytest.raises(VerifyException):
+        DmaStartOp.get(
+            src, [index, index], dest, [index], num_elements, tag, [index, index]
+        ).verify()
+
+    # check that tag element type is verified
+    with pytest.raises(VerifyException):
+        new_tag = TestSSAValue(src_type)
+
+        DmaStartOp.get(
+            src,
+            [index, index],
+            dest,
+            [index],
+            num_elements,
+            new_tag,
+            [index, index],
+        ).verify()
