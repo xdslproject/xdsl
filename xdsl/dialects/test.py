@@ -13,6 +13,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from typing import ClassVar
 
+
 @irdl_op_definition
 class TestOp(IRDLOperation):
     """

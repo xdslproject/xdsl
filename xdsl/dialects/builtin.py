@@ -15,7 +15,7 @@ from typing import (
     TypeVar,
     overload,
     Iterator,
-    ClassVar
+    ClassVar,
 )
 
 from xdsl.ir import (

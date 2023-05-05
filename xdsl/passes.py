@@ -3,6 +3,7 @@ from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from typing import ClassVar
 
+
 class ModulePass(ABC):
     """
     A Pass is a named rewrite pass over an IR module.
