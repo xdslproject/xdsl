@@ -451,13 +451,24 @@ class LoadOp(IRDLOperation):
     res: Annotated[OpResult, TempType]
 
     @staticmethod
-    def get(field: SSAValue | Operation):
+    def get(
+        field: SSAValue | Operation,
+        lb: IndexAttr | None = None,
+        ub: IndexAttr | None = None,
+    ):
         field_t = SSAValue.get(field).typ
         assert isinstance(field_t, FieldType)
         field_t = cast(FieldType[Attribute], field_t)
 
+        attributes = {}
+        if lb is not None:
+            attributes["lb"] = lb
+        if ub is not None:
+            attributes["ub"] = ub
+
         return LoadOp.build(
             operands=[field],
+            attributes=attributes,
             result_types=[
                 TempType[Attribute].from_shape(
                     [-1] * len(field_t.shape.data), field_t.element_type
