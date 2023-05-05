@@ -1265,6 +1265,44 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
+# RISC-V SSA Helpers
+
+
+@irdl_op_definition
+class GetRegisterOp(IRDLOperation, RISCVOp):
+    """
+    This instruction allows us to create an SSAValue with for a given register name. This
+    is useful for bridging the RISC-V convention that stores the result of function calls
+    in `a0` and `a1` into SSA form.
+
+    For example, to generate this assembly:
+    ```
+    jal my_func
+    add a0 s0 a0
+    ```
+
+    One needs to do the following:
+
+    ``` python
+    rhs = riscv.GetRegisterOp(Registers.s0).res
+    riscv.JalOp("my_func")
+    lhs = riscv.GetRegisterOp(Registers.A0).res
+    sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
+    ```
+    """
+
+    name = "riscv.get_register"
+    res: Annotated[OpResult, RegisterType]
+
+    def __init__(
+        self,
+        register_type: RegisterType | Register,
+    ):
+        if isinstance(register_type, Register):
+            register_type = RegisterType(register_type)
+        super().__init__(result_types=[register_type])
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -1316,6 +1354,7 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        GetRegisterOp,
     ],
     [
         RegisterType,
