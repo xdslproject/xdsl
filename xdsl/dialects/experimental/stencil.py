@@ -465,6 +465,11 @@ class LoadOp(IRDLOperation):
             ],
         )
 
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, StoreOp):
+                raise VerifyException("Cannot Load and Store the same field!")
+
 
 @irdl_op_definition
 class BufferOp(IRDLOperation):
@@ -505,6 +510,11 @@ class StoreOp(IRDLOperation):
         ub: IndexAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"lb": lb, "ub": ub})
+
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, LoadOp):
+                raise VerifyException("Cannot Load and Store the same field!")
 
 
 @irdl_op_definition
