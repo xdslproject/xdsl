@@ -12,7 +12,7 @@ from xdsl.dialects.riscv import RegisterType
 
 from xdsl.dialects.builtin import AnyIntegerAttr
 
-from xdsl.ir import Dialect
+from xdsl.ir import Dialect, Operation, SSAValue
 
 from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr
 
@@ -31,6 +31,20 @@ class SsrSetupShape(IRDLOperation):
     stride: Annotated[Operand, RegisterType]
     dimension: OpAttr[AnyIntegerAttr]
 
+    def __init__(
+        self,
+        datamover: Operation | SSAValue,
+        bound: Operation | SSAValue,
+        stride: Operation | SSAValue,
+        dimension: AnyIntegerAttr,
+    ):
+        super().__init__(
+            operands=[datamover, bound, stride],
+            attributes={
+                "dimension": dimension,
+            },
+        )
+
 
 @irdl_op_definition
 class SsrSetupRepetition(IRDLOperation):
@@ -42,6 +56,13 @@ class SsrSetupRepetition(IRDLOperation):
 
     datamover: Annotated[Operand, RegisterType]
     repetition: Annotated[Operand, RegisterType]
+
+    def __init__(
+        self,
+        datamover: Operation | SSAValue,
+        repetition: Operation | SSAValue,
+    ):
+        super().__init__(operands=[datamover, repetition])
 
 
 @irdl_op_definition
@@ -57,6 +78,19 @@ class SsrRead(IRDLOperation):
     address: Annotated[Operand, RegisterType]
     dimension: OpAttr[AnyIntegerAttr]
 
+    def __init__(
+        self,
+        datamover: Operation | SSAValue,
+        address: Operation | SSAValue,
+        dimension: AnyIntegerAttr,
+    ):
+        super().__init__(
+            operands=[datamover, address],
+            attributes={
+                "dimension": dimension,
+            },
+        )
+
 
 @irdl_op_definition
 class SsrWrite(IRDLOperation):
@@ -71,6 +105,19 @@ class SsrWrite(IRDLOperation):
     address: Annotated[Operand, RegisterType]
     dimension: OpAttr[AnyIntegerAttr]
 
+    def __init__(
+        self,
+        datamover: Operation | SSAValue,
+        address: Operation | SSAValue,
+        dimension: AnyIntegerAttr,
+    ):
+        super().__init__(
+            operands=[datamover, address],
+            attributes={
+                "dimension": dimension,
+            },
+        )
+
 
 @irdl_op_definition
 class SsrEnable(IRDLOperation):
@@ -80,6 +127,9 @@ class SsrEnable(IRDLOperation):
 
     name: str = "snitch.ssr_enable"
 
+    def __init__(self):
+        super().__init__()
+
 
 @irdl_op_definition
 class SsrDisable(IRDLOperation):
@@ -88,6 +138,9 @@ class SsrDisable(IRDLOperation):
     """
 
     name: str = "snitch.ssr_disable"
+
+    def __init__(self):
+        super().__init__()
 
 
 Snitch = Dialect(
