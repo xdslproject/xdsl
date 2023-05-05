@@ -1,3 +1,11 @@
+"""This dialect provides operations to address features of the Snitch[1]
+architecture; it works on riscv types directly as all arguments are of
+riscv.reg<> type and it is meant to be as close as possible to the asm
+that aims at generating.
+
+[1] https://pulp-platform.github.io/snitch/publications
+"""
+
 from typing import Annotated
 
 from xdsl.dialects.riscv import RegisterType
