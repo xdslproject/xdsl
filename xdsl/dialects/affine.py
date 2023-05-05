@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Annotated, Sequence, ClassVar
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
@@ -16,7 +16,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class For(IRDLOperation):
-    name: str = "affine.for"
+    name: ClassVar[str] = "affine.for"
 
     arguments: Annotated[VarOperand, AnyAttr()]
     res: Annotated[VarOpResult, AnyAttr()]
@@ -94,7 +94,7 @@ class For(IRDLOperation):
 
 @irdl_op_definition
 class Yield(IRDLOperation):
-    name: str = "affine.yield"
+    name: ClassVar[str] = "affine.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod

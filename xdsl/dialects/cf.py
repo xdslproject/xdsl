@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections.abc import Sequence
 
-from typing import Annotated, Union, Sequence
+from typing import Annotated, Union, Sequence, ClassVar
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
@@ -18,7 +18,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class Assert(IRDLOperation):
-    name: str = "cf.assert"
+    name: ClassVar[str] = "cf.assert"
     arg: Annotated[Operand, IntegerType(1)]
     msg: OpAttr[StringAttr]
 
@@ -31,7 +31,7 @@ class Assert(IRDLOperation):
 
 @irdl_op_definition
 class Branch(IRDLOperation):
-    name: str = "cf.br"
+    name: ClassVar[str] = "cf.br"
 
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -42,7 +42,7 @@ class Branch(IRDLOperation):
 
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
-    name: str = "cf.cond_br"
+    name: ClassVar[str] = "cf.cond_br"
 
     cond: Annotated[Operand, IntegerType(1)]
     then_arguments: Annotated[VarOperand, AnyAttr()]

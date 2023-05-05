@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, TypeVar, Union, Set, Optional
+from typing import Annotated, TypeVar, Union, Set, Optional, ClassVar
 
 from xdsl.dialects.builtin import (
     ContainerOf,
@@ -105,7 +105,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
 
 @irdl_op_definition
 class Constant(IRDLOperation):
-    name: str = "arith.constant"
+    name: ClassVar[str] = "arith.constant"
     result: Annotated[OpResult, AnyAttr()]
     value: OpAttr[Attribute]
 
@@ -149,7 +149,7 @@ class BinaryOperation(IRDLOperation):
 
 @irdl_op_definition
 class Addi(BinaryOperation):
-    name: str = "arith.addi"
+    name: ClassVar[str] = "arith.addi"
 
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
@@ -170,7 +170,7 @@ class Addi(BinaryOperation):
 
 @irdl_op_definition
 class Muli(BinaryOperation):
-    name: str = "arith.muli"
+    name: ClassVar[str] = "arith.muli"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -185,7 +185,7 @@ class Muli(BinaryOperation):
 
 @irdl_op_definition
 class Subi(BinaryOperation):
-    name: str = "arith.subi"
+    name: ClassVar[str] = "arith.subi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -206,7 +206,7 @@ class DivUI(BinaryOperation):
     `6 / -2 = 6 / (2^16 - 2) = 0`.
     """
 
-    name: str = "arith.divui"
+    name: ClassVar[str] = "arith.divui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -226,7 +226,7 @@ class DivSI(BinaryOperation):
     sign, i.e. `6 / -2 = -3`.
     """
 
-    name: str = "arith.divsi"
+    name: ClassVar[str] = "arith.divsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -245,7 +245,7 @@ class FloorDivSI(BinaryOperation):
     Signed floor integer division. Rounds towards negative infinity i.e. `5 / -2 = -3`.
     """
 
-    name: str = "arith.floordivsi"
+    name: ClassVar[str] = "arith.floordivsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -262,7 +262,7 @@ class FloorDivSI(BinaryOperation):
 
 @irdl_op_definition
 class CeilDivSI(BinaryOperation):
-    name: str = "arith.ceildivsi"
+    name: ClassVar[str] = "arith.ceildivsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -279,7 +279,7 @@ class CeilDivSI(BinaryOperation):
 
 @irdl_op_definition
 class CeilDivUI(BinaryOperation):
-    name: str = "arith.ceildivui"
+    name: ClassVar[str] = "arith.ceildivui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -296,7 +296,7 @@ class CeilDivUI(BinaryOperation):
 
 @irdl_op_definition
 class RemUI(BinaryOperation):
-    name: str = "arith.remui"
+    name: ClassVar[str] = "arith.remui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -311,7 +311,7 @@ class RemUI(BinaryOperation):
 
 @irdl_op_definition
 class RemSI(BinaryOperation):
-    name: str = "arith.remsi"
+    name: ClassVar[str] = "arith.remsi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -326,7 +326,7 @@ class RemSI(BinaryOperation):
 
 @irdl_op_definition
 class MinUI(BinaryOperation):
-    name: str = "arith.minui"
+    name: ClassVar[str] = "arith.minui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -341,7 +341,7 @@ class MinUI(BinaryOperation):
 
 @irdl_op_definition
 class MaxUI(BinaryOperation):
-    name: str = "arith.maxui"
+    name: ClassVar[str] = "arith.maxui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -356,7 +356,7 @@ class MaxUI(BinaryOperation):
 
 @irdl_op_definition
 class MinSI(BinaryOperation):
-    name: str = "arith.minsi"
+    name: ClassVar[str] = "arith.minsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -371,7 +371,7 @@ class MinSI(BinaryOperation):
 
 @irdl_op_definition
 class MaxSI(BinaryOperation):
-    name: str = "arith.maxsi"
+    name: ClassVar[str] = "arith.maxsi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -386,7 +386,7 @@ class MaxSI(BinaryOperation):
 
 @irdl_op_definition
 class AndI(BinaryOperation):
-    name: str = "arith.andi"
+    name: ClassVar[str] = "arith.andi"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -401,7 +401,7 @@ class AndI(BinaryOperation):
 
 @irdl_op_definition
 class OrI(BinaryOperation):
-    name: str = "arith.ori"
+    name: ClassVar[str] = "arith.ori"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -416,7 +416,7 @@ class OrI(BinaryOperation):
 
 @irdl_op_definition
 class XOrI(BinaryOperation):
-    name: str = "arith.xori"
+    name: ClassVar[str] = "arith.xori"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -436,7 +436,7 @@ class ShLI(IRDLOperation):
     amount. The low order bits are filled with zeros.
     """
 
-    name: str = "arith.shli"
+    name: ClassVar[str] = "arith.shli"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -462,7 +462,7 @@ class ShRUI(IRDLOperation):
     always filled with zeros.
     """
 
-    name: str = "arith.shrui"
+    name: ClassVar[str] = "arith.shrui"
     lhs: Annotated[Operand, signlessIntegerLike]
     rhs: Annotated[Operand, signlessIntegerLike]
     result: Annotated[OpResult, signlessIntegerLike]
@@ -489,7 +489,7 @@ class ShRSI(IRDLOperation):
     value (which means that the sign of the value is preserved).
     """
 
-    name: str = "arith.shrsi"
+    name: ClassVar[str] = "arith.shrsi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -574,7 +574,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
         : (vector<4xi64>, vector<4xi64>) -> vector<4xi1>
     """
 
-    name: str = "arith.cmpi"
+    name: ClassVar[str] = "arith.cmpi"
     predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
@@ -638,7 +638,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     %r3 = "arith.cmpf"(%0, %1) {predicate: 0} : (f8, f8) -> i1
     """
 
-    name: str = "arith.cmpf"
+    name: ClassVar[str] = "arith.cmpf"
     predicate: OpAttr[AnyIntegerAttr]
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
@@ -690,7 +690,7 @@ class Select(IRDLOperation):
     The second and the third operand must have the same type.
     """
 
-    name: str = "arith.select"
+    name: ClassVar[str] = "arith.select"
     cond: Annotated[Operand, IntegerType(1)]  # should be unsigned
     lhs: Annotated[Operand, Attribute]
     rhs: Annotated[Operand, Attribute]
@@ -717,7 +717,7 @@ class Select(IRDLOperation):
 
 @irdl_op_definition
 class Addf(BinaryOperation):
-    name: str = "arith.addf"
+    name: ClassVar[str] = "arith.addf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -732,7 +732,7 @@ class Addf(BinaryOperation):
 
 @irdl_op_definition
 class Subf(BinaryOperation):
-    name: str = "arith.subf"
+    name: ClassVar[str] = "arith.subf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -747,7 +747,7 @@ class Subf(BinaryOperation):
 
 @irdl_op_definition
 class Mulf(BinaryOperation):
-    name: str = "arith.mulf"
+    name: ClassVar[str] = "arith.mulf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -762,7 +762,7 @@ class Mulf(BinaryOperation):
 
 @irdl_op_definition
 class Divf(BinaryOperation):
-    name: str = "arith.divf"
+    name: ClassVar[str] = "arith.divf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -777,7 +777,7 @@ class Divf(BinaryOperation):
 
 @irdl_op_definition
 class Negf(IRDLOperation):
-    name: str = "arith.negf"
+    name: ClassVar[str] = "arith.negf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -796,7 +796,7 @@ class Negf(IRDLOperation):
 
 @irdl_op_definition
 class Maxf(BinaryOperation):
-    name: str = "arith.maxf"
+    name: ClassVar[str] = "arith.maxf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]
@@ -811,7 +811,7 @@ class Maxf(BinaryOperation):
 
 @irdl_op_definition
 class Minf(BinaryOperation):
-    name: str = "arith.minf"
+    name: ClassVar[str] = "arith.minf"
     lhs: Annotated[Operand, floatingPointLike]
     rhs: Annotated[Operand, floatingPointLike]
     result: Annotated[OpResult, floatingPointLike]

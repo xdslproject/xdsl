@@ -15,6 +15,7 @@ from typing import (
     TypeVar,
     overload,
     Iterator,
+    ClassVar
 )
 
 from xdsl.ir import (
@@ -1104,7 +1105,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
-    name: str = "builtin.unrealized_conversion_cast"
+    name: ClassVar[str] = "builtin.unrealized_conversion_cast"
 
     inputs: VarOperand
     outputs: VarOpResult
@@ -1125,7 +1126,7 @@ class UnregisteredOp(IRDLOperation, ABC):
     and op with different names have distinct subclasses.
     """
 
-    name: str = "builtin.unregistered"
+    name: ClassVar[str] = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
     args: VarOperand
@@ -1232,7 +1233,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
 @irdl_op_definition
 class ModuleOp(IRDLOperation):
-    name: str = "builtin.module"
+    name: ClassVar[str] = "builtin.module"
 
     body: SingleBlockRegion
 

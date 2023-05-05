@@ -533,7 +533,7 @@ OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False)
     """The operation name. Should be a static member of the class"""
 
     _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())

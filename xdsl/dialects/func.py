@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Union, Sequence
+from typing import Annotated, Union, Sequence, ClassVar
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
 from xdsl.ir import (
@@ -25,7 +25,7 @@ from xdsl.utils.exceptions import VerifyException
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
-    name: str = "func.func"
+    name: ClassVar[str] = "func.func"
 
     body: Region
     sym_name: OpAttr[StringAttr]
@@ -167,7 +167,7 @@ class FuncOp(IRDLOperation):
 
 @irdl_op_definition
 class Call(IRDLOperation):
-    name: str = "func.call"
+    name: ClassVar[str] = "func.call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
 
@@ -190,7 +190,7 @@ class Call(IRDLOperation):
 
 @irdl_op_definition
 class Return(IRDLOperation):
-    name: str = "func.return"
+    name: ClassVar[str] = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     def verify_(self) -> None:
