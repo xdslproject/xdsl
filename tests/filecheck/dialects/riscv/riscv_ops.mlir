@@ -2,7 +2,8 @@
 "builtin.module"() ({
   %0 = "test.op"() : () -> !riscv.reg<>
   %1 = "test.op"() : () -> !riscv.reg<>
-  // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
+  // RV32I/RV64I: 2.4 Integer Computational Instructions
+
   // Integer Register-Immediate Instructions
   %addi = "riscv.addi"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK: %{{.*}} = "riscv.addi"(%{{.*}}) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
@@ -26,6 +27,7 @@
   // CHECK-NEXT: %{{.*}} = "riscv.lui"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   %auipc = "riscv.auipc"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.auipc"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+
   // Integer Register-Register Operations
   %add = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -49,6 +51,26 @@
   // CHECK-NEXT: %{{.*}} = "riscv.sra"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
   "riscv.nop"() : () -> ()
   // CHECK-NEXT: "riscv.nop"() : () -> ()
+
+  // RV32I/RV64I: 2.5 Control Transfer Instructions
+
+  // Unconditional Branch Instructions
+  %jal_i = "riscv.jal"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
+  // CHECK-NEXT: %jal_i = "riscv.jal"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  %jal_r = "riscv.jal"() {"immediate" = #riscv.label<"label">}: () -> !riscv.reg<>
+  // CHECK-NEXT: %jal_r = "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> !riscv.reg<>
+
+  %j_i = "riscv.j"() {"immediate" = 1 : i32}: () -> !riscv.reg<zero>
+  // CHECK-NEXT: %j_i = "riscv.j"() {"immediate" = 1 : i32} : () -> !riscv.reg<zero>
+  %j_r = "riscv.j"() {"immediate" = #riscv.label<"label">}: () -> !riscv.reg<zero>
+  // CHECK-NEXT: %j_r = "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> !riscv.reg<zero>
+
+  %jalr_i = "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %jalr_i = "riscv.jalr"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+  %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">}: (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> !riscv.reg<>
+
+
   // Conditional Branch Instructions
   "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: "riscv.beq"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
@@ -62,7 +84,9 @@
   // CHECK-NEXT: "riscv.bltu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.bgeu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: "riscv.bgeu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-  // RV32I/RV64I: Load and Store Instructions (Section 2.6)
+
+  // RV32I/RV64I: 2.6 Load and Store Instructions
+
   %lb = "riscv.lb"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.lb"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
   %lbu = "riscv.lbu"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
@@ -79,7 +103,9 @@
   // CHECK-NEXT: "riscv.sh"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.sw"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: "riscv.sw"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-  // RV32I/RV64I: Control and Status Register Instructions (Section 2.8)
+
+  // RV32I/RV64I: 2.8 Control and Status Register Instructions
+
   %csrrw_rw = "riscv.csrrw"(%0) {"csr" = 1024 : i32}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrw"(%0) {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
   %csrrw_w = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly"}: (!riscv.reg<>) -> !riscv.reg<>
@@ -104,7 +130,9 @@
   // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
   %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
+
   // Assembler pseudo-instructions
+
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   // Environment Call and Breakpoints
