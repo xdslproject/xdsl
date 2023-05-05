@@ -280,8 +280,8 @@ class CastOp(IRDLOperation):
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
-        assert isinstance(self.field.typ, FieldType)
-        assert isinstance(self.result.typ, FieldType)
+        assert isa(self.field.typ, FieldType[Attribute])
+        assert isa(self.result.typ, FieldType[Attribute])
 
         if self.field.typ.element_type != self.result.typ.element_type:
             raise VerifyException(
