@@ -47,11 +47,22 @@ def test_csr_op():
     with pytest.raises(VerifyException):
         riscv.CsrrcOp(rs1=a1, csr=csr, readonly=True, rd=riscv.Registers.A2).verify()
     # CsrrwiOp
-    riscv.CsrrwiOp(csr=csr, rd=riscv.Registers.A2).verify()
-    riscv.CsrrwiOp(csr=csr, rd=riscv.Registers.ZERO).verify()
-    riscv.CsrrwiOp(csr=csr, writeonly=True, rd=riscv.Registers.ZERO).verify()
+    riscv.CsrrwiOp(
+        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
+    ).verify()
+    riscv.CsrrwiOp(
+        csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.ZERO
+    ).verify()
+    riscv.CsrrwiOp(
+        csr=csr, immediate=IntegerAttr(0, i32), writeonly=True, rd=riscv.Registers.ZERO
+    ).verify()
     with pytest.raises(VerifyException):
-        riscv.CsrrwiOp(csr=csr, writeonly=True, rd=riscv.Registers.A2).verify()
+        riscv.CsrrwiOp(
+            csr=csr,
+            immediate=IntegerAttr(0, i32),
+            writeonly=True,
+            rd=riscv.Registers.A2,
+        ).verify()
     # CsrrsiOp
     riscv.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(0, i32), rd=riscv.Registers.A2
