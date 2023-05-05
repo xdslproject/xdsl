@@ -78,7 +78,7 @@ class FastMathFlags:
 
 @irdl_attr_definition
 class FastMathFlagsAttr(Data[FastMathFlags]):
-    name: str = "arith.fastmath"
+    name: ClassVar[str] = "arith.fastmath"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> FastMathFlags:

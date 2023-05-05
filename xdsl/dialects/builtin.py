@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 class NoneAttr(ParametrizedAttribute):
     """An attribute representing the absence of an attribute."""
 
-    name: str = "none"
+    name: ClassVar[str] = "none"
 
 
 @dataclass
@@ -89,7 +89,7 @@ class ArrayOfConstraint(AttrConstraint):
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
-    name: str = "array"
+    name: ClassVar[str] = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
@@ -150,7 +150,7 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 @irdl_attr_definition
 class StringAttr(Data[str]):
-    name: str = "string"
+    name: ClassVar[str] = "string"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
@@ -173,7 +173,7 @@ class StringAttr(Data[str]):
 
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
-    name: str = "symbol_name"
+    name: ClassVar[str] = "symbol_name"
     data: ParameterDef[StringAttr]
 
     def __init__(self, data: str | StringAttr) -> None:
@@ -232,7 +232,7 @@ class SymbolRefAttr(ParametrizedAttribute):
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
-    name: str = "int"
+    name: ClassVar[str] = "int"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> int:
@@ -260,7 +260,7 @@ class Signedness(Enum):
 
 @irdl_data_definition
 class SignednessAttr(Data[Signedness]):
-    name: str = "signedness"
+    name: ClassVar[str] = "signedness"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Signedness:
@@ -294,7 +294,7 @@ class SignednessAttr(Data[Signedness]):
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute, TypeAttribute):
-    name: str = "integer_type"
+    name: ClassVar[str] = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
 
@@ -340,7 +340,7 @@ _IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType
 
 @irdl_attr_definition
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
-    name: str = "integer"
+    name: ClassVar[str] = "integer"
     value: ParameterDef[IntAttr]
     typ: ParameterDef[_IntegerAttrTyp]
 
@@ -385,32 +385,32 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "bf16"
+    name: ClassVar[str] = "bf16"
 
 
 @irdl_attr_definition
 class Float16Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f16"
+    name: ClassVar[str] = "f16"
 
 
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f32"
+    name: ClassVar[str] = "f32"
 
 
 @irdl_attr_definition
 class Float64Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f64"
+    name: ClassVar[str] = "f64"
 
 
 @irdl_attr_definition
 class Float80Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f80"
+    name: ClassVar[str] = "f80"
 
 
 @irdl_attr_definition
 class Float128Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f128"
+    name: ClassVar[str] = "f128"
 
 
 AnyFloat: TypeAlias = (
@@ -443,7 +443,7 @@ _FloatAttrTypInv = TypeVar("_FloatAttrTypInv", bound=AnyFloat)
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
-    name: str = "float"
+    name: ClassVar[str] = "float"
 
     value: ParameterDef[FloatData]
     type: ParameterDef[_FloatAttrTyp]
@@ -492,7 +492,7 @@ AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
 @irdl_attr_definition
 class ComplexType(ParametrizedAttribute, TypeAttribute):
-    name: str = "complex"
+    name: ClassVar[str] = "complex"
     element_type: ParameterDef[IntegerType | AnyFloat]
 
     def __init__(self, element_type: IntegerType | AnyFloat) -> None:
@@ -501,7 +501,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
-    name: str = "dictionary"
+    name: ClassVar[str] = "dictionary"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> dict[str, Attribute]:
@@ -557,7 +557,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
-    name: str = "tuple"
+    name: ClassVar[str] = "tuple"
 
     types: ParameterDef[ArrayAttr[Attribute]]
 
@@ -1051,7 +1051,7 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class OpaqueAttr(ParametrizedAttribute):
-    name: str = "opaque"
+    name: ClassVar[str] = "opaque"
 
     ident: ParameterDef[StringAttr]
     value: ParameterDef[StringAttr]
@@ -1073,7 +1073,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
     integers.
     """
 
-    name: str = "strided"
+    name: ClassVar[str] = "strided"
 
     strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
     offset: ParameterDef[IntAttr | NoneAttr]
@@ -1179,7 +1179,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     representation.
     """
 
-    name: str = "builtin.unregistered"
+    name: ClassVar[str] = "builtin.unregistered"
 
     attr_name: ParameterDef[StringAttr]
     is_type: ParameterDef[IntAttr]

@@ -37,7 +37,7 @@ class TestType(Data[str], TypeAttribute):
     other dialects.
     """
 
-    name: str = "test.type"
+    name: ClassVar[str] = "test.type"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:

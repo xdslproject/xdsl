@@ -355,7 +355,7 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False)
     """The attribute name should be a static field in the attribute classes."""
 
     def __post_init__(self):
