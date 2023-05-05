@@ -314,7 +314,7 @@ class GetGlobal(IRDLOperation):
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
-            result_types=[return_type], attributes={"name": SymbolRefAttr.build(name)}
+            result_types=[return_type], attributes={"name": SymbolRefAttr(name)}
         )
 
     # TODO how to verify the types, as the global might be defined in another
