@@ -435,10 +435,12 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
+    immediate: OptOpAttr[AnyIntegerAttr]
 
     def __init__(
         self,
         csr: AnyIntegerAttr,
+        immediate: AnyIntegerAttr,
         *,
         writeonly: bool = False,
         rd: RegisterType | Register | None = None,
@@ -450,6 +452,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         super().__init__(
             attributes={
                 "csr": csr,
+                "immediate": immediate,
                 "writeonly": UnitAttr() if writeonly else None,
             },
             result_types=[rd],
