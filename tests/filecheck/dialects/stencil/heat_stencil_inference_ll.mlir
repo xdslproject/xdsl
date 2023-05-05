@@ -21,11 +21,11 @@
       %t0_w_size = "arith.index_cast"(%t0) : (i64) -> index
       %t0_w_size_1 = "memref.load"(%data, %t0_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
       %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>
-      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[54 : i64, 84 : i64, 44 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[50 : i64, 80 : i64, 40 : i64], f32>
+      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[54 : i64, 84 : i64, 44 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[58 : i64, 88 : i64, 48 : i64], f32>
       %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
       %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>
-      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[54 : i64, 84 : i64, 44 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[50 : i64, 80 : i64, 40 : i64], f32>
+      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<[-4 : i64, -4 : i64, -4 : i64]>, "ub" = #stencil.index<[54 : i64, 84 : i64, 44 : i64]>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[58 : i64, 88 : i64, 48 : i64], f32>
       %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<[50 : i64, 80 : i64, 40 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
       %7 = "stencil.apply"(%6) ({
       ^2(%t0_buff : !stencil.temp<[-1 : i64], f32>):
@@ -157,7 +157,7 @@
         %115 = "arith.mulf"(%114, %dt_1) : (f32, f32) -> f32
         "stencil.return"(%115) : (f32) -> ()
       }) : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
-      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[50 : i64, 80 : i64, 40 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>, !stencil.field<[50 : i64, 80 : i64, 40 : i64], f32>) -> ()
+      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<[0 : i64, 0 : i64, 0 : i64]>, "ub" = #stencil.index<[50 : i64, 80 : i64, 40 : i64]>} : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>, !stencil.field<[58 : i64, 88 : i64, 48: i64], f32>) -> ()
       "scf.yield"() : () -> ()
     }) : (index, index, index) -> ()
     "func.return"() : () -> ()
@@ -188,8 +188,8 @@
 // CHECK-NEXT:       %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
 // CHECK-NEXT:       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
 // CHECK-NEXT:       %t1_w_size_3 = "memref.cast"(%t1_w_size_1) : (memref<?x?x?xf32>) -> memref<58x88x48xf32>
-// CHECK-NEXT:       %t1_w_size_3_1 = "memref.subview"(%t1_w_size_3) {"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 50, 80, 40>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<50x80x40xf32, strided<[3200, 40, 1], offset: 12964>>
-// CHECK-NEXT:       %6 = "memref.subview"(%t0_w_size_3) {"static_offsets" = array<i64: 2, 2, 2>, "static_sizes" = array<i64: 54, 84, 44>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>
+// CHECK-NEXT:       %t1_w_size_3_1 = "memref.subview"(%t1_w_size_3) {"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 50, 80, 40>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<50x80x40xf32, strided<[4224, 48, 1], offset: 17092>>
+// CHECK-NEXT:       %6 = "memref.subview"(%t0_w_size_3) {"static_offsets" = array<i64: 2, 2, 2>, "static_sizes" = array<i64: 54, 84, 44>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<58x88x48xf32>) -> memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>
 // CHECK-NEXT:       %7 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:       %8 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:       %9 = "arith.constant"() {"value" = 50 : index} : () -> index
@@ -207,91 +207,91 @@
 // CHECK-NEXT:             %18 = "arith.addi"(%12, %15) : (index, index) -> index
 // CHECK-NEXT:             %19 = "arith.addi"(%13, %16) : (index, index) -> index
 // CHECK-NEXT:             %20 = "arith.addi"(%14, %17) : (index, index) -> index
-// CHECK-NEXT:             %21 = "memref.load"(%6, %18, %19, %20) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %21 = "memref.load"(%6, %18, %19, %20) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %22 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:             %23 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %24 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %25 = "arith.addi"(%12, %22) : (index, index) -> index
 // CHECK-NEXT:             %26 = "arith.addi"(%13, %23) : (index, index) -> index
 // CHECK-NEXT:             %27 = "arith.addi"(%14, %24) : (index, index) -> index
-// CHECK-NEXT:             %28 = "memref.load"(%6, %25, %26, %27) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %28 = "memref.load"(%6, %25, %26, %27) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %29 = "arith.constant"() {"value" = 3 : index} : () -> index
 // CHECK-NEXT:             %30 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %31 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %32 = "arith.addi"(%12, %29) : (index, index) -> index
 // CHECK-NEXT:             %33 = "arith.addi"(%13, %30) : (index, index) -> index
 // CHECK-NEXT:             %34 = "arith.addi"(%14, %31) : (index, index) -> index
-// CHECK-NEXT:             %35 = "memref.load"(%6, %32, %33, %34) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %35 = "memref.load"(%6, %32, %33, %34) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %36 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:             %37 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %38 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %39 = "arith.addi"(%12, %36) : (index, index) -> index
 // CHECK-NEXT:             %40 = "arith.addi"(%13, %37) : (index, index) -> index
 // CHECK-NEXT:             %41 = "arith.addi"(%14, %38) : (index, index) -> index
-// CHECK-NEXT:             %42 = "memref.load"(%6, %39, %40, %41) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %42 = "memref.load"(%6, %39, %40, %41) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %43 = "arith.constant"() {"value" = 4 : index} : () -> index
 // CHECK-NEXT:             %44 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %45 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %46 = "arith.addi"(%12, %43) : (index, index) -> index
 // CHECK-NEXT:             %47 = "arith.addi"(%13, %44) : (index, index) -> index
 // CHECK-NEXT:             %48 = "arith.addi"(%14, %45) : (index, index) -> index
-// CHECK-NEXT:             %49 = "memref.load"(%6, %46, %47, %48) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %49 = "memref.load"(%6, %46, %47, %48) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %50 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %51 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:             %52 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %53 = "arith.addi"(%12, %50) : (index, index) -> index
 // CHECK-NEXT:             %54 = "arith.addi"(%13, %51) : (index, index) -> index
 // CHECK-NEXT:             %55 = "arith.addi"(%14, %52) : (index, index) -> index
-// CHECK-NEXT:             %56 = "memref.load"(%6, %53, %54, %55) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %56 = "memref.load"(%6, %53, %54, %55) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %57 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %58 = "arith.constant"() {"value" = 3 : index} : () -> index
 // CHECK-NEXT:             %59 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %60 = "arith.addi"(%12, %57) : (index, index) -> index
 // CHECK-NEXT:             %61 = "arith.addi"(%13, %58) : (index, index) -> index
 // CHECK-NEXT:             %62 = "arith.addi"(%14, %59) : (index, index) -> index
-// CHECK-NEXT:             %63 = "memref.load"(%6, %60, %61, %62) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %63 = "memref.load"(%6, %60, %61, %62) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %64 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %65 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:             %66 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %67 = "arith.addi"(%12, %64) : (index, index) -> index
 // CHECK-NEXT:             %68 = "arith.addi"(%13, %65) : (index, index) -> index
 // CHECK-NEXT:             %69 = "arith.addi"(%14, %66) : (index, index) -> index
-// CHECK-NEXT:             %70 = "memref.load"(%6, %67, %68, %69) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %70 = "memref.load"(%6, %67, %68, %69) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %71 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %72 = "arith.constant"() {"value" = 4 : index} : () -> index
 // CHECK-NEXT:             %73 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %74 = "arith.addi"(%12, %71) : (index, index) -> index
 // CHECK-NEXT:             %75 = "arith.addi"(%13, %72) : (index, index) -> index
 // CHECK-NEXT:             %76 = "arith.addi"(%14, %73) : (index, index) -> index
-// CHECK-NEXT:             %77 = "memref.load"(%6, %74, %75, %76) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %77 = "memref.load"(%6, %74, %75, %76) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %78 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %79 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %80 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:             %81 = "arith.addi"(%12, %78) : (index, index) -> index
 // CHECK-NEXT:             %82 = "arith.addi"(%13, %79) : (index, index) -> index
 // CHECK-NEXT:             %83 = "arith.addi"(%14, %80) : (index, index) -> index
-// CHECK-NEXT:             %84 = "memref.load"(%6, %81, %82, %83) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %84 = "memref.load"(%6, %81, %82, %83) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %85 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %86 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %87 = "arith.constant"() {"value" = 3 : index} : () -> index
 // CHECK-NEXT:             %88 = "arith.addi"(%12, %85) : (index, index) -> index
 // CHECK-NEXT:             %89 = "arith.addi"(%13, %86) : (index, index) -> index
 // CHECK-NEXT:             %90 = "arith.addi"(%14, %87) : (index, index) -> index
-// CHECK-NEXT:             %91 = "memref.load"(%6, %88, %89, %90) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %91 = "memref.load"(%6, %88, %89, %90) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %92 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %93 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %94 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:             %95 = "arith.addi"(%12, %92) : (index, index) -> index
 // CHECK-NEXT:             %96 = "arith.addi"(%13, %93) : (index, index) -> index
 // CHECK-NEXT:             %97 = "arith.addi"(%14, %94) : (index, index) -> index
-// CHECK-NEXT:             %98 = "memref.load"(%6, %95, %96, %97) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %98 = "memref.load"(%6, %95, %96, %97) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %99 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %100 = "arith.constant"() {"value" = 2 : index} : () -> index
 // CHECK-NEXT:             %101 = "arith.constant"() {"value" = 4 : index} : () -> index
 // CHECK-NEXT:             %102 = "arith.addi"(%12, %99) : (index, index) -> index
 // CHECK-NEXT:             %103 = "arith.addi"(%13, %100) : (index, index) -> index
 // CHECK-NEXT:             %104 = "arith.addi"(%14, %101) : (index, index) -> index
-// CHECK-NEXT:             %105 = "memref.load"(%6, %102, %103, %104) : (memref<54x84x44xf32, strided<[3200, 40, 1], offset: 6482>>, index, index, index) -> f32
+// CHECK-NEXT:             %105 = "memref.load"(%6, %102, %103, %104) : (memref<54x84x44xf32, strided<[4224, 48, 1], offset: 8546>>, index, index, index) -> f32
 // CHECK-NEXT:             %dt = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
 // CHECK-NEXT:             %106 = "arith.constant"() {"value" = -1 : i64} : () -> i64
 // CHECK-NEXT:             %107 = "math.fpowi"(%dt, %106) : (f32, i64) -> f32
@@ -405,7 +405,7 @@
 // CHECK-NEXT:             %199 = "arith.addf"(%108, %198) : (f32, f32) -> f32
 // CHECK-NEXT:             %dt_1 = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
 // CHECK-NEXT:             %200 = "arith.mulf"(%199, %dt_1) : (f32, f32) -> f32
-// CHECK-NEXT:             "memref.store"(%200, %t1_w_size_3_1, %12, %13, %14) : (f32, memref<50x80x40xf32, strided<[3200, 40, 1], offset: 12964>>, index, index, index) -> ()
+// CHECK-NEXT:             "memref.store"(%200, %t1_w_size_3_1, %12, %13, %14) : (f32, memref<50x80x40xf32, strided<[4224, 48, 1], offset: 17092>>, index, index, index) -> ()
 // CHECK-NEXT:             "scf.yield"() : () -> ()
 // CHECK-NEXT:           }) : (index, index, index) -> ()
 // CHECK-NEXT:           "scf.yield"() : () -> ()
