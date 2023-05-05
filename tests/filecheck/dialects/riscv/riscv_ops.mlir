@@ -131,6 +131,10 @@
   %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
 
+  // Machine Mode Privileged Instructions
+  "riscv.wfi"() : () -> ()
+  // CHECK-NEXT: "riscv.wfi"() : () -> ()
+
   // Assembler pseudo-instructions
 
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
