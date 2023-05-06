@@ -321,7 +321,7 @@ class NullaryOperation(IRDLOperation, RISCVOp, ABC):
         super().__init__()
 
 
-class CsrReadWriteOperation(IRDLOperation, ABC):
+class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -370,7 +370,7 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             )
 
 
-class CsrBitwiseOperation(IRDLOperation, ABC):
+class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -421,7 +421,7 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             )
 
 
-class CsrReadWriteImmOperation(IRDLOperation, ABC):
+class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -470,7 +470,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             )
 
 
-class CsrBitwiseImmOperation(IRDLOperation, ABC):
+class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
