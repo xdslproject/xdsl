@@ -766,7 +766,7 @@ class Operation(IRNode):
         ) is not None:
             # TODO single-block regions dealt when the NoTerminator trait is implemented
             if len(parent_region.blocks) > 1:
-                if len(self.successors) > 0:
+                if self.successors:
                     if parent_block.last_op != self:
                         raise Exception(
                             "Operation with block successors must terminate its parent block"
