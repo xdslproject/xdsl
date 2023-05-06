@@ -4,7 +4,7 @@ Toy language dialect from MLIR tutorial.
 
 from __future__ import annotations
 
-from typing import Annotated, TypeAlias, cast
+from typing import Annotated, TypeAlias, cast, ClassVar
 
 from xdsl.ir import Dialect, SSAValue, Attribute, Block, Region, OpResult
 from xdsl.dialects.builtin import (
@@ -51,7 +51,7 @@ class ConstantOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.constant"
+    name: ClassVar[str] = "toy.constant"
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
 
@@ -94,7 +94,7 @@ class AddOp(IRDLOperation):
     The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.add"
+    name: ClassVar[str] = "toy.add"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
@@ -142,7 +142,7 @@ class FuncOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.func"
+    name: ClassVar[str] = "toy.func"
     body: Region
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
@@ -215,7 +215,7 @@ class FuncOp(IRDLOperation):
 
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
-    name: str = "toy.generic_call"
+    name: ClassVar[str] = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
 
@@ -245,7 +245,7 @@ class MulOp(IRDLOperation):
     tensors. The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.mul"
+    name: ClassVar[str] = "toy.mul"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
@@ -282,7 +282,7 @@ class PrintOp(IRDLOperation):
     no results.
     """
 
-    name: str = "toy.print"
+    name: ClassVar[str] = "toy.print"
     input: Annotated[Operand, AnyAttr()]
 
     def __init__(self, input: SSAValue):
@@ -305,7 +305,7 @@ class ReturnOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.return"
+    name: ClassVar[str] = "toy.return"
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
     def __init__(self, input: SSAValue | None = None):
@@ -323,7 +323,7 @@ class ReshapeOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.reshape"
+    name: ClassVar[str] = "toy.reshape"
     arg: Annotated[Operand, AnyTensorTypeF64]
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
@@ -356,7 +356,7 @@ class ReshapeOp(IRDLOperation):
 
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
-    name: str = "toy.transpose"
+    name: ClassVar[str] = "toy.transpose"
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 

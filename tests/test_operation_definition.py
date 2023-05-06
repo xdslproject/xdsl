@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from typing import ClassVar
+
 from xdsl.dialects.builtin import IntAttr, StringAttr, i32
 
 from xdsl.ir import Attribute, OpResult, Region
@@ -95,7 +97,7 @@ def test_invalid_field():
 
 @irdl_op_definition
 class AttrOp(IRDLOperation):
-    name: str = "test.two_var_result_op"
+    name: ClassVar[str] = "test.two_var_result_op"
     attr: OpAttr[StringAttr]
 
 
