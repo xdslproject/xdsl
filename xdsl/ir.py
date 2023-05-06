@@ -193,7 +193,7 @@ class SSAValue(ABC):
     @property
     def name(self) -> str | None:
         return self.name_hint
-    
+
     @property
     def name_hint(self) -> str | None:
         return self._name
