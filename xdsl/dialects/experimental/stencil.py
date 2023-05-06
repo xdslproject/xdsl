@@ -468,7 +468,10 @@ class LoadOp(IRDLOperation):
 
         return LoadOp.build(
             operands=[field],
-            attributes=attributes,
+            attributes={
+                "lb": lb,
+                "ub": ub,
+            },
             result_types=[
                 TempType[Attribute].from_shape(
                     [-1] * len(field_t.shape.data), field_t.element_type
