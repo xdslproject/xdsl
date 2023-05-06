@@ -435,10 +435,12 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
+    immediate: OptOpAttr[AnyIntegerAttr]
 
     def __init__(
         self,
         csr: AnyIntegerAttr,
+        immediate: AnyIntegerAttr,
         *,
         writeonly: bool = False,
         rd: RegisterType | Register | None = None,
@@ -450,6 +452,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         super().__init__(
             attributes={
                 "csr": csr,
+                "immediate": immediate,
                 "writeonly": UnitAttr() if writeonly else None,
             },
             result_types=[rd],
@@ -1229,7 +1232,7 @@ class EcallOp(NullaryOperation):
     request are passed, but usually these will be in defined locations in the
     integer register file.
 
-    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
     """
 
     name = "riscv.ecall"
@@ -1241,10 +1244,23 @@ class EbreakOp(NullaryOperation):
     The EBREAK instruction is used by debuggers to cause control to be
     transferred back to a debugging environment.
 
-    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
     """
 
     name = "riscv.ebreak"
+
+
+@irdl_op_definition
+class WfiOp(NullaryOperation):
+    """
+    The Wait for Interrupt instruction (WFI) provides a hint to the
+    implementation that the current hart can be stalled until an
+    interrupt might need servicing.
+
+    https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf
+    """
+
+    name = "riscv.wfi"
 
 
 # endregion
@@ -1299,6 +1315,7 @@ RISCV = Dialect(
         LiOp,
         EcallOp,
         EbreakOp,
+        WfiOp,
     ],
     [
         RegisterType,

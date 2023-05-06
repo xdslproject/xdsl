@@ -178,13 +178,15 @@ class Call(IRDLOperation):
     @staticmethod
     def get(
         callee: Union[str, SymbolRefAttr],
-        ops: Sequence[Union[SSAValue, Operation]],
+        arguments: Sequence[Union[SSAValue, Operation]],
         return_types: Sequence[Attribute],
     ) -> Call:
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
         return Call.build(
-            operands=[ops], result_types=[return_types], attributes={"callee": callee}
+            operands=[arguments],
+            result_types=[return_types],
+            attributes={"callee": callee},
         )
 
 
