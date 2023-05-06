@@ -205,7 +205,7 @@ class xDSLOptMain:
             default=False,
             action="store_true",
             help="Split the input file into pieces and process each chunk independently by "
-            " using `// -----`"
+            " using `// -----`",
         )
 
     def register_all_dialects(self):
