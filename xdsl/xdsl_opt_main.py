@@ -33,6 +33,7 @@ from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_mpi import LowerMPIPass
+from xdsl.transforms.to_riscv import RiscvLoweringPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
@@ -260,6 +261,7 @@ class xDSLOptMain:
         self.register_pass(DesymrefyPass)
         self.register_pass(DeadCodeElimination)
         self.register_pass(RISCVRegisterAllocation)
+        self.register_pass(RiscvLoweringPass)
 
     def register_all_targets(self):
         """

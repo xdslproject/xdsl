@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Literal
 
 from xdsl.ir import (
     Dialect,
@@ -154,6 +154,9 @@ class LabelAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string_literal(self.data)
 
+    def __init__(self, name: str | int, direction: Literal["f", "b", ""] = ""):
+        super().__init__(str(name) + direction)
+
 
 class RISCVOp(Operation, ABC):
     pass
@@ -270,13 +273,13 @@ class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
 
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr]
+    offset: OpAttr[AnyIntegerAttr | LabelAttr]
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: AnyIntegerAttr,
+        offset: AnyIntegerAttr | LabelAttr,
     ):
         super().__init__(
             operands=[rs1, rs2],
@@ -1263,6 +1266,18 @@ class WfiOp(NullaryOperation):
     name = "riscv.wfi"
 
 
+@irdl_op_definition
+class LabelOp(IRDLOperation):
+    name = "riscv.asm.label"
+
+    label: OpAttr[LabelAttr]
+
+    def __init__(self, label: LabelAttr | str | int):
+        if not isinstance(label, LabelAttr):
+            label = LabelAttr(label)
+        super().__init__(attributes={"label": label})
+
+
 # endregion
 
 RISCV = Dialect(
@@ -1316,6 +1331,7 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        LabelOp,
     ],
     [
         RegisterType,
