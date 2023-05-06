@@ -1,6 +1,17 @@
+from typing import Sequence
 import pytest
 
-from xdsl.dialects.builtin import FloatAttr, f32, f64, i32, i64, IntegerType
+from xdsl.dialects.builtin import (
+    FloatAttr,
+    IntegerAttr,
+    f32,
+    f64,
+    i32,
+    i64,
+    IntegerType,
+    ArrayAttr,
+    AnyIntegerAttr,
+)
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
     ResultType,
@@ -191,7 +202,39 @@ def test_stencil_apply_no_results():
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (i32, [1, 2]),
+        (
+            i32,
+            ArrayAttr(
+                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
+            ),
+        ),
+        (
+            i64,
+            ArrayAttr(
+                [
+                    IntegerAttr[IntegerType](1, 32),
+                    IntegerAttr[IntegerType](2, 32),
+                    IntegerAttr[IntegerType](3, 32),
+                ]
+            ),
+        ),
+    ),
+)
+def test_stencil_fieldtype_constructor_with_ArrayAttr(
+    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+):
+    stencil_fieldtype = FieldType(dims, attr)
+
+    assert stencil_fieldtype.element_type == attr
+    assert stencil_fieldtype.get_num_dims() == len(dims)
+    assert stencil_fieldtype.get_shape() == [
+        list(dims.data)[dim].value.data for dim in range(len(dims))
+    ]
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
         (i32, [1, 2]),
         (i32, [1, 1, 3]),
         (i64, [1, 1, 3]),

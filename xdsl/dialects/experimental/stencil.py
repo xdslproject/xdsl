@@ -89,12 +89,14 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     ) -> None:
         if isinstance(shape, ArrayAttr):
             super().__init__([shape, typ])
+            return
 
         # cast to list
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
         if len(shape) > 0 and isa(shape[0], list[AnyIntegerAttr]):
             super().__init__([ArrayAttr(shape), typ])  # type: ignore
+            return
         shape = cast(list[int], shape)
         super().__init__(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
