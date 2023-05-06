@@ -318,7 +318,9 @@ class LowerHaloExchangeToMpi(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil_exp.HaloSwapOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(
+        self, op: stencil_exp.HaloSwapOp, rewriter: PatternRewriter, /
+    ):
         exchanges = list(self.strategy.halo_exchange_defs(DimsHelper(op)))
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
         rewriter.replace_matched_op(

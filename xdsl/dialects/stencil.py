@@ -1,9 +1,23 @@
 from __future__ import annotations
-from typing import (Annotated, TypeVar, Generic, List, Sequence, cast, Iterable, Iterator)
+from typing import Annotated, TypeVar, Generic, List, Sequence, cast, Iterable, Iterator
 
-from xdsl.dialects.builtin import (IntegerType, IntegerAttr, ArrayAttr, ParametrizedAttribute, ParameterDef, TypeAttribute, AnyIntegerAttr)
+from xdsl.dialects.builtin import (
+    IntegerType,
+    IntegerAttr,
+    ArrayAttr,
+    ParametrizedAttribute,
+    ParameterDef,
+    TypeAttribute,
+    AnyIntegerAttr,
+)
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, OpAttr, irdl_attr_definition
+from xdsl.irdl import (
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+    OpAttr,
+    irdl_attr_definition,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
