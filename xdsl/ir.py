@@ -348,6 +348,7 @@ class TypeAttribute:
 A = TypeVar("A", bound="Attribute")
 
 
+@dataclass(frozen=True)
 class Attribute(ABC):
     """
     A compile-time value.
