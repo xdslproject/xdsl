@@ -29,4 +29,3 @@
 // CHECK: "builtin.module"() ({
 // CHECK:   %x = "test.op"() : () -> i2
 // CHECK: }) : () -> ()
-
