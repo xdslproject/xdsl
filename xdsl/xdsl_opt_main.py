@@ -204,7 +204,8 @@ class xDSLOptMain:
             "-split-input-file",
             default=False,
             action="store_true",
-            help="Split the input file into pieces and process each chunk independently",
+            help="Split the input file into pieces and process each chunk independently by "
+            " using `// -----`"
         )
 
     def register_all_dialects(self):
