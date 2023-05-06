@@ -704,7 +704,7 @@ class Parser(ABC):
             self.ssa_values[name.text[1:]] = (arg,)
             # store ssa val name if valid
             if SSAValue.is_valid_name(name.text[1:]):
-                arg.name = name.text[1:]
+                arg.name_hint = name.text[1:]
             block_args.append(arg)
 
         block._args = tuple(block_args)  # type: ignore
@@ -1586,7 +1586,7 @@ class Parser(ABC):
             # Carry over `ssa_val_name` for non-numeric names:
             if SSAValue.is_valid_name(ssa_val_name):
                 for val in self.ssa_values[ssa_val_name]:
-                    val.name = ssa_val_name
+                    val.name_hint = ssa_val_name
 
         return op
 

@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !riscv.reg<>
-  %1 = "test.op"() : () -> !riscv.reg<>
+  %0 = "riscv.get_register"() : () -> !riscv.reg<>
+  %1 = "riscv.get_register"() : () -> !riscv.reg<>
   // RV32I/RV64I: 2.4 Integer Computational Instructions
 
   // Integer Register-Immediate Instructions
@@ -70,6 +70,9 @@
   %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">}: (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> !riscv.reg<>
 
+  "riscv.ret"() : () -> ()
+  // CHECK-NEXT: "riscv.ret"() : () -> ()
+
 
   // Conditional Branch Instructions
   "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
@@ -130,6 +133,10 @@
   // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
   %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
+
+  // Machine Mode Privileged Instructions
+  "riscv.wfi"() : () -> ()
+  // CHECK-NEXT: "riscv.wfi"() : () -> ()
 
   // Assembler pseudo-instructions
 

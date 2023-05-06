@@ -4,6 +4,7 @@ import os
 
 from io import StringIO
 from xdsl.dialects.riscv import RISCV
+from xdsl.dialects.snitch import Snitch
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -24,8 +25,9 @@ from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
+from xdsl.dialects.stencil import Stencil
 
-from xdsl.dialects.experimental.stencil import Stencil
+from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
@@ -44,6 +46,7 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
 from xdsl.utils.exceptions import DiagnosticException
 
 from typing import IO, Dict, Callable, List, Sequence, Type
+from xdsl.riscv_asm_writer import print_riscv_module
 
 
 class xDSLOptMain:
@@ -218,11 +221,13 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(StencilExp)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
+        self.ctx.register_dialect(Snitch)
 
     def register_all_frontends(self):
         """
@@ -271,7 +276,12 @@ class xDSLOptMain:
             printer.print_op(prog)
             print("\n", file=output)
 
+        def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
+            print_riscv_module(prog, output)
+            print("\n", file=output)
+
         self.available_targets["mlir"] = _output_mlir
+        self.available_targets["riscv-asm"] = _output_riscv_asm
 
     def setup_pipeline(self):
         """

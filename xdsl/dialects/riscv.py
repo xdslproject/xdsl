@@ -321,7 +321,7 @@ class NullaryOperation(IRDLOperation, RISCVOp, ABC):
         super().__init__()
 
 
-class CsrReadWriteOperation(IRDLOperation, ABC):
+class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -370,7 +370,7 @@ class CsrReadWriteOperation(IRDLOperation, ABC):
             )
 
 
-class CsrBitwiseOperation(IRDLOperation, ABC):
+class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -421,7 +421,7 @@ class CsrBitwiseOperation(IRDLOperation, ABC):
             )
 
 
-class CsrReadWriteImmOperation(IRDLOperation, ABC):
+class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -435,10 +435,12 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
+    immediate: OptOpAttr[AnyIntegerAttr]
 
     def __init__(
         self,
         csr: AnyIntegerAttr,
+        immediate: AnyIntegerAttr,
         *,
         writeonly: bool = False,
         rd: RegisterType | Register | None = None,
@@ -450,6 +452,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
         super().__init__(
             attributes={
                 "csr": csr,
+                "immediate": immediate,
                 "writeonly": UnitAttr() if writeonly else None,
             },
             result_types=[rd],
@@ -467,7 +470,7 @@ class CsrReadWriteImmOperation(IRDLOperation, ABC):
             )
 
 
-class CsrBitwiseImmOperation(IRDLOperation, ABC):
+class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -869,6 +872,20 @@ class JalrOp(RdRsImmOperation):
     name = "riscv.jalr"
 
 
+@irdl_op_definition
+class ReturnOp(NullaryOperation):
+    """
+    Pseudo-op for returning from subroutine.
+
+    Equivalent to `jalr x0, x1, 0`
+    """
+
+    name = "riscv.ret"
+
+    def __init__(self):
+        super().__init__()
+
+
 # Conditional Branches
 
 
@@ -1229,7 +1246,7 @@ class EcallOp(NullaryOperation):
     request are passed, but usually these will be in defined locations in the
     integer register file.
 
-    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
     """
 
     name = "riscv.ecall"
@@ -1241,13 +1258,64 @@ class EbreakOp(NullaryOperation):
     The EBREAK instruction is used by debuggers to cause control to be
     transferred back to a debugging environment.
 
-    https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf
+    https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
     """
 
     name = "riscv.ebreak"
 
 
+@irdl_op_definition
+class WfiOp(NullaryOperation):
+    """
+    The Wait for Interrupt instruction (WFI) provides a hint to the
+    implementation that the current hart can be stalled until an
+    interrupt might need servicing.
+
+    https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf
+    """
+
+    name = "riscv.wfi"
+
+
 # endregion
+
+# RISC-V SSA Helpers
+
+
+@irdl_op_definition
+class GetRegisterOp(IRDLOperation, RISCVOp):
+    """
+    This instruction allows us to create an SSAValue with for a given register name. This
+    is useful for bridging the RISC-V convention that stores the result of function calls
+    in `a0` and `a1` into SSA form.
+
+    For example, to generate this assembly:
+    ```
+    jal my_func
+    add a0 s0 a0
+    ```
+
+    One needs to do the following:
+
+    ``` python
+    rhs = riscv.GetRegisterOp(Registers.s0).res
+    riscv.JalOp("my_func")
+    lhs = riscv.GetRegisterOp(Registers.A0).res
+    sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
+    ```
+    """
+
+    name = "riscv.get_register"
+    res: Annotated[OpResult, RegisterType]
+
+    def __init__(
+        self,
+        register_type: RegisterType | Register,
+    ):
+        if isinstance(register_type, Register):
+            register_type = RegisterType(register_type)
+        super().__init__(result_types=[register_type])
+
 
 RISCV = Dialect(
     [
@@ -1276,6 +1344,7 @@ RISCV = Dialect(
         JalOp,
         JOp,
         JalrOp,
+        ReturnOp,
         BeqOp,
         BneOp,
         BltOp,
@@ -1299,6 +1368,8 @@ RISCV = Dialect(
         LiOp,
         EcallOp,
         EbreakOp,
+        WfiOp,
+        GetRegisterOp,
     ],
     [
         RegisterType,
