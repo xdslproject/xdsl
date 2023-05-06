@@ -1,4 +1,3 @@
-from typing import Sequence
 import pytest
 
 from xdsl.dialects.builtin import (
