@@ -1,7 +1,13 @@
-from typing import IO
+from typing import IO, Sequence
+
 from xdsl.ir import Operation, SSAValue
-from xdsl.dialects.riscv import RISCVOp, RegisterType, AnyIntegerAttr
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    IndexType,
+)
 from xdsl.utils.hints import isa
 
 from xdsl.dialects import riscv
@@ -13,8 +19,15 @@ def print_riscv_module(module: ModuleOp, output: IO[str]):
 
 
 def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
+    # allow riscv printable
+    if isinstance(op, riscv.RISCVPrinterInterface):
+        _print_component_strings(
+            op.riscv_printed_name(), op.riscv_printed_components(), output
+        )
+        return
+
     # default assembly code generator
-    assert isinstance(op, RISCVOp)
+    assert isinstance(op, riscv.RISCVOp)
     assert op.name.startswith("riscv.")
     instruction_name = op.name[6:]
 
@@ -44,6 +57,16 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
+    _print_component_strings(instruction_name, components, output)
+
+
+def _print_component_strings(
+    name: str,
+    components: Sequence[
+        IntegerAttr[IntegerType | IndexType] | riscv.LabelAttr | SSAValue | str | None
+    ],
+    output: IO[str],
+):
     component_strs: list[str] = []
 
     for component in components:
@@ -56,11 +79,11 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         elif isinstance(component, str):
             component_strs.append(component)
         else:
-            assert isinstance(component.typ, RegisterType)
+            assert isinstance(component.typ, riscv.RegisterType)
             reg = component.typ.data.name
             if reg is None:
                 raise ValueError("Cannot emit riscv assembly for unallocated register")
             component_strs.append(reg)
 
-    code = f"    {instruction_name} {', '.join(component_strs)}"
+    code = f"    {name} {', '.join(component_strs)}"
     print(code, file=output)
