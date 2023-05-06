@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !riscv.reg<>
-  %1 = "test.op"() : () -> !riscv.reg<>
+  %0 = "riscv.get_register"() : () -> !riscv.reg<>
+  %1 = "riscv.get_register"() : () -> !riscv.reg<>
   // RV32I/RV64I: 2.4 Integer Computational Instructions
 
   // Integer Register-Immediate Instructions

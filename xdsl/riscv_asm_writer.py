@@ -21,6 +21,9 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
     components: list[AnyIntegerAttr | riscv.LabelAttr | SSAValue | str | None] = []
 
     match op:
+        case riscv.GetRegisterOp():
+            # Don't print assembly for creating a SSA value representing register
+            return
         case riscv.NullaryOperation():
             pass
         case riscv.RdRsRsOperation():
