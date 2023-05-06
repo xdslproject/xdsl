@@ -17,10 +17,8 @@ from xdsl.dialects.experimental.stencil import (
     ResultType,
     ApplyOp,
     TempType,
-    FieldType,
-    IndexAttr,
 )
-from xdsl.dialects.stencil import CastOp
+from xdsl.dialects.stencil import CastOp, FieldType, IndexAttr
 from xdsl.ir import Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue

@@ -17,7 +17,8 @@ from xdsl.rewriter import Rewriter
 from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
-from xdsl.dialects.experimental import stencil
+from xdsl.dialects.experimental import stencil as stencil_exp
+from xdsl.dialects.stencil import IndexAttr
 
 _T = TypeVar("_T", bound=Attribute)
 
@@ -135,7 +136,7 @@ class DimsHelper:
     DIM_Y: ClassVar[int] = 1
     DIM_Z: ClassVar[int] = 2
 
-    def __init__(self, op: stencil.HaloSwapOp):
+    def __init__(self, op: stencil_exp.HaloSwapOp):
         assert (
             op.buff_lb is not None
         ), "HaloSwapOp must be lowered after shape inference!"
@@ -274,7 +275,7 @@ class ChangeStoreOpSizes(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: stencil_exp.StoreOp, rewriter: PatternRewriter, /):
         assert all(
             integer_attr.value.data == 0 for integer_attr in op.lb.array.data
         ), "lb must be 0"
@@ -282,7 +283,7 @@ class ChangeStoreOpSizes(RewritePattern):
             (integer_attr.value.data for integer_attr in op.ub.array.data)
         )
         new_shape = self.strategy.calc_resize(shape)
-        op.ub = stencil.IndexAttr.get(*new_shape)
+        op.ub = IndexAttr.get(*new_shape)
 
 
 @dataclass
@@ -294,8 +295,8 @@ class AddHaloExchangeOps(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = stencil.HaloSwapOp.get(op.res)
+    def match_and_rewrite(self, op: stencil_exp.LoadOp, rewriter: PatternRewriter, /):
+        swap_op = stencil_exp.HaloSwapOp.get(op.res)
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -317,7 +318,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.HaloSwapOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: stencil_exp.HaloSwapOp, rewriter: PatternRewriter, /):
         exchanges = list(self.strategy.halo_exchange_defs(DimsHelper(op)))
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
         rewriter.replace_matched_op(

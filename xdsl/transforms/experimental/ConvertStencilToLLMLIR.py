@@ -17,12 +17,10 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
-from xdsl.dialects.stencil import CastOp
+from xdsl.dialects.stencil import CastOp, FieldType, IndexAttr
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    FieldType,
-    IndexAttr,
     LoadOp,
     ReturnOp,
     StoreOp,

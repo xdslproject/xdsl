@@ -4,12 +4,11 @@ from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
     HaloSwapOp,
-    IndexAttr,
     LoadOp,
     StoreOp,
     TempType,
 )
-from xdsl.dialects.stencil import CastOp
+from xdsl.dialects.stencil import CastOp, IndexAttr
 from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

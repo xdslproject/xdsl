@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator, List
+from typing import Sequence, TypeVar, Any, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     AnyFloat,
 )
+from xdsl.dialects.stencil import FieldType, IndexAttr
 from xdsl.ir import Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
@@ -61,41 +62,6 @@ class IntOrUnknown(AttrConstraint):
 
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
-
-
-@irdl_attr_definition
-class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
-    name = "stencil.field"
-
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
 
 
 @irdl_attr_definition
@@ -165,91 +131,6 @@ class ArrayLength(AttrConstraint):
 class ElementType(ParametrizedAttribute):
     name = "stencil.element"
     element = AnyOf([f32, f64])
-
-
-@irdl_attr_definition
-class IndexAttr(ParametrizedAttribute, Iterable[int]):
-    # TODO: can you have an attr and an op with the same name?
-    name = "stencil.index"
-
-    array: ParameterDef[ArrayAttr[IntegerAttr[IntegerType]]]
-
-    def verify(self) -> None:
-        if len(self.array.data) < 1 or len(self.array.data) > 3:
-            raise VerifyException(
-                f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
-            )
-
-    @staticmethod
-    def get(*indices: int | IntegerAttr[IntegerType]):
-        return IndexAttr(
-            [
-                ArrayAttr(
-                    [
-                        (
-                            IntegerAttr[IntegerType](idx, 64)
-                            if isinstance(idx, int)
-                            else idx
-                        )
-                        for idx in indices
-                    ]
-                )
-            ]
-        )
-
-    @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [
-            ub.value.data - lb.value.data
-            for lb, ub in zip(lb.array.data, ub.array.data)
-        ]
-
-    # TODO : come to an agreement on, do we want to allow that kind of things
-    # on Attributes? Author's opinion is a clear yes :P
-    def __neg__(self) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(-e.value.data, IntegerType(64)) for e in self.array.data
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def __add__(self, o: IndexAttr) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
-            for se, oe in zip(self.array.data, o.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def __sub__(self, o: IndexAttr) -> IndexAttr:
-        return self + -o
-
-    @staticmethod
-    def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
-        if b is None:
-            return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(min(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    @staticmethod
-    def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
-        if b is None:
-            return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(max(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.value.data for e in self.array.data)
-
-    def __len__(self):
-        return len(self.array)
-
-    def __iter__(self) -> Iterator[int]:
-        return (e.value.data for e in self.array.data)
 
 
 @dataclass(frozen=True)
@@ -603,11 +484,9 @@ StencilExp = Dialect(
         HaloSwapOp,
     ],
     [
-        FieldType,
         TempType,
         ResultType,
         ElementType,
-        IndexAttr,
         LoopAttr,
     ],
 )
