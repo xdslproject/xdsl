@@ -369,7 +369,7 @@ class IRDLOperation(Operation):
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Block] | None = None,
+        successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
             | Sequence[Operation]
@@ -405,7 +405,7 @@ class IRDLOperation(Operation):
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Block] | None = None,
+        successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
             | Sequence[Operation]
@@ -471,6 +471,17 @@ class AttrSizedRegionSegments(IRDLOption):
 
     attribute_name = "region_segment_sizes"
     """Name of the attribute containing the variadic region sizes."""
+
+
+@dataclass
+class AttrSizedSuccessorSegments(IRDLOption):
+    """
+    Expect an attribute on the op that contains
+    the sizes of the variadic successors.
+    """
+
+    attribute_name = "successor_segment_sizes"
+    """Name of the attribute containing the variadic successor sizes."""
 
 
 @dataclass
@@ -622,6 +633,23 @@ OptOpAttr: TypeAlias = Annotated[_OpAttrT | None, IRDLAnnotations.OptAttributeDe
 operation_fields = get_type_hints(Operation).keys()
 
 
+class SuccessorDef:
+    """An IRDL successor definition."""
+
+
+class VarSuccessorDef(SuccessorDef, VariadicDef):
+    """An IRDL variadic successor definition."""
+
+
+class OptSuccessorDef(SuccessorDef, OptionalDef):
+    """An IRDL optional successor definition."""
+
+
+Successor: TypeAlias = Block
+OptSuccessor: TypeAlias = Block | None
+VarSuccessor: TypeAlias = list[Block]
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -631,6 +659,7 @@ class OpDef:
     results: list[tuple[str, ResultDef]] = field(default_factory=list)
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
+    successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
     traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
@@ -774,6 +803,15 @@ class OpDef:
                     op_def.regions.append((field_name, OptSingleBlockRegionDef()))
                 else:
                     op_def.regions.append((field_name, OptRegionDef()))
+
+            # Successor annotation
+            elif args[0] == Successor:
+                op_def.successors.append((field_name, SuccessorDef()))
+            elif args[0] == VarSuccessor:
+                op_def.successors.append((field_name, VarSuccessorDef()))
+            elif args[0] == OptSuccessor:
+                op_def.successors.append((field_name, OptSuccessorDef()))
+
             else:
                 raise wrong_field_exception(field_name)
 
@@ -802,6 +840,9 @@ class OpDef:
         # Verify regions.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
 
+        # Verify successors.
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR)
+
         # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
             if attr_name not in op.attributes:
@@ -824,6 +865,7 @@ class VarIRConstruct(Enum):
     OPERAND = 1
     RESULT = 2
     REGION = 3
+    SUCCESSOR = 4
 
 
 def get_construct_name(construct: VarIRConstruct) -> str:
@@ -834,6 +876,8 @@ def get_construct_name(construct: VarIRConstruct) -> str:
         return "result"
     if construct == VarIRConstruct.REGION:
         return "region"
+    if construct == VarIRConstruct.SUCCESSOR:
+        return "successor"
     assert False, "Unknown VarIRConstruct value"
 
 
@@ -843,6 +887,7 @@ def get_construct_defs(
     list[tuple[str, OperandDef]]
     | list[tuple[str, ResultDef]]
     | list[tuple[str, RegionDef]]
+    | list[tuple[str, SuccessorDef]]
 ):
     """Get the definitions of this type in an operation definition."""
     if construct == VarIRConstruct.OPERAND:
@@ -851,12 +896,14 @@ def get_construct_defs(
         return op_def.results
     if construct == VarIRConstruct.REGION:
         return op_def.regions
+    if construct == VarIRConstruct.SUCCESSOR:
+        return op_def.successors
     assert False, "Unknown VarIRConstruct value"
 
 
 def get_op_constructs(
     op: Operation, construct: VarIRConstruct
-) -> tuple[SSAValue, ...] | list[OpResult] | list[Region]:
+) -> tuple[SSAValue, ...] | list[OpResult] | list[Region] | list[Successor]:
     """
     Get the list of arguments of the type in an operation.
     For example, if the argument type is an operand, get the list of
@@ -868,12 +915,19 @@ def get_op_constructs(
         return op.results
     if construct == VarIRConstruct.REGION:
         return op.regions
+    if construct == VarIRConstruct.SUCCESSOR:
+        return op.successors
     assert False, "Unknown VarIRConstruct value"
 
 
 def get_attr_size_option(
     construct: VarIRConstruct,
-) -> AttrSizedOperandSegments | AttrSizedResultSegments | AttrSizedRegionSegments:
+) -> (
+    AttrSizedOperandSegments
+    | AttrSizedResultSegments
+    | AttrSizedRegionSegments
+    | AttrSizedSuccessorSegments
+):
     """Get the AttrSized option for this type."""
     if construct == VarIRConstruct.OPERAND:
         return AttrSizedOperandSegments()
@@ -881,12 +935,14 @@ def get_attr_size_option(
         return AttrSizedResultSegments()
     if construct == VarIRConstruct.REGION:
         return AttrSizedRegionSegments()
+    if construct == VarIRConstruct.SUCCESSOR:
+        return AttrSizedSuccessorSegments()
     assert False, "Unknown VarIRConstruct value"
 
 
 def get_variadic_sizes_from_attr(
     op: Operation,
-    defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef]],
+    defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
     construct: VarIRConstruct,
     size_attribute_name: str,
 ) -> list[int]:
@@ -995,7 +1051,16 @@ def get_operand_result_or_region(
     arg_def_idx: int,
     previous_var_args: int,
     construct: VarIRConstruct,
-) -> None | SSAValue | tuple[SSAValue, ...] | list[OpResult] | Region | list[Region]:
+) -> (
+    None
+    | SSAValue
+    | tuple[SSAValue, ...]
+    | list[OpResult]
+    | Region
+    | list[Region]
+    | Successor
+    | list[Successor]
+):
     """
     Get an operand, result, or region.
     In the case of a variadic definition, return a list of elements.
@@ -1050,8 +1115,10 @@ def irdl_op_verify_arg_list(
                     raise VerifyException(
                         "expected a single block, but got " f"{len(arg.blocks)} blocks"
                     )
+            elif construct == VarIRConstruct.SUCCESSOR:
+                pass
             else:
-                assert False, "Unknown ArgType value"
+                assert False, "Unknown VarIRConstruct value"
         except Exception as e:
             error(
                 op,
@@ -1097,6 +1164,16 @@ def irdl_build_arg_list(
     arg_defs: Sequence[tuple[str, RegionDef]],
     error_prefix: str,
 ) -> tuple[list[Region], list[int]]:
+    ...
+
+
+@overload
+def irdl_build_arg_list(
+    construct: Literal[VarIRConstruct.SUCCESSOR],
+    args: Sequence[Successor | Sequence[Successor] | None],
+    arg_defs: Sequence[tuple[str, SuccessorDef]],
+    error_prefix: str,
+) -> tuple[list[Successor], list[int]]:
     ...
 
 
@@ -1209,7 +1286,7 @@ def irdl_op_init(
     operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None],
     res_types: Sequence[Attribute | Sequence[Attribute] | None],
     attributes: Mapping[str, Attribute | None],
-    successors: Sequence[Block],
+    successors: Sequence[Successor | Sequence[Successor] | None],
     regions: Sequence[
         Region
         | Sequence[Operation]
@@ -1246,6 +1323,11 @@ def irdl_op_init(
         VarIRConstruct.REGION, regions_arg, op_def.regions, error_prefix
     )
 
+    # Build the successors
+    built_successors, successor_sizes = irdl_build_arg_list(
+        VarIRConstruct.SUCCESSOR, successors, op_def.successors, error_prefix
+    )
+
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
         if attr is None:
@@ -1273,12 +1355,17 @@ def irdl_op_init(
             AttrSizedRegionSegments.attribute_name
         ] = DenseArrayBase.from_list(i32, region_sizes)
 
+    if AttrSizedSuccessorSegments() in op_def.options:
+        built_attributes[
+            AttrSizedSuccessorSegments.attribute_name
+        ] = DenseArrayBase.from_list(i32, successor_sizes)
+
     Operation.__init__(
         self,
         operands=built_operands,
         result_types=built_res_types,
         attributes=built_attributes,
-        successors=successors,
+        successors=built_successors,
         regions=built_regions,
     )
 
@@ -1334,6 +1421,9 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     # Add region access fields
     irdl_op_arg_definition(new_attrs, VarIRConstruct.REGION, op_def)
+
+    # Add successor access fields
+    irdl_op_arg_definition(new_attrs, VarIRConstruct.SUCCESSOR, op_def)
 
     def optional_attribute_field(attribute_name: str):
         def field_getter(self: _OpT):
