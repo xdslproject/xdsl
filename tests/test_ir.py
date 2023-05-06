@@ -173,7 +173,7 @@ def test_non_empty_block_with_parent_region_requires_terminator():
     op0 = TestOp.create(regions=[region0])
 
     with pytest.raises(
-        Exception, match="Operation terminates block with no terminator"
+        Exception, match="Operation terminates block but is not a terminator"
     ):
         op0.verify()
 
