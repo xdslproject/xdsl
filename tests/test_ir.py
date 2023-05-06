@@ -13,6 +13,7 @@ from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValu
 from xdsl.parser import Parser
 from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
 from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_ops_accessor():
@@ -173,7 +174,7 @@ def test_non_empty_block_with_parent_region_requires_terminator():
     op0 = TestOp.create(regions=[region0])
 
     with pytest.raises(
-        Exception, match="Operation terminates block but is not a terminator"
+        VerifyException, match="Operation terminates block but is not a terminator"
     ):
         op0.verify()
 
@@ -189,7 +190,7 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
     op0 = TestOp.create(regions=[region0])
 
     with pytest.raises(
-        Exception,
+        VerifyException,
         match="Operation with block successors must terminate its parent block",
     ):
         op0.verify()

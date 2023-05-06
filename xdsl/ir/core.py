@@ -768,12 +768,12 @@ class Operation(IRNode):
             if len(parent_region.blocks) > 1:
                 if self.successors:
                     if parent_block.last_op != self:
-                        raise Exception(
+                        raise VerifyException(
                             "Operation with block successors must terminate its parent block"
                         )
 
                     if not self.has_trait(IsTerminator):
-                        raise Exception(
+                        raise VerifyException(
                             "Operation terminates block but is not a terminator"
                         )
 
