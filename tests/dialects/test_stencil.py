@@ -5,8 +5,6 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     f32,
     IntegerAttr,
-    i32,
-    i64,
     f64,
     IntegerType,
     ArrayAttr,
