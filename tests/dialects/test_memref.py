@@ -319,31 +319,31 @@ def test_dma_start():
     dma_start.verify()
 
     # check that src index count is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected 2 source indices"):
         DmaStartOp.get(
             src, [index, index, index], dest, [index], num_elements, tag, [index]
         ).verify()
 
     # check that dest index count is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected 1 dest indices"):
         DmaStartOp.get(
             src, [index, index], dest, [], num_elements, tag, [index]
         ).verify()
 
     # check that tag index count is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected 1 tag indices"):
         DmaStartOp.get(
             src, [index, index], dest, [index], num_elements, tag, [index, index]
         ).verify()
 
     # check that tag index count is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="different memory spaces"):
         DmaStartOp.get(
-            src, [index, index], dest, [index], num_elements, tag, [index, index]
+            src, [index, index], src, [index, index], num_elements, tag, [index]
         ).verify()
 
     # check that tag element type is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
         new_tag = TestSSAValue(src_type)
 
         DmaStartOp.get(

@@ -528,14 +528,14 @@ class DmaStartOp(IRDLOperation):
 
         if len(self.dest.typ.shape) != len(self.dest_indices):
             raise VerifyException(
-                "Expected {} dest indices (because of shape of src memref)".format(
+                "Expected {} dest indices (because of shape of dest memref)".format(
                     len(self.dest.typ.shape)
                 )
             )
 
         if len(self.tag.typ.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices (because of shape of src memref)".format(
+                "Expected {} tag indices (because of shape of tag memref)".format(
                     len(self.tag.typ.shape)
                 )
             )
