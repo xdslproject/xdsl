@@ -3,6 +3,9 @@ toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
+pytest<8.0
+filecheck<0.0.24
+lit<17.0.0
 pre-commit==3.3.1
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for

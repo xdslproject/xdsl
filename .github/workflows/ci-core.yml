@@ -34,7 +34,7 @@ jobs:
         pip install --upgrade pip
 
     - name: Install the package locally
-      run: pip install -e .
+      run: pip install -e ".[extras]"
 
     - name: Test with pytest
       run: |
