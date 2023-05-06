@@ -23,6 +23,7 @@ def test_opt():
         "dce",
         "lower-snitch",
         "riscv-allocate-registers",
+        "lower-riscv-ssa",
     ]
 
 
