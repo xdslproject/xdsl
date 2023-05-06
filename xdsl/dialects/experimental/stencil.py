@@ -389,12 +389,6 @@ class LoadOp(IRDLOperation):
         assert isinstance(field_t, FieldType)
         field_t = cast(FieldType[Attribute], field_t)
 
-        attributes = {}
-        if lb is not None:
-            attributes["lb"] = lb
-        if ub is not None:
-            attributes["ub"] = ub
-
         return LoadOp.build(
             operands=[field],
             attributes={
