@@ -1,6 +1,6 @@
 import pytest
 
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 from xdsl.dialects.builtin import i32, StringAttr
 from xdsl.dialects.arith import Constant
@@ -25,7 +25,7 @@ def test_ssa():
 
 @irdl_op_definition
 class TwoResultOp(IRDLOperation):
-    name: ClassVar[str] = "test.tworesults"
+    name = "test.tworesults"
 
     res1: Annotated[OpResult, StringAttr]
     res2: Annotated[OpResult, StringAttr]

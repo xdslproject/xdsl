@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence, ClassVar
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -19,7 +19,7 @@ from xdsl.utils.exceptions import VerifyException
 
 @irdl_op_definition
 class If(IRDLOperation):
-    name: ClassVar[str] = "scf.if"
+    name = "scf.if"
     output: Annotated[VarOpResult, AnyAttr()]
     cond: Annotated[Operand, IntegerType(1)]
 
@@ -46,7 +46,7 @@ class If(IRDLOperation):
 
 @irdl_op_definition
 class Yield(IRDLOperation):
-    name: ClassVar[str] = "scf.yield"
+    name = "scf.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod
@@ -56,7 +56,7 @@ class Yield(IRDLOperation):
 
 @irdl_op_definition
 class Condition(IRDLOperation):
-    name: ClassVar[str] = "scf.condition"
+    name = "scf.condition"
     cond: Annotated[Operand, IntegerType(1)]
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -67,7 +67,7 @@ class Condition(IRDLOperation):
 
 @irdl_op_definition
 class For(IRDLOperation):
-    name: ClassVar[str] = "scf.for"
+    name = "scf.for"
 
     lb: Annotated[Operand, IndexType]
     ub: Annotated[Operand, IndexType]
@@ -269,7 +269,7 @@ class ParallelOp(IRDLOperation):
 
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
-    name: ClassVar[str] = "scf.reduce"
+    name = "scf.reduce"
     argument: Annotated[Operand, AnyAttr()]
 
     body: SingleBlockRegion
@@ -317,7 +317,7 @@ class ReduceOp(IRDLOperation):
 
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
-    name: ClassVar[str] = "scf.reduce.return"
+    name = "scf.reduce.return"
     result: Annotated[Operand, AnyAttr()]
 
     @staticmethod
@@ -342,7 +342,7 @@ class ReduceReturnOp(IRDLOperation):
 
 @irdl_op_definition
 class While(IRDLOperation):
-    name: ClassVar[str] = "scf.while"
+    name = "scf.while"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     res: Annotated[VarOpResult, AnyAttr()]

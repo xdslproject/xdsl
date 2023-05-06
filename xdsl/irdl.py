@@ -666,7 +666,7 @@ class OpDef:
         for field_name, value in clsdict.items():
             if field_name in opdict:
                 continue
-            if field_name in ["irdl_options", "traits"]:
+            if field_name in ["irdl_options", "traits", "name"]:
                 continue
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)

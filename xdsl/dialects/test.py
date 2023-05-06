@@ -11,7 +11,6 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from typing import ClassVar
 
 
 @irdl_op_definition
@@ -23,7 +22,7 @@ class TestOp(IRDLOperation):
     the test rather than the actual dialect).
     """
 
-    name: ClassVar[str] = "test.op"
+    name = "test.op"
 
     res: VarOpResult
     ops: VarOperand
@@ -38,7 +37,7 @@ class TestType(Data[str], TypeAttribute):
     other dialects.
     """
 
-    name: ClassVar[str] = "test.type"
+    name = "test.type"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
