@@ -1,7 +1,14 @@
 import pytest
 
 from xdsl.dialects.builtin import FloatAttr, f32, f64, i32, i64, IntegerType
-from xdsl.dialects.experimental.stencil import (ReturnOp, ResultType, ApplyOp, TempType, FieldType, IndexAttr)
+from xdsl.dialects.experimental.stencil import (
+    ReturnOp,
+    ResultType,
+    ApplyOp,
+    TempType,
+    FieldType,
+    IndexAttr,
+)
 from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Block
 from xdsl.utils.exceptions import VerifyException
@@ -210,5 +217,5 @@ def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[
         FieldType(dims, attr)
     assert (
         exc_info.value.args[0]
-        == "Number of dimensions for desired stencil must be greater than zero."
+        == "Number of field dimensions must be greater than zero, got 0."
     )

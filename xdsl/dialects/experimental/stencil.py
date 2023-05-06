@@ -79,13 +79,13 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     def verify(self):
         if self.get_num_dims() <= 0:
             raise VerifyException(
-                f"Number of dimensions for desired stencil must be greater than zero."
+                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
             )
 
     def __init__(
         self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement
+        typ: _FieldTypeElement,
     ) -> None:
         if isinstance(shape, ArrayAttr):
             super().__init__([shape, typ])
@@ -94,9 +94,11 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
         if len(shape) > 0 and isa(shape[0], list[AnyIntegerAttr]):
-            super().__init__([ArrayAttr(shape), typ]) # type: ignore
+            super().__init__([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        super().__init__([ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
+        super().__init__(
+            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
+        )
 
 
 @irdl_attr_definition
