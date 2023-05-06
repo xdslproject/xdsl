@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, TypeVar
+from typing import Annotated, TypeVar, ClassVar
 
 from xdsl.dialects.experimental.stencil import FieldType, IndexAttr
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect
@@ -21,7 +21,7 @@ class CastOp(IRDLOperation):
         %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64> # noqa
     """
 
-    name: str = "stencil.cast"
+    name: ClassVar[str] = "stencil.cast"
     field: Annotated[Operand, FieldType]
     lb: OpAttr[IndexAttr]
     ub: OpAttr[IndexAttr]

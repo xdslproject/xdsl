@@ -251,6 +251,7 @@ class LoopAttr(ParametrizedAttribute):
     name = "stencil.loop"
     shape = Annotated[ArrayAttr[IntAttr], ArrayLength(4)]
 
+
 # Operations
 @irdl_op_definition
 class ExternalLoadOp(IRDLOperation):
