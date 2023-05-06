@@ -355,8 +355,8 @@ def test_print_custom_name():
 
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
-    block.args[0].name = "test"
-    block.args[1].name = "test"
+    block.args[0].name_hint = "test"
+    block.args[1].name_hint = "test"
 
     io = StringIO()
     p = Printer(stream=io)

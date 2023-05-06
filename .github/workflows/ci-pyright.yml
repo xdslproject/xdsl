@@ -33,7 +33,7 @@ jobs:
         run: |
           pip install --upgrade pip
       - name: Install the package locally
-        run: pip install -e .[extras]
+        run: pip install -e ".[extras]"
       - name: retrieve pyright version
         run: |
           python3 .github/parse_pyright_version.py

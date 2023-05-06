@@ -189,12 +189,17 @@ class SSAValue(ABC):
         """
         pass
 
+    @deprecated("Please use SSAValue.name_hint")
     @property
     def name(self) -> str | None:
+        return self.name_hint
+
+    @property
+    def name_hint(self) -> str | None:
         return self._name
 
-    @name.setter
-    def name(self, name: str | None):
+    @name_hint.setter
+    def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
             self._name = name
@@ -235,8 +240,8 @@ class SSAValue(ABC):
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
         # carry over name if possible
-        if value.name is None:
-            value.name = self.name
+        if value.name_hint is None:
+            value.name_hint = self.name_hint
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:

@@ -176,8 +176,8 @@ def test_parse_block_name():
     parser = Parser(ctx, block_str)
     block = parser.parse_block()
 
-    assert block.args[0].name == "name"
-    assert block.args[1].name is None
+    assert block.args[0].name_hint == "name"
+    assert block.args[1].name_hint is None
 
 
 @pytest.mark.parametrize(

@@ -31,7 +31,7 @@ jobs:
       run: |
         pip install --upgrade pip
     - name: Install the package locally
-      run: pip install -e .
+      run: pip install -e ".[extras]"
     - name: Install nbval
       run: |
         pip install nbval
