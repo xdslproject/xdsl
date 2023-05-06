@@ -59,7 +59,7 @@ class Rewriter:
         if len(op.results):
             for new_op in new_ops:
                 for res in new_op.results:
-                    res.name = op.results[0].name
+                    res.name_hint = op.results[0].name_hint
 
         block.erase_op(op, safe_erase=safe_erase)
 
