@@ -576,9 +576,7 @@ class DmaWaitOp(IRDLOperation):
 
         if len(self.tag.typ.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices because of shape of tag memref".format(
-                    len(self.tag.typ.shape)
-                )
+                f"Expected {len(self.tag.typ.shape)} tag indices because of shape of tag memref"
             )
 
         if self.tag.typ.element_type != i32:
