@@ -1,7 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  %A = "test.op"() : () -> !riscv.reg<> // vector A: base address
-  %B = "test.op"() : () -> !riscv.reg<> // vector B: base address
+  %A, %B = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>) // vector {A,B}: base address
   %n = "riscv.li"() {"immediate" = 10 : i32} : () -> !riscv.reg<> // vector {A,B}: size
   // dm: data mover id
   %s0 = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<>
