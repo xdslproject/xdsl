@@ -355,7 +355,7 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: ClassVar[str] = field(init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The attribute name should be a static field in the attribute classes."""
 
     def __post_init__(self):
@@ -533,7 +533,7 @@ OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: ClassVar[str] = field(init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The operation name. Should be a static member of the class"""
 
     _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
