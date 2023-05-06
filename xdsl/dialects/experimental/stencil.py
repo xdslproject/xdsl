@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator
+from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator, List
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -70,26 +70,33 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
-    @staticmethod
-    def from_shape(
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> FieldType[_FieldTypeElement]:
-        assert len(shape) > 0
+    def get_num_dims(self) -> int:
+        return len(self.shape.data)
 
+    def get_shape(self) -> List[int]:
+        return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_dims() <= 0:
+            raise VerifyException(
+                f"Number of dimensions for desired stencil must be greater than zero."
+            )
+
+    def __init__(
+        self,
+        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
+        typ: _FieldTypeElement
+    ) -> None:
         if isinstance(shape, ArrayAttr):
-            return FieldType.new([shape, typ])
+            super().__init__([shape, typ])
 
         # cast to list
         shape = cast(list[AnyIntegerAttr] | list[int], shape)
 
-        if isa(shape[0], list[AnyIntegerAttr]):
-            # the if above is a sufficient type guard, but pyright does not understand :/
-            return FieldType([ArrayAttr(shape), typ])  # type: ignore
+        if len(shape) > 0 and isa(shape[0], list[AnyIntegerAttr]):
+            super().__init__([ArrayAttr(shape), typ]) # type: ignore
         shape = cast(list[int], shape)
-        return FieldType(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
+        super().__init__([ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ])
 
 
 @irdl_attr_definition
