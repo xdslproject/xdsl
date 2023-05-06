@@ -260,6 +260,31 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RdRsOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V pseudo-instructions that have one destination register and one
+    source register.
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    rs: Annotated[Operand, RegisterType]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        *,
+        rd: RegisterType | Register | None = None,
+    ):
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+        )
+
+
 class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
@@ -667,6 +692,17 @@ class AuipcOp(RdImmOperation):
     """
 
     name = "riscv.auipc"
+
+
+@irdl_op_definition
+class MVOp(RdRsOperation):
+    """
+    A pseudo instruction to copy contents of one register to another.
+
+    Equivalent to `addi rd, rs, 0`
+    """
+
+    name = "riscv.mv"
 
 
 ## Integer Register-Register Operations
@@ -1330,6 +1366,7 @@ RISCV = Dialect(
         SraiOp,
         LuiOp,
         AuipcOp,
+        MVOp,
         AddOp,
         SltOp,
         SltuOp,
