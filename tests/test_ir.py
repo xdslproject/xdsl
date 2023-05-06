@@ -165,7 +165,7 @@ def test_region_clone_into_circular_blocks():
 
 def test_non_empty_block_with_parent_region_requires_terminator():
     """
-    Tests that an empty block belonging to a single-block region with parent
+    Tests that an empty block belonging to a multi-block region with parent
     operation requires terminator operation.
     """
     block0 = Block([])
