@@ -38,6 +38,20 @@
   // Integer Register-Register Operations
   %add = "riscv.add"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
   // CHECK-NEXT: add j2, j2, j1
+  %mul = "riscv.mul"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: mul j2, j2, j1
+  %mulh = "riscv.mulh"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: mulh j2, j2, j1
+  %mulhsu = "riscv.mulhsu"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: mulhsu j2, j2, j1
+  %div = "riscv.div"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: div j2, j2, j1
+  %divu = "riscv.divu"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: divu j2, j2, j1
+  %rem = "riscv.rem"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: rem j2, j2, j1
+  %remu = "riscv.remu"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  // CHECK-NEXT: remu j2, j2, j1
   %slt = "riscv.slt"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
   // CHECK-NEXT: slt j2, j2, j1
   %sltu = "riscv.sltu"(%2, %1) : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
