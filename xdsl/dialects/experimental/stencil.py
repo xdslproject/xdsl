@@ -454,9 +454,6 @@ class StoreOp(IRDLOperation):
                 raise VerifyException("Cannot Load and Store the same field!")
 
 
-from typing import TypeVar, Generic
-
-
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
