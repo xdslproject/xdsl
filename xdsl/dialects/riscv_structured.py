@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from xdsl.ir import Operation, SSAValue, Dialect
+from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
     IRDLOperation,
@@ -17,7 +18,7 @@ from xdsl.dialects import riscv
 
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
-    name = "riscv_ssa.syscall"
+    name = "riscv_structured.syscall"
     args: Annotated[VarOperand, riscv.RegisterType]
     syscall_num: OpAttr[IntegerAttr[IntegerType]]
     result: Annotated[OptOpResult, riscv.RegisterType]
@@ -41,10 +42,17 @@ class SyscallOp(IRDLOperation):
         )
 
     def verify_(self):
-        assert len(self.args) < 7
+        if len(self.args) >= 7:
+            raise VerifyException(
+                f"Syscall op has too many operands ({len(self.args)}), expected fewer than 7"
+            )
+        if len(self.results) >= 3:
+            raise VerifyException(
+                f"Syscall op has too many results ({len(self.results)}), expected fewer than 3"
+            )
 
 
-RISCV_SSA = Dialect(
+RISCV_Structured = Dialect(
     [
         SyscallOp,
     ],
