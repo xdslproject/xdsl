@@ -51,6 +51,7 @@ from xdsl.irdl import (
     IRDLOperation,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -547,6 +548,41 @@ class DmaStartOp(IRDLOperation):
             raise VerifyException("Source and dest must have different memory spaces!")
 
 
+@irdl_op_definition
+class DmaWaitOp(IRDLOperation):
+    name = "memref.dma_wait"
+
+    tag: Annotated[Operand, MemRefType]
+    tag_indices: Annotated[VarOperand, IndexType]
+
+    num_elements: Annotated[Operand, IndexType]
+
+    @staticmethod
+    def get(
+        tag: SSAValue | Operation,
+        tag_indices: Sequence[SSAValue | Operation],
+        num_elements: SSAValue | Operation,
+    ):
+        return DmaWaitOp.build(
+            operands=[
+                tag,
+                tag_indices,
+                num_elements,
+            ]
+        )
+
+    def verify_(self) -> None:
+        assert isa(self.tag.typ, MemRefType[Attribute])
+
+        if len(self.tag.typ.shape) != len(self.tag_indices):
+            raise VerifyException(
+                f"Expected {len(self.tag.typ.shape)} tag indices because of shape of tag memref"
+            )
+
+        if self.tag.typ.element_type != i32:
+            raise VerifyException("Expected tag to be a memref of i32")
+
+
 MemRef = Dialect(
     [
         Load,
@@ -561,6 +597,7 @@ MemRef = Dialect(
         Subview,
         Cast,
         DmaStartOp,
+        DmaWaitOp,
     ],
     [MemRefType, UnrankedMemrefType],
 )

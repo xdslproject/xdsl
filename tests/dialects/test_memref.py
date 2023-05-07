@@ -27,6 +27,7 @@ from xdsl.dialects.memref import (
     Subview,
     Cast,
     DmaStartOp,
+    DmaWaitOp,
 )
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.utils.hints import isa
@@ -355,3 +356,27 @@ def test_dma_start():
             new_tag,
             [index, index],
         ).verify()
+
+
+def test_memref_dma_wait():
+    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+    tag = TestSSAValue(tag_type)
+    index = TestSSAValue(IndexType())
+    num_elements = TestSSAValue(IndexType())
+
+    dma_wait = DmaWaitOp.get(tag, [index], num_elements)
+
+    dma_wait.verify()
+
+    # check that tag index count is verified
+    with pytest.raises(
+        VerifyException, match="Expected 1 tag indices because of shape of tag memref"
+    ):
+        DmaWaitOp.get(tag, [index, index], num_elements).verify()
+
+    # check that tag element type is verified
+    with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
+        wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
+        wrong_tag = TestSSAValue(wrong_tag_type)
+
+        DmaWaitOp.get(wrong_tag, [index], num_elements).verify()
