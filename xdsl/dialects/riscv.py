@@ -337,6 +337,21 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RsRsOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V operations that have two source
+    registers.
+    """
+
+    rs1: Annotated[Operand, RegisterType]
+    rs2: Annotated[Operand, RegisterType]
+
+    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+        super().__init__(
+            operands=[rs1, rs2],
+        )
+
+
 class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
@@ -1353,6 +1368,13 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
         super().__init__(result_types=[register_type])
 
 
+# RISC-V Extensions
+
+
+class ScfgwOp(RsRsOperation):
+    name = "riscv.scfgw"
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -1407,6 +1429,7 @@ RISCV = Dialect(
         EbreakOp,
         WfiOp,
         GetRegisterOp,
+        ScfgwOp,
     ],
     [
         RegisterType,
