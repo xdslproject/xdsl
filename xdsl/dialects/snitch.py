@@ -26,7 +26,7 @@ class SsrSetupShape(IRDLOperation):
     specific data mover.
     """
 
-    name: str = "snitch.ssr_setup_shape"
+    name = "snitch.ssr_setup_shape"
 
     datamover: Annotated[Operand, RegisterType]
     bound: Annotated[Operand, RegisterType]
@@ -54,7 +54,7 @@ class SsrSetupRepetition(IRDLOperation):
     Setup repetition count for a specific data mover.
     """
 
-    name: str = "snitch.ssr_setup_repetition"
+    name = "snitch.ssr_setup_repetition"
 
     datamover: Annotated[Operand, RegisterType]
     repetition: Annotated[Operand, RegisterType]
@@ -74,7 +74,7 @@ class SsrRead(IRDLOperation):
     specific base address.
     """
 
-    name: str = "snitch.ssr_read"
+    name = "snitch.ssr_read"
 
     datamover: Annotated[Operand, RegisterType]
     address: Annotated[Operand, RegisterType]
@@ -101,7 +101,7 @@ class SsrWrite(IRDLOperation):
     specific base address.
     """
 
-    name: str = "snitch.ssr_write"
+    name = "snitch.ssr_write"
 
     datamover: Annotated[Operand, RegisterType]
     address: Annotated[Operand, RegisterType]
@@ -127,7 +127,7 @@ class SsrEnable(IRDLOperation):
     Enable stream semantics.
     """
 
-    name: str = "snitch.ssr_enable"
+    name = "snitch.ssr_enable"
 
     def __init__(self):
         super().__init__()
@@ -139,7 +139,7 @@ class SsrDisable(IRDLOperation):
     Disable stream semantics.
     """
 
-    name: str = "snitch.ssr_disable"
+    name = "snitch.ssr_disable"
 
     def __init__(self):
         super().__init__()
