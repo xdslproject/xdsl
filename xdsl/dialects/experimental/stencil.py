@@ -43,23 +43,6 @@ from xdsl.irdl import (
 from xdsl.utils.hints import isa
 
 
-@dataclass
-class IntOrUnknown(AttrConstraint):
-    length: int = 0
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(
-                f"Expected {ArrayAttr} attribute, but got {attr.name}."
-            )
-
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
-
-
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
 
 
