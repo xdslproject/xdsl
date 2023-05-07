@@ -12,11 +12,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.dialects import riscv, riscv_ssa
 from xdsl.transforms.dead_code_elimination import dce
 
-SCALL_EXIT = 93
-"""
-93 is the number of the `exit` syscall on RISCV.
-"""
-
 
 class LowerSyscallOp(RewritePattern):
     """
