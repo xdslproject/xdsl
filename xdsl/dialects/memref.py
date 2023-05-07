@@ -293,15 +293,6 @@ class Dealloc(IRDLOperation):
         return Dealloc.build(operands=[operand])
 
 
-@irdl_op_definition
-class Dealloca(IRDLOperation):
-    name = "memref.dealloca"
-    memref: Annotated[Operand, MemRefType[Attribute]]
-
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> Dealloca:
-        return Dealloca.build(operands=[operand])
-
 
 @irdl_op_definition
 class GetGlobal(IRDLOperation):
