@@ -32,7 +32,7 @@ class SnitchResources:
     """
 
     # Number of dimensions supported by each data mover.
-    Dimensions: int = 4
+    dimensions: int = 4
 
 
 class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
@@ -59,10 +59,10 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
         )
 
     def verify_(self) -> None:
-        if self.dimension.value.data >= SnitchResources.Dimensions:
+        if self.dimension.value.data >= SnitchResources.dimensions:
             raise VerifyException(
-                f"dimension attribute out of range [0..{SnitchResources.Dimensions-1}], "
-                f"Snitch supports up to {SnitchResources.Dimensions} dimensions per streamer"
+                f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
+                f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
             )
 
 

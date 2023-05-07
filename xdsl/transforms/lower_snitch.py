@@ -24,16 +24,16 @@ from xdsl.dialects import snitch, riscv, builtin
 @dataclass(frozen=True)
 class SnitchStreamerDimension:
     # Offset of the streamer bound configuration for a specific dimension
-    Bound: int
+    bound: int
 
     # Offset of the streamer stride configuration for a specific dimension
-    Stride: int
+    stride: int
 
     # Offset of the streamer source address configuration for a specific dimension
-    Source: int
+    source: int
 
     # Offset of the streamer source address configuration for a specific dimension
-    Destination: int
+    destination: int
 
 
 @dataclass(frozen=True)
@@ -61,12 +61,12 @@ class SnitchStreamerMemoryMap:
 
     # Global streaming behaviour enable/disable register.
     # Accessible as a regular RISC-V CSR.
-    Csr: int = 0x7C0
+    csr: int = 0x7C0
 
     # Offset of the streamer repetition configuration.
-    Repeat: int = 0x01
+    repeat: int = 0x01
 
-    Dimension: Tuple[SnitchStreamerDimension, ...] = (
+    dimension: Tuple[SnitchStreamerDimension, ...] = (
         # Dimension 0
         SnitchStreamerDimension(
             0x02,  # Bound
@@ -132,7 +132,7 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Bound,
+            baseaddr=SnitchStreamerMemoryMap.dimension[dim].bound,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -149,7 +149,7 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Stride,
+            baseaddr=SnitchStreamerMemoryMap.dimension[dim].stride,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -166,7 +166,7 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Source,
+            baseaddr=SnitchStreamerMemoryMap.dimension[dim].source,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -183,7 +183,7 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Destination,
+            baseaddr=SnitchStreamerMemoryMap.dimension[dim].destination,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -199,7 +199,7 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.Repeat,
+            baseaddr=SnitchStreamerMemoryMap.repeat,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -213,7 +213,7 @@ class LowerSsrEnable(RewritePattern):
         rewriter.replace_matched_op(
             [
                 riscv.CsrrsiOp(
-                    csr=IntegerAttr(SnitchStreamerMemoryMap.Csr, i32),
+                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
                     rd=riscv.Registers.ZERO,
                 )
@@ -228,7 +228,7 @@ class LowerSsrDisable(RewritePattern):
         rewriter.replace_matched_op(
             [
                 riscv.CsrrciOp(
-                    csr=IntegerAttr(SnitchStreamerMemoryMap.Csr, i32),
+                    csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
                     rd=riscv.Registers.ZERO,
                 )

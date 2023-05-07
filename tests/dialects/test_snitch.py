@@ -11,8 +11,8 @@ import pytest
 def test_csr_op():
     stream = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
     value = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-    valid = IntegerAttr(snitch.SnitchResources.Dimensions - 1, i32)
-    invalid = IntegerAttr(snitch.SnitchResources.Dimensions, i32)
+    valid = IntegerAttr(snitch.SnitchResources.dimensions - 1, i32)
+    invalid = IntegerAttr(snitch.SnitchResources.dimensions, i32)
 
     snitch.SsrSetDimensionBoundOp(stream=stream, value=value, dimension=valid).verify()
     with pytest.raises(VerifyException):
