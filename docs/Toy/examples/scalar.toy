@@ -1,4 +1,4 @@
-# RUN: python -m toy %s --emit=ir | filecheck %s
+# RUN: python -m toy %s --emit=ir-toy | filecheck %s
 
 def main() {
   var a<2, 2> = 5.5;
