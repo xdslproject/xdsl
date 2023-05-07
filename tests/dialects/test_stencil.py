@@ -1,6 +1,16 @@
 import pytest
 
-from xdsl.dialects.builtin import FloatAttr, f32, f64
+from xdsl.dialects.builtin import (
+    FloatAttr,
+    IntegerAttr,
+    f32,
+    f64,
+    i32,
+    i64,
+    IntegerType,
+    ArrayAttr,
+    AnyIntegerAttr,
+)
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
     ResultType,
@@ -55,14 +65,14 @@ def test_stencil_return_multiple_ResultType():
 
 
 def test_stencil_cast_op_verifier():
-    field = TestSSAValue(FieldType.from_shape((-1, -1, -1), f32))
+    field = TestSSAValue(FieldType((-1, -1, -1), f32))
 
     # check that correct op verifies correctly
     cast = CastOp.get(
         field,
         IndexAttr.get(-2, -2, -2),
         IndexAttr.get(100, 100, 100),
-        FieldType.from_shape((102, 102, 102), f32),
+        FieldType((102, 102, 102), f32),
     )
     cast.verify()
 
@@ -72,7 +82,7 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((100, 100, 100), f32),
+            FieldType((100, 100, 100), f32),
         )
         cast.verify()
     assert "math" in ex1.value.args[0]
@@ -83,19 +93,19 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102), f32),
+            FieldType((102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex2.value.args[0]
 
     # check that input has same shape as lb, ub, output
     with pytest.raises(VerifyException) as ex3:
-        dyn_field_wrong_shape = TestSSAValue(FieldType.from_shape((-1, -1), f32))
+        dyn_field_wrong_shape = TestSSAValue(FieldType((-1, -1), f32))
         cast = CastOp.get(
             dyn_field_wrong_shape,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex3.value.args[0]
@@ -106,7 +116,7 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f64),
+            FieldType((102, 102, 102), f64),
         )
         cast.verify()
     assert "element type" in ex4.value.args[0]
@@ -120,7 +130,7 @@ def test_stencil_cast_op_verifier():
                 -2,
             ),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex5.value.args[0]
@@ -131,26 +141,26 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex6.value.args[0]
 
     # check that input must be dynamic
     with pytest.raises(VerifyException) as ex7:
-        non_dyn_field = TestSSAValue(FieldType.from_shape((102, 102, 102), f32))
+        non_dyn_field = TestSSAValue(FieldType((102, 102, 102), f32))
         cast = CastOp.get(
             non_dyn_field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "dynamic" in ex7.value.args[0]
 
 
 def test_cast_op_constructor():
-    field = TestSSAValue(FieldType.from_shape((-1, -1, -1), f32))
+    field = TestSSAValue(FieldType((-1, -1, -1), f32))
 
     cast = CastOp.get(
         field,
@@ -158,7 +168,7 @@ def test_cast_op_constructor():
         IndexAttr.get(100, 100, 0),
     )
 
-    assert cast.result.typ == FieldType.from_shape((102, 103, 4), f32)
+    assert cast.result.typ == FieldType((102, 103, 4), f32)
 
 
 def test_stencil_apply():
@@ -189,8 +199,73 @@ def test_stencil_apply_no_results():
         ApplyOp.get([], Block([]), [])
 
 
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (
+            i32,
+            ArrayAttr(
+                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
+            ),
+        ),
+        (
+            i64,
+            ArrayAttr(
+                [
+                    IntegerAttr[IntegerType](1, 32),
+                    IntegerAttr[IntegerType](2, 32),
+                    IntegerAttr[IntegerType](3, 32),
+                ]
+            ),
+        ),
+    ),
+)
+def test_stencil_fieldtype_constructor_with_ArrayAttr(
+    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+):
+    stencil_fieldtype = FieldType(dims, attr)
+
+    assert stencil_fieldtype.element_type == attr
+    assert stencil_fieldtype.get_num_dims() == len(dims)
+    assert stencil_fieldtype.get_shape() == [
+        list(dims.data)[dim].value.data for dim in range(len(dims))
+    ]
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
+    stencil_fieldtype = FieldType(dims, attr)
+
+    assert stencil_fieldtype.element_type == attr
+    assert stencil_fieldtype.get_num_dims() == len(dims)
+    assert stencil_fieldtype.get_shape() == dims
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, []),
+        (i64, []),
+    ),
+)
+def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[int]):
+    with pytest.raises(VerifyException) as exc_info:
+        FieldType(dims, attr)
+    assert (
+        exc_info.value.args[0]
+        == "Number of field dimensions must be greater than zero, got 0."
+    )
+
+
 def test_stencil_load():
-    field_type = FieldType.from_shape([1, 1], f32)
+    field_type = FieldType([1, 1], f32)
     result_type_val1 = TestSSAValue(field_type)
 
     load = LoadOp.get(result_type_val1)
@@ -203,7 +278,7 @@ def test_stencil_load():
 
 
 def test_stencil_load_bounds():
-    field_type = FieldType.from_shape([1, 1], f32)
+    field_type = FieldType([1, 1], f32)
     result_type_val1 = TestSSAValue(field_type)
 
     lb = IndexAttr.get(1, 1)
