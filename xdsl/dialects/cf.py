@@ -18,7 +18,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class Assert(IRDLOperation):
-    name: str = "cf.assert"
+    name = "cf.assert"
     arg: Annotated[Operand, IntegerType(1)]
     msg: OpAttr[StringAttr]
 
@@ -31,7 +31,7 @@ class Assert(IRDLOperation):
 
 @irdl_op_definition
 class Branch(IRDLOperation):
-    name: str = "cf.br"
+    name = "cf.br"
 
     arguments: Annotated[VarOperand, AnyAttr()]
 
@@ -42,7 +42,7 @@ class Branch(IRDLOperation):
 
 @irdl_op_definition
 class ConditionalBranch(IRDLOperation):
-    name: str = "cf.cond_br"
+    name = "cf.cond_br"
 
     cond: Annotated[Operand, IntegerType(1)]
     then_arguments: Annotated[VarOperand, AnyAttr()]

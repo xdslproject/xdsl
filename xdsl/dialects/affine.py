@@ -16,7 +16,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class For(IRDLOperation):
-    name: str = "affine.for"
+    name = "affine.for"
 
     arguments: Annotated[VarOperand, AnyAttr()]
     res: Annotated[VarOpResult, AnyAttr()]
@@ -94,7 +94,7 @@ class For(IRDLOperation):
 
 @irdl_op_definition
 class Yield(IRDLOperation):
-    name: str = "affine.yield"
+    name = "affine.yield"
     arguments: Annotated[VarOperand, AnyAttr()]
 
     @staticmethod

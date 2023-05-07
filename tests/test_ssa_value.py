@@ -25,7 +25,7 @@ def test_ssa():
 
 @irdl_op_definition
 class TwoResultOp(IRDLOperation):
-    name: str = "test.tworesults"
+    name = "test.tworesults"
 
     res1: Annotated[OpResult, StringAttr]
     res2: Annotated[OpResult, StringAttr]
