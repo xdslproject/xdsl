@@ -1330,7 +1330,7 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
-# RISC-V SSA Helpers
+# region RISC-V SSA Helpers
 
 
 @irdl_op_definition
@@ -1368,9 +1368,12 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
         super().__init__(result_types=[register_type])
 
 
-# RISC-V Extensions
+# endregion
+
+# region RISC-V Extensions
 
 
+@irdl_op_definition
 class ScfgwOp(RsRsOperation):
     """
     Write a the value in rs1 to the Snitch stream configuration
@@ -1381,6 +1384,8 @@ class ScfgwOp(RsRsOperation):
 
     name = "riscv.scfgw"
 
+
+# endregion
 
 RISCV = Dialect(
     [
