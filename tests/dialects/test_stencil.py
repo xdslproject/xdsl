@@ -200,6 +200,173 @@ def test_stencil_apply_no_results():
 
 
 @pytest.mark.parametrize(
+    "indices",
+    (
+        ([1]),
+        ([1, 2]),
+        ([1, 2, 3]),
+        (
+            [
+                IntegerAttr[IntegerType](1, 64),
+                IntegerAttr[IntegerType](2, 64),
+                IntegerAttr[IntegerType](3, 64),
+            ]
+        ),
+    ),
+)
+def test_create_index_attr_from_int_list(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx, 64) if isinstance(idx, int) else idx)
+            for idx in indices
+        ]
+    )
+
+    assert stencil_index_attr.array == expected_array_attr
+
+
+def test_create_index_attr_from_list_edge_case1():
+    with pytest.raises(VerifyException) as exc_info:
+        IndexAttr.get()
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
+
+
+def test_create_index_attr_from_list_edge_case2():
+    with pytest.raises(VerifyException) as exc_info:
+        IndexAttr.get(*[1] * 4)
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 4."
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    size_from_bounds = IndexAttr.size_from_bounds(
+        stencil_index_attr1, stencil_index_attr2
+    )
+    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
+
+    assert size_from_bounds == expected_list
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_neg(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    stencil_index_attr_neg = -stencil_index_attr
+    expected_array_attr = ArrayAttr(
+        [(IntegerAttr[IntegerType](-idx, 64)) for idx in indices]
+    )
+
+    assert stencil_index_attr_neg.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_add(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_add = stencil_index_attr1 + stencil_index_attr2
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx1 + idx2, 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_add.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_sub(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_sub = stencil_index_attr1 - stencil_index_attr2
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx1 - idx2, 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_sub.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_min(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_min = IndexAttr.min(stencil_index_attr1, stencil_index_attr2)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](min(idx1, idx2), 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_min.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_max(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_max = IndexAttr.max(stencil_index_attr1, stencil_index_attr2)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](max(idx1, idx2), 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_max.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_tuple_return(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+
+    assert stencil_index_attr.as_tuple() == tuple(indices)
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_indices_length(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    stencil_index_attr_iter = iter(stencil_index_attr)
+
+    for idx in indices:
+        assert idx == next(stencil_index_attr_iter)
+
+
+@pytest.mark.parametrize(
     "attr, dims",
     (
         (
