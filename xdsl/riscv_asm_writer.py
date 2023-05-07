@@ -36,6 +36,8 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
             components = [op.rs1, op.rs2, op.immediate]
         case riscv.RsRsOffOperation():
             components = [op.rs1, op.rs2, op.offset]
+        case riscv.RdRsOperation():
+            components = [op.rd, op.rs]
         case riscv.CsrReadWriteImmOperation():
             components = [op.rd, op.csr, op.immediate]
         case riscv.CsrReadWriteOperation():
