@@ -260,6 +260,31 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RdRsOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V pseudo-instructions that have one destination register and one
+    source register.
+    """
+
+    rd: Annotated[OpResult, RegisterType]
+    rs: Annotated[Operand, RegisterType]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        *,
+        rd: RegisterType | Register | None = None,
+    ):
+        if rd is None:
+            rd = RegisterType(Register())
+        elif isinstance(rd, Register):
+            rd = RegisterType(rd)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+        )
+
+
 class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
@@ -667,6 +692,17 @@ class AuipcOp(RdImmOperation):
     """
 
     name = "riscv.auipc"
+
+
+@irdl_op_definition
+class MVOp(RdRsOperation):
+    """
+    A pseudo instruction to copy contents of one register to another.
+
+    Equivalent to `addi rd, rs, 0`
+    """
+
+    name = "riscv.mv"
 
 
 ## Integer Register-Register Operations
@@ -1279,6 +1315,44 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
+# RISC-V SSA Helpers
+
+
+@irdl_op_definition
+class GetRegisterOp(IRDLOperation, RISCVOp):
+    """
+    This instruction allows us to create an SSAValue with for a given register name. This
+    is useful for bridging the RISC-V convention that stores the result of function calls
+    in `a0` and `a1` into SSA form.
+
+    For example, to generate this assembly:
+    ```
+    jal my_func
+    add a0 s0 a0
+    ```
+
+    One needs to do the following:
+
+    ``` python
+    rhs = riscv.GetRegisterOp(Registers.s0).res
+    riscv.JalOp("my_func")
+    lhs = riscv.GetRegisterOp(Registers.A0).res
+    sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
+    ```
+    """
+
+    name = "riscv.get_register"
+    res: Annotated[OpResult, RegisterType]
+
+    def __init__(
+        self,
+        register_type: RegisterType | Register,
+    ):
+        if isinstance(register_type, Register):
+            register_type = RegisterType(register_type)
+        super().__init__(result_types=[register_type])
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -1292,6 +1366,7 @@ RISCV = Dialect(
         SraiOp,
         LuiOp,
         AuipcOp,
+        MVOp,
         AddOp,
         SltOp,
         SltuOp,
@@ -1331,6 +1406,7 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        GetRegisterOp,
     ],
     [
         RegisterType,
