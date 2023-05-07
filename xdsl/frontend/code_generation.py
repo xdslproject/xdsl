@@ -648,3 +648,16 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     )
 
             self.inserter.insert_op(func.Return.get(*operands))
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        # TODO: This is just a quick hack for a PoC, we should really let each frontend define a mapping!
+        if isinstance(node.value, int):
+            op = arith.Constant.from_int_and_width(node.value, builtin.IntegerType(32))
+            self.inserter.insert_op(op)
+        else:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                "Only integer constants are supported at the moment.",
+            )
