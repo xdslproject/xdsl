@@ -369,11 +369,13 @@ def test_memref_dma_wait():
     dma_wait.verify()
 
     # check that tag index count is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        VerifyException, match="Expected 1 tag indices because of shape of tag memref"
+    ):
         DmaWaitOp.get(tag, [index, index], num_elements).verify()
 
     # check that tag element type is verified
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
         wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
         wrong_tag = TestSSAValue(wrong_tag_type)
 
