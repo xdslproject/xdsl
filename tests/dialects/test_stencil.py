@@ -1,6 +1,16 @@
 import pytest
 
-from xdsl.dialects.builtin import FloatAttr, f32, f64
+from xdsl.dialects.builtin import (
+    FloatAttr,
+    IntegerAttr,
+    f32,
+    f64,
+    i32,
+    i64,
+    IntegerType,
+    ArrayAttr,
+    AnyIntegerAttr,
+)
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
     ResultType,
@@ -55,14 +65,14 @@ def test_stencil_return_multiple_ResultType():
 
 
 def test_stencil_cast_op_verifier():
-    field = TestSSAValue(FieldType.from_shape((-1, -1, -1), f32))
+    field = TestSSAValue(FieldType((-1, -1, -1), f32))
 
     # check that correct op verifies correctly
     cast = CastOp.get(
         field,
         IndexAttr.get(-2, -2, -2),
         IndexAttr.get(100, 100, 100),
-        FieldType.from_shape((102, 102, 102), f32),
+        FieldType((102, 102, 102), f32),
     )
     cast.verify()
 
@@ -72,7 +82,7 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((100, 100, 100), f32),
+            FieldType((100, 100, 100), f32),
         )
         cast.verify()
     assert "math" in ex1.value.args[0]
@@ -83,19 +93,19 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102), f32),
+            FieldType((102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex2.value.args[0]
 
     # check that input has same shape as lb, ub, output
     with pytest.raises(VerifyException) as ex3:
-        dyn_field_wrong_shape = TestSSAValue(FieldType.from_shape((-1, -1), f32))
+        dyn_field_wrong_shape = TestSSAValue(FieldType((-1, -1), f32))
         cast = CastOp.get(
             dyn_field_wrong_shape,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex3.value.args[0]
@@ -106,7 +116,7 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f64),
+            FieldType((102, 102, 102), f64),
         )
         cast.verify()
     assert "element type" in ex4.value.args[0]
@@ -120,7 +130,7 @@ def test_stencil_cast_op_verifier():
                 -2,
             ),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex5.value.args[0]
@@ -131,26 +141,26 @@ def test_stencil_cast_op_verifier():
             field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "same dimensions" in ex6.value.args[0]
 
     # check that input must be dynamic
     with pytest.raises(VerifyException) as ex7:
-        non_dyn_field = TestSSAValue(FieldType.from_shape((102, 102, 102), f32))
+        non_dyn_field = TestSSAValue(FieldType((102, 102, 102), f32))
         cast = CastOp.get(
             non_dyn_field,
             IndexAttr.get(-2, -2, -2),
             IndexAttr.get(100, 100, 100),
-            FieldType.from_shape((102, 102, 102), f32),
+            FieldType((102, 102, 102), f32),
         )
         cast.verify()
     assert "dynamic" in ex7.value.args[0]
 
 
 def test_cast_op_constructor():
-    field = TestSSAValue(FieldType.from_shape((-1, -1, -1), f32))
+    field = TestSSAValue(FieldType((-1, -1, -1), f32))
 
     cast = CastOp.get(
         field,
@@ -158,7 +168,7 @@ def test_cast_op_constructor():
         IndexAttr.get(100, 100, 0),
     )
 
-    assert cast.result.typ == FieldType.from_shape((102, 103, 4), f32)
+    assert cast.result.typ == FieldType((102, 103, 4), f32)
 
 
 def test_stencil_apply():
@@ -189,8 +199,240 @@ def test_stencil_apply_no_results():
         ApplyOp.get([], Block([]), [])
 
 
+@pytest.mark.parametrize(
+    "indices",
+    (
+        ([1]),
+        ([1, 2]),
+        ([1, 2, 3]),
+        (
+            [
+                IntegerAttr[IntegerType](1, 64),
+                IntegerAttr[IntegerType](2, 64),
+                IntegerAttr[IntegerType](3, 64),
+            ]
+        ),
+    ),
+)
+def test_create_index_attr_from_int_list(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx, 64) if isinstance(idx, int) else idx)
+            for idx in indices
+        ]
+    )
+
+    assert stencil_index_attr.array == expected_array_attr
+
+
+def test_create_index_attr_from_list_edge_case1():
+    with pytest.raises(VerifyException) as exc_info:
+        IndexAttr.get()
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
+
+
+def test_create_index_attr_from_list_edge_case2():
+    with pytest.raises(VerifyException) as exc_info:
+        IndexAttr.get(*[1] * 4)
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 4."
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    size_from_bounds = IndexAttr.size_from_bounds(
+        stencil_index_attr1, stencil_index_attr2
+    )
+    expected_list = [abs(idx1 - idx2) for idx1, idx2 in zip(indices1, indices2)]
+
+    assert size_from_bounds == expected_list
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_neg(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    stencil_index_attr_neg = -stencil_index_attr
+    expected_array_attr = ArrayAttr(
+        [(IntegerAttr[IntegerType](-idx, 64)) for idx in indices]
+    )
+
+    assert stencil_index_attr_neg.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_add(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_add = stencil_index_attr1 + stencil_index_attr2
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx1 + idx2, 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_add.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_sub(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_sub = stencil_index_attr1 - stencil_index_attr2
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](idx1 - idx2, 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_sub.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_min(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_min = IndexAttr.min(stencil_index_attr1, stencil_index_attr2)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](min(idx1, idx2), 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_min.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices1, indices2",
+    (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
+)
+def test_index_attr_max(indices1: list[int], indices2: list[int]):
+    stencil_index_attr1 = IndexAttr.get(*indices1)
+    stencil_index_attr2 = IndexAttr.get(*indices2)
+
+    stencil_index_attr_max = IndexAttr.max(stencil_index_attr1, stencil_index_attr2)
+    expected_array_attr = ArrayAttr(
+        [
+            (IntegerAttr[IntegerType](max(idx1, idx2), 64))
+            for idx1, idx2 in zip(indices1, indices2)
+        ]
+    )
+
+    assert stencil_index_attr_max.array == expected_array_attr
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_tuple_return(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+
+    assert stencil_index_attr.as_tuple() == tuple(indices)
+
+
+@pytest.mark.parametrize(
+    "indices",
+    (([1]), ([1, 2]), ([1, 2, 3])),
+)
+def test_index_attr_indices_length(indices: list[int]):
+    stencil_index_attr = IndexAttr.get(*indices)
+    stencil_index_attr_iter = iter(stencil_index_attr)
+
+    for idx in indices:
+        assert idx == next(stencil_index_attr_iter)
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (
+            i32,
+            ArrayAttr(
+                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
+            ),
+        ),
+        (
+            i64,
+            ArrayAttr(
+                [
+                    IntegerAttr[IntegerType](1, 32),
+                    IntegerAttr[IntegerType](2, 32),
+                    IntegerAttr[IntegerType](3, 32),
+                ]
+            ),
+        ),
+    ),
+)
+def test_stencil_fieldtype_constructor_with_ArrayAttr(
+    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+):
+    stencil_fieldtype = FieldType(dims, attr)
+
+    assert stencil_fieldtype.element_type == attr
+    assert stencil_fieldtype.get_num_dims() == len(dims)
+    assert stencil_fieldtype.get_shape() == [
+        list(dims.data)[dim].value.data for dim in range(len(dims))
+    ]
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
+    stencil_fieldtype = FieldType(dims, attr)
+
+    assert stencil_fieldtype.element_type == attr
+    assert stencil_fieldtype.get_num_dims() == len(dims)
+    assert stencil_fieldtype.get_shape() == dims
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, []),
+        (i64, []),
+    ),
+)
+def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[int]):
+    with pytest.raises(VerifyException) as exc_info:
+        FieldType(dims, attr)
+    assert (
+        exc_info.value.args[0]
+        == "Number of field dimensions must be greater than zero, got 0."
+    )
+
+
 def test_stencil_load():
-    field_type = FieldType.from_shape([1, 1], f32)
+    field_type = FieldType([1, 1], f32)
     result_type_val1 = TestSSAValue(field_type)
 
     load = LoadOp.get(result_type_val1)
@@ -203,7 +445,7 @@ def test_stencil_load():
 
 
 def test_stencil_load_bounds():
-    field_type = FieldType.from_shape([1, 1], f32)
+    field_type = FieldType([1, 1], f32)
     result_type_val1 = TestSSAValue(field_type)
 
     lb = IndexAttr.get(1, 1)

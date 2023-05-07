@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator
+from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator, List
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -43,23 +43,6 @@ from xdsl.irdl import (
 from xdsl.utils.hints import isa
 
 
-@dataclass
-class IntOrUnknown(AttrConstraint):
-    length: int = 0
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(
-                f"Expected {ArrayAttr} attribute, but got {attr.name}."
-            )
-
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
-
-
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
 
 
@@ -70,24 +53,30 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
-    @staticmethod
-    def from_shape(
+    def get_num_dims(self) -> int:
+        return len(self.shape.data)
+
+    def get_shape(self) -> List[int]:
+        return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_dims() <= 0:
+            raise VerifyException(
+                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
+            )
+
+    def __init__(
+        self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
         typ: _FieldTypeElement,
-    ) -> FieldType[_FieldTypeElement]:
-        assert len(shape) > 0
-
+    ) -> None:
         if isinstance(shape, ArrayAttr):
-            return FieldType.new([shape, typ])
+            super().__init__([shape, typ])
+            return
 
         # cast to list
-        shape = cast(list[AnyIntegerAttr] | list[int], shape)
-
-        if isa(shape[0], list[AnyIntegerAttr]):
-            # the if above is a sufficient type guard, but pyright does not understand :/
-            return FieldType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return FieldType(
+        super().__init__(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
         )
 
@@ -449,9 +438,6 @@ class StoreOp(IRDLOperation):
         for use in self.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException("Cannot Load and Store the same field!")
-
-
-from typing import TypeVar, Generic
 
 
 @irdl_op_definition

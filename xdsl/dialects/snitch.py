@@ -8,6 +8,8 @@ that aims at generating.
 [1] https://pulp-platform.github.io/snitch/publications
 """
 
+from abc import ABC
+
 from typing import Annotated
 
 from xdsl.dialects.riscv import RegisterType
@@ -19,106 +21,90 @@ from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr
 
 
-@irdl_op_definition
-class SsrSetupShape(IRDLOperation):
+class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     """
-    Setup the shape (bound and stride) for an arbitrary dimension handled by a
-    specific data mover.
+    A base class for Snitch operations that set a
+    configuration value for a specific dimension handled by a streamer.
     """
 
-    name = "snitch.ssr_setup_shape"
-
-    datamover: Annotated[Operand, RegisterType]
-    bound: Annotated[Operand, RegisterType]
-    stride: Annotated[Operand, RegisterType]
+    stream: Annotated[Operand, RegisterType]
+    value: Annotated[Operand, RegisterType]
     dimension: OpAttr[AnyIntegerAttr]
 
     def __init__(
         self,
-        datamover: Operation | SSAValue,
-        bound: Operation | SSAValue,
-        stride: Operation | SSAValue,
+        stream: Operation | SSAValue,
+        value: Operation | SSAValue,
         dimension: AnyIntegerAttr,
     ):
         super().__init__(
-            operands=[datamover, bound, stride],
+            operands=[stream, value],
             attributes={
                 "dimension": dimension,
             },
         )
 
 
+class SsrSetStreamConfigOperation(IRDLOperation, ABC):
+    """
+    A base class for Snitch operations that set a
+    configuration value for a streamer.
+    """
+
+    stream: Annotated[Operand, RegisterType]
+    value: Annotated[Operand, RegisterType]
+
+    def __init__(self, stream: Operation | SSAValue, value: Operation | SSAValue):
+        super().__init__(operands=[stream, value])
+
+
 @irdl_op_definition
-class SsrSetupRepetition(IRDLOperation):
+class SsrSetDimensionBoundOp(SsrSetDimensionConfigOperation):
+    """
+    Set the bound for one of the dimensions handled by a
+    specific streamer.
+    """
+
+    name = "snitch.ssr_set_dimension_bound"
+
+
+@irdl_op_definition
+class SsrSetDimensionStrideOp(SsrSetDimensionConfigOperation):
+    """
+    Set the stride for one of the dimensions handled by a
+    specific streamer.
+    """
+
+    name = "snitch.ssr_set_dimension_stride"
+
+
+@irdl_op_definition
+class SsrSetDimensionSourceOp(SsrSetDimensionConfigOperation):
+    """
+    Set the data source for one of the dimensions handled by a
+    specific streamer.
+    """
+
+    name = "snitch.ssr_set_dimension_source"
+
+
+@irdl_op_definition
+class SsrSetDimensionDestinationOp(SsrSetDimensionConfigOperation):
+    """
+    Set the data destination for one of the dimensions handled by a
+    specific streamer.
+    """
+
+    name = "snitch.ssr_set_dimension_destination"
+
+
+@irdl_op_definition
+class SsrSetStreamRepetitionOp(SsrSetStreamConfigOperation):
     """
     Setup repetition count for a specific data mover.
     """
 
-    name = "snitch.ssr_setup_repetition"
-
-    datamover: Annotated[Operand, RegisterType]
-    repetition: Annotated[Operand, RegisterType]
-
-    def __init__(
-        self,
-        datamover: Operation | SSAValue,
-        repetition: Operation | SSAValue,
-    ):
-        super().__init__(operands=[datamover, repetition])
-
-
-@irdl_op_definition
-class SsrRead(IRDLOperation):
-    """
-    Setup a dimension for a data mover to be a read stream on a
-    specific base address.
-    """
-
-    name = "snitch.ssr_read"
-
-    datamover: Annotated[Operand, RegisterType]
-    address: Annotated[Operand, RegisterType]
-    dimension: OpAttr[AnyIntegerAttr]
-
-    def __init__(
-        self,
-        datamover: Operation | SSAValue,
-        address: Operation | SSAValue,
-        dimension: AnyIntegerAttr,
-    ):
-        super().__init__(
-            operands=[datamover, address],
-            attributes={
-                "dimension": dimension,
-            },
-        )
-
-
-@irdl_op_definition
-class SsrWrite(IRDLOperation):
-    """
-    Setup a dimension for a data mover to be a write stream on a
-    specific base address.
-    """
-
-    name = "snitch.ssr_write"
-
-    datamover: Annotated[Operand, RegisterType]
-    address: Annotated[Operand, RegisterType]
-    dimension: OpAttr[AnyIntegerAttr]
-
-    def __init__(
-        self,
-        datamover: Operation | SSAValue,
-        address: Operation | SSAValue,
-        dimension: AnyIntegerAttr,
-    ):
-        super().__init__(
-            operands=[datamover, address],
-            attributes={
-                "dimension": dimension,
-            },
-        )
+    name = "snitch.ssr_set_stream_repetition"
 
 
 @irdl_op_definition
@@ -147,10 +133,11 @@ class SsrDisable(IRDLOperation):
 
 Snitch = Dialect(
     [
-        SsrSetupShape,
-        SsrSetupRepetition,
-        SsrRead,
-        SsrWrite,
+        SsrSetDimensionBoundOp,
+        SsrSetDimensionStrideOp,
+        SsrSetDimensionSourceOp,
+        SsrSetDimensionDestinationOp,
+        SsrSetStreamRepetitionOp,
         SsrEnable,
         SsrDisable,
     ],
