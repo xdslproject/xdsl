@@ -293,7 +293,6 @@ class Dealloc(IRDLOperation):
         return Dealloc.build(operands=[operand])
 
 
-
 @irdl_op_definition
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
