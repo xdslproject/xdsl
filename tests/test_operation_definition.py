@@ -95,7 +95,7 @@ def test_invalid_field():
 
 @irdl_op_definition
 class AttrOp(IRDLOperation):
-    name: str = "test.two_var_result_op"
+    name = "test.two_var_result_op"
     attr: OpAttr[StringAttr]
 
 

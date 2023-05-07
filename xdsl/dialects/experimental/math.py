@@ -21,7 +21,7 @@ class AbsFOp(IRDLOperation):
     %a = math.absf %b : f64
     """
 
-    name: str = "math.absf"
+    name = "math.absf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -51,7 +51,7 @@ class AbsIOp(IRDLOperation):
     %a = math.absi %b : i64
     """
 
-    name: str = "math.absi"
+    name = "math.absi"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
 
@@ -84,7 +84,7 @@ class Atan2Op(IRDLOperation):
     %a = math.atan2 %b, %c : f32
     """
 
-    name: str = "math.atan2"
+    name = "math.atan2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
     rhs: Annotated[Operand, AnyFloat]
@@ -121,7 +121,7 @@ class AtanOp(IRDLOperation):
     %a = math.atan %b : f64
     """
 
-    name: str = "math.atan"
+    name = "math.atan"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -153,7 +153,7 @@ class CbrtOp(IRDLOperation):
     Note: This op is not equivalent to powf(..., 1/3.0).
     """
 
-    name: str = "math.cbrt"
+    name = "math.cbrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -186,7 +186,7 @@ class CeilOp(IRDLOperation):
     %a = math.ceil %b : f64
     """
 
-    name: str = "math.ceil"
+    name = "math.ceil"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -220,7 +220,7 @@ class CopySignOp(IRDLOperation):
     %a = math.copysign %b, %c : f64
     """
 
-    name: str = "math.copysign"
+    name = "math.copysign"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
     rhs: Annotated[Operand, AnyFloat]
@@ -257,7 +257,7 @@ class CosOp(IRDLOperation):
     %a = math.cos %b : f64
     """
 
-    name: str = "math.cos"
+    name = "math.cos"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -286,7 +286,7 @@ class CountLeadingZerosOp(IRDLOperation):
     %a = math.ctlz %b : i32
     """
 
-    name: str = "math.ctlz"
+    name = "math.ctlz"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
 
@@ -308,7 +308,7 @@ class CountTrailingZerosOp(IRDLOperation):
     %a = math.cttz %b : i32
     """
 
-    name: str = "math.cttz"
+    name = "math.cttz"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
 
@@ -332,7 +332,7 @@ class CtPopOp(IRDLOperation):
     %a = math.ctpop %b : i32
     """
 
-    name: str = "math.ctpop"
+    name = "math.ctpop"
     operand: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
 
@@ -358,7 +358,7 @@ class ErfOp(IRDLOperation):
     %a = math.erf %b : f64
     """
 
-    name: str = "math.erf"
+    name = "math.erf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -391,7 +391,7 @@ class Exp2Op(IRDLOperation):
     %a = math.exp2 %b : f64
     """
 
-    name: str = "math.exp2"
+    name = "math.exp2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -426,7 +426,7 @@ class ExpM1Op(IRDLOperation):
     %a = math.expm1 %b : f64
     """
 
-    name: str = "math.expm1"
+    name = "math.expm1"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -459,7 +459,7 @@ class ExpOp(IRDLOperation):
     %a = math.exp %b : f64
     """
 
-    name: str = "math.exp"
+    name = "math.exp"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -500,7 +500,7 @@ class FPowIOp(IRDLOperation):
     %a = math.fpowi %base, %power : f64, i32
     """
 
-    name: str = "math.fpowi"
+    name = "math.fpowi"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
     rhs: Annotated[Operand, IntegerType]
@@ -537,7 +537,7 @@ class FloorOp(IRDLOperation):
     %a = math.floor %b : f64
     """
 
-    name: str = "math.floor"
+    name = "math.floor"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -575,7 +575,7 @@ class FmaOp(IRDLOperation):
     to the `llvm.fma.*` intrinsic.
     """
 
-    name: str = "math.fma"
+    name = "math.fma"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     a: Annotated[Operand, AnyFloat]
     b: Annotated[Operand, AnyFloat]
@@ -614,7 +614,7 @@ class IPowIOp(IRDLOperation):
     %a = math.ipowi %b, %c : i32
     """
 
-    name: str = "math.ipowi"
+    name = "math.ipowi"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
     result: Annotated[OpResult, IntegerType]
@@ -641,7 +641,7 @@ class Log10Op(IRDLOperation):
     %y = math.log10 %x : f64
     """
 
-    name: str = "math.log10"
+    name = "math.log10"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -673,7 +673,7 @@ class Log1pOp(IRDLOperation):
     %y = math.log1p %x : f64
     """
 
-    name: str = "math.log1p"
+    name = "math.log1p"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -703,7 +703,7 @@ class Log2Op(IRDLOperation):
     %y = math.log2 %x : f64
     """
 
-    name: str = "math.log2"
+    name = "math.log2"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -733,7 +733,7 @@ class LogOp(IRDLOperation):
     %y = math.log %x : f64
     """
 
-    name: str = "math.log"
+    name = "math.log"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -766,7 +766,7 @@ class PowFOp(IRDLOperation):
     %a = math.powf %b, %c : f64
     """
 
-    name: str = "math.powf"
+    name = "math.powf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     lhs: Annotated[Operand, AnyFloat]
     rhs: Annotated[Operand, AnyFloat]
@@ -806,7 +806,7 @@ class RoundEvenOp(IRDLOperation):
     %a = math.roundeven %b : f64
     """
 
-    name: str = "math.roundeven"
+    name = "math.roundeven"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -842,7 +842,7 @@ class RoundOp(IRDLOperation):
     %a = math.round %b : f64
     """
 
-    name: str = "math.round"
+    name = "math.round"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -871,7 +871,7 @@ class RsqrtOp(IRDLOperation):
     %a = math.rsqrt %b : f64
     """
 
-    name: str = "math.rsqrt"
+    name = "math.rsqrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -904,7 +904,7 @@ class SinOp(IRDLOperation):
     %a = math.sin %b : f64
     """
 
-    name: str = "math.sin"
+    name = "math.sin"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -933,7 +933,7 @@ class SqrtOp(IRDLOperation):
     %a = math.sqrt %b : f64
     """
 
-    name: str = "math.sqrt"
+    name = "math.sqrt"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -963,7 +963,7 @@ class TanOp(IRDLOperation):
     %a = math.tan %b : f64
     """
 
-    name: str = "math.tan"
+    name = "math.tan"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -993,7 +993,7 @@ class TanhOp(IRDLOperation):
     %a = math.tanh %b : f64
     """
 
-    name: str = "math.tanh"
+    name = "math.tanh"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]
@@ -1028,7 +1028,7 @@ class TruncOp(IRDLOperation):
     %a = math.trunc %b : f64
     """
 
-    name: str = "math.trunc"
+    name = "math.trunc"
     fastmath: OptOpAttr[FastMathFlagsAttr]
     operand: Annotated[Operand, AnyFloat]
     result: Annotated[OpResult, AnyFloat]

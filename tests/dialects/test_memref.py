@@ -18,7 +18,6 @@ from xdsl.dialects.memref import (
     Alloc,
     Alloca,
     Dealloc,
-    Dealloca,
     MemRefType,
     Load,
     Store,
@@ -134,14 +133,6 @@ def test_memref_dealloc():
     my_i32 = IntegerType(32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     dealloc0 = Dealloc.get(alloc0)
-
-    assert type(dealloc0.memref) is OpResult
-
-
-def test_memref_dealloca():
-    my_i32 = IntegerType(32)
-    alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
-    dealloc0 = Dealloca.get(alloc0)
 
     assert type(dealloc0.memref) is OpResult
 

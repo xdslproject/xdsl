@@ -82,7 +82,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop
     """
 
-    name: str = "pdl.apply_native_constraint"
+    name = "pdl.apply_native_constraint"
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
@@ -119,7 +119,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop
     """
 
-    name: str = "pdl.apply_native_rewrite"
+    name = "pdl.apply_native_rewrite"
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
@@ -159,7 +159,7 @@ class AttributeOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop
     """
 
-    name: str = "pdl.attribute"
+    name = "pdl.attribute"
     value: OptOpAttr[Attribute]
     value_type: Annotated[OptOperand, TypeType]
     output: Annotated[OpResult, AttributeType]
@@ -194,7 +194,7 @@ class EraseOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop
     """
 
-    name: str = "pdl.erase"
+    name = "pdl.erase"
     op_value: Annotated[Operand, OperationType]
 
     def __init__(self, op_value: SSAValue) -> None:
@@ -207,7 +207,7 @@ class OperandOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop
     """
 
-    name: str = "pdl.operand"
+    name = "pdl.operand"
     value_type: Annotated[OptOperand, TypeType]
     value: Annotated[OpResult, ValueType]
 
@@ -221,7 +221,7 @@ class OperandsOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop
     """
 
-    name: str = "pdl.operands"
+    name = "pdl.operands"
     value_type: Annotated[OptOperand, RangeType[TypeType]]
     value: Annotated[OpResult, RangeType[ValueType]]
 
@@ -235,7 +235,7 @@ class OperationOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop
     """
 
-    name: str = "pdl.operation"
+    name = "pdl.operation"
     opName: OptOpAttr[StringAttr]
     attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
 
@@ -281,7 +281,7 @@ class PatternOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop
     """
 
-    name: str = "pdl.pattern"
+    name = "pdl.pattern"
     benefit: OpAttr[IntegerAttr[Annotated[IntegerType, IntegerType(16)]]]
     sym_name: OptOpAttr[StringAttr]
     body: Region
@@ -314,7 +314,7 @@ class RangeOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop
     """
 
-    name: str = "pdl.range"
+    name = "pdl.range"
     arguments: Annotated[VarOperand, AnyPDLType | RangeType[AnyPDLType]]
     result: Annotated[OpResult, RangeType[AnyPDLType]]
 
@@ -372,7 +372,7 @@ class ReplaceOp(IRDLOperation):
       - The operation will be replaced with these values.
     """
 
-    name: str = "pdl.replace"
+    name = "pdl.replace"
     op_value: Annotated[Operand, OperationType]
     repl_operation: Annotated[OptOperand, OperationType]
     repl_values: Annotated[VarOperand, ValueType | ArrayAttr[ValueType]]
@@ -416,7 +416,7 @@ class ResultOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop
     """
 
-    name: str = "pdl.result"
+    name = "pdl.result"
     index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
     parent_: Annotated[Operand, OperationType]
     val: Annotated[OpResult, ValueType]
@@ -435,7 +435,7 @@ class ResultsOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop
     """
 
-    name: str = "pdl.results"
+    name = "pdl.results"
     index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
     parent_: Annotated[Operand, OperationType]
     val: Annotated[OpResult, ValueType | ArrayAttr[ValueType]]
@@ -459,7 +459,7 @@ class RewriteOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop
     """
 
-    name: str = "pdl.rewrite"
+    name = "pdl.rewrite"
     root: Annotated[OptOperand, OperationType]
     # name of external rewriter function
     # https://github.com/xdslproject/xdsl/issues/98
@@ -519,7 +519,7 @@ class TypeOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop
     """
 
-    name: str = "pdl.type"
+    name = "pdl.type"
     constantType: OptOpAttr[Attribute]
     result: Annotated[OpResult, TypeType]
 
@@ -535,7 +535,7 @@ class TypesOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop
     """
 
-    name: str = "pdl.types"
+    name = "pdl.types"
     constantTypes: OptOpAttr[AnyArrayAttr]
     result: Annotated[OpResult, RangeType[TypeType]]
 

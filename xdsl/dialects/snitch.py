@@ -65,7 +65,7 @@ class SsrSetDimensionBoundOp(SsrSetDimensionConfigOperation):
     specific streamer.
     """
 
-    name: str = "snitch.ssr_set_dimension_bound"
+    name = "snitch.ssr_set_dimension_bound"
 
 
 @irdl_op_definition
@@ -75,7 +75,7 @@ class SsrSetDimensionStrideOp(SsrSetDimensionConfigOperation):
     specific streamer.
     """
 
-    name: str = "snitch.ssr_set_dimension_stride"
+    name = "snitch.ssr_set_dimension_stride"
 
 
 @irdl_op_definition
@@ -85,7 +85,7 @@ class SsrSetDimensionSourceOp(SsrSetDimensionConfigOperation):
     specific streamer.
     """
 
-    name: str = "snitch.ssr_set_dimension_source"
+    name = "snitch.ssr_set_dimension_source"
 
 
 @irdl_op_definition
@@ -95,7 +95,7 @@ class SsrSetDimensionDestinationOp(SsrSetDimensionConfigOperation):
     specific streamer.
     """
 
-    name: str = "snitch.ssr_set_dimension_destination"
+    name = "snitch.ssr_set_dimension_destination"
 
 
 @irdl_op_definition
@@ -104,7 +104,7 @@ class SsrSetStreamRepetitionOp(SsrSetStreamConfigOperation):
     Setup repetition count for a specific data mover.
     """
 
-    name: str = "snitch.ssr_set_stream_repetition"
+    name = "snitch.ssr_set_stream_repetition"
 
 
 @irdl_op_definition
@@ -113,7 +113,7 @@ class SsrEnable(IRDLOperation):
     Enable stream semantics.
     """
 
-    name: str = "snitch.ssr_enable"
+    name = "snitch.ssr_enable"
 
     def __init__(self):
         super().__init__()
@@ -125,7 +125,7 @@ class SsrDisable(IRDLOperation):
     Disable stream semantics.
     """
 
-    name: str = "snitch.ssr_disable"
+    name = "snitch.ssr_disable"
 
     def __init__(self):
         super().__init__()

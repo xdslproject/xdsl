@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
+from typing import ClassVar
 
 
 class ModulePass(ABC):
@@ -12,7 +13,7 @@ class ModulePass(ABC):
     applied to to be in a valid state.
     """
 
-    name: str
+    name: ClassVar[str]
 
     @abstractmethod
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
