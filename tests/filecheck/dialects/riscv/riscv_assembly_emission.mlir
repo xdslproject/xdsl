@@ -7,6 +7,8 @@
   // CHECK-NEXT: li j1, 5
   %2 = "riscv.add"(%0, %1) : (!riscv.reg<j1>, !riscv.reg<zero>) -> !riscv.reg<j2>
   // CHECK-NEXT: add j2, zero, j1
+  %mv = "riscv.mv"(%0) : (!riscv.reg<zero>) -> !riscv.reg<j2>
+  // CHECK-NEXT: mv j2, zero
 
   // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
   // Integer Register-Immediate Instructions

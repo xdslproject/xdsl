@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  %0 = "test.op"() : () -> !riscv.reg<>
-  %1 = "test.op"() : () -> !riscv.reg<>
+  %0 = "riscv.get_register"() : () -> !riscv.reg<>
+  %1 = "riscv.get_register"() : () -> !riscv.reg<>
   // RV32I/RV64I: 2.4 Integer Computational Instructions
 
   // Integer Register-Immediate Instructions
@@ -27,6 +27,8 @@
   // CHECK-NEXT: %{{.*}} = "riscv.lui"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   %auipc = "riscv.auipc"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.auipc"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  %mv = "riscv.mv"(%0) : (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK: %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<>
 
   // Integer Register-Register Operations
   %add = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>

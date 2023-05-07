@@ -16,6 +16,7 @@ from xdsl.dialects.experimental.stencil import (
     ResultType,
     ApplyOp,
     TempType,
+    LoadOp,
     FieldType,
     IndexAttr,
 )
@@ -261,3 +262,33 @@ def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[
         exc_info.value.args[0]
         == "Number of field dimensions must be greater than zero, got 0."
     )
+def test_stencil_load():
+    field_type = FieldType([1, 1], f32)
+    result_type_val1 = TestSSAValue(field_type)
+
+    load = LoadOp.get(result_type_val1)
+
+    assert isinstance(load.field.typ, FieldType)
+    assert load.field.typ == field_type
+    assert len(load.field.typ.shape) == 2
+    assert load.lb is None
+    assert load.ub is None
+
+
+def test_stencil_load_bounds():
+    field_type = FieldType([1, 1], f32)
+    result_type_val1 = TestSSAValue(field_type)
+
+    lb = IndexAttr.get(1, 1)
+    ub = IndexAttr.get(64, 64)
+
+    load = LoadOp.get(result_type_val1, lb, ub)
+
+    assert isinstance(load.lb, IndexAttr)
+    assert len(load.lb.array) == 2
+    for my_val, load_val in zip(lb.array.data, load.lb.array):
+        assert my_val.value.data == load_val.value.data
+    assert isinstance(load.ub, IndexAttr)
+    assert len(load.ub.array) == 2
+    for my_val, load_val in zip(ub.array.data, load.ub.array):
+        assert my_val.value.data == load_val.value.data
