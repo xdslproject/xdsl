@@ -1,3 +1,7 @@
+"""
+Rewrite patterns for lowering snitch → riscv.
+"""
+
 from typing import Tuple
 from dataclasses import dataclass
 from xdsl.passes import ModulePass
@@ -34,7 +38,28 @@ class SnitchStreamerDimension:
 
 @dataclass(frozen=True)
 class SnitchStreamerMemoryMap:
-    # Streamer configuration register address.
+    """
+    In the Snitch architecture, each streamer (a.k.a. data mover)
+    is configured via a memory-mapped address space that can be written
+    via custom riscv.scfgw (Stream ConFiGure Write) operation. For each
+    streamer we have:
+
+    * Repeat: how many times a value should be repeated when
+              popped from/pushed to a stream
+    * Dimensions: a list of supported streaming dimensions
+
+    For each dimension, the supported configuration parameters are:
+
+    * Bound
+    * Stride
+    * Source: base address when reading from a stream
+    * Destination: base address when writing to a stream
+
+    This table encodes the base addresses for each of the configuration
+    parameters above.
+    """
+
+    # Global streaming behaviour enable/disable register.
     # Accessible as a regular RISC-V CSR.
     Csr: int = 0x7C0
 
@@ -73,15 +98,27 @@ class SnitchStreamerMemoryMap:
     )
 
 
-def make_stream_config_ops(value: Operand, stream: Operand, baseaddr: int):
+def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
+    """
+    Return the list of riscv operations needed to set a specific SSR configuration
+    parameter located at 'baseaddr' to a specific 'value' for a specific data mover
+    identified by 'stream'.
+
+    To compute the actual address of the memory-mapped configuration parameter,
+    we have to compute:
+
+    address = stream + baseaddr << 5
+
+    This value is then passed to riscv.scfgw to perform the actual setting.
+    """
     return [
-        offset := riscv.AddiOp(
+        address := riscv.AddiOp(
             stream,
             immediate=IntegerAttr(baseaddr << 5, i32),
         ),
         riscv.ScfgwOp(
             rs1=value,
-            rs2=offset,
+            rs2=address,
         ),
     ]
 
@@ -95,7 +132,7 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
         assert dim < len(
             SnitchStreamerMemoryMap.Dimension
         ), f"dimension attribute out of bounds [0..{dim})"
-        ops = make_stream_config_ops(
+        ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
             baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Bound,
@@ -115,7 +152,7 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
         assert dim < len(
             SnitchStreamerMemoryMap.Dimension
         ), f"dimension attribute out of bounds [0..{dim})"
-        ops = make_stream_config_ops(
+        ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
             baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Stride,
@@ -135,7 +172,7 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
         assert dim < len(
             SnitchStreamerMemoryMap.Dimension
         ), f"dimension attribute out of bounds [0..{dim})"
-        ops = make_stream_config_ops(
+        ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
             baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Source,
@@ -155,7 +192,7 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
         assert dim < len(
             SnitchStreamerMemoryMap.Dimension
         ), f"dimension attribute out of bounds [0..{dim})"
-        ops = make_stream_config_ops(
+        ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
             baseaddr=SnitchStreamerMemoryMap.Dimension[dim].Destination,
@@ -171,7 +208,7 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetStreamRepetitionOp, rewriter: PatternRewriter, /
     ):
-        ops = make_stream_config_ops(
+        ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
             baseaddr=SnitchStreamerMemoryMap.Repeat,

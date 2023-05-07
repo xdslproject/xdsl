@@ -1372,6 +1372,13 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
 
 
 class ScfgwOp(RsRsOperation):
+    """
+    Write a the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+
+    This is an extension of the RISC-V ISA.
+    """
+
     name = "riscv.scfgw"
 
 
