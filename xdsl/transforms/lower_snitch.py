@@ -129,9 +129,6 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
         self, op: snitch.SsrSetDimensionBoundOp, rewriter: PatternRewriter, /
     ):
         dim: int = op.dimension.value.data
-        assert dim < len(
-            SnitchStreamerMemoryMap.Dimension
-        ), f"dimension attribute out of bounds [0..{dim})"
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -149,9 +146,6 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
         self, op: snitch.SsrSetDimensionStrideOp, rewriter: PatternRewriter, /
     ):
         dim: int = op.dimension.value.data
-        assert dim < len(
-            SnitchStreamerMemoryMap.Dimension
-        ), f"dimension attribute out of bounds [0..{dim})"
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -169,9 +163,6 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
         self, op: snitch.SsrSetDimensionSourceOp, rewriter: PatternRewriter, /
     ):
         dim: int = op.dimension.value.data
-        assert dim < len(
-            SnitchStreamerMemoryMap.Dimension
-        ), f"dimension attribute out of bounds [0..{dim})"
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -189,9 +180,6 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
         self, op: snitch.SsrSetDimensionDestinationOp, rewriter: PatternRewriter, /
     ):
         dim: int = op.dimension.value.data
-        assert dim < len(
-            SnitchStreamerMemoryMap.Dimension
-        ), f"dimension attribute out of bounds [0..{dim})"
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
