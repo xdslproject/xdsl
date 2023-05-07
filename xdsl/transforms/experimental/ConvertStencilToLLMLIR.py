@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar
-from typing import Sequence
+from typing import TypeVar, Iterable
 
 from warnings import warn
 
@@ -157,23 +156,23 @@ def verify_load_bounds(cast: CastOp, load: LoadOp):
 
 class IndexOpToLoopSSA(RewritePattern):
     @staticmethod
-    def discover_enclosing_loops(op: Operation) -> Sequence[Operation]:
-        loop_list: Sequence[Operation] = []
+    def discover_enclosing_loops(op: Operation) -> Iterable[scf.For | scf.ParallelOp]:
         parent_op = op.parent_op()
         if parent_op is not None:
-            loop_list.extend(IndexOpToLoopSSA.discover_enclosing_loops(parent_op))
+            yield from IndexOpToLoopSSA.discover_enclosing_loops(parent_op)
         if isa(op, scf.For) or isa(op, scf.ParallelOp):
-            loop_list.append(op)
-        return loop_list
+            yield op
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
         # TODO: This does not currently support the offset in indexop, we can
         # add that when a code requires it
-        enclosing_loops = IndexOpToLoopSSA.discover_enclosing_loops(op)
+        enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
         # The first block argument is the loop iterator
         loop_op = enclosing_loops[op.dim.value.data]
         assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
+        assert len(loop_op.body.blocks) == 1
+        assert len(loop_op.body.block.args) >= 1
         replacement_ssa = loop_op.body.block.args[0]
         op.results[0].replace_by(replacement_ssa)
         rewriter.erase_op(op)
