@@ -38,7 +38,7 @@ class CastOp(IRDLOperation):
         field_ssa = SSAValue.get(field)
         assert isa(field_ssa.typ, FieldType[Attribute])
         if res_type is None:
-            res_type = FieldType.from_shape(
+            res_type = FieldType(
                 tuple(ub_elm - lb_elm for lb_elm, ub_elm in zip(lb, ub)),
                 field_ssa.typ.element_type,
             )
