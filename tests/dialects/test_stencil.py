@@ -262,6 +262,8 @@ def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[
         exc_info.value.args[0]
         == "Number of field dimensions must be greater than zero, got 0."
     )
+
+
 def test_stencil_load():
     field_type = FieldType([1, 1], f32)
     result_type_val1 = TestSSAValue(field_type)
