@@ -165,8 +165,10 @@ class IndexOpToLoopSSA(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
-        # TODO: This does not currently support the offset in indexop, we can
-        # add that when a code requires it
+        # We do not currently support an offset in indexop, therefore check
+        # that this is all set to zero as otherwise it will not be handled
+        for offset in op.offset:
+            assert offset == 0
         enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
         # The first block argument is the loop iterator
         loop_op = enclosing_loops[op.dim.value.data]
