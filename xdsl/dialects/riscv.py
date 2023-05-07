@@ -222,7 +222,7 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr.from_int_and_width(immediate, 32)
-        if isinstance(immediate, str):
+        elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
             rd = RegisterType(Register())
