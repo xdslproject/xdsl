@@ -5,7 +5,7 @@ from sys import _getframe  # type: ignore
 from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
 import pytest
 
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.type import FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
@@ -17,7 +17,7 @@ class A(ParametrizedAttribute):
     name = "a"
 
 
-class _A(_FrontendType):
+class _A(FrontendType):
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
         return A
@@ -39,7 +39,7 @@ class D(ParametrizedAttribute):
     name = "d"
 
 
-class _D(Generic[T], _FrontendType):
+class _D(Generic[T], FrontendType):
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
         return D

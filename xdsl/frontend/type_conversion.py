@@ -4,7 +4,7 @@ import xdsl.frontend.dialects.builtin as frontend_builtin
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, _GenericAlias, Type, TypeAlias  # type: ignore
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.type import FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.ir import Attribute
 
@@ -30,7 +30,7 @@ class TypeConverter:
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: Dict[Type[Attribute], Type[_FrontendType]] = field(
+    xdsl_to_frontend_type_map: Dict[Type[Attribute], Type[FrontendType]] = field(
         default_factory=dict
     )
     """
@@ -43,12 +43,12 @@ class TypeConverter:
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and
         # many other IR constructs.
-        index = frontend_builtin._Index  # type: ignore
+        index = frontend_builtin.Index  # type: ignore
         self._cache_type(index, xdsl_builtin.IndexType(), "index")
 
     def _cache_type(
         self,
-        frontend_type: Type[_FrontendType],
+        frontend_type: Type[FrontendType],
         xdsl_type: Attribute,
         type_name: TypeName,
     ) -> None:
@@ -93,7 +93,7 @@ class TypeConverter:
                 continue
 
             # Finally, get the constructor of this type and build an xDSL type.
-            if issubclass(type_class.__origin__, _FrontendType):
+            if issubclass(type_class.__origin__, FrontendType):
                 xdsl_type = type_class.to_xdsl()(*arguments_for_constructor)
                 self._cache_type(type_class.__origin__, xdsl_type, type_name)
                 return xdsl_type
@@ -108,7 +108,7 @@ class TypeConverter:
 
         # Otherwise, type can be a simple non-generic frontend type, e.g. `class
         # _Index(FrontendType)`.
-        if issubclass(type_class, _FrontendType):
+        if issubclass(type_class, FrontendType):
             xdsl_type = type_class.to_xdsl()()
             self._cache_type(type_class, xdsl_type, type_name)
             return xdsl_type

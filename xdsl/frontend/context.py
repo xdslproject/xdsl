@@ -49,3 +49,11 @@ class CodeContext(AbstractContextManager[Any]):
         # and can be compiled/executed.
         assert self.program.stmts is not None
         PythonCodeCheck.run(self.program.stmts, self.program.file)
+
+
+class Frontend:
+    map = {}
+
+    def add_mapping(self, func, operation):
+        # adds a mapping from a function to an operation
+        self.map[func] = operation

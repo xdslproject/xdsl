@@ -26,9 +26,10 @@ def test_raises_exception_on_unknown_op():
 
 def test_raises_exception_on_unknown_overload():
     with pytest.raises(FrontendProgramException) as err:
-        _ = OpResolver.resolve_op_overload("__unknown__", builtin._Integer)
+        _ = OpResolver.resolve_op_overload("__unknown__", builtin.IntegerType)
     assert (
-        err.value.msg == "Internal failure: '_Integer' does not overload '__unknown__'."
+        err.value.msg
+        == "Internal failure: 'IntegerType' does not overload '__unknown__'."
     )
 
 
@@ -59,7 +60,7 @@ def test_resolves_overloads():
     a = Constant.from_int_and_width(1, i64)
     b = Constant.from_int_and_width(2, i64)
 
-    addi = OpResolver.resolve_op_overload("__add__", builtin._Integer)
+    addi = OpResolver.resolve_op_overload("__add__", builtin.IntegerType)
     addi_op = addi(a, b)
 
     assert isinstance(addi_op, Addi)
@@ -69,7 +70,7 @@ def test_resolves_overloads():
     assert addi_op.results[0].typ.width.data == 64
 
     c = Constant.from_float_and_width(5.0, f64)
-    mulf = OpResolver.resolve_op_overload("__mul__", builtin._Float64)
+    mulf = OpResolver.resolve_op_overload("__mul__", builtin.Float64)
     mulf_op = mulf(c, c)
 
     assert isinstance(mulf_op, Mulf)

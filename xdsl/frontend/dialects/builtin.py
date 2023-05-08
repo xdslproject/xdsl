@@ -1,18 +1,11 @@
 from __future__ import annotations
+from typing import Union
 
 import xdsl.dialects.builtin as builtin
 
 from typing import Any, Callable, Generic, TypeAlias, TypeVar, Literal
 from xdsl.dialects.builtin import Signedness
-
-
-class _FrontendType:
-    """Represents any type in the frontend."""
-
-    @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        raise NotImplementedError()
-
+from xdsl.frontend.type import FrontendType
 
 # Type parameters for integers.
 _Width = TypeVar("_Width", bound=int)
@@ -21,9 +14,9 @@ _Signedness = TypeVar("_Signedness", bound=Signedness)
 
 # Note the types ignored below:
 # a) on each function, since the functions are constrained on a limited set of
-#    known types, and _Integer can represent types outside of that set.
+#    known types, and IntegerType can represent types outside of that set.
 # b) on functions that return `bool` in object, instead of `i1`
-class _Integer(Generic[_Width, _Signedness], _FrontendType):
+class IntegerType(Generic[_Width, _Signedness], FrontendType):
     """
     Represents an integer type in the frontend. Should not be used explicitly.
     """
@@ -178,34 +171,34 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
 
 
 # Type aliases for signless integers.
-i1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNLESS]]
-i8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNLESS]]
-i16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNLESS]]
-i32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNLESS]]
-i64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNLESS]]
-i128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNLESS]]
-i255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNLESS]]
+i1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
+i16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
+i32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
+i64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
+i128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNLESS]]
+i255: TypeAlias = IntegerType[Literal[255], Literal[Signedness.SIGNLESS]]
 
 # Type aliases for signed integers.
-si1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNED]]
-si8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNED]]
-si16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNED]]
-si32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNED]]
-si64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNED]]
-si128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNED]]
-si255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNED]]
+si1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNED]]
+si8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNED]]
+si16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNED]]
+si32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNED]]
+si64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNED]]
+si128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNED]]
+si255: TypeAlias = IntegerType[Literal[255], Literal[Signedness.SIGNED]]
 
 # Type aliases for unsigned integers.
-ui1: TypeAlias = _Integer[Literal[1], Literal[Signedness.UNSIGNED]]
-ui8: TypeAlias = _Integer[Literal[8], Literal[Signedness.UNSIGNED]]
-ui16: TypeAlias = _Integer[Literal[16], Literal[Signedness.UNSIGNED]]
-ui32: TypeAlias = _Integer[Literal[32], Literal[Signedness.UNSIGNED]]
-ui64: TypeAlias = _Integer[Literal[64], Literal[Signedness.UNSIGNED]]
-ui128: TypeAlias = _Integer[Literal[128], Literal[Signedness.UNSIGNED]]
-ui255: TypeAlias = _Integer[Literal[255], Literal[Signedness.UNSIGNED]]
+ui1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.UNSIGNED]]
+ui8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]
+ui16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.UNSIGNED]]
+ui32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.UNSIGNED]]
+ui64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.UNSIGNED]]
+ui128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.UNSIGNED]]
+ui255: TypeAlias = IntegerType[Literal[255], Literal[Signedness.UNSIGNED]]
 
 
-class _Index(_FrontendType):
+class Index(FrontendType):
     """
     Represents an index type in the frontend. Should not be used explicitly.
     """
@@ -215,11 +208,7 @@ class _Index(_FrontendType):
         return builtin.IndexType
 
 
-# Type alias for index type.
-index: TypeAlias = _Index
-
-
-class _Float16(_FrontendType):
+class Float16(FrontendType):
     """
     Represents a 16-bit floating-point type in the frontend. Should not be used
     explicitly.
@@ -245,7 +234,7 @@ class _Float16(_FrontendType):
         return mulf(self, other)
 
 
-class _Float32(_FrontendType):
+class Float32(FrontendType):
     """
     Represents a 32-bit floating-point type in the frontend. Should not be used
     explicitly.
@@ -271,7 +260,7 @@ class _Float32(_FrontendType):
         return mulf(self, other)
 
 
-class _Float64(_FrontendType):
+class Float64(FrontendType):
     """
     Represents a 64-bit floating-point type in the frontend. Should not be used
     explicitly.
@@ -297,7 +286,11 @@ class _Float64(_FrontendType):
         return mulf(self, other)
 
 
+index: TypeAlias = Index
+
 # Type alias for floating-point types.
-f16: TypeAlias = _Float16
-f32: TypeAlias = _Float32
-f64: TypeAlias = _Float64
+f16: TypeAlias = Float16
+f32: TypeAlias = Float32
+f64: TypeAlias = Float64
+
+AnyFloat = TypeVar("AnyFloat", bound=Union[f16, f32, f64])

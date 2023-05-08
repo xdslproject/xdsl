@@ -4,7 +4,7 @@ import inspect
 
 from dataclasses import dataclass
 from typing import Callable, Type
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.type import FrontendType  # type: ignore
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
 
@@ -28,7 +28,7 @@ class OpResolver:
 
     @staticmethod
     def resolve_op_overload(
-        python_op: str, frontend_type: Type[_FrontendType]
+        python_op: str, frontend_type: Type[FrontendType]
     ) -> Callable[..., Operation]:
         # First, get overloaded function.
         if not hasattr(frontend_type, python_op):
