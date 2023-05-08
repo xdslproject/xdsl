@@ -1,11 +1,8 @@
 import xdsl.dialects.arith as arith
-
-from typing import Callable
 from xdsl.frontend.frontend import frontend_op
 from xdsl.frontend.default.builtin import IntegerType, i1, AnyFloat
 from xdsl.frontend.default.default_frontend import defaultFrontend
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.ir import Operation
 
 
 @frontend_op(defaultFrontend, arith.Addi)
@@ -15,7 +12,7 @@ def addi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
 
 @frontend_op(defaultFrontend, arith.AndI)
 def andi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
-    return lsh & rhs
+    return lhs & rhs
 
 
 @frontend_op(defaultFrontend, arith.Cmpi)

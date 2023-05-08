@@ -178,11 +178,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         overload_name = python_AST_operator_to_python_overload[op_name]
         try:
             func_str = frontend_type.magic_functions[overload_name]
-            op = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
-            try:
-                self.inserter.insert_op(op.get(lhs, rhs))
-            except:
-                self.inserter.insert_op(op(lhs, rhs))
+            op_resolver = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
+            self.inserter.insert_op(op_resolver(lhs, rhs))
         except:
             raise CodeGenerationException(
                 self.file,
@@ -256,7 +253,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         try:
             func_str = frontend_type.magic_functions[python_op]
-            op = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
+            op_resolver = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
         except:
             raise CodeGenerationException(
                 self.file,
@@ -270,10 +267,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Create the comparison operation (including any potential negations)
         if op_name == "In":
             # "in" does not take a mnemonic.
-            try:
-                op = op.get(lhs, rhs)
-            except:
-                op = op(lhs, rhs)
+            op = op_resolver(lhs, rhs)
+
         else:
             # TODO: Allow different frontends to override these with different operations that don't follow this schema!
             # Table with mappings of Python AST cmpop to xDSL mnemonics.
@@ -286,10 +281,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "NotEq": "ne",
             }
             mnemonic = python_AST_cmpop_to_mnemonic[op_name]
-            try:
-                op = op.get(lhs, rhs, mnemonic)
-            except:
-                op = op(lhs, rhs, mnemonic)
+            op = op_resolver(lhs, rhs, mnemonic)
 
         self.inserter.insert_op(op)
 

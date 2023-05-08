@@ -9,14 +9,34 @@ from xdsl.frontend.exception import FrontendProgramException
 class Frontend:
     map = {}
 
-    def add_mapping(self, func, operation):
+    def add_mapping(self, func, operation_resolver):
         # adds a mapping from a function to an operation
-        self.map[func] = operation
+        self.map[func] = operation_resolver
 
 
+# TODO: Change this so that it's a lambda that takes the operands of the frontend function and creates the operation, rather than just the opeation
 def frontend_op(frontend: Frontend, operation):
     def decorator(func):
-        frontend.add_mapping(func, operation)
+        if isinstance(operation, type):
+
+            def resolver(*args, **kwargs):
+                try:
+                    return operation.get(*args, **kwargs)
+                except:
+                    return operation(*args, **kwargs)
+
+            frontend.add_mapping(func, resolver)
+        elif callable(operation):
+            frontend.add_mapping(func, operation)
+        else:
+            raise FrontendProgramException(
+                "Cannot create mapping for "
+                + func.__name__
+                + " to "
+                + operation.__name__
+                + " because it is not a callable or class"
+            )
+
         return func
 
     return decorator
