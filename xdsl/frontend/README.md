@@ -41,7 +41,7 @@ from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 
 # Pythonic DSL imports
-from xdsl.frontend.dialects.builtin import i1, i32
+from xdsl.frontend.default.builtin import i1, i32
 
 p = FrontendProgram()
 with CodeContext(p):

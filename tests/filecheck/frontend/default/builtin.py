@@ -3,7 +3,7 @@
 from typing import Literal, Tuple
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import (
+from xdsl.frontend.default.builtin import (
     i1,
     i32,
     i64,

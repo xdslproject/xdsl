@@ -1,6 +1,6 @@
 import ast
 import xdsl.dialects.builtin as xdsl_builtin
-import xdsl.frontend.dialects.builtin as frontend_builtin
+import xdsl.frontend.default.builtin as frontend_builtin
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, _GenericAlias, Type, TypeAlias  # type: ignore

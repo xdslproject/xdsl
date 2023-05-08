@@ -1,7 +1,7 @@
 import xdsl.dialects.arith as arith
 
 from typing import Callable, TypeVar, Union
-from xdsl.frontend.dialects.builtin import index, i1, i32, i64, f16, f32, f64
+from xdsl.frontend.default.builtin import index, i1, i32, i64, f16, f32, f64
 from xdsl.ir import Operation
 
 _Int = TypeVar("_Int", bound=Union[index, i1, i32, i64])

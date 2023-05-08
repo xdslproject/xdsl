@@ -2,7 +2,7 @@
 
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i32
+from xdsl.frontend.default.builtin import i32
 
 p = FrontendProgram()
 with CodeContext(p):

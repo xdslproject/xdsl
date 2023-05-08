@@ -5,7 +5,7 @@ from xdsl.frontend.const import Const
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i32
+from xdsl.frontend.default.builtin import i32
 
 p = FrontendProgram()
 
