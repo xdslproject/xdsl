@@ -456,7 +456,7 @@ class Printer:
                 if isinstance(val, IntegerAttr):
                     self.print(val.value.data)
                 elif isinstance(val, FloatAttr):
-                    self.print(f"{val.value.data:.6e}")                    
+                    self.print(f"{val.value.data:.6e}")
                 else:
                     raise Exception(
                         "unexpected attribute type "
@@ -706,12 +706,13 @@ class Printer:
         else:
             self.print_op_with_default_format(op)
 
-    def print_optional_attr(self, attributes: Dict[str, Attribute],elided_attrs: Sequence[str] = []) -> None:         
-
+    def print_optional_attr(
+        self, attributes: Dict[str, Attribute], elided_attrs: Sequence[str] = []
+    ) -> None:
         new_attr: Dict[str, Attribute]
         new_attr = attributes.copy()
         for e in elided_attrs:
-            new_attr.pop(e) 
+            new_attr.pop(e)
         self._print_op_attributes(new_attr)
 
     def print_list_with_comma(self, inputs: Sequence[Operand]):
