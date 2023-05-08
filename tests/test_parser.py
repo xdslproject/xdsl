@@ -54,10 +54,52 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = Parser(ctx, text).parse_attribute()
-    assert isinstance(attr, DictionaryAttr)
+    attr1 = Parser(ctx, text).parse_attribute()
+    attr2 = Parser(ctx, text).parse_builtin_dict_attr()
+    attr3 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    assert isinstance(attr1, DictionaryAttr)
+    assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
-    assert attr.data == data
+    assert attr1.data == data
+    assert attr2.data == data
+    assert attr3.data == data
+
+
+@pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
+def test_dictionary_attr_with_keyword_missing(text: str):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+
+
+@pytest.mark.parametrize(
+    "text, reserved_names",
+    [("{a = 1}", ["a"]), ("{a = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["a"])],
+)
+def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    with pytest.raises(ParseError):
+        Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+            reserved_names
+        )
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [("{b = 1}", ["a"]), ("{c = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["c"])],
+)
+def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+        expected
+    )
+    assert isinstance(res, DictionaryAttr)
 
 
 @irdl_attr_definition
@@ -134,8 +176,8 @@ def test_parse_block_name():
     parser = Parser(ctx, block_str)
     block = parser.parse_block()
 
-    assert block.args[0].name == "name"
-    assert block.args[1].name is None
+    assert block.args[0].name_hint == "name"
+    assert block.args[1].name_hint is None
 
 
 @pytest.mark.parametrize(
@@ -153,9 +195,7 @@ def test_parse_comma_separated_list(
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
     parser = Parser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == [2, 4, 5]
 
 
@@ -173,9 +213,7 @@ def test_parse_comma_separated_list_empty(
 ):
     input = open_bracket + close_bracket
     parser = Parser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == []
 
 
@@ -183,7 +221,7 @@ def test_parse_comma_separated_list_none_delimiter_empty():
     parser = Parser(MLContext(), "o")
     with pytest.raises(ParseError):
         parser.parse_comma_separated_list(
-            Parser.Delimiter.NONE, parser.parse_int_literal, " in test"
+            Parser.Delimiter.NONE, parser.parse_integer, " in test"
         )
 
 
@@ -202,11 +240,9 @@ def test_parse_comma_separated_list_error_element(
     input = open_bracket + "o" + close_bracket
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "o"
-    assert e.value.msg == "Expected integer literal here"
+    assert e.value.msg == "Expected integer literal"
 
 
 @pytest.mark.parametrize(
@@ -224,9 +260,7 @@ def test_parse_comma_separated_list_error_delimiters(
     input = open_bracket + "2, 4 5"
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "5"
     assert e.value.msg == "Expected '" + close_bracket + "' in test"
 

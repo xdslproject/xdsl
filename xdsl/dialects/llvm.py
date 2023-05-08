@@ -12,9 +12,9 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
     UnitAttr,
+    SymbolRefAttr,
     i32,
     i64,
-    SymbolRefAttr,
 )
 from xdsl.ir import (
     Block,
@@ -38,6 +38,7 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
+
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -116,7 +117,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(">", "End of llvm.ptr parameters expected!")
             return [type, NoneAttr()]
         parser.parse_characters(",", "llvm.ptr args must be separated by `,`")
-        addr_space = parser.parse_int_literal()
+        addr_space = parser.parse_integer()
         parser.parse_characters(">", "End of llvm.ptr parameters expected!")
         return [type, IntegerAttr.from_params(addr_space, IndexType())]
 
@@ -151,7 +152,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters("<", "llvm.array parameters expected")
-        size = IntAttr(parser.parse_int_literal())
+        size = IntAttr(parser.parse_integer())
         if not parser.tokenizer.starts_with("x"):
             parser.parse_characters(">", "End of llvm.array type expected!")
             return [size, NoneAttr()]
@@ -222,30 +223,144 @@ class LinkageAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class GEPOp(IRDLOperation):
+    """
+    llvm.getelementptr is an instruction to do pointer arithmetic by
+    adding/subtracting offsets from a pointer.
+
+    The llvm.getelementptr is documented in various places online:
+
+    LLVM documentation: https://www.llvm.org/docs/GetElementPtr.html
+    A good blogpost: https://blog.yossarian.net/2020/09/19/LLVMs-getelementptr-by-example
+    MLIR documentation: https://mlir.llvm.org/docs/Dialects/LLVM/#llvmgetelementptr-mlirllvmgepop
+
+    Note that the first two discuss *LLVM IRs* GEP operation, not the MLIR one.
+    The semantics are the same, but the structure used by MLIR is not well
+    documented (yet) and the syntax is a bit different.
+
+    Here we focus on MLIRs GEP operation:
+
+    %res = llvm.getelementptr %ptr  [1, 2, %val]
+                              ^^^^   ^^^^^^^^^^
+                              input   indices
+
+    The central point to understanding GEP is that:
+    > GEP never dereferences, it only does math on the given pointer
+
+    It *always* returns a pointer to the element "selected" that is some
+    number of bytes offset from the input pointer:
+
+    `result = ptr + x` for some x parametrized by the arguments
+
+    ## Examples:
+
+    Given the following pointer:
+
+    %ptr : llvm.ptr<llvm.struct<(i32, i32, llvm.array<2xi32>)>>
+
+    The following indices point to the following things:
+
+    [0]      -> The first element of the pointer, so a pointer to the struct:
+                llvm.ptr<llvm.struct<(i32, i32, llvm.array<2xi32>)>>
+
+    [1]      -> The *next* element of the pointer, useful if the
+                pointer points to a list of structs.
+                Equivalent to (ptr + 1), so points to
+                llvm.ptr<llvm.struct<(i32, i32, llvm.array<2xi32>)>>
+
+    [0,0]    -> The first member of the first struct:
+                llvm.ptr<i32>
+
+    [1,0]    -> The first member of the *second* struct pointed to by ptr
+                (can result in out-of-bounds access if the ptr only points to a single struct)
+                llvm.ptr<i32>
+
+    [0,2]    -> The third member of the first struct.
+                llvm.ptr<llvm.array<2,i32>>
+
+    [0,2,0]  -> The first entry of the array that is the third member of
+                the first struct pointed to by our ptr.
+                llvm.ptr<i32>
+
+    [0,0,1]  -> Invalid! The first element of the first struct has no "sub-elements"!
+
+
+    Here is an example of invalid GEP operation parameters:
+
+    Given a different pointer to the example above:
+
+    %ptr : llvm.ptr<llvm.struct<(llvm.ptr<i32>, i32)>>
+
+    Note the two pointers, one to the struct, one in the struct.
+
+    We can do math on the first pointer:
+
+    [0]      -> First struct
+                llvm.ptr<llvm.struct<(llvm.ptr<i32>, i32)>>
+
+    [0,1]    -> Second member of first struct
+                llvm.ptr<i32>
+
+    [0,0]    -> First member of the first struct
+                llvm.ptr<llvm.ptr<i32>>
+
+    [0,0,3]  -> Invalid! In order to find the fourth element in the pointer
+                it would need to be dereferenced! GEP can't do that!
+
+    Expressed in "C", this would equate to:
+
+    # address of first struct
+    (ptr + 0)
+
+    # address of first field of first struct
+    &((ptr + 0)->elm0)
+               ^^^^^^
+               Even though it looks like it, we are not actually
+               dereferencing ptr here.
+
+    # address of fourth element:
+    &(((ptr + 0)->elm0 + 3))
+                ^^^^^^^^^^
+                This actually dereferences (ptr + 0) to access elm0!
+
+    Which translates to roughly this MLIR code:
+
+    %elm0_addr   = llvm.gep %ptr[0,0]   : (!llvm.ptr<...>) -> !llvm.ptr<!llvm.ptr<i32>>
+    %elm0        = llvm.load %elm0_addr : (!llvm.ptr<llvm.ptr<i32>>) -> !llvm.ptr<i32>
+    %elm0_3_addr = llvm.gep %elm0[3]    : !llvm.ptr<i32> -> !llvm.ptr<i32>
+
+    Here the necessary dereferencing is very visible, as %elm0_3_addr is only
+    accessible through an `llvm.load` on %elm0_addr.
+    """
+
     name = "llvm.getelementptr"
 
     ptr: Annotated[Operand, LLVMPointerType]
     ssa_indices: Annotated[VarOperand, IntegerType]
     elem_type: OptOpAttr[Attribute]
+
+    result: Annotated[OpResult, LLVMPointerType]
+
     rawConstantIndices: OpAttr[DenseArrayBase]
     inbounds: OptOpAttr[UnitAttr]
-    result: Annotated[OpResult, LLVMPointerType]
 
     @staticmethod
     def get(
         ptr: SSAValue | Operation,
+        indices: Sequence[int],
+        ssa_indices: Sequence[SSAValue | Operation] | None = None,
         result_type: LLVMPointerType = LLVMPointerType.opaque(),
-        indices: list[int]
-        | None = None,  # Here we are assuming the indices follow the MLIR standard (min int where the SSA value should be used)
-        ssa_indices: list[SSAValue | Operation] | None = None,
         inbounds: bool = False,
         pointee_type: Attribute | None = None,
     ):
-        if indices is None:
-            raise ValueError("llvm.getelementptr must have indices passed.")
+        """
+        A basic constructor for the GEPOp.
 
-        indices_attr = DenseArrayBase.create_dense_int_or_index(i32, indices)
+        Pass the GEP_USE_SSA_VAL magic value in place of each constant
+        index that you want to be read from an SSA value.
 
+        Take a look at `from_mixed_indices` for something without
+        magic values.
+        """
         # construct default mutable argument here:
         if ssa_indices is None:
             ssa_indices = []
@@ -260,22 +375,57 @@ class GEPOp(IRDLOperation):
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
 
-        if not ptr_type.is_typed():
-            if pointee_type == None:
-                raise ValueError("Opaque types must have a pointee type passed")
-
         attrs: dict[str, Attribute] = {
-            "rawConstantIndices": indices_attr,
+            "rawConstantIndices": DenseArrayBase.create_dense_int_or_index(
+                i32, indices
+            ),
         }
 
         if not ptr_type.is_typed():
-            attrs["elem_type"] = result_type
+            if pointee_type is None:
+                raise ValueError("Opaque types must have a pointee type passed")
+            # opaque input ptr => opaque output ptr
+            attrs["elem_type"] = LLVMPointerType.opaque()
 
         if inbounds:
             attrs["inbounds"] = UnitAttr()
 
         return GEPOp.build(
             operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
+        )
+
+    @staticmethod
+    def from_mixed_indices(
+        ptr: SSAValue | Operation,
+        indices: Sequence[int | SSAValue | Operation],
+        result_type: LLVMPointerType = LLVMPointerType.opaque(),
+        inbounds: bool = False,
+        pointee_type: Attribute | None = None,
+    ):
+        """
+        This is a helper function that accepts a mixed list of SSA values and const
+        indices. It will automatically construct the correct indices and ssa_indices
+        lists from that.
+
+        You can call this using [1, 2, some_ssa_val, 3] as the indices array.
+
+        Other than that, this behaves exactly the same as `.get`
+        """
+        ssa_indices: list[SSAValue] = []
+        const_indices: list[int] = []
+        for idx in indices:
+            if isinstance(idx, int):
+                const_indices.append(idx)
+            else:
+                const_indices.append(GEP_USE_SSA_VAL)
+                ssa_indices.append(SSAValue.get(idx))
+        return GEPOp.get(
+            ptr,
+            const_indices,
+            ssa_indices,
+            result_type=result_type,
+            inbounds=inbounds,
+            pointee_type=pointee_type,
         )
 
 
@@ -552,5 +702,10 @@ LLVM = Dialect(
         GlobalOp,
         AddressOfOp,
     ],
-    [LLVMStructType, LLVMPointerType, LLVMArrayType, LinkageAttr],
+    [
+        LLVMStructType,
+        LLVMPointerType,
+        LLVMArrayType,
+        LinkageAttr,
+    ],
 )

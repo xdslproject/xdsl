@@ -12,6 +12,7 @@ from typing import (
     cast,
 )
 
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     DenseIntOrFPElementsAttr,
@@ -25,6 +26,8 @@ from xdsl.dialects.builtin import (
     i64,
     StringAttr,
     UnitAttr,
+    i32,
+    IntegerType,
 )
 from xdsl.ir import (
     TypeAttribute,
@@ -48,6 +51,7 @@ from xdsl.irdl import (
     IRDLOperation,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -290,16 +294,6 @@ class Dealloc(IRDLOperation):
 
 
 @irdl_op_definition
-class Dealloca(IRDLOperation):
-    name = "memref.dealloca"
-    memref: Annotated[Operand, MemRefType[Attribute]]
-
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> Dealloca:
-        return Dealloca.build(operands=[operand])
-
-
-@irdl_op_definition
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: Annotated[OpResult, MemRefType[Attribute]]
@@ -314,7 +308,7 @@ class GetGlobal(IRDLOperation):
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
-            result_types=[return_type], attributes={"name": SymbolRefAttr.build(name)}
+            result_types=[return_type], attributes={"name": SymbolRefAttr(name)}
         )
 
     # TODO how to verify the types, as the global might be defined in another
@@ -472,6 +466,113 @@ class Cast(IRDLOperation):
         return Cast.build(operands=[source], result_types=[type])
 
 
+@irdl_op_definition
+class DmaStartOp(IRDLOperation):
+    name = "memref.dma_start"
+
+    src: Annotated[Operand, MemRefType]
+    src_indices: Annotated[VarOperand, IndexType]
+
+    dest: Annotated[Operand, MemRefType]
+    dest_indices: Annotated[VarOperand, IndexType]
+
+    num_elements: Annotated[Operand, IndexType]
+
+    tag: Annotated[Operand, MemRefType[IntegerType]]
+    tag_indices: Annotated[VarOperand, IndexType]
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    @staticmethod
+    def get(
+        src: SSAValue | Operation,
+        src_indices: Sequence[SSAValue | Operation],
+        dest: SSAValue | Operation,
+        dest_indices: Sequence[SSAValue | Operation],
+        num_elements: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        tag_indices: Sequence[SSAValue | Operation],
+    ):
+        return DmaStartOp.build(
+            operands=[
+                src,
+                src_indices,
+                dest,
+                dest_indices,
+                num_elements,
+                tag,
+                tag_indices,
+            ]
+        )
+
+    def verify_(self) -> None:
+        assert isa(self.src.typ, MemRefType[Attribute])
+        assert isa(self.dest.typ, MemRefType[Attribute])
+        assert isa(self.tag.typ, MemRefType[IntegerType])
+
+        if len(self.src.typ.shape) != len(self.src_indices):
+            raise VerifyException(
+                "Expected {} source indices (because of shape of src memref)".format(
+                    len(self.src.typ.shape)
+                )
+            )
+
+        if len(self.dest.typ.shape) != len(self.dest_indices):
+            raise VerifyException(
+                "Expected {} dest indices (because of shape of dest memref)".format(
+                    len(self.dest.typ.shape)
+                )
+            )
+
+        if len(self.tag.typ.shape) != len(self.tag_indices):
+            raise VerifyException(
+                "Expected {} tag indices (because of shape of tag memref)".format(
+                    len(self.tag.typ.shape)
+                )
+            )
+
+        if self.tag.typ.element_type != i32:
+            raise VerifyException("Expected tag to be a memref of i32")
+
+        if self.dest.typ.memory_space == self.src.typ.memory_space:
+            raise VerifyException("Source and dest must have different memory spaces!")
+
+
+@irdl_op_definition
+class DmaWaitOp(IRDLOperation):
+    name = "memref.dma_wait"
+
+    tag: Annotated[Operand, MemRefType]
+    tag_indices: Annotated[VarOperand, IndexType]
+
+    num_elements: Annotated[Operand, IndexType]
+
+    @staticmethod
+    def get(
+        tag: SSAValue | Operation,
+        tag_indices: Sequence[SSAValue | Operation],
+        num_elements: SSAValue | Operation,
+    ):
+        return DmaWaitOp.build(
+            operands=[
+                tag,
+                tag_indices,
+                num_elements,
+            ]
+        )
+
+    def verify_(self) -> None:
+        assert isa(self.tag.typ, MemRefType[Attribute])
+
+        if len(self.tag.typ.shape) != len(self.tag_indices):
+            raise VerifyException(
+                f"Expected {len(self.tag.typ.shape)} tag indices because of shape of tag memref"
+            )
+
+        if self.tag.typ.element_type != i32:
+            raise VerifyException("Expected tag to be a memref of i32")
+
+
 MemRef = Dialect(
     [
         Load,
@@ -485,6 +586,8 @@ MemRef = Dialect(
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
+        DmaStartOp,
+        DmaWaitOp,
     ],
     [MemRefType, UnrankedMemrefType],
 )

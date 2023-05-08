@@ -46,7 +46,11 @@ class BitwidthSumLessThanTrait(OpTrait):
     operands and results is less than a given value.
     """
 
-    max_sum: int
+    parameters: int
+
+    @property
+    def max_sum(self):
+        return self.parameters
 
     def verify(self, op: Operation):
         sum_bitwidth = 0
@@ -78,10 +82,10 @@ def test_has_trait_object():
     """
     Test the `has_trait` `Operation` method on a simple operation definition.
     """
-    assert TestOp.has_trait(LargerOperandTrait())
-    assert not TestOp.has_trait(LargerResultTrait())
-    assert not TestOp.has_trait(BitwidthSumLessThanTrait(0))
-    assert TestOp.has_trait(BitwidthSumLessThanTrait(64))
+    assert TestOp.has_trait(LargerOperandTrait)
+    assert not TestOp.has_trait(LargerResultTrait)
+    assert not TestOp.has_trait(BitwidthSumLessThanTrait, 0)
+    assert TestOp.has_trait(BitwidthSumLessThanTrait, 64)
 
 
 def test_get_traits_of_type():
@@ -170,3 +174,61 @@ class WrongTraitsType(IRDLOperation):
 def test_traits_wrong_type():
     with pytest.raises(Exception):
         irdl_op_definition(WrongTraitsType)
+
+
+class GetNumResultsTrait(OpTrait):
+    """
+    An example of an MLIR interface, using traits.
+    It provides a method to get the number of results of an operation.
+    """
+
+    # This is the default implementation of a trait (interface) method.
+    @staticmethod
+    def get_num_results(op: Operation):
+        """
+        Get the number of results of the operation
+        """
+        return len(op.results)
+
+
+class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
+    """
+    Instance of the trait for the case where an operation has only a single result.
+    """
+
+    @staticmethod
+    def get_num_results(op: Operation):
+        return 1
+
+
+class OpWithInterface(IRDLOperation):
+    name = "test.op_with_interface"
+    traits = frozenset([GetNumResultsTraitForOpWithOneResult()])
+
+    res: Annotated[OpResult, IntegerType]
+
+
+def test_interface():
+    """
+    Test the features of a trait with methods (An MLIR interface).
+    """
+    op = OpWithInterface.create(result_types=(i32,))
+    trait = OpWithInterface.get_trait(GetNumResultsTrait)
+    assert trait is not None
+    assert 1 == trait.get_num_results(op)
+
+
+def test_get_trait_specialized():
+    """
+    Test get_trait and has_trait in the case where the trait is a child class of the
+    trait we want.
+    """
+    assert OpWithInterface.has_trait(GetNumResultsTrait)
+    assert OpWithInterface.has_trait(GetNumResultsTraitForOpWithOneResult)
+    assert (
+        OpWithInterface.get_trait(GetNumResultsTrait)
+        == GetNumResultsTraitForOpWithOneResult()
+    )
+    assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
+        GetNumResultsTraitForOpWithOneResult()
+    ]

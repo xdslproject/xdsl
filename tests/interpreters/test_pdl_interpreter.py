@@ -96,31 +96,29 @@ def swap_arguments_pdl():
 
     @Builder.implicit_region
     def pattern_region():
-        x = pdl.OperandOp.get().value
-        y = pdl.OperandOp.get().value
-        typ = pdl.TypeOp.get().result
+        x = pdl.OperandOp().value
+        y = pdl.OperandOp().value
+        typ = pdl.TypeOp().result
 
-        x_y_op = pdl.OperationOp.get(
-            StringAttr("arith.addi"), operandValues=[x, y], typeValues=[typ]
+        x_y_op = pdl.OperationOp(
+            StringAttr("arith.addi"), operand_values=[x, y], type_values=[typ]
         ).op
-        x_y = pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32), parent=x_y_op).val
-        z = pdl.OperandOp.get().value
-        x_y_z_op = pdl.OperationOp.get(
-            opName=StringAttr("arith.addi"), operandValues=[x_y, z], typeValues=[typ]
+        x_y = pdl.ResultOp(IntegerAttr.from_int_and_width(0, 32), parent=x_y_op).val
+        z = pdl.OperandOp().value
+        x_y_z_op = pdl.OperationOp(
+            op_name=StringAttr("arith.addi"), operand_values=[x_y, z], type_values=[typ]
         ).op
 
         @Builder.implicit_region
         def rewrite_region():
-            z_x_y_op = pdl.OperationOp.get(
-                StringAttr("arith.addi"), operandValues=[z, x_y], typeValues=[typ]
+            z_x_y_op = pdl.OperationOp(
+                StringAttr("arith.addi"), operand_values=[z, x_y], type_values=[typ]
             ).op
-            pdl.ReplaceOp.get(x_y_z_op, z_x_y_op)
+            pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 
-        pdl.RewriteOp.get(None, x_y_z_op, [], rewrite_region)
+        pdl.RewriteOp(None, x_y_z_op, [], rewrite_region)
 
-    pattern = pdl.PatternOp.get(
-        IntegerAttr.from_int_and_width(2, 16), None, pattern_region
-    )
+    pattern = pdl.PatternOp(IntegerAttr.from_int_and_width(2, 16), None, pattern_region)
 
     pdl_module = ModuleOp([pattern])
 
@@ -211,37 +209,33 @@ def add_zero_pdl():
     @Builder.implicit_region
     def pattern_region():
         # Type i32
-        pdl_i32 = pdl.TypeOp.get().result
+        pdl_i32 = pdl.TypeOp().result
 
         # LHS: i32
-        lhs = pdl.OperandOp.get().results[0]
+        lhs = pdl.OperandOp().results[0]
 
         # Constant 0: i32
-        zero = pdl.AttributeOp.get(
-            value=IntegerAttr.from_int_and_width(0, 32), valueType=pdl_i32
-        ).results[0]
-        rhs_op = pdl.OperationOp.get(
-            opName=StringAttr("arith.constant"),
-            attributeValueNames=ArrayAttr([StringAttr("value")]),
-            attributeValues=[zero],
-            typeValues=[pdl_i32],
+        zero = pdl.AttributeOp(value=IntegerAttr.from_int_and_width(0, 32)).results[0]
+        rhs_op = pdl.OperationOp(
+            op_name=StringAttr("arith.constant"),
+            attribute_value_names=ArrayAttr([StringAttr("value")]),
+            attribute_values=[zero],
+            type_values=[pdl_i32],
         ).op
-        rhs = pdl.ResultOp.get(IntegerAttr.from_int_and_width(0, 32), parent=rhs_op).val
+        rhs = pdl.ResultOp(IntegerAttr.from_int_and_width(0, 32), parent=rhs_op).val
 
         # LHS + 0
-        sum = pdl.OperationOp.get(
-            StringAttr("arith.addi"), operandValues=[lhs, rhs], typeValues=[pdl_i32]
+        sum = pdl.OperationOp(
+            StringAttr("arith.addi"), operand_values=[lhs, rhs], type_values=[pdl_i32]
         ).op
 
         @Builder.implicit_region
         def rewrite_region():
-            pdl.ReplaceOp.get(sum, replValues=[lhs])
+            pdl.ReplaceOp(sum, repl_values=[lhs])
 
-        pdl.RewriteOp.get(None, sum, [], rewrite_region)
+        pdl.RewriteOp(None, sum, [], rewrite_region)
 
-    pattern = pdl.PatternOp.get(
-        IntegerAttr.from_int_and_width(2, 16), None, pattern_region
-    )
+    pattern = pdl.PatternOp(IntegerAttr.from_int_and_width(2, 16), None, pattern_region)
 
     pdl_module = ModuleOp([pattern])
 

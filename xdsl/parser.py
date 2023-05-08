@@ -12,10 +12,20 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from io import StringIO
-from typing import Any, NoReturn, TypeVar, Iterable, IO, cast, Literal, Sequence
+from typing import (
+    Any,
+    NoReturn,
+    TypeVar,
+    Iterable,
+    IO,
+    cast,
+    Literal,
+    Sequence,
+    Callable,
+)
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Lexer, Span, StringLiteral, Token
+from xdsl.utils.lexer import Input, Lexer, Position, Span, StringLiteral, Token
 from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -59,7 +69,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     SSAValue,
     Block,
-    Callable,
     Attribute,
     Operation,
     Region,
@@ -96,7 +105,7 @@ class BacktrackingHistory:
     error: ParseError
     parent: BacktrackingHistory | None
     region_name: str | None
-    pos: int
+    pos: Position
 
     def print_unroll(self, file: IO[str] = sys.stderr):
         if self.parent:
@@ -114,7 +123,7 @@ class BacktrackingHistory:
         self.error.print_pretty(file=file)
 
     @functools.cache
-    def get_farthest_point(self) -> int:
+    def get_farthest_point(self) -> Position:
         """
         Find the farthest this history managed to parse
         """
@@ -131,7 +140,7 @@ class BacktrackingHistory:
         return id(self)
 
 
-save_t = int
+save_t = Position
 
 
 @dataclass
@@ -164,7 +173,7 @@ class Tokenizer:
 
     input: Input
 
-    pos: int = field(init=False, default=0)
+    pos: Position = field(init=False, default=0)
     """
     The position in the input. Points to the first unconsumed character.
     """
@@ -225,7 +234,7 @@ class Tokenizer:
         self.pos = save
 
     def _history_entry_from_exception(
-        self, ex: Exception, region: str | None, pos: int
+        self, ex: Exception, region: str | None, pos: Position
     ) -> BacktrackingHistory:
         """
         Given an exception generated inside a backtracking attempt,
@@ -331,7 +340,7 @@ class Tokenizer:
             raise ParseError(peeked_span, "This is not the peeked span!")
         self.pos = peeked_span.end
 
-    def _find_token_end(self, start: int | None = None) -> int:
+    def _find_token_end(self, start: Position | None = None) -> Position:
         """
         Find the point (optionally starting from start) where the token ends
         """
@@ -351,7 +360,7 @@ class Tokenizer:
         break_pos.append(self.input.len)
         return min(break_pos)
 
-    def next_pos(self, i: int | None = None) -> int:
+    def next_pos(self, i: Position | None = None) -> Position:
         """
         Find the next starting position (optionally starting from i)
 
@@ -501,7 +510,7 @@ class Parser(ABC):
         self.forward_block_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
 
-    def resume_from(self, pos: int):
+    def resume_from(self, pos: Position):
         """
         Resume parsing from a given position.
         """
@@ -590,6 +599,11 @@ class Parser(ABC):
         # to avoid having problems with `backtracking`.
         if self._current_token.span.start > self.tokenizer.pos:
             self.tokenizer.pos = self._current_token.span.start
+
+    @property
+    def pos(self) -> Position:
+        """Get the position of the next token."""
+        return self._current_token.span.start
 
     def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
         """
@@ -690,7 +704,7 @@ class Parser(ABC):
             self.ssa_values[name.text[1:]] = (arg,)
             # store ssa val name if valid
             if SSAValue.is_valid_name(name.text[1:]):
-                arg.name = name.text[1:]
+                arg.name_hint = name.text[1:]
             block_args.append(arg)
 
         block._args = tuple(block_args)  # type: ignore
@@ -1144,7 +1158,7 @@ class Parser(ABC):
             return ""
 
         start_pos = start_token.span.start
-        end_pos: int = start_pos
+        end_pos: Position = start_pos
 
         symbols_stack = [Token.Kind.LESS]
         parentheses = {
@@ -1520,7 +1534,8 @@ class Parser(ABC):
         # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
-            self.raise_error("Custom op parsing not yet implemented.")
+            op_type = self._get_op_by_name(op_name)
+            return op_type.parse(self)
         else:
             # Check for basic op format
             op_name = self.try_parse_string_literal()
@@ -1571,7 +1586,7 @@ class Parser(ABC):
             # Carry over `ssa_val_name` for non-numeric names:
             if SSAValue.is_valid_name(ssa_val_name):
                 for val in self.ssa_values[ssa_val_name]:
-                    val.name = ssa_val_name
+                    val.name_hint = ssa_val_name
 
         return op
 
@@ -1696,7 +1711,7 @@ class Parser(ABC):
         elif next_token.text == "@":
             return self.try_parse_ref_attr()
         elif next_token.text == "{":
-            return self.try_parse_builtin_dict_attr()
+            return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
             return self.try_parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
@@ -2360,16 +2375,40 @@ class Parser(ABC):
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_int_literal(self) -> int:
-        return int(
-            self.expect(
-                self.try_parse_integer_literal, "Expected integer literal here"
-            ).text
-        )
-
-    def try_parse_builtin_dict_attr(self):
+    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute, with the following syntax:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
         param = DictionaryAttr.parse_parameter(self)
         return DictionaryAttr(param)
+
+    def parse_optional_attr_dict_with_keyword(
+        self, reserved_attr_names: Iterable[str] = ()
+    ) -> DictionaryAttr | None:
+        """
+        Parse a dictionary attribute, preceeded with `attributes` keyword, if the
+        keyword is present.
+        This is intended to be used in operation custom assembly format.
+        `reserved_attr_names` contains names that should not be present in the attribute
+        dictionary, and usually correspond to the names of the attributes that are
+        already passed through the operation custom assembly format.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        begin_pos = self.lexer.pos
+        if self.parse_optional_keyword("attributes") is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
+        attr = self.parse_builtin_dict_attr()
+        for reserved_name in reserved_attr_names:
+            if reserved_name in attr.data:
+                self.raise_error(
+                    f"Attribute dictionary entry '{reserved_name}' is already passed "
+                    "through the operation custom assembly format.",
+                    Span(begin_pos, begin_pos, self.lexer.input),
+                )
+        return attr
 
     def parse_optional_punctuation(
         self, punctuation: Token.PunctuationSpelling

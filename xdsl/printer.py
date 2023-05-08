@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Iterable, Sequence, TypeVar, Any, Dict, Optional, List, cast
+from typing import (
+    Iterable,
+    Sequence,
+    TypeVar,
+    Any,
+    Dict,
+    Optional,
+    List,
+    cast,
+    Callable,
+)
 
 from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
@@ -10,7 +20,6 @@ from xdsl.ir import (
     TypeAttribute,
     SSAValue,
     Block,
-    Callable,
     Attribute,
     Region,
     Operation,
@@ -199,12 +208,12 @@ class Printer:
         self.print("%")
         if val in self._ssa_values:
             name = self._ssa_values[val]
-        elif val.name:
-            curr_ind = self._ssa_names.get(val.name, 0)
+        elif val.name_hint:
+            curr_ind = self._ssa_names.get(val.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{val.name}{suffix}"
+            name = f"{val.name_hint}{suffix}"
             self._ssa_values[val] = name
-            self._ssa_names[val.name] = curr_ind + 1
+            self._ssa_names[val.name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
@@ -275,9 +284,9 @@ class Printer:
 
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self.print("%")
-        if arg.name and arg.name not in self._ssa_values.values():
-            name = arg.name
-            self._ssa_names[arg.name] = self._ssa_names.get(arg.name, 0) + 1
+        if arg.name_hint and arg.name_hint not in self._ssa_values.values():
+            name = arg.name_hint
+            self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name
@@ -670,10 +679,16 @@ class Printer:
             raise TypeError("Expected an Operation; got %s" % type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
+        use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
-        else:
+        # If we print with the generic format, or the operation does not have a custom
+        # format
+        elif self.print_generic_format or Operation.print is type(op).print:
             self.print(f'"{op.name}"')
+        else:
+            self.print(f"{op.name}")
+            use_custom_format = True
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
             for message in self.diagnostic.op_messages[op]:
@@ -683,5 +698,7 @@ class Printer:
             del op.attributes["op_name__"]
             self.print_op_with_default_format(op)
             op.attributes["op_name__"] = op_name
+        elif use_custom_format:
+            op.print(self)
         else:
             self.print_op_with_default_format(op)

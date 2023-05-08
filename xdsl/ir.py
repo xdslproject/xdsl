@@ -8,7 +8,6 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Iterable,
     Protocol,
@@ -190,12 +189,17 @@ class SSAValue(ABC):
         """
         pass
 
+    @deprecated("Please use SSAValue.name_hint")
     @property
     def name(self) -> str | None:
+        return self.name_hint
+
+    @property
+    def name_hint(self) -> str | None:
         return self._name
 
-    @name.setter
-    def name(self, name: str | None):
+    @name_hint.setter
+    def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
             self._name = name
@@ -236,8 +240,8 @@ class SSAValue(ABC):
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
         # carry over name if possible
-        if value.name is None:
-            value.name = self.name
+        if value.name_hint is None:
+            value.name_hint = self.name_hint
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -349,6 +353,7 @@ class TypeAttribute:
 A = TypeVar("A", bound="Attribute")
 
 
+@dataclass(frozen=True)
 class Attribute(ABC):
     """
     A compile-time value.
@@ -356,13 +361,8 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The attribute name should be a static field in the attribute classes."""
-
-    @classmethod
-    def build(cls: type[A], *args: Any) -> A:
-        """Create a new attribute using one of the builder defined in IRDL."""
-        assert False
 
     def __post_init__(self):
         self._verify()
@@ -518,21 +518,28 @@ class IRNode(ABC):
 class OpTrait:
     """
     A trait attached to an operation definition.
-    Traits can be used to define operation invariants, or to specify
-    additional semantic information.
-    Some traits may define parameters.
+    Traits can be used to define operation invariants, additional semantic information,
+    or to group operations that have similar properties.
+    Traits have parameters, which by default is just the `None` value. Parameters should
+    always be comparable and hashable.
+    Note that traits are the merge of traits and interfaces in MLIR.
     """
+
+    parameters: Any = field(default=None)
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
 
 
+OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The operation name. Should be a static member of the class"""
 
     _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
@@ -760,13 +767,13 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """
         Call a function on all operations contained in the operation (including this one)
         """
-        fun(self)
+        yield self
         for region in self.regions:
-            region.walk(fun)
+            yield from region.walk()
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
@@ -786,10 +793,8 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(
-        cls: type[_OperationType], result_types: list[Attribute], parser: Parser
-    ) -> _OperationType:
-        parser.raise_error(f"Parsing not implemented for operation {cls.name}")
+    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+        parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
@@ -842,14 +847,26 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: OpTrait) -> bool:
+    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
         """
-        return trait in cls.traits
+        return cls.get_trait(trait, parameters) is not None
 
     @classmethod
-    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+    def get_trait(
+        cls, trait: type[OpTraitInvT], parameters: Any = None
+    ) -> OpTraitInvT | None:
+        """
+        Return a trait with the given type and parameters, if it exists.
+        """
+        for t in cls.traits:
+            if isinstance(t, trait) and t.parameters == parameters:
+                return t
+        return None
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTraitInvT]) -> list[OpTraitInvT]:
         """
         Get all the traits of the given type satisfied by this operation.
         """
@@ -1269,10 +1286,10 @@ class Block(IRNode):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterable[Operation]:
         """Call a function on all operations contained in the block."""
         for op in self.ops:
-            op.walk(fun)
+            yield from op.walk()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1533,10 +1550,10 @@ class Region(IRNode):
             dest.insert_block(new_block, insert_index)
             insert_index += 1
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
-            block.walk(fun)
+            yield from block.walk()
 
     def verify(self) -> None:
         for block in self.blocks:

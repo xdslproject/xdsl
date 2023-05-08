@@ -3,13 +3,13 @@ from xdsl.dialects import builtin
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    CastOp,
     HaloSwapOp,
     IndexAttr,
     LoadOp,
     StoreOp,
     TempType,
 )
+from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -85,10 +85,10 @@ class StoreOpShapeInference(RewritePattern):
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        def access_shape_infer_walk(access: Operation) -> None:
+        for access in op.walk():
             assert (op.lb is not None) and (op.ub is not None)
             if not isinstance(access, AccessOp):
-                return
+                continue
             assert isinstance(access.temp, BlockArgument)
             temp_owner = op.args[access.temp.index].owner
 
@@ -100,8 +100,6 @@ class ApplyOpShapeInference(RewritePattern):
             temp_owner.attributes["ub"] = IndexAttr.max(
                 op.ub + access.offset, temp_owner.ub
             )
-
-        op.walk(access_shape_infer_walk)
 
         assert op.lb and op.ub
 

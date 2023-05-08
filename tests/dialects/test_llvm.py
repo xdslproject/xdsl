@@ -69,15 +69,27 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that passing an opaque pointer to GEP without a pointee type fails
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(opaque_ptr, llvm.LLVMPointerType.typed(builtin.i32), [1])
+        llvm.GEPOp.get(
+            opaque_ptr,
+            indices=[1],
+            result_type=llvm.LLVMPointerType.typed(builtin.i32),
+        )
 
     # check that non-pointer arguments fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(size, llvm.LLVMPointerType.opaque())
+        llvm.GEPOp.get(
+            size,
+            indices=[1],
+            result_type=llvm.LLVMPointerType.opaque(),
+        )
 
     # check that non-pointer result types fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(ptr, builtin.i32, [1])  # type: ignore
+        llvm.GEPOp.get(
+            ptr,
+            indices=[1],
+            result_type=builtin.i32,  # type: ignore[reportGeneralTypeIssues]
+        )
 
 
 def test_llvm_getelementptr_op():
@@ -87,7 +99,12 @@ def test_llvm_getelementptr_op():
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
-    gep1 = llvm.GEPOp.get(ptr, ptr_typ, [1], inbounds=True)
+    gep1 = llvm.GEPOp.from_mixed_indices(
+        ptr,
+        indices=[1],
+        result_type=ptr_typ,
+        inbounds=True,
+    )
 
     assert "inbounds" in gep1.attributes
     assert gep1.result.typ == ptr_typ
@@ -97,7 +114,12 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check that construction with opaque pointer works:
-    gep2 = llvm.GEPOp.get(opaque_ptr, ptr_typ, [1], pointee_type=builtin.i32)
+    gep2 = llvm.GEPOp.from_mixed_indices(
+        opaque_ptr,
+        indices=[1],
+        result_type=ptr_typ,
+        pointee_type=builtin.i32,
+    )
 
     assert "elem_type" in gep2.attributes
     assert "inbounds" not in gep2.attributes
@@ -106,7 +128,7 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.get(ptr, ptr_typ, [1, llvm.GEP_USE_SSA_VAL], [size])
+    gep3 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], ptr_typ)
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1

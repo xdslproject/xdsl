@@ -1,4 +1,4 @@
-# RUN: toyc-ch1 %s -emit=ast 2>&1 | FileCheck %s
+# RUN: python -m toy %s --emit=ast | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments.
 def multiply_transpose(a, b) {

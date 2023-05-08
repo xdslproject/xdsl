@@ -42,7 +42,7 @@ class IntData(Data[int]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> int:
-        return parser.parse_int_literal()
+        return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
         printer.print_string(str(self.data))

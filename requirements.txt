@@ -1,5 +1,2 @@
 pip<24.0
-pytest<8.0
-filecheck<0.0.24
-lit<17.0.0
 immutabledict<2.2.5

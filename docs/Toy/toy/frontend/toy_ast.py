@@ -90,7 +90,7 @@ class VarDeclExprAST(ExprAST):
 
     def inner_dump(self, prefix: str, dumper: Dumper):
         dims_str = ", ".join(f"{int(dim)}" for dim in self.varType.shape)
-        dumper.append("VarDecl ", f"{self.name}<{dims_str}> {self.loc}")
+        dumper.append("VarDecl ", f"{self.name}<{dims_str}> @{self.loc}")
         child = dumper.child()
         self.expr.inner_dump("", child)
 
@@ -143,7 +143,7 @@ class LiteralExprAST(ExprAST):
         return f" <{dims_str}>[{vals_str}]"
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append("Literal:", self.__dump() + f" {self.loc}")
+        dumper.append("Literal:", self.__dump() + f" @{self.loc}")
 
     def iter_flattened_values(self) -> Generator[float, None, None]:
         for value in self.values:
@@ -166,7 +166,7 @@ class VariableExprAST(ExprAST):
         return ExprASTKind.Expr_Var
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append("var: ", f"{self.name} {self.loc}")
+        dumper.append("var: ", f"{self.name} @{self.loc}")
 
 
 @dataclass
@@ -181,7 +181,7 @@ class BinaryExprAST(ExprAST):
         return ExprASTKind.Expr_BinOp
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, f"BinOp: {self.op} {self.loc}")
+        dumper.append(prefix, f"BinOp: {self.op} @{self.loc}")
         child = dumper.child()
         self.lhs.inner_dump("", child)
         self.rhs.inner_dump("", child)
@@ -200,7 +200,7 @@ class CallExprAST(ExprAST):
     def inner_dump(self, prefix: str, dumper: Dumper):
         dumper.append_list(
             prefix,
-            f"Call '{self.callee}' [ {self.loc}",
+            f"Call '{self.callee}' [ @{self.loc}",
             self.args,
             "]",
             lambda dd, arg: arg.inner_dump("", dd),
@@ -240,7 +240,7 @@ class PrototypeAST:
         return dumper.message
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append("", f"Proto '{self.name}' {self.loc}'")
+        dumper.append("", f"Proto '{self.name}' @{self.loc}")
         dumper.append("Params: ", f'[{", ".join(arg.name for arg in self.args)}]')
 
 

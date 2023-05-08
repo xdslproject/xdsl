@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 import re
+import pytest
 from io import StringIO
+from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     MLContext,
+    OpResult,
     Operation,
     ParametrizedAttribute,
     Block,
 )
 from xdsl.irdl import (
+    Operand,
     OptOpAttr,
     ParameterDef,
+    VarOpResult,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
@@ -25,6 +31,7 @@ from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
 from conftest import assert_print_op
+from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
@@ -348,8 +355,8 @@ def test_print_custom_name():
 
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
-    block.args[0].name = "test"
-    block.args[1].name = "test"
+    block.args[0].name_hint = "test"
+    block.args[1].name_hint = "test"
 
     io = StringIO()
     p = Printer(stream=io)
@@ -363,6 +370,142 @@ def test_print_custom_block_arg_name():
 # | |__| |_| \__ \ || (_) | | | | | |  _| (_) | |  | | | | | | (_| | |_
 #  \____\__,_|___/\__\___/|_| |_| |_|_|  \___/|_|  |_| |_| |_|\__,_|\__|
 #
+
+
+@irdl_op_definition
+class PlusCustomFormatOp(IRDLOperation):
+    name = "test.add"
+    lhs: Annotated[Operand, IntegerType]
+    rhs: Annotated[Operand, IntegerType]
+    res: Annotated[OpResult, IntegerType]
+
+    @classmethod
+    def parse(cls, parser: Parser) -> PlusCustomFormatOp:
+        lhs = parser.parse_operand("Expected SSA Value name here!")
+        parser.parse_characters("+", "Malformed operation format, expected `+`!")
+        rhs = parser.parse_operand("Expected SSA Value name here!")
+        parser.parse_punctuation(":")
+        type = parser.expect(parser.try_parse_type, "Expect type here!")
+
+        return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.typ)
+
+
+def test_generic_format():
+    """
+    Test that we can use generic formats in operations.
+    """
+    prog = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "test.add"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    assert_print_op(module, expected, None, False)
+
+
+def test_custom_format():
+    """
+    Test that we can use custom formats in operations.
+    """
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    assert_print_op(module, expected, None, False)
+
+
+def test_custom_format_II():
+    """
+    Test that we can print using generic formats.
+    """
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "test.add"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_op()
+
+    assert_print_op(module, expected, None, print_generic_format=True)
+
+
+@irdl_op_definition
+class NoCustomFormatOp(IRDLOperation):
+    name = "test.no_custom_format"
+
+    ops: VarOperand
+    res: VarOpResult
+
+
+def test_missing_custom_format():
+    """
+    Test that we can print using generic formats.
+    """
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.no_custom_format(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError):
+        parser.parse_op()
 
 
 @irdl_attr_definition

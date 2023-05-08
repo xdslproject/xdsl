@@ -22,7 +22,7 @@ class TestOp(IRDLOperation):
     the test rather than the actual dialect).
     """
 
-    name: str = "test.op"
+    name = "test.op"
 
     res: VarOpResult
     ops: VarOperand
@@ -37,7 +37,7 @@ class TestType(Data[str], TypeAttribute):
     other dialects.
     """
 
-    name: str = "test.type"
+    name = "test.type"
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
