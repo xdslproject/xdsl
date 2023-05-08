@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import IO, Sequence
 
 from xdsl.ir import Operation, SSAValue
@@ -13,6 +14,84 @@ from xdsl.utils.hints import isa
 from xdsl.dialects import riscv
 
 
+class RISCVPrintableInterface(ABC):
+    """
+    This interface is used so that other dialects can extend RISC-V printing
+    without having to modify printing code or the risc-v dialect base.
+    """
+
+    def riscv_print_line(self) -> str:
+        """
+        Can be overwritten to write completely custom things to the output.
+        """
+        return RISCVPrintableInterface.format_riscv_instruction(
+            self.riscv_printed_name(), self.riscv_printed_components()
+        )
+
+    def riscv_printed_name(self) -> str:
+        """
+        Give the name of the RISC-V instruction
+        """
+        raise NotImplemented
+
+    def riscv_printed_components(
+        self,
+    ) -> Sequence[
+        IntegerAttr[IntegerType | IndexType]
+        | riscv.LabelAttr
+        | SSAValue
+        | str
+        | int
+        | None
+    ]:
+        """
+        Return the list of "arguments" to the operation
+        """
+        raise NotImplemented
+
+    @staticmethod
+    def format_riscv_instruction(
+        name: str,
+        components: Sequence[
+            IntegerAttr[IntegerType | IndexType]
+            | riscv.LabelAttr
+            | SSAValue
+            | str
+            | int
+            | None
+        ],
+    ) -> str:
+        """
+        This method formats a RISC-V instruction.
+
+        Given a name and a list of arguments, it correctly stringifies them and then
+        prints the assembly line in a canonical format.
+        """
+        component_strs: list[str] = []
+
+        for component in components:
+            if component is None:
+                continue
+            elif isa(component, AnyIntegerAttr):
+                component_strs.append(f"{component.value.data}")
+            elif isinstance(component, riscv.LabelAttr):
+                component_strs.append(component.data)
+            elif isinstance(component, str):
+                component_strs.append(component)
+            elif isinstance(component, int):
+                component_strs.append(str(component))
+            else:
+                assert isinstance(component.typ, riscv.RegisterType)
+                reg = component.typ.data.name
+                if reg is None:
+                    raise ValueError(
+                        "Cannot emit riscv assembly for unallocated register"
+                    )
+                component_strs.append(reg)
+
+        return f"    {name} {', '.join(component_strs)}"
+
+
 def print_riscv_module(module: ModuleOp, output: IO[str]):
     for op in module.ops:
         print_assembly_instruction(op, output)
@@ -20,10 +99,8 @@ def print_riscv_module(module: ModuleOp, output: IO[str]):
 
 def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
     # allow riscv printable
-    if isinstance(op, riscv.RISCVPrinterInterface):
-        _print_component_strings(
-            op.riscv_printed_name(), op.riscv_printed_components(), output
-        )
+    if isinstance(op, RISCVPrintableInterface):
+        print(op.riscv_print_line(), file=output)
         return
 
     # default assembly code generator
@@ -57,33 +134,8 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
-    _print_component_strings(instruction_name, components, output)
+    line = RISCVPrintableInterface.format_riscv_instruction(
+        instruction_name, components
+    )
 
-
-def _print_component_strings(
-    name: str,
-    components: Sequence[
-        IntegerAttr[IntegerType | IndexType] | riscv.LabelAttr | SSAValue | str | None
-    ],
-    output: IO[str],
-):
-    component_strs: list[str] = []
-
-    for component in components:
-        if component is None:
-            continue
-        elif isa(component, AnyIntegerAttr):
-            component_strs.append(f"{component.value.data}")
-        elif isinstance(component, riscv.LabelAttr):
-            component_strs.append(component.data)
-        elif isinstance(component, str):
-            component_strs.append(component)
-        else:
-            assert isinstance(component.typ, riscv.RegisterType)
-            reg = component.typ.data.name
-            if reg is None:
-                raise ValueError("Cannot emit riscv assembly for unallocated register")
-            component_strs.append(reg)
-
-    code = f"    {name} {', '.join(component_strs)}"
-    print(code, file=output)
+    print(line, file=output)

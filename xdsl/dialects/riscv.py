@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, field
-from typing import Annotated, Sequence
+from typing import Annotated
 
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    UnitAttr,
+    IntegerAttr,
+)
 from xdsl.ir import (
     Dialect,
     Operation,
@@ -12,7 +17,6 @@ from xdsl.ir import (
     OpResult,
     TypeAttribute,
 )
-
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -21,16 +25,8 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
 )
-
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    UnitAttr,
-    IntegerAttr,
-    IntegerType,
-    IndexType,
-)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -159,31 +155,6 @@ class LabelAttr(Data[str]):
 
 class RISCVOp(Operation, ABC):
     pass
-
-
-class RISCVPrinterInterface(ABC):
-    """
-    This interface is used so that other dialects can extend RISC-V printing
-    without having to modify printing code or the risc-v dialect base.
-    """
-
-    @abstractmethod
-    def riscv_printed_name(self) -> str:
-        """
-        Give the name of the RISC-V instruction
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def riscv_printed_components(
-        self,
-    ) -> Sequence[
-        IntegerAttr[IntegerType | IndexType] | LabelAttr | SSAValue | str | None
-    ]:
-        """
-        Return the list of "arguments" to the operation
-        """
-        raise NotImplementedError()
 
 
 # region Base Operation classes
