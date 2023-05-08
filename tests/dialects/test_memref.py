@@ -319,6 +319,12 @@ def test_dma_start():
 
     dma_start.verify()
 
+    # check if it refuses non similarly shaped memrefs when no num_elements is applied
+    with pytest.raises(
+        VerifyException, match="Expected source and dest shapes to be identical"
+    ):
+        DmaStartOp.get(src, [index], dest, [index], None, tag, [index]).verify()
+
     # check that src index count is verified
     with pytest.raises(VerifyException, match="Expected 2 source indices"):
         DmaStartOp.get(

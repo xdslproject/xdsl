@@ -46,6 +46,7 @@ from xdsl.irdl import (
     AnyAttr,
     Operand,
     VarOperand,
+    OptOperand,
     AttrSizedOperandSegments,
     OpAttr,
     IRDLOperation,
@@ -486,7 +487,7 @@ class DmaStartOp(IRDLOperation):
     dest: Annotated[Operand, MemRefType]
     dest_indices: Annotated[VarOperand, IndexType]
 
-    num_elements: Annotated[Operand, IndexType]
+    num_elements: Annotated[OptOperand, IndexType]
 
     tag: Annotated[Operand, MemRefType[IntegerType]]
     tag_indices: Annotated[VarOperand, IndexType]
@@ -499,10 +500,11 @@ class DmaStartOp(IRDLOperation):
         src_indices: Sequence[SSAValue | Operation],
         dest: SSAValue | Operation,
         dest_indices: Sequence[SSAValue | Operation],
-        num_elements: SSAValue | Operation,
+        num_elements: SSAValue | Operation | None,
         tag: SSAValue | Operation,
         tag_indices: Sequence[SSAValue | Operation],
     ):
+        # num_elms_val = [] if num_elements is None else [num_elements]
         return DmaStartOp.build(
             operands=[
                 src,
@@ -520,19 +522,30 @@ class DmaStartOp(IRDLOperation):
         assert isa(self.dest.typ, MemRefType[Attribute])
         assert isa(self.tag.typ, MemRefType[IntegerType])
 
-        if len(self.src.typ.shape) != len(self.src_indices):
-            raise VerifyException(
-                "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.typ.shape)
-                )
-            )
+        if self.num_elements is None:
+            # Check if shapes match exactly
+            src_shape_ints = [item.value.data for item in self.src.typ.shape.data]
+            dest_shape_ints = [item.value.data for item in self.dest.typ.shape.data]
+            for src, dest in zip(src_shape_ints, dest_shape_ints):
+                if src != dest:
+                    raise VerifyException(
+                        "Expected source and dest shapes to be identical (since no num_elements were supplied)"
+                    )
 
-        if len(self.dest.typ.shape) != len(self.dest_indices):
-            raise VerifyException(
-                "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.typ.shape)
+        else:
+            if len(self.src.typ.shape) != len(self.src_indices):
+                raise VerifyException(
+                    "Expected {} source indices (because of shape of src memref)".format(
+                        len(self.src.typ.shape)
+                    )
                 )
-            )
+
+            if len(self.dest.typ.shape) != len(self.dest_indices):
+                raise VerifyException(
+                    "Expected {} dest indices (because of shape of dest memref)".format(
+                        len(self.dest.typ.shape)
+                    )
+                )
 
         if len(self.tag.typ.shape) != len(self.tag_indices):
             raise VerifyException(
