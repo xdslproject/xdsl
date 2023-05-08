@@ -1,5 +1,4 @@
 import pytest
-from typing import List
 
 from xdsl.dialects.builtin import (
     FloatAttr,
