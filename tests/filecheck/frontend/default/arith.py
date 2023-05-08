@@ -2,7 +2,15 @@
 
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.default.frontend import defaultFrontend, i1, i32, i64, f16, f32, f64
+from xdsl.frontend.default.default_frontend import (
+    defaultFrontend,
+    i1,
+    i32,
+    i64,
+    f16,
+    f32,
+    f64,
+)
 from xdsl.frontend.exception import CodeGenerationException
 
 p = FrontendProgram(defaultFrontend)

@@ -3,7 +3,7 @@ import xdsl.dialects.arith as arith
 from typing import Callable
 from xdsl.frontend.frontend import frontend_op
 from xdsl.frontend.default.builtin import IntegerType, i1, AnyFloat
-from xdsl.frontend.default.frontend import defaultFrontend
+from xdsl.frontend.default.default_frontend import defaultFrontend
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
 

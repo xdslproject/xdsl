@@ -6,6 +6,7 @@ import xdsl.dialects.builtin as builtin
 from typing import Any, Callable, Generic, TypeAlias, TypeVar, Literal
 from xdsl.dialects.builtin import Signedness
 from xdsl.frontend.type import FrontendType
+from xdsl.frontend.frontend import frontend_type
 
 # Type parameters for integers.
 _Width = TypeVar("_Width", bound=int)
@@ -16,6 +17,7 @@ _Signedness = TypeVar("_Signedness", bound=Signedness)
 # a) on each function, since the functions are constrained on a limited set of
 #    known types, and IntegerType can represent types outside of that set.
 # b) on functions that return `bool` in object, instead of `i1`
+@frontend_type
 class IntegerType(Generic[_Width, _Signedness], FrontendType):
     """
     Represents an integer type in the frontend. Should not be used explicitly.
@@ -96,78 +98,6 @@ class IntegerType(Generic[_Width, _Signedness], FrontendType):
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "ne")  # type: ignore
-
-    def __add__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import addi
-
-        return addi(self, other)
-
-    def __and__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import andi
-
-        return andi(self, other)
-
-    def __lshift__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import shli
-
-        return shli(self, other)
-
-    def __mul__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import muli
-
-        return muli(self, other)
-
-    def __rshift__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import shrsi
-
-        return shrsi(self, other)
-
-    def __sub__(
-        self, other: IntegerType[_Width, _Signedness]
-    ) -> IntegerType[_Width, _Signedness]:
-        from xdsl.frontend.default.arith import subi
-
-        return subi(self, other)
-
-    def __eq__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "eq")
-
-    def __ge__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "sge")
-
-    def __gt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "sgt")
-
-    def __le__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "sle")
-
-    def __lt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "slt")
-
-    def __ne__(self, other: IntegerType[_Width, _Signedness]) -> i1:
-        from xdsl.frontend.default.arith import cmpi
-
-        return cmpi(self, other, "ne")
 
 
 # Type aliases for signless integers.
