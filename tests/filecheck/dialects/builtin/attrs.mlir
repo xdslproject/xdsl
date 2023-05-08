@@ -5,7 +5,7 @@
   "func.func"() ({
     // CHECK: "test" = dense<0> : tensor<1xi32>
     %x1 = "arith.constant"() {"value" = 0 : i64, "test" = dense<0> : tensor<1xi32>} : () -> i64
-    // CHECK: "test" = dense<0.0> : tensor<1xf32>
+    // CHECK: "test" = dense<0.000000e+00> : tensor<1xf32>
     %x2 = "arith.constant"() {"value" = 0 : i64, "test" = dense<0.0> : tensor<1xf32>} : () -> i64
     // CHECK:  "test" = true
     %x3 = "arith.constant"() {"value" = 0 : i64, "test" = true} : () -> i64

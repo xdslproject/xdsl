@@ -26,7 +26,6 @@ from xdsl.ir import (
     Data,
     ParametrizedAttribute,
 )
-from xdsl.irdl import Operand
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -705,20 +704,3 @@ class Printer:
             op.print(self)
         else:
             self.print_op_with_default_format(op)
-
-    def print_optional_attr(
-        self, attributes: Dict[str, Attribute], elided_attrs: Sequence[str] = []
-    ) -> None:
-        new_attr: Dict[str, Attribute]
-        new_attr = attributes.copy()
-        for e in elided_attrs:
-            new_attr.pop(e)
-        self._print_op_attributes(new_attr)
-
-    def print_list_with_comma(self, inputs: Sequence[Operand]):
-        # it prints args in the form of
-        # ($arg1, $arg2, .... $argN)
-        for i in range(len(inputs)):
-            self.print(inputs[i])
-            if i != len(inputs) - 1:
-                self.print(", ")
