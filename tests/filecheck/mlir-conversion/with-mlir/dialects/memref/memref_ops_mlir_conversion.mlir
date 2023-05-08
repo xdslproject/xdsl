@@ -24,6 +24,10 @@
         index,
         memref<100xi32>, index
     ) -> ()
+    "memref.dma_wait"(%tag, %1, %3) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (
+        memref<100xi32>, index,
+        index
+    ) -> ()
     "func.return"() : () -> ()
   }) {"sym_name" = "memref_test", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -46,6 +50,7 @@
 // CHECK-NEXT: "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
 
 // CHECK:      "memref.dma_start"(%8, %1, %9, %1, %3, %10, %1) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1, 1, 1, 1>} : (memref<100xi32, 10 : i64>, index, memref<100xi32, 9 : i64>, index, index, memref<100xi32>, index) -> ()
+// CHECK-NEXT: "memref.dma_wait"(%10, %1, %3) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (memref<100xi32>, index, index) -> ()
 // CHECK-NEXT: "func.return"() : () -> ()
 // CHECK-NEXT: }) {"function_type" = () -> (), "sym_name" = "memref_test", "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()

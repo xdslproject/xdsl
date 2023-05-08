@@ -213,7 +213,7 @@ def test_stencil_apply_no_results():
         ),
     ),
 )
-def test_create_index_attr_from_int_list(indices: List[int]):
+def test_create_index_attr_from_int_list(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     expected_array_attr = ArrayAttr(
         [
@@ -241,7 +241,7 @@ def test_create_index_attr_from_list_edge_case2():
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
 )
-def test_index_attr_size_from_bounds(indices1: List[int], indices2: List[int]):
+def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
@@ -257,7 +257,7 @@ def test_index_attr_size_from_bounds(indices1: List[int], indices2: List[int]):
     "indices",
     (([1]), ([1, 2]), ([1, 2, 3])),
 )
-def test_index_attr_neg(indices: List[int]):
+def test_index_attr_neg(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_neg = -stencil_index_attr
     expected_array_attr = ArrayAttr(
@@ -271,7 +271,7 @@ def test_index_attr_neg(indices: List[int]):
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
 )
-def test_index_attr_add(indices1: List[int], indices2: List[int]):
+def test_index_attr_add(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
@@ -290,7 +290,7 @@ def test_index_attr_add(indices1: List[int], indices2: List[int]):
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
 )
-def test_index_attr_sub(indices1: List[int], indices2: List[int]):
+def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
@@ -309,7 +309,7 @@ def test_index_attr_sub(indices1: List[int], indices2: List[int]):
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
 )
-def test_index_attr_min(indices1: List[int], indices2: List[int]):
+def test_index_attr_min(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
@@ -328,7 +328,7 @@ def test_index_attr_min(indices1: List[int], indices2: List[int]):
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
 )
-def test_index_attr_max(indices1: List[int], indices2: List[int]):
+def test_index_attr_max(indices1: list[int], indices2: list[int]):
     stencil_index_attr1 = IndexAttr.get(*indices1)
     stencil_index_attr2 = IndexAttr.get(*indices2)
 
@@ -347,7 +347,7 @@ def test_index_attr_max(indices1: List[int], indices2: List[int]):
     "indices",
     (([1]), ([1, 2]), ([1, 2, 3])),
 )
-def test_index_attr_tuple_return(indices: List[int]):
+def test_index_attr_tuple_return(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
 
     assert stencil_index_attr.as_tuple() == tuple(indices)
@@ -357,7 +357,7 @@ def test_index_attr_tuple_return(indices: List[int]):
     "indices",
     (([1]), ([1, 2]), ([1, 2, 3])),
 )
-def test_index_attr_indices_length(indices: List[int]):
+def test_index_attr_indices_length(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_iter = iter(stencil_index_attr)
 

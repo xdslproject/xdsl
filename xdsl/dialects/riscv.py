@@ -1256,6 +1256,109 @@ class CsrrciOp(CsrBitwiseImmOperation):
 
 # endregion
 
+# region RV32M/RV64M: 7 “M” Standard Extension for Integer Multiplication and Division
+
+## Multiplication Operations
+
+
+@irdl_op_definition
+class MulOp(RdRsRsOperation):
+    """
+    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
+    and places the lower XLEN bits in the destination register.
+    x[rd] = x[rs1] * x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add
+    """
+
+    name = "riscv.mul"
+
+
+class MulhOp(RdRsRsOperation):
+    """
+    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
+    and places the upper XLEN bits in the destination register.
+    x[rd] = (x[rs1] s×s x[rs2]) >>s XLEN
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh
+    """
+
+    name = "riscv.mulh"
+
+
+class MulhsuOp(RdRsRsOperation):
+    """
+    Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
+    and places the upper XLEN bits in the destination register.
+    x[rd] = (x[rs1] s × x[rs2]) >>s XLEN
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu
+    """
+
+    name = "riscv.mulhsu"
+
+
+class MulhuOp(RdRsRsOperation):
+    """
+    Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
+    and places the upper XLEN bits in the destination register.
+    x[rd] = (x[rs1] u × x[rs2]) >>u XLEN
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu
+    """
+
+    name = "riscv.mulhu"
+
+
+## Division Operations
+class DivOp(RdRsRsOperation):
+    """
+    Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
+    rounding towards zero.
+    x[rd] = x[rs1] /s x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div
+    """
+
+    name = "riscv.div"
+
+
+class DivuOp(RdRsRsOperation):
+    """
+    Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
+    rounding towards zero.
+    x[rd] = x[rs1] /u x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu
+    """
+
+    name = "riscv.divu"
+
+
+class RemOp(RdRsRsOperation):
+    """
+    Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
+    x[rd] = x[rs1] %s x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem
+    """
+
+    name = "riscv.rem"
+
+
+class RemuOp(RdRsRsOperation):
+    """
+    Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
+    x[rd] = x[rs1] %u x[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu
+    """
+
+    name = "riscv.remu"
+
+
+# endregion
+
 # region Assembler pseudo-instructions
 # https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
@@ -1402,6 +1505,14 @@ RISCV = Dialect(
         CsrrwiOp,
         CsrrsiOp,
         CsrrciOp,
+        MulOp,
+        MulhOp,
+        MulhsuOp,
+        MulhuOp,
+        DivOp,
+        DivuOp,
+        RemOp,
+        RemuOp,
         LiOp,
         EcallOp,
         EbreakOp,

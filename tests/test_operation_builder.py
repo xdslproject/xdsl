@@ -38,7 +38,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class ResultOp(IRDLOperation):
-    name: str = "test.result_op"
+    name = "test.result_op"
 
     res: Annotated[OpResult, StringAttr]
 
@@ -56,7 +56,7 @@ def test_result_builder_exception():
 
 @irdl_op_definition
 class OptResultOp(IRDLOperation):
-    name: str = "test.opt_result_op"
+    name = "test.opt_result_op"
 
     res: Annotated[OptOpResult, StringAttr]
 
@@ -80,7 +80,7 @@ def test_opt_result_builder_two_args():
 
 @irdl_op_definition
 class VarResultOp(IRDLOperation):
-    name: str = "test.var_result_op"
+    name = "test.var_result_op"
 
     res: Annotated[VarOpResult, StringAttr]
 
@@ -93,7 +93,7 @@ def test_var_result_builder():
 
 @irdl_op_definition
 class TwoVarResultOp(IRDLOperation):
-    name: str = "test.two_var_result_op"
+    name = "test.two_var_result_op"
 
     res1: Annotated[VarOpResult, StringAttr]
     res2: Annotated[VarOpResult, StringAttr]
@@ -141,7 +141,7 @@ def test_two_var_result_builder2():
 
 @irdl_op_definition
 class MixedResultOp(IRDLOperation):
-    name: str = "test.mixed"
+    name = "test.mixed"
 
     res1: Annotated[VarOpResult, StringAttr]
     res2: Annotated[OpResult, StringAttr]
@@ -182,7 +182,7 @@ def test_var_mixed_builder():
 
 @irdl_op_definition
 class OperandOp(IRDLOperation):
-    name: str = "test.operand_op"
+    name = "test.operand_op"
 
     res: Annotated[Operand, StringAttr]
 
@@ -208,7 +208,7 @@ def test_operand_builder_exception():
 
 @irdl_op_definition
 class OptOperandOp(IRDLOperation):
-    name: str = "test.opt_operand_op"
+    name = "test.opt_operand_op"
 
     res: Annotated[OptOperand, StringAttr]
 
@@ -231,7 +231,7 @@ def test_opt_operand_builder_two_args():
 
 @irdl_op_definition
 class VarOperandOp(IRDLOperation):
-    name: str = "test.var_operand_op"
+    name = "test.var_operand_op"
 
     res: Annotated[VarOperand, StringAttr]
 
@@ -245,7 +245,7 @@ def test_var_operand_builder():
 
 @irdl_op_definition
 class TwoVarOperandOp(IRDLOperation):
-    name: str = "test.two_var_operand_op"
+    name = "test.two_var_operand_op"
 
     res1: Annotated[VarOperand, StringAttr]
     res2: Annotated[VarOperand, StringAttr]
@@ -282,7 +282,7 @@ def test_two_var_operand_builder2():
 
 @irdl_op_definition
 class AttrOp(IRDLOperation):
-    name: str = "test.two_var_result_op"
+    name = "test.two_var_result_op"
     attr: OpAttr[StringAttr]
 
 
@@ -301,7 +301,7 @@ def test_attr_new_attr_op():
 
 @irdl_op_definition
 class OptionalAttrOp(IRDLOperation):
-    name: str = "test.opt_attr_op"
+    name = "test.opt_attr_op"
 
     opt_attr: OptOpAttr[StringAttr]
 
@@ -323,7 +323,7 @@ def test_optional_attr_op_empty():
 
 @irdl_op_definition
 class RegionOp(IRDLOperation):
-    name: str = "test.region_op"
+    name = "test.region_op"
 
     region: Region
 
@@ -363,7 +363,7 @@ def test_singleop_region():
 
 @irdl_op_definition
 class SBRegionOp(IRDLOperation):
-    name: str = "test.sbregion_op"
+    name = "test.sbregion_op"
 
     region: SingleBlockRegion
 
@@ -376,7 +376,7 @@ def test_sbregion_one_block():
 
 @irdl_op_definition
 class OptRegionOp(IRDLOperation):
-    name: str = "test.opt_region_op"
+    name = "test.opt_region_op"
 
     reg: OptRegion
 
@@ -395,7 +395,7 @@ def test_opt_region_builder_two_args():
 
 @irdl_op_definition
 class OptSBRegionOp(IRDLOperation):
-    name: str = "test.sbregion_op"
+    name = "test.sbregion_op"
 
     region: OptSingleBlockRegion
 
@@ -412,7 +412,7 @@ def test_opt_sbregion_one_block():
 
 @irdl_op_definition
 class VarRegionOp(IRDLOperation):
-    name: str = "test.var_operand_op"
+    name = "test.var_operand_op"
 
     regs: VarRegion
 
@@ -426,7 +426,7 @@ def test_var_region_builder():
 
 @irdl_op_definition
 class VarSBRegionOp(IRDLOperation):
-    name: str = "test.sbregion_op"
+    name = "test.sbregion_op"
 
     regs: VarSingleBlockRegion
 
@@ -444,7 +444,7 @@ def test_var_sbregion_one_block():
 
 @irdl_op_definition
 class TwoVarRegionOp(IRDLOperation):
-    name: str = "test.two_var_region_op"
+    name = "test.two_var_region_op"
 
     res1: Annotated[VarRegion, StringAttr]
     res2: Annotated[VarRegion, StringAttr]
