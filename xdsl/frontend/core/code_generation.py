@@ -275,6 +275,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             except:
                 op = op(lhs, rhs)
         else:
+            # TODO: Allow different frontends to override these with different operations that don't follow this schema!
             # Table with mappings of Python AST cmpop to xDSL mnemonics.
             python_AST_cmpop_to_mnemonic = {
                 "Eq": "eq",
