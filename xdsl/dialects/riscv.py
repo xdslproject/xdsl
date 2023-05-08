@@ -1064,6 +1064,19 @@ class JalOp(RdImmJumpOperation):
 
     name = "riscv.jal"
 
+    def __init__(
+        self,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if rd is None:
+            # By default place return address in
+            rd = RegisterType(Registers.RA)
+
+        super().__init__(immediate, rd=rd)
+
 
 @irdl_op_definition
 class JOp(RdImmJumpOperation):
@@ -1630,7 +1643,33 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
-# region RISC-V SSA Helpers
+
+@irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            }
+        )
+
+
+# RISC-V SSA Helpers
 
 
 @irdl_op_definition
