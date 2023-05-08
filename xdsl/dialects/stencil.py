@@ -87,9 +87,10 @@ class CastOp(IRDLOperation):
                     )
                 )
 
-            if in_ != -1:
-                # TODO: find out if this is too strict
-                raise VerifyException("Input must be dynamically shaped")
+            if in_ != -1 and in_ != out:
+                raise VerifyException(
+                    "If input shape is not dynamic, it must be the same as output"
+                )
 
 
 Stencil = Dialect([CastOp], [])

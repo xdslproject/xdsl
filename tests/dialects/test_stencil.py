@@ -77,7 +77,7 @@ def test_stencil_cast_op_verifier():
     cast.verify()
 
     # check that math is correct
-    with pytest.raises(VerifyException) as ex1:
+    with pytest.raises(VerifyException, match="math"):
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -85,10 +85,9 @@ def test_stencil_cast_op_verifier():
             FieldType((100, 100, 100), f32),
         )
         cast.verify()
-    assert "math" in ex1.value.args[0]
 
     # check that output has same dims as input and lb, ub
-    with pytest.raises(VerifyException) as ex2:
+    with pytest.raises(VerifyException, match="same dimensions"):
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -96,10 +95,9 @@ def test_stencil_cast_op_verifier():
             FieldType((102, 102), f32),
         )
         cast.verify()
-    assert "same dimensions" in ex2.value.args[0]
 
     # check that input has same shape as lb, ub, output
-    with pytest.raises(VerifyException) as ex3:
+    with pytest.raises(VerifyException, match="same dimensions"):
         dyn_field_wrong_shape = TestSSAValue(FieldType((-1, -1), f32))
         cast = CastOp.get(
             dyn_field_wrong_shape,
@@ -108,10 +106,9 @@ def test_stencil_cast_op_verifier():
             FieldType((102, 102, 102), f32),
         )
         cast.verify()
-    assert "same dimensions" in ex3.value.args[0]
 
     # check that input and output have same element type
-    with pytest.raises(VerifyException) as ex4:
+    with pytest.raises(VerifyException, match="element type"):
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -119,10 +116,9 @@ def test_stencil_cast_op_verifier():
             FieldType((102, 102, 102), f64),
         )
         cast.verify()
-    assert "element type" in ex4.value.args[0]
 
     # check that len(lb) == len(ub)
-    with pytest.raises(VerifyException) as ex5:
+    with pytest.raises(VerifyException, match="same dimensions"):
         cast = CastOp.get(
             field,
             IndexAttr.get(
@@ -133,10 +129,9 @@ def test_stencil_cast_op_verifier():
             FieldType((102, 102, 102), f32),
         )
         cast.verify()
-    assert "same dimensions" in ex5.value.args[0]
 
     # check that len(lb) == len(ub)
-    with pytest.raises(VerifyException) as ex6:
+    with pytest.raises(VerifyException, match="same dimensions"):
         cast = CastOp.get(
             field,
             IndexAttr.get(-2, -2, -2),
@@ -144,19 +139,28 @@ def test_stencil_cast_op_verifier():
             FieldType((102, 102, 102), f32),
         )
         cast.verify()
-    assert "same dimensions" in ex6.value.args[0]
 
-    # check that input must be dynamic
-    with pytest.raises(VerifyException) as ex7:
-        non_dyn_field = TestSSAValue(FieldType((102, 102, 102), f32))
+    # check that non-dynamic input verifies
+    non_dyn_field = TestSSAValue(FieldType((102, 102, 102), f32))
+    cast = CastOp.get(
+        non_dyn_field,
+        IndexAttr.get(-2, -2, -2),
+        IndexAttr.get(100, 100, 100),
+        FieldType((102, 102, 102), f32),
+    )
+    cast.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="If input shape is not dynamic, it must be the same as output",
+    ):
         cast = CastOp.get(
             non_dyn_field,
             IndexAttr.get(-2, -2, -2),
-            IndexAttr.get(100, 100, 100),
-            FieldType((102, 102, 102), f32),
+            IndexAttr.get(100, 100, 101),
+            FieldType((102, 102, 103), f32),
         )
         cast.verify()
-    assert "dynamic" in ex7.value.args[0]
 
 
 def test_cast_op_constructor():
@@ -174,7 +178,7 @@ def test_cast_op_constructor():
 def test_stencil_apply():
     result_type_val1 = TestSSAValue(ResultType.from_type(f32))
 
-    stencil_temptype = TempType.from_shape([-1] * 2, f32)
+    stencil_temptype = TempType([-1] * 2, f32)
     apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
 
     assert len(apply_op.args) == 1
@@ -184,7 +188,7 @@ def test_stencil_apply():
 
 
 def test_stencil_apply_no_args():
-    stencil_temptype = TempType.from_shape([-1] * 1, f32)
+    stencil_temptype = TempType([-1] * 1, f32)
     apply_op = ApplyOp.get([], Block([]), [stencil_temptype, stencil_temptype])
 
     assert len(apply_op.args) == 0
@@ -461,3 +465,89 @@ def test_stencil_load_bounds():
     assert len(load.ub.array) == 2
     for my_val, load_val in zip(ub.array.data, load.ub.array):
         assert my_val.value.data == load_val.value.data
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (
+            i32,
+            ArrayAttr(
+                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
+            ),
+        ),
+        (
+            i64,
+            ArrayAttr(
+                [
+                    IntegerAttr[IntegerType](1, 32),
+                    IntegerAttr[IntegerType](2, 32),
+                    IntegerAttr[IntegerType](3, 32),
+                ]
+            ),
+        ),
+    ),
+)
+def test_stencil_temptype_constructor_with_ArrayAttr(
+    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+):
+    stencil_temptype = TempType(dims, attr)
+
+    assert isinstance(stencil_temptype, TempType)
+    assert stencil_temptype.element_type == attr
+    assert stencil_temptype.get_num_dims() == len(dims)
+    assert stencil_temptype.get_shape() == [
+        list(dims.data)[dim].value.data for dim in range(len(dims))
+    ]
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
+    stencil_temptype = TempType(dims, attr)
+
+    assert isinstance(stencil_temptype, TempType)
+    assert stencil_temptype.element_type == attr
+    assert stencil_temptype.get_num_dims() == len(dims)
+    assert stencil_temptype.get_shape() == dims
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, []),
+        (i64, []),
+    ),
+)
+def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[int]):
+    with pytest.raises(VerifyException) as exc_info:
+        TempType(dims, attr)
+    assert (
+        exc_info.value.args[0]
+        == "Number of field dimensions must be greater than zero, got 0."
+    )
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
+    stencil_temptype = TempType(dims, attr)
+
+    expected_string: str = "stencil.Temp<["
+    for dim in dims:
+        expected_string += f"{dim} "
+    expected_string += "]>"
+
+    assert repr(stencil_temptype) == expected_string

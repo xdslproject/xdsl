@@ -88,24 +88,30 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
-    @staticmethod
-    def from_shape(
+    def get_num_dims(self) -> int:
+        return len(self.shape.data)
+
+    def get_shape(self) -> List[int]:
+        return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_dims() <= 0:
+            raise VerifyException(
+                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
+            )
+
+    def __init__(
+        self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
         typ: _FieldTypeElement,
-    ) -> TempType[_FieldTypeElement]:
-        assert len(shape) > 0
-
+    ) -> None:
         if isinstance(shape, ArrayAttr):
-            return TempType.new([shape, typ])
+            super().__init__([shape, typ])
+            return
 
         # cast to list
-        shape = cast(list[AnyIntegerAttr] | list[int], shape)
-
-        if isinstance(shape[0], IntegerAttr):
-            # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType(
+        super().__init__(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
         )
 
@@ -382,7 +388,7 @@ class LoadOp(IRDLOperation):
                 "ub": ub,
             },
             result_types=[
-                TempType[Attribute].from_shape(
+                TempType[Attribute](
                     [-1] * len(field_t.shape.data), field_t.element_type
                 )
             ],
