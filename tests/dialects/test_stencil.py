@@ -489,6 +489,7 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
 ):
     stencil_temptype = TempType(dims, attr)
 
+    assert isinstance(stencil_temptype, TempType)
     assert stencil_temptype.element_type == attr
     assert stencil_temptype.get_num_dims() == len(dims)
     assert stencil_temptype.get_shape() == [
