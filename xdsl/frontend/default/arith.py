@@ -1,16 +1,15 @@
 import xdsl.dialects.arith as arith
 
-from typing import Callable, TypeVar, Union
+from typing import Callable
 from xdsl.frontend.frontend import frontend_op
-from xdsl.frontend.default.builtin import index, i1, i32, i64, f16, f32, f64
+from xdsl.frontend.default.builtin import IntegerType, i1, AnyFloat
 from xdsl.frontend.default.frontend import defaultFrontend
+from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
-
-_Int = TypeVar("_Int", bound=Union[index, i1, i32, i64])
 
 
 @frontend_op(defaultFrontend, arith.Addi)
-def addi(lhs: _Int, rhs: _Int) -> _Int:
+def addi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
     return lhs + rhs
 
 
@@ -18,75 +17,103 @@ def resolve_addi() -> Callable[..., Operation]:
     return arith.Addi
 
 
-def andi(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+@frontend_op(defaultFrontend, arith.AndI)
+def andi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
+    return lsh & rhs
 
 
 def resolve_andi() -> Callable[..., Operation]:
     return arith.AndI.get
 
 
-def cmpi(lhs: _Int, rhs: _Int, mnemonic: str) -> i1:
-    ...
+@frontend_op(defaultFrontend, arith.Cmpi)
+def cmpi(lhs: IntegerType, rhs: IntegerType, mnemonic: str) -> i1:
+    match mnemonic:
+        case "eq":
+            return lhs == rhs
+        case "ne":
+            return lhs != rhs
+        case "slt":
+            return lhs < rhs
+        case "sle":
+            return lhs <= rhs
+        case "sgt":
+            return lhs > rhs
+        case "sge":
+            return lhs >= rhs
+        case "ult":
+            return lhs < rhs
+        case "ule":
+            return lhs <= rhs
+        case "ugt":
+            return lhs > rhs
+        case "uge":
+            return lhs >= rhs
+        case _:
+            raise FrontendProgramException(f"Unknown predicate {mnemonic}")
 
 
 def resolve_cmpi() -> Callable[..., Operation]:
     return arith.Cmpi.get
 
 
-def muli(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+@frontend_op(defaultFrontend, arith.Muli)
+def muli(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
+    return lhs * rhs
 
 
 def resolve_muli() -> Callable[..., Operation]:
     return arith.Muli.get
 
 
-def shli(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+@frontend_op(defaultFrontend, arith.ShLI)
+def shli(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
+    return lhs << rhs
 
 
 def resolve_shli() -> Callable[..., Operation]:
     return arith.ShLI.get
 
 
-def shrsi(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+@frontend_op(defaultFrontend, arith.ShRSI)
+def shrsi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
+    return lhs >> rhs
 
 
 def resolve_shrsi() -> Callable[..., Operation]:
     return arith.ShRSI.get
 
 
-def subi(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+@frontend_op(defaultFrontend, arith.Subi)
+def subi(lhs: IntegerType, rhs: IntegerType) -> IntegerType:
+    return lhs - rhs
 
 
 def resolve_subi() -> Callable[..., Operation]:
     return arith.Subi.get
 
 
-_Float = TypeVar("_Float", bound=Union[f16, f32, f64])
-
-
-def addf(lhs: _Float, rhs: _Float) -> _Float:
-    ...
+@frontend_op(defaultFrontend, arith.Addf)
+def addf(lhs: AnyFloat, rhs: AnyFloat) -> AnyFloat:
+    return lhs + rhs
 
 
 def resolve_addf() -> Callable[..., Operation]:
     return arith.Addf.get
 
 
-def mulf(lhs: _Float, rhs: _Float) -> _Float:
-    ...
+@frontend_op(defaultFrontend, arith.Mulf)
+def mulf(lhs: AnyFloat, rhs: AnyFloat) -> AnyFloat:
+    return lhs * rhs
 
 
 def resolve_mulf() -> Callable[..., Operation]:
     return arith.Mulf.get
 
 
-def subf(lhs: _Float, rhs: _Float) -> _Float:
-    ...
+@frontend_op(defaultFrontend, arith.Subf)
+def subf(lhs: AnyFloat, rhs: AnyFloat) -> AnyFloat:
+    return lhs - rhs
 
 
 def resolve_subf() -> Callable[..., Operation]:
