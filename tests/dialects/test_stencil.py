@@ -174,7 +174,7 @@ def test_cast_op_constructor():
 def test_stencil_apply():
     result_type_val1 = TestSSAValue(ResultType.from_type(f32))
 
-    stencil_temptype = TempType.from_shape([-1] * 2, f32)
+    stencil_temptype = TempType([-1] * 2, f32)
     apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
 
     assert len(apply_op.args) == 1
@@ -184,7 +184,7 @@ def test_stencil_apply():
 
 
 def test_stencil_apply_no_args():
-    stencil_temptype = TempType.from_shape([-1] * 1, f32)
+    stencil_temptype = TempType([-1] * 1, f32)
     apply_op = ApplyOp.get([], Block([]), [stencil_temptype, stencil_temptype])
 
     assert len(apply_op.args) == 0
@@ -461,3 +461,89 @@ def test_stencil_load_bounds():
     assert len(load.ub.array) == 2
     for my_val, load_val in zip(ub.array.data, load.ub.array):
         assert my_val.value.data == load_val.value.data
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (
+            i32,
+            ArrayAttr(
+                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
+            ),
+        ),
+        (
+            i64,
+            ArrayAttr(
+                [
+                    IntegerAttr[IntegerType](1, 32),
+                    IntegerAttr[IntegerType](2, 32),
+                    IntegerAttr[IntegerType](3, 32),
+                ]
+            ),
+        ),
+    ),
+)
+def test_stencil_temptype_constructor_with_ArrayAttr(
+    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+):
+    stencil_temptype = TempType(dims, attr)
+
+    assert isinstance(stencil_temptype, TempType)
+    assert stencil_temptype.element_type == attr
+    assert stencil_temptype.get_num_dims() == len(dims)
+    assert stencil_temptype.get_shape() == [
+        list(dims.data)[dim].value.data for dim in range(len(dims))
+    ]
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
+    stencil_temptype = TempType(dims, attr)
+
+    assert isinstance(stencil_temptype, TempType)
+    assert stencil_temptype.element_type == attr
+    assert stencil_temptype.get_num_dims() == len(dims)
+    assert stencil_temptype.get_shape() == dims
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, []),
+        (i64, []),
+    ),
+)
+def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[int]):
+    with pytest.raises(VerifyException) as exc_info:
+        TempType(dims, attr)
+    assert (
+        exc_info.value.args[0]
+        == "Number of field dimensions must be greater than zero, got 0."
+    )
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
+    stencil_temptype = TempType(dims, attr)
+
+    expected_string: str = "stencil.Temp<["
+    for dim in dims:
+        expected_string += f"{dim} "
+    expected_string += "]>"
+
+    assert repr(stencil_temptype) == expected_string
