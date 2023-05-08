@@ -122,3 +122,18 @@ def test_operation_deletion():
         expected = file.read()
 
     assert f.getvalue().strip() == expected.strip()
+
+
+def test_split_input():
+    filename_in = "tests/xdsl_opt/split_input_file.mlir"
+    filename_out = "tests/xdsl_opt/split_input_file.out"
+    flag = "-split-input-file"
+
+    opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
+    opt.run()
+    with open(filename_in, "r") as file:
+        inp = file.read()
+    with open(filename_out, "r") as file:
+        expected = file.read()
+
+    assert inp.strip() == expected.strip()
