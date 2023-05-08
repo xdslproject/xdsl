@@ -1,8 +1,9 @@
 import inspect
 import importlib
 import ast
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Union
 from xdsl.frontend.exception import FrontendProgramException
+from xdsl.ir import Operation
 
 
 # TODO: Clean this up after prototyping
@@ -14,27 +15,33 @@ class Frontend:
         self.map[func] = operation_resolver
 
 
-# TODO: Change this so that it's a lambda that takes the operands of the frontend function and creates the operation, rather than just the opeation
-def frontend_op(frontend: Frontend, operation):
+def frontend_op(frontend: Frontend, op: Union[Callable, Operation]):
+    """Registers a mapping between the decorated function and an operation resolver.
+    If an operation class is provided, a trivial resolver is created automatically.
+
+    Args:
+        frontend (Frontend): The frontend into which this mapping will be registered
+        operation (_type_): Either an
+    """
+
     def decorator(func):
-        if isinstance(operation, type):
+        print(op)
+        if issubclass(op, Operation):
 
             def resolver(*args, **kwargs):
+                # This is a hack because currently, some xDSL operations use __init__ and some use get
+                # and this reduces the number of operations for which a custom resolver is required
                 try:
-                    return operation.get(*args, **kwargs)
+                    return op.get(*args, **kwargs)
                 except:
-                    return operation(*args, **kwargs)
+                    return op(*args, **kwargs)
 
             frontend.add_mapping(func, resolver)
-        elif callable(operation):
-            frontend.add_mapping(func, operation)
+        elif not isinstance(op, type) and callable(op):
+            frontend.add_mapping(func, op)
         else:
             raise FrontendProgramException(
-                "Cannot create mapping for "
-                + func.__name__
-                + " to "
-                + operation.__name__
-                + " because it is not a callable or class"
+                f"Cannot create mapping for {func.__name__} to {op.__name__} because it is not a callable or Operation"
             )
 
         return func
