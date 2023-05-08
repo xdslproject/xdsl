@@ -54,8 +54,8 @@ Cannot compile program without the code context. Try to use:
         assert self.stmts is not None
 
         type_converter = TypeConverter(self.globals)
-        self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.stmts, self.file
+        self.xdsl_program = CodeGeneration.run(
+            self.frontend, type_converter, self.stmts, self.file
         )
         self.xdsl_program.verify()
 

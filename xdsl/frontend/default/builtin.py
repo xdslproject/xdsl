@@ -138,6 +138,7 @@ class Index(FrontendType):
         return builtin.IndexType
 
 
+@frontend_type
 class Float16(FrontendType):
     """
     Represents a 16-bit floating-point type in the frontend. Should not be used
@@ -164,6 +165,7 @@ class Float16(FrontendType):
         return mulf(self, other)
 
 
+@frontend_type
 class Float32(FrontendType):
     """
     Represents a 32-bit floating-point type in the frontend. Should not be used
@@ -190,6 +192,7 @@ class Float32(FrontendType):
         return mulf(self, other)
 
 
+@frontend_type
 class Float64(FrontendType):
     """
     Represents a 64-bit floating-point type in the frontend. Should not be used

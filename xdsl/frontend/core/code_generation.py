@@ -9,9 +9,10 @@ import xdsl.frontend.core.symref as symref
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Sequence
-from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
+from xdsl.frontend.frontend import Frontend
+from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.core.op_inserter import OpInserter
-from xdsl.frontend.core.op_resolver import OpResolver
+from xdsl.frontend.core.func_resolver import resolve_func_name
 from xdsl.frontend.core.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
@@ -19,12 +20,15 @@ from xdsl.ir import Attribute, Block, Region, SSAValue
 @dataclass
 class CodeGeneration:
     @staticmethod
-    def run_with_type_converter(
-        type_converter: TypeConverter, stmts: Sequence[ast.stmt], file: str | None
+    def run(
+        frontend: Frontend,
+        type_converter: TypeConverter,
+        stmts: Sequence[ast.stmt],
+        file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
-        visitor = CodeGenerationVisitor(type_converter, module, file)
+        visitor = CodeGenerationVisitor(frontend, type_converter, module, file)
         for stmt in stmts:
             visitor.visit(stmt)
         return module
@@ -33,6 +37,9 @@ class CodeGeneration:
 @dataclass(init=False)
 class CodeGenerationVisitor(ast.NodeVisitor):
     """Visitor that generates xDSL from the Python AST."""
+
+    frontend: Frontend
+    """Frontend used for this program."""
 
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
@@ -56,8 +63,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     """Path of the file containing the program being processed."""
 
     def __init__(
-        self, type_converter: TypeConverter, module: builtin.ModuleOp, file: str | None
+        self,
+        frontend: Frontend,
+        type_converter: TypeConverter,
+        module: builtin.ModuleOp,
+        file: str | None,
     ) -> None:
+        self.frontend = frontend
         self.type_converter = type_converter
         self.globals = type_converter.globals
         self.file = file
@@ -165,9 +177,13 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         overload_name = python_AST_operator_to_python_overload[op_name]
         try:
-            op = OpResolver.resolve_op_overload(overload_name, frontend_type)(lhs, rhs)
-            self.inserter.insert_op(op)
-        except FrontendProgramException:
+            func_str = frontend_type.magic_functions[overload_name]
+            op = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
+            try:
+                self.inserter.insert_op(op.get(lhs, rhs))
+            except:
+                self.inserter.insert_op(op(lhs, rhs))
+        except:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -239,8 +255,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
 
         try:
-            op = OpResolver.resolve_op_overload(python_op, frontend_type)
-        except FrontendProgramException:
+            func_str = frontend_type.magic_functions[python_op]
+            op = self.frontend.map[resolve_func_name(func_str[0], func_str[1])]
+        except:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
@@ -253,7 +270,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Create the comparison operation (including any potential negations)
         if op_name == "In":
             # "in" does not take a mnemonic.
-            op = op(lhs, rhs)
+            try:
+                op = op.get(lhs, rhs)
+            except:
+                op = op(lhs, rhs)
         else:
             # Table with mappings of Python AST cmpop to xDSL mnemonics.
             python_AST_cmpop_to_mnemonic = {
@@ -265,7 +285,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "NotEq": "ne",
             }
             mnemonic = python_AST_cmpop_to_mnemonic[op_name]
-            op = op(lhs, rhs, mnemonic)
+            try:
+                op = op.get(lhs, rhs, mnemonic)
+            except:
+                op = op(lhs, rhs, mnemonic)
 
         self.inserter.insert_op(op)
 

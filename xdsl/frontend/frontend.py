@@ -1,5 +1,8 @@
 import inspect
-from typing import Dict, Any
+import importlib
+import ast
+from typing import Dict, Any, Callable
+from xdsl.frontend.exception import FrontendProgramException
 
 
 # TODO: Clean this up after prototyping
@@ -114,11 +117,45 @@ def frontend_type(cls: Any):
         "__deepcopy__",
     ]
 
-    magic_functions: Dict[str, str] = {}
+    magic_functions: Dict[str, [str, str]] = {}
     for name in dir(cls):
         attr = getattr(cls, name)
         if callable(attr) and name.startswith("__") and name.endswith("__"):
             if name in supported_functions:
-                magic_functions[name] = inspect.getsource(attr)
+                # TODO: In the future, we should support arbitrary (frontend) code
+                # and just inline it during compilation
+                # However, for now we're just going to extract the operation from the import line
+                try:
+                    python_ast = ast.parse(inspect.getsource(attr).strip())
+                except:
+                    continue  # no implementation available, check next function
+
+                if not isinstance(python_ast, ast.Module) or not isinstance(
+                    python_ast.body[0], ast.FunctionDef
+                ):
+                    raise FrontendProgramException(
+                        f"Internal failure while extracting magic functions '{name}' for '{cls.__name__}'"
+                    )
+                func_ast = python_ast.body[0]
+
+                if (
+                    len(func_ast.body) != 2
+                    or not isinstance(func_ast.body[0], ast.ImportFrom)
+                    or not isinstance(func_ast.body[1], ast.Return)
+                    or not isinstance(func_ast.body[1].value, ast.Call)
+                    or not isinstance(func_ast.body[1].value.func, ast.Name)
+                ):
+                    msg = f"""
+                            Internal failure while extracting magic functions '{name}' for '{cls.__name__}'".
+                            Function AST is not as exepcted, it should be:
+                                def __overload__(...):
+                                    from Dialect import Operation
+                                        return Operation(...)"""
+                    raise FrontendProgramException(msg)
+
+                module_name = func_ast.body[0].module
+                assert module_name is not None
+                func_name = func_ast.body[1].value.func.id
+                magic_functions[name] = [module_name, func_name]
     cls.magic_functions = magic_functions
     return cls
