@@ -43,23 +43,6 @@ from xdsl.irdl import (
 from xdsl.utils.hints import isa
 
 
-@dataclass
-class IntOrUnknown(AttrConstraint):
-    length: int = 0
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(
-                f"Expected {ArrayAttr} attribute, but got {attr.name}."
-            )
-
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
-
-
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
 
 
@@ -265,9 +248,6 @@ class LoopAttr(ParametrizedAttribute):
 
 
 # Operations
-
-
-# Operations
 @irdl_op_definition
 class ExternalLoadOp(IRDLOperation):
     """
@@ -277,7 +257,7 @@ class ExternalLoadOp(IRDLOperation):
       %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64> # noqa
     """
 
-    name: str = "stencil.external_load"
+    name = "stencil.external_load"
     field: Annotated[Operand, Attribute]
     result: Annotated[OpResult, FieldType | memref.MemRefType]
 
@@ -298,7 +278,7 @@ class ExternalStoreOp(IRDLOperation):
       stencil.store %temp to %field : !stencil.field<128x128xf64> to !fir.array<128x128xf64> # noqa
     """
 
-    name: str = "stencil.external_store"
+    name = "stencil.external_store"
     temp: Annotated[Operand, FieldType]
     field: Annotated[Operand, Attribute]
 
@@ -314,7 +294,7 @@ class IndexOp(IRDLOperation):
       %0 = stencil.index 0 [-1, 0, 0] : index
     """
 
-    name: str = "stencil.index"
+    name = "stencil.index"
     dim: OpAttr[AnyIntegerAttr]
     offset: OpAttr[IndexAttr]
     idx: Annotated[OpResult, builtin.IndexType]
@@ -330,7 +310,7 @@ class AccessOp(IRDLOperation):
       %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
     """
 
-    name: str = "stencil.access"
+    name = "stencil.access"
     temp: Annotated[Operand, TempType]
     offset: OpAttr[IndexAttr]
     res: Annotated[OpResult, Attribute]
@@ -368,7 +348,7 @@ class DynAccessOp(IRDLOperation):
       %0 = stencil.dyn_access %temp (%i, %j, %k) in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64> -> f64
     """
 
-    name: str = "stencil.dyn_access"
+    name = "stencil.dyn_access"
     temp: Annotated[Operand, TempType]
     offset: OpAttr[IndexAttr]
     lb: OpAttr[IndexAttr]
@@ -385,7 +365,7 @@ class LoadOp(IRDLOperation):
       %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.load"
+    name = "stencil.load"
     field: Annotated[Operand, FieldType]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
@@ -429,7 +409,7 @@ class BufferOp(IRDLOperation):
       %0 = stencil.buffer %buffered : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.buffer"
+    name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
     lb: OpAttr[IndexAttr]
     ub: OpAttr[IndexAttr]
@@ -445,7 +425,7 @@ class StoreOp(IRDLOperation):
       stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
     """
 
-    name: str = "stencil.store"
+    name = "stencil.store"
     temp: Annotated[Operand, TempType]
     field: Annotated[Operand, FieldType]
     lb: OpAttr[IndexAttr]
@@ -466,9 +446,6 @@ class StoreOp(IRDLOperation):
                 raise VerifyException("Cannot Load and Store the same field!")
 
 
-from typing import TypeVar, Generic
-
-
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -482,7 +459,7 @@ class ApplyOp(IRDLOperation):
       }
     """
 
-    name: str = "stencil.apply"
+    name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
@@ -523,7 +500,7 @@ class StoreResultOp(IRDLOperation):
       stencil.store_result : !stencil.result<f64>
     """
 
-    name: str = "stencil.store_result"
+    name = "stencil.store_result"
     args: Annotated[VarOperand, Attribute]
     res: Annotated[OpResult, ResultType]
 
@@ -543,7 +520,7 @@ class ReturnOp(IRDLOperation):
       stencil.return %0 : !stencil.result<f64>
     """
 
-    name: str = "stencil.return"
+    name = "stencil.return"
     arg: Annotated[VarOperand, ResultType | AnyFloat]
 
     @staticmethod
@@ -564,7 +541,7 @@ class CombineOp(IRDLOperation):
       %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.combine"
+    name = "stencil.combine"
     dim: Annotated[
         Operand, IntegerType
     ]  # TODO: how to use the ArrayLength constraint here? 0 <= dim <= 2

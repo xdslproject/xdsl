@@ -30,7 +30,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_op_definition
 class Norm(IRDLOperation):
-    name: str = "cmath.norm"
+    name = "cmath.norm"
 
     op: Annotated[
         Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
@@ -47,7 +47,7 @@ class Norm(IRDLOperation):
 
 @irdl_op_definition
 class Mul(IRDLOperation):
-    name: str = "cmath.mul"
+    name = "cmath.mul"
 
     lhs: Annotated[
         Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])

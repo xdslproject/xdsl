@@ -9,6 +9,8 @@ categories:
       - 'frontend'
   - title: 'Dialects'
     label: 'dialects'
+  - title: 'Transformations'
+    label: 'transformations'
   - title: 'API'
     label: 'API'
   - title: 'Examples/Tutorials'
