@@ -1260,6 +1260,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 
 ## Multiplication Operations
 
+
 @irdl_op_definition
 class MulOp(RdRsRsOperation):
     """
