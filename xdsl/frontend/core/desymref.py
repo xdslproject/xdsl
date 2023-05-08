@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable
-from xdsl.frontend import symref
+from xdsl.frontend.core import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass

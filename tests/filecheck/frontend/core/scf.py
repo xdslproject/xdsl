@@ -3,6 +3,8 @@
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.program import FrontendProgram
+
+# We need *some* types to test with, but the translation is fixed across all frontends.
 from xdsl.frontend.default.builtin import index, i1, i32, f32
 
 

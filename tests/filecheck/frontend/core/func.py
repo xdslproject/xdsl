@@ -2,6 +2,8 @@
 
 from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
+
+# We need *some* type to test with, but func translation is fixed across all frontends.
 from xdsl.frontend.default.builtin import i32
 
 p = FrontendProgram()

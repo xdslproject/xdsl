@@ -5,10 +5,10 @@ from io import StringIO
 from typing import Any, Dict, List
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.frontend.code_generation import CodeGeneration
+from xdsl.frontend.core.code_generation import CodeGeneration
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.passes.desymref import Desymrefier
-from xdsl.frontend.type_conversion import TypeConverter
+from xdsl.frontend.core.desymref import Desymrefier
+from xdsl.frontend.core.type_conversion import TypeConverter
 from xdsl.printer import Printer
 
 

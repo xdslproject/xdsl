@@ -7,7 +7,7 @@ import pytest
 
 from xdsl.frontend.type import FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
-from xdsl.frontend.type_conversion import TypeConverter
+from xdsl.frontend.core.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition
 

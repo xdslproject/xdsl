@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     f64,
 )
 from xdsl.frontend.exception import FrontendProgramException
-from xdsl.frontend.op_resolver import OpResolver
+from xdsl.frontend.core.op_resolver import OpResolver
 
 
 def test_raises_exception_on_unknown_op():

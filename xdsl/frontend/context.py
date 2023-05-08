@@ -7,7 +7,7 @@ from sys import _getframe  # type: ignore
 from typing import Any
 
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.python_code_check import PythonCodeCheck
+from xdsl.frontend.core.python_code_check import PythonCodeCheck
 
 
 @dataclass

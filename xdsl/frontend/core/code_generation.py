@@ -5,14 +5,14 @@ import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-import xdsl.frontend.symref as symref
+import xdsl.frontend.core.symref as symref
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Sequence
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
-from xdsl.frontend.op_inserter import OpInserter
-from xdsl.frontend.op_resolver import OpResolver
-from xdsl.frontend.type_conversion import TypeConverter
+from xdsl.frontend.core.op_inserter import OpInserter
+from xdsl.frontend.core.op_resolver import OpResolver
+from xdsl.frontend.core.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
 

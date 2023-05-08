@@ -5,7 +5,7 @@ import os
 from io import StringIO
 from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.snitch import Snitch
-from xdsl.frontend.symref import Symref
+from xdsl.frontend.core.symref import Symref
 
 from xdsl.ir import MLContext
 from xdsl.parser import Parser, ParseError
@@ -30,7 +30,7 @@ from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
 
-from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.frontend.core.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_mpi import LowerMPIPass
