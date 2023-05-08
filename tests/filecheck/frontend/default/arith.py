@@ -1,11 +1,11 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.default.builtin import i1, i32, i64, f16, f32, f64
+from xdsl.frontend.program import FrontendProgram
+from xdsl.frontend.default.frontend import defaultFrontend, i1, i32, i64, f16, f32, f64
 from xdsl.frontend.exception import CodeGenerationException
 
-p = FrontendProgram()
+p = FrontendProgram(defaultFrontend)
 with CodeContext(p):
     # CHECK: "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
     def test_addi_overload(a: i32, b: i32) -> i32:

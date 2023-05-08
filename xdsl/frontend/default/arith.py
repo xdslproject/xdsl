@@ -1,14 +1,17 @@
 import xdsl.dialects.arith as arith
 
 from typing import Callable, TypeVar, Union
+from xdsl.frontend.frontend import frontend_op
 from xdsl.frontend.default.builtin import index, i1, i32, i64, f16, f32, f64
+from xdsl.frontend.default.frontend import defaultFrontend
 from xdsl.ir import Operation
 
 _Int = TypeVar("_Int", bound=Union[index, i1, i32, i64])
 
 
+@frontend_op(defaultFrontend, arith.Addi)
 def addi(lhs: _Int, rhs: _Int) -> _Int:
-    ...
+    return lhs + rhs
 
 
 def resolve_addi() -> Callable[..., Operation]:

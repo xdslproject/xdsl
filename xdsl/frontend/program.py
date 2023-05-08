@@ -9,6 +9,7 @@ from xdsl.frontend.core.code_generation import CodeGeneration
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.core.desymref import Desymrefier
 from xdsl.frontend.core.type_conversion import TypeConverter
+from xdsl.frontend.frontend import Frontend
 from xdsl.printer import Printer
 
 
@@ -18,6 +19,9 @@ class FrontendProgram:
     Class to store the Python AST of a program written in the frontend. This
     program can be compiled and translated to xDSL or MLIR.
     """
+
+    frontend: Frontend | None = field(default=None)
+    """Frontend used for this program."""
 
     stmts: List[ast.stmt] | None = field(default=None)
     """AST nodes stored for compilation to xDSL."""
