@@ -104,19 +104,105 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
 
         return cmpi(self, other, "ne")  # type: ignore
 
+    def __add__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import addi
+
+        return addi(self, other)
+
+    def __and__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import andi
+
+        return andi(self, other)
+
+    def __lshift__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import shli
+
+        return shli(self, other)
+
+    def __mul__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import muli
+
+        return muli(self, other)
+
+    def __rshift__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import shrsi
+
+        return shrsi(self, other)
+
+    def __sub__(
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
+        from xdsl.frontend.dialects.arith import subi
+
+        return subi(self, other)
+
+    def __eq__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "eq")
+
+    def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "sge")
+
+    def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "sgt")
+
+    def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "sle")
+
+    def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "slt")
+
+    def __ne__(self, other: _Integer[_Width, _Signedness]) -> i1:
+        from xdsl.frontend.dialects.arith import cmpi
+
+        return cmpi(self, other, "ne")
+
 
 # Type aliases for signless integers.
 i1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNLESS]]
+i8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNLESS]]
+i16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNLESS]]
 i32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNLESS]]
 i64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNLESS]]
+i128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNLESS]]
+i255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNLESS]]
 
 # Type aliases for signed integers.
+si1: TypeAlias = _Integer[Literal[1], Literal[Signedness.SIGNED]]
+si8: TypeAlias = _Integer[Literal[8], Literal[Signedness.SIGNED]]
+si16: TypeAlias = _Integer[Literal[16], Literal[Signedness.SIGNED]]
 si32: TypeAlias = _Integer[Literal[32], Literal[Signedness.SIGNED]]
 si64: TypeAlias = _Integer[Literal[64], Literal[Signedness.SIGNED]]
+si128: TypeAlias = _Integer[Literal[128], Literal[Signedness.SIGNED]]
+si255: TypeAlias = _Integer[Literal[255], Literal[Signedness.SIGNED]]
 
 # Type aliases for unsigned integers.
+ui1: TypeAlias = _Integer[Literal[1], Literal[Signedness.UNSIGNED]]
+ui8: TypeAlias = _Integer[Literal[8], Literal[Signedness.UNSIGNED]]
+ui16: TypeAlias = _Integer[Literal[16], Literal[Signedness.UNSIGNED]]
 ui32: TypeAlias = _Integer[Literal[32], Literal[Signedness.UNSIGNED]]
 ui64: TypeAlias = _Integer[Literal[64], Literal[Signedness.UNSIGNED]]
+ui128: TypeAlias = _Integer[Literal[128], Literal[Signedness.UNSIGNED]]
+ui255: TypeAlias = _Integer[Literal[255], Literal[Signedness.UNSIGNED]]
 
 
 class _Index(_FrontendType):
