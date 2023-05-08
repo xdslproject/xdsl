@@ -26,6 +26,7 @@ from xdsl.ir import (
     Data,
     ParametrizedAttribute,
 )
+from xdsl.irdl import Operand, VarOpResult, VarOperand
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -208,12 +209,12 @@ class Printer:
         self.print("%")
         if val in self._ssa_values:
             name = self._ssa_values[val]
-        elif val.name_hint:
-            curr_ind = self._ssa_names.get(val.name_hint, 0)
+        elif val.name:
+            curr_ind = self._ssa_names.get(val.name, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{val.name_hint}{suffix}"
+            name = f"{val.name}{suffix}"
             self._ssa_values[val] = name
-            self._ssa_names[val.name_hint] = curr_ind + 1
+            self._ssa_names[val.name] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[val] = name
@@ -284,9 +285,9 @@ class Printer:
 
     def _print_block_arg(self, arg: BlockArgument) -> None:
         self.print("%")
-        if arg.name_hint and arg.name_hint not in self._ssa_values.values():
-            name = arg.name_hint
-            self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
+        if arg.name and arg.name not in self._ssa_values.values():
+            name = arg.name
+            self._ssa_names[arg.name] = self._ssa_names.get(arg.name, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name
@@ -452,8 +453,10 @@ class Printer:
         if isinstance(attribute, DenseIntOrFPElementsAttr):
 
             def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr | FloatAttr):
+                if isinstance(val, IntegerAttr):
                     self.print(val.value.data)
+                elif isinstance(val, FloatAttr):
+                    self.print(f"{val.value.data:.6e}")
                 else:
                     raise Exception(
                         "unexpected attribute type "
@@ -702,3 +705,20 @@ class Printer:
             op.print(self)
         else:
             self.print_op_with_default_format(op)
+
+    def print_optional_attr(
+        self, attributes: Dict[str, Attribute], elided_attrs: Sequence[str] = []
+    ) -> None:
+        new_attr: Dict[str, Attribute]
+        new_attr = attributes.copy()
+        for e in elided_attrs:
+            new_attr.pop(e)
+        self._print_op_attributes(new_attr)
+
+    def print_list_with_comma(self, inputs: Sequence[Operand]):
+        # it prints args in the form of
+        # ($arg1, $arg2, .... $argN)
+        for i in range(len(inputs)):
+            self.print(inputs[i])
+            if i != len(inputs) - 1:
+                self.print(", ")
