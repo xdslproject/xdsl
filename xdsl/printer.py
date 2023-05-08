@@ -26,7 +26,7 @@ from xdsl.ir import (
     Data,
     ParametrizedAttribute,
 )
-from xdsl.irdl import Operand, VarOpResult, VarOperand
+from xdsl.irdl import Operand
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
