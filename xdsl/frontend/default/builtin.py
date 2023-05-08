@@ -26,145 +26,145 @@ class IntegerType(Generic[_Width, _Signedness], FrontendType):
         return builtin.IntegerType
 
     def __add__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import addi
 
         return addi(self, other)  # type: ignore
 
     def __and__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import andi
 
         return andi(self, other)  # type: ignore
 
     def __lshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import shli
 
         return shli(self, other)  # type: ignore
 
     def __mul__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import muli
 
         return muli(self, other)  # type: ignore
 
     def __rshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import shrsi
 
         return shrsi(self, other)  # type: ignore
 
     def __sub__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import subi
 
         return subi(self, other)  # type: ignore
 
-    def __eq__(self, other: _Integer[_Width, _Signedness]) -> i1:  # type: ignore
+    def __eq__(self, other: IntegerType[_Width, _Signedness]) -> i1:  # type: ignore
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "eq")  # type: ignore
 
-    def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __ge__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sge")  # type: ignore
 
-    def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __gt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sgt")  # type: ignore
 
-    def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __le__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sle")  # type: ignore
 
-    def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __lt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "slt")  # type: ignore
 
-    def __ne__(self, other: _Integer[_Width, _Signedness]) -> i1:  # type: ignore
+    def __ne__(self, other: IntegerType[_Width, _Signedness]) -> i1:  # type: ignore
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "ne")  # type: ignore
 
     def __add__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import addi
 
         return addi(self, other)
 
     def __and__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import andi
 
         return andi(self, other)
 
     def __lshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import shli
 
         return shli(self, other)
 
     def __mul__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import muli
 
         return muli(self, other)
 
     def __rshift__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import shrsi
 
         return shrsi(self, other)
 
     def __sub__(
-        self, other: _Integer[_Width, _Signedness]
-    ) -> _Integer[_Width, _Signedness]:
+        self, other: IntegerType[_Width, _Signedness]
+    ) -> IntegerType[_Width, _Signedness]:
         from xdsl.frontend.default.arith import subi
 
         return subi(self, other)
 
-    def __eq__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __eq__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "eq")
 
-    def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __ge__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sge")
 
-    def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __gt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sgt")
 
-    def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __le__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "sle")
 
-    def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __lt__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "slt")
 
-    def __ne__(self, other: _Integer[_Width, _Signedness]) -> i1:
+    def __ne__(self, other: IntegerType[_Width, _Signedness]) -> i1:
         from xdsl.frontend.default.arith import cmpi
 
         return cmpi(self, other, "ne")
