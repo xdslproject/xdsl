@@ -59,7 +59,7 @@ class ReshapeReshapeOpPattern(RewritePattern):
             return
 
         t = cast(TensorTypeF64, op.res.typ)
-        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, t)
+        new_op = ReshapeOp(reshape_input_op.arg, t)
         rewriter.replace_matched_op(new_op)
 
 

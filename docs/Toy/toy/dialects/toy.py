@@ -383,24 +383,18 @@ class ReshapeOp(IRDLOperation):
 
     traits = frozenset((Pure(),))
 
-    def __init__(self, arg: SSAValue, shape: list[int]):
+    def __init__(self, arg: SSAValue, shape: list[int] | TensorTypeF64):
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
                 f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
             )
         element_type = arg.typ.element_type
-        t = TensorTypeF64.from_type_and_list(element_type, shape)
+        if isinstance(shape, list):
+            t = TensorTypeF64.from_type_and_list(element_type, shape)
+        else:
+            t = shape
         return super().__init__(result_types=[t], operands=[arg])
-
-    @staticmethod
-    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not isa(arg.typ, AnyTensorTypeF64):
-            raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
-        return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
         result_type = self.res.typ
