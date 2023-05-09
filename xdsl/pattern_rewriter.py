@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     Sequence,
 )
+from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
@@ -387,6 +388,26 @@ class RewritePattern(ABC):
         Match an operation, and optionally perform a rewrite using the rewriter.
         """
         ...
+
+
+class ImplicitBuilderRewritePattern(RewritePattern, ABC):
+    """
+    Hello
+    """
+
+    @abstractmethod
+    def match_and_build(self, op: Operation, rewriter: PatternRewriter, /) -> None:
+        """
+        Match an operation, and insert all the operations created before the current op.
+        """
+        raise NotImplemented
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        if op.parent is None:
+            return
+
+        with ImplicitBuilder(Builder(op.parent, op)):
+            self.match_and_build(op, rewriter)
 
 
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
