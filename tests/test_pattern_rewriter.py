@@ -1,11 +1,19 @@
 from conftest import assert_print_op
 
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
-from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import (
+    IntegerType,
+    i32,
+    i64,
+    Builtin,
+    IntegerAttr,
+    ModuleOp,
+)
 from xdsl.dialects.scf import If, Scf
-from xdsl.ir import Block, MLContext, Region, Operation
+from xdsl.ir import Block, MLContext, OpResult, Region, Operation
 from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
+    implicit_rewriter,
     op_type_rewrite_pattern,
     RewritePattern,
     PatternRewriter,
@@ -50,6 +58,49 @@ def test_non_recursive_rewrite():
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(RewriteConst(), apply_recursively=False)
+    )
+
+
+@implicit_rewriter
+def constant_fold(op: Addi):
+    if not (
+        isinstance(op.lhs, OpResult)
+        and isinstance(op.lhs.owner, Constant)
+        and isa(op.lhs.owner.value, IntegerAttr[IntegerType])
+        and isinstance(op.rhs, OpResult)
+        and isinstance(op.rhs.owner, Constant)
+        and isa(op.rhs.owner.value, IntegerAttr[IntegerType])
+    ):
+        return
+
+    lhs = op.lhs.owner.value
+    rhs = op.rhs.owner.value
+
+    if lhs.typ != rhs.typ:
+        return
+
+    return Constant.from_int_and_width(
+        lhs.value.data + rhs.value.data, lhs.typ.width.data
+    ).results
+
+
+def test_constant_fold():
+    """Test a simple non-recursive rewrite"""
+
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %2 = "arith.constant"() {"value" = 3 : i32} : () -> i32
+}) : () -> ()"""
+
+    rewrite_and_compare(
+        prog, expected, PatternRewriteWalker(constant_fold, apply_recursively=False)
     )
 
 
