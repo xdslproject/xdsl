@@ -462,6 +462,43 @@ def op_type_rewrite_pattern(
     return impl
 
 
+def implicit_rewriter(
+    func: Callable[[_OperationT], Sequence[SSAValue] | None]
+) -> AnonymousRewritePattern:
+    # Get the operation argument and check that it is a subclass of Operation
+    params = [param for param in inspect.signature(func).parameters.values()]
+    if len(params) != 1:
+        raise Exception(
+            "op_type_rewrite_build_pattern expects the decorated method to "
+            "have three arguments."
+        )
+    expected_type: type[_OperationT] = params[0].annotation
+
+    expected_types = (expected_type,)
+    if get_origin(expected_type) in [Union, UnionType]:
+        expected_types = get_args(expected_type)
+    if not all(issubclass(t, Operation) for t in expected_types):
+        raise Exception(
+            "op_type_rewrite_pattern expects the first non-self argument "
+            "type hint to be an `Operation` subclass or a union of `Operation` "
+            "subclasses."
+        )
+
+    def impl(_: RewritePattern, op: Operation, rewriter: PatternRewriter) -> None:
+        if not isinstance(op, expected_type):
+            return None
+
+        if op.parent is None:
+            return
+
+        with Builder(op.parent, op).implicit():
+            new_results = func(op)
+            if new_results:
+                rewriter.replace_matched_op([], new_results)
+
+    return AnonymousRewritePattern(impl)
+
+
 @dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
     """
