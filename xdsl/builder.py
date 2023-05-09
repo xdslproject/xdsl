@@ -114,6 +114,9 @@ class Builder:
         else:
             return Builder._region_args(input)
 
+    def implicit(self) -> _ImplicitBuilder:
+        return _ImplicitBuilder(self)
+
     @staticmethod
     def _implicit_region_no_args(func: Callable[[], None]) -> Region:
         """
