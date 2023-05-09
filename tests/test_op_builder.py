@@ -27,6 +27,31 @@ def test_builder():
     assert target.is_structurally_equivalent(block)
 
 
+def test_builder_insertion_point():
+    target = Block(
+        [
+            Constant.from_int_and_width(1, 1),
+            Constant.from_int_and_width(2, 1),
+            Constant.from_int_and_width(3, 1),
+        ]
+    )
+
+    block = Block()
+    b0 = Builder(block)
+
+    x = Constant.from_int_and_width(1, 1)
+    y = Constant.from_int_and_width(2, 1)
+    z = Constant.from_int_and_width(3, 1)
+
+    b0.insert(x)
+    b0.insert(z)
+
+    b1 = Builder(block, insertion_point=z)
+    b1.insert(y)
+
+    assert target.is_structurally_equivalent(block)
+
+
 def test_build_region():
     one = IntAttr(1)
     two = IntAttr(2)
