@@ -15,9 +15,4 @@ from xdsl.bytecode_parser import BytecodeParser
     ),
 )
 def test_single_bit_varint(input: int, result: int):
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
-    assert BytecodeParser(input.to_bytes(1, "big")).parse_varint() == result
+    assert BytecodeParser(input.to_bytes(1, "little")).parse_varint() == result
