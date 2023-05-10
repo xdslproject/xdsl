@@ -133,29 +133,6 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
         return ResultType([float_t])
 
 
-@dataclass
-class ArrayLength(AttrConstraint):
-    length: int = 0
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(
-                f"Expected {ArrayAttr} attribute, but got {attr.name}."
-            )
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
-
-
-# TODO: How can we inherit from TypeAttribute and ParametrizedAttribute?
-@dataclass(frozen=True)
-class ElementType(ParametrizedAttribute):
-    name = "stencil.element"
-    element = AnyOf([f32, f64])
-
-
 @irdl_attr_definition
 class IndexAttr(ParametrizedAttribute, Iterable[int]):
     # TODO: can you have an attr and an op with the same name?
@@ -239,12 +216,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     def __iter__(self) -> Iterator[int]:
         return (e.value.data for e in self.array.data)
-
-
-@dataclass(frozen=True)
-class LoopAttr(ParametrizedAttribute):
-    name = "stencil.loop"
-    shape = Annotated[ArrayAttr[IntAttr], ArrayLength(4)]
 
 
 # Operations
@@ -334,26 +305,6 @@ class AccessOp(IRDLOperation):
             },
             result_types=[temp_type.element_type],
         )
-
-
-@irdl_op_definition
-class DynAccessOp(IRDLOperation):
-    """
-    This operation accesses a temporary element given a dynamic offset.
-    The offset is specified in absolute coordinates. An additional
-    range attribute specifies the maximal access extent relative to the
-    iteration domain of the parent apply operation.
-
-    Example:
-      %0 = stencil.dyn_access %temp (%i, %j, %k) in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64> -> f64
-    """
-
-    name = "stencil.dyn_access"
-    temp: Annotated[Operand, TempType]
-    offset: OpAttr[IndexAttr]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
-    res: Annotated[OpResult, ElementType]
 
 
 @irdl_op_definition
@@ -529,39 +480,6 @@ class ReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CombineOp(IRDLOperation):
-    """
-    Combines the results computed on a lower with the results computed on
-    an upper domain. The operation combines the domain at a given index/offset
-    in a given dimension. Optional extra operands allow to combine values
-    that are only written / defined on the lower or upper subdomain. The result
-    values have the order upper/lower, lowerext, upperext.
-
-    Example:
-      %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
-    """
-
-    name = "stencil.combine"
-    dim: Annotated[
-        Operand, IntegerType
-    ]  # TODO: how to use the ArrayLength constraint here? 0 <= dim <= 2
-    index: Annotated[Operand, IntegerType]
-
-    lower: Annotated[VarOperand, TempType]
-    upper: Annotated[VarOperand, TempType]
-    lower_ext: Annotated[VarOperand, TempType]
-    upper_ext: Annotated[VarOperand, TempType]
-
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
-
-    region: Region
-    res: VarOpResult
-
-    irdl_options = [AttrSizedOperandSegments()]
-
-
-@irdl_op_definition
 class HaloSwapOp(IRDLOperation):
     name = "stencil.halo_swap"
 
@@ -583,22 +501,18 @@ StencilExp = Dialect(
         ExternalStoreOp,
         IndexOp,
         AccessOp,
-        DynAccessOp,
         LoadOp,
         BufferOp,
         StoreOp,
         ApplyOp,
         StoreResultOp,
         ReturnOp,
-        CombineOp,
         HaloSwapOp,
     ],
     [
         FieldType,
         TempType,
         ResultType,
-        ElementType,
         IndexAttr,
-        LoopAttr,
     ],
 )
