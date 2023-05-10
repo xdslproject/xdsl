@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator, List
+from typing import Sequence, TypeVar, cast, Iterable, Iterator, List
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -10,10 +9,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     ParametrizedAttribute,
     ArrayAttr,
-    f32,
-    f64,
     IntegerType,
-    IntAttr,
     AnyFloat,
 )
 from xdsl.ir import Operation, Dialect, TypeAttribute
@@ -23,12 +19,10 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
-    AttrConstraint,
     Attribute,
     Region,
     VerifyException,
     Generic,
-    AnyOf,
     Annotated,
     Operand,
     OpAttr,
@@ -36,7 +30,6 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     OptOpAttr,
-    AttrSizedOperandSegments,
     Block,
     IRDLOperation,
 )
