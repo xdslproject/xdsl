@@ -560,12 +560,7 @@ def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
 
 @pytest.mark.parametrize(
     "float_type",
-    bf16,
-    f16,
-    f32,
-    f64,
-    f80,
-    f128,
+    ((bf16), (f16), (f32), (f64), (f80), (f128)),
 )
 def test_stencil_temptype_printing(float_type: AnyFloat):
     stencil_resulttype = ResultType(float_type)
