@@ -2,10 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from ..parser import Parser, ParseError
-from ..toy_ast import (
+from ..frontend.parser import Parser, ParseError
+from ..frontend.toy_ast import (
     ModuleAST,
     FunctionAST,
+    PrintExprAST,
     PrototypeAST,
     VariableExprAST,
     ReturnExprAST,
@@ -16,7 +17,7 @@ from ..toy_ast import (
     LiteralExprAST,
     NumberExprAST,
 )
-from ..location import Location
+from ..frontend.location import Location
 
 
 def test_parse_ast():
@@ -181,3 +182,40 @@ def test_parse_error():
     parser = Parser(Path(), program)
     with pytest.raises(ParseError):
         parser.parseIdentifierExpr()
+
+
+def test_parse_scalar():
+    ast_toy = Path("docs/Toy/examples/scalar.toy")
+
+    with open(ast_toy, "r") as f:
+        parser = Parser(ast_toy, f.read())
+
+    parsed_module_ast = parser.parseModule()
+
+    def loc(line: int, col: int) -> Location:
+        return Location(ast_toy, line, col)
+
+    module_ast = ModuleAST(
+        (
+            FunctionAST(
+                loc(3, 1),
+                PrototypeAST(loc(3, 1), "main", []),
+                (
+                    VarDeclExprAST(
+                        loc(4, 3),
+                        "a",
+                        VarType([2, 2]),
+                        NumberExprAST(loc(4, 17), 5.5),
+                    ),
+                    PrintExprAST(
+                        loc(5, 3),
+                        VariableExprAST(loc(5, 9), "a"),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    assert parsed_module_ast.dump() == module_ast.dump()
+
+    assert parsed_module_ast == module_ast

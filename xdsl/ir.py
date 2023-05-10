@@ -8,7 +8,6 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Iterable,
     Protocol,
@@ -22,7 +21,7 @@ from xdsl.utils.deprecation import deprecated
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser
+    from xdsl.parser import Parser
     from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
     from xdsl.utils.lexer import Span
@@ -190,12 +189,17 @@ class SSAValue(ABC):
         """
         pass
 
+    @deprecated("Please use SSAValue.name_hint")
     @property
     def name(self) -> str | None:
+        return self.name_hint
+
+    @property
+    def name_hint(self) -> str | None:
         return self._name
 
-    @name.setter
-    def name(self, name: str | None):
+    @name_hint.setter
+    def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
             self._name = name
@@ -236,8 +240,8 @@ class SSAValue(ABC):
         for use in self.uses.copy():
             use.operation.replace_operand(use.index, value)
         # carry over name if possible
-        if value.name is None:
-            value.name = self.name
+        if value.name_hint is None:
+            value.name_hint = self.name_hint
         assert len(self.uses) == 0, "unexpected error in xdsl"
 
     def erase(self, safe_erase: bool = True) -> None:
@@ -349,6 +353,7 @@ class TypeAttribute:
 A = TypeVar("A", bound="Attribute")
 
 
+@dataclass(frozen=True)
 class Attribute(ABC):
     """
     A compile-time value.
@@ -356,13 +361,8 @@ class Attribute(ABC):
     on operations to give extra information.
     """
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The attribute name should be a static field in the attribute classes."""
-
-    @classmethod
-    def build(cls: type[A], *args: Any) -> A:
-        """Create a new attribute using one of the builder defined in IRDL."""
-        assert False
 
     def __post_init__(self):
         self._verify()
@@ -422,7 +422,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: BaseParser) -> DataElement:
+    def parse_parameter(parser: Parser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -458,7 +458,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -518,21 +518,28 @@ class IRNode(ABC):
 class OpTrait:
     """
     A trait attached to an operation definition.
-    Traits can be used to define operation invariants, or to specify
-    additional semantic information.
-    Some traits may define parameters.
+    Traits can be used to define operation invariants, additional semantic information,
+    or to group operations that have similar properties.
+    Traits have parameters, which by default is just the `None` value. Parameters should
+    always be comparable and hashable.
+    Note that traits are the merge of traits and interfaces in MLIR.
     """
+
+    parameters: Any = field(default=None)
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
 
 
+OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
+
+
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: str = field(default="", init=False)
+    name: ClassVar[str] = field(init=False, repr=False)
     """The operation name. Should be a static member of the class"""
 
     _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
@@ -760,13 +767,13 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """
         Call a function on all operations contained in the operation (including this one)
         """
-        fun(self)
+        yield self
         for region in self.regions:
-            region.walk(fun)
+            yield from region.walk()
 
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
@@ -786,10 +793,8 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(
-        cls: type[_OperationType], result_types: list[Attribute], parser: BaseParser
-    ) -> _OperationType:
-        return parser.parse_op_with_default_format(cls, result_types)
+    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+        parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
@@ -842,14 +847,26 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: OpTrait) -> bool:
+    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
         """
-        return trait in cls.traits
+        return cls.get_trait(trait, parameters) is not None
 
     @classmethod
-    def get_traits_of_type(cls, trait_type: type[OpTrait]) -> list[OpTrait]:
+    def get_trait(
+        cls, trait: type[OpTraitInvT], parameters: Any = None
+    ) -> OpTraitInvT | None:
+        """
+        Return a trait with the given type and parameters, if it exists.
+        """
+        for t in cls.traits:
+            if isinstance(t, trait) and t.parameters == parameters:
+                return t
+        return None
+
+    @classmethod
+    def get_traits_of_type(cls, trait_type: type[OpTraitInvT]) -> list[OpTraitInvT]:
         """
         Get all the traits of the given type satisfied by this operation.
         """
@@ -932,7 +949,7 @@ class Operation(IRNode):
         from xdsl.printer import Printer
 
         res = StringIO()
-        printer = Printer(stream=res, target=Printer.Target.XDSL)
+        printer = Printer(stream=res)
         printer.print_op(self)
         return res.getvalue()
 
@@ -1090,7 +1107,7 @@ class Block(IRNode):
             ...
 
     @staticmethod
-    def from_callable(block_arg_types: list[Attribute], f: BlockCallback):
+    def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
         b = Block(arg_types=block_arg_types)
         b.add_ops(f(*b.args))
         return b
@@ -1147,47 +1164,6 @@ class Block(IRNode):
     def last_op(self) -> Operation | None:
         """The last operation in this block."""
         return self._last_op
-
-    def _op_at_index(
-        self, index: int, message_lambda: Callable[[], str] | None = None
-    ) -> Operation | None:
-        """
-        Returns the operation at a given index, supporting positive and negative indices.
-        If abs(index) == num_ops, return None.
-        if abs(index) > num_ops, raise ValueError, optionally with given message.
-        """
-        if index < 0:
-            # Enumerate backwards
-            op = self.last_op
-            while index < -1:
-                if op is None:
-                    break
-                op = op.prev_op
-                index += 1
-            else:
-                return op
-        else:
-            # Enumerate forwards
-            op = self.first_op
-            while index:
-                if op is None:
-                    break
-                op = op.next_op
-                index -= 1
-            else:
-                return op
-        if message_lambda is None:
-            message = (
-                f"Invalid operation index {index} for block with {len(self.ops)} ops"
-            )
-        else:
-            message = message_lambda()
-        raise ValueError(message)
-
-    def op_at_index(self, index: int) -> Operation:
-        op = self._op_at_index(index)
-        assert op is not None
-        return op
 
     def insert_op_after(self, new_op: Operation, existing_op: Operation) -> None:
         """
@@ -1259,41 +1235,6 @@ class Block(IRNode):
 
             existing_op = op
 
-    def insert_op(
-        self, ops: Operation | Sequence[Operation], index: int, name: str | None = None
-    ) -> None:
-        """
-        Insert one or multiple operations at a given index in the block.
-        The operations should not be attached to another block.
-        """
-
-        new_ops = [ops] if isinstance(ops, Operation) else ops
-
-        existing_op = self._op_at_index(
-            index,
-            lambda: f"Can't insert operation in index {index} in a block with "
-            f"{len(self.ops)} operations.",
-        )
-
-        if index < 0:
-            # If index is negative, we have to insert after the found operation,
-            # except if the operation was not found, meaning insert before start of block.
-            if existing_op is None:
-                if self.first_op is None:
-                    # Empty block, append
-                    self.add_ops(new_ops)
-                else:
-                    self.insert_ops_before(new_ops, self.first_op)
-            else:
-                self.insert_ops_after(new_ops, existing_op)
-        else:
-            # Else, we have to insert before the found operation,
-            # except if the operation was not found, meaning append to end of block.
-            if existing_op is None:
-                self.add_ops(new_ops)
-            else:
-                self.insert_ops_before(new_ops, existing_op)
-
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
@@ -1303,13 +1244,11 @@ class Block(IRNode):
                 return idx
         assert False, "Unexpected xdsl error"
 
-    def detach_op(self, op: int | Operation) -> Operation:
+    def detach_op(self, op: Operation) -> Operation:
         """
         Detach an operation from the block.
         Returns the detached operation.
         """
-        if isinstance(op, int):
-            op = self.op_at_index(op)
         if op.parent is not self:
             raise Exception("Cannot detach operation from a different block.")
         op.parent = None
@@ -1339,7 +1278,7 @@ class Block(IRNode):
 
         return op
 
-    def erase_op(self, op: int | Operation, safe_erase: bool = True) -> None:
+    def erase_op(self, op: Operation, safe_erase: bool = True) -> None:
         """
         Erase an operation from the block.
         If safe_erase is True, check that the operation has no uses.
@@ -1347,10 +1286,10 @@ class Block(IRNode):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterable[Operation]:
         """Call a function on all operations contained in the block."""
         for op in self.ops:
-            op.walk(fun)
+            yield from op.walk()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1611,10 +1550,10 @@ class Region(IRNode):
             dest.insert_block(new_block, insert_index)
             insert_index += 1
 
-    def walk(self, fun: Callable[[Operation], None]) -> None:
+    def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
-            block.walk(fun)
+            yield from block.walk()
 
     def verify(self) -> None:
         for block in self.blocks:

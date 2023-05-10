@@ -1,3 +1,6 @@
+import pytest
+
+from xdsl.utils.exceptions import VerifyException
 from xdsl.ir import OpResult, Block
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -15,7 +18,6 @@ from xdsl.dialects.memref import (
     Alloc,
     Alloca,
     Dealloc,
-    Dealloca,
     MemRefType,
     Load,
     Store,
@@ -23,6 +25,8 @@ from xdsl.dialects.memref import (
     ExtractAlignedPointerAsIndexOp,
     Subview,
     Cast,
+    DmaStartOp,
+    DmaWaitOp,
 )
 from xdsl.dialects import builtin, memref, func, arith, scf
 from xdsl.utils.hints import isa
@@ -129,14 +133,6 @@ def test_memref_dealloc():
     my_i32 = IntegerType(32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     dealloc0 = Dealloc.get(alloc0)
-
-    assert type(dealloc0.memref) is OpResult
-
-
-def test_memref_dealloca():
-    my_i32 = IntegerType(32)
-    alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
-    dealloc0 = Dealloca.get(alloc0)
 
     assert type(dealloc0.memref) is OpResult
 
@@ -293,3 +289,85 @@ def test_memref_cast():
 
     assert cast.source is memref_ssa_value
     assert cast.dest.typ is res_type
+
+
+def test_dma_start():
+    src_type = MemRefType.from_element_type_and_shape(i64, [4, 512], memory_space=1)
+    dest_type = MemRefType.from_element_type_and_shape(i64, [4 * 512], memory_space=2)
+
+    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+
+    src = TestSSAValue(src_type)
+    dest = TestSSAValue(dest_type)
+    tag = TestSSAValue(tag_type)
+
+    index = TestSSAValue(IndexType())
+    num_elements = TestSSAValue(IndexType())
+
+    dma_start = DmaStartOp.get(
+        src, [index, index], dest, [index], num_elements, tag, [index]
+    )
+
+    dma_start.verify()
+
+    # check that src index count is verified
+    with pytest.raises(VerifyException, match="Expected 2 source indices"):
+        DmaStartOp.get(
+            src, [index, index, index], dest, [index], num_elements, tag, [index]
+        ).verify()
+
+    # check that dest index count is verified
+    with pytest.raises(VerifyException, match="Expected 1 dest indices"):
+        DmaStartOp.get(
+            src, [index, index], dest, [], num_elements, tag, [index]
+        ).verify()
+
+    # check that tag index count is verified
+    with pytest.raises(VerifyException, match="Expected 1 tag indices"):
+        DmaStartOp.get(
+            src, [index, index], dest, [index], num_elements, tag, [index, index]
+        ).verify()
+
+    # check that tag index count is verified
+    with pytest.raises(VerifyException, match="different memory spaces"):
+        DmaStartOp.get(
+            src, [index, index], src, [index, index], num_elements, tag, [index]
+        ).verify()
+
+    # check that tag element type is verified
+    with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
+        new_tag = TestSSAValue(src_type)
+
+        DmaStartOp.get(
+            src,
+            [index, index],
+            dest,
+            [index],
+            num_elements,
+            new_tag,
+            [index, index],
+        ).verify()
+
+
+def test_memref_dma_wait():
+    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+    tag = TestSSAValue(tag_type)
+    index = TestSSAValue(IndexType())
+    num_elements = TestSSAValue(IndexType())
+
+    dma_wait = DmaWaitOp.get(tag, [index], num_elements)
+
+    dma_wait.verify()
+
+    # check that tag index count is verified
+    with pytest.raises(
+        VerifyException, match="Expected 1 tag indices because of shape of tag memref"
+    ):
+        DmaWaitOp.get(tag, [index, index], num_elements).verify()
+
+    # check that tag element type is verified
+    with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
+        wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
+        wrong_tag = TestSSAValue(wrong_tag_type)
+
+        DmaWaitOp.get(wrong_tag, [index], num_elements).verify()

@@ -7,19 +7,19 @@ from xdsl.frontend.exception import CodeGenerationException
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK: cf.assert(%{{.*}} : !i1) ["msg" = ""]
+    # CHECK: "cf.assert"(%{{.*}}) {"msg" = ""} : (i1) -> ()
     def test_assert_I(cond: i1):
         assert cond
         return
 
-    # CHECK: cf.assert(%{{.*}} : !i1) ["msg" = "some message"]
+    # CHECK: "cf.assert"(%{{.*}}) {"msg" = "some message"} : (i1) -> ()
     def test_assert_II(cond: i1):
         assert cond, "some message"
         return
 
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())
 
 try:
     with CodeContext(p):
@@ -29,6 +29,6 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except CodeGenerationException as e:
     print(e.msg)

@@ -3,13 +3,13 @@ from xdsl.dialects import builtin
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    CastOp,
     HaloSwapOp,
     IndexAttr,
     LoadOp,
     StoreOp,
     TempType,
 )
+from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -65,7 +65,7 @@ class LoadOpShapeInference(RewritePattern):
 
         # TODO: We need to think about that. Do we want an API for this?
         # Do we just want to recreate the whole operation?
-        op.res.typ = TempType.from_shape(
+        op.res.typ = TempType(
             IndexAttr.size_from_bounds(op.lb, op.ub),
             op.res.typ.element_type,
         )
@@ -85,10 +85,10 @@ class StoreOpShapeInference(RewritePattern):
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        def access_shape_infer_walk(access: Operation) -> None:
+        for access in op.walk():
             assert (op.lb is not None) and (op.ub is not None)
             if not isinstance(access, AccessOp):
-                return
+                continue
             assert isinstance(access.temp, BlockArgument)
             temp_owner = op.args[access.temp.index].owner
 
@@ -101,13 +101,11 @@ class ApplyOpShapeInference(RewritePattern):
                 op.ub + access.offset, temp_owner.ub
             )
 
-        op.walk(access_shape_infer_walk)
-
         assert op.lb and op.ub
 
         for result in op.results:
             assert isa(result.typ, TempType[Attribute])
-            result.typ = TempType.from_shape(
+            result.typ = TempType(
                 IndexAttr.size_from_bounds(op.lb, op.ub), result.typ.element_type
             )
 

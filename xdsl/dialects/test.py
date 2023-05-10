@@ -9,7 +9,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
 )
-from xdsl.parser import BaseParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 
@@ -22,7 +22,7 @@ class TestOp(IRDLOperation):
     the test rather than the actual dialect).
     """
 
-    name: str = "test.op"
+    name = "test.op"
 
     res: VarOpResult
     ops: VarOperand
@@ -37,10 +37,10 @@ class TestType(Data[str], TypeAttribute):
     other dialects.
     """
 
-    name: str = "test.type"
+    name = "test.type"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
+    def parse_parameter(parser: Parser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

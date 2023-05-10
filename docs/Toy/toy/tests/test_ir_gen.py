@@ -4,10 +4,10 @@ from xdsl.ir import OpResult, BlockArgument, SSAValue
 from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder
 
-from ..parser import Parser
-from ..ir_gen import IRGen
+from ..frontend.parser import Parser
+from ..frontend.ir_gen import IRGen
 
-from toy import dialect as toy
+from ..dialects import toy
 
 
 def test_convert_ast():
@@ -65,5 +65,32 @@ def test_convert_ast():
             private=True,
         )
         toy.FuncOp("main", main_type, main)
+
+    assert module_op.is_structurally_equivalent(generated_module_op)
+
+
+def test_convert_scalar():
+    scalar_toy = Path("docs/Toy/examples/scalar.toy")
+
+    with open(scalar_toy, "r") as f:
+        parser = Parser(scalar_toy, f.read())
+
+    module_ast = parser.parseModule()
+
+    ir_gen = IRGen()
+
+    generated_module_op = ir_gen.ir_gen_module(module_ast)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def module_op():
+        @Builder.implicit_region
+        def main() -> None:
+            a_0 = toy.ConstantOp.from_value(5.5).res
+            a = toy.ReshapeOp(a_0, [2, 2]).res
+            toy.PrintOp(a)
+            toy.ReturnOp()
+
+        toy.FuncOp("main", FunctionType.from_lists([], []), main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)

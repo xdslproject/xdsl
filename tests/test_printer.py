@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import re
+import pytest
 from io import StringIO
-from typing import List, Annotated
+from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, ModuleOp, IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
@@ -16,18 +17,21 @@ from xdsl.ir import (
     Block,
 )
 from xdsl.irdl import (
+    Operand,
     OptOpAttr,
     ParameterDef,
+    VarOpResult,
+    VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
-    Operand,
 )
-from xdsl.parser import MLIRParser, BaseParser, XDSLParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
 from conftest import assert_print_op
+from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
@@ -143,7 +147,7 @@ def test_op_message():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -178,7 +182,7 @@ def test_two_different_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -213,7 +217,7 @@ def test_two_same_op_messages():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     diagnostic = Diagnostic()
@@ -246,7 +250,7 @@ def test_op_message_with_region():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -279,7 +283,7 @@ def test_op_message_with_region_and_overflow():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diagnostic = Diagnostic()
@@ -302,7 +306,7 @@ def test_diagnostic():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     diag = Diagnostic()
@@ -343,7 +347,7 @@ def test_print_custom_name():
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
@@ -351,11 +355,11 @@ def test_print_custom_name():
 
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
-    block.args[0].name = "test"
-    block.args[1].name = "test"
+    block.args[0].name_hint = "test"
+    block.args[1].name_hint = "test"
 
     io = StringIO()
-    p = Printer(target=Printer.Target.MLIR, stream=io)
+    p = Printer(stream=io)
     p.print_block(block)
     assert io.getvalue() == """\n^0(%test : i32, %0 : i32):"""
 
@@ -376,97 +380,132 @@ class PlusCustomFormatOp(IRDLOperation):
     res: Annotated[OpResult, IntegerType]
 
     @classmethod
-    def parse(
-        cls, result_types: List[Attribute], parser: BaseParser
-    ) -> PlusCustomFormatOp:
+    def parse(cls, parser: Parser) -> PlusCustomFormatOp:
         lhs = parser.parse_operand("Expected SSA Value name here!")
         parser.parse_characters("+", "Malformed operation format, expected `+`!")
         rhs = parser.parse_operand("Expected SSA Value name here!")
+        parser.parse_punctuation(":")
+        type = parser.expect(parser.try_parse_type, "Expect type here!")
 
-        return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=result_types)
+        return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs)
+        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.typ)
 
 
 def test_generic_format():
     """
     Test that we can use generic formats in operations.
     """
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = "test.add"(%0: !i32, %0: !i32)
-    }"""
+    prog = """
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "test.add"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()"""
 
     expected = """\
-builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = test.add %0 + %0
-}"""
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False, Printer.Target.XDSL)
+    assert_print_op(module, expected, None, False)
 
 
 def test_custom_format():
     """
     Test that we can use custom formats in operations.
     """
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = test.add %0 + %0
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
 
     expected = """\
-builtin.module() {
-  %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-  %1 : !i32 = test.add %0 + %0
-}"""
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(module, expected, None, False, Printer.Target.XDSL)
+    assert_print_op(module, expected, None, False)
 
 
 def test_custom_format_II():
     """
     Test that we can print using generic formats.
     """
-    prog = """builtin.module() {
-    %0 : !i32 = arith.constant() ["value" = 42 : !i32]
-    %1 : !i32 = test.add %0 + %0
-    }"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.add %0 + %0 : i32
+}) : () -> ()
+"""
 
     expected = """\
-"builtin.module"() {
-  %0 : !i32 = "arith.constant"() ["value" = 42 : !i32]
-  %1 : !i32 = "test.add"(%0 : !i32, %0 : !i32)
-}"""
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "test.add"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()
+"""
 
     ctx = MLContext()
     ctx.register_dialect(Arith)
     ctx.register_dialect(Builtin)
     ctx.register_op(PlusCustomFormatOp)
 
-    parser = XDSLParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
-    assert_print_op(
-        module, expected, None, print_generic_format=True, target=Printer.Target.XDSL
-    )
+    assert_print_op(module, expected, None, print_generic_format=True)
+
+
+@irdl_op_definition
+class NoCustomFormatOp(IRDLOperation):
+    name = "test.no_custom_format"
+
+    ops: VarOperand
+    res: VarOpResult
+
+
+def test_missing_custom_format():
+    """
+    Test that we can print using generic formats.
+    """
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = test.no_custom_format(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+    ctx.register_dialect(Builtin)
+    ctx.register_op(PlusCustomFormatOp)
+
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError):
+        parser.parse_op()
 
 
 @irdl_attr_definition
@@ -476,7 +515,7 @@ class CustomFormatAttr(ParametrizedAttribute):
     attr: ParameterDef[IntAttr]
 
     @staticmethod
-    def parse_parameters(parser: BaseParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_char("<")
         value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
         if value and value.text == "zero":
@@ -516,7 +555,7 @@ def test_custom_format_attr():
     ctx.register_op(AnyOp)
     ctx.register_attr(CustomFormatAttr)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     module = parser.parse_op()
 
     assert_print_op(module, expected, None)
@@ -533,7 +572,7 @@ def test_dictionary_attr():
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
 
-    parser = MLIRParser(ctx, prog)
+    parser = Parser(ctx, prog)
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)

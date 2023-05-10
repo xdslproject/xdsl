@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     AnonymousRewritePattern,
     GreedyRewritePatternApplier,
 )
-from xdsl.parser import Parser, Source
+from xdsl.parser import Parser
 from xdsl.utils.hints import isa
 
 
@@ -22,7 +22,7 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
 
-    parser = Parser(ctx, prog, allow_unregistered_dialect=True, source=Source.MLIR)
+    parser = Parser(ctx, prog, allow_unregistered_dialect=True)
     module = parser.parse_module()
 
     walker.rewrite_module(module)
@@ -526,7 +526,7 @@ def test_operation_deletion_failure():
     def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
         rewriter.erase_matched_op()
 
-    parser = Parser(ctx, prog, source=Source.MLIR)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
     walker = PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
 

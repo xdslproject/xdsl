@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, TypeVar, Any, cast
+from typing import Sequence, TypeVar, Any, cast, Iterable, Iterator, List
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -43,23 +43,6 @@ from xdsl.irdl import (
 from xdsl.utils.hints import isa
 
 
-@dataclass
-class IntOrUnknown(AttrConstraint):
-    length: int = 0
-
-    def verify(self, attr: Attribute) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(
-                f"Expected {ArrayAttr} attribute, but got {attr.name}."
-            )
-
-        attr = cast(ArrayAttr[Any], attr)
-        if len(attr.data) != self.length:
-            raise VerifyException(
-                f"Expected array of length {self.length}, got {len(attr.data)}."
-            )
-
-
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
 
 
@@ -70,24 +53,30 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
-    @staticmethod
-    def from_shape(
+    def get_num_dims(self) -> int:
+        return len(self.shape.data)
+
+    def get_shape(self) -> List[int]:
+        return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_dims() <= 0:
+            raise VerifyException(
+                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
+            )
+
+    def __init__(
+        self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
         typ: _FieldTypeElement,
-    ) -> FieldType[_FieldTypeElement]:
-        assert len(shape) > 0
-
+    ) -> None:
         if isinstance(shape, ArrayAttr):
-            return FieldType.new([shape, typ])
+            super().__init__([shape, typ])
+            return
 
         # cast to list
-        shape = cast(list[AnyIntegerAttr] | list[int], shape)
-
-        if isa(shape[0], list[AnyIntegerAttr]):
-            # the if above is a sufficient type guard, but pyright does not understand :/
-            return FieldType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return FieldType(
+        super().__init__(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
         )
 
@@ -99,24 +88,30 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
-    @staticmethod
-    def from_shape(
+    def get_num_dims(self) -> int:
+        return len(self.shape.data)
+
+    def get_shape(self) -> List[int]:
+        return [i.value.data for i in self.shape.data]
+
+    def verify(self):
+        if self.get_num_dims() <= 0:
+            raise VerifyException(
+                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
+            )
+
+    def __init__(
+        self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
         typ: _FieldTypeElement,
-    ) -> TempType[_FieldTypeElement]:
-        assert len(shape) > 0
-
+    ) -> None:
         if isinstance(shape, ArrayAttr):
-            return TempType.new([shape, typ])
+            super().__init__([shape, typ])
+            return
 
         # cast to list
-        shape = cast(list[AnyIntegerAttr] | list[int], shape)
-
-        if isinstance(shape[0], IntegerAttr):
-            # the if above is a sufficient type guard, but pyright does not understand :/
-            return TempType([ArrayAttr(shape), typ])  # type: ignore
         shape = cast(list[int], shape)
-        return TempType(
+        super().__init__(
             [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
         )
 
@@ -162,7 +157,7 @@ class ElementType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class IndexAttr(ParametrizedAttribute):
+class IndexAttr(ParametrizedAttribute, Iterable[int]):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
@@ -239,41 +234,17 @@ class IndexAttr(ParametrizedAttribute):
     def as_tuple(self) -> tuple[int, ...]:
         return tuple(e.value.data for e in self.array.data)
 
+    def __len__(self):
+        return len(self.array)
+
+    def __iter__(self) -> Iterator[int]:
+        return (e.value.data for e in self.array.data)
+
 
 @dataclass(frozen=True)
 class LoopAttr(ParametrizedAttribute):
     name = "stencil.loop"
     shape = Annotated[ArrayAttr[IntAttr], ArrayLength(4)]
-
-
-# Operations
-@irdl_op_definition
-class CastOp(IRDLOperation):
-    """
-    This operation casts dynamically shaped input fields to statically shaped fields.
-
-    Example:
-        %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64> # noqa
-    """
-
-    name: str = "stencil.cast"
-    field: Annotated[Operand, FieldType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
-    result: Annotated[OpResult, FieldType]
-
-    @staticmethod
-    def get(
-        field: SSAValue | Operation,
-        lb: IndexAttr,
-        ub: IndexAttr,
-        res_type: FieldType[_FieldTypeElement],
-    ) -> CastOp:
-        return CastOp.build(
-            operands=[field],
-            attributes={"lb": lb, "ub": ub},
-            result_types=[res_type],
-        )
 
 
 # Operations
@@ -286,7 +257,7 @@ class ExternalLoadOp(IRDLOperation):
       %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64> # noqa
     """
 
-    name: str = "stencil.external_load"
+    name = "stencil.external_load"
     field: Annotated[Operand, Attribute]
     result: Annotated[OpResult, FieldType | memref.MemRefType]
 
@@ -307,7 +278,7 @@ class ExternalStoreOp(IRDLOperation):
       stencil.store %temp to %field : !stencil.field<128x128xf64> to !fir.array<128x128xf64> # noqa
     """
 
-    name: str = "stencil.external_store"
+    name = "stencil.external_store"
     temp: Annotated[Operand, FieldType]
     field: Annotated[Operand, Attribute]
 
@@ -323,8 +294,8 @@ class IndexOp(IRDLOperation):
       %0 = stencil.index 0 [-1, 0, 0] : index
     """
 
-    name: str = "stencil.index"
-    dim: OpAttr[IntegerType]
+    name = "stencil.index"
+    dim: OpAttr[AnyIntegerAttr]
     offset: OpAttr[IndexAttr]
     idx: Annotated[OpResult, builtin.IndexType]
 
@@ -339,7 +310,7 @@ class AccessOp(IRDLOperation):
       %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
     """
 
-    name: str = "stencil.access"
+    name = "stencil.access"
     temp: Annotated[Operand, TempType]
     offset: OpAttr[IndexAttr]
     res: Annotated[OpResult, Attribute]
@@ -377,7 +348,7 @@ class DynAccessOp(IRDLOperation):
       %0 = stencil.dyn_access %temp (%i, %j, %k) in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64> -> f64
     """
 
-    name: str = "stencil.dyn_access"
+    name = "stencil.dyn_access"
     temp: Annotated[Operand, TempType]
     offset: OpAttr[IndexAttr]
     lb: OpAttr[IndexAttr]
@@ -394,26 +365,39 @@ class LoadOp(IRDLOperation):
       %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.load"
+    name = "stencil.load"
     field: Annotated[Operand, FieldType]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
     @staticmethod
-    def get(field: SSAValue | Operation):
+    def get(
+        field: SSAValue | Operation,
+        lb: IndexAttr | None = None,
+        ub: IndexAttr | None = None,
+    ):
         field_t = SSAValue.get(field).typ
         assert isinstance(field_t, FieldType)
         field_t = cast(FieldType[Attribute], field_t)
 
         return LoadOp.build(
             operands=[field],
+            attributes={
+                "lb": lb,
+                "ub": ub,
+            },
             result_types=[
-                TempType[Attribute].from_shape(
+                TempType[Attribute](
                     [-1] * len(field_t.shape.data), field_t.element_type
                 )
             ],
         )
+
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, StoreOp):
+                raise VerifyException("Cannot Load and Store the same field!")
 
 
 @irdl_op_definition
@@ -425,7 +409,7 @@ class BufferOp(IRDLOperation):
       %0 = stencil.buffer %buffered : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.buffer"
+    name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
     lb: OpAttr[IndexAttr]
     ub: OpAttr[IndexAttr]
@@ -441,7 +425,7 @@ class StoreOp(IRDLOperation):
       stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
     """
 
-    name: str = "stencil.store"
+    name = "stencil.store"
     temp: Annotated[Operand, TempType]
     field: Annotated[Operand, FieldType]
     lb: OpAttr[IndexAttr]
@@ -455,6 +439,11 @@ class StoreOp(IRDLOperation):
         ub: IndexAttr,
     ):
         return StoreOp.build(operands=[temp, field], attributes={"lb": lb, "ub": ub})
+
+    def verify_(self) -> None:
+        for use in self.field.uses:
+            if isa(use.operation, LoadOp):
+                raise VerifyException("Cannot Load and Store the same field!")
 
 
 @irdl_op_definition
@@ -470,7 +459,7 @@ class ApplyOp(IRDLOperation):
       }
     """
 
-    name: str = "stencil.apply"
+    name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
     lb: OptOpAttr[IndexAttr]
     ub: OptOpAttr[IndexAttr]
@@ -481,16 +470,11 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
+        result_types: Sequence[TempType[_FieldTypeElement]],
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
-        result_count: int = 1,
     ):
-        assert len(args) > 0
-        field_t = SSAValue.get(args[0]).typ
-        assert isinstance(field_t, TempType)
-        field_t = cast(FieldType[Attribute], field_t)
-
-        result_rank = len(field_t.shape.data)
+        assert len(result_types) > 0
 
         attributes = {}
         if lb is not None:
@@ -502,12 +486,7 @@ class ApplyOp(IRDLOperation):
             operands=[list(args)],
             attributes=attributes,
             regions=[Region(body)],
-            result_types=[
-                [
-                    TempType.from_shape([-1] * result_rank, field_t.element_type)
-                    for _ in range(result_count)
-                ]
-            ],
+            result_types=[result_types],
         )
 
 
@@ -521,7 +500,7 @@ class StoreResultOp(IRDLOperation):
       stencil.store_result : !stencil.result<f64>
     """
 
-    name: str = "stencil.store_result"
+    name = "stencil.store_result"
     args: Annotated[VarOperand, Attribute]
     res: Annotated[OpResult, ResultType]
 
@@ -541,7 +520,7 @@ class ReturnOp(IRDLOperation):
       stencil.return %0 : !stencil.result<f64>
     """
 
-    name: str = "stencil.return"
+    name = "stencil.return"
     arg: Annotated[VarOperand, ResultType | AnyFloat]
 
     @staticmethod
@@ -562,7 +541,7 @@ class CombineOp(IRDLOperation):
       %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
     """
 
-    name: str = "stencil.combine"
+    name = "stencil.combine"
     dim: Annotated[
         Operand, IntegerType
     ]  # TODO: how to use the ArrayLength constraint here? 0 <= dim <= 2
@@ -598,9 +577,8 @@ class HaloSwapOp(IRDLOperation):
         return HaloSwapOp.build(operands=[input_stencil])
 
 
-Stencil = Dialect(
+StencilExp = Dialect(
     [
-        CastOp,
         ExternalLoadOp,
         ExternalStoreOp,
         IndexOp,

@@ -11,8 +11,8 @@ from xdsl.xdsl_opt_main import xDSLOptMain
 
 def test_opt():
     opt = xDSLOptMain(args=[])
-    assert list(opt.available_frontends.keys()) == ["xdsl", "mlir"]
-    assert list(opt.available_targets.keys()) == ["xdsl", "mlir"]
+    assert list(opt.available_frontends.keys()) == ["mlir"]
+    assert list(opt.available_targets.keys()) == ["mlir", "riscv-asm"]
     assert list(opt.available_passes.keys()) == [
         "lower-mpi",
         "convert-stencil-to-ll-mlir",
@@ -20,12 +20,14 @@ def test_opt():
         "stencil-shape-inference",
         "stencil-to-local-2d-horizontal",
         "frontend-desymrefy",
+        "dce",
+        "riscv-allocate-registers",
     ]
 
 
 def test_empty_program():
     filename = "tests/xdsl_opt/empty_program.mlir"
-    opt = xDSLOptMain(args=[filename, "-t", "mlir"])
+    opt = xDSLOptMain(args=[filename])
 
     f = StringIO("")
     with redirect_stdout(f):
@@ -84,7 +86,7 @@ def test_print_to_file():
     filename_in = "tests/xdsl_opt/empty_program.mlir"
     filename_out = "tests/xdsl_opt/empty_program.out"
 
-    opt = xDSLOptMain(args=[filename_in, "-o", filename_out, "-t", "mlir"])
+    opt = xDSLOptMain(args=[filename_in, "-o", filename_out])
     opt.run()
 
     with open(filename_in, "r") as file:
@@ -111,7 +113,7 @@ def test_operation_deletion():
 
             self.register_pass(RemoveConstantPass)
 
-    opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant", "-t", "mlir"])
+    opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant"])
 
     f = StringIO("")
     with redirect_stdout(f):
@@ -120,3 +122,18 @@ def test_operation_deletion():
         expected = file.read()
 
     assert f.getvalue().strip() == expected.strip()
+
+
+def test_split_input():
+    filename_in = "tests/xdsl_opt/split_input_file.mlir"
+    filename_out = "tests/xdsl_opt/split_input_file.out"
+    flag = "-split-input-file"
+
+    opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
+    opt.run()
+    with open(filename_in, "r") as file:
+        inp = file.read()
+    with open(filename_out, "r") as file:
+        expected = file.read()
+
+    assert inp.strip() == expected.strip()

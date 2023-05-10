@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
-from xdsl.parser import BaseParser, XDSLParser, MLIRParser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
@@ -26,7 +26,7 @@ from xdsl.utils.lexer import Token
 )
 def test_int_list_parser(input: str, expected: list[int]):
     ctx = MLContext()
-    parser = XDSLParser(ctx, input)
+    parser = Parser(ctx, input)
 
     int_list = parser.parse_list_of(parser.try_parse_integer_literal, "")
     assert [int(span.text) for span in int_list] == expected
@@ -54,10 +54,52 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    attr = XDSLParser(ctx, text).parse_attribute()
-    assert isinstance(attr, DictionaryAttr)
+    attr1 = Parser(ctx, text).parse_attribute()
+    attr2 = Parser(ctx, text).parse_builtin_dict_attr()
+    attr3 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    assert isinstance(attr1, DictionaryAttr)
+    assert isinstance(attr2, DictionaryAttr)
+    assert isinstance(attr3, DictionaryAttr)
 
-    assert attr.data == data
+    assert attr1.data == data
+    assert attr2.data == data
+    assert attr3.data == data
+
+
+@pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
+def test_dictionary_attr_with_keyword_missing(text: str):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+
+
+@pytest.mark.parametrize(
+    "text, reserved_names",
+    [("{a = 1}", ["a"]), ("{a = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["a"])],
+)
+def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    with pytest.raises(ParseError):
+        Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+            reserved_names
+        )
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [("{b = 1}", ["a"]), ("{c = 1}", ["b", "a"]), ("{b = 1, a = 1}", ["c"])],
+)
+def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
+        expected
+    )
+    assert isinstance(res, DictionaryAttr)
 
 
 @irdl_attr_definition
@@ -74,7 +116,7 @@ def test_parsing():
     ctx.register_attr(DummyAttr)
 
     prog = '#dummy.attr "foo"'
-    parser = XDSLParser(ctx, prog)
+    parser = Parser(ctx, prog)
 
     r = parser.parse_attribute()
     assert r == DummyAttr()
@@ -95,7 +137,7 @@ def test_symref(ref: str, expected: Attribute | None):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    parser = XDSLParser(ctx, ref)
+    parser = Parser(ctx, ref)
     parsed_ref = parser.try_parse_ref_attr()
 
     assert parsed_ref == expected
@@ -118,24 +160,7 @@ def test_parse_multi_region_mlir():
     }) : () -> ()
     """
 
-    parser = MLIRParser(ctx, op_str)
-
-    op = parser.parse_op()
-
-    assert len(op.regions) == 2
-
-
-def test_parse_multi_region_xdsl():
-    ctx = MLContext()
-    ctx.register_op(MultiRegionOp)
-
-    op_str = """
-    "test.multi_region" () {
-    } {
-    }
-    """
-
-    parser = XDSLParser(ctx, op_str)
+    parser = Parser(ctx, op_str)
 
     op = parser.parse_op()
 
@@ -144,106 +169,98 @@ def test_parse_multi_region_xdsl():
 
 def test_parse_block_name():
     block_str = """
-    ^bb0(%name: !i32, %100: !i32):
+    ^bb0(%name: i32, %100: i32):
     """
 
     ctx = MLContext()
-    parser = XDSLParser(ctx, block_str)
+    parser = Parser(ctx, block_str)
     block = parser.parse_block()
 
-    assert block.args[0].name == "name"
-    assert block.args[1].name is None
+    assert block.args[0].name_hint == "name"
+    assert block.args[1].name_hint is None
 
 
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (BaseParser.Delimiter.NONE, "", ""),
-        (BaseParser.Delimiter.PAREN, "(", ")"),
-        (BaseParser.Delimiter.SQUARE, "[", "]"),
-        (BaseParser.Delimiter.BRACES, "{", "}"),
-        (BaseParser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.NONE, "", ""),
+        (Parser.Delimiter.PAREN, "(", ")"),
+        (Parser.Delimiter.SQUARE, "[", "]"),
+        (Parser.Delimiter.BRACES, "{", "}"),
+        (Parser.Delimiter.ANGLE, "<", ">"),
     ],
 )
 def test_parse_comma_separated_list(
-    delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
-    parser = XDSLParser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    parser = Parser(MLContext(), input)
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == [2, 4, 5]
 
 
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (BaseParser.Delimiter.PAREN, "(", ")"),
-        (BaseParser.Delimiter.SQUARE, "[", "]"),
-        (BaseParser.Delimiter.BRACES, "{", "}"),
-        (BaseParser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, "(", ")"),
+        (Parser.Delimiter.SQUARE, "[", "]"),
+        (Parser.Delimiter.BRACES, "{", "}"),
+        (Parser.Delimiter.ANGLE, "<", ">"),
     ],
 )
 def test_parse_comma_separated_list_empty(
-    delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + close_bracket
-    parser = XDSLParser(MLContext(), input)
-    res = parser.parse_comma_separated_list(
-        delimiter, parser.parse_int_literal, " in test"
-    )
+    parser = Parser(MLContext(), input)
+    res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert res == []
 
 
 def test_parse_comma_separated_list_none_delimiter_empty():
-    parser = XDSLParser(MLContext(), "o")
+    parser = Parser(MLContext(), "o")
     with pytest.raises(ParseError):
         parser.parse_comma_separated_list(
-            BaseParser.Delimiter.NONE, parser.parse_int_literal, " in test"
+            Parser.Delimiter.NONE, parser.parse_integer, " in test"
         )
 
 
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (BaseParser.Delimiter.PAREN, "(", ")"),
-        (BaseParser.Delimiter.SQUARE, "[", "]"),
-        (BaseParser.Delimiter.BRACES, "{", "}"),
-        (BaseParser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, "(", ")"),
+        (Parser.Delimiter.SQUARE, "[", "]"),
+        (Parser.Delimiter.BRACES, "{", "}"),
+        (Parser.Delimiter.ANGLE, "<", ">"),
     ],
 )
 def test_parse_comma_separated_list_error_element(
-    delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "o" + close_bracket
-    parser = XDSLParser(MLContext(), input)
+    parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "o"
-    assert e.value.msg == "Expected integer literal here"
+    assert e.value.msg == "Expected integer literal"
 
 
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
-        (BaseParser.Delimiter.PAREN, "(", ")"),
-        (BaseParser.Delimiter.SQUARE, "[", "]"),
-        (BaseParser.Delimiter.BRACES, "{", "}"),
-        (BaseParser.Delimiter.ANGLE, "<", ">"),
+        (Parser.Delimiter.PAREN, "(", ")"),
+        (Parser.Delimiter.SQUARE, "[", "]"),
+        (Parser.Delimiter.BRACES, "{", "}"),
+        (Parser.Delimiter.ANGLE, "<", ">"),
     ],
 )
 def test_parse_comma_separated_list_error_delimiters(
-    delimiter: BaseParser.Delimiter, open_bracket: str, close_bracket: str
+    delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4 5"
-    parser = XDSLParser(MLContext(), input)
+    parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
-        parser.parse_comma_separated_list(
-            delimiter, parser.parse_int_literal, " in test"
-        )
+        parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
     assert e.value.span.text == "5"
     assert e.value.msg == "Expected '" + close_bracket + "' in test"
 
@@ -287,7 +304,7 @@ def test_get_punctuation_kind(punctuation: Token.Kind):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), punctuation)
+    parser = Parser(MLContext(), punctuation)
 
     parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_punctuation(punctuation)
@@ -300,7 +317,7 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), "e +")
+    parser = Parser(MLContext(), "e +")
     parser._synchronize_lexer_and_tokenizer()
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
@@ -312,7 +329,7 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), punctuation)
+    parser = Parser(MLContext(), punctuation)
     parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
@@ -324,7 +341,7 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().keys())
 )
 def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling):
-    parser = XDSLParser(MLContext(), "e +")
+    parser = Parser(MLContext(), "e +")
     parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
 
@@ -339,10 +356,10 @@ def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling)
     ],
 )
 def test_parse_boolean(text: str, expected_value: bool | None):
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     assert parser.parse_optional_boolean() == expected_value
 
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     if expected_value is None:
         with pytest.raises(ParseError):
             parser.parse_boolean()
@@ -384,7 +401,7 @@ def test_parse_boolean(text: str, expected_value: bool | None):
 def test_parse_int(
     text: str, expected_value: int | None, allow_boolean: bool, allow_negative: bool
 ):
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     assert (
         parser.parse_optional_integer(
             allow_boolean=allow_boolean, allow_negative=allow_negative
@@ -392,7 +409,7 @@ def test_parse_int(
         == expected_value
     )
 
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     if expected_value is None:
         with pytest.raises(ParseError):
             parser.parse_integer(
@@ -420,13 +437,13 @@ def test_parse_int(
 )
 def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative: bool):
     """Test that parsing a negative without an integer after raise an error."""
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_optional_integer(
             allow_boolean=allow_boolean, allow_negative=allow_negative
         )
 
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_integer(allow_boolean=allow_boolean, allow_negative=allow_negative)
 
@@ -451,10 +468,10 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
     ],
 )
 def test_parse_number(text: str, expected_value: int | float | None):
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     assert parser.parse_optional_number() == expected_value
 
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     if expected_value is None:
         with pytest.raises(ParseError):
             parser.parse_number()
@@ -476,10 +493,10 @@ def test_parse_number_error(text: str):
     Test that parsing a negative without an
     integer or a float after raise an error.
     """
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_optional_number()
 
-    parser = MLIRParser(MLContext(), text)
+    parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_number()

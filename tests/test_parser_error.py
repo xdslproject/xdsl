@@ -10,7 +10,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
 )
-from xdsl.parser import XDSLParser
+from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError
 
 
@@ -25,7 +25,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
     ctx.register_op(UnkownOp)
 
-    parser = XDSLParser(ctx, prog)
+    parser = Parser(ctx, prog)
     with raises(ParseError) as e:
         parser.parse_operation()
 
@@ -49,13 +49,11 @@ def test_parser_missing_equal():
     ctx.register_op(UnkownOp)
 
     prog = """
-unknown() {
-  %0 : !i32 unknown()
-}
+"unknown"() ({
+  %0 "unknown"() : () -> !i32
+}) : () -> ()
 """
-    check_error(
-        prog, 3, 12, "Operation definitions expect an `=` after op-result-list!"
-    )
+    check_error(prog, 3, 5, "Operation definitions expect an `=` after op-result-list!")
 
 
 def test_parser_redefined_value():
@@ -64,10 +62,10 @@ def test_parser_redefined_value():
     ctx.register_op(UnkownOp)
 
     prog = """
-unknown() {
-  %val : !i32 = unknown()
-  %val : !i32 = unknown()
-}
+"unknown"() ({
+  %val = "unknown"() : () -> i32
+  %val = "unknown"() : () -> i32
+}) : () -> ()
 """
     check_error(prog, 4, 2, "SSA value %val is already defined")
 
@@ -78,21 +76,8 @@ def test_parser_missing_operation_name():
     ctx.register_op(UnkownOp)
 
     prog = """
-unknown() {
-  %val : !i32 =
-}
+"unknown"() ({
+  %val =
+}) : () -> ()
 """
     check_error(prog, 4, 0, "Expected an operation name here")
-
-
-def test_parser_malformed_type():
-    """Test a missing type error."""
-    ctx = MLContext()
-    ctx.register_op(UnkownOp)
-
-    prog = """
-unknown() {
-  %val : i32 = unknown()
-}
-"""
-    check_error(prog, 3, 9, "Expected type of value-id here!")

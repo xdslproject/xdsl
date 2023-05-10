@@ -30,7 +30,7 @@ with CodeContext(p):
 
 
 try:
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -45,7 +45,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -60,7 +60,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -79,7 +79,7 @@ try:
             return bb1()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -99,7 +99,7 @@ try:
             return bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -119,7 +119,7 @@ try:
             return bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -133,7 +133,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -147,7 +147,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -165,7 +165,7 @@ try:
             return bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -179,7 +179,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -193,7 +193,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -206,7 +206,7 @@ try:
             return
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -224,7 +224,7 @@ try:
             return bb0()
 
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)
 
@@ -236,6 +236,6 @@ with CodeContext(p):
 
 try:
     p.compile(desymref=False)
-    print(p.xdsl())
+    print(p.textual_format())
 except FrontendProgramException as e:
     print(e.msg)

@@ -32,6 +32,8 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+from xdsl.traits import Pure
+
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
@@ -49,9 +51,11 @@ class ConstantOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.constant"
+    name = "toy.constant"
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
         super().__init__(result_types=[value.type], attributes={"value": value})
@@ -60,6 +64,10 @@ class ConstantOp(IRDLOperation):
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
         return ConstantOp(value)
+
+    @staticmethod
+    def from_value(value: float) -> ConstantOp:
+        return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
 
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:
@@ -86,10 +94,12 @@ class AddOp(IRDLOperation):
     The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.add"
+    name = "toy.add"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
@@ -132,7 +142,7 @@ class FuncOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.func"
+    name = "toy.func"
     body: Region
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
@@ -205,7 +215,7 @@ class FuncOp(IRDLOperation):
 
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
-    name: str = "toy.generic_call"
+    name = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
 
@@ -235,10 +245,12 @@ class MulOp(IRDLOperation):
     tensors. The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.mul"
+    name = "toy.mul"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
@@ -270,7 +282,7 @@ class PrintOp(IRDLOperation):
     no results.
     """
 
-    name: str = "toy.print"
+    name = "toy.print"
     input: Annotated[Operand, AnyAttr()]
 
     def __init__(self, input: SSAValue):
@@ -293,7 +305,7 @@ class ReturnOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.return"
+    name = "toy.return"
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
     def __init__(self, input: SSAValue | None = None):
@@ -311,10 +323,12 @@ class ReshapeOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.reshape"
+    name = "toy.reshape"
     arg: Annotated[Operand, AnyTensorTypeF64]
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
@@ -342,9 +356,11 @@ class ReshapeOp(IRDLOperation):
 
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
-    name: str = "toy.transpose"
+    name = "toy.transpose"
     arguments: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset([Pure()])
 
     def __init__(self, input: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64

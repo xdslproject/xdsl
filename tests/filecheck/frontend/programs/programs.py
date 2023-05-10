@@ -5,9 +5,9 @@ from xdsl.frontend.context import CodeContext
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK: builtin.module() {
-    # CHECK-NEXT: }
+    # CHECK: "builtin.module"() ({
+    # CHECK-NEXT: }) : () -> ()
     pass
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())

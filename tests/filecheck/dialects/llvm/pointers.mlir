@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -t mlir | filecheck %s
+// RUN: xdsl-opt %s | filecheck %s
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 0 : i64} : () -> i64
   %1 = "llvm.inttoptr"(%0) : (i64) -> !llvm.ptr<i32>

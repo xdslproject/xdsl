@@ -11,6 +11,12 @@ from string import hexdigits
 
 from xdsl.utils.exceptions import ParseError
 
+Position = int
+"""
+A position in a file.
+The position correspond to the character index in the file.
+"""
+
 
 @dataclass(frozen=True)
 class Input:
@@ -54,12 +60,12 @@ class Input:
                     next_start = span.end
             return source[start:next_start].split("\n"), start, line_no
 
-    def at(self, i: int) -> str | None:
+    def at(self, i: Position) -> str | None:
         if i >= self.len:
             return None
         return self.content[i]
 
-    def slice(self, start: int, end: int) -> str | None:
+    def slice(self, start: Position, end: Position) -> str | None:
         if end > self.len or start < 0:
             return None
         return self.content[start:end]
@@ -71,11 +77,11 @@ class Span:
     Parts of the input are always passed around as spans, so we know where they originated.
     """
 
-    start: int
+    start: Position
     """
     Start of tokens location in source file, global byte offset in file
     """
-    end: int
+    end: Position
     """
     End of tokens location in source file, global byte offset in file
     """
@@ -317,13 +323,13 @@ class Lexer:
     input: Input
     """Input that is currently being lexed."""
 
-    pos: int = field(init=False, default=0)
+    pos: Position = field(init=False, default=0)
     """
     Current position in the input.
     The position can be out of bounds, in which case the lexer is in EOF state.
     """
 
-    def _is_in_bounds(self, size: int = 1) -> bool:
+    def _is_in_bounds(self, size: Position = 1) -> bool:
         """
         Check if the current position is within the bounds of the input.
         """
@@ -370,7 +376,7 @@ class Lexer:
         """
         self._consume_regex(self._whitespace_regex)
 
-    def _form_token(self, kind: Token.Kind, start_pos: int) -> Token:
+    def _form_token(self, kind: Token.Kind, start_pos: Position) -> Token:
         """
         Return a token with the given kind, and the start position.
         """
@@ -463,7 +469,7 @@ class Lexer:
 
     _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
 
-    def _lex_bare_identifier(self, start_pos: int) -> Token:
+    def _lex_bare_identifier(self, start_pos: Position) -> Token:
         """
         Lex a bare identifier with the following grammar:
         `bare-id ::= (letter|[_]) (letter|digit|[_$.])*`
@@ -474,7 +480,7 @@ class Lexer:
 
         return self._form_token(Token.Kind.BARE_IDENT, start_pos)
 
-    def _lex_at_ident(self, start_pos: int) -> Token:
+    def _lex_at_ident(self, start_pos: Position) -> Token:
         """
         Lex an at-identifier with the following grammar:
         `at-id ::= `@` (bare-id | string-literal)`
@@ -506,7 +512,7 @@ class Lexer:
 
     _suffix_id = re.compile(r"([0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*)")
 
-    def _lex_prefixed_ident(self, start_pos: int) -> Token:
+    def _lex_prefixed_ident(self, start_pos: Position) -> Token:
         """
         Parsed the following prefixed identifiers:
         ```
@@ -549,7 +555,7 @@ class Lexer:
 
     _unescaped_characters_regex = re.compile(r'[^"\\\n\v\f]*')
 
-    def _lex_string_literal(self, start_pos: int) -> Token:
+    def _lex_string_literal(self, start_pos: Position) -> Token:
         """
         Lex a string literal.
         The first character `"` is expected to have already been parsed.
@@ -589,7 +595,7 @@ class Lexer:
     _digits_star_regex = re.compile(r"[0-9]*")
     _fractional_suffix_regex = re.compile(r"\.[0-9]*([eE][+-]?[0-9]+)?")
 
-    def _lex_number(self, start_pos: int) -> Token:
+    def _lex_number(self, start_pos: Position) -> Token:
         """
         Lex a number literal, which is either a decimal or an hexadecimal.
         The first character is expected to have already been parsed.

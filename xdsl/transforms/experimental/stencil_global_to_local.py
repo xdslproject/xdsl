@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import TypeVar, Iterable, ClassVar, Callable
 from abc import ABC, abstractmethod
 from math import prod
+
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -12,6 +13,7 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import Rewriter
 from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
@@ -470,13 +472,13 @@ def generate_memcpy(
     """
     assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
     x0 = arith.Constant.from_int_and_width(ex.offset[0], builtin.IndexType())
-    x0.result.name = "x0"
+    x0.result.name_hint = "x0"
     y0 = arith.Constant.from_int_and_width(ex.offset[1], builtin.IndexType())
-    y0.result.name = "y0"
+    y0.result.name_hint = "y0"
     x_len = arith.Constant.from_int_and_width(ex.size[0], builtin.IndexType())
-    x_len.result.name = "x_len"
+    x_len.result.name_hint = "x_len"
     y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
-    y_len.result.name = "y_len"
+    y_len.result.name_hint = "y_len"
     cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
     cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
 
@@ -572,8 +574,16 @@ def generate_memcpy(
     ]
 
 
-class MpiLoopInvariantCodeMotion(RewritePattern):
+class MpiLoopInvariantCodeMotion:
     """
+    THIS IS NOT A REWRITE PATTERN!
+
+    This is a two-stage rewrite that modifies operations in a manner
+    that is incompatible with the PatternRewriter!
+
+    It implements a custom rewrite_module() method directly
+    on the class.
+
     This rewrite moves all memref.allo, mpi.comm.rank, mpi.allocate
     and mpi.unwrap_memref ops and moves them "up" until it hits a
     func.func, and then places them *before* the op they appear in.
@@ -586,15 +596,14 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
         self.seen_ops = set()
         self.has_init = set()
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
+    def rewrite(
         self,
         op: memref.Alloc
         | mpi.CommRank
         | mpi.AllocateTypeOp
         | mpi.UnwrapMemrefOp
         | mpi.Init,
-        rewriter: PatternRewriter,
+        rewriter: Rewriter,
         /,
     ):
         if op in self.seen_ops:
@@ -606,7 +615,7 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
             op.ref.owner, memref.Alloc
         ):
             op.detach()
-            rewriter.insert_op_after(op, op.ref.owner)
+            rewriter.insert_op_after(op.ref.owner, op)
             return
 
         base = op
@@ -631,19 +640,73 @@ class MpiLoopInvariantCodeMotion(RewritePattern):
         if isinstance(op, mpi.Init):
             # ignore multiple inits
             if parent in self.has_init:
-                rewriter.erase_matched_op()
+                rewriter.erase_op(op)
                 return
             self.has_init.add(parent)
             # add a finalize() call to the end of the function
-            parent.regions[0].blocks[-1].insert_op(
-                mpi.Finalize(),
-                len(parent.regions[0].blocks[-1].ops) - 1,  # insert before return
-            )
+            block = parent.regions[0].blocks[-1]
+            return_op = block.last_op
+            assert return_op is not None
+            rewriter.insert_op_before(return_op, mpi.Finalize())
 
         ops = list(collect_args_recursive(op))
-        for found_ops in ops:
-            found_ops.detach()
-        rewriter.insert_op_before(ops, base)
+        for found_op in ops:
+            found_op.detach()
+            rewriter.insert_op_before(base, found_op)
+
+    def get_matcher(
+        self,
+        worklist: list[
+            memref.Alloc
+            | mpi.CommRank
+            | mpi.AllocateTypeOp
+            | mpi.UnwrapMemrefOp
+            | mpi.Init
+        ],
+    ) -> Callable[[Operation], None]:
+        """
+        Returns a match() function that adds methods to a worklist
+        if they satisfy some criteria.
+        """
+
+        def match(op: Operation):
+            if isinstance(
+                op,
+                (
+                    memref.Alloc,
+                    mpi.CommRank,
+                    mpi.AllocateTypeOp,
+                    mpi.UnwrapMemrefOp,
+                    mpi.Init,
+                ),
+            ):
+                worklist.append(op)
+
+        return match
+
+    def rewrite_module(self, op: builtin.ModuleOp):
+        """
+        Apply the rewrite to a module.
+
+        We do a two-stage rewrite because we are modifying
+        the operations we loop on them, which would throw of `op.walk`.
+        """
+        # collect all ops that should be rewritten
+        worklist: list[
+            memref.Alloc
+            | mpi.CommRank
+            | mpi.AllocateTypeOp
+            | mpi.UnwrapMemrefOp
+            | mpi.Init
+        ] = list()
+        matcher = self.get_matcher(worklist)
+        for o in op.walk():
+            matcher(o)
+
+        # rewrite ops
+        rewriter = Rewriter()
+        for matched_op in worklist:
+            self.rewrite(matched_op, rewriter)
 
 
 _LOOP_INVARIANT_OPS = (arith.Constant, arith.Addi, arith.Muli)

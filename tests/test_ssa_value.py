@@ -25,7 +25,7 @@ def test_ssa():
 
 @irdl_op_definition
 class TwoResultOp(IRDLOperation):
-    name: str = "test.tworesults"
+    name = "test.tworesults"
 
     res1: Annotated[OpResult, StringAttr]
     res2: Annotated[OpResult, StringAttr]
@@ -63,8 +63,8 @@ def test_ssa_value_name_hints(name: str | None):
     """
     val = BlockArgument(i32, Block(), 0)
 
-    val.name = name
-    assert val.name == name
+    val.name_hint = name
+    assert val.name_hint == name
 
 
 @pytest.mark.parametrize("name", ["&", "#", "%2", '"', "::", "42"])
@@ -76,4 +76,4 @@ def test_invalid_ssa_vals(name: str):
     """
     val = BlockArgument(i32, Block(), 0)
     with pytest.raises(ValueError):
-        val.name = name
+        val.name_hint = name

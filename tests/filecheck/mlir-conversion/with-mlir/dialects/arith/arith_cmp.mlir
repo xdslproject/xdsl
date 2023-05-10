@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt -f mlir -t mlir | filecheck %s
+// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt | filecheck %s
 
 "builtin.module"() ({
   %1 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64

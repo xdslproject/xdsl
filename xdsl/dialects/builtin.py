@@ -55,7 +55,7 @@ from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import BaseParser
+    from xdsl.parser import Parser
     from utils.exceptions import ParseError
     from xdsl.printer import Printer
 
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 class NoneAttr(ParametrizedAttribute):
     """An attribute representing the absence of an attribute."""
 
-    name: str = "none"
+    name = "none"
 
 
 @dataclass
@@ -88,13 +88,13 @@ class ArrayOfConstraint(AttrConstraint):
 
 @irdl_attr_definition
 class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
-    name: str = "array"
+    name = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> tuple[AttributeCovT]:
+    def parse_parameter(parser: Parser) -> tuple[AttributeCovT]:
         parser.parse_char("[")
         data = parser.parse_list_of(parser.try_parse_attribute, "Expected attribute")
         parser.parse_char("]")
@@ -149,10 +149,10 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 @irdl_attr_definition
 class StringAttr(Data[str]):
-    name: str = "string"
+    name = "string"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> str:
+    def parse_parameter(parser: Parser) -> str:
         data = parser.parse_str_literal()
         return data
 
@@ -172,7 +172,7 @@ class StringAttr(Data[str]):
 
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
-    name: str = "symbol_name"
+    name = "symbol_name"
     data: ParameterDef[StringAttr]
 
     def __init__(self, data: str | StringAttr) -> None:
@@ -231,11 +231,11 @@ class SymbolRefAttr(ParametrizedAttribute):
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
-    name: str = "int"
+    name = "int"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> int:
-        data = parser.parse_int_literal()
+    def parse_parameter(parser: Parser) -> int:
+        data = parser.parse_integer()
         return data
 
     def print_parameter(self, printer: Printer) -> None:
@@ -259,10 +259,10 @@ class Signedness(Enum):
 
 @irdl_data_definition
 class SignednessAttr(Data[Signedness]):
-    name: str = "signedness"
+    name = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> Signedness:
+    def parse_parameter(parser: Parser) -> Signedness:
         value = parser.expect(
             parser.try_parse_bare_id, "Expected `signless`, `signed`, or `unsigned`."
         )
@@ -293,7 +293,7 @@ class SignednessAttr(Data[Signedness]):
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute, TypeAttribute):
-    name: str = "integer_type"
+    name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
 
@@ -339,7 +339,7 @@ _IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType
 
 @irdl_attr_definition
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
-    name: str = "integer"
+    name = "integer"
     value: ParameterDef[IntAttr]
     typ: ParameterDef[_IntegerAttrTyp]
 
@@ -384,32 +384,32 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 @irdl_attr_definition
 class BFloat16Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "bf16"
+    name = "bf16"
 
 
 @irdl_attr_definition
 class Float16Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f16"
+    name = "f16"
 
 
 @irdl_attr_definition
 class Float32Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f32"
+    name = "f32"
 
 
 @irdl_attr_definition
 class Float64Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f64"
+    name = "f64"
 
 
 @irdl_attr_definition
 class Float80Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f80"
+    name = "f80"
 
 
 @irdl_attr_definition
 class Float128Type(ParametrizedAttribute, TypeAttribute):
-    name: str = "f128"
+    name = "f128"
 
 
 AnyFloat: TypeAlias = (
@@ -422,7 +422,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> float:
+    def parse_parameter(parser: Parser) -> float:
         span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
         return float(span.text)
 
@@ -442,7 +442,7 @@ _FloatAttrTypInv = TypeVar("_FloatAttrTypInv", bound=AnyFloat)
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
-    name: str = "float"
+    name = "float"
 
     value: ParameterDef[FloatData]
     type: ParameterDef[_FloatAttrTyp]
@@ -491,7 +491,7 @@ AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
 @irdl_attr_definition
 class ComplexType(ParametrizedAttribute, TypeAttribute):
-    name: str = "complex"
+    name = "complex"
     element_type: ParameterDef[IntegerType | AnyFloat]
 
     def __init__(self, element_type: IntegerType | AnyFloat) -> None:
@@ -500,10 +500,10 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
-    name: str = "dictionary"
+    name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: BaseParser) -> dict[str, Attribute]:
+    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -556,7 +556,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
-    name: str = "tuple"
+    name = "tuple"
 
     types: ParameterDef[ArrayAttr[Attribute]]
 
@@ -604,7 +604,7 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]],
+        shape: Iterable[int | IntegerAttr[IndexType]],
         num_scalable_dims: int | IntAttr = 0,
     ) -> VectorType[AttributeInvT]:
         if isinstance(num_scalable_dims, int):
@@ -655,7 +655,7 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
-        shape: Sequence[int | IntegerAttr[IndexType]] | None = None,
+        shape: Iterable[int | IntegerAttr[IndexType]] | None = None,
         encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
         if shape is None:
@@ -905,22 +905,22 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
 
     @staticmethod
     def vector_from_list(
-        data: List[int] | List[float], typ: IntegerType | IndexType | AnyFloat
+        data: Sequence[int] | Sequence[float], typ: IntegerType | IndexType | AnyFloat
     ) -> DenseIntOrFPElementsAttr:
         t = VectorType.from_element_type_and_shape(typ, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
     def tensor_from_list(
-        data: List[int]
-        | List[float]
-        | List[IntegerAttr[IndexType]]
-        | List[IntegerAttr[IntegerType]]
-        | List[AnyFloatAttr],
+        data: Sequence[int]
+        | Sequence[float]
+        | Sequence[IntegerAttr[IndexType]]
+        | Sequence[IntegerAttr[IntegerType]]
+        | Sequence[AnyFloatAttr],
         typ: IntegerType | IndexType | AnyFloat,
-        shape: List[int] = [],
+        shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, shape if len(shape) else [len(data)])
+        t = AnyTensorType.from_type_and_list(typ, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -1050,7 +1050,7 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class OpaqueAttr(ParametrizedAttribute):
-    name: str = "opaque"
+    name = "opaque"
 
     ident: ParameterDef[StringAttr]
     value: ParameterDef[StringAttr]
@@ -1072,7 +1072,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
     integers.
     """
 
-    name: str = "strided"
+    name = "strided"
 
     strides: ParameterDef[ArrayAttr[IntAttr | NoneAttr]]
     offset: ParameterDef[IntAttr | NoneAttr]
@@ -1104,7 +1104,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
-    name: str = "builtin.unrealized_conversion_cast"
+    name = "builtin.unrealized_conversion_cast"
 
     inputs: VarOperand
     outputs: VarOpResult
@@ -1125,7 +1125,7 @@ class UnregisteredOp(IRDLOperation, ABC):
     and op with different names have distinct subclasses.
     """
 
-    name: str = "builtin.unregistered"
+    name = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
     args: VarOperand
@@ -1178,7 +1178,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
     representation.
     """
 
-    name: str = "builtin.unregistered"
+    name = "builtin.unregistered"
 
     attr_name: ParameterDef[StringAttr]
     is_type: ParameterDef[IntAttr]
@@ -1232,7 +1232,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
 @irdl_op_definition
 class ModuleOp(IRDLOperation):
-    name: str = "builtin.module"
+    name = "builtin.module"
 
     body: SingleBlockRegion
 
