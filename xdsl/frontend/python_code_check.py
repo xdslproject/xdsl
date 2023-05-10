@@ -1,6 +1,7 @@
 import ast
 
 from dataclasses import dataclass, field
+from typing import Sequence
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import is_constant, is_constant_stmt
 from xdsl.frontend.exception import CodeGenerationException
@@ -15,7 +16,7 @@ FunctionMap = dict[str, FunctionData]
 @dataclass
 class PythonCodeCheck:
     @staticmethod
-    def run(stmts: list[ast.stmt], file: str | None) -> FunctionMap:
+    def run(stmts: Sequence[ast.stmt], file: str | None) -> FunctionMap:
         """
         Checks if Python code within `CodeContext` is supported. On unsupported
         cases, an exception is raised.
@@ -104,7 +105,7 @@ class CheckStructure:
     structure check.
     """
 
-    def run(self, stmts: list[ast.stmt]) -> None:
+    def run(self, stmts: Sequence[ast.stmt]) -> None:
         for stmt in stmts:
             # Allow constant expression statements or pass.
             if is_constant_stmt(stmt) or isinstance(stmt, ast.Pass):
@@ -345,12 +346,12 @@ class CheckAndInlineConstants:
     """
 
     @staticmethod
-    def run(stmts: list[ast.stmt], file: str | None) -> None:
+    def run(stmts: Sequence[ast.stmt], file: str | None) -> None:
         CheckAndInlineConstants.run_with_variables(stmts, set(), file)
 
     @staticmethod
     def run_with_variables(
-        stmts: list[ast.stmt], defined_variables: set[str], file: str | None
+        stmts: Sequence[ast.stmt], defined_variables: set[str], file: str | None
     ) -> None:
         for i, stmt in enumerate(stmts):
             # This variable (`a = ...`) can be redefined as a constant, and so
