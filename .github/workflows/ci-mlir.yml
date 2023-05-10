@@ -42,7 +42,6 @@ jobs:
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         pip install -e ".[extras]"
-        pip install nbval
 
     - name: Cache binaries
       id: cache-binary
