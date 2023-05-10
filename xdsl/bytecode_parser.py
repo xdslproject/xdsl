@@ -26,9 +26,10 @@ class BytecodeParser:
             additional_bytes += 1
 
         leading_bits = first_byte >> (additional_bytes + 1)
-        assert additional_bytes == 0
 
         value_bits = leading_bits
+        for byte in self._pop_bytes(additional_bytes):
+            value_bits = (value_bits << 8) + byte
 
         sign = -1 if value_bits & 1 else 1
         value = value_bits >> 1
