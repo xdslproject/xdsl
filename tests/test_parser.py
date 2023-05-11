@@ -1,3 +1,4 @@
+from typing import cast
 import pytest
 
 from io import StringIO
@@ -283,7 +284,8 @@ def test_is_punctuation_false(punctuation: Token.Kind):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
 )
 def test_is_spelling_of_punctuation_true(punctuation: Token.Kind):
-    assert Token.Kind.is_spelling_of_punctuation(punctuation.value)
+    value = cast(Token.PunctuationSpelling, punctuation.value)
+    assert Token.Kind.is_spelling_of_punctuation(value)
 
 
 @pytest.mark.parametrize("punctuation", [">-", "o", "4", "$", "_", "@"])
@@ -295,9 +297,8 @@ def test_is_spelling_of_punctuation_false(punctuation: str):
     "punctuation", list(Token.Kind.get_punctuation_spelling_to_kind_dict().values())
 )
 def test_get_punctuation_kind(punctuation: Token.Kind):
-    assert (
-        punctuation.get_punctuation_kind_from_spelling(punctuation.value) == punctuation
-    )
+    value = cast(Token.PunctuationSpelling, punctuation.value)
+    assert punctuation.get_punctuation_kind_from_spelling(value) == punctuation
 
 
 @pytest.mark.parametrize(

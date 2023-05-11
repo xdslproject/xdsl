@@ -189,8 +189,8 @@ class SSAValue(ABC):
         """
         pass
 
-    @deprecated("Please use SSAValue.name_hint")
     @property
+    @deprecated("Please use SSAValue.name_hint")
     def name(self) -> str | None:
         return self.name_hint
 
