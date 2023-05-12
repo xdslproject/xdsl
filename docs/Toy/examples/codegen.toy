@@ -1,4 +1,4 @@
-# RUN: python -m toy %s --emit=ir | filecheck %s
+# RUN: python -m toy %s --emit=ir-toy | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {
