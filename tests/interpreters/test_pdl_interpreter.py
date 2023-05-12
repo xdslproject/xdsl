@@ -116,7 +116,7 @@ def swap_arguments_pdl():
             ).op
             pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 
-        pdl.RewriteOp(None, x_y_z_op, [], rewrite_region)
+        pdl.RewriteOp(x_y_z_op, rewrite_region)
 
     pattern = pdl.PatternOp(IntegerAttr.from_int_and_width(2, 16), None, pattern_region)
 
@@ -233,7 +233,7 @@ def add_zero_pdl():
         def rewrite_region():
             pdl.ReplaceOp(sum, repl_values=[lhs])
 
-        pdl.RewriteOp(None, sum, [], rewrite_region)
+        pdl.RewriteOp(sum, rewrite_region)
 
     pattern = pdl.PatternOp(IntegerAttr.from_int_and_width(2, 16), None, pattern_region)
 
