@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     UnitAttr,
     IntegerAttr,
+    StringAttr,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -176,6 +177,7 @@ class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -183,14 +185,20 @@ class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
         rs2: Operation | SSAValue,
         *,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
 
         super().__init__(
             operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+            },
             result_types=[rd],
         )
 
@@ -203,12 +211,14 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
 
     rd: Annotated[OpResult, RegisterType]
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr.from_int_and_width(immediate, 32)
@@ -218,11 +228,15 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
         super().__init__(
+            result_types=[rd],
             attributes={
                 "immediate": immediate,
+                "comment": comment,
             },
-            result_types=[rd],
         )
 
 
@@ -237,6 +251,7 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -244,6 +259,7 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, 32)
@@ -254,12 +270,15 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
+            result_types=[rd],
             attributes={
                 "immediate": immediate,
+                "comment": comment,
             },
-            result_types=[rd],
         )
 
 
@@ -271,20 +290,25 @@ class RdRsOperation(IRDLOperation, RISCVOp, ABC):
 
     rd: Annotated[OpResult, RegisterType]
     rs: Annotated[Operand, RegisterType]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
-        rs1: Operation | SSAValue,
+        rs: Operation | SSAValue,
         *,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
-            operands=[rs1],
+            operands=[rs],
             result_types=[rd],
+            attributes={"comment": comment},
         )
 
 
@@ -298,18 +322,29 @@ class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
 
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr]
+    offset: OpAttr[AnyIntegerAttr | LabelAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: AnyIntegerAttr,
+        offset: int | AnyIntegerAttr | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
     ):
+        if isinstance(offset, int):
+            offset = IntegerAttr.from_int_and_width(offset, 32)
+        if isinstance(offset, str):
+            offset = LabelAttr(offset)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
         super().__init__(
             operands=[rs1, rs2],
             attributes={
                 "offset": offset,
+                "comment": comment,
             },
         )
 
@@ -325,17 +360,28 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
     immediate: OpAttr[AnyIntegerAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: AnyIntegerAttr,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
     ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
         super().__init__(
             operands=[rs1, rs2],
             attributes={
                 "immediate": immediate,
+                "comment": comment,
             },
         )
 
@@ -360,8 +406,21 @@ class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     A base class for RISC-V operations that have neither sources nor destinations.
     """
 
-    def __init__(self):
-        super().__init__()
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "comment": comment,
+            },
+        )
 
 
 class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
@@ -379,6 +438,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -387,16 +447,20 @@ class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
         *,
         writeonly: bool = False,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
             attributes={
                 "csr": csr,
                 "writeonly": UnitAttr() if writeonly else None,
+                "comment": comment,
             },
             result_types=[rd],
         )
@@ -430,6 +494,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     readonly: OptOpAttr[UnitAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -438,16 +503,20 @@ class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
         *,
         readonly: bool = False,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1],
             attributes={
                 "csr": csr,
                 "readonly": UnitAttr() if readonly else None,
+                "comment": comment,
             },
             result_types=[rd],
         )
@@ -479,6 +548,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
     immediate: OptOpAttr[AnyIntegerAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -487,16 +557,20 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
         *,
         writeonly: bool = False,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             attributes={
                 "csr": csr,
                 "immediate": immediate,
                 "writeonly": UnitAttr() if writeonly else None,
+                "comment": comment,
             },
             result_types=[rd],
         )
@@ -529,6 +603,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     immediate: OpAttr[AnyIntegerAttr]
+    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -536,15 +611,19 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
         immediate: AnyIntegerAttr,
         *,
         rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
     ):
         if rd is None:
             rd = RegisterType(Register())
         elif isinstance(rd, Register):
             rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             attributes={
                 "csr": csr,
                 "immediate": immediate,
+                "comment": comment,
             },
             result_types=[rd],
         )
@@ -1410,6 +1489,25 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class CommentOp(IRDLOperation, RISCVOp):
+    name = "riscv.comment"
+    comment: OpAttr[StringAttr]
+
+    def __init__(self, comment: str | StringAttr):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "comment": comment,
+            },
+        )
+
+    def assembly_instruction(self) -> str | None:
+        return f"    # {self.comment.data}"
+
+
+@irdl_op_definition
 class EbreakOp(NullaryOperation):
     """
     The EBREAK instruction is used by debuggers to cause control to be
@@ -1554,6 +1652,7 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        CommentOp,
         GetRegisterOp,
         ScfgwOp,
     ],

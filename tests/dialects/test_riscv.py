@@ -1,7 +1,8 @@
+from xdsl.riscv_asm_writer import riscv_code
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
 
-from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -77,3 +78,23 @@ def test_csr_op():
     riscv.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
     ).verify()
+
+
+def test_comment_op():
+    comment_op = riscv.CommentOp("my comment")
+
+    assert comment_op.comment.data == "my comment"
+
+    code = riscv_code(ModuleOp([comment_op]))
+    assert code == "    # my comment\n"
+
+
+def test_return_op():
+    return_op = riscv.EbreakOp(comment="my comment")
+
+    assert return_op.comment is not None
+
+    assert return_op.comment.data == "my comment"
+
+    code = riscv_code(ModuleOp([return_op]))
+    assert code == "    ebreak                                       # my comment\n"
