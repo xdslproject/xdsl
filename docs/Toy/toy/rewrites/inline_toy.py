@@ -58,7 +58,7 @@ class InlineFunctions(RewritePattern):
         rewriter.replace_op(op, [], new_results)
 
 
-class InlineToy(ModulePass):
+class InlineToyPass(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:

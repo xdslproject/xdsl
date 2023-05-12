@@ -1,65 +1,90 @@
-from io import StringIO
 from xdsl.builder import Builder
-
-from xdsl.dialects.builtin import (
-    FunctionType,
-    ModuleOp,
-)
-
-from xdsl.printer import Printer
+from xdsl.dialects.builtin import FunctionType, ModuleOp
+from xdsl.ir import BlockArgument, OpResult, SSAValue
 
 
+from ..compiler import context
 from ..dialects import toy
+from ..rewrites.inline_toy import InlineToyPass
+from ..rewrites.optimise_toy import OptimiseToy
 
-# ctx = context()
-
-toy_program = """
-def main() {
-  # Define a variable `a` with shape <2, 3>, initialized with the literal value.
-  # The shape is inferred from the supplied literal.
-  var a = [[1, 2, 3], [4, 5, 6]];
-
-  # b is identical to a, the literal tensor is implicitly reshaped: defining new
-  # variables is the way to reshape tensors (element count must match).
-  var b<3, 2> = [1, 2, 3, 4, 5, 6];
-
-  # There is a built-in print instruction to display the contents of the tensor
-  print(b);
-
-  # Reshapes are implicit on assignment
-  var c<2, 3> = b;
-
-  # There are + and * operators for pointwise addition and multiplication
-  var d = a + c;
-
-  print(d);
+"""
+toy.func @multiply_transpose(%arg0: tensor<*xf64>, %arg1: tensor<*xf64>) -> tensor<*xf64> {
+  %0 = toy.transpose(%arg0 : tensor<*xf64>) to tensor<*xf64>
+  %1 = toy.transpose(%arg1 : tensor<*xf64>) to tensor<*xf64>
+  %2 = toy.mul %0, %1 : tensor<*xf64>
+  toy.return %2 : tensor<*xf64>
+}
+toy.func @main() {
+  %0 = toy.constant dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>
+  %1 = toy.reshape(%0 : tensor<2x3xf64>) to tensor<2x3xf64>
+  %2 = toy.constant dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00, 5.000000e+00, 6.000000e+00]> : tensor<6xf64>
+  %3 = toy.reshape(%2 : tensor<6xf64>) to tensor<2x3xf64>
+  %4 = toy.generic_call @multiply_transpose(%1, %3) : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
+  %5 = toy.generic_call @multiply_transpose(%3, %1) : (tensor<2x3xf64>, tensor<2x3xf64>) -> tensor<*xf64>
+  toy.print %5 : tensor<*xf64>
+  toy.return
 }
 """
-
-
-def desc(op: ModuleOp) -> str:
-    stream = StringIO()
-    Printer(stream=stream).print(op)
-    return stream.getvalue()
 
 
 @ModuleOp
 @Builder.implicit_region
 def toy_0():
+    unrankedf64TensorType = toy.UnrankedTensorType.from_type(toy.f64)
+
+    multiply_transpose_type = FunctionType.from_lists(
+        [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]
+    )
+
+    @Builder.implicit_region(multiply_transpose_type.inputs)
+    def multiply_transpose(args: tuple[BlockArgument, ...]) -> None:
+        a, b = args
+        a_t = toy.TransposeOp(a).res
+        b_t = toy.TransposeOp(b).res
+        prod = toy.MulOp(a_t, b_t).res
+        toy.ReturnOp(prod)
+
+    def call_multiply_transpose(a: SSAValue, b: SSAValue) -> OpResult:
+        return toy.GenericCallOp(
+            "multiply_transpose", [a, b], [unrankedf64TensorType]
+        ).res[0]
+
     main_type = FunctionType.from_lists([], [])
 
     @Builder.implicit_region
     def main() -> None:
-        a = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
-        b_0 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6]).res
-        b = toy.ReshapeOp(b_0, [3, 2]).res
-        toy.PrintOp(b)
-        c = toy.ReshapeOp(b, [2, 3]).res
-        d = toy.AddOp(a, c).res
-        toy.PrintOp(d)
+        x0 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
+        x1 = toy.ReshapeOp(x0, [2, 3]).res
+        x2 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6]).res
+        x3 = toy.ReshapeOp(x2, [2, 3]).res
+        _x4 = call_multiply_transpose(x1, x3)
+        x5 = call_multiply_transpose(x3, x1)
+        toy.PrintOp(x5)
         toy.ReturnOp()
 
+    toy.FuncOp(
+        "multiply_transpose",
+        multiply_transpose_type,
+        multiply_transpose,
+        private=True,
+    )
     toy.FuncOp("main", main_type, main)
+
+
+"""
+toy.func @main() {
+  %0 = toy.constant dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>
+  %1 = toy.constant dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>
+  %2 = toy.cast %1 : tensor<2x3xf64> to tensor<*xf64>
+  %3 = toy.cast %0 : tensor<2x3xf64> to tensor<*xf64>
+  %4 = toy.transpose(%2 : tensor<*xf64>) to tensor<*xf64>
+  %5 = toy.transpose(%3 : tensor<*xf64>) to tensor<*xf64>
+  %6 = toy.mul %4, %5 : tensor<*xf64>
+  toy.print %6 : tensor<*xf64>
+  toy.return
+}
+"""
 
 
 @ModuleOp
@@ -69,12 +94,24 @@ def toy_1():
 
     @Builder.implicit_region
     def main() -> None:
-        a = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
-        b = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [3, 2]).res
-        toy.PrintOp(b)
-        c = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
-        d = toy.AddOp(a, c).res
-        toy.PrintOp(d)
+        x0 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
+        x1 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [3, 2]).res
+        x2 = toy.CastOp(x1).res
+        x3 = toy.CastOp(x0).res
+        x4 = toy.TransposeOp(x2).res
+        x5 = toy.TransposeOp(x3).res
+        x6 = toy.MulOp(x4, x5).res
+        toy.PrintOp(x6)
         toy.ReturnOp()
 
     toy.FuncOp("main", main_type, main)
+
+
+ctx = context()
+
+
+def test_inline():
+    copy = toy_0.clone()
+    OptimiseToy().apply(ctx, copy)
+    InlineToyPass().apply(ctx, copy)
+    assert str(copy) == str(toy_1)
