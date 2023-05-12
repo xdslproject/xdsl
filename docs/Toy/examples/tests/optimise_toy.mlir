@@ -38,7 +38,7 @@
   }) {"sym_name" = "constant_reshape", "function_type" = () -> ()} : () -> ()
 
 // CHECK-NEXT:  "toy.func"() ({
-// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+// CHECK-NEXT:    %{{.*}} = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
 // CHECK-NEXT:    "toy.return"(%{{.*}}) : (tensor<2x3xf64>) -> ()
 // CHECK-NEXT:  }) {"sym_name" = "constant_reshape", "function_type" = () -> ()} : () -> ()
 
