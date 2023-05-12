@@ -62,9 +62,7 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
             component_strs.append(component)
         else:
             assert isinstance(component.typ, RegisterType)
-            reg = component.typ.data.name
-            if reg is None:
-                raise ValueError("Cannot emit riscv assembly for unallocated register")
+            reg = component.typ.register_name
             component_strs.append(reg)
 
     code = f"    {instruction_name} {', '.join(component_strs)}"
