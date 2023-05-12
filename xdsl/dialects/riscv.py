@@ -340,6 +340,21 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RsRsOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V operations that have two source
+    registers.
+    """
+
+    rs1: Annotated[Operand, RegisterType]
+    rs2: Annotated[Operand, RegisterType]
+
+    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+        super().__init__(
+            operands=[rs1, rs2],
+        )
+
+
 class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
@@ -1421,7 +1436,7 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
-# RISC-V SSA Helpers
+# region RISC-V SSA Helpers
 
 
 @irdl_op_definition
@@ -1458,6 +1473,25 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
             register_type = RegisterType(register_type)
         super().__init__(result_types=[register_type])
 
+
+# endregion
+
+# region RISC-V Extensions
+
+
+@irdl_op_definition
+class ScfgwOp(RsRsOperation):
+    """
+    Write a the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+
+    This is an extension of the RISC-V ISA.
+    """
+
+    name = "riscv.scfgw"
+
+
+# endregion
 
 RISCV = Dialect(
     [
@@ -1521,6 +1555,7 @@ RISCV = Dialect(
         EbreakOp,
         WfiOp,
         GetRegisterOp,
+        ScfgwOp,
     ],
     [
         RegisterType,
