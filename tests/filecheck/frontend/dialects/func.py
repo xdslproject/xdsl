@@ -13,7 +13,7 @@ with CodeContext(p):
     # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT: }) {"sym_name" = "f1", "function_type" = (i32) -> (), "sym_visibility" = "private"} : () -> ()
     def f1(x: i32):
-        pass
+        return
 
     # CHECK:      "func.func"() ({
     # CHECK-NEXT:   "func.return"() : () -> ()

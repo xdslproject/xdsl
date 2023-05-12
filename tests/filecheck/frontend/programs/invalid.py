@@ -38,11 +38,11 @@ try:
     with CodeContext(p):
 
         def foo():
-            pass
+            return
 
-        # CHECK: Function 'foo' is already defined.
+        # CHECK: Function 'foo' is already defined
         def foo():
-            pass
+            return
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -70,11 +70,13 @@ try:
         def foo():
             @block
             def bb1():
-                # CHECK-NEXT: Cannot have an inner function 'foo' inside the block 'bb1'.
+                # CHECK-NEXT: Cannot have a nested function 'foo' inside the block 'bb1'.
                 def foo():
                     return
 
-            bb1()
+                return
+
+            return bb1()
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -92,9 +94,9 @@ try:
                 def bb1():
                     return
 
-                bb1()
+                return bb1()
 
-            bb0()
+            return bb0()
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -107,14 +109,14 @@ try:
         def foo():
             @block
             def bb0():
-                bb0()
+                return bb0()
 
-            # CHECK-NEXT: Block 'bb0' is already defined in function 'foo'.
+            # CHECK-NEXT: Block 'bb0' is already defined
             @block
             def bb0():
                 return
 
-            bb0()
+            return bb0()
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -124,52 +126,12 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
 
-        @block
-        def bb0():
-            bb0()
-
-        # CHECK-NEXT: Block 'bb0' is already defined.
-        @block
-        def bb0():
+        def test():
+            a: Const[i32] = 23
+            # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
+            a = 3
             return
 
-        bb0()
-
-    p.compile(desymref=False)
-    print(p.textual_format())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-
-        @block
-        def bb0():
-            # CHECK-NEXT: Cannot have an inner function 'foo' inside the block 'bb0'.
-            def foo():
-                return
-
-        bb0()
-
-    p.compile(desymref=False)
-    print(p.textual_format())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-
-        @block
-        def bb0():
-            # CHECK-NEXT: Cannot have a nested block 'bb1' inside the block 'bb0'.
-            @block
-            def bb1():
-                return
-
-            bb1()
-
-        bb0()
-
     p.compile(desymref=False)
     print(p.textual_format())
 except FrontendProgramException as e:
@@ -178,19 +140,11 @@ except FrontendProgramException as e:
 try:
     with CodeContext(p):
         a: Const[i32] = 23
-        # CHECK-NEXT: Constant 'a' is already defined and cannot be assigned to.
-        a = 3
 
-    p.compile(desymref=False)
-    print(p.textual_format())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        a: Const[i32] = 23
         # CHECK-NEXT: Constant 'a' is already defined.
-        a: i32 = 3
+        def test():
+            a: i32 = 3
+            return
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -201,30 +155,14 @@ try:
     with CodeContext(p):
         b: Const[i32] = 23
 
-        @block
-        def bb0():
-            # CHECK-NEXT: Constant 'b' is already defined and cannot be assigned to.
-            b = 3
-            return
+        def test():
+            @block
+            def bb0():
+                # CHECK-NEXT: Constant 'b' is already defined and cannot be assigned to.
+                b = 3
+                return
 
-        bb0()
-
-    p.compile(desymref=False)
-    print(p.textual_format())
-except FrontendProgramException as e:
-    print(e.msg)
-
-try:
-    with CodeContext(p):
-        b: Const[i32] = 23
-
-        @block
-        def bb0():
-            # CHECK-NEXT: Constant 'b' is already defined.
-            b: i32 = 3
-            return
-
-        bb0()
+            return bb0()
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -283,8 +221,7 @@ try:
                 e = 2
                 return
 
-            bb0()
-            return
+            return bb0()
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -292,9 +229,9 @@ except FrontendProgramException as e:
     print(e.msg)
 
 with CodeContext(p):
-    # CHECK-NEXT: Expected 'foo' to return a type.
+    # CHECK-NEXT: Expected non-zero number of return types in function 'foo', but got 0.
     def foo() -> i32:
-        pass
+        return
 
 
 try:
