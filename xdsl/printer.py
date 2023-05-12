@@ -452,8 +452,10 @@ class Printer:
         if isinstance(attribute, DenseIntOrFPElementsAttr):
 
             def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr | FloatAttr):
+                if isinstance(val, IntegerAttr):
                     self.print(val.value.data)
+                elif isinstance(val, FloatAttr):
+                    self.print(f"{val.value.data:.6e}")
                 else:
                     raise Exception(
                         "unexpected attribute type "

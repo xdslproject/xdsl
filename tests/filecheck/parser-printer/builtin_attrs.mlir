@@ -117,21 +117,21 @@
                       value2 = dense<[0.0, 1.0]> : tensor<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<[[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.0, 1.0]> : tensor<2xf64>
+  // CHECK: "value1" = dense<[[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.000000e+00, 1.000000e+00]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<[0]> : vector<1xi32>,
                       value2 = dense<[0.0, 1.0]> : vector<2xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<0> : vector<1xi32>, "value2" = dense<[0.0, 1.0]> : vector<2xf64>
+  // CHECK: "value1" = dense<0> : vector<1xi32>, "value2" = dense<[0.000000e+00, 1.000000e+00]> : vector<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<> : tensor<1x23x0x4xi32>,
                       value2 = dense<[[0.0], [1.0]]> : tensor<2x1xf64>,
                       sym_name = "dense_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.0], [1.0]]> : tensor<2x1xf64>
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.000000e+00], [1.000000e+00]]> : tensor<2x1xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<12> : tensor<2x3xi32>,
