@@ -28,7 +28,7 @@ class SimplifyRedundantTranspose(RewritePattern):
         Fold transpose(transpose(x)) -> x
         """
         # Look at the input of the current transpose.
-        transpose_input = op.arguments
+        transpose_input = op.arg
         if not isinstance(transpose_input, OpResult):
             # Input was not produced by an operation, could be a function argument
             return
@@ -38,7 +38,7 @@ class SimplifyRedundantTranspose(RewritePattern):
             # Input defined by another transpose? If not, no match.
             return
 
-        rewriter.replace_op(op, [], [transpose_input_op.arguments])
+        rewriter.replace_op(op, [], [transpose_input_op.arg])
 
 
 class ReshapeReshapeOpPattern(RewritePattern):

@@ -8,6 +8,7 @@ from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
 from .compiler import context
 from .rewrites.optimise_toy import OptimiseToy
+from .rewrites.shape_inference import ShapeInferencePass
 
 
 parser = argparse.ArgumentParser(description="Process Toy file")
@@ -53,6 +54,7 @@ def main(path: Path, emit: str, opt: bool):
         return
 
     OptimiseToy().apply(ctx, module_op)
+    ShapeInferencePass().apply(ctx, module_op)
 
     if emit == "ir-toy" and opt:
         printer = Printer()
