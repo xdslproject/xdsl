@@ -438,7 +438,8 @@ class TransposeOp(IRDLOperation):
         else:
             if not isa(arg.typ, UnrankedTensorTypeF64):
                 raise ValueError(
-                    f"Unexpected operand of type {arg.typ} passed to TransposeOp, expected {TensorTypeF64 | UnrankedTensorTypeF64}"
+                    f"Unexpected operand of type {arg.typ} passed to TransposeOp, "
+                    "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
                 )
             output_type = arg.typ
 
