@@ -478,10 +478,10 @@ class RewriteOp(IRDLOperation):
 
     def __init__(
         self,
-        name: str | StringAttr | None,
         root: SSAValue | None,
-        external_args: Sequence[SSAValue],
-        body: Region | Block.BlockCallback | None,
+        body: Region | Block.BlockCallback | None = None,
+        name: str | StringAttr | None = None,
+        external_args: Sequence[SSAValue] = (),
     ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
