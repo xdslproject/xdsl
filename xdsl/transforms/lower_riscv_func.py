@@ -9,7 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     PatternRewriter,
 )
-from xdsl.dialects import riscv, riscv_structured
+from xdsl.dialects import riscv, riscv_func
 from xdsl.transforms.dead_code_elimination import dce
 
 
@@ -19,9 +19,7 @@ class LowerSyscallOp(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: riscv_structured.SyscallOp, rewriter: PatternRewriter
-    ):
+    def match_and_rewrite(self, op: riscv_func.SyscallOp, rewriter: PatternRewriter):
         ops: list[Operation] = []
 
         for i, arg in enumerate(op.args):
@@ -52,8 +50,8 @@ class LowerSyscallOp(RewritePattern):
         rewriter.replace_matched_op(ops, new_results=new_results)
 
 
-class LowerRISCVStructured(ModulePass):
-    name = "lower-riscv-structured"
+class LowerRISCVFunc(ModulePass):
+    name = "lower-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)

@@ -18,7 +18,7 @@ from xdsl.dialects import riscv
 
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
-    name = "riscv_structured.syscall"
+    name = "riscv_func.syscall"
     args: Annotated[VarOperand, riscv.RegisterType]
     syscall_num: OpAttr[IntegerAttr[IntegerType]]
     result: Annotated[OptOpResult, riscv.RegisterType]
@@ -52,7 +52,7 @@ class SyscallOp(IRDLOperation):
             )
 
 
-RISCV_Structured = Dialect(
+RISCV_Func = Dialect(
     [
         SyscallOp,
     ],
